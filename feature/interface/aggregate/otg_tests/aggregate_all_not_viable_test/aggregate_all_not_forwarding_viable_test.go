@@ -468,7 +468,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
 		trafficDistributionWeights = []uint64{50, 50}
-		if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER  {
+		if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
 			trafficDistributionWeights = []uint64{33, 67}
 		}
 	}
