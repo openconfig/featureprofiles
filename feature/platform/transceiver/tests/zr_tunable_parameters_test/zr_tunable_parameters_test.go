@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	fpargs "github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -18,7 +19,6 @@ import (
 const (
 	samplingInterval   = 10 * time.Second
 	frequencyTolerance = 1800
-	dp16QAM            = 1
 )
 
 var (
@@ -41,6 +41,7 @@ func Test400ZRTunableFrequency(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
+	dp16QAM := uint16(*fpargs.OpticChannelOperationalMode)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -76,6 +77,14 @@ func Test400ZRTunableFrequency(t *testing.T) {
 			targetOutputPower: -9,
 		},
 	}
+	opticalChannelList := []string{oc1, oc2}
+	//Set config container leaf for optical channel
+	for _, opticChannel := range opticalChannelList {
+		setConfigLeaf := gnmi.OC().Component(opticChannel)
+		gnmi.Update(t, dut, setConfigLeaf.Config(), &oc.Component{
+			Name: ygot.String(opticChannel),
+		})
+	}
 	for _, tc := range tests {
 		t.Run(tc.description, func(t *testing.T) {
 			for freq := tc.startFreq; freq <= tc.endFreq; freq += tc.freqStep {
@@ -108,6 +117,7 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	dp16QAM := uint16(*fpargs.OpticChannelOperationalMode)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -116,6 +126,14 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 	defer streamOC1.Close()
 	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).State(), 10*time.Second)
 	defer streamOC2.Close()
+	opticalChannelList := []string{oc1, oc2}
+	//Set config container leaf for optical channel
+	for _, opticChannel := range opticalChannelList {
+		setConfigLeaf := gnmi.OC().Component(opticChannel)
+		gnmi.Update(t, dut, setConfigLeaf.Config(), &oc.Component{
+			Name: ygot.String(opticChannel),
+		})
+	}
 	tests := []struct {
 		description            string
 		frequency              uint64
@@ -165,6 +183,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
+	dp16QAM := uint16(*fpargs.OpticChannelOperationalMode)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -224,6 +243,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 }
 func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component], frequency uint64, outputPower float64) {
 	dut := ondatra.DUT(t, "dut")
+	dp16QAM := uint16(*fpargs.OpticChannelOperationalMode)
 	var ocs []*oc.Component_OpticalChannel
 	for _, s := range streams {
 		val := s.Next()
