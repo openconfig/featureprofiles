@@ -336,10 +336,14 @@ func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 	//n := &oc.NetworkInstance{Name: ygot.String("DEFAULT")}
 
 	if action {
-		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+		//gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+		gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), true)
 		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		//gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, port).Name()).Subinterface(0).Enabled().Config(), false)
+
 	} else {
-		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+		//gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+		gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), false)
 		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 	}
 }
