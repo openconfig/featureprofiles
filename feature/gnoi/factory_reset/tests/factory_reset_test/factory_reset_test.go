@@ -36,7 +36,7 @@ import (
 
 var (
 	remoteFilePath = map[ondatra.Vendor]string{
-		ondatra.CISCO:   "/misc/disk1/",
+		ondatra.CISCO:   "harddisk:/",
 		ondatra.NOKIA:   "/tmp/",
 		ondatra.JUNIPER: "/var/tmp/",
 		ondatra.ARISTA:  "/mnt/flash/",
