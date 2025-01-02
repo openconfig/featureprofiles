@@ -326,7 +326,7 @@ network-instances {
     *   Add 1 VRF for decapsulation, `DECAP_TE_VRF`.
     *   Add 2 Tunnel VRFs, `TE_VRF_111` and `TE_VRF_222`.
     *   Inject 5000 IPv4Entry-ies and 5000 IPv6Entry-ies to each of the 4 encap VRFs.
-    *   The entries in the encap VRFs should point to NextHopGroups in the `DEFAULT` VRF. Inject 200 such NextHopGroups in the DEFAULT VRF.
+    *   The entries in the encap VRFs should point to NextHopGroups in the `DEFAULT` VRF. Inject 800 such NextHopGroups in the DEFAULT VRF.
     *   Each NextHopGroup should have 8 NextHops where each NextHop points to a tunnel in the `TE_VRF_111`. In addition, the weights specified in the NextHopGroup should be co-prime and the sum of the weights should be 16.
     *   Inject `48` entries in the DECAP_TE_VRF where the entries have a mix of prefix lengths /22, /24, /26, and /28.
 
@@ -395,7 +395,7 @@ network-instances {
     * outer_src: `ipv4_outer_src_111`
     * outer_dst: `ipv4_outer_decap_match`
     * dscp: `dscp_encap_d`
-    * proto: `41`    
+    * proto: `41`
     ```
 
 3.  Send traffic to DUT-1, covering all the installed v4 and v6 entries in the decap and encap VRFs. Validate that all traffic are all decapped per the DECAP VRFs and then encapsulated per the ENCAP VRFs and received as encapsulated packet by ATE.
