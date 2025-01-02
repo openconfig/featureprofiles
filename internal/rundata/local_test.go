@@ -15,6 +15,7 @@
 package rundata
 
 import (
+	"flag"
 	"fmt"
 	"os/exec"
 	"runtime/debug"
@@ -22,10 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"flag"
-
 	"github.com/go-git/go-billy/v5/memfs"
-	gitv5 "github.com/go-git/go-git/v5"
+	gitV5 "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -55,10 +54,10 @@ func TestBuildInfo(t *testing.T) {
 	}
 }
 
-func newGitRepo() (*gitv5.Repository, error) {
+func newGitRepo() (*gitV5.Repository, error) {
 	// Use repo.Storer to get the object storer, and
 	// repo.Worktree().Filesystem to get the worktree.
-	return gitv5.Init(
+	return gitV5.Init(
 		memory.NewStorage(),
 		memfs.New(),
 	)
@@ -80,7 +79,7 @@ var commitSignature = &object.Signature{
 	When:  time.Now().Round(time.Second), // Git only keeps time in seconds.
 }
 
-func addCommit(repo *gitv5.Repository) (plumbing.Hash, error) {
+func addCommit(repo *gitV5.Repository) (plumbing.Hash, error) {
 	var emptyHash plumbing.Hash
 
 	wt, err := repo.Worktree()
@@ -97,7 +96,7 @@ func addCommit(repo *gitv5.Repository) (plumbing.Hash, error) {
 	f.Close()
 
 	wt.Add("foo")
-	return wt.Commit("commit message", &gitv5.CommitOptions{
+	return wt.Commit("commit message", &gitV5.CommitOptions{
 		Author: commitSignature,
 	})
 }
@@ -317,7 +316,7 @@ func TestGitInfo(t *testing.T) {
 
 	got := make(map[string]string)
 	gotWd := gitInfo(got)
-	if gotWd != string(wantWd) {
+	if gotWd != wantWd {
 		t.Errorf("gitInfo got %q, want %q", gotWd, wantWd)
 	}
 	t.Log(got)
