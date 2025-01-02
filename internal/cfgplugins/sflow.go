@@ -57,7 +57,7 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 // NewSFlowCollector creates a collector to be appended to SFlowConfig.
 // If sfc is nil, default values are provided.
 func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow_Collector, d *ondatra.DUTDevice, ni, intfName string, srcAddrV4 string, srcAddrV6 string, ip string) []*oc.Sampling_Sflow_Collector {
-	coll := []*oc.Sampling_Sflow_Collector{}
+	var coll []*oc.Sampling_Sflow_Collector
 
 	if newcfg == nil {
 		intf := gnmi.Get[*oc.Interface](t, d, gnmi.OC().Interface(intfName).State())
