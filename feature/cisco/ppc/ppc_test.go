@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestShowDrops_nputraps(t *testing.T) {
+func TestShowDropsNputraps(t *testing.T) {
 	t.Log("Name: OC PPC")
 
 	dut := ondatra.DUT(t, "dut")
@@ -127,7 +127,7 @@ func TestShowDrops_nputraps(t *testing.T) {
 	}
 }
 
-func TestShowDrops_npudrops(t *testing.T) {
+func TestShowDropsNpudrops(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -215,7 +215,7 @@ func TestShowDrops_npudrops(t *testing.T) {
 	}
 }
 
-func TestShowDrops_cefipv4drops(t *testing.T) {
+func TestShowDropsCefipv4drops(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -311,7 +311,7 @@ func TestShowDrops_cefipv4drops(t *testing.T) {
 	}
 }
 
-func TestShowDrops_cefipv6drops(t *testing.T) {
+func TestShowDropsCefipv6drops(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -396,7 +396,7 @@ func TestShowDrops_cefipv6drops(t *testing.T) {
 	}
 }
 
-func TestShowDrops_lptsdrops(t *testing.T) {
+func TestShowDropsLptsdrops(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -480,7 +480,7 @@ func TestShowDrops_lptsdrops(t *testing.T) {
 	}
 }
 
-func TestShowDrops_multicast(t *testing.T) {
+func TestShowDropsMulticast(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -564,7 +564,7 @@ func TestShowDrops_multicast(t *testing.T) {
 	}
 }
 
-func TestShowDrops_mac(t *testing.T) {
+func TestShowDropsMac(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -731,7 +731,6 @@ func TestOcPpcDropLookupBlock(t *testing.T) {
 
 				// aggregate post counters for a path across all the destination NPUs
 				for path, query := range data {
-					//	gnmi().OC().Component()
 					post, err := getData(t, path, query)
 					if err != nil {
 						t.Fatalf("failed to get data for path %s post trigger: %v", path, err)

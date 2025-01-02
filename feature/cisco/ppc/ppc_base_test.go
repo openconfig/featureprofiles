@@ -352,7 +352,7 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*tgnOptions) uint64 {
 	t.Helper()
 	args.ate.Traffic().Start(t, flow)
-	// run traffic for 30 seconds, before introducing fault
+	// run traffic for 32 seconds, before introducing fault
 	time.Sleep(time.Duration(32) * time.Second)
 
 	// Set configs if needed for the trigger scenario
