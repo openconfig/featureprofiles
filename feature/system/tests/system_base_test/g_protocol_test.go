@@ -65,7 +65,7 @@ func TestGNMIClient(t *testing.T) {
 				{Name: "config"},
 				{Name: "hostname"},
 			},
-		}}); err != nil {
+		}}}); err != nil {
 		t.Fatalf("gnmi.Get failed: %v", err)
 	}
 }
