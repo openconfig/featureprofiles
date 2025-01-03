@@ -134,7 +134,7 @@ func configurePBF(dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
 
 // applyForwardingPolicy applies the forwarding policy on the interface.
 func applyForwardingPolicy(t *testing.T, ingressPort string) {
-	t.Logf("Apply7ing forwarding policy on interface %v ... ", ingressPort)
+	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	interfaceID := ingressPort
