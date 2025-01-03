@@ -196,6 +196,7 @@ func TestWithDCBackUp(t *testing.T) {
 	nh := 1
 	nhip := "192.0.9.2"
 	p4ip := "206.206.206.22"
+	pre := "198.51.100.11"
 	for i := 1; i <= 2; i++ {
 		args.client.AddNH(t, uint64(nh), nhip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	}
@@ -208,11 +209,11 @@ func TestWithDCBackUp(t *testing.T) {
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{1000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	ipv4Entry := fluent.IPv4Entry().
 		WithNetworkInstance(vrf1).
-		WithPrefix(enc).
+		WithPrefix(pre + "/32").
 		WithNextHopGroup(uint64(102)).
 		WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-	args.client.AddNH(t, uint64(3000), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{encp}, VrfName: vrf1})
+	args.client.AddNH(t, uint64(3000), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{pre}, VrfName: vrf1})
 	args.client.AddNHG(t, 103, 0, map[uint64]uint64{3000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	ipv4Entry = fluent.IPv4Entry().
 		WithNetworkInstance(vrfEncapA).
@@ -346,8 +347,8 @@ func TestWithDCBackUp(t *testing.T) {
 		})
 
 		t.Run("Ping, Traceroute test Ip", func(t *testing.T) {
-			p1 := dut.Port(t, "port2")
-			p2 := dut.Port(t, "port4")
+			p1 = dut.Port(t, "port2")
+			p2 = dut.Port(t, "port4")
 
 			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ip-ping", IpEncap, Loopback0, vrfEncapA)
 			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ip-traceroute", IpEncap, Loopback0, vrfEncapA, &Traceptions{Ip: "ip"})
