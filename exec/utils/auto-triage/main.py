@@ -5,6 +5,7 @@ from Database import Database
 from CIT import CIT
 
 if __name__ == "__main__":
+    """Entry Point"""
     parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoDB')
     parser.add_argument('run_id', help="FireX Run ID")
     parser.add_argument('xunit_file', help="XUnit Result File")
