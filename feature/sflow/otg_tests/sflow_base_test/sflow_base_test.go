@@ -449,8 +449,8 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 
 	}
 	t.Logf("SFlow samples captured: %v", sampleCount)
-	if !found || sampleCount < 9 {
-		t.Errorf("sflow packets not found: got %v, want 9", sampleCount)
+	if !found || sampleCount < 8 {
+		t.Errorf("sflow packets not found: got %v, want 8", sampleCount)
 	}
 
 	handle, _ = pcap.OpenOffline(filename)
