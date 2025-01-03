@@ -14,7 +14,7 @@ Validate gRIBI scaling requirements.
 *   On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-2 (based on src. IP match 222.222.222.222)
 *   Establish gRIBI client connection with DUT negotiating FIBACK as the
     requested ack_type and make it become leader.
-*   **TODO**: Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
+*   [**TODO**](https://github.com/openconfig/featureprofiles/issues/3676): Using gRIBI Modify RPC install the following IPv4Entry sets, and validate
     the specified behaviours:
     *   Default VRF
         * A) Install 400 NextHops, egressing out different interfaces.
@@ -33,7 +33,7 @@ Validate gRIBI scaling requirements.
     *   VRF3
         *   Install 9000 IPv4Entries (Same IPAddress as VRF1).  Each points to a NextHopGroup from H).
 *   Validate that each entry above are installed as FIB_PROGRAMMED.
-*   **TODO: Add flows destinating to IPBlocks and ensure ATEPort2 receives it with
+*   **TODO**: Add flows destinating to IPBlocks and ensure ATEPort2 receives it with
     no loss and proper weights
 
 ## OpenConfig Path and RPC Coverage
