@@ -61,46 +61,34 @@ func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 
 	if newcfg == nil {
 		intf := gnmi.Get[*oc.Interface](t, d, gnmi.OC().Interface(intfName).State())
-
+		var address, srcAddress string
 		switch ip {
 		case "IPv4":
-			cV4 := new(oc.Sampling_Sflow_Collector)
-			cV4.SetAddress("192.0.2.129")
-			cV4.SetPort(6343)
-
-			if deviations.SflowSourceAddressUpdateUnsupported(d) {
-				sFlowSourceAddressCli := ""
-				switch d.Vendor() {
-				case ondatra.ARISTA:
-					sFlowSourceAddressCli = fmt.Sprintf("sflow vrf %s source-interface %s", ni, intf.GetName())
-				}
-				if sFlowSourceAddressCli != "" {
-					helpers.GnmiCLIConfig(t, d, sFlowSourceAddressCli)
-				}
-			} else {
-				cV4.SetSourceAddress(srcAddrV4)
-			}
-			cV4.SetNetworkInstance(ni)
-			coll = append(coll, cV4)
+			address = "192.0.2.129"
+			srcAddress = srcAddrV4
 		case "IPv6":
-			cV6 := new(oc.Sampling_Sflow_Collector)
-			cV6.SetAddress("2001:db8::129")
-			cV6.SetPort(6343)
-			if deviations.SflowSourceAddressUpdateUnsupported(d) {
-				sFlowSourceAddressCli := ""
-				switch d.Vendor() {
-				case ondatra.ARISTA:
-					sFlowSourceAddressCli = fmt.Sprintf("sflow vrf %s source-interface %s", ni, intf.GetName())
-				}
-				if sFlowSourceAddressCli != "" {
-					helpers.GnmiCLIConfig(t, d, sFlowSourceAddressCli)
-				}
-			} else {
-				cV6.SetSourceAddress(srcAddrV6)
-			}
-			cV6.SetNetworkInstance(ni)
-			coll = append(coll, cV6)
+			address = "2001:db8::129"
+			srcAddress = srcAddrV6
 		}
+
+		cV := new(oc.Sampling_Sflow_Collector)
+		cV.SetAddress(address)
+		cV.SetPort(6343)
+
+		if deviations.SflowSourceAddressUpdateUnsupported(d) {
+			sFlowSourceAddressCli := ""
+			switch d.Vendor() {
+			case ondatra.ARISTA:
+				sFlowSourceAddressCli = fmt.Sprintf("sflow vrf %s source-interface %s", ni, intf.GetName())
+			}
+			if sFlowSourceAddressCli != "" {
+				helpers.GnmiCLIConfig(t, d, sFlowSourceAddressCli)
+			}
+		} else {
+			cV.SetSourceAddress(srcAddress)
+		}
+		cV.SetNetworkInstance(ni)
+		coll = append(coll, cV)
 	} else {
 		coll = append(coll, newcfg)
 	}
