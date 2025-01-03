@@ -19,6 +19,7 @@ class CIT:
         if not self.db.is_subscribed(group):
             raise Exception(f"{run_info['group']} is not a subscribed group. Please subscribe via the CIT Dashboard")
 
+        # Insert FireX run metadata into MongoDB "firex_ids" collection
         self.db.insert_metadata(run_info)
         print("Successfully Inserted Metadata into MongoDB")
         
@@ -31,5 +32,6 @@ class CIT:
         documents = firex.get_testsuites(vectorstore, self.db, run_info)
         print("Successfully Created Documents")
 
+        # Insert FireX run metadata into MongoDB "data" collection
         self.db.insert_logs(documents)
         print("Successfully Inserted Documents into MongoDB")
