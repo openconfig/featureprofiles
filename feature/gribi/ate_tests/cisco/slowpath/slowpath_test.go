@@ -1719,7 +1719,7 @@ func testStats(t *testing.T, dut, dut2 *ondatra.DUTDevice, d_port []string, val,
 
 	switch val {
 	case "ping":
-		cliHandle := dut.RawAPIs().CLI(t)
+		//cliHandle := dut.RawAPIs().CLI(t)
 
 		cmd := fmt.Sprintf("ping vrf %s %s source %s count 64", vrfName, dest, src)
 		cliHandle.RunCommand(context.Background(), cmd)
@@ -1729,7 +1729,7 @@ func testStats(t *testing.T, dut, dut2 *ondatra.DUTDevice, d_port []string, val,
 
 	case "traceroute":
 
-		cliHandle := dut.RawAPIs().CLI(t)
+		//cliHandle := dut.RawAPIs().CLI(t)
 		cmd := fmt.Sprintf("traceroute vrf %s %s source %s timeout 0", vrfName, dest, src)
 		cliHandle.RunCommand(context.Background(), cmd)
 		time.Sleep(15 * time.Second)

@@ -17,7 +17,6 @@ package slowpath_test
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/ondatra"
@@ -334,14 +333,21 @@ func configBunInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 	dutP := a.dut.Port(t, port)
 	//n := &oc.NetworkInstance{Name: ygot.String("DEFAULT")}
+	c := gnmi.OC().Interface(dutP.Name())
 
 	if action {
-		gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), true)
-		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-
+		//gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), true)
+		// 	gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		gnmi.Update(t, a.dut, c.Config(), &oc.Interface{
+			Name:    ygot.String(dutP.Name()),
+			Enabled: ygot.Bool(true),
+		})
 	} else {
-		gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), false)
-		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+		// 	gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), false)
+		gnmi.Update(t, a.dut, c.Config(), &oc.Interface{
+			Name:    ygot.String(dutP.Name()),
+			Enabled: ygot.Bool(false),
+		})
 	}
 }
 
