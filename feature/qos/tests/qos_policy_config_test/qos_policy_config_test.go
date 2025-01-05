@@ -1705,27 +1705,35 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 
 	cases := []struct {
 		desc        string
+		queueName   string
 		targetGroup string
 	}{{
 		desc:        "output-interface-BE1",
+		queueName:   queues.BE1,
 		targetGroup: "BE1",
 	}, {
 		desc:        "output-interface-BE0",
+		queueName:   queues.BE0,
 		targetGroup: "BE0",
 	}, {
 		desc:        "output-interface-AF1",
+		queueName:   queues.AF1,
 		targetGroup: "AF1",
 	}, {
 		desc:        "output-interface-AF2",
+		queueName:   queues.AF2,
 		targetGroup: "AF2",
 	}, {
 		desc:        "output-interface-AF3",
+		queueName:   queues.AF3,
 		targetGroup: "AF3",
 	}, {
 		desc:        "output-interface-AF4",
+		queueName:   queues.AF4,
 		targetGroup: "AF4",
 	}, {
 		desc:        "output-interface-NC1",
+		queueName:   queues.NC1,
 		targetGroup: "NC1",
 	}}
 
@@ -1737,7 +1745,7 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 			schedulerPolicy.SetName("scheduler")
 			queue := output.GetOrCreateQueue("scheduler")
 			queue.SetQueueManagementProfile("DropProfile")
-			queue.SetName(tc.targetGroup)
+			queue.SetName(tc.queueName)
 			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 		})
 
