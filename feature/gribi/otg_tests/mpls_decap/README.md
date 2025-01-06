@@ -102,6 +102,15 @@ paths:
   # Paths added for TE-18.1.4 - MPLS in UDP decapsulation set by gNMI
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
+
 ```
 
 ## Required DUT platform
