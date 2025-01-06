@@ -140,48 +140,28 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 			Transceiver: ygot.String(transceiverName),
 		}
 	}
-	var assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{}
-	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
-		assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			0: {
-				Index:          ygot.Uint32(1),
-				LogicalChannel: ygot.Uint32(otnIndex),
-				Description:    ygot.String("ETH to OTN"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
-			},
-		}
-	} else {
-		assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			0: {
-				Index:          ygot.Uint32(0),
-				LogicalChannel: ygot.Uint32(otnIndex),
-				Description:    ygot.String("ETH to OTN"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
-			},
-		}
+	var assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{
+		0: {
+			Index:          ygot.Uint32(0),
+			LogicalChannel: ygot.Uint32(otnIndex),
+			Description:    ygot.String("ETH to OTN"),
+			Allocation:     ygot.Float64(400),
+			AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+		},
 	}
-	var channel *oc.TerminalDevice_Channel
-	if deviations.ChannelRateClassParametersUnsupported(dut) {
-		channel = &oc.TerminalDevice_Channel{
-			Description:        ygot.String("ETH Logical Channel"),
-			Index:              ygot.Uint32(ethIndex),
-			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
-			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-			Ingress:            ingress,
-			Assignment:         assignment,
-		}
-	} else {
-		channel = &oc.TerminalDevice_Channel{
-			Description:        ygot.String("ETH Logical Channel"),
-			Index:              ygot.Uint32(ethIndex),
-			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
-			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-			RateClass:          oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G,
-			Ingress:            ingress,
-			Assignment:         assignment,
-		}
+	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
+		assignment[0].Index = ygot.Uint32(1)
+	}
+	var channel = &oc.TerminalDevice_Channel{
+		Description:        ygot.String("ETH Logical Channel"),
+		Index:              ygot.Uint32(ethIndex),
+		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
+		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		Ingress:            ingress,
+		Assignment:         assignment,
+	}
+	if !deviations.ChannelRateClassParametersUnsupported(dut) {
+		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
 	}
 	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), channel)
 }
