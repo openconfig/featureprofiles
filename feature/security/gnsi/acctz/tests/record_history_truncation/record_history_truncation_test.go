@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 	"time"
-
+        "fmt"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -36,24 +36,20 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 	systemState := gnmi.Get(t, dut, gnmi.OC().System().State())
 
 	bootTime := systemState.GetBootTime()
+	t.Log("Generating Acctz via gnmi get Operation")
+	t.Logf("System Boot Time %v",bootTime)
 
-	// Try to get records from 1 day prior to device's boot time.
-	recordStartTime := time.Unix(0, int64(bootTime)).Add(-24 * time.Hour)
+        requestTimestamp := &timestamppb.Timestamp{
+                Seconds:  0,
+                Nanos:   0, 
+        }
 
-	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
+	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
 	if err != nil {
 		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
-
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(recordStartTime),
-	})
-	if err != nil {
-		t.Fatalf("Failed sending record request, error: %s", err)
-	}
-
 	record, err := acctzSubClient.Recv()
 	if err != nil {
 		t.Fatalf("Failed receiving from accountz record subscribe client, error: %s", err)
@@ -62,4 +58,5 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 	if record.GetHistoryIstruncated() != true {
 		t.Fatal("History is not truncated but should be.")
 	}
+        acctzSubClient.CloseSend()
 }
