@@ -38,15 +38,13 @@ import (
 )
 
 const (
-	ipv4PrefixLen        = 30
-	plenIPv4             = 30
-	plenIPv6             = 126
-	lossTolerance        = 1
-	mgmtVRF              = "mvrf1"
-	sampleTolerance      = 0.8
-	samplingRate         = 1000000
-	expectedSampleCount  = 10
-	toleranceSampleCount = 2
+	ipv4PrefixLen   = 30
+	plenIPv4        = 30
+	plenIPv6        = 126
+	lossTolerance   = 1
+	mgmtVRF         = "mvrf1"
+	sampleTolerance = 0.8
+	samplingRate    = 1000000
 )
 
 var (
@@ -450,10 +448,12 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 		}
 
 	}
+
+	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
+	minAllowedSamples := expectedSampleCount * sampleTolerance
 	t.Logf("SFlow samples captured: %v", sampleCount)
-	sampleCountWithTolerance := expectedSampleCount - toleranceSampleCount
-	if !found || sampleCount < sampleCountWithTolerance {
-		t.Errorf("sflow packets not found: got %v, want %v", sampleCount, sampleCountWithTolerance)
+	if !found || sampleCount < int(minAllowedSamples) {
+		t.Errorf("sflow packets not found: got %v, want >= %v", sampleCount, minAllowedSamples)
 	}
 
 	handle, _ = pcap.OpenOffline(filename)
@@ -467,8 +467,6 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 		}
 	}
 
-	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
-	minAllowedSamples := expectedSampleCount * sampleTolerance
 	if sflowSamples < uint32(minAllowedSamples) {
 		t.Errorf("SFlow sample count %v, want > %v", sflowSamples, expectedSampleCount)
 	}
