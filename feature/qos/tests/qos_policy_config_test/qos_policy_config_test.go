@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
@@ -1437,13 +1436,11 @@ func testJuniperClassifierConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, classifier.Type().State()), tc.classType; got != want {
 			t.Errorf("classifier.Type().State(): got %v, want %v", got, want)
 		}
-		if !deviations.StatePathsUnsupported(dut) {
-			if got, want := gnmi.Get(t, dut, term.Id().State()), tc.termID; got != want {
-				t.Errorf("term.Id().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, action.TargetGroup().State()), tc.targetGroup; got != want {
-				t.Errorf("action.TargetGroup().State(): got %v, want %v", got, want)
-			}
+		if got, want := gnmi.Get(t, dut, term.Id().State()), tc.termID; got != want {
+			t.Errorf("term.Id().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, action.TargetGroup().State()), tc.targetGroup; got != want {
+			t.Errorf("action.TargetGroup().State(): got %v, want %v", got, want)
 
 			// This Transformer sorts a []uint8.
 			trans := cmp.Transformer("Sort", func(in []uint8) []uint8 {
@@ -1483,28 +1480,27 @@ func testJuniperClassifierConfig(t *testing.T) {
 		targetGroup:         "target-group-BE1",
 		queueName:           "0",
 	}}
-	if !deviations.StatePathsUnsupported(dut) {
-		cases = append(cases,
-			struct {
-				desc                string
-				inputClassifierType oc.E_Input_Classifier_Type
-				classifier          string
-				classType           oc.E_Qos_Classifier_Type
-				termID              string
-				dscpSet             []uint8
-				targetGroup         string
-				queueName           string
-			}{
-				desc:                "Input Classifier Type IPV6",
-				inputClassifierType: oc.Input_Classifier_Type_IPV6,
-				classifier:          "dscp_based_classifier_ipv6",
-				classType:           oc.Qos_Classifier_Type_IPV6,
-				termID:              "0",
-				targetGroup:         "target-group-BE1",
-				dscpSet:             []uint8{0, 1, 2, 3},
-				queueName:           "0",
-			})
-	}
+	cases = append(cases,
+		struct {
+			desc                string
+			inputClassifierType oc.E_Input_Classifier_Type
+			classifier          string
+			classType           oc.E_Qos_Classifier_Type
+			termID              string
+			dscpSet             []uint8
+			targetGroup         string
+			queueName           string
+		}{
+			desc:                "Input Classifier Type IPV6",
+			inputClassifierType: oc.Input_Classifier_Type_IPV6,
+			classifier:          "dscp_based_classifier_ipv6",
+			classType:           oc.Qos_Classifier_Type_IPV6,
+			termID:              "0",
+			targetGroup:         "target-group-BE1",
+			dscpSet:             []uint8{0, 1, 2, 3},
+			queueName:           "0",
+		})
+
 	dp := dut.Port(t, "port1")
 	ip := &oc.Interface{Name: ygot.String(dp.Name())}
 	ip.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -1634,22 +1630,22 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 
 		scheduler := gnmi.OC().Qos().SchedulerPolicy("scheduler").Scheduler(tc.sequence)
 		input := scheduler.Input(tc.inputID)
-		if !deviations.StatePathsUnsupported(dut) {
-			if got, want := gnmi.Get(t, dut, input.Id().State()), tc.inputID; got != want {
-				t.Errorf("input.Id().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, input.InputType().State()), oc.Input_InputType_QUEUE; got != want {
-				t.Errorf("input.InputType().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, input.Weight().State()), tc.weight; got != want {
-				t.Errorf("input.Weight().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, input.Queue().State()), tc.queueName; got != want {
-				t.Errorf("input.Queue().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, scheduler.Sequence().State()), tc.sequence; got != want {
-				t.Errorf("scheduler.Sequence().State(): got %v, want %v", got, want)
-			}
+		if got, want := gnmi.Get(t, dut, input.Id().State()), tc.inputID; got != want {
+			t.Errorf("input.Id().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, input.InputType().State()), oc.Input_InputType_QUEUE; got != want {
+			t.Errorf("input.InputType().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, input.Weight().State()), tc.weight; got != want {
+			t.Errorf("input.Weight().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, input.Queue().State()), tc.queueName; got != want {
+			t.Errorf("input.Queue().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, scheduler.Sequence().State()), tc.sequence; got != want {
+			t.Errorf("scheduler.Sequence().State(): got %v, want %v", got, want)
+		}
+		if tc.priority == oc.Scheduler_Priority_STRICT {
 			if got, want := gnmi.Get(t, dut, scheduler.Priority().State()), tc.priority; got != want {
 				t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
 			}
@@ -1690,25 +1686,21 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	if got, want := gnmi.Get(t, dut, wredUniform.MaxDropProbabilityPercent().State()), ecnConfig.maxDropProbabilityPercent; got != want {
 		t.Errorf("wredUniform.MaxDropProbabilityPercent().State(): got %v, want %v", got, want)
 	}
-	if !deviations.StatePathsUnsupported(dut) {
-		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
-			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
-			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
-		}
+	if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
+		t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
 	}
-	if !deviations.DropWeightLeavesUnsupported(dut) {
-		uniform.SetDrop(ecnConfig.dropEnabled)
-		uniform.SetWeight(ecnConfig.weight)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
+		t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
+	}
+	uniform.SetDrop(ecnConfig.dropEnabled)
+	uniform.SetWeight(ecnConfig.weight)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
-		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
-			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
-			t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
-		}
+	if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
+		t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
+		t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
 	}
 
 	cases := []struct {
@@ -1752,16 +1744,14 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		// Verify the policy is applied by checking the telemetry path state values.
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
 		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.targetGroup)
-		if !deviations.StatePathsUnsupported(dut) {
-			if got, want := gnmi.Get(t, dut, policy.Name().State()), "scheduler"; got != want {
-				t.Errorf("policy.Name().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.targetGroup; got != want {
-				t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), "DropProfile"; got != want {
-				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
-			}
+		if got, want := gnmi.Get(t, dut, policy.Name().State()), "scheduler"; got != want {
+			t.Errorf("policy.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.targetGroup; got != want {
+			t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), "DropProfile"; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {
 			t.Errorf("wredUniform.EnableEcn().State(): got %v, want %v", got, want)
