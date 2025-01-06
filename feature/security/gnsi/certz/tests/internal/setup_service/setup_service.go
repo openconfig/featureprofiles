@@ -228,7 +228,7 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 }
 
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
-func CertzRotate(ctx context.Context, t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
+func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
 		return false
@@ -335,17 +335,17 @@ func CertCleanup(t *testing.T, dirPath string) error {
 	}
 	cmd.Dir = dirPath
 	t.Logf("Executing cleanup command")
-	err := cmd.Start()
-	if err != nil {
-		t.Logf("Testdata cleanup command failed with error:%v.", err)
+	if err := cmd.Start(); err != nil {
+		t.Errorf("failed to start cleanup command: %v", err)
 		return err
 	}
-	err = cmd.Wait()
-	if err != nil {
-		t.Logf("Testdata cleanup command failed during wait with the error:%v.", err)
+
+	if err := cmd.Wait(); err != nil {
+		t.Errorf("failed to run cleanup command: %v", err)
 		return err
 	}
-	return err
+	t.Logf("testdata cleanup complete")
+	return nil
 }
 
 // ReadDecodeServerCertificate function to read and decode server certificates to extract the SubjectAltName and validate.
@@ -559,28 +559,28 @@ func GetSslProfilelist(ctx context.Context, t *testing.T, certzClient certzpb.Ce
 }
 
 // PostValidationCheck function to do a validation of all services after certz rotation.
-func PostValidationCheck(t *testing.T, caCert *x509.CertPool, expected_result bool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+func PostValidationCheck(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 	t.Logf("%s:Verifying New gNSI connection.", time.Now().String())
 	result := VerifyGnsi(t, caCert, san, serverAddr, username, password, cert)
-	if expected_result != result {
-		t.Fatalf("Failed with new gNSI Connection: got %v, want %v.", result, expected_result)
+	if expectedResult != result {
+		t.Fatalf("Failed with new gNSI Connection: got %v, want %v.", result, expectedResult)
 	}
 	t.Logf("%s:Verifying New gNOI connection.", time.Now().String())
 	result = VerifyGnoi(t, caCert, san, serverAddr, username, password, cert)
-	if expected_result != result {
-		t.Fatalf("Failed with new gNOI Connection: got false, want %v", expected_result)
+	if expectedResult != result {
+		t.Fatalf("Failed with new gNOI Connection: got false, want %v", expectedResult)
 	}
 	t.Logf("%s:Verifying New gRIBI connection.", time.Now().String())
-	if expected_result != VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new gRIBI Connection: got false, want %v.", expected_result)
+	if expectedResult != VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gRIBI Connection: got false, want %v.", expectedResult)
 	}
 	t.Logf("%s:Verifying New P4rt connection.", time.Now().String())
-	if expected_result != VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new P4rt Connection: got false, want %v.", expected_result)
+	if expectedResult != VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new P4rt Connection: got false, want %v.", expectedResult)
 	}
 	t.Logf("%s:Verifying New gNMI connection.", time.Now().String())
-	if expected_result != VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new gNMI Connection: got false, want %v.", expected_result)
+	if expectedResult != VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNMI Connection: got false, want %v.", expectedResult)
 	}
 	return true
 }
