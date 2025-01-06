@@ -539,8 +539,14 @@ test: {
 }
 test: {
   id: "RT-1.19"
-  description: "BGP 2-Byte and 4-Byte ASN support"
+  description: "RT-1.19: BGP 2-Byte and 4-Byte ASN support"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.2"
+  description: "BGP Policy & Route Installation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
   exec: " "
 }
 test: {
@@ -739,9 +745,15 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-2.15"
+  id: "RT-2.16"
   description: "IS-IS Graceful Restart Helper"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.17"
+  description: "Graceful Restart Restarting"
+    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
   exec: " "
 }
 test: {

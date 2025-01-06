@@ -53,3 +53,13 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: false
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    max_ecmp_paths: true
+    isis_level_enabled:true
+  }
+}
