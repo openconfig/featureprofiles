@@ -38,13 +38,15 @@ import (
 )
 
 const (
-	ipv4PrefixLen   = 30
-	plenIPv4        = 30
-	plenIPv6        = 126
-	lossTolerance   = 1
-	mgmtVRF         = "mvrf1"
-	sampleTolerance = 0.8
-	samplingRate    = 1000000
+	ipv4PrefixLen        = 30
+	plenIPv4             = 30
+	plenIPv6             = 126
+	lossTolerance        = 1
+	mgmtVRF              = "mvrf1"
+	sampleTolerance      = 0.8
+	samplingRate         = 1000000
+	expectedSampleCount  = 10
+	toleranceSampleCount = 2
 )
 
 var (
@@ -449,8 +451,9 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 
 	}
 	t.Logf("SFlow samples captured: %v", sampleCount)
-	if !found || sampleCount < 8 {
-		t.Errorf("sflow packets not found: got %v, want 8", sampleCount)
+	sampleCountWithTolerance := expectedSampleCount - toleranceSampleCount
+	if !found || sampleCount < sampleCountWithTolerance {
+		t.Errorf("sflow packets not found: got %v, want %v", sampleCount, sampleCountWithTolerance)
 	}
 
 	handle, _ = pcap.OpenOffline(filename)
