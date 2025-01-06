@@ -55,7 +55,7 @@ type rpcCredentials struct {
 	*creds.UserPass
 }
 
-func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+func (r *rpcCredentials) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
 	return map[string]string{
 		"username": r.UserPass.Username,
 		"password": r.UserPass.Password,
@@ -228,7 +228,7 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 }
 
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
-func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, ctx context.Context, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
+func CertzRotate(ctx context.Context, t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
 		return false
@@ -281,31 +281,27 @@ func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzC
 		if success {
 			break
 		}
-		if i != 10 {
-			t.Logf("gNSI service RPC did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
-		}
+		t.Logf("gNSI service RPC did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
 		time.Sleep(10 * time.Second)
 	}
-	if success {
-		finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
-		rotateCertRequest = &certzpb.RotateCertificateRequest{
-			ForceOverwrite: false,
-			SslProfileId:   profileID,
-			RotateRequest:  finalizeRequest}
-
-		err = rotateRequestClient.Send(rotateCertRequest)
-		if err != nil {
-			t.Fatalf("Error sending rotate finalize request: %v", err)
-		}
-		err = rotateRequestClient.CloseSend()
-		if err != nil {
-			t.Fatalf("Error sending rotate close send request: %v", err)
-		}
-		return true
-	} else {
+	if !success {
 		t.Logf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
 		return false
 	}
+	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
+	rotateCertRequest = &certzpb.RotateCertificateRequest{
+		ForceOverwrite: false,
+		SslProfileId:   profileID,
+		RotateRequest:  finalizeRequest}
+
+	if err := rotateRequestClient.Send(rotateCertRequest); err != nil {
+		t.Fatalf("Error sending rotate finalize request: %v", err)
+	}
+
+	if err = rotateRequestClient.CloseSend(); err != nil {
+		t.Fatalf("Error sending rotate close send request: %v", err)
+	}
+	return true
 }
 
 // CertGeneration function to create test data for use in TLS tests.

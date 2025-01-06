@@ -230,7 +230,7 @@ func TestServerCert(t *testing.T) {
 			switch tc.mismatch {
 			case true:
 				expected_result = false
-				success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 				if success {
 					t.Fatalf("%s:Server Certificate rotation failed.", tc.desc)
 				}
@@ -244,7 +244,7 @@ func TestServerCert(t *testing.T) {
 				})
 			case false:
 				expected_result = true
-				success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 				if !success {
 					t.Fatalf("%s:Server Certificate rotation failed.", tc.desc)
 				}
