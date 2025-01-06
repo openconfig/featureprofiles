@@ -1697,7 +1697,7 @@ func TestWithPopUnoptimized(t *testing.T) {
 				}
 				args.client = &client
 			})
-			time.Sleep(5 * time.Minute)
+			time.Sleep(6 * time.Minute)
 		}
 	}
 }
