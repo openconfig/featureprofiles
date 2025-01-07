@@ -194,7 +194,7 @@ func TestServerCert(t *testing.T) {
 				t.Fatalf("%s Failed to parse %s", time.Now().String(), tc.trustBundleFile)
 			}
 			certzClient := gnsiC.Certz()
-			success := setupService.ServerCertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+			success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s %s:Trustbundle rotation failed.", time.Now().String(), tc.desc)
 			}
