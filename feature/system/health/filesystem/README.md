@@ -18,7 +18,8 @@ File Systems Check
     *    /system/mount-points/mount-point/state/utilized:
     *    /system/mount-points/mount-point/state/counters/io-errors:
 
-
+* Alert if the utilized memory of a file system is more than the configured threshold value.
+  
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
