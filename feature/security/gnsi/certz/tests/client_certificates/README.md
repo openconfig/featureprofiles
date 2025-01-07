@@ -1,4 +1,8 @@
+<<<<<<< HEAD:feature/gnsi/certz/tests/client_certificates/README.md
 # Certz-1: gNSI Client Certificate Tests
+=======
+# CERTZ-1: gNSI Client Certificate Tests
+>>>>>>> certz1.1/1.2:feature/security/gnsi/certz/tests/client_certificates/README.md
 
 ## Summary
 
@@ -7,20 +11,6 @@ and present a valid client certificate to that server in order to provide
 identification information. The client certificate should have a
 SPIFFE Idenitifier embedded in it to be used as the identifier of
 the client to the server.
-
-* SPIFFEE ID format
-
-```
-spiffe://<issuing role>.<context>.<security realm>.<domain>/role/<role>
-```
-
-* Example:
-
-```
-URI:spiffe://ca-issuer.sdn.wan.example.com/role/controller-role
-```
-
-
 
 ## Baseline Setup
 
@@ -127,9 +117,9 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
+    certz.v1.Certz.Rotate:
 ```
 
-
 ## Minimum DUT Platform Requirement
-
 vRX
