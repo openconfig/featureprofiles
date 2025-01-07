@@ -12,7 +12,7 @@ Validate Interface based Ipv4 GRE Tunnel Config.
      -  Tunnel source should be able to configure with unnumbered interface address
      -  Tunnel Destination
      -  Directly on Tunnel interface or Tunnel Group
-- Configure such 32 tunnel interfaces
+- Configure such 2000 tunnel interfaces
 - Configure static route with IPv4 NH pointing to Tunnel interfaces
 - Send 1000 IPv4 flows from tester on ATE-PORT1 connected to DUT-PORT1
 - Enable the packet capture on ATE ingress port to verify the GRE header of encapped traffic
