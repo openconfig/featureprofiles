@@ -72,8 +72,6 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
 
   ## State Paths ##
-  /interfaces/interface/state/counters/in-pkts:
-  /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/counters/carrier-transitions:
   /interfaces/interface/state/counters/in-broadcast-pkts:
   /interfaces/interface/state/counters/in-discards:
