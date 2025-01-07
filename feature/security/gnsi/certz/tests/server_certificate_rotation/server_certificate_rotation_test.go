@@ -167,7 +167,7 @@ func TestServerCertRotation(t *testing.T) {
 				t.Fatalf("%s Failed to parse %s", timeNow, tc.trustBundle)
 			}
 			certzClient := gnsiC.Certz()
-			success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+			success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s %s:Server certificate rotation failed.", timeNow, tc.desc)
 			}
