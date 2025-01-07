@@ -41,7 +41,6 @@ const (
 	encapInnerDesIpv4Network = "198.18.100.1"
 	decapInnerDesIpv4Network = "198.18.200.1"
 	tunnelPlen4              = 31
-	plen4                    = 32
 	interfacePlen4           = 24
 	tunnelCount              = 32
 	tunnelInterface          = "fti0"
@@ -131,7 +130,6 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 			overlayIPv4Nh = append(overlayIPv4Nh, incrementAddress(t, tunnelIpv4address, 1, "host"))
 			step = step + 2
 		}
-
 		t.Logf("Configure routing instance on dut")
 		configureNetworkInstance(t, dut)
 		t.Logf("Configure IPv4 tunnel destination address reachable via ECMP link")
@@ -163,8 +161,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 		ate.OTG().StartProtocols(t)
 		time.Sleep(30 * time.Second)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-	})
-	t.Run("Fetch all the interface status before start traffic ", func(t *testing.T) {
+		t.Logf("Fetch all the interface status before start traffic")
 		initialEgressPkts = fetchEgressInterfacestatsics(t, dut, egressInterfaces)
 		if !deviations.TunnelStatePathUnsupported(dut) {
 			initialTunnelInPkts, initialTunnelOutPkts = fetchTunnelInterfacestatsics(t, dut, tunnelCount)
@@ -250,7 +247,6 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac string, ipv4Address string, ipv4Gateway string, ipv4Mask uint8) {
 
 	top.Ports().Add().SetName(port.ID())
-	//port1
 	iDutDev := top.Devices().Add().SetName(name)
 	iDutEth := iDutDev.Ethernets().Add().SetName(name + ".Eth").SetMac(mac)
 	iDutEth.Connection().SetPortName(port.ID())
@@ -260,32 +256,21 @@ func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac
 }
 func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port1 *ondatra.Port, port2 *ondatra.Port, port3 *ondatra.Port, peer *attrs.Attributes, destMac string) {
 	t.Logf("configure IPv4 flow from %s ", port1.Name())
-	// Set config flow
 	flow1ipv4 := top.Flows().Add().SetName("IPv4")
 	flow1ipv4.Metrics().SetEnable(true)
-	//TxRx ports
 	flow1ipv4.TxRx().Port().SetTxName(port1.ID()).SetRxNames([]string{port2.ID(), port3.ID()})
-	// Flow settings.
 	flow1ipv4.Size().SetFixed(512)
 	flow1ipv4.Rate().SetPps(trafficRatePps)
 	flow1ipv4.Duration().Continuous()
-	// Ethernet header
 	f1e1 := flow1ipv4.Packet().Add().Ethernet()
 	f1e1.Src().SetValue(peer.MAC)
 	f1e1.Dst().SetValue(destMac)
-	// IP header
 	f1v4 := flow1ipv4.Packet().Add().Ipv4()
-	// V4 protocol
 	f1v4.Protocol().SetValue(6)
-	// V4 source
 	f1v4.Src().Increment().SetStart(peer.IPv4).SetCount(200)
-	// V4 destination
 	f1v4.Dst().Increment().SetStart(encapInnerDesIpv4Network).SetCount(200)
-	// Add L4 protocol
 	flow1ipv4.Packet().Add().Tcp()
-	// Increment Source port
 	flow1ipv4.Packet().Add().Tcp().SrcPort().Increment().SetStart(9000).SetCount(28000)
-	// Increment destination port
 	flow1ipv4.Packet().Add().Tcp().DstPort().Increment().SetStart(37001).SetCount(28000)
 
 }
@@ -293,13 +278,11 @@ func fetchNetworkAddress(t *testing.T, address string, mask int) (string, string
 	addr := net.ParseIP(address)
 	var network net.IP
 
-	// This mask corresponds to a /24 subnet for IPv4.
 	ipv4Mask := net.CIDRMask(mask, 32)
 	network = addr.Mask(ipv4Mask)
 
 	networkWithMask := network.String() + "/" + strconv.Itoa(mask)
 	networkAlone := network.String()
-	//t.Logf("Network address : %s", networkWithMask)
 	return networkAlone, networkWithMask
 }
 func incrementAddress(t *testing.T, address string, i int, part string) string {
@@ -344,7 +327,6 @@ func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.
 			mac:      a.MAC,
 		},
 	}
-	// Configure the interfaces.
 	for _, intf := range dutIntfs {
 		t.Logf("Configure DUT interface %s with attributes %v", intf.intfName, intf)
 		i := &oc.Interface{
@@ -353,7 +335,6 @@ func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.
 			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 			Enabled:     ygot.Bool(true),
 		}
-		// configure ipv4 address
 		e := i.GetOrCreateEthernet()
 		e.MacAddress = ygot.String(intf.mac)
 		i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
@@ -364,7 +345,6 @@ func configureTunnelBaseOnDUT(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.
 	}
 }
 func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, tunnelIpv4address string, Ipv4Mask int, dut *ondatra.DUTDevice) {
-	// IPv4 tunnel source and destination configuration
 	t.Logf("Push the IPv4 tunnel endpoint config:\n%s", dut.Vendor())
 	var config string
 	switch dut.Vendor() {
@@ -373,7 +353,7 @@ func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc str
 		t.Logf("Push the CLI config:\n%s", config)
 
 	default:
-		t.Errorf("Invalid Tunnel endpoint configuration")
+		t.Errorf("Tunnel endpoint configuration is not defined for \n%s", dut.Vendor())
 	}
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	gpbSetRequest := buildCliConfigRequest(config)
@@ -417,7 +397,6 @@ func configIPv4StaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, 
 }
 
 func buildCliConfigRequest(config string) *gpb.SetRequest {
-	// Build config with Origin set to cli and Ascii encoded config.
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{{
 			Path: &gpb.Path{
