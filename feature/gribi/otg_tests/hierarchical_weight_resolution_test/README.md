@@ -121,22 +121,42 @@ WCMP width of 16 nexthops:
 
 N/A
 
-## Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  ## State Paths ##
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
 
-TODO:
-/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
-
-## Protocol/RPC Parameter coverage
-
-*   gRIBI:
-    *   Modify()
-        *   ModifyRequest:
-            *   AFTOperation:
-                *   next_hop_group
-                    *   NextHopGroupKey: id
-                    *   NextHopGroup: weight
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Minimum DUT platform requirement
 
-vRX
+* vRX - virtual router device
 
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths: N/A
+
+  ## State paths:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
+
+rpcs:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```

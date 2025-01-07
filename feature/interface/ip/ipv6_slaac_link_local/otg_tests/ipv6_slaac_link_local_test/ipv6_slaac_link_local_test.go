@@ -38,7 +38,11 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice, p *ond
 	if deviations.InterfaceEnabled(dut) {
 		s.GetOrCreateIpv6().SetEnabled(true)
 	}
+	s.GetOrCreateIpv6().GetOrCreateAutoconf()
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Config(), intf)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, intf.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 func getAllIPv6Addresses(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) []string {
@@ -49,8 +53,10 @@ func getAllIPv6Addresses(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) 
 		ipv6Addrs := gnmi.LookupAll(t, dut, gnmi.OC().Interface(p.Name()).Subinterface(0).Ipv6().AddressAny().State())
 		t.Logf("number of ipv6: %d", len(ipv6Addrs))
 		for _, ipv6Addr := range ipv6Addrs {
+			t.Logf("ipv6Addr: %v", ipv6Addr)
 			if v6, ok := ipv6Addr.Val(); ok {
 				allIPv6 = append(allIPv6, fmt.Sprintf("%s/%d", v6.GetIp(), v6.GetPrefixLength()))
+				t.Logf("allIPv6: %v", allIPv6)
 			}
 		}
 		if hasSLAACGeneratedAddress(allIPv6) {
@@ -74,7 +80,24 @@ func TestIpv6LinkLocakGenBySLAAC(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	configureDUTLinkLocalInterface(t, dut, p1)
 	ipv6 := getAllIPv6Addresses(t, dut, p1)
-	if !hasSLAACGeneratedAddress(ipv6) {
-		t.Errorf("No SLAAC generated IPv6 address found , got: %s, want: %s", ipv6, ipv6BySLAAC)
+	if deviations.SlaacPrefixLength128(dut) {
+		ipv6BySLAAC = `fe80::.+/128`
+		reIPv6BySLAAC = regexp.MustCompile(ipv6BySLAAC)
+		t.Logf("ipv6BySLAAC: %s, reIPv6BySLAAC: %s", ipv6BySLAAC, reIPv6BySLAAC)
+		found := false
+		for _, ipv6Addr := range ipv6 {
+			if reIPv6BySLAAC.MatchString(ipv6Addr) {
+				t.Logf("SLAAC generated IPv6 address found, ")
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("No SLAAC generated IPv6 address found ")
+		}
+	} else {
+		if !hasSLAACGeneratedAddress(ipv6) {
+			t.Errorf("No SLAAC generated IPv6 address found , got: %s, want: %s", ipv6, ipv6BySLAAC)
+		}
 	}
 }

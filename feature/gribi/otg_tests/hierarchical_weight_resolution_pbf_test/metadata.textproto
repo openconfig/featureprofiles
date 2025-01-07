@@ -14,7 +14,7 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     interface_ref_interface_id_format: true
     pf_require_match_default_rule: true
-    pf_require_sequential_order_pbr_rules: true 
+    pf_require_sequential_order_pbr_rules: true
   }
 }
 platform_exceptions: {
@@ -23,7 +23,6 @@ platform_exceptions: {
   }
   deviations: {
     hierarchical_weight_resolution_tolerance: 0.4
-    explicit_interface_ref_definition: true
   }
 }
 platform_exceptions: {
@@ -31,7 +30,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_ref_definition: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
@@ -43,7 +41,6 @@ platform_exceptions: {
   }
   deviations: {
     omit_l2_mtu: true
-    deprecated_vlan_id: true
     interface_enabled: true
     default_network_instance: "default"
   }

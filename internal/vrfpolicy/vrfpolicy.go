@@ -36,6 +36,7 @@ const (
 	niEncapTeVrfB           = "ENCAP_TE_VRF_B"
 	niEncapTeVrfC           = "ENCAP_TE_VRF_C"
 	niEncapTeVrfD           = "ENCAP_TE_VRF_D"
+	niRepairVrf             = "REPAIR_VRF"
 	niDefault               = "DEFAULT"
 	dscpEncapA1             = 10
 	dscpEncapA2             = 18
@@ -74,7 +75,7 @@ type policyFwRule struct {
 func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := &oc.Root{}
-	vrfs := []string{niDecapTeVrf, niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222}
+	vrfs := []string{niDecapTeVrf, niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222, niRepairVrf}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
@@ -355,7 +356,7 @@ func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policy
 				pfRProtoIP.DscpSet = pfRule.ipv4.dscpSet
 			}
 			if pfRule.ipv4.protocol != 0 {
-				pfRProtoIP.Protocol = oc.UnionUint8(pfRule.ipv4.protocol)
+				pfRProtoIP.Protocol = pfRule.ipv4.protocol
 			}
 			if pfRule.ipv4.sourceAddr != "" {
 				pfRProtoIP.SourceAddress = ygot.String(pfRule.ipv4.sourceAddr)
@@ -394,6 +395,6 @@ func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string)
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
 		interfaceID = ingressPort + ".0"
 	}
-	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
-	gnmi.Delete(t, dut, pfpath.Config())
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	gnmi.Delete(t, dut, pfPath.Config())
 }
