@@ -18,9 +18,6 @@ File Systems Check
     *    /system/mount-points/mount-point/state/utilized:
     *    /system/mount-points/mount-point/state/counters/io-errors:
 
-## Config Parameter Coverage
-
-N/A
 
 ## OpenConfig Path and RPC Coverage
 
@@ -39,3 +36,6 @@ rpcs:
     gNMI.Get:
 ```
 
+## Required DUT platform
+
+Single DUT
