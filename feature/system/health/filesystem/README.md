@@ -10,7 +10,7 @@ File Systems Check
 
 ## Procedure
 
-* Collect for each mountpoint and verify if the following path returns valid values
+* For each mountpoint collect and verify if the following path returns valid values
     *    /system/mount-points/mount-point/state/name:
     *    /system/mount-points/mount-point/state/storage-component:
     *    /system/mount-points/mount-point/state/size:
