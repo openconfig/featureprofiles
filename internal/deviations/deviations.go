@@ -1234,11 +1234,6 @@ func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAfiSafiWildcardNotSupported()
 }
 
-// EnableTableConnections Admin Enable Table Connections in SRL native
-func EnableTableConnections(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEnableTableConnections()
-}
-
 // NoZeroSuppression returns true if device wants to remove zero suppression
 func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
@@ -1265,6 +1260,11 @@ func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
 }
 
+// EnableTableConnections returns true if admin state of tableconnections needs to be enabled in SRL native model
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
+
 // RequireZrOperMode returns true for the devices that require a mandatory value in operational-mode leaf for optical-channel
 func RequireZrOperMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRequireZrOperMode()
@@ -1274,3 +1274,4 @@ func RequireZrOperMode(dut *ondatra.DUTDevice) bool {
 func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
 }
+
