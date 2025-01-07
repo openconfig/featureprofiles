@@ -1,8 +1,8 @@
-# RT-2.16: IS-IS Graceful Restart Helper
+# RT-2.17: IS-IS Graceful Restart Restarting
 
 ## Summary
 
-- test verify isis garceful restarts support in helper role
+- test verify isis garceful restarts support restarter mode.
 
 ## Testbed type
 
@@ -187,7 +187,8 @@
         }
         ```
     * Enable IPv4 and IPv6 IS-IS L2 adjacency between ATE port-1 and DUT port-1, DUT port-2 and ATE port-2 in point-to-point mode.\
-    *   Set ISIS graceful restart helper mode on DUT
+      * Enable GR helper on ATE port-1 na ATE port-2 in compliacnce with RFC5306 (non-planned restart ONLY).
+    * Set ISIS graceful restart helper mode on DUT
 
         ```json
         {
@@ -205,7 +206,7 @@
                                             "graceful-restart": {
                                                 "config": {
                                                     "enabled": true,
-                                                    "helper-only": true,
+                                                    "helper-only": false,
                                                     "restart-time": 30
                                                 }
                                             }
@@ -220,15 +221,21 @@
         }
         ```
 
-### RT-2.16.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2494]
-#### GR helper
+### RT-2.17.1 CONTROLLER-CARD switchover [TODO: ]
+#### 
 
 *   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
 *   Verify traffic is recived on ATE port-2
-*   Restart ISIS on ATE port-2 (Alternativly: using set_control_state to "down" for emulated isis router. Wait (restart-time - 10) sec and set it back to "up")
+*   Using gNOI SwitchControlProcessor call initiate CONROLER-CARD switchover.
 *   Verify traffic is recived on ATE port-2 during restart time ( no losses )
-*   Disable ISIS on ATE port-2 (set_control_state to "down"). Wait restart-time seconds
-*   Verify traffic is NOT recived on ATE port-2 (after restart-time expires)
+*   Wait 60 sec.
+
+### RT-2.17.2 DUT ISIS restart [TODO: ]
+*   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
+*   Verify traffic is recived on ATE port-2
+*   Using gNOI KillProcess w/ SIGNAL_KILL call restart process serving ISIS (implementation dependednt). This try to simulate ISIS crash due to unexpected error.
+*   Verify traffic is recived on ATE port-2 during restart time ( no losses )
+*   Wait 60 sec.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -245,6 +252,9 @@ rpcs:
   gnmi:
     gNMI.Subscribe:
     gNMI.Set:
+  gnoi:
+    system.System.SwitchControlProcessor:
+    system.System.KillProcess:
 ```
 
 ## Required DUT platform

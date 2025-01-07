@@ -22,3 +22,4 @@ jobs:
         min_approvals: 2
         approval_mode: ALL
         pr_number: ${{ github.event.number }}
+        require_all_approvals_latest_commit: false

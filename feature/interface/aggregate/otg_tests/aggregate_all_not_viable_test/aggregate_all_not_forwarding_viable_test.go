@@ -334,7 +334,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal(err)
 		}
 		// Ensure Load WECMP on LAG_2 and LAG_3 for prefix's pfx2, pfx3 and pfx4
-		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName}, flows[0])
+		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName}, flows[1], agg2.ateAggName)
 		for idx, weight := range trafficDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
@@ -467,7 +467,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	if len(dut.Ports()) > 4 {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
-		if dut.Vendor() != ondatra.CISCO {
+		trafficDistributionWeights = []uint64{50, 50}
+		if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
 			trafficDistributionWeights = []uint64{33, 67}
 		}
 	}
@@ -504,11 +505,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			e.AggregateId = ygot.String(aggID)
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
-			}
-			if port.PMD() == ondatra.PMD100GBASEFR {
-				e.AutoNegotiate = ygot.Bool(false)
-				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 			}
 
 			configMemberDUT(dut, i, port, aggID)
@@ -731,7 +727,9 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
@@ -962,7 +960,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipA
 		flowV4.TxRx().Port().
 			SetRxNames([]string{dstAgg[0].ateAggName, dstAgg[1].ateAggName})
 	}
-	flowV4.Size().SetFixed(1500)
+	flowV4.Size().SetFixed(1400)
 	flowV4.Rate().SetPps(trafficPPS)
 	eV4 := flowV4.Packet().Add().Ethernet()
 	eV4.Src().SetValue(srcAgg.ateAggMAC)
@@ -1222,12 +1220,19 @@ func validateLag3Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 }
 
 // trafficRXWeights to ensure 50:50 Load Balancing
-func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow) []uint64 {
+func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow, aggregateAggName string) []uint64 {
 	t.Helper()
 	var rxs []uint64
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	flowInFrames := flowMetrics.GetCounters().GetInPkts()
 	for _, aggName := range aggNames {
 		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
 		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
+		inFrames := metrics.GetCounters().GetInFrames()
+		if aggName == aggregateAggName {
+			inFrames = inFrames - flowInFrames
+		}
+		rxs = append(rxs, inFrames)
 	}
 	var total uint64
 	for _, rx := range rxs {
