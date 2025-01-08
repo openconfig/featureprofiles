@@ -112,82 +112,74 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	initialTunnelOutPkts := make([]uint64, tunnelCount)
 	tunnelLoadblanceDiff := tunnelCount * 3
 	interfaceLoadblanceDiff := tolerance
-	t.Run("Configure dut with 32 tunnel interface with one ingress and 2 egress interface", func(t *testing.T) {
-		configureTunnelBaseOnDUT(t, dut, dutPort1, &dutIntf1)
-		configureTunnelBaseOnDUT(t, dut, dutPort2, &dutIntf2)
-		configureTunnelBaseOnDUT(t, dut, dutPort3, &dutIntf3)
-		step := 0
-		var overlayIPv4Nh []string
-		for unit := 0; unit < tunnelCount; unit++ {
-			tunnelSrc := incrementAddress(t, tunnelSrcIpv4Network, unit, "host")
-			tunnelDstNetwork := incrementAddress(t, tunnelDesIpv4Network, unit, "network")
-			tunnelDst := incrementAddress(t, tunnelDstNetwork, 1, "host")
-			tunnelIpv4address := incrementAddress(t, tunnelNhIpv4Network, step, "host")
-			t.Logf("unit : %d tunnel ipv4 address: %s/%d  tunnel source address: %s tunnel destination: %s", unit, tunnelIpv4address, tunnelPlen4, tunnelSrc, tunnelDst)
-			if deviations.TunnelConfigPathUnsupported(dut) {
-				configureTunnelInterface(t, tunnelInterface, unit, tunnelSrc, tunnelDst, tunnelIpv4address, tunnelPlen4, dut)
-			}
-			overlayIPv4Nh = append(overlayIPv4Nh, incrementAddress(t, tunnelIpv4address, 1, "host"))
-			step = step + 2
+	configureTunnelBaseOnDUT(t, dut, dutPort1, &dutIntf1)
+	configureTunnelBaseOnDUT(t, dut, dutPort2, &dutIntf2)
+	configureTunnelBaseOnDUT(t, dut, dutPort3, &dutIntf3)
+	step := 0
+	var overlayIPv4Nh []string
+	for unit := 0; unit < tunnelCount; unit++ {
+		tunnelSrc := incrementAddress(t, tunnelSrcIpv4Network, unit, "host")
+		tunnelDstNetwork := incrementAddress(t, tunnelDesIpv4Network, unit, "network")
+		tunnelDst := incrementAddress(t, tunnelDstNetwork, 1, "host")
+		tunnelIpv4address := incrementAddress(t, tunnelNhIpv4Network, step, "host")
+		t.Logf("unit : %d tunnel ipv4 address: %s/%d  tunnel source address: %s tunnel destination: %s", unit, tunnelIpv4address, tunnelPlen4, tunnelSrc, tunnelDst)
+		if deviations.TunnelConfigPathUnsupported(dut) {
+			configureTunnelInterface(t, tunnelInterface, unit, tunnelSrc, tunnelDst, tunnelIpv4address, tunnelPlen4, dut)
 		}
-		t.Logf("Configure routing instance on dut")
-		configureNetworkInstance(t, dut)
-		t.Logf("Configure IPv4 tunnel destination address reachable via ECMP link")
-		underlayIpv4Nh := []string{otgIntf2.IPv4, otgIntf3.IPv4}
-		for i, nextHop := range underlayIpv4Nh {
-			_, ipv4Destination := fetchNetworkAddress(t, tunnelDesIpv4Network, 19)
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut, ipv4Destination, nextHop)
-			configIPv4StaticRoute(t, dut, ipv4Destination, nextHop, strconv.Itoa(i))
-		}
-		t.Logf("overlay static route via tunnel for an original IPv4 destination prefix")
-		for i, nextHop := range overlayIPv4Nh {
-			_, ipv4Destination := fetchNetworkAddress(t, encapInnerDesIpv4Network, interfacePlen4)
-			t.Logf("configuring static route in %s destination %s with next-hop %s", dut, ipv4Destination, nextHop)
-			configIPv4StaticRoute(t, dut, ipv4Destination, nextHop, strconv.Itoa(i))
-		}
-	})
-	t.Run("Configure OTG ports", func(t *testing.T) {
-		top := gosnappi.NewConfig()
-		t.Logf("Start Port/device configuraturation on OTG")
-		configureOtgPorts(top, ateport1, otgIntf1.Name, otgIntf1.MAC, otgIntf1.IPv4, dutIntf1.IPv4, otgIntf1.IPv4Len)
-		configureOtgPorts(top, ateport2, otgIntf2.Name, otgIntf2.MAC, otgIntf2.IPv4, dutIntf2.IPv4, otgIntf2.IPv4Len)
-		configureOtgPorts(top, ateport3, otgIntf3.Name, otgIntf3.MAC, otgIntf3.IPv4, dutIntf3.IPv4, otgIntf3.IPv4Len)
-		ate.OTG().PushConfig(t, top)
-		time.Sleep(30 * time.Second)
-		t.Logf("Start Traffic flow configuraturation in OTG")
-		configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutIntf1.MAC)
-		t.Logf(top.Marshal().ToJson())
-		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		time.Sleep(30 * time.Second)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-		t.Logf("Fetch all the interface status before start traffic")
-		initialEgressPkts = fetchEgressInterfacestatsics(t, dut, egressInterfaces)
-		if !deviations.TunnelStatePathUnsupported(dut) {
-			initialTunnelInPkts, initialTunnelOutPkts = fetchTunnelInterfacestatsics(t, dut, tunnelCount)
-		}
-	})
-	t.Run("Incoming traffic flow should be equally distributed for Encapsulation(ECMP) ", func(t *testing.T) {
-		t.Log("Send traffic from OTG Port1 to Port2 and Port3")
-		wantLoss := true
-		sendTraffic(t, ate)
-		flows := []string{"IPv4"}
-		for i, flowName := range flows {
-			t.Logf("Verify flow %d stats", i)
-			verifyTrafficStatistics(t, ate, flowName, wantLoss)
-		}
-	})
-	t.Run("Verify after Encapsulation loadbalance (ECMP) && load balanced to available Tunnel interfaces ", func(t *testing.T) {
-		finalEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
-		t.Logf("Verify Incoming traffic flow should be equally distributed for Encapsulation(ECMP)")
-		verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
-		if !deviations.TunnelStatePathUnsupported(dut) {
-			finalTunnelInPkts, finalTunnelOutPkts := fetchTunnelInterfacestatsics(t, dut, tunnelCount)
-			t.Logf("Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation")
-			verifyEcmpLoadBalance(t, initialTunnelOutPkts, finalTunnelOutPkts, 1, int64(tunnelCount), 0, true, tunnelLoadblanceDiff)
-			verifyUnusedTunnelStatistic(t, initialTunnelInPkts, finalTunnelInPkts)
-		}
-	})
+		overlayIPv4Nh = append(overlayIPv4Nh, incrementAddress(t, tunnelIpv4address, 1, "host"))
+		step = step + 2
+	}
+	t.Logf("Configure routing instance on dut")
+	configureNetworkInstance(t, dut)
+	t.Logf("Configure IPv4 tunnel destination address reachable via ECMP link")
+	underlayIpv4Nh := []string{otgIntf2.IPv4, otgIntf3.IPv4}
+	for i, nextHop := range underlayIpv4Nh {
+		_, ipv4Destination := fetchNetworkAddress(t, tunnelDesIpv4Network, 19)
+		t.Logf("configuring static route in %s destination %s with next-hop %s", dut, ipv4Destination, nextHop)
+		configIPv4StaticRoute(t, dut, ipv4Destination, nextHop, strconv.Itoa(i))
+	}
+	t.Logf("overlay static route via tunnel for an original IPv4 destination prefix")
+	for i, nextHop := range overlayIPv4Nh {
+		_, ipv4Destination := fetchNetworkAddress(t, encapInnerDesIpv4Network, interfacePlen4)
+		t.Logf("configuring static route in %s destination %s with next-hop %s", dut, ipv4Destination, nextHop)
+		configIPv4StaticRoute(t, dut, ipv4Destination, nextHop, strconv.Itoa(i))
+	}
+	top := gosnappi.NewConfig()
+	t.Logf("Start Port/device configuraturation on OTG")
+	configureOtgPorts(top, ateport1, otgIntf1.Name, otgIntf1.MAC, otgIntf1.IPv4, dutIntf1.IPv4, otgIntf1.IPv4Len)
+	configureOtgPorts(top, ateport2, otgIntf2.Name, otgIntf2.MAC, otgIntf2.IPv4, dutIntf2.IPv4, otgIntf2.IPv4Len)
+	configureOtgPorts(top, ateport3, otgIntf3.Name, otgIntf3.MAC, otgIntf3.IPv4, dutIntf3.IPv4, otgIntf3.IPv4Len)
+	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
+	t.Logf("Start Traffic flow configuraturation in OTG")
+	configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutIntf1.MAC)
+	t.Logf(top.Marshal().ToJson())
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	t.Logf("Fetch all the interface status before start traffic")
+	initialEgressPkts = fetchEgressInterfacestatsics(t, dut, egressInterfaces)
+	if !deviations.TunnelStatePathUnsupported(dut) {
+		initialTunnelInPkts, initialTunnelOutPkts = fetchTunnelInterfacestatsics(t, dut, tunnelCount)
+	}
+	t.Log("Send traffic from OTG Port1 to Port2 and Port3")
+	wantLoss := true
+	sendTraffic(t, ate)
+	flows := []string{"IPv4"}
+	for i, flowName := range flows {
+		t.Logf("Verify flow %d stats", i)
+		verifyTrafficStatistics(t, ate, flowName, wantLoss)
+	}
+	finalEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
+	t.Logf("Verify Incoming traffic flow should be equally distributed for Encapsulation(ECMP)")
+	verifyEcmpLoadBalance(t, initialEgressPkts, finalEgressPkts, 1, int64(len(egressInterfaces)), 0, true, interfaceLoadblanceDiff)
+	if !deviations.TunnelStatePathUnsupported(dut) {
+		finalTunnelInPkts, finalTunnelOutPkts := fetchTunnelInterfacestatsics(t, dut, tunnelCount)
+		t.Logf("Incoming traffic on DUT-PORT1 should be load balanced to available Tunnel interfaces for encapsulation")
+		verifyEcmpLoadBalance(t, initialTunnelOutPkts, finalTunnelOutPkts, 1, int64(tunnelCount), 0, true, tunnelLoadblanceDiff)
+		verifyUnusedTunnelStatistic(t, initialTunnelInPkts, finalTunnelInPkts)
+	}
 
 }
 
@@ -220,17 +212,17 @@ func verifyTrafficStatistics(t *testing.T, ate *ondatra.ATEDevice, flowName stri
 	t.Logf("Flow: %s received packets: %d !", flowName, rxPackets)
 	lostPackets := txPackets - rxPackets
 	t.Logf("Flow: %s lost packets: %d !", flowName, lostPackets)
-	lossPct := lostPackets * 100 / txPackets
-	t.Logf("Flow: %s packet loss percent : %d !", flowName, lossPct)
+	got := lostPackets * 100 / txPackets
+	t.Logf("Flow: %s packet loss percent : %d !", flowName, got)
 	if wantLoss {
-		if lossPct > uint64(tolerance) {
-			t.Errorf("Traffic Loss for Flow: %s but got %v, want 0 Failed.", flowName, lossPct)
+		if got > uint64(tolerance) {
+			t.Errorf("Traffic Loss for Flow: %s but got %v, want 0 Failed.", flowName, got)
 		} else {
 			t.Logf("No Traffic Loss Test Passed!!")
 		}
 	} else {
-		if lossPct < 100-uint64(tolerance) {
-			t.Errorf("Traffic is expected to fail but flow :%s  got %v, want 100%% Failed.", flowName, lossPct)
+		if got < 100-uint64(tolerance) {
+			t.Errorf("Traffic is expected to fail but flow :%s  got %v, want 100%% Failed.", flowName, got)
 		} else {
 			t.Logf("Traffic Loss Test Passed!!")
 		}
