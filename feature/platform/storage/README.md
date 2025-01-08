@@ -12,12 +12,12 @@ Storage File System Check
 
 * For each mountpoint collect and verify if the following path returns valid values
 
-  *  /components/component/storage/state/counters/soft-read-error-rate:
-  *  /components/component/storage/state/counters/reallocated-sectors:
-  *  /components/component/storage/state/counters/end-to-end-error:
-  *  /components/component/storage/state/counters/offline-uncorrectable-sectors-count:
-  *  /components/component/storage/state/counters/life-left:
-  *  /components/component/storage/state/counters/percentage-used:
+  *  /components/component[name=STORAGE]/state/counters/soft-read-error-rate:
+  *  /components/component[name=STORAGE]/state/counters/reallocated-sectors:
+  *  /components/component[name=STORAGE]/state/counters/end-to-end-error:
+  *  /components/component[name=STORAGE]/state/counters/offline-uncorrectable-sectors-count:
+  *  /components/component[name=STORAGE]/state/counters/life-left:
+  *  /components/component[name=STORAGE]/state/counters/percentage-used:
 
   
 ## OpenConfig Path and RPC Coverage
@@ -26,12 +26,12 @@ Storage File System Check
 
 paths:
 
-  /components/component/storage/state/counters/soft-read-error-rate:
-  /components/component/storage/state/counters/reallocated-sectors:
-  /components/component/storage/state/counters/end-to-end-error:
-  /components/component/storage/state/counters/offline-uncorrectable-sectors-count:
-  /components/component/storage/state/counters/life-left:
-  /components/component/storage/state/counters/percentage-used:
+  /components/component[name=STORAGE]/storage/state/counters/soft-read-error-rate:
+  /components/component[name=STORAGE]/storage/state/counters/reallocated-sectors:
+  /components/component[name=STORAGE]/storage/state/counters/end-to-end-error:
+  /components/component[name=STORAGE]/state/counters/offline-uncorrectable-sectors-count:
+  /components/component[name=STORAGE]/state/counters/life-left:
+  /components/component[name=STORAGE]/state/counters/percentage-used:
 
 
 rpcs:
