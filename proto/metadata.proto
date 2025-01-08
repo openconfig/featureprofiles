@@ -639,7 +639,7 @@ message Metadata {
     // EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
     // CISCO: b/376241033
     // CISCO: b/340859662
-    bool enable_multipath_under_afi_safi = 230;
+    bool enable_multipath_under_afi_safi = 230;    
     // Device have different default value for allow own as.
     // Juniper : b/373559004
     bool bgp_allowownas_diff_default_value = 231;
@@ -664,16 +664,20 @@ message Metadata {
     bool isis_dis_sysid_unsupported = 239;
     // Cisco: b/378616912
     bool isis_database_overloads_unsupported = 240;
+    // Juniper: b/358534837
+    // Devices that do not support setting med value using union type in OC.
+    bool bgp_set_med_v7_unsupported = 241;
     // default import policy for table connection unsupported is set to true for devices that do not support default import policy.
-    bool tc_default_import_policy_unsupported = 241;
+    bool tc_default_import_policy_unsupported = 242;
     // table connection metric propagation unsupported is set to true for devices that do not support metric propagation.
-    bool tc_metric_propagation_unsupported = 242;
+    bool tc_metric_propagation_unsupported = 243;
     // table connection attribute propagation unsupported is set to true for devices that do not support attribute propagation.
-    bool tc_attribute_propagation_unsupported = 243;
+    bool tc_attribute_propagation_unsupported = 244;
     // table connection subscription unsupported is set to true for devices that do not support subscription for table connection leaves.
-    bool tc_subscription_unsupported = 244;
+    bool tc_subscription_unsupported = 245;
     // default bgp instance name is used to set bgp instance name value other than DEFAULT
-    string default_bgp_instance_name = 245;
+    string default_bgp_instance_name = 246;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
