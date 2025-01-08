@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
+	//"github.com/google/go-cmp/cmp"
+	//"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/gribigo/fluent"
