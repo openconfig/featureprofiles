@@ -196,7 +196,7 @@ func getBasePBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interfa
 	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
 }
 
-func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interface{}) {
+func getPartialPBROCConfig(t *testing.T, args *testArgs) {
 	fptest.ConfigureDefaultNetworkInstance(t, args.dut)
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
@@ -232,8 +232,7 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, inte
 
 	policy := oc.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-
-	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
+	gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Config(), &policy)
 }
 
 func removeHWModuleFromBaseConfing(t *testing.T, baseConfig string) string {
@@ -311,15 +310,15 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	baseConfigWithoutHWModule := removeHWModuleFromBaseConfing(t, baseConfig)
 	baseConfigWithoutPBR := removePBRFromBaseConfing(t, baseConfig)
 	baseConfigWithoutPBR = addHWModule(t, baseConfigWithoutPBR) // in case if it is missing
-	fmt.Print(baseConfigWithoutPBR)
+	t.Logf("BaseConfig: %s", baseConfig)
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//remove  HWModule and set PBR to wrong config,  and  expect the traffic to be failed even after adding gribi routes
 	t.Log("Remove  HWModule and set PBR to wrong config, reload the router and check the traffic")
-	path, wrongPolicy := getPartialPBROCConfig(t, args)
-	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutHWModule, path, wrongPolicy)
+	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfigWithoutHWModule)
+	getPartialPBROCConfig(t, args)
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
@@ -328,9 +327,8 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 
 	// add PBR with OC and HWModule with text, and expect the traffic to be passed after adding gribi routes
-	path, basePolicy := getBasePBROCConfig(t, args)
-	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutPBR, path, basePolicy)
 	t.Log("Add HWModule and set PBR to the right config, reload the router and check the traffic")
+	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
