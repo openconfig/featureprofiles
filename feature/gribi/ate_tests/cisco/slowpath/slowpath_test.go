@@ -1738,8 +1738,8 @@ func testStats(t *testing.T, dut, dut2 *ondatra.DUTDevice, d_port []string, val,
 
 		cmd := fmt.Sprintf("ping %s source %s count 64", dest, src)
 		cliHandle.RunCommand(context.Background(), cmd)
-		time.Sleep(65 * time.Second)
-		count = 64
+		time.Sleep(60 * time.Second)
+		count = 63
 		t.Log("ping done")
 
 	case "ip-traceroute":
@@ -1801,10 +1801,10 @@ func testStats(t *testing.T, dut, dut2 *ondatra.DUTDevice, d_port []string, val,
 	}
 
 	if got, want := final-initial, uint64(count); got < want {
-		//t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
-		if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, 5)); diff != "" {
-			t.Errorf("Packet count -want,+got:\n%s", diff)
-		}
+		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
+// 		if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, 5)); diff != "" {
+// 			t.Errorf("Packet count -want,+got:\n%s", diff)
+// 		}
 	}
 
 }
