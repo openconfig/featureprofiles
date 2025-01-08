@@ -1278,3 +1278,11 @@ func TcAttributePropagationUnsupported(dut *ondatra.DUTDevice) bool {
 func TcSubscriptionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTcSubscriptionUnsupported()
 }
+
+// DefaultBgpInstanceName returns bgp instance name as set in deviation to override default value "DEFAULT"
+func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
+	if dbin := lookupDUTDeviations(dut).GetDefaultBgpInstanceName(); dbin != "" {
+		return dbin
+	}
+	return "DEFAULT"
+}

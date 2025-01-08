@@ -672,6 +672,8 @@ message Metadata {
     bool tc_attribute_propagation_unsupported = 243;
     // table connection subscription unsupported is set to true for devices that do not support subscription for table connection leaves.
     bool tc_subscription_unsupported = 244;
+    // default bgp instance name is used to set bgp instance name value other than DEFAULT
+    string default_bgp_instance_name = 245;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
