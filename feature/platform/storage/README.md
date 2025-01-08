@@ -27,11 +27,17 @@ Storage File System Check
 paths:
 
   /components/component/storage/state/counters/soft-read-error-rate:
+   platform_type: [ "STORAGE" ]
   /components/component/storage/state/counters/reallocated-sectors:
+   platform_type: [ "STORAGE" ]
   /components/component/storage/state/counters/end-to-end-error:
+   platform_type: [ "STORAGE" ]
   /components/component/storage/state/counters/offline-uncorrectable-sectors-count:
+   platform_type: [ "STORAGE" ]
   /components/component/storage/state/counters/life-left:
+   platform_type: [ "STORAGE" ]
   /components/component/storage/state/counters/percentage-used:
+   platform_type: [ "STORAGE" ]
 
 
 rpcs:
