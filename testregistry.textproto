@@ -435,12 +435,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "PF-1.7"
-  description: "MPLS Decapsulation"
-  readme: ""
-  exec: " "
-}
-test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
@@ -751,9 +745,15 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-2.15"
+  id: "RT-2.16"
   description: "IS-IS Graceful Restart Helper"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.17"
+  description: "Graceful Restart Restarting"
+    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
   exec: " "
 }
 test: {
