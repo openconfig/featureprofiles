@@ -10,21 +10,20 @@ Storage File System Check
 
 ## Procedure
 
-* For each mountpoint collect and verify if the following path returns valid values
+* For each storage file system collect and verify if the following path are not empty and returns valid values. Log the values returned. 
 
   *  /components/component/storage/state/counters/soft-read-error-rate:
-     The response returned must ideally be 0, throw a warning message for any other floating point number
+     Check if the response is a counter64
   *  /components/component/storage/state/counters/reallocated-sectors:
-     Check if the response is an integer 
+     Check if the response is a counter64
   *  /components/component/storage/state/counters/end-to-end-error:
-     Check if the response is an integer  
+     Check if the response is a counter64
   *  /components/component/storage/state/counters/offline-uncorrectable-sectors-count:
-     The value returned must ideally be 0, thorw a warning message for any other other integer
+     Check if the response is a counter64
   *  /components/component/storage/state/counters/life-left:
      Check if the response is an integer 
   *  /components/component/storage/state/counters/percentage-used:
-     The response returned must be an integer, thorw a warning message if utilization is greater than the threshold
-
+     Check if the response is an integer 
   
 ## OpenConfig Path and RPC Coverage
 
