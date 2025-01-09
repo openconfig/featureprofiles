@@ -13,11 +13,17 @@ Storage File System Check
 * For each mountpoint collect and verify if the following path returns valid values
 
   *  /components/component/storage/state/counters/soft-read-error-rate:
+     The response returned must ideally be 0, throw a warning message for any other floating point number
   *  /components/component/storage/state/counters/reallocated-sectors:
+     Check if the response is an integer 
   *  /components/component/storage/state/counters/end-to-end-error:
+     Check if the response is an integer  
   *  /components/component/storage/state/counters/offline-uncorrectable-sectors-count:
+     The value returned must ideally be 0, thorw a warning message for any other other integer
   *  /components/component/storage/state/counters/life-left:
+     Check if the response is an integer 
   *  /components/component/storage/state/counters/percentage-used:
+     The response returned must be an integer, thorw a warning message if utilization is greater than the threshold
 
   
 ## OpenConfig Path and RPC Coverage
