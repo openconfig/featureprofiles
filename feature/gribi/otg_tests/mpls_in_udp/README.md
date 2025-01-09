@@ -283,8 +283,7 @@ redirect and inner packet TTL = 1.
                       }
                     },
                     "action": {
-                      "destination-address": "next_hop_group_ip"
-                      "ip-ttl": 1  
+                      "next-hop-group": "nhg" #TODO: Need to add to model as nhg will be doing encap and setting TTL.
                      }
                   }
                 ]
