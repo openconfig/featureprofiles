@@ -227,14 +227,14 @@ func (bs *BGPSession) WithEBGP(t *testing.T, afiTypes []oc.E_BgpTypes_AFI_SAFI_T
 				ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 				bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP4.peer")
 				bgp4Peer.SetPeerAddress(ipv4.Gateway())
-				bgp4Peer.SetAsNumber(uint32(asNumbers[i]))
+				bgp4Peer.SetAsNumber(asNumbers[i])
 				bgp4Peer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 				bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 			case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
 				ipv6 := devices[i].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 				bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP6.peer")
 				bgp6Peer.SetPeerAddress(ipv6.Gateway())
-				bgp6Peer.SetAsNumber(uint32(asNumbers[i]))
+				bgp6Peer.SetAsNumber(asNumbers[i])
 				bgp6Peer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 				bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 			}
@@ -354,6 +354,15 @@ type NeighborConfig struct {
 	AS           uint32
 }
 
+// BgpNeighbor holds BGP Peer information.
+type BgpNeighbor struct {
+	LocalAS    uint32
+	PeerAS     uint32
+	Neighborip string
+	IsV4       bool
+	PeerGrp    string
+}
+
 // buildNeigborConfig builds neighbor config based on given flags
 func (bs *BGPSession) buildNeigborConfig(isSamePG, isSameAS bool, bgpPorts []string) []*NeighborConfig {
 	nc1 := &NeighborConfig{
@@ -386,7 +395,7 @@ func (bs *BGPSession) buildNeigborConfig(isSamePG, isSameAS bool, bgpPorts []str
 	}
 	ncAll := []*NeighborConfig{nc1, nc2, nc3, nc4}
 
-	validNC := []*NeighborConfig{}
+	var validNC []*NeighborConfig
 	for _, nc := range ncAll[:len(bs.DUTPorts)] {
 		if containsValue(bgpPorts, nc.Name) {
 			validNC = append(validNC, nc)
@@ -491,4 +500,57 @@ func containsValue[T comparable](slice []T, value T) bool {
 		}
 	}
 	return false
+}
+
+// BGPClearConfig removes all BGP configuration from the DUT.
+func BGPClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	resetBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+
+	if deviations.NetworkInstanceTableDeletionRequired(dut) {
+		tablePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableAny()
+		for _, table := range gnmi.LookupAll[*oc.NetworkInstance_Table](t, dut, tablePath.Config()) {
+			if val, ok := table.Val(); ok {
+				if val.GetProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+					gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Table(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, val.GetAddressFamily()).Config())
+				}
+			}
+		}
+	}
+	resetBatch.Set(t, dut)
+}
+
+// VerifyBGPCapabilities function is used to Verify BGP capabilities like route refresh as32 and mpbgp.
+func VerifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []*BgpNeighbor) {
+	t.Log("Verifying BGP capabilities")
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	for _, nbr := range nbrs {
+		nbrPath := statePath.Neighbor(nbr.Neighborip)
+
+		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
+			oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
+			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
+			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
+		}
+		for _, c := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
+			capabilities[c] = true
+		}
+		for c, present := range capabilities {
+			if !present {
+				t.Errorf("Capability not reported: %v", c)
+			}
+		}
+	}
+}
+
+// VerifyPortsUp asserts that each port on the device is operating.
+func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
+	t.Helper()
+	for _, p := range dev.Ports() {
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if want := oc.Interface_OperStatus_UP; status != want {
+			t.Errorf("%s Status: got %v, want %v", p, status, want)
+		}
+	}
 }
