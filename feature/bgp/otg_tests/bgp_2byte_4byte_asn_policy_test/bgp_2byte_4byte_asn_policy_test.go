@@ -583,4 +583,3 @@ func prefixAndLen(prefix string) (string, uint32) {
 	subnetLen := uint32(len)
 	return subnetAddr, subnetLen
 }
-
