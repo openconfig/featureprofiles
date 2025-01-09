@@ -45,7 +45,7 @@ func DeviationCiscoRoutingPolicyBGPActionSetMed(t *testing.T, dut *ondatra.DUTDe
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
-// func DeviationCiscoRoutingPolicyBGPActionSetCommunity is used as an alternative to
+// DeviationCiscoRoutingPolicyBGPActionSetCommunity is used as an alternative to
 // /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community
 // This deviation implements CLI to perform the equivalent function.
 func DeviationCiscoRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondatra.DUTDevice, policyName string, statement string, community string) {
