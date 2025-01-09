@@ -1,4 +1,4 @@
-# PF-1.7 MPLS Decapsulation
+# PF-1.7 Decapsulate MPLS in GRE and UDP
 
 Create a policy-forwarding configuration using gNMI to decapsulate MPLS
 in GRE and UDP packets which are sent to a loopback address and apply to
