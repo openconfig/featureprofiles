@@ -5,3 +5,34 @@ uuid: "261d317f-9bcc-43f9-a412-295ae6c008cf"
 plan_id: "gNMI-1.16"
 description: "fabric redundancy test"
 testbed: TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    gnoi_subcomponent_path: true
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_value_for_defaults: true
+  }
+}
