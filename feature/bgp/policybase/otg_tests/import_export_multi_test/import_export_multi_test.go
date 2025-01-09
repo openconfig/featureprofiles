@@ -892,7 +892,6 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	configureFlowV6(t, bs)
 
 	bs.PushAndStartATE(t)
-	time.Sleep(time.Second * 10)
 
 	testResults := [6]bool{true, true, true, true, true, true}
 	verifyTrafficV4AndV6(t, bs, testResults)
