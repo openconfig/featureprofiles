@@ -56,7 +56,7 @@ openconfig-network-instance:
                   action:
                     decapsulate-mpls-in-gre: TRUE             # TODO: add to OC model/PR in progress
 ```
-### TE-18.1.4 - MPLS in UDP decapsulation set by gNMI
+### PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
 
 Canonical OpenConfig for policy forwarding, matching IP prefix with action
 decapsulate MPLS in UDP.  # TODO: Move to dedicated README
