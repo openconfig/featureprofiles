@@ -22,7 +22,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// func DeviationCiscoRoutingPolicyBGPActionSetCommunity is used as an alternative to
+// DeviationCiscoRoutingPolicyBGPActionSetCommunity is used as an alternative to
 // /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med.
 // This deviation implements CLI to perform the equivalent function.
 func DeviationCiscoRoutingPolicyBGPActionSetMed(t *testing.T, dut *ondatra.DUTDevice, policyName string, statement string, prefixSetName string, setMed int, origin string) {
