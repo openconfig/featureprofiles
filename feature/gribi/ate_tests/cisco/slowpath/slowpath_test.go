@@ -21,8 +21,6 @@ import (
 	"strings"
 	"time"
 
-	//"github.com/google/go-cmp/cmp"
-	//"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/gribigo/fluent"
@@ -1802,9 +1800,6 @@ func testStats(t *testing.T, dut, dut2 *ondatra.DUTDevice, d_port []string, val,
 
 	if got, want := final-initial, uint64(count); got < want {
 		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
-// 		if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, 5)); diff != "" {
-// 			t.Errorf("Packet count -want,+got:\n%s", diff)
-// 		}
 	}
 
 }
