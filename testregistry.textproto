@@ -436,7 +436,7 @@ test: {
 }
 test: {
   id: "PF-1.7"
-  description: "MPLS Decapsulation"
+  description: "Decapsulate MPLS in GRE and UDP"
   readme: ""
   exec: " "
 }
