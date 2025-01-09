@@ -9,20 +9,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
         path: featureprofiles
     - name: Checkout wiki
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
         repository: "openconfig/featureprofiles.wiki"
         path: featureprofiles.wiki
     - name: Set up Go
-      uses: actions/setup-go@v2.1.3
+      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
       with:
         go-version: 1.21.x
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@f4b3439a656ba812b8cb417d2d49f9c810103092
       with:
         path: |
           ~/go/pkg/mod
