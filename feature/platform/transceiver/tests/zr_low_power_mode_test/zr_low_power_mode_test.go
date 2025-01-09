@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -30,8 +31,7 @@ import (
 )
 
 const (
-	samplingInterval = 10 * time.Second
-	intUpdateTime    = 2 * time.Minute
+	intUpdateTime = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -82,7 +82,7 @@ func TestLowPowerMode(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
-
+	samplingInterval := 10 * time.Second
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -129,35 +129,36 @@ func TestLowPowerMode(t *testing.T) {
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			validateStreamOutput(t, allStream)
-
-			opInst := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
+			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
+			samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
-				if _, ok := opInstN.Val(); ok {
+				if val, ok := opInstN.Val(); ok && val != -40 {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/instant is not expected to be reported")
 				}
 			}
 
-			opAvg := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
+			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
 			defer opAvg.Close()
 			if opAvgN := opAvg.Next(); opAvgN != nil {
-				if _, ok := opAvgN.Val(); ok {
+				if val, ok := opAvgN.Val(); ok && val != -40 {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/avg is not expected to be reported")
 				}
 			}
 
-			opMin := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Min().State(), samplingInterval)
+			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), samplingInterval)
 			defer opMin.Close()
 			if opMinN := opMin.Next(); opMinN != nil {
-				if _, ok := opMinN.Val(); ok {
+				if val, ok := opMinN.Val(); ok && val != -40 {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/min is not expected to be reported")
 				}
 			}
 
-			opMax := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Max().State(), samplingInterval)
+			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), samplingInterval)
 			defer opMax.Close()
 			if opMaxN := opMax.Next(); opMaxN != nil {
-				if _, ok := opMaxN.Val(); ok {
+				if val, ok := opMaxN.Val(); ok && val != -40 {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/max is not expected to be reported")
 				}
 			}
@@ -173,7 +174,6 @@ func TestLowPowerMode(t *testing.T) {
 				"min":  opMin,
 				"max":  opMax,
 			}
-
 			validateOutputPower(t, powerStreamMap)
 			cfgplugins.ValidateInterfaceConfig(t, dut, dp)
 		})

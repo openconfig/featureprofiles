@@ -22,6 +22,19 @@ platform_exceptions:  {
 
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_config_unsupported:true
+    wecmp_auto_unsupported: true
+    isis_loopback_required: true
+    weighted_ecmp_fixed_packet_verification: true
+    interface_ref_interface_id_format: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
     vendor: ARISTA
   }
   deviations: {
@@ -38,5 +51,15 @@ platform_exceptions: {
     missing_value_for_defaults: true
     max_ecmp_paths: true
     explicit_interface_in_default_vrf: false
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    max_ecmp_paths: true
+    isis_level_enabled:true
   }
 }

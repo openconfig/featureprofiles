@@ -56,27 +56,35 @@ import (
 )
 
 const (
-	ipv4PLen          = 30
-	ipv6PLen          = 126
-	isisInstance      = "DEFAULT"
-	dutAreaAddress    = "49.0001"
-	ateAreaAddress    = "49"
-	dutSysID          = "1920.0000.2001"
-	asn               = 64501
-	acceptRoutePolicy = "PERMIT-ALL"
-	trafficPPS        = 2500000
-	srcTrafficV4      = "100.0.1.1"
-	srcTrafficV6      = "2002:db8:64:64::1"
-	dstTrafficV4      = "100.0.2.1"
-	dstTrafficV6      = "2003:db8:64:64::1"
-	v4Count           = 254
-	v6Count           = 100000000
-	lagTypeLACP       = oc.IfAggregate_AggregationType_LACP
-	ieee8023adLag     = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	ethernetCsmacd    = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	LAG1              = "lag1"
-	LAG2              = "lag2"
-	LAG3              = "lag3"
+	ipv4PLen             = 30
+	ipv6PLen             = 126
+	isisInstance         = "DEFAULT"
+	dutAreaAddress       = "49.0001"
+	ateAreaAddress       = "49"
+	dutSysID             = "1920.0000.2001"
+	asn                  = 64501
+	acceptRoutePolicy    = "PERMIT-ALL"
+	trafficPPS           = 1000
+	srcTrafficV4         = "100.0.1.1"
+	srcTrafficV6         = "2002:db8:64:64::1"
+	dstTrafficV4         = "100.0.2.1"
+	dstTrafficV6         = "2003:db8:64:64::1"
+	v4Count              = 254
+	v6Count              = 100000000
+	lagTypeLACP          = oc.IfAggregate_AggregationType_LACP
+	ieee8023adLag        = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	ethernetCsmacd       = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	LAG1                 = "lag1"
+	LAG2                 = "lag2"
+	LAG3                 = "lag3"
+	niTeVrf111           = "TE_VRF_111"
+	niRepairVrf          = "REPAIR_VRF"
+	pfx1AdvV4WithMask    = "100.0.1.0/24"
+	niTEVRF222           = "TE_VRF_222"
+	ipv4OuterSrc111Addr  = "198.51.100.111"
+	gribiIPv4EntryVRF111 = "203.0.113.1"
+	ipv4OuterSrc222Addr  = "198.51.100.222"
+	gribiIPv4EntryVRF222 = "203.0.113.100"
 )
 
 type aggPortData struct {
@@ -144,20 +152,20 @@ var (
 		IPv6Len: 128,
 	}
 
-	pfx1AdvV4                = &ipAddr{ip: "100.0.1.0", prefix: 24}
-	pfx1AdvV6                = &ipAddr{ip: "2002:db8:64:64::0", prefix: 64}
-	pfx2AdvV4                = &ipAddr{ip: "100.0.2.0", prefix: 24}
-	pfx2AdvV6                = &ipAddr{ip: "2003:db8:64:64::0", prefix: 64}
-	pfx3AdvV4                = &ipAddr{ip: "100.0.3.0", prefix: 24}
-	pfx4AdvV4                = &ipAddr{ip: "100.0.4.0", prefix: 24}
-	pmd100GFRPorts           []string
-	dutPortList              []*ondatra.Port
-	atePortList              []*ondatra.Port
-	rxPktsBeforeTraffic      map[*ondatra.Port]uint64
-	txPktsBeforeTraffic      map[*ondatra.Port]uint64
-	equalDistributionWeights = []uint64{50, 50}
-	ecmpTolerance            = uint64(1)
-	ipRange                  = []uint32{254, 500}
+	pfx1AdvV4                  = &ipAddr{ip: "100.0.1.0", prefix: 24}
+	pfx1AdvV6                  = &ipAddr{ip: "2002:db8:64:64::0", prefix: 64}
+	pfx2AdvV4                  = &ipAddr{ip: "100.0.2.0", prefix: 24}
+	pfx2AdvV6                  = &ipAddr{ip: "2003:db8:64:64::0", prefix: 64}
+	pfx3AdvV4                  = &ipAddr{ip: "100.0.3.0", prefix: 24}
+	pfx4AdvV4                  = &ipAddr{ip: "100.0.4.0", prefix: 24}
+	pmd100GFRPorts             []string
+	dutPortList                []*ondatra.Port
+	atePortList                []*ondatra.Port
+	rxPktsBeforeTraffic        map[*ondatra.Port]uint64
+	txPktsBeforeTraffic        map[*ondatra.Port]uint64
+	trafficDistributionWeights = []uint64{50, 50}
+	ecmpTolerance              = uint64(1)
+	ipRange                    = []uint32{250, 500}
 
 	dutAggMac []string
 )
@@ -173,18 +181,20 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	aggIDs := configureDUT(t, dut)
+	configNonDefaultNetworkInstance(t, dut)
 	changeMetric(t, dut, aggIDs[2], 30)
 	top := configureATE(t, ate)
+
 	installGRIBIRoutes(t, dut, ate, top)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 	}
-
 	flows := createFlows(t, ate, top)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+
 	for _, agg := range []*aggPortData{agg1, agg2, agg3} {
 		bgpPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateIPv4).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
@@ -210,13 +220,13 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	})
 	t.Run("RT-5.7.1.2: Setting Forwarding-Viable to False for Lag2 all ports", func(t *testing.T) {
 		// Ensure ISIS Adjacency is up on LAG_2
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
-		configForwardingViable(t, dut, dutPortList[1:2], false)
+		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_DOWN); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
 			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
 				t.Fatalf("ISIS Adjacency is Established on LAG_2 ")
 			}
@@ -255,8 +265,55 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal("Packet Dropped, LossPct for flow ")
 		}
 	})
+
 	// Reset Forwarding-Viable to True for all the ports of LAG_2
-	configForwardingViable(t, dut, dutPortList[1:6], true)
+	configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount], true)
+
+	t.Run("RT-5.7.1.4: Setting Forwarding-Viable to False and Down some Port on Lag2", func(t *testing.T) {
+		// Ensure ISIS Adjacency is up on LAG_2
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
+			t.Fatal("ISIS Adjacency is Down on LAG_2")
+		}
+		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
+		// Ensure ISIS Adjacency is Down on LAG_2
+
+		if len(dut.Ports()) > 4 {
+			t.Logf("Bring Down Port2 and Port3")
+			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, false)
+		} else {
+			t.Logf("Bring Down Port2")
+			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, false)
+		}
+
+		// Ensure LAG2 is UP when all member are Forwarding unviable
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+		startTraffic(t, dut, ate, top)
+		if len(dut.Ports()) > 4 {
+			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[3:agg2.ateLagCount+1]); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount], dutPortList[2:agg2.ateLagCount]); err != nil {
+				t.Fatal(err)
+			}
+		}
+		// Ensure that traffic from ATE port1 to pfx4 transmitted out using LAG3
+		if ok := verifyTrafficFlow(t, ate, flows[1:2], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[1].Name())
+		}
+		// Ensure there is no traffic received on DUT LAG_3
+		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == true {
+			t.Fatal("Packets are Received on DUT LAG_3")
+		}
+		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
+		}
+	})
+	t.Logf("Bring Up the Port2 and Port3")
+	setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, true)
+
+	// Reset Forwarding-Viable to True for all the ports of LAG_2
+	configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], true)
 	// Change ISIS metric Equal for Both LAG_2 and LAG_3
 	changeMetric(t, dut, aggIDs[2], 20)
 
@@ -276,9 +333,9 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:(agg2.ateLagCount+1)], dutPortList[2:(agg2.ateLagCount+1)]); err != nil {
 			t.Fatal(err)
 		}
-		// Ensure Load Balancing 50:50 on LAG_2 and LAG_3 for prefix's pfx2, pfx3 and pfx4
-		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName}, flows[0])
-		for idx, weight := range equalDistributionWeights {
+		// Ensure Load WECMP on LAG_2 and LAG_3 for prefix's pfx2, pfx3 and pfx4
+		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName}, flows[1], agg2.ateAggName)
+		for idx, weight := range trafficDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
 			}
@@ -290,12 +347,12 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.2.2: Setting Forwarding-Viable to False for Lag2 all ports", func(t *testing.T) {
 		// Ensure ISIS Adjacency is up on LAG_2
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
-		configForwardingViable(t, dut, dutPortList[1:2], false)
+		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_DOWN); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
 			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
 				t.Fatalf("ISIS Adjacency is Established on LAG_2")
 			}
@@ -330,6 +387,73 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal("Packet Dropped, LossPct for flow ")
 		}
 	})
+
+	// Reset Forwarding-Viable to True for all the ports of LAG_2
+	configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount], true)
+
+	t.Run("RT-5.7.2.4: Setting Forwarding-Viable to False and Down some Port on Lag2", func(t *testing.T) {
+		// Ensure ISIS Adjacency is up on LAG_2
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
+			t.Fatal("ISIS Adjacency is Down on LAG_2")
+		}
+		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
+		// Ensure ISIS Adjacency is Down on LAG_2
+
+		if len(dut.Ports()) > 4 {
+			t.Logf("Bring Down Port2 and Port3")
+			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, false)
+		} else {
+			t.Logf("Bring Down Port2")
+			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2")}, false)
+		}
+		// Ensure LAG2 is UP when all member are Forwarding unviable
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+		startTraffic(t, dut, ate, top)
+		if len(dut.Ports()) > 4 {
+			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[3:agg2.ateLagCount+1]); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount], dutPortList[2:agg2.ateLagCount]); err != nil {
+				t.Fatal(err)
+			}
+		}
+		// Ensure that traffic from ATE port1 to pfx4 transmitted out using LAG3
+		if ok := verifyTrafficFlow(t, ate, flows[1:2], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[1].Name())
+		}
+		// Ensure there is traffic received on DUT LAG_3
+		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == false {
+			t.Fatal("Packets are Received on DUT LAG_3")
+		}
+		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
+		}
+	})
+}
+
+func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, ports []*ondatra.Port, state bool) {
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	for _, p := range ports {
+		i.Name = ygot.String(p.Name())
+		gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
+	}
+}
+
+// configureNetworkInstance configures vrfs DECAP_TE_VRF,ENCAP_TE_VRF_A,ENCAP_TE_VRF_B,
+// TE_VRF_222, TE_VRF_111.
+func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	c := &oc.Root{}
+	vrfs := []string{niTeVrf111, niRepairVrf, niTEVRF222}
+	for _, vrf := range vrfs {
+		ni := c.GetOrCreateNetworkInstance(vrf)
+		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
+	}
 }
 
 // configureDUT configures DUT
@@ -343,6 +467,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	if len(dut.Ports()) > 4 {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
+		trafficDistributionWeights = []uint64{50, 50}
+		if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
+			trafficDistributionWeights = []uint64{33, 67}
+		}
 	}
 	var aggIDs []string
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
@@ -377,11 +505,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			e.AggregateId = ygot.String(aggID)
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
-			}
-			if port.PMD() == ondatra.PMD100GBASEFR {
-				e.AutoNegotiate = ygot.Bool(false)
-				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 			}
 
 			configMemberDUT(dut, i, port, aggID)
@@ -458,9 +581,6 @@ func configAggregateDUT(dut *ondatra.DUTDevice, i *oc.Interface, a *aggPortData)
 	}
 	a4 := s4.GetOrCreateAddress(a.dutIPv4)
 	a4.PrefixLength = ygot.Uint8(ipv4PLen)
-
-	// n4 := s4.GetOrCreateNeighbor(a.ateIPv4)
-	// n4.LinkLayerAddress = ygot.String(a.ateAggMAC)
 
 	s6 := s.GetOrCreateIpv6()
 	if deviations.InterfaceEnabled(dut) {
@@ -607,7 +727,9 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
@@ -838,7 +960,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipA
 		flowV4.TxRx().Port().
 			SetRxNames([]string{dstAgg[0].ateAggName, dstAgg[1].ateAggName})
 	}
-	flowV4.Size().SetFixed(1500)
+	flowV4.Size().SetFixed(1400)
 	flowV4.Rate().SetPps(trafficPPS)
 	eV4 := flowV4.Packet().Add().Ethernet()
 	eV4.Src().SetValue(srcAgg.ateAggMAC)
@@ -858,7 +980,6 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 	client.Start(ctx, t)
-	defer client.Stop(t)
 	gribi.FlushAll(client)
 	client.StartSending(ctx, t)
 	gribi.BecomeLeader(t, client)
@@ -871,34 +992,95 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		top:    top,
 	}
 
-	t.Logf("An IPv4Entry for %s is pointing to ATE LAG2 via gRIBI", pfx4AdvV4.ip+"/24")
+	t.Logf("An IPv4Entry for %s is pointing to ATE LAG2 and Backup NHG to LAG3 via gRIBI", pfx4AdvV4.ip+"/24")
 
+	// Programming AFT entries for backup NHG
 	tcArgs.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(3000).AddNextHop(3000, 1),
+
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(100)).WithIPAddress(agg2.ateIPv4),
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(101)).WithIPAddress(agg3.ateIPv4),
+			WithIndex(uint64(1000)).WithIPAddress(agg3.ateIPv4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithID(uint64(100)).AddNextHop(uint64(100), uint64(1)).AddNextHop(uint64(101), uint64(1)))
+			WithID(uint64(1000)).AddNextHop(uint64(1000), uint64(1)),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF222+"/32").WithNextHopGroup(1000),
 
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(2000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF222).
+			WithNextHopNetworkInstance(niTEVRF222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(2000).AddNextHop(2000, 1),
+
+		fluent.IPv4Entry().WithNetworkInstance(niRepairVrf).WithNextHopGroup(2000).WithPrefix(gribiIPv4EntryVRF111+"/32").
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+
+	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	chk.HasResult(t, tcArgs.client.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(gribiIPv4EntryVRF111+"/32").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
+	// Programming AFT entries for prefixes Encap in Default VRF
 	tcArgs.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(1)).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF111).
+			WithNextHopNetworkInstance(niTeVrf111),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(uint64(1)).AddNextHop(uint64(1), uint64(1)),
+
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithPrefix(pfx4AdvV4.ip+"/24").WithNextHopGroup(uint64(100)))
+			WithPrefix(pfx4AdvV4.ip+"/24").WithNextHopGroup(1).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)))
+
+	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	chk.HasResult(t, tcArgs.client.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(pfx4AdvV4.ip+"/24").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
+	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
+	tcArgs.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
+
+		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
+			WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
+	)
 
 	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, 5*time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
-	defaultVRFIPList := []string{pfx4AdvV4.ip}
-	for ip := range defaultVRFIPList {
-		chk.HasResult(t, tcArgs.client.Results(t),
-			fluent.OperationResult().
-				WithIPv4Operation(defaultVRFIPList[ip]+"/24").
-				WithOperationType(constants.Add).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				AsResult(),
-			chk.IgnoreOperationID(),
-		)
-	}
+
+	chk.HasResult(t, tcArgs.client.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(gribiIPv4EntryVRF111+"/32").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
@@ -939,6 +1121,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
 		txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
 		lostPkt := txPkts - rxPkts
+
 		if status {
 			if got := (lostPkt * 100 / txPkts); got >= 51 {
 				return false
@@ -951,6 +1134,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 			rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 			txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 			lostPkt := txPkts - rxPkts
+
 			if got := (lostPkt * 100 / txPkts); got > 0 {
 				return false
 			}
@@ -960,15 +1144,19 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 }
 
 // awaitAdjacency wait for adjacency to be up/down
-func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state oc.E_Isis_IsisInterfaceAdjState) bool {
+func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state []oc.E_Isis_IsisInterfaceAdjState) bool {
 	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	intf := isisPath.Interface(intfName)
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 		v, ok := val.Val()
-		return v == state && ok
+		for _, s := range state {
+			if (v == s) && ok {
+				return true
+			}
+		}
+		return false
 	}).Await(t)
-
 	return ok
 }
 
@@ -1032,12 +1220,19 @@ func validateLag3Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 }
 
 // trafficRXWeights to ensure 50:50 Load Balancing
-func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow) []uint64 {
+func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow, aggregateAggName string) []uint64 {
 	t.Helper()
 	var rxs []uint64
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	flowInFrames := flowMetrics.GetCounters().GetInPkts()
 	for _, aggName := range aggNames {
 		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
 		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
+		inFrames := metrics.GetCounters().GetInFrames()
+		if aggName == aggregateAggName {
+			inFrames = inFrames - flowInFrames
+		}
+		rxs = append(rxs, inFrames)
 	}
 	var total uint64
 	for _, rx := range rxs {

@@ -107,7 +107,7 @@ const (
 	teVrf111TunnelCount     = 1600
 	teVrf222TunnelCount     = 1600
 	encapNhCount            = 1600
-	encapNhgcount           = 200
+	encapNhgcount           = 800
 	encapIPv4Count          = 5000
 	encapIPv6Count          = 5000
 	decapIPv4Count          = 48
@@ -368,7 +368,7 @@ func createIPv6Entries(startIP string, count uint64) []string {
 
 // pushEncapEntries pushes IP entries in a specified Encap VRFs and tunnel VRFs.
 // The entries in the encap VRFs should point to NextHopGroups in the DEFAULT VRF.
-// Inject 200 such NextHopGroups in the DEFAULT VRF. Each NextHopGroup should have
+// Inject 800 such NextHopGroups in the DEFAULT VRF. Each NextHopGroup should have
 // 8 NextHops where each NextHop points to a tunnel in the TE_VRF_111.
 // In addition, the weights specified in the NextHopGroup should be co-prime and the
 // sum of the weights should be 16.
@@ -595,10 +595,13 @@ func pushDecapScaleEntries(t *testing.T, args *testArgs, decapEntries []string) 
 }
 
 func installDecapEntry(t *testing.T, args *testArgs, nhIndex, nhgIndex uint64, prefix string) {
+	decapNH := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+		WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP)
+	if !deviations.DecapNHWithNextHopNIUnsupported(args.dut) {
+		decapNH.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut))
+	}
 	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut)),
+		decapNH,
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(nhgIndex).AddNextHop(nhIndex, 1),
 		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
