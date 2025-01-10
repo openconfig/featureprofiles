@@ -1265,7 +1265,7 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
 
-// GribiEncapHeaderUnsupported returns true if gribi encap header is unsupported
-func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
+// QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
+func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
 }
