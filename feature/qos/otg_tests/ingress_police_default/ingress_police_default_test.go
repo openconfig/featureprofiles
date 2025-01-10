@@ -96,7 +96,7 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntf(t, dut)
-	if deviations.GribiEncapHeaderUnsupported(dut) {
+	if deviations.QosSchedulerIngressPolicer(dut) {
 		configureIntertfaceIngressPolicerCLI(t, dut)
 	}
 
