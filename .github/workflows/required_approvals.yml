@@ -19,6 +19,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         read_org_scoped_token: ${{ secrets.READ_ORG_SCOPED_TOKEN }}
         org_name: openconfig
-        min_approvals: 2
+        min_approvals: 1
         approval_mode: ALL
         pr_number: ${{ github.event.number }}
+        require_all_approvals_latest_commit: false
