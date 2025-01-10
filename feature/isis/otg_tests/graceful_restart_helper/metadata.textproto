@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "4ebdc9b9-8f58-4e33-875b-b5b2a3e0de33"
-plan_id: "RT-2.15"
+plan_id: "RT-2.16"
 description: "IS-IS Graceful Restart Helper"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {

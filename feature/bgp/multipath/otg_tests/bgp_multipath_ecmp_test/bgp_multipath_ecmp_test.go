@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -196,12 +197,21 @@ func TestBGPSetup(t *testing.T) {
 			dni := deviations.DefaultNetworkInstance(bs.DUT)
 			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
-			pgUseMulitplePaths := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths()
 			if tc.enableMultipath {
 				t.Logf("Enable Multipath")
-				pgUseMulitplePaths.Enabled = ygot.Bool(true)
+				switch bs.DUT.Vendor() {
+				case ondatra.NOKIA:
+					//BGP multipath enable/disable at the peer-group level not required b/376799583
+					t.Logf("BGP Multipath enable/disable not required under Peer-group by %s hence skipping", bs.DUT.Vendor())
+				default:
+					bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+				}
 				t.Logf("Enable Maximum Paths")
-				bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+				if deviations.EnableMultipathUnderAfiSafi(bs.DUT) {
+					gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
+				} else {
+					bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+				}
 			}
 			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) && deviations.SkipAfiSafiPathForBgpMultipleAs(bs.DUT) {
 				t.Logf("Enable MultiAS ")
@@ -224,16 +234,37 @@ func TestBGPSetup(t *testing.T) {
 
 			aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
 			prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
-			ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
-			hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+
 			if deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
 				tc.expectedPaths = 3
 			} else {
-				if got, want := len(hopGroup.NextHop), tc.expectedPaths; got != want {
-					t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+				val, ok := gnmi.Watch(t, bs.DUT, aftsPath.Ipv4Entry(prefix).State(), time.Minute,
+					func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+						ipv4Entry, present := val.Val()
+						if !present {
+							return false
+						}
+
+						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+						got := len(hopGroup.NextHop)
+						want := tc.expectedPaths
+						return got == want
+					}).Await(t)
+
+				if !ok {
+					ipv4Entry, present := val.Val()
+					if !present {
+						t.Errorf("prefix: %s, found no aft entry", ipv4Entry.GetPrefix())
+					} else {
+						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+						got := len(hopGroup.NextHop)
+						want := tc.expectedPaths
+						if got != want {
+							t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+						}
+					}
 				}
 			}
-
 			sleepTime := time.Duration(totalPackets/trafficPps) + 5
 			bs.ATE.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)

@@ -11,8 +11,8 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    skip_setting_allow_multiple_as: true
     skip_afi_safi_path_for_bgp_multiple_as: true
+    enable_multipath_under_afi_safi: true
   }
 }
 platform_exceptions: {
@@ -29,7 +29,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
+    enable_multipath_under_afi_safi: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
   }
