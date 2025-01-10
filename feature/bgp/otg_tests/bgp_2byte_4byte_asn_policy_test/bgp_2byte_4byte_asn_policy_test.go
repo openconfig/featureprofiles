@@ -157,7 +157,7 @@ func TestBgpSession(t *testing.T) {
 			configureRegexPolicy(t, dut)
 
 			d := &oc.Root{}
-			rpl := configureBGPPolicy(t, d, tc.nbr.isV4)
+			rpl := configureBGPPolicy(t, d, tc.nbr.isV4, dut)
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 
 			t.Log("Configure BGP on DUT")
@@ -259,7 +259,7 @@ func configureRegexPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
 // Additonally, it also configures policy to match prefix based on community and regex for as path
-func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
+func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool, dut *ondatra.DUTDevice) *oc.RoutingPolicy {
 	t.Helper()
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(rejectPrefix)
@@ -299,7 +299,11 @@ func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 		t.Errorf("Error while creating new statement %v", err)
 	}
 	stmt50.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
-	stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().CommunitySet = ygot.String(communitySet)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySet)
+	} else {
+		stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySet)
+	}
 
 	stmt60, err := pdefComm.AppendNewStatement(aclStatement4)
 	if err != nil {

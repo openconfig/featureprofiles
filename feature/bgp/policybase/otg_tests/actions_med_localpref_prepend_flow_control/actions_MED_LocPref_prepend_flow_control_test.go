@@ -15,6 +15,7 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -40,12 +42,12 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesv4Net1      = "192.168.10.0"
-	advertisedRoutesv6Net1      = "2024:db8:128:128::"
-	advertisedRoutesv4Net2      = "192.168.20.0"
-	advertisedRoutesv6Net2      = "2024:db8:64:64::"
-	advertisedRoutesv4PrefixLen = 24
-	advertisedRoutesv6PrefixLen = 64
+	advertisedRoutesv4Net1      = "192.168.10.1"
+	advertisedRoutesv6Net1      = "2024:db8:128:128::1"
+	advertisedRoutesv4Net2      = "192.168.20.1"
+	advertisedRoutesv6Net2      = "2024:db8:64:64::1"
+	advertisedRoutesv4PrefixLen = 32
+	advertisedRoutesv6PrefixLen = 128
 	dutAS                       = 64500
 	ateAS                       = 64501
 	plenIPv4                    = 30
@@ -209,6 +211,24 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions Established")
 }
 
+// juniperBgpPolicyMEDAdd is used to configure set metric add via native cli as an alternative for below xpath.
+// routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+func juniperBgpPolicyMEDAdd(polName string, metric int) string {
+	return fmt.Sprintf(`
+		policy-options {
+ 		   policy-statement %s {
+        		term 1 {
+            		then {
+                		metric add %d;
+            		}
+        		}
+        		term 2 {
+            		then accept;
+        		}
+    		}
+		}`, polName, metric)
+}
+
 // configureASLocalPrefMEDPolicy configures MED, Local Pref, AS prepend etc
 func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string, ASN uint32) {
 	t.Helper()
@@ -228,15 +248,28 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
 		if strings.Contains(policyValue, "+") {
-			metric, _ := strconv.Atoi(policyValue)
-			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
-			actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
+			if deviations.BgpSetMedV7Unsupported(dut) {
+				t.Logf("Push the CLI config:%s", dut.Vendor())
+				metric, _ := strconv.Atoi(policyValue)
+				switch dut.Vendor() {
+				case ondatra.JUNIPER:
+					config := juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
+					helpers.GnmiCLIConfig(t, dut, config)
+				default:
+					t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
+				}
+			} else {
+				metric, _ := strconv.Atoi(policyValue)
+				actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
+				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+			}
 		} else {
 			metric, _ := strconv.Atoi(policyValue)
 			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
 			actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+			actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		}
-		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setPrependPolicy:
 		metric, _ := strconv.Atoi(policyValue)
 		asPrepend := actions.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
@@ -294,7 +327,7 @@ func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, 
 	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ExportPolicy().Config(), []string{policyDef})
 	batchConfig.Set(t, dut)
 
-	// Sleep for 10 second to ensure that OTG has recived the update packet
+	//Sleep for 10 second to ensure that OTG has recived the update packet
 	time.Sleep(10 * time.Second)
 }
 
@@ -305,15 +338,13 @@ func deleteBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv
 	batchConfig := &gnmi.SetBatch{}
 	nbrPolPathv4 := bgpPath.Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6 := bgpPath.Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	if deviations.DefaultRoutePolicyUnsupported(dut) {
-		// deleteBGPImportExportPolicy on port2 needed when default policy is not supported
-		nbrPolPathv4_2 := bgpPath.Neighbor(ipv4_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
-		nbrPolPathv6_2 := bgpPath.Neighbor(ipv6_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-		gnmi.BatchDelete(batchConfig, nbrPolPathv4_2.ImportPolicy().Config())
-		gnmi.BatchDelete(batchConfig, nbrPolPathv4_2.ExportPolicy().Config())
-		gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ImportPolicy().Config())
-		gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ExportPolicy().Config())
-	}
+	nbrPolPathv4_2 := bgpPath.Neighbor(ipv4_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	nbrPolPathv6_2 := bgpPath.Neighbor(ipv6_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	gnmi.BatchDelete(batchConfig, nbrPolPathv4_2.ImportPolicy().Config())
+	gnmi.BatchDelete(batchConfig, nbrPolPathv4_2.ExportPolicy().Config())
+	gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ImportPolicy().Config())
+	gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ExportPolicy().Config())
+
 	gnmi.BatchDelete(batchConfig, nbrPolPathv4.ImportPolicy().Config())
 	gnmi.BatchDelete(batchConfig, nbrPolPathv4.ExportPolicy().Config())
 	gnmi.BatchDelete(batchConfig, nbrPolPathv6.ImportPolicy().Config())
@@ -452,6 +483,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+
 	return config
 }
 
@@ -461,7 +493,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State(),
-		30*time.Second,
+		60*time.Second,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			_, present := v.Val()
 			return present
@@ -518,7 +550,7 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State(),
-		30*time.Second,
+		60*time.Second,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
 			_, present := v.Val()
 			return present
@@ -712,8 +744,8 @@ func TestBGPPolicy(t *testing.T) {
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
-		deleteNbrv4:     atePort2.IPv4,
-		deleteNbrv6:     atePort2.IPv6,
+		deleteNbrv4:     atePort1.IPv4,
+		deleteNbrv6:     atePort1.IPv6,
 		asn:             dutAS,
 	}, {
 		desc:            "Configure eBGP  prepend 10 x ASN Import Export Policy",
@@ -742,6 +774,7 @@ func TestBGPPolicy(t *testing.T) {
 			if tc.isDeletePolicy {
 				deleteBGPImportExportPolicy(t, dut, tc.deleteNbrv4, tc.deleteNbrv6, atePort2.IPv4, atePort2.IPv6)
 			}
+
 			// Configure Routing Policy on the DUT.
 			configureASLocalPrefMEDPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
 			if !deviations.DefaultRoutePolicyUnsupported(dut) {
