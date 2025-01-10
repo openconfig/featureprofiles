@@ -47,23 +47,23 @@
 paths:
    ## Config Parameter coverage
 
-   /components/component/fabric/config/power-admin-state
+   /components/component/fabric/config/power-admin-state:
 
    ## Telemetry Parameter coverage
 
-   /components/component/fabric/state/power-admin-state
-   /components/component/state/description             
-   /components/component/state/hardware-version
-   /components/component/state/id
-   /components/component/state/mfg-name
-   /components/component/state/name
-   /components/component/state/oper-status
-   /components/component/state/parent
-   /components/component/state/part-no
-   /components/component/state/serial-no
-   /components/component/state/type
-   /components/component/state/location
-   /components/component/state/last-reboot-time
+   /components/component/fabric/state/power-admin-state:
+   /components/component/state/description:
+   /components/component/state/hardware-version:
+   /components/component/state/id:
+   /components/component/state/mfg-name:
+   /components/component/state/name:
+   /components/component/state/oper-status:
+   /components/component/state/parent:
+   /components/component/state/part-no:
+   /components/component/state/serial-no:
+   /components/component/state/type:
+   /components/component/state/location:
+   /components/component/state/last-reboot-time:
 
 rpcs:
     gnmi:

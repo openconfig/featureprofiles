@@ -305,7 +305,7 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 					t.Logf("PASSED: leaf: '%v' value: '%v' is as expected", leaf, fabricLeafOrValuePresent[leaf][1])
 				}
 			} else if !value[0].(bool) && strings.Contains(leaf, fabric) {
-				fabricLeafOrValueNotPresent[leaf] = fmt.Sprintf("is not present")
+				fabricLeafOrValueNotPresent[leaf] = "is not present"
 			}
 		}
 	}
@@ -317,11 +317,12 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 }
 
 func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []string, od otgData) {
-	// Seed the random number generator
-	rand.Seed(time.Now().UnixNano())
+	// Create a new random source with a specific seed
+	source := rand.NewSource(time.Now().UnixNano())
+	random := rand.New(source)
 
 	// Generate a random index within the range of the slice
-	randomIndex := rand.Intn(len(fabrics))
+	randomIndex := random.Intn(len(fabrics))
 
 	// Access the fabric at the random index
 	fabric := fabrics[randomIndex]
@@ -369,11 +370,12 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	time.Sleep(time.Second * 30)
 
 	disabledFabric := ""
-	// Seed the random number generator
-	rand.Seed(time.Now().UnixNano())
+	// Create a new random source with a specific seed
+	source := rand.NewSource(time.Now().UnixNano())
+	random := rand.New(source)
 
 	// Generate a random index within the range of the slice
-	randomIndex := rand.Intn(len(fabrics))
+	randomIndex := random.Intn(len(fabrics))
 
 	// Access the fabric at the random index
 	disabledFabric = fabrics[randomIndex]
