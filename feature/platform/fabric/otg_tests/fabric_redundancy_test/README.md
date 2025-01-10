@@ -48,12 +48,10 @@ paths:
    ## Config Parameter coverage
 
    /components/component/fabric/config/power-admin-state:
-   platform_type: [ "FABRIC" ]
 
    ## Telemetry Parameter coverage
 
    /components/component/fabric/state/power-admin-state:
-   platform_type: [ "FABRIC" ]
    /components/component/state/description:
    platform_type: [ "FABRIC" ]
    /components/component/state/hardware-version:
