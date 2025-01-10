@@ -107,7 +107,6 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 				queuestats[queueName] += *queue.TransmitPkts
 
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -128,14 +127,12 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
 
+// testSchedulerwrr tests the Weighted Round Robin (WRR) scheduling on the DUT (Device Under Test).
 func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	//defer flushServer(t, args)
 	t.Logf("clear qos counters on all interfaces")
@@ -191,7 +188,6 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 				queuestats[queueName] += *queue.TransmitPkts
 
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -208,12 +204,9 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
 
 func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
@@ -257,8 +250,8 @@ func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		})
 	})
-
 }
+
 func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 	var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
 	println(baseConfigEgress)
@@ -303,7 +296,6 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 			queuestats[queueName] += *queue.TransmitPkts
 
 			queueNames = append(queueNames, queueName)
-
 		}
 	})
 
@@ -324,12 +316,9 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
 
 func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
@@ -428,43 +417,64 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
-
+	// Initialize maps to store QoS packet counters before and after traffic
 	dutQosPktsBeforeTraffic := make(map[string]uint64)
 	dutQosPktsAfterTraffic := make(map[string]uint64)
+
+	// Define the queue names to be monitored
 	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
+
+	// Create a list of interface names to be monitored
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
 		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
 	}
+
+	// Collect QoS packet counters before traffic for each queue on each interface
 	for _, EgressInterface := range interfaceList {
 		for _, queueName := range queueNames {
 			dutQosPktsBeforeTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
 
+	// Define the weights for the traffic streams
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	// Get the source endpoint for the traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Start the traffic streaming test
 	testTrafficsreaming(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 
+	// Get the initial QoS queue counter values
 	QueueCounter := gnmi.OC().Qos().Interface("Bundle-Ether121")
 	val := gnmi.Get(t, args.dut, QueueCounter.State())
+
+	// Wait for the QoS queue counter values to be updated
 	gnmi.Await(t, args.dut, QueueCounter.State(), 3*time.Minute, val)
+
+	// Stop the traffic
 	args.ate.Traffic().Stop(t)
+
+	// Collect QoS packet counters after traffic for each queue on each interface
 	for _, EgressInterface := range interfaceList {
 		for _, queueName := range queueNames {
 			dutQosPktsAfterTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
+
+	// Log the QoS egress packet counters before and after traffic
 	t.Logf("QoS egress packet counters before traffic: %v", dutQosPktsBeforeTraffic)
 	t.Logf("QoS egress packet counters after traffic: %v", dutQosPktsAfterTraffic)
+
+	// Verify that the packet counters have increased for each queue
 	for _, queue := range queueNames {
 		if dutQosPktsAfterTraffic[queue] <= dutQosPktsBeforeTraffic[queue] {
-
 			t.Errorf("packets not increased for queue %v", queue)
 		}
 	}
-
 }
+
 func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.clientA.FlushServer(t)
 	//defer teardownQos(t, args.dut)
@@ -516,7 +526,6 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 				queuestats[queueName] += *queue.TransmitPkts
 
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -542,6 +551,23 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 }
 
+// testSchedulerwrr tests the Weighted Round Robin (WRR) scheduling on the DUT (Device Under Test).
+// It configures the WRR scheduler, sets up the necessary network configurations, and verifies
+// the traffic flow and queue statistics.
+//
+// Parameters:
+// - ctx: The context for the test.
+// - t: The testing object.
+// - args: The arguments required for the test, encapsulated in a testArgs struct.
+//
+// The function performs the following steps:
+// 1. Configures the WRR scheduler on the DUT.
+// 2. Sets up static routes and next-hop groups on the DUT.
+// 3. Configures traffic flows and sends traffic from source endpoints to a destination endpoint.
+// 4. Collects and compares traffic statistics from the ATE (Automated Test Equipment) and the DUT's QoS telemetry.
+// 5. Verifies that the queue statistics match the expected values, ensuring that the WRR scheduling is functioning correctly.
+//
+// Note: The function includes deferred cleanup steps to ensure that the DUT configuration is reverted after the test.
 func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrSche(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -685,17 +711,13 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 			if queueName == "tc7" {
 				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
 					t.Errorf("Stats not matching for queue %+v", queueName)
-
 				}
 			} else {
 				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
 					t.Errorf("Stats not matching for queue %+v", queueName)
-
 				}
-
 			}
-
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
@@ -705,6 +727,7 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 		time.Sleep(3 * time.Minute)
 	}
 }
+
 func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -815,8 +838,8 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
-
 }
+
 func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2Pwrr(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -889,9 +912,7 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
 				t.Errorf("Stats not matching for queue %+v", queueName)
-
 			}
-
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
@@ -900,8 +921,8 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
-
 }
+
 func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -1360,13 +1381,13 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		//gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
-
 	gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 
 	// if diff := cmp.Diff(*ConfigQosGetfinal, *qos); diff != "" {
 	// 	t.Errorf("Config Schedule fail: \n%v", diff)
 	// }
 }
+
 func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
@@ -1488,6 +1509,7 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
+
 func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
@@ -1608,6 +1630,7 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
+
 func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	//defer teardownQos(t, dut)
@@ -1726,5 +1749,4 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
-
 }
