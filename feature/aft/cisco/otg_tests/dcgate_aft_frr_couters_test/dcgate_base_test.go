@@ -133,15 +133,15 @@ func decapNHG(i uint64) uint64 { return i + decapNHGOffset }
 var (
 	otgDstPorts = []string{"port2", "port3", "port4", "port5"}
 	otgSrcPort  = "port1"
-	wantWeights = []float64{
-		0.0625, // 1/4 * 1/4 - port2
-		0.1875, // 1/4 * 3/4 - port3
-		0.3,    // 3/4 * 2/5 - port4
-		0.45,   // 3/5 * 3/4 - port5
-	}
-	noMatchWeight = []float64{
-		1, 0, 0, 0,
-	}
+	//wantWeights = []float64{
+	//	0.0625, // 1/4 * 1/4 - port2
+	//	0.1875, // 1/4 * 3/4 - port3
+	//	0.3,    // 3/4 * 2/5 - port4
+	//	0.45,   // 3/5 * 3/4 - port5
+	//}
+	//noMatchWeight = []float64{
+	//	1, 0, 0, 0,
+	//}
 )
 
 var (
@@ -291,12 +291,6 @@ type pbrRule struct {
 	etherType   oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
 }
 
-type packetAttr struct {
-	dscp     int
-	protocol int
-	// ttl      uint32
-}
-
 type flowAttr struct {
 	src      string   // source IP address
 	dst      string   // destination IP address
@@ -327,33 +321,33 @@ var (
 		dstPorts: otgDstPorts,
 		topo:     gosnappi.NewConfig(),
 	}
-	faIPinIP = flowAttr{
-		src:      ipv4OuterSrcIpInIp,
-		dst:      ipv4FlowIP,
-		srcMac:   otgPort1.MAC,
-		dstMac:   dutPort1.MAC,
-		srcPort:  otgSrcPort,
-		dstPorts: otgDstPorts,
-		topo:     gosnappi.NewConfig(),
-	}
-	fa4NoPrefix = flowAttr{
-		src:      otgPort1.IPv4,
-		dst:      ipv4PrefixDoesNotExistInEncapVrf,
-		srcMac:   otgPort1.MAC,
-		dstMac:   dutPort1.MAC,
-		srcPort:  otgSrcPort,
-		dstPorts: otgDstPorts,
-		topo:     gosnappi.NewConfig(),
-	}
-	fa6NoPrefix = flowAttr{
-		src:      otgPort1.IPv6,
-		dst:      ipv6PrefixDoesNotExistInEncapVrf,
-		srcMac:   otgPort1.MAC,
-		dstMac:   dutPort1.MAC,
-		srcPort:  otgSrcPort,
-		dstPorts: otgDstPorts,
-		topo:     gosnappi.NewConfig(),
-	}
+	//faIPinIP = flowAttr{
+	//	src:      ipv4OuterSrcIpInIp,
+	//	dst:      ipv4FlowIP,
+	//	srcMac:   otgPort1.MAC,
+	//	dstMac:   dutPort1.MAC,
+	//	srcPort:  otgSrcPort,
+	//	dstPorts: otgDstPorts,
+	//	topo:     gosnappi.NewConfig(),
+	//}
+	//fa4NoPrefix = flowAttr{
+	//	src:      otgPort1.IPv4,
+	//	dst:      ipv4PrefixDoesNotExistInEncapVrf,
+	//	srcMac:   otgPort1.MAC,
+	//	dstMac:   dutPort1.MAC,
+	//	srcPort:  otgSrcPort,
+	//	dstPorts: otgDstPorts,
+	//	topo:     gosnappi.NewConfig(),
+	//}
+	//fa6NoPrefix = flowAttr{
+	//	src:      otgPort1.IPv6,
+	//	dst:      ipv6PrefixDoesNotExistInEncapVrf,
+	//	srcMac:   otgPort1.MAC,
+	//	dstMac:   dutPort1.MAC,
+	//	srcPort:  otgSrcPort,
+	//	dstPorts: otgDstPorts,
+	//	topo:     gosnappi.NewConfig(),
+	//}
 	faTransit = flowAttr{
 		src:      ipv4OuterSrc111,
 		dst:      tunnelDstIP1,
