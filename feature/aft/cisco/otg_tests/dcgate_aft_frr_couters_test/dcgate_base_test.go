@@ -45,66 +45,69 @@ import (
 )
 
 const (
-	ipipProtocol                     = 4
-	ipv6ipProtocol                   = 41
-	udpProtocol                      = 17
-	ethertypeIPv4                    = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
-	ethertypeIPv6                    = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
-	clusterPolicy                    = "vrf_selection_policy_c"
-	wanPolicy                        = "vrf_selection_policy_w"
-	vrfDecap                         = "DECAP_TE_VRF"
-	vrfTransit                       = "TE_VRF_111"
-	vrfRepaired                      = "TE_VRF_222"
-	vrfEncapA                        = "ENCAP_TE_VRF_A"
-	vrfEncapB                        = "ENCAP_TE_VRF_B"
-	vrfDecapPostRepaired             = "DECAP"
-	ipv4PrefixLen                    = 30
-	ipv6PrefixLen                    = 126
-	trafficDuration                  = 15 * time.Second
-	nhg10ID                          = 10
-	nh201ID                          = 201
-	nh202ID                          = 202
-	nhg1ID                           = 1
-	nh1ID                            = 1
-	nh2ID                            = 2
-	nhg2ID                           = 2
-	nh10ID                           = 10
-	nh11ID                           = 11
-	nhg3ID                           = 3
-	nh100ID                          = 100
-	nh101ID                          = 101
-	dscpEncapA1                      = 10
-	dscpEncapA2                      = 18
-	dscpEncapB1                      = 20
-	dscpEncapB2                      = 28
-	dscpEncapNoMatch                 = 30
-	magicMac                         = "02:00:00:00:00:01"
-	tunnelDstIP1                     = "203.0.113.1"
-	tunnelDstIP2                     = "203.0.113.2"
-	tunnelDstIP3                     = "203.0.113.100"
-	ipv4OuterSrc111                  = "198.51.100.111"
-	ipv4OuterSrc222                  = "198.51.100.222"
-	ipv4OuterSrcIpInIp               = "198.100.200.123"
-	vipIP1                           = "192.0.2.111"
-	vipIP2                           = "192.0.2.222"
-	vipIP3                           = "192.0.2.133"
-	innerV4DstIP                     = "198.18.1.1"
-	innerV4SrcIP                     = "198.18.0.255"
-	InnerV6SrcIP                     = "2001:DB8::198:1"
-	InnerV6DstIP                     = "2001:DB8:2:0:192::10"
-	ipv4FlowIP                       = "138.0.11.8"
-	ipv4EntryPrefix                  = "138.0.11.0"
-	ipv4EntryPrefixLen               = 24
-	ipv6FlowIP                       = "2015:aa8::1"
-	ipv6EntryPrefix                  = "2015:aa8::"
-	ipv6EntryPrefixLen               = 32
-	ratioTunEncap1                   = 0.25 // 1/4
-	ratioTunEncap2                   = 0.75 // 3/4
-	ratioTunEncapTol                 = 0.05 // 5/100
-	ttl                              = uint32(100)
-	trfDistTolerance                 = 0.02
-	ipv4PrefixDoesNotExistInEncapVrf = "140.0.0.1"
-	ipv6PrefixDoesNotExistInEncapVrf = "2016::140:0:0:1"
+	ipipProtocol                             = 4
+	ipv6ipProtocol                           = 41
+	udpProtocol                              = 17
+	ethertypeIPv4                            = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
+	ethertypeIPv6                            = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
+	clusterPolicy                            = "vrf_selection_policy_c"
+	wanPolicy                                = "vrf_selection_policy_w"
+	vrfDecap                                 = "DECAP_TE_VRF"
+	vrfTransit                               = "TE_VRF_111"
+	vrfRepaired                              = "TE_VRF_222"
+	vrfEncapA                                = "ENCAP_TE_VRF_A"
+	vrfEncapB                                = "ENCAP_TE_VRF_B"
+	vrfDecapPostRepaired                     = "DECAP"
+	ipv4PrefixLen                            = 30
+	ipv6PrefixLen                            = 126
+	trafficDuration                          = 15 * time.Second
+	nhg10ID                                  = 10
+	nh201ID                                  = 201
+	nh202ID                                  = 202
+	nhg1ID                                   = 1
+	nh1ID                                    = 1
+	nh2ID                                    = 2
+	nhg2ID                                   = 2
+	nh10ID                                   = 10
+	nh11ID                                   = 11
+	nhg3ID                                   = 3
+	nh100ID                                  = 100
+	nh101ID                                  = 101
+	dscpEncapA1                              = 10
+	dscpEncapA2                              = 18
+	dscpEncapB1                              = 20
+	dscpEncapB2                              = 28
+	dscpEncapNoMatch                         = 30
+	magicMac                                 = "02:00:00:00:00:01"
+	tunnelDstIP1                             = "203.0.113.1"
+	tunnelDstIP2                             = "203.0.113.2"
+	tunnelDstIP3                             = "203.0.113.100"
+	ipv4OuterSrc111                          = "198.51.100.111"
+	ipv4OuterSrc222                          = "198.51.100.222"
+	ipv4OuterSrcIpInIp                       = "198.100.200.123"
+	vipIP1                                   = "192.0.2.111"
+	vipIP2                                   = "192.0.2.222"
+	vipIP3                                   = "192.0.2.133"
+	innerV4DstIP                             = "198.18.1.1"
+	innerV4SrcIP                             = "198.18.0.255"
+	InnerV6SrcIP                             = "2001:DB8::198:1"
+	InnerV6DstIP                             = "2001:DB8:2:0:192::10"
+	ipv4FlowIP                               = "138.0.11.8"
+	ipv4EntryPrefix                          = "138.0.11.0"
+	ipv4EntryPrefixLen                       = 24
+	ipv6FlowIP                               = "2015:aa8::1"
+	ipv6EntryPrefix                          = "2015:aa8::"
+	ipv6EntryPrefixLen                       = 32
+	ratioTunEncap1                           = 0.25 // 1/4
+	ratioTunEncap2                           = 0.75 // 3/4
+	ratioTunEncapTol                         = 0.05 // 5/100
+	ttl                                      = uint32(100)
+	trfDistTolerance                         = 0.02
+	ipv4PrefixDoesNotExistInEncapVrf         = "140.0.0.1"
+	ipv6PrefixDoesNotExistInEncapVrf         = "2016::140:0:0:1"
+	sampleInterval                           = 5 * time.Second
+	collectTime                              = 60 * time.Second
+	aftCountertolerance              float64 = 1.0
 )
 
 const (
@@ -773,7 +776,8 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 }
 
 // sendTraffic starts traffic flows and send traffic for a fixed duration
-func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) {
+func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) (totalOutPkts float32,
+	totalInPkts float32) {
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
@@ -787,68 +791,45 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
-	time.Sleep(35 * time.Second)
+	time.Sleep(5 * time.Second)
 	t.Log("Traffic stopped")
+
+	totalOutPkts, totalInPkts = gatherFlowStats(t, flows, args.ate.OTG())
+
+	return totalOutPkts, totalInPkts
 }
 
 // validateTrafficFlows verifies that the flow on ATE should pass for good flow and fail for bad flow.
-func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool, match bool) {
+func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool,
+	match bool, aftValidationType string) {
 
 	dut := ondatra.DUT(t, "dut")
 	gnmiClient := dut.RawAPIs().GNMI(t)
-	// Take the baseline counter reading
-	baselineCounters, numAftPathObj := aftUtil.GetPacketForwardedCounts(t, gnmiClient)
 	otg := args.ate.OTG()
-	sendTraffic(t, args, flows, capture)
+
+	//1) Get pre-traffic counters
+	preCounters, err := aftUtil.GetAftCountersSample(t, gnmiClient, sampleInterval, collectTime)
+	if err != nil {
+		t.Fatalf("Failed to get pre-counters via poll: %v", err)
+	}
+
+	packetsOut, packetsIn := sendTraffic(t, args, flows, capture)
+	t.Logf("TGRN Packets Out %f Packets In %f", packetsOut, packetsIn)
+
+	postCounters, err := aftUtil.GetAftCountersSample(t, gnmiClient, sampleInterval, collectTime)
+	if err != nil {
+		t.Fatalf("Failed to get post-counters via poll: %v", err)
+	}
+
+	flowDetails := aftUtil.GetOtgFlowDetails(t, flows, packetsOut)
+
+	results := aftUtil.BuildAftPrefixChain(t, dut, preCounters, postCounters)
+	aftUtil.AftCounterResults(t, flowDetails, results, aftValidationType, len(postCounters),
+		aftCountertolerance, "Encap")
 
 	otgutils.LogPortMetrics(t, otg, args.topo)
 	otgutils.LogFlowMetrics(t, otg, args.topo)
 
-	// Take the updated counter reading after traffic
-	updatedCounters, _ := aftUtil.GetPacketForwardedCounts(t, gnmiClient)
-
-	// Sum up the packet counts
-	var baselinePacketsForwarded uint64
-	var updatedPacketsForwarded uint64
-
-	for _, count := range baselineCounters {
-		baselinePacketsForwarded += count
-	}
-	for _, count := range updatedCounters {
-		updatedPacketsForwarded += count
-	}
-
-	// Compare the baseline and updated counters
-	counterDiffs := aftUtil.GetTrafficCounterDiff([]uint64{baselinePacketsForwarded},
-		[]uint64{updatedPacketsForwarded})
-
-	var totalOutPkts, totalInPkts float32
-
-	for _, flow := range flows {
-		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
-
-		// Sum up the packets for all flows
-		totalOutPkts += outPkts
-		totalInPkts += inPkts
-
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
-		}
-		if match {
-			if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-				t.Fatalf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
-			}
-		} else {
-			if got := ((outPkts - inPkts) * 100) / outPkts; got != 100 {
-				t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
-			}
-		}
-
-	}
-
-	aftUtil.BuildAftOTGStatsTable(t, otg, flows, totalOutPkts, baselinePacketsForwarded,
-		updatedPacketsForwarded, counterDiffs[0], 1.0, args.aftValidationType, numAftPathObj)
 }
 
 // validateTunnelEncapRatio checks whether tunnel1 and tunnel2 ecapped packets are withing specific ratio
@@ -1095,16 +1076,16 @@ func configFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
 func testTraffic(t *testing.T, args *testArgs, weights []float64, shouldPass bool) {
 	flows := []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1), fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)}
 	t.Log("Validate traffic flows")
-	validateTrafficFlows(t, args, flows, false, shouldPass)
+	validateTrafficFlows(t, args, flows, false, shouldPass, args.aftValidationType)
 	if shouldPass {
 		t.Log("Validate hierarchical traffic distribution")
 		validateTrafficDistribution(t, args.ate, weights)
 	}
 }
-func testTransitTraffic(t *testing.T, args *testArgs, weights []float64, shouldPass bool) {
+func testTransitTraffic(t *testing.T, args *testArgs, weights []float64, shouldPass bool, aftValidationType string) {
 	flows := []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1), faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 	t.Log("Validate traffic flows")
-	validateTrafficFlows(t, args, flows, false, shouldPass)
+	validateTrafficFlows(t, args, flows, false, shouldPass, aftValidationType)
 	if shouldPass {
 		t.Log("Validate hierarchical traffic distribution")
 		validateTrafficDistribution(t, args.ate, weights)
@@ -1114,7 +1095,7 @@ func testTransitTraffic(t *testing.T, args *testArgs, weights []float64, shouldP
 func testTransitTrafficWithDscp(t *testing.T, args *testArgs, weights []float64, dscp uint32, shouldPass bool) {
 	flows := []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscp), faTransit.getFlow("ipv6in4", "ip6inipa1", dscp)}
 	t.Log("Validate traffic flows")
-	validateTrafficFlows(t, args, flows, false, shouldPass)
+	validateTrafficFlows(t, args, flows, false, shouldPass, args.aftValidationType)
 	if shouldPass {
 		t.Log("Validate hierarchical traffic distribution")
 		validateTrafficDistribution(t, args.ate, weights)
@@ -1123,4 +1104,40 @@ func testTransitTrafficWithDscp(t *testing.T, args *testArgs, weights []float64,
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func gatherFlowStats(
+	t *testing.T,
+	flows []gosnappi.Flow,
+	otg *otg.OTG,
+) (float32, float32) {
+
+	var totalOutPkts, totalInPkts float32
+	for _, flow := range flows {
+		outPkts := float32(
+			gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()),
+		)
+		inPkts := float32(
+			gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()),
+		)
+
+		// Use whatever flow-loss helper you have:
+		lossPct := otgutils.GetFlowLossPct(t, otg, flow.Name(), 10*time.Second)
+		if lossPct > 1 {
+			t.Fatalf(
+				"For flow %s inPkts=%.0f outPkts=%.0f loss=%.2f%% (wanted near 0%%)",
+				flow.Name(), inPkts, outPkts, lossPct,
+			)
+		} else {
+			t.Logf(
+				"For flow %s inPkts=%.0f outPkts=%.0f loss=%.2f%%",
+				flow.Name(), inPkts, outPkts, lossPct,
+			)
+		}
+
+		totalOutPkts += outPkts
+		totalInPkts += inPkts
+	}
+
+	return totalOutPkts, totalInPkts
 }

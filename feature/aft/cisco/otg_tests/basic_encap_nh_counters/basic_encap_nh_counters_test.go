@@ -103,11 +103,16 @@ const (
 	trfDistTolerance   = 0.02
 	// observing on IXIA OTG: Cannot start capture on more than one port belonging to the
 	// same resource group or on more than one port behind the same front panel port in the chassis
-	otgMutliPortCaptureSupported = false
-	seqIDBase                    = uint32(10)
+	otgMutliPortCaptureSupported         = false
+	seqIDBase                            = uint32(10)
+	sampleInterval                       = 5 * time.Second
+	collectTime                          = 60 * time.Second
+	aftCountertolerance          float64 = 1.0
 )
 
 var (
+	packetsOut  float32
+	packetsIn   float32
 	otgDstPorts = []string{"port2", "port3", "port4", "port5"}
 	otgSrcPort  = "port1"
 	wantWeights = []float64{
@@ -330,6 +335,7 @@ func TestBasicEncap(t *testing.T) {
 	// Configure DUT
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	// Configure ATE
 	otg := ondatra.ATE(t, "ate")
@@ -390,7 +396,7 @@ func TestBasicEncap(t *testing.T) {
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
-			aftValidationType:  "exact",
+			aftValidationType:  "increment",
 		},
 		{
 			name:               fmt.Sprintf("No Match Dscp %d Traffic", dscpEncapNoMatch),
@@ -411,6 +417,7 @@ func TestBasicEncap(t *testing.T) {
 	}
 
 	for _, tc := range test {
+
 		t.Run(tc.name, func(t *testing.T) {
 
 			if strings.Contains(tc.name, "Test3 IPinIP Traffic WCMP") {
@@ -423,34 +430,45 @@ func TestBasicEncap(t *testing.T) {
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
 			}
-			if otgMutliPortCaptureSupported {
-				enableCapture(t, otg.OTG(), topo, tc.capturePorts)
-				t.Log("Start capture and send traffic")
-				sendTraffic(t, tcArgs, tc.flows, true, tc.aftValidationType)
-				t.Log("Validate captured packet attributes")
 
-				var tunCounter = validatePacketCapture(t, tcArgs, tc.capturePorts, &tc.pattr)
+			for _, port := range tc.capturePorts {
+
+				enableCapture(t, otg.OTG(), topo, []string{port})
+				t.Log("Start capture and send traffic")
+
+				//1) Get pre-traffic counters
+				preCounters, err := aftUtil.GetAftCountersSample(t, gnmiClient, sampleInterval, collectTime)
+				if err != nil {
+					t.Fatalf("Failed to get pre-counters via poll: %v", err)
+				}
+
+				packetsOut, packetsIn = sendTraffic(t, tcArgs, tc.flows, true)
+				t.Logf("TGRN Packets Out %f Packets In %f", packetsOut, packetsIn)
+
+				postCounters, err := aftUtil.GetAftCountersSample(t, gnmiClient, sampleInterval, collectTime)
+				if err != nil {
+					t.Fatalf("Failed to get post-counters via poll: %v", err)
+				}
+
+				flowDetails := aftUtil.GetOtgFlowDetails(t, tc.flows, packetsOut)
+				results := aftUtil.BuildAftPrefixChain(t, dut, preCounters, postCounters)
+
+				t.Logf("Validate captured packet attributes with AFT Validation type of %s",
+					tc.aftValidationType)
+
+				aftUtil.AftCounterResults(t, flowDetails, results, tc.aftValidationType, len(postCounters),
+					aftCountertolerance, "Encap")
+
+				var tunCounter = validatePacketCapture(t, tcArgs, []string{port}, &tc.pattr)
 				if tc.validateEncapRatio {
 					validateTunnelEncapRatio(t, tunCounter)
 				}
 				clearCapture(t, otg.OTG(), topo)
-			} else {
-				for _, port := range tc.capturePorts {
-					enableCapture(t, otg.OTG(), topo, []string{port})
-					t.Log("Start capture and send traffic")
-					sendTraffic(t, tcArgs, tc.flows, true, tc.aftValidationType)
-					t.Log("Validate captured packet attributes")
 
-					var tunCounter = validatePacketCapture(t, tcArgs, []string{port}, &tc.pattr)
-					if tc.validateEncapRatio {
-						validateTunnelEncapRatio(t, tunCounter)
-					}
-					clearCapture(t, otg.OTG(), topo)
-				}
 			}
 
 			t.Log("Validate traffic flows")
-			validateTrafficFlows(t, tcArgs, tc.flows, false, true, tc.aftValidationType)
+			validateTrafficFlows(t, tcArgs, tc.flows, false, true)
 			t.Log("Validate hierarchical traffic distribution")
 			validateTrafficDistribution(t, otg, tc.weights)
 		})
@@ -956,16 +974,11 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 }
 
 // sendTraffic starts traffic flows and send traffic for a fixed duration
-func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool,
-	aftValidationType string) {
+func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) (totalOutPkts float32, totalInPkts float32) {
+
 	otg := args.ate.OTG()
-	dut := ondatra.DUT(t, "dut")
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
-
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	// Take the baseline counter reading
-	baselineCounters, numAftPathObj := aftUtil.GetPacketForwardedCounts(t, gnmiClient)
 
 	otg.PushConfig(t, args.topo)
 	otg.StartProtocols(t)
@@ -984,70 +997,23 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
 	t.Log("Traffic Stopped")
-	time.Sleep(time.Second * 35)
-
-	// Take the updated counter reading after traffic
-	updatedCounters, _ := aftUtil.GetPacketForwardedCounts(t, gnmiClient)
-
-	// Sum up the packet counts
-	var baselinePacketsForwarded uint64
-	var updatedPacketsForwarded uint64
-
-	for _, count := range baselineCounters {
-		baselinePacketsForwarded += count
-	}
-	for _, count := range updatedCounters {
-		updatedPacketsForwarded += count
-	}
-
-	// Compare the baseline and updated counters
-	counterDiffs := aftUtil.GetTrafficCounterDiff([]uint64{baselinePacketsForwarded},
-		[]uint64{updatedPacketsForwarded})
-
-	t.Logf("Baseline Total Packets Forwarded: %d vs Updated Packets Forwarded: %d", baselinePacketsForwarded, updatedPacketsForwarded)
-	t.Log("Traffic diff per index value")
-
-	for i, diff := range counterDiffs {
-		log.Printf("Difference in Packets Forwarded for counter %d: %v", i, diff)
-	}
+	time.Sleep(time.Second * 10)
 
 	otgutils.LogPortMetrics(t, otg, args.topo)
 	otgutils.LogFlowMetrics(t, otg, args.topo)
 
-	// Aggregate packet counts across all flows
-	var totalOutPkts, totalInPkts float32
-	for _, flow := range flows {
-		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+	totalOutPkts, totalInPkts = gatherFlowStats(t, flows, args.ate.OTG())
 
-		lossPct := otgutils.GetFlowLossPct(t, args.ate.OTG(), flow.Name(), 10*time.Second)
-
-		if lossPct > 1 {
-			t.Fatalf("for flow %s inPkts is %f outPkts is %f loss got is %f want 0", flow.Name(), inPkts, outPkts, lossPct)
-		} else {
-			t.Logf("for flow %s inPkts is %f outPkts is %f loss %f", flow.Name(), inPkts, outPkts, lossPct)
-		}
-		t.Logf("For Flow: %s TGEN RX Packets Forwarded: %f AFT Aggregate NH-Counters: %d", flow.Name(), inPkts, counterDiffs)
-
-		// Sum up the packets for all flows
-		totalOutPkts += outPkts
-		totalInPkts += inPkts
-	}
-
-	// Print the detailed stats in a table format
-	aftUtil.BuildAftOTGStatsTable(t, otg, flows, totalOutPkts, baselinePacketsForwarded,
-		updatedPacketsForwarded, counterDiffs[0], 1.0, aftValidationType, numAftPathObj)
-
-	t.Log("Traffic stopped")
+	return totalOutPkts, totalInPkts
 }
 
 // validateTrafficFlows verifies that the flow on ATE should pass for good flow and fail for bad flow.
 // Update validateTrafficFlows signature to accept aftValidationType
-func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool, match bool, aftValidationType string) {
+func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool, match bool) {
 	otg := args.ate.OTG()
 
 	// Use the validation type passed in from the test case
-	sendTraffic(t, args, flows, capture, aftValidationType)
+	sendTraffic(t, args, flows, capture)
 
 	otgutils.LogPortMetrics(t, otg, args.topo)
 	otgutils.LogFlowMetrics(t, otg, args.topo)
@@ -1221,4 +1187,40 @@ func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+}
+
+func gatherFlowStats(
+	t *testing.T,
+	flows []gosnappi.Flow,
+	otg *otg.OTG,
+) (float32, float32) {
+
+	var totalOutPkts, totalInPkts float32
+	for _, flow := range flows {
+		outPkts := float32(
+			gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()),
+		)
+		inPkts := float32(
+			gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()),
+		)
+
+		// Use whatever flow-loss helper you have:
+		lossPct := otgutils.GetFlowLossPct(t, otg, flow.Name(), 10*time.Second)
+		if lossPct > 1 {
+			t.Fatalf(
+				"For flow %s inPkts=%.0f outPkts=%.0f loss=%.2f%% (wanted near 0%%)",
+				flow.Name(), inPkts, outPkts, lossPct,
+			)
+		} else {
+			t.Logf(
+				"For flow %s inPkts=%.0f outPkts=%.0f loss=%.2f%%",
+				flow.Name(), inPkts, outPkts, lossPct,
+			)
+		}
+
+		totalOutPkts += outPkts
+		totalInPkts += inPkts
+	}
+
+	return totalOutPkts, totalInPkts
 }

@@ -459,17 +459,18 @@ func TestTransitFrr(t *testing.T) {
 		skip              bool
 		aftValidationType string
 	}{
-		//{
-		//	name: "TestTransitTrafficNoPrefixInTransitVrf",
-		//	desc: "TTT_02: Verify if there is no match for the tunnel IP in the TRANSIT_TE_VRF, then the packet is decaped and forwarded according to the routes in the DEFAULT VRF.",
-		//	fn:   testTransitTrafficNoMatchInTransitVrf,
-		//	skip: true,
-		//},
+		{
+			name:              "TestTransitTrafficNoPrefixInTransitVrf",
+			desc:              "TTT_02: Verify if there is no match for the tunnel IP in the TRANSIT_TE_VRF, then the packet is decaped and forwarded according to the routes in the DEFAULT VRF.",
+			fn:                testTransitTrafficNoMatchInTransitVrf,
+			skip:              true,
+			aftValidationType: "transit",
+		},
 		{
 			name:              "TestTransitTrafficTransitNHGDownRepaiPathTunnelHandlesTraffic",
 			desc:              "TTT_03: If the NextHopGroup referenced by IPv4Entry in TRANSIT_TE_VRF is unviable (POPGate FRR behavior)and if the source IP is not 222.222.222.222, then verify this unviable tunnel is repaired by re-encapping the packet to a repair tunnel as specified in the REPAIR_TE_VRF.",
 			fn:                testTransitTrafficNHGUnviableSendViaRepairTunnel,
-			aftValidationType: "increment",
+			aftValidationType: "transit",
 		},
 		{
 			name: "TestTransitTrafficTransitNHGDownRepaiPathTunnelHandlesTraffic",
@@ -510,7 +511,7 @@ func TestTransitFrr(t *testing.T) {
 			name:              "TestTransitFrrRepairedPathWithSrc222",
 			desc:              "TFRR_12b: Verify Tunneled traffic that has already been repaired (identified by the source IP of 222.222.222.222) is forwarded according to the rules in the REPAIRED_TE_VRF.",
 			fn:                testTransitFRRForRepairPathWithSrc222,
-			aftValidationType: "increment",
+			aftValidationType: "transit",
 		},
 	}
 
@@ -568,12 +569,12 @@ func testTransitTrafficNoMatchInTransitVrf(t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(1), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	weights := []float64{1, 0, 0, 0}
-	testTransitTraffic(t, args, weights, true)
+	testTransitTraffic(t, args, weights, true, args.aftValidationType)
 	// note - traffic is expected to drop if transit vrf does not have prefix match
 	t.Log("Delete tunnel prefix from transit vrf and verify traffic follows default route in the vrf")
 	args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
 	weights = []float64{1, 0, 0, 0}
-	testTransitTraffic(t, args, weights, true)
+	testTransitTraffic(t, args, weights, true, args.aftValidationType)
 
 	t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via backup NHG")
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).Subinterface(0).Enabled().Config(), false)
@@ -584,7 +585,7 @@ func testTransitTrafficNoMatchInTransitVrf(t *testing.T, args *testArgs) {
 	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(InnerV6DstIP, 128)).Config())
 
 	weights = []float64{0, 0, 0, 1}
-	testTransitTraffic(t, args, weights, true)
+	testTransitTraffic(t, args, weights, true, args.aftValidationType)
 
 }
 
@@ -602,7 +603,7 @@ func testTransitTrafficNHGUnviableSendViaRepairTunnel(t *testing.T, args *testAr
 	args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(1), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	weights := []float64{1, 0, 0, 0}
-	testTransitTraffic(t, args, weights, true)
+	testTransitTraffic(t, args, weights, true, args.aftValidationType)
 
 	t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).Subinterface(0).Enabled().Config(), false)
@@ -612,7 +613,7 @@ func testTransitTrafficNHGUnviableSendViaRepairTunnel(t *testing.T, args *testAr
 	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(innerV4DstIP, 32)).Config())
 
 	weights = []float64{0, 0, 1, 0}
-	testTransitTraffic(t, args, weights, true)
+	testTransitTraffic(t, args, weights, true, "increment")
 
 }
 
@@ -639,7 +640,7 @@ func testTransitTrafficRepairedNHGUnviableSrc222(t *testing.T, args *testArgs) {
 	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(InnerV6DstIP, 128)).Config())
 
 	weights := []float64{0, 0, 0, 1}
-	testTransitTraffic(t, args, weights, true)
+	testTransitTraffic(t, args, weights, true, args.aftValidationType)
 
 }
 
