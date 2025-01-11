@@ -156,7 +156,7 @@ ReceiveLoop:
 					if _, exist := cumulative[nhIndex]; !exist {
 						cumulative[nhIndex] = pkts
 					} else {
-						//t.Logf("[DEBUG] Keeping nhIndex=%s at %d (partial update says %d)", nhIndex, oldVal, pkts)
+						t.Logf("[INFO] Keeping nhIndex=%s at %d (partial update says %d)", nhIndex, oldVal, pkts)
 					}
 				}
 			}
