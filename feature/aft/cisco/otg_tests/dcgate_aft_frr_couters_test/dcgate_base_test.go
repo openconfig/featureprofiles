@@ -20,9 +20,6 @@ import (
 	"fmt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	aftUtil "github.com/openconfig/featureprofiles/feature/aft/cisco/aftUtils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -37,8 +34,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygot/ygot"
-	"log"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -47,7 +42,6 @@ import (
 const (
 	ipipProtocol                             = 4
 	ipv6ipProtocol                           = 41
-	udpProtocol                              = 17
 	ethertypeIPv4                            = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
 	ethertypeIPv6                            = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
 	clusterPolicy                            = "vrf_selection_policy_c"
@@ -66,13 +60,6 @@ const (
 	nh202ID                                  = 202
 	nhg1ID                                   = 1
 	nh1ID                                    = 1
-	nh2ID                                    = 2
-	nhg2ID                                   = 2
-	nh10ID                                   = 10
-	nh11ID                                   = 11
-	nhg3ID                                   = 3
-	nh100ID                                  = 100
-	nh101ID                                  = 101
 	dscpEncapA1                              = 10
 	dscpEncapA2                              = 18
 	dscpEncapB1                              = 20
@@ -713,23 +700,6 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return topo
 }
 
-// enableCapture enables packet capture on specified list of ports on OTG
-func enableCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config, otgPortNames []string) {
-	for _, port := range otgPortNames {
-		t.Log("Enabling capture on ", port)
-		topo.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
-	}
-	//t.Log(topo.Msg().GetCaptures())
-	otg.PushConfig(t, topo)
-}
-
-// clearCapture clears capture from all ports on the OTG
-func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
-	t.Log("Clearing capture")
-	topo.Captures().Clear()
-	otg.PushConfig(t, topo)
-}
-
 // getFlow returns a flow of type ipv4, ipv4in4, ipv6in4 or ipv6 with dscp value passed in args.
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
@@ -832,87 +802,6 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, c
 
 }
 
-// validateTunnelEncapRatio checks whether tunnel1 and tunnel2 ecapped packets are withing specific ratio
-func validateTunnelEncapRatio(t *testing.T, tunCounter map[string][]int) {
-	for port, counter := range tunCounter {
-		t.Logf("Validating tunnel encap ratio for %s", port)
-		tunnel1Pkts := float32(counter[0])
-		tunnel2Pkts := float32(counter[1])
-		if tunnel1Pkts == 0 {
-			t.Error("tunnel1 encapped packet count: got 0, want > 0")
-		} else if tunnel2Pkts == 0 {
-			t.Error("tunnel2 encapped packet count: got 0, want > 0")
-		} else {
-			totalPkts := tunnel1Pkts + tunnel2Pkts
-			if (tunnel1Pkts/totalPkts) < (ratioTunEncap1-ratioTunEncapTol) ||
-				(tunnel1Pkts/totalPkts) > (ratioTunEncap1+ratioTunEncapTol) {
-				t.Errorf("tunnel1 encapsulation ratio (%f) is not within range", tunnel1Pkts/totalPkts)
-			} else if (tunnel2Pkts/totalPkts) < (ratioTunEncap2-ratioTunEncapTol) ||
-				(tunnel2Pkts/totalPkts) > (ratioTunEncap2+ratioTunEncapTol) {
-				t.Errorf("tunnel2 encapsulation ratio (%f) is not within range", tunnel1Pkts/totalPkts)
-			} else {
-				t.Log("tunnel encapsulated packets are within ratio")
-			}
-		}
-	}
-}
-
-// validatePacketCapture reads capture files and checks the encapped packet for desired protocol, dscp and ttl
-func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, pa *packetAttr) map[string][]int {
-	tunCounter := make(map[string][]int)
-	for _, otgPortName := range otgPortNames {
-		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
-		f, err := os.CreateTemp("", ".pcap")
-		if err != nil {
-			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
-		}
-		if _, err := f.Write(bytes); err != nil {
-			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
-		}
-		f.Close()
-		t.Logf("Verifying packet attributes captured on %s", otgPortName)
-		handle, err := pcap.OpenOffline(f.Name())
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer handle.Close()
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		tunnel1Pkts := 0
-		tunnel2Pkts := 0
-		for packet := range packetSource.Packets() {
-			ipV4Layer := packet.Layer(layers.LayerTypeIPv4)
-			if ipV4Layer != nil {
-				v4Packet, _ := ipV4Layer.(*layers.IPv4)
-				if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
-					t.Errorf("Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-					break
-				}
-				if got := int(v4Packet.TOS >> 2); got != pa.dscp {
-					t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
-					break
-				}
-				// if !deviations.TtlCopyToTunnelHeaderUnsupported(args.dut) {
-				// 	if got := uint32(v4Packet.TTL); got != pa.ttl {
-				// 		t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-				// 		break
-				// 	}
-				// }
-				if v4Packet.DstIP.String() == tunnelDstIP1 {
-					tunnel1Pkts++
-				}
-				if v4Packet.DstIP.String() == tunnelDstIP2 {
-					tunnel2Pkts++
-				}
-
-			}
-		}
-		t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
-		tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
-	}
-	return tunCounter
-
-}
-
 // startCapture starts the capture on the otg ports
 func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	otg := ate.OTG()
@@ -1006,12 +895,6 @@ func configureVIP2(t *testing.T, args *testArgs) {
 	args.client.AddIPv4(t, cidr(vipIP2, 32), baseNHG(3), deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 }
 
-func configureVIP2BGPPrefix(t *testing.T, args *testArgs, prefix string) {
-	args.client.AddNH(t, baseNH(3), prefix, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.client.AddNHG(t, baseNHG(3), map[uint64]uint64{baseNH(3): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.client.AddIPv4(t, cidr(vipIP2, 32), baseNHG(3), deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-}
-
 func configureVIP3(t *testing.T, args *testArgs) {
 	args.client.AddNH(t, baseNH(4), "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort4DummyIP.IPv4, Mac: magicMac})
 	args.client.AddNHG(t, baseNHG(4), map[uint64]uint64{baseNH(4): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -1042,26 +925,6 @@ func configureVIP3NHGWithRepairTunnelHavingBackupDecapAction(t *testing.T, args 
 	args.client.AddIPv4(t, cidr(tunnelDstIP3, 32), vipNHG(3), vrfRepaired, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddNH(t, tunNH(3), "DecapEncap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc222, Dest: tunnelDstIP3, VrfName: vrfRepaired})
 	args.client.AddNHG(t, tunNHG(3), map[uint64]uint64{tunNH(3): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-}
-
-// CLI to configure Default static route with NH default VRF. NH VRF option is not available with OC Local routing
-func configDefaultIPStaticCli(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
-	ctx := context.Background()
-	for _, v := range vrf {
-		v4Conf := fmt.Sprintf("router static vrf %v address-family ipv4 unicast 0.0.0.0/0 vrf default\n router static vrf %v address-family ipv6 unicast ::/0 vrf default", v, v)
-		config.TextWithGNMI(ctx, t, dut, v4Conf)
-		time.Sleep(5 * time.Second)
-	}
-}
-
-// CLI to configure Default static route with NH default VRF. NH VRF option is not available with OC Local routing
-func unConfigDefaultIPStaticCli(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
-	ctx := context.Background()
-	for _, v := range vrf {
-		v4Conf := fmt.Sprintf("no router static vrf %v address-family ipv4 unicast 0.0.0.0/0 vrf default\n no router static vrf %v address-family ipv6 unicast ::/0 vrf default", v, v)
-		config.TextWithGNMI(ctx, t, dut, v4Conf)
-		time.Sleep(5 * time.Second)
-	}
 }
 
 // CLI to configure falback vrf

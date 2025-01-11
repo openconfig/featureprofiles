@@ -126,7 +126,8 @@ func GetAftCountersSample(
 			case *gpb.SubscribeResponse_SyncResponse:
 
 			case *gpb.SubscribeResponse_Error:
-				errChan <- fmt.Errorf("subscription error: %v", s.Error)
+
+				errChan <- fmt.Errorf("subscription error: %v", s)
 				return
 			default:
 				t.Logf("[INFO] Received unknown response type: %T => ignoring", s)
@@ -766,7 +767,7 @@ func GetOnceNotifications(t *testing.T, gnmiClient gpb.GNMIClient) []*gpb.Notifi
 				t.Logf("Received Sync response")
 				return
 			case *gpb.SubscribeResponse_Error:
-				errChan <- fmt.Errorf("error response: %v", resp.Error)
+				errChan <- fmt.Errorf("error response: %v", resp)
 				return
 			default:
 				t.Logf("Received unknown response type: %T", resp)
@@ -877,9 +878,6 @@ func GetOtgFlowDetails(
 					fd.DSCP = 0
 				}
 
-				// Found an IP, so break the loop
-				break
-
 			case hasV6:
 				fd.OuterProtocol = "IPv6"
 				fd.OuterSrc = pktItem.Ipv6().Src().Value()
@@ -891,20 +889,17 @@ func GetOtgFlowDetails(
 				} else {
 					fd.DSCP = 0
 				}
-				break
-
 			default:
 				// Not IPv4 or IPv6 => skip
 				t.Logf("[INFO] item[%d]: not IPv4/IPv6 => skipping", i)
 			}
 
 			// If a found a recognized IP, break to avoid overwriting
-			if fd.OuterProtocol != "" {
-				break
-			}
+			//if fd.OuterProtocol != "" {
+			//	break
+			//}
 		}
 
-		// Finally store fd in the map keyed by the flow name
 		fdMap[fl.Name()] = fd
 	}
 
