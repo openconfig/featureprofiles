@@ -259,12 +259,15 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 					t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
 				}
 			} else {
-				actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
+				metric, _ := strconv.Atoi(policyValue)
+				actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
 				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 			}
 		} else {
 			metric, _ := strconv.Atoi(policyValue)
 			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+			actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 			actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		}
 	case setPrependPolicy:
@@ -279,6 +282,7 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		}
 		metric, _ := strconv.Atoi(policyValue)
 		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+		actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 
 		stmt2, err := pdef.AppendNewStatement(matchStatement2)
 		if err != nil {
@@ -322,6 +326,9 @@ func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, 
 	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ImportPolicy().Config(), []string{policyDef})
 	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ExportPolicy().Config(), []string{policyDef})
 	batchConfig.Set(t, dut)
+
+	//Sleep for 10 second to ensure that OTG has recived the update packet
+	time.Sleep(10 * time.Second)
 }
 
 // deleteBGPImportExportPolicy configures import/export policies
@@ -507,9 +514,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
 				case setLocalPrefPolicy:
-					if !deviations.BGPRibOcPathUnsupported(dut) {
-						validateImportRoutingPolicy(t, dut, ipAddr, metric)
-					}
+					t.Log("Skipping local-preference validation on eBGP based on RFC-4271, Section-5.1.5")
 				case setPrependPolicy:
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != int(metric) {
 						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
@@ -566,9 +571,7 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
 				case setLocalPrefPolicy:
-					if !deviations.BGPRibOcPathUnsupported(dut) {
-						validateImportRoutingPolicyV6(t, dut, ipAddr, metric)
-					}
+					t.Log("Skipping local-preference validation on eBGP based on RFC-4271, Section-5.1.5")
 				case setPrependPolicy:
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != int(metric) {
 						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
