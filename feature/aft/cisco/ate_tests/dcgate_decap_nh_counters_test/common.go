@@ -25,7 +25,6 @@ import (
 	aftUtil "github.com/openconfig/featureprofiles/feature/aft/cisco/aftUtils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"testing"
 	"time"
 
@@ -236,7 +235,6 @@ type testArgs struct {
 	gribiClient       *gribi.Client
 	aftValidationType string
 	NextHopTypes      map[uint64]string
-	gnmiClient        *gpb.GNMIClient
 }
 
 // WAN PBR rules
