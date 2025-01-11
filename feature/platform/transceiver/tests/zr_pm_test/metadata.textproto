@@ -11,6 +11,7 @@ platform_exceptions:  {
   }
   deviations:  {
     default_network_instance:  "default"
+    channel_assignment_rate_class_parameters_unsupported: true
   }
 }
 platform_exceptions: {
