@@ -22,6 +22,7 @@ import random
 import string
 import tempfile
 import hashlib
+import glob
 import uuid
 import time
 import json
@@ -54,7 +55,8 @@ whitelist_arguments([
     'test_repo_url',
     'sim_use_mtls',
     'collect_dut_info',
-    'cflow_over_ssh'
+    'cflow_over_ssh',
+    'testbed_checks'
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -330,7 +332,7 @@ def _add_extra_properties_to_xml(ts, test_name, reserved_testbed, core_files=[])
             'message': 'Failed'
         }).text = 'Found core files:\n' + '\n'.join(core_files)
 
-def _generate_dummy_suite(test_name, reserved_testbed, fail=False, abort=False):
+def _generate_dummy_suite(test_name, fail=False, abort=False):
     ts = ET.Element('testsuite', attrib={
         'name': test_name,
         'tests': '1',
@@ -353,25 +355,28 @@ def _generate_dummy_suite(test_name, reserved_testbed, fail=False, abort=False):
     else:
         ET.SubElement(tc, 'system-out')
     
-    return ts
-
-def _write_xml_suite(ts, xml_file):
-    root = ET.Element("testsuites")
+    root = ET.Element("testsuites", attrib={
+        'tests': '1',
+        'failures': str(int(fail)),
+        'errors': str(int(abort)),
+        'skipped': '0'
+    })
     root.append(ts)
+    return root
 
+def _write_xml_tree(root, xml_file):
     tree = ET.ElementTree(root)
     with open(xml_file, 'wb') as fp:
         tree.write(fp)
 
-def _get_testsuite_from_xml(file_name):
+def _get_testsuites_from_xml(file_name):
     try:
         tree = ET.parse(file_name)
-        for suite in tree.findall("testsuite"):
-            return suite
+        return tree.getroot()
+    except Exception as e:
+        logger.print(f"Could not parse testsuite xml file {file_name}: {e}")
         return None
-    except:
-        return None
-    
+
 def _extract_env_var_from_arg(arg):
     m = re.findall('\$[0-9a-zA-Z_]+', arg)
     if len(m) > 0: return m[0]
@@ -436,6 +441,9 @@ def _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
+            if os.path.exists(os.path.join(testbed_logs_dir, f'testbed_{t}_disabled.lock')):
+                testbeds.remove(t)
+                break
             reserved_testbed = _trylock_testbed(ws, internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
         time.sleep(random.randint(5,60))
@@ -459,19 +467,84 @@ def _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbe
         logger.warn(f'Cannot release testbed {id}')
         return False
 
+def _get_all_ondatra_log_files(ws, test_ws, test_path):
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+
+    output = check_output(f"go list {test_path}", env=env, cwd=test_ws)
+    packages = output.splitlines()
+
+    module_name = check_output("go list -m", env=env, cwd=test_ws)
+    module_name = module_name.strip()
+    packages = [pkg[len(module_name) + 1:] for pkg in packages if pkg.startswith(module_name)]
+    
+    prefix = packages[0]
+    for p in packages[1:]:
+        while not p.startswith(prefix) and prefix:
+            prefix = prefix[:-1]
+        if prefix:
+            prefix = prefix[:prefix.rfind(os.sep) + 1]
+        else:
+            return []
+    
+    logger.print(f'Searching {prefix} for log files')
+    pattern = os.path.join(test_ws, prefix, '**', "ondatra_logs.xml")
+    log_files = [str(file) for file in glob.glob(pattern, recursive=True)]
+    logger.print(f'Found log files: {log_files}')
+    return log_files
+
+def _aggregate_ondatra_log_files(log_files, out_file):
+    root = _get_testsuites_from_xml(log_files[0])
+    if root == None: return
+
+    testsuite = root.find("testsuite")
+    if testsuite == None: return
+
+    if len(log_files) > 1:
+        tests_attr = int(testsuite.attrib.get('tests', 0))
+        failures_attr = int(testsuite.attrib.get('failures', 0))
+        errors_attr = int(testsuite.attrib.get('errors', 0))
+        skipped_attr = int(testsuite.attrib.get('skipped', 0))
+        time_attr = float(testsuite.attrib.get('time', 0))
+
+        for f in log_files[1:]:
+            try:
+                tree = ET.parse(f)
+                for ts in tree.getroot().findall("testsuite"):
+                    tests_attr += int(ts.attrib.get('tests', 0))
+                    failures_attr += int(ts.attrib.get('failures', 0))
+                    errors_attr += int(ts.attrib.get('errors', 0))
+                    skipped_attr += int(ts.attrib.get('skipped', 0))
+                    time_attr += float(ts.attrib.get('time', 0))
+                    for tc in ts.findall("testcase"):
+                        testsuite.append(tc)
+            except Exception as e:
+                logger.print(f"Could not parse testsuite xml file {f}: {e}")
+                return
+
+        testsuite.attrib['tests'] = str(tests_attr)
+        testsuite.attrib['failures'] = str(failures_attr)
+        testsuite.attrib['errors'] = str(errors_attr)
+        testsuite.attrib['skipped'] = str(skipped_attr)
+        testsuite.attrib['time'] = "{:.3f}".format(time_attr)
+    _write_xml_tree(root, out_file)
+
+
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
-def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images, 
-                        lineup, efr, test_name,
+def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
-                        collect_tb_info=False,
+                        collect_tb_info=True,
+                        test_requires_tgen=False,
+                        test_requires_otg=False,
                         install_image=True,
                         force_install=False,
                         force_reboot=False,
                         sim_use_mtls=False,
+                        testbed_checks=False,
                         smus=None):
     
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
@@ -483,7 +556,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= CreatePythonVirtEnv.s(ws=ws, internal_fp_repo_dir=internal_fp_repo_dir)
         self.enqueue_child_and_get_results(c)
 
-    if not isinstance(testbeds, list): testbeds = [testbeds]
+    if not isinstance(testbeds, list): testbeds = testbeds.split(',')
 
     while len(testbeds) > 0:
         reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
@@ -518,8 +591,18 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
             c |= GenerateCertificates.s()
             c |= SimEnableMTLS.s()
 
+        is_otg = 'otg' in test_path or test_requires_otg
+        is_tgen = 'ate' in test_path or is_otg or test_requires_tgen
+
+        if is_tgen:
+            c |= ReleaseIxiaPorts.s()
+
+        if is_otg:
+            c |= BringupIxiaController.s()
+
         if not using_sim:
-            c |= CheckTestbed.s()
+            if testbed_checks:
+                c |= CheckTestbed.s(tgen=is_tgen, otg=is_otg)
             if install_image:
                 c |= SoftwareUpgrade.s(force_install=force_install)
                 force_reboot = False
@@ -572,6 +655,8 @@ def b4_chain_provider(ws, testsuite_id,
                         test_pr=None,
                         test_args=None,
                         test_timeout=0,
+                        test_requires_tgen=False,
+                        test_requires_otg=False,
                         fp_pre_tests=[],
                         fp_post_tests=[],
                         internal_test=False,
@@ -622,18 +707,28 @@ def b4_chain_provider(ws, testsuite_id,
     if test_debug:
         chain |= InstallGoDelve.s()
 
-    if release_ixia_ports:
-        chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
-
     if test_enable_grpc_logs:
         chain |= PatchTestRepoForGRPCBinLogs.s(internal_test=internal_test)
 
-    reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    if 'otg' in test_path:
-        if reserved_testbed.get('sim', False):
-            chain |= PatchTestRepoForSimOTG.s(internal_test=internal_test)
+    reserved_testbed['testbed_file'] = reserved_testbed['noate_testbed_file']
+    reserved_testbed['binding_file'] = reserved_testbed['noate_binding_file']
+
+    is_otg = 'otg' in test_path or test_requires_otg
+    is_tgen = 'ate' in test_path or is_otg or test_requires_tgen
+    
+    if is_tgen:
+        reserved_testbed['testbed_file'] = reserved_testbed['ate_testbed_file']
+        reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
+
+    if is_otg: 
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
-        chain |= BringupIxiaController.s()
+        # if reserved_testbed.get('sim', False): # no needed anymore
+        #     chain |= PatchTestRepoForSimOTG.s(internal_test=internal_test)
+
+    if is_tgen and not decommission_testbed_after_tests():
+        chain |= ReleaseIxiaPorts.s()
+        if is_otg:
+            chain |= BringupIxiaController.s()
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -647,7 +742,7 @@ def b4_chain_provider(ws, testsuite_id,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path:
+    if is_otg:
         chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
         chain |= TeardownIxiaController.s()
 
@@ -673,7 +768,7 @@ def b4_chain_provider(ws, testsuite_id,
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
-def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
+def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
@@ -721,7 +816,7 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
-    test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "{xml_results_file}" '
+    test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "ondatra_logs.xml" '
     if test_verbose:
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
@@ -765,18 +860,27 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
                             cwd=test_ws)
         stop_time = self.get_current_time()
     finally:
-        suite = _get_testsuite_from_xml(xml_results_file)
-        test_did_pass = suite and suite.attrib['failures'] == '0'
-        if not suite: 
-            if test_ignore_aborted or test_skip:
-                suite = _generate_dummy_suite(test_name, reserved_testbed, fail=test_skip and test_fail_skipped)
-            else:
-                suite = _generate_dummy_suite(test_name, reserved_testbed, abort=True)
-
         if test_enable_grpc_logs:
             grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
             if os.path.exists(grpc_bin_log_file):
                 shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
+
+        log_files = _get_all_ondatra_log_files(ws, test_ws, f"./{test_path}")
+        if log_files:
+            _aggregate_ondatra_log_files(log_files, str(xml_results_file))
+
+        xml_root = _get_testsuites_from_xml(xml_results_file)
+        if xml_root is None: 
+            if test_ignore_aborted or test_skip:
+                xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
+            else:
+                xml_root = _generate_dummy_suite(test_name, abort=True)
+
+        suites = xml_root.findall("testsuite")
+
+        test_did_pass = True
+        for suite in suites:
+            test_did_pass = test_did_pass and suite.attrib['failures'] == '0'
 
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
@@ -790,9 +894,10 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
             run_cmds=True,
             split_files_per_dut=True
         )).get('core_files', [])
-        
-        _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
-        _write_xml_suite(suite, xunit_results_filepath)
+
+        for suite in suites:
+            _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
+        _write_xml_tree(xml_root, xunit_results_filepath)
 
         shutil.move(test_logs_dir_in_ws, os.path.join(test_log_directory_path, "test_logs"))
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
@@ -828,13 +933,10 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
         if not os.path.exists(target_dir):
             logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
             repo = git.Repo.clone_from(url=repo_url,
-                                    to_path=target_dir,
-                                    branch=repo_branch)
-            if repo_rev or repo_pr:
-              _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)  
+                                    to_path=target_dir)
         else:
             repo = git.Repo(target_dir)
-            _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)
+        _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)
 
     except git.GitCommandError as e:
         err = e.stderr or ''
@@ -850,20 +952,45 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     short_sha = repo.git.rev_parse(head_commit_sha, short=7)
     self.send_flame_html(version=f'{repo_name}: {short_sha}')
 
-def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
-    if 'otg' not in reserved_testbed:
-        shutil.copyfile(reserved_testbed["ate_binding_file"], reserved_testbed["otg_binding_file"])
-        return
+def _write_testbed_files(ws, internal_fp_repo_dir, reserved_testbed):
+    # convert testbed to json
+    with tempfile.NamedTemporaryFile() as of:
+        outFile = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/proto/testbed/tojson ' \
+            f'-testbed {reserved_testbed["ate_testbed_file"]} ' \
+            f'-out {outFile}'
+        
+        env = dict(os.environ)
+        env.update(_get_go_env(ws))
+        
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        with open(outFile, 'r') as fp:
+            j = json.load(fp)
 
-    otg_info = reserved_testbed['otg']
-    controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
-    gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
+    j.pop('ates', None)
+    j.pop('links', None)
 
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_testbed_file = f.name
+        with open(tmp_testbed_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+            
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/proto/testbed/fromjson ' \
+            f'-testbed {tmp_testbed_file} ' \
+            f'-out {reserved_testbed["noate_testbed_file"]}'
+
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
+
+def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/tojson ' \
+            f'./exec/utils/proto/binding/tojson ' \
             f'-binding {reserved_testbed["ate_binding_file"]} ' \
             f'-out {outFile}'
 
@@ -874,33 +1001,53 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         with open(outFile, 'r') as fp:
             j = json.load(fp)
 
-    #TODO: support multiple ates
-    for ate in j.get('ates', []):
-        for p in ate.get('ports', []):
-            parts = p['name'].split('/')
-            p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
+    if 'otg' in reserved_testbed:
+        otg_info = reserved_testbed['otg']
+        controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
+        gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
 
-        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port)
-        ate['options'] = {
-            'username': 'admin',
-            'password': 'admin'
-        }
-        ate['otg'] = {
-            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port),
-            'insecure': True,
-            'timeout': 300
-        }
+        #TODO: support multiple ates
+        for ate in j.get('ates', []):
+            for p in ate.get('ports', []):
+                parts = p['name'].split('/')
+                p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
 
-        ate['gnmi'] = {
-            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=gnmi_port),
-            'skip_verify': True,
-            'timeout': 150
-        }
+            ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port)
+            ate['options'] = {
+                'username': 'admin',
+                'password': 'admin'
+            }
+            ate['otg'] = {
+                'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port),
+                'insecure': True,
+                'timeout': 300
+            }
 
-        if 'ixnetwork' in ate:
-            del ate['ixnetwork']
+            ate['gnmi'] = {
+                'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=gnmi_port),
+                'skip_verify': True,
+                'timeout': 150
+            }
 
-        break
+            if 'ixnetwork' in ate:
+                del ate['ixnetwork']
+
+            break
+
+        # convert binding to prototext
+        with tempfile.NamedTemporaryFile() as f:
+            tmp_binding_file = f.name
+            with open(tmp_binding_file, "w") as outfile:
+                outfile.write(json.dumps(j))
+                
+            cmd = f'{GO_BIN} run ' \
+                f'./exec/utils/proto/binding/fromjson ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-out {reserved_testbed["otg_binding_file"]}'
+
+            check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
+    j.pop('ates', None)
 
     # convert binding to prototext
     with tempfile.NamedTemporaryFile() as f:
@@ -909,9 +1056,9 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
             outfile.write(json.dumps(j))
             
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/fromjson ' \
+            f'./exec/utils/proto/binding/fromjson ' \
             f'-binding {tmp_binding_file} ' \
-            f'-out {reserved_testbed["otg_binding_file"]}'
+            f'-out {reserved_testbed["noate_binding_file"]}'
 
         check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
@@ -920,10 +1067,13 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     logger.print('Generating Ondatra files...')
     ondatra_files_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(8))
     ondatra_testbed_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.testbed')
+    ondatra_noate_testbed_path = os.path.join(ws, f'ondatra_noate_{ondatra_files_suffix}.testbed')
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
+    ondatra_noate_binding_path = os.path.join(ws, f'ondatra_noate_{ondatra_files_suffix}.binding')
     ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
+    disabled_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_disabled.lock')
     testbed_test_list_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_tests_list.txt')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
@@ -992,6 +1142,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             f'testbed_{reserved_testbed["id"]}_info.txt')
         install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_install.lock')
+        disabled_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_disabled.lock')
         testbed_test_list_file = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_tests_list.txt')
         
@@ -1023,28 +1175,46 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         reserved_testbed['mtls_key_file'] = key_file
         reserved_testbed['mtls_cert_file'] = cert_file
 
-    reserved_testbed['testbed_file'] = ondatra_testbed_path
-    reserved_testbed['testbed_info_file'] = testbed_info_path
-    reserved_testbed['install_lock_file'] = install_lock_file
-    reserved_testbed['pyats_testbed_file'] = pyats_testbed
+    reserved_testbed['ate_testbed_file'] = ondatra_testbed_path
+    reserved_testbed['noate_testbed_file'] = ondatra_noate_testbed_path
+    reserved_testbed['testbed_file'] = reserved_testbed['noate_testbed_file']
+
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
-    reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    reserved_testbed['test_list_file'] = testbed_test_list_file
+    reserved_testbed['noate_binding_file'] = ondatra_noate_binding_path
+    reserved_testbed['binding_file'] = reserved_testbed['noate_binding_file']
 
-    _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
+    reserved_testbed['testbed_info_file'] = testbed_info_path
+    reserved_testbed['install_lock_file'] = install_lock_file
+    reserved_testbed['disabled_lock_file'] = disabled_lock_file
+    reserved_testbed['test_list_file'] = testbed_test_list_file
+    reserved_testbed['pyats_testbed_file'] = pyats_testbed
+
+    _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed)
+    _write_testbed_files(ws, internal_fp_repo_dir, reserved_testbed)
     return reserved_testbed
 
 @app.task(bind=True, soft_time_limit=1*10*60, time_limit=1*10*60)
-def CheckTestbed(self, ws, internal_fp_repo_dir, reserved_testbed):
+def CheckTestbed(self, ws, internal_fp_repo_dir, reserved_testbed, tgen=False, otg=False):
     logger.print("Checking testbed connectivity...")
+
+    testbed_file = reserved_testbed["noate_testbed_file"]
+    binding_file = reserved_testbed["noate_binding_file"]
+    
+    if tgen:
+        testbed_file = reserved_testbed["ate_testbed_file"]
+        if otg: binding_file = reserved_testbed["otg_binding_file"]
+        else: binding_file = reserved_testbed["ate_binding_file"]
+
     cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/tbchecks ' \
             f'-timeout 5m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {reserved_testbed["binding_file"]} '
+            f'-testbed {testbed_file} ' \
+            f'-binding {binding_file} ' \
+            f'-otg={_gobool(otg)} '
+
     env = dict(os.environ)
     env.update(_get_go_env(ws))
     check_output(cmd, env=env, cwd=internal_fp_repo_dir)
@@ -1065,8 +1235,8 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
             f'-timeout 60m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
+            f'-binding {reserved_testbed["noate_binding_file"]} ' \
             f'-imagePath "{img}" ' \
             f'-lineup {lineup} ' \
             f'-efr {efr} ' \
@@ -1096,8 +1266,8 @@ def ForceReboot(self, ws, internal_fp_repo_dir, reserved_testbed):
             f'-timeout 30m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {reserved_testbed["binding_file"]}'
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
+            f'-binding {reserved_testbed["noate_binding_file"]}'
 
     env = dict(os.environ)
     env.update(_get_go_env(ws))
@@ -1112,8 +1282,8 @@ def InstallSMUs(self, ws, internal_fp_repo_dir, reserved_testbed, smus):
             f'-timeout 30m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
+            f'-binding {reserved_testbed["noate_binding_file"]} ' \
             f'-smus {smus} '
 
     env = dict(os.environ)
@@ -1142,7 +1312,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
         tmp_binding_file = f.name
-        shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
+        shutil.copyfile(reserved_testbed['noate_binding_file'], tmp_binding_file)
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
@@ -1150,7 +1320,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
             f'-timeout 45m ' \
             f'-args ' \
             f'-collect_dut_info=false '\
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
             f'-binding {tmp_binding_file} ' \
             f'-outDir {out_dir} ' \
             f'-timestamp {str(timestamp)} ' \
@@ -1186,7 +1356,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
         return core_files
 
 # noinspection PyPep8Naming
-@app.task(bind=True)
+@app.task(bind=True, soft_time_limit=1*10*60, time_limit=1*10*60)
 def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
     if os.path.exists(reserved_testbed['testbed_info_file']):
         return
@@ -1194,11 +1364,11 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Collecting testbed info...")
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
-            f'-timeout 10m ' \
+            f'-timeout 5m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
+            f'-binding {reserved_testbed["noate_binding_file"]} ' \
             f'-outFile {reserved_testbed["testbed_info_file"]}'
     try:
         env = dict(os.environ)
@@ -1217,8 +1387,8 @@ def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
             f'./exec/utils/certgen ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
+            f'-binding {reserved_testbed["noate_binding_file"]} ' \
             f'-outDir "{certs_dir}" '
 
     env = dict(os.environ)
@@ -1240,7 +1410,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     with tempfile.NamedTemporaryFile() as of:
         out_file = of.name
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/tojson ' \
+            f'./exec/utils/proto/binding/tojson ' \
             f'-binding {reserved_testbed["binding_file"]} ' \
             f'-out {out_file}'
 
@@ -1307,6 +1477,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
             if l == 'grpc':
                 new_conf.append('aaa accounting commands default start-stop local')
                 new_conf.append(f'aaa map-to username {gnmi_username} spiffe-id any')
+                new_conf.append('aaa authorization exec default local')
                 new_conf.append(l)
                 new_conf.append('  tls-mutual')
                 new_conf.append('  certificate-authentication')
@@ -1347,7 +1518,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         logger.print(json.dumps(j))
         
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/fromjson ' \
+            f'./exec/utils/proto/binding/fromjson ' \
             f'-binding {tmp_binding_file} ' \
             f'-out {reserved_testbed["binding_file"]}'
 
@@ -1421,13 +1592,13 @@ def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
+def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Releasing ixia ports...")
     try:
         python_bin = _get_venv_python_bin(ws)
         ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
         logger.print(
-            check_output(f'{python_bin} {ixia_release_bin} {binding_file}')
+            check_output(f'{python_bin} {ixia_release_bin} {reserved_testbed["ate_binding_file"]}')
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
@@ -1443,7 +1614,6 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_v
     logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
-    reserved_testbed['otg_docker_compose_file'] = docker_file
     _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version)
 
     conn_args = {}
@@ -1496,10 +1666,7 @@ def CollectIxiaLogs(self, reserved_testbed, out_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def TeardownIxiaController(self, reserved_testbed):
-    pname = reserved_testbed["id"].lower()
-    docker_file = reserved_testbed["otg_docker_compose_file"]
-
+def TeardownIxiaController(self, test_log_directory_path, reserved_testbed):
     conn_args = {}
     if 'username' in reserved_testbed['otg']:
         conn_args['username'] = reserved_testbed['otg']['username']
@@ -1507,18 +1674,18 @@ def TeardownIxiaController(self, reserved_testbed):
     if 'port' in reserved_testbed['otg']:
         conn_args['port'] = reserved_testbed['otg']['port']
 
-    if 'otg_docker_compose_file' in reserved_testbed:
+    docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
+    if os.path.exists(docker_file):
         pname = reserved_testbed["id"].lower()
-        docker_file = reserved_testbed["otg_docker_compose_file"]
 
         # sim has no access to /auto/
         if reserved_testbed.get('sim', False):
             docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
-            docker_file = docker_file_on_remote
-
-        cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
+            cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file_on_remote} down'
+        else:
+            cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
         remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
-        del reserved_testbed["otg_docker_compose_file"]
+        os.remove(docker_file)
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))
@@ -1576,9 +1743,9 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
 
 # noinspection PyPep8Naming
 @app.task(base=FireX, bind=True)
-@returns('test_report_text_file', 'report_text')
+@returns('test_report_text_file')
 def ConvertXunit2Text(self):
     logger.print(f"In ConvertXunit2Text override")
     c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
-    test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
-    return test_report_text_file, report_text  
+    test_report_text_file = self.enqueue_child_and_get_results(c)  
+    return test_report_text_file  
