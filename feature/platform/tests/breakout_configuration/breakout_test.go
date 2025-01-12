@@ -1,4 +1,4 @@
-package breakout_configuration
+package breakoutConfiguration
 
 import (
 	"context"
@@ -153,28 +153,28 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		numbreakouts  uint8
 		breakoutspeed oc.E_IfEthernet_ETHERNET_SPEED
 		portPrefix    string
-		dutIntfIp     string
+		dutIntfIP     string
 		ateIntfIp     string
 	}{
 		{
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
 			portPrefix:    "HundredGigE",
-			dutIntfIp:     dutPort1.IPv4,
+			dutIntfIP:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
 		},
 		{
 			portPrefix:    "HundredGigE",
 			numbreakouts:  2,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			dutIntfIp:     dutPort1.IPv4,
+			dutIntfIP:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
 		},
 		{
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 			portPrefix:    "TenGigE",
-			dutIntfIp:     dutPort2.IPv4,
+			dutIntfIP:     dutPort2.IPv4,
 			ateIntfIp:     atePort2.IPv4,
 		},
 	}
@@ -252,11 +252,9 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 					if dut.Vendor() == ondatra.CISCO {
 						sortBreakoutPorts(breakOutPorts)
-					} else {
-						// other vendor methods
 					}
 
-					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIp, tc.numbreakouts, true, 1)
+					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
 					if err != nil {
 						t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
 					}
