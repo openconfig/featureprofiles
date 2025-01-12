@@ -15,6 +15,7 @@
 package route_summary_counters_test
 
 import (
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"strconv"
 	"strings"
 	"testing"
@@ -93,6 +94,57 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
+}
+
+type PathInfo struct {
+	path ygnmi.SingletonQuery[uint64]
+	name string
+}
+
+func GetISISPaths(dni string) []*PathInfo {
+	return []*PathInfo{{
+		path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(),
+		name: "IPv4-ISIS",
+	}, {
+		path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(),
+		name: "IPv6-ISIS",
+	}}
+}
+
+func GetBGPPath(dni string, isIPv4 bool) *PathInfo {
+	if isIPv4 {
+		return &PathInfo{
+			path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(),
+			name: "IPv4-BGP",
+		}
+	}
+	return &PathInfo{
+		path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(),
+		name: "IPv6-BGP",
+	}
+}
+
+func checkRouteSummaries(t *testing.T, dut *ondatra.DUTDevice, paths []*PathInfo, prefixesCount uint64) {
+	for _, p := range paths {
+		value := gnmi.Get(t, dut, p.path)
+		t.Logf("Initial %s value: %v", p.name, value)
+
+		aftWatch := gnmi.Watch(t, gnmiOptsForOnChange(t, dut), p.path, time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			count, present := val.Val()
+			t.Logf("%s watch callback - present: %v, count: %v", p.name, present, count)
+			return present && count == prefixesCount
+		})
+
+		if err, got := aftWatch.Await(t); err != nil {
+			if !got {
+				t.Errorf("Waiting for %s AFT entries: err: %v got %v", p.name, err, got)
+			}
+		}
+	}
+}
+
 func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	// netv4 is a simulated network containing the ipv4 addresses specified by targetNetwork
 	netv4 := ts.ATEIntf1.Isis().V4Routes().Add().SetName("netv4").SetLinkMetric(10).SetOriginType(gosnappi.IsisV4RouteRangeOriginType.EXTERNAL)
@@ -131,13 +183,8 @@ func TestRouteSummaryWithISIS(t *testing.T) {
 	}).Await(t)
 
 	dni := deviations.DefaultNetworkInstance(ts.DUT)
-	if got, ok := gnmi.Await(t, ts.DUT, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
-		t.Errorf("ipv4 isis entries, got: %d, want: %d", got, prefixesCount)
-	}
+	checkRouteSummaries(t, ts.DUT, GetISISPaths(dni), uint64(prefixesCount))
 
-	if got, ok := gnmi.Await(t, ts.DUT, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
-		t.Errorf("ipv6 isis entries, got: %d, want: %d", got, prefixesCount)
-	}
 }
 
 func TestRouteSummaryWithBGP(t *testing.T) {
@@ -215,14 +262,14 @@ func TestRouteSummaryWithBGP(t *testing.T) {
 			verifyOTGBGPTelemetry(t, ate.OTG(), otgConfig, "ESTABLISHED")
 
 			dni := deviations.DefaultNetworkInstance(dut)
+
 			if tc.dut.ipv4 {
-				if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
-					t.Errorf("ipv4 BGP entries, got: %d, want: %d", got, prefixesCount)
-				}
+				bgpPath := GetBGPPath(dni, true) // Get IPv4 path
+				checkRouteSummaries(t, dut, []*PathInfo{bgpPath}, uint64(prefixesCount))
+
 			} else {
-				if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
-					t.Errorf("ipv4 BGP entries, got: %d, want: %d", got, prefixesCount)
-				}
+				bgpPath := GetBGPPath(dni, false) // Get IPv4 path
+				checkRouteSummaries(t, dut, []*PathInfo{bgpPath}, uint64(prefixesCount))
 			}
 		})
 	}
