@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -79,14 +80,6 @@ const (
 	EntityTypeAuthPolicy entityType = 3
 )
 
-// CertificateChainRequest is an input argument for the  type definition for the  CreateCertzChain.
-type CertificateChainRequest struct {
-	RequestType     entityType
-	ServerCertFile  string
-	ServerKeyFile   string
-	TrustBundleFile string
-}
-
 // CreateCertzEntity function to create certificate entity of type certificate chain/trust bundle/CRL/Authpolicy.
 func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any, entityVersion string) certzpb.Entity {
 
@@ -126,6 +119,14 @@ func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any,
 		t.Fatalf("Invalid entity type")
 	}
 	return certzpb.Entity{}
+}
+
+// CertificateChainRequest is an input argument for the  type definition for the  CreateCertzChain.
+type CertificateChainRequest struct {
+	RequestType     entityType
+	ServerCertFile  string
+	ServerKeyFile   string
+	TrustBundleFile string
 }
 
 // CreateCertzChain function to get the certificate chain of type certificate chain/trust bundle.
@@ -200,31 +201,33 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 		}
 		trust = append(trust, p)
 	}
-	//a valid check for trust not empty
+	//To check if trust is an empty slice
 	if len(trust) == 0 {
 		return &certzpb.CertificateChain{}
 	}
-	var prevCert *certzpb.CertificateChain
-	var bundleToReturn *certzpb.CertificateChain
-	for i := len(trust) - 1; i >= 0; i-- {
-		if i == len(trust)-1 {
-			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+	// Create the first certificate chain object
+	bundleToReturn := &certzpb.CertificateChain{
+		Certificate: &certzpb.Certificate{
+			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			Certificate: trust[len(trust)-1],
+		},
+		Parent: nil,
+	}
+	prevCert := bundleToReturn
+	// Iterate over the remaining certificates to create the certificate chain
+	for i := len(trust) - 2; i >= 0; i-- {
+		parent := &certzpb.CertificateChain{
+			Certificate: &certzpb.Certificate{
 				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
 				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
 				Certificate: trust[i],
-			}, Parent: nil}
-			prevCert = bundleToReturn
-		} else {
-			prevCert = bundleToReturn
-			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-				Certificate: trust[i],
-			}, Parent: prevCert}
+			},
+			Parent: prevCert,
 		}
+		prevCert = parent
 	}
 	return bundleToReturn
-
 }
 
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
@@ -306,41 +309,40 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 
 // CertGeneration function to create test data for use in TLS tests.
 func CertGeneration(t *testing.T, dirPath string) error {
-	cmd := exec.Cmd{
-		Path:   "./mk_cas.sh",
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+	genScript := filepath.Join(dirPath, "mk_cas.sh")
+	if _, err := os.Stat(genScript); os.IsNotExist(err) {
+		t.Logf("Cert generation script not found at: %v", genScript)
+		return nil
 	}
+
+	cmd := exec.Command(genScript)
 	cmd.Dir = dirPath
-	t.Logf("Executing cert generation command %v.", cmd)
-	err := cmd.Start()
-	if err != nil {
-		t.Logf("Cert generation command failed with error:%v.", err)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	t.Logf("Executing cert generation command: %v", cmd.Args)
+	if err := cmd.Run(); err != nil {
+		t.Errorf("failed to run cert generation command: %v", err)
 		return err
 	}
-	err = cmd.Wait()
-	if err != nil {
-		t.Logf("Failed to run cert generation command during wait with error:%v.", err)
-		return err
-	}
-	return err
+
+	t.Log("Cert generation complete")
+	return nil
 }
 
-// CertCleanup function to  clean out the certificate content under test_data.
+// CertCleanup function to clean out the certificate content under test_data.
 func CertCleanup(t *testing.T, dirPath string) error {
-	cmd := exec.Cmd{
-		Path:   "./cleanup.sh",
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+	cleanupScript := filepath.Join(dirPath, "cleanup.sh")
+	if _, err := os.Stat(cleanupScript); os.IsNotExist(err) {
+		t.Logf("Cleanup script not found at: %v", cleanupScript)
+		return nil
 	}
+	cmd := exec.Command(cleanupScript)
 	cmd.Dir = dirPath
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	t.Logf("Executing cleanup command")
-	if err := cmd.Start(); err != nil {
-		t.Errorf("failed to start cleanup command: %v", err)
-		return err
-	}
-
-	if err := cmd.Wait(); err != nil {
+	if err := cmd.Run(); err != nil {
 		t.Errorf("failed to run cleanup command: %v", err)
 		return err
 	}

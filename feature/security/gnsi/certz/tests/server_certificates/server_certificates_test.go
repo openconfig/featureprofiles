@@ -15,7 +15,7 @@
 package server_certificates_test
 
 import (
-	context "context"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"os"
