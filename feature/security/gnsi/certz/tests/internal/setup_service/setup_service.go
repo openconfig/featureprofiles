@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -309,45 +308,42 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 
 // CertGeneration function to create test data for use in TLS tests.
 func CertGeneration(t *testing.T, dirPath string) error {
-	genScript := filepath.Join(dirPath, "mk_cas.sh")
-	if _, err := os.Stat(genScript); os.IsNotExist(err) {
-		t.Logf("Cert generation script not found at: %v", genScript)
-		return nil
+	cmd := exec.Cmd{
+		Path:   "./mk_cas.sh",
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
-
-	cmd := exec.Command(genScript)
 	cmd.Dir = dirPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	t.Logf("Executing cert generation command: %v", cmd.Args)
-	if err := cmd.Run(); err != nil {
-		t.Errorf("failed to run cert generation command: %v", err)
-		return err
+	t.Logf("Executing cert generation command %v.", cmd)
+	err := cmd.Start()
+	if err != nil {
+		t.Fatalf("Cert generation command failed with error:%v.", err)
 	}
-
-	t.Log("Cert generation complete")
-	return nil
+	err = cmd.Wait()
+	if err != nil {
+		t.Fatalf("Failed to run cert generation command during wait with error:%v.", err)
+	}
+	return err
 }
 
-// CertCleanup function to clean out the certificate content under test_data.
+// CertCleanup function to  clean out the certificate content under test_data.
 func CertCleanup(t *testing.T, dirPath string) error {
-	cleanupScript := filepath.Join(dirPath, "cleanup.sh")
-	if _, err := os.Stat(cleanupScript); os.IsNotExist(err) {
-		t.Logf("Cleanup script not found at: %v", cleanupScript)
-		return nil
+	cmd := exec.Cmd{
+		Path:   "./cleanup.sh",
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
-	cmd := exec.Command(cleanupScript)
 	cmd.Dir = dirPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	t.Logf("Executing cleanup command")
-	if err := cmd.Run(); err != nil {
-		t.Errorf("failed to run cleanup command: %v", err)
-		return err
+	err := cmd.Start()
+	if err != nil {
+		t.Fatalf("Testdata cleanup command failed with error:%v.", err)
 	}
-	t.Logf("testdata cleanup complete")
-	return nil
+	err = cmd.Wait()
+	if err != nil {
+		t.Fatalf("Testdata cleanup command failed during wait with the error:%v.", err)
+	}
+	return err
 }
 
 // ReadDecodeServerCertificate function to read and decode server certificates to extract the SubjectAltName and validate.

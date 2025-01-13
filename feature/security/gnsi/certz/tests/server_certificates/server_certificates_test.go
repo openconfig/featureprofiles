@@ -37,7 +37,7 @@ const (
 )
 
 var (
-	testProfile     = "newprofile"
+	testProfile     = "newprofile2"
 	serverAddr      string
 	username        = "certzuser"
 	password        = "certzpasswd"
