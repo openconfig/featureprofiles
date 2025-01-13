@@ -101,7 +101,10 @@ func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDev
 	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
 
 	if lldpEnabled {
-		gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
+		gnmi.Replace(t, node, lldp.Interface(p.Name()).Config(), &oc.Lldp_Interface{
+			Name:    ygot.String(p.Name()),
+			Enabled: ygot.Bool(lldpEnabled),
+		})
 	}
 
 	if deviations.InterfaceEnabled(node) {
