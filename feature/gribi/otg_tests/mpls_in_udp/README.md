@@ -253,6 +253,57 @@ openconfig-network-instance:
 * Generate traffic from ATE port 1
 * Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
 
+### TE-18.1.5 Rewrite the ingress innner packet TTL = 1, if the incoming TTL = 1.
+Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
+redirect and inner packet TTL = 1.
+
+```json
+{
+  "openconfig-network-instance": {
+    "network-instances": [
+      {
+        "afts": {
+          "policy-forwarding": {
+            "policies": [
+              {
+                "config": {
+                  "policy-id": "retain ttl",
+                  "type": "PBR_POLICY"
+                },
+                "policy": "retain ttl",
+                "rules": [
+                  {
+                    "config": {
+                      "sequence-id": 1,
+                    },
+                    "ipv6": {
+                      "config": {
+                        "destination-address": "router_ip"
+                        "ip-ttl": 1
+                      }
+                    },
+                    "action": {
+                      "next-hop-group": "nhg" #TODO: Need to add to model as nhg will be doing encap and setting TTL.
+                     }
+                  }
+                ]
+              }
+            ]  
+          }
+        }
+      }
+    ]
+  }
+}
+```
+* Push the gNMI the policy forwarding configuration
+* Push the configuration to DUT using gnmi.Set with REPLACE option
+* Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 1.
+* Using OTG, validate ATE port 2 receives MPLS-IN-GRE packets
+  * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
+  * Validate MPLS label is set
+  * Validate inner packet ttl as 1.
+  * Validate outer packet ttl to be "outer_ip-ttl"
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
