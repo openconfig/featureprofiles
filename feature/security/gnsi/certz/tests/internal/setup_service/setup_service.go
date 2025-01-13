@@ -18,7 +18,7 @@
 package setupservice
 
 import (
-	context "context"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -79,14 +79,6 @@ const (
 	EntityTypeAuthPolicy entityType = 3
 )
 
-// CertificateChainRequest is an input argument for the  type definition for the  CreateCertzChain.
-type CertificateChainRequest struct {
-	RequestType     entityType
-	ServerCertFile  string
-	ServerKeyFile   string
-	TrustBundleFile string
-}
-
 // CreateCertzEntity function to create certificate entity of type certificate chain/trust bundle/CRL/Authpolicy.
 func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any, entityVersion string) certzpb.Entity {
 
@@ -126,6 +118,14 @@ func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any,
 		t.Fatalf("Invalid entity type")
 	}
 	return certzpb.Entity{}
+}
+
+// CertificateChainRequest is an input argument for the  type definition for the  CreateCertzChain.
+type CertificateChainRequest struct {
+	RequestType     entityType
+	ServerCertFile  string
+	ServerKeyFile   string
+	TrustBundleFile string
 }
 
 // CreateCertzChain function to get the certificate chain of type certificate chain/trust bundle.
@@ -200,76 +200,31 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 		}
 		trust = append(trust, p)
 	}
-	//a valid check for trust not empty
+	//To check if trust is an empty slice
 	if len(trust) == 0 {
 		return &certzpb.CertificateChain{}
 	}
-	var prevCert *certzpb.CertificateChain
-	var bundleToReturn *certzpb.CertificateChain
-	for i := len(trust) - 1; i >= 0; i-- {
-		if i == len(trust)-1 {
-			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+	// Create the first certificate chain object
+	bundleToReturn := &certzpb.CertificateChain{
+		Certificate: &certzpb.Certificate{
+			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			Certificate: trust[len(trust)-1],
+		},
+		Parent: nil,
+	}
+	prevCert := bundleToReturn
+	// Iterate over the remaining certificates to create the certificate chain
+	for i := len(trust) - 2; i >= 0; i-- {
+		parent := &certzpb.CertificateChain{
+			Certificate: &certzpb.Certificate{
 				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
 				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
 				Certificate: trust[i],
-			}, Parent: nil}
-			prevCert = bundleToReturn
-		} else {
-			prevCert = bundleToReturn
-			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-				Certificate: trust[i],
-			}, Parent: prevCert}
+			},
+			Parent: prevCert,
 		}
-	}
-	return bundleToReturn
-}
-
-// CreateCertChainFromp7bTrustBundle function to create the trust bundle encoded in pkcs7.
-func CreateCertChainFromp7bTrustBundle(fileName string) *certzpb.CertificateChain {
-	pemData, err := os.ReadFile(fileName)
-	if err != nil {
-		return &certzpb.CertificateChain{}
-	}
-	var trust [][]byte
-	for {
-		var block *pem.Block
-		block, pemData = pem.Decode(pemData)
-		if block == nil {
-			break
-		}
-		if block.Type != "CERTIFICATE" {
-			continue
-		}
-		p := pem.EncodeToMemory(block)
-		if p == nil {
-			return &certzpb.CertificateChain{}
-		}
-		trust = append(trust, p)
-	}
-	//a valid check for trust not empty
-	if len(trust) == 0 {
-		return &certzpb.CertificateChain{}
-	}
-	var prevCert *certzpb.CertificateChain
-	var bundleToReturn *certzpb.CertificateChain
-	for i := len(trust) - 1; i >= 0; i-- {
-		if i == len(trust)-1 {
-			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-				Certificate: trust[i],
-			}, Parent: nil}
-			prevCert = bundleToReturn
-		} else {
-			prevCert = bundleToReturn
-			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-				Certificate: trust[i],
-			}, Parent: prevCert}
-		}
+		prevCert = parent
 	}
 	return bundleToReturn
 }
@@ -277,7 +232,8 @@ func CreateCertChainFromp7bTrustBundle(fileName string) *certzpb.CertificateChai
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
 func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
-		t.Fatalf("At least one entity required for Rotate request.")
+		t.Logf("At least one entity required for Rotate request.")
+		return false
 	}
 	uploadRequest := &certzpb.UploadRequest{Entities: entities}
 	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
@@ -305,9 +261,11 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		time.Sleep(10 * time.Second)
 	}
 	if err != nil {
-		t.Fatalf("Error fetching rotate certificate response: %v", err)
+		t.Logf("Error fetching rotate certificate response: %v", err)
+		return false
 	}
 	t.Logf("Received Rotate certificate response: %v", rotateResponse)
+
 	// Replace config with newly added ssl profile after successful rotate.
 	servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
 	batch := gnmi.SetBatch{}
@@ -325,22 +283,24 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		if success {
 			break
 		}
+		t.Logf("gNSI service RPC did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
 		time.Sleep(10 * time.Second)
 	}
 	if !success {
-		t.Fatalf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
+		t.Logf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
+		return false
 	}
 	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
 	rotateCertRequest = &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
 		RotateRequest:  finalizeRequest}
-	err = rotateRequestClient.Send(rotateCertRequest)
-	if err != nil {
+
+	if err := rotateRequestClient.Send(rotateCertRequest); err != nil {
 		t.Fatalf("Error sending rotate finalize request: %v", err)
 	}
-	err = rotateRequestClient.CloseSend()
-	if err != nil {
+
+	if err = rotateRequestClient.CloseSend(); err != nil {
 		t.Fatalf("Error sending rotate close send request: %v", err)
 	}
 	return true
@@ -435,7 +395,8 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request with err:%v.", err)
 		} else {
-			t.Fatalf("Unexpected error during authz Get Request with err:%v.", err)
+			t.Logf("Unexpected error during authz Get Request with err:%v.", err)
+			return false
 		}
 	}
 	t.Logf("gNSI authz get response is %s", rsp)
@@ -465,7 +426,8 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	sysClient := spb.NewSystemClient(conn)
 	_, err = sysClient.Ping(ctx, &spb.PingRequest{})
 	if err != nil {
-		t.Fatalf("Unable to connect gnoiClient %v", err)
+		t.Logf("Unable to connect gnoiClient %v", err)
+		return false
 	}
 	conn.Close()
 	return true
@@ -494,7 +456,8 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	t.Logf("%s:Sending gNMI Capability request.", time.Now().String())
 	response, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err != nil {
-		t.Fatalf("gNMI Capability request failed with err: %v", err)
+		t.Logf("gNMI Capability request failed with err: %v", err)
+		return false
 	}
 	t.Logf("VerifyGnmi:gNMI response: %s", response.GNMIVersion)
 	conn.Close()
@@ -523,7 +486,8 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 	gRibiClient := gribipb.NewGRIBIClient(conn)
 	_, err = gRibiClient.Get(ctx, &gribipb.GetRequest{})
 	if err != nil {
-		t.Fatalf("Failed to connect GribiClient with error:%v.", err)
+		t.Logf("Failed to connect GribiClient with error:%v.", err)
+		return false
 	}
 	conn.Close()
 	return true
@@ -550,7 +514,8 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	p4RtClient := p4rtpb.NewP4RuntimeClient(conn)
 	_, err = p4RtClient.Capabilities(ctx, &p4rtpb.CapabilitiesRequest{})
 	if err != nil {
-		t.Fatalf("Failed to connect P4rtClient with error %v.", err)
+		t.Logf("Failed to connect P4rtClient with error %v.", err)
+		return false
 	}
 	conn.Close()
 	return true

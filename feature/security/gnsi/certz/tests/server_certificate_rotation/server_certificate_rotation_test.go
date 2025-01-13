@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server_certificate_rotation
+package servercertificaterotation
 
 import (
-	context "context"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"os"
@@ -36,12 +36,12 @@ const (
 )
 
 var (
-	testProfile     = "newprofile"
-	serverAddr      string
-	username        = "certzuser"
-	password        = "certzpasswd"
-	expected_result bool
-	timeNow         string
+	testProfile    = "newprofile"
+	serverAddr     string
+	username       = "certzuser"
+	password       = "certzpasswd"
+	expectedResult bool
+	timeNow        string
 )
 
 // createUser function to add an user in admin role.
@@ -173,8 +173,8 @@ func TestServerCertRotation(t *testing.T) {
 			}
 			t.Logf("%s %s:Server certificate rotation completed!", timeNow, tc.desc)
 			t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
-				expected_result = true
-				result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
+				expectedResult = true
+				result := setupService.PostValidationCheck(t, cacert, expectedResult, san, serverAddr, username, password, cert)
 				if !result {
 					t.Fatalf("%s postTestcase service validation failed after successful rotate.", tc.desc)
 				}
