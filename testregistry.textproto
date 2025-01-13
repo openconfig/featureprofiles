@@ -437,7 +437,7 @@ test: {
 test: {
   id: "PF-1.7"
   description: "Decapsulate MPLS in GRE and UDP"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_decap_test/README.md"
   exec: " "
 }
 test: {
