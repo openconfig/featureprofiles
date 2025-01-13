@@ -148,7 +148,7 @@ func TestComponentStatus(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
-        fabrics := make([]string, 0)
+	fabrics := make([]string, 0)
 	for _, f := range fabricCards {
 		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 		if !compMtyVal && ok {
@@ -262,7 +262,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
-        chassisLineCards := make([]string, 0)
+	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
 		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
 		if !compMtyVal && ok {
@@ -312,7 +312,7 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
-        chassisLineCards := make([]string, 0)
+	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
 		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
 		if !compMtyVal && ok {
