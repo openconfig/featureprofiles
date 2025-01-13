@@ -4,7 +4,7 @@ owners:
 
 tests:
   - name: Decap
-    path: feature/aft/cisco/ate_tests
+    path:  feature/aft/cisco/ate_tests/dcgate_decap_nh_counters_test
     timeout: 4200
     mustpass: true
     internal: true
