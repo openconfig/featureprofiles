@@ -24,6 +24,7 @@ Verify:
 
 *   Defined blocks are configured on DUT1.
 *   DUT1 advertises its SRGB and SRLB to ATE1.
+*   Check if we are able to reconfigure the reserved label block and SRGB and SRLB and add them back with the original values.
 
 
 ## OpenConfig Path and RPC Coverage
