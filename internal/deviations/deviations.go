@@ -1292,3 +1292,8 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 	}
 	return "DEFAULT"
 }
+
+// QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
+func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
+}
