@@ -48,34 +48,36 @@ paths:
    ## Config Parameter coverage
 
    /components/component/fabric/config/power-admin-state:
+      platform_type: [ "FABRIC" ]
 
    ## Telemetry Parameter coverage
 
    /components/component/fabric/state/power-admin-state:
+      platform_type: [ "FABRIC" ]
    /components/component/state/description:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/hardware-version:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/id:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/mfg-name:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/name:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/oper-status:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/parent:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/part-no:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/serial-no:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/type:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/location:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
    /components/component/state/last-reboot-time:
-   platform_type: [ "FABRIC" ]
+      platform_type: [ "FABRIC" ]
 
 rpcs:
     gnmi:
