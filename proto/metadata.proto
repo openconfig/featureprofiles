@@ -667,9 +667,24 @@ message Metadata {
     // Juniper: b/358534837
     // Devices that do not support setting med value using union type in OC.
     bool bgp_set_med_v7_unsupported = 241;
+    // Cisco: b/388980373
+    // default import policy for table connection unsupported is set to true for devices that do not support default import policy.
+    bool tc_default_import_policy_unsupported = 242;
+    // Cisco: b/388955361
+    // table connection metric propagation unsupported is set to true for devices that do not support metric propagation.
+    bool tc_metric_propagation_unsupported = 243;
+    // Cisco: b/388980376
+    // table connection attribute propagation unsupported is set to true for devices that do not support attribute propagation.
+    bool tc_attribute_propagation_unsupported = 244;
+    // Cisco: b/388955364
+    // table connection subscription unsupported is set to true for devices that do not support subscription for table connection leaves.
+    bool tc_subscription_unsupported = 245;
+    // Cisco: b/388983709
+    // default bgp instance name is used to set bgp instance name value other than DEFAULT
+    string default_bgp_instance_name = 246;
     // Arista: b/346557012  
     // Devices that do not support qos scheduler ingress policer.
-    bool qos_scheduler_ingress_policer_unsupported = 242;
+    bool qos_scheduler_ingress_policer_unsupported = 247;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
