@@ -10,6 +10,7 @@ tests:
     internal: true
     branch: master
 
+
   - name: Encap
     path: feature/aft/cisco/otg_tests/basic_encap_nh_counters
     timeout: 8400
@@ -17,9 +18,8 @@ tests:
     internal: true
     branch: master
 
-
   - name: Encap-FRR
-    path: feature/gribi/otg_tests/cisco/dcgate
+    path: feature/aft/cisco/otg_tests/dcgate_aft_frr_couters_test
     timeout: 8400
     mustpass: true
     internal: true
