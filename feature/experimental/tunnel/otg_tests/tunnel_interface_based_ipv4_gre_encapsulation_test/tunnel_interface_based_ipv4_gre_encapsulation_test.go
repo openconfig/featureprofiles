@@ -107,7 +107,6 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	ateport2 := ate.Port(t, "port2")
 	ateport3 := ate.Port(t, "port3")
 	egressInterfaces := []string{dutPort2.Name(), dutPort3.Name()}
-	initialEgressPkts := make([]uint64, tunnelCount)
 	initialTunnelInPkts := make([]uint64, tunnelCount)
 	initialTunnelOutPkts := make([]uint64, tunnelCount)
 	tunnelLoadblanceDiff := tunnelCount * 3
@@ -159,7 +158,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	t.Logf("Fetch all the interface status before start traffic")
-	initialEgressPkts = fetchEgressInterfacestatsics(t, dut, egressInterfaces)
+	initialEgressPkts := fetchEgressInterfacestatsics(t, dut, egressInterfaces)
 	if !deviations.TunnelStatePathUnsupported(dut) {
 		initialTunnelInPkts, initialTunnelOutPkts = fetchTunnelInterfacestatsics(t, dut, tunnelCount)
 	}
