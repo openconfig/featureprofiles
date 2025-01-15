@@ -1265,6 +1265,34 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
 
+// TcDefaultImportPolicyUnsupported returns true if default import policy for table connection is unsupported
+func TcDefaultImportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcDefaultImportPolicyUnsupported()
+}
+
+// TcMetricPropagationUnsupported returns true if metric propagation for table connection is unsupported
+func TcMetricPropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcMetricPropagationUnsupported()
+}
+
+// TcAttributePropagationUnsupported returns true if attribute propagation for table connection is unsupported
+func TcAttributePropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcAttributePropagationUnsupported()
+}
+
+// TcSubscriptionUnsupported returns true if subscription for table connection is unsupported
+func TcSubscriptionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcSubscriptionUnsupported()
+}
+
+// DefaultBgpInstanceName returns bgp instance name as set in deviation to override default value "DEFAULT"
+func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
+	if dbin := lookupDUTDeviations(dut).GetDefaultBgpInstanceName(); dbin != "" {
+		return dbin
+	}
+	return "DEFAULT"
+}
+
 // RequireZrOperMode returns true for the devices that require a mandatory value in operational-mode leaf for optical-channel
 func RequireZrOperMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRequireZrOperMode()
