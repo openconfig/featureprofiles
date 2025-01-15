@@ -1018,7 +1018,6 @@ test: {
   exec: " "
 }
 test: {
-{
   id: "TE-1.1"
   description: "Static ARP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/staticarp/ate_tests/static_arp_test/README.md"
