@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package topology_test configures just the ports on DUT and ATE,
-// assuming that DUT port i is connected to ATE i.  It detects the
-// number of ports in the testbed and can be used with the 2, 4, 12
-// port variants of the atedut testbed.
-
 package disable_ipv6_nd_ra_test
 
 import (
@@ -38,7 +33,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// Reserving the testbed and running tests
+// Reserving the testbed and running tests.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -81,43 +76,40 @@ var (
 	}
 )
 
-// configureDUT configures port1 and port2 of the DUT.
+// Configures port1 and port2 of the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, dut))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, &dutSrc, dut))
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, dut))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, &dutDst, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
-// configInterfaceDUT configures the given DUT interface.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
+// Configures the given DUT interface.
+func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	i := a.NewOCInterface(p.Name(), dut)
+	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
 	}
-	s := i.GetOrCreateSubinterface(0)
-	s6 := s.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s6.Enabled = ygot.Bool(true)
-	}
-	s6a := s6.GetOrCreateAddress(a.IPv6)
-	s6a.PrefixLength = ygot.Uint8(plen6)
+	s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 	routerAdvert := s6.GetOrCreateRouterAdvertisement()
-	routerAdvert.SetInterval(*ygot.Uint32(routerAdvertisementTimeInterval))
+	if !deviations.Ipv6RouterAdvertisementIntervalUnsupported(dut) {
+		routerAdvert.SetInterval(routerAdvertisementTimeInterval)
+	}
 	if deviations.Ipv6RouterAdvertisementConfigUnsupported(dut) {
-		routerAdvert.SetSuppress(*ygot.Bool(routerAdvertisementDisabled))
+		routerAdvert.SetSuppress(routerAdvertisementDisabled)
 	} else {
-		routerAdvert.SetEnable(*ygot.Bool(false))
-		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_ALL)
+		routerAdvert.SetEnable(false)
 	}
 	return i
 }
 
-// configureOTG configures OTG interfaces to send and recieve ipv6 packets
+// Configures OTG interfaces to send and receive ipv6 packets.
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Logf("Configuring OTG port1")
@@ -138,19 +130,23 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Logf("OTG configuration completed!")
 	topo.Flows().Clear().Items()
 	ate.OTG().PushConfig(t, topo)
+	time.Sleep(10 * time.Second)
 	t.Logf("starting protocols... ")
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return topo
 }
 
-// Verifies that desired parameters are set with required value on the device - Change the function Name verifyRATelemetry
+// Verifies that desired parameters are set with required value on the device.
 func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	txPort := dut.Port(t, "port1")
-	telemetryTimeIntervalQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Interval().State()
-	timeIntervalOnTelemetry := gnmi.Get(t, dut, telemetryTimeIntervalQuery)
-	t.Logf("Required RA time interval = %v, RA Time interval observed on telemetry = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-	if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
-		t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+	if !deviations.Ipv6RouterAdvertisementIntervalUnsupported(dut) {
+		telemetryTimeIntervalQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Interval().State()
+		timeIntervalOnTelemetry := gnmi.Get(t, dut, telemetryTimeIntervalQuery)
+		t.Logf("Required RA time interval = %v, RA Time interval observed on telemetry = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+		if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
+			t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+		}
 	}
 
 	if deviations.Ipv6RouterAdvertisementConfigUnsupported(dut) {
@@ -167,7 +163,7 @@ func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// captureTrafficStats Captures traffic statistics and verifies for the loss
+// Captures traffic statistics and verifies for the loss.
 func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ipv6Solicitation bool, waitTime uint8) {
 	otg := ate.OTG()
 	otg.StartProtocols(t)
@@ -193,7 +189,7 @@ func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config go
 	validatePackets(t, f.Name())
 }
 
-// To detect if the routerAdvertisement packet is found in the captured packets
+// To detect if the routerAdvertisement packet is found in the captured packets.
 func validatePackets(t *testing.T, fileName string) {
 	t.Logf("Reading pcap file from : %v", fileName)
 	handle, err := pcap.OpenOffline(fileName)
@@ -213,7 +209,6 @@ func validatePackets(t *testing.T, fileName string) {
 				if routerAdvert != nil {
 					t.Fatalf("Error:Found a router advertisement packet!")
 				}
-
 			}
 		}
 	}
@@ -232,5 +227,4 @@ func TestIpv6NDRA(t *testing.T) {
 	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 	})
-
 }

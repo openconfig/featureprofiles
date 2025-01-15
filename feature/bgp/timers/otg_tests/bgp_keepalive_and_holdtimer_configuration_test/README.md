@@ -8,7 +8,7 @@ BGP Keepalive and HoldTimer Configuration Test
 
 *   Establish eBGP sessions as follows between ATE and DUT
     * The DUT has eBGP peering with ATE port 1 and ATE port 2.
-    * Enable an Accept-route all import-policy/export-policy under the neighbor AFI/SAFI.
+    * Enable an Accept-route all import-policy/export-policy under the BGP peer-group AFI/SAFI.
     * The first pair is called the "source" pair, and the second the "destination" pair
 
 *  Validate BGP session state on DUT using telemetry.
@@ -16,20 +16,28 @@ BGP Keepalive and HoldTimer Configuration Test
 *  Verify that the sessions are established after soft reset.
 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval
-*  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+  ## Config Paths ##
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
 
-*  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/keepalive-interval
-*  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/hold-time
+  ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/hold-time:
 
-## Protocol/RPC Parameter coverage
-
-N/A
-
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+      on_change: true
+    gNMI.Set:
+```
+   
 ## Minimum DUT platform requirement
 
 vRX

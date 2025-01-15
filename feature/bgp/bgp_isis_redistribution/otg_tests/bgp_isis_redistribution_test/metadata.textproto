@@ -21,7 +21,6 @@ platform_exceptions:  {
     skip_isis_set_metric_style_type:  true
     skip_set_rp_match_set_options:  true
     skip_setting_disable_metric_propagation:  true
-    bgp_conditions_match_community_set_unsupported: true
   }
 }
 platform_exceptions: {
@@ -30,5 +29,29 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    skip_isis_set_level:  true
+    skip_isis_set_metric_style_type:  true
+    bgp_conditions_match_community_set_unsupported: true
+    bgp_community_member_is_a_string: true
+    community_match_with_redistribution_unsupported: true
+    default_route_policy_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+  explicit_interface_in_default_vrf: true
+  interface_enabled: true
+  skip_prefix_set_mode: true
+  enable_table_connections: true
   }
 }
