@@ -1292,3 +1292,8 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 	}
 	return "DEFAULT"
 }
+
+// VerifyExpectedBreakoutSupportedConfig is to skip checking for breakout config mode.
+func VerifyExpectedBreakoutSupportedConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVerifyExpectedBreakoutSupportedConfig()
+}
