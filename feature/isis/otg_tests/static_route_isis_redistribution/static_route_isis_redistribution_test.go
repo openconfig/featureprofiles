@@ -173,8 +173,7 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 		tableConn.SetDisableMetricPropagation(metricPropagation)
 	}
 	if deviations.EnableTableConnections(dut) {
-		state := "enable"
-		configEnableTbNative(t, dut, state)
+		fptest.ConfigEnableTbNative(t, dut)
 	}
 	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
@@ -373,46 +372,6 @@ func getTagSetName(dut *ondatra.DUTDevice, policyName, stmtName, afStr string) s
 		return fmt.Sprintf("%s %s", policyName, stmtName)
 	}
 	return fmt.Sprintf("tag-set-%s", afStr)
-}
-
-func configEnableTbNative(t testing.TB, d *ondatra.DUTDevice, state string) {
-	t.Helper()
-	switch d.Vendor() {
-	case ondatra.NOKIA:
-		adminEnable, err := json.Marshal(state)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Update: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "table-connections"},
-							{Name: "admin-state"},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: adminEnable,
-						},
-					},
-				},
-			},
-		}
-
-		gnmiClient := d.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'EnableTableConnections'", d.Vendor())
-	}
 }
 
 func TestStaticToISISRedistribution(t *testing.T) {
