@@ -1302,4 +1302,3 @@ func RequireZrOperMode(dut *ondatra.DUTDevice) bool {
 func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
 }
-
