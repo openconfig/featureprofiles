@@ -327,7 +327,7 @@ func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, 
 	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ExportPolicy().Config(), []string{policyDef})
 	batchConfig.Set(t, dut)
 
-	//Sleep for 10 second to ensure that OTG has recived the update packet
+	// Sleep for 10 second to ensure that OTG has recived the update packet
 	time.Sleep(10 * time.Second)
 }
 
