@@ -176,7 +176,6 @@ func TestGoogleBaseConfPush(t *testing.T) {
 			// 	t.Error(err)
 			// }
 			currentTime2 := time.Now()
-			fmt.Println(currentTime2)
 			if strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
 				t.Logf("Cfgmgr restore session has started at: %v", currentTime2)
 				break
