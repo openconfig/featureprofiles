@@ -604,38 +604,3 @@ func waitOTGARPEntry(t *testing.T) {
 
 }
 
-func (tc *testCase) setupAggregateAtomically(t *testing.T) {
-	d := &oc.Root{}
-
-	if tc.lagType == lagTypeLACP {
-		d.GetOrCreateLacp().GetOrCreateInterface(tc.aggID)
-	}
-
-	agg := d.GetOrCreateInterface(tc.aggID)
-	agg.GetOrCreateAggregation().LagType = tc.lagType
-	agg.Type = ieee8023adLag
-
-	for _, port := range tc.dutPorts[1:] {
-		i := d.GetOrCreateInterface(port.Name())
-		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
-		i.Type = ethernetCsmacd
-
-		if deviations.InterfaceEnabled(tc.dut) {
-			i.Enabled = ygot.Bool(true)
-		}
-	}
-
-	p := gnmi.OC()
-	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", tc.dut), p.Config(), d)
-	gnmi.Update(t, tc.dut, p.Config(), d)
-}
-
-func (tc *testCase) clearAggregate(t *testing.T) {
-	// Clear the aggregate minlink.
-	gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
-
-	// Clear the members of the aggregate.
-	for _, port := range tc.dutPorts[1:] {
-		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-	}
-}
