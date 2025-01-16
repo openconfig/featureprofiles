@@ -20,16 +20,20 @@ package b4_scale_profile_test
 import (
 	// "slices"
 	// "strconv"
-	// "context"
+	"context"
+	"fmt"
+	"sync"
+	"strings"
+
 	// "os"
-	// "strings"
 	"testing"
 	"time"
 
-	// "github.com/openconfig/featureprofiles/internal/deviations"
-	// "github.com/openconfig/featureprofiles/internal/cisco/util"
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 
 	// "github.com/openconfig/featureprofiles/internal/gribi"
 	// "github.com/openconfig/gribigo/fluent"
@@ -65,84 +69,165 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestGribiScaleProfile(t *testing.T) {
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-	// dut := ondatra.DUT(t, "dut")
-	// otg := ondatra.ATE(t, "ate")
-	// // ctx := context.Background()
-	// tcArgs := &testArgs{
-	// 	dut:  dut,
-	// 	ate:  otg,
-	// 	topo: topo,
-	// }
-	configureBaseProfile(t)
-}
+// func TestGribiScaleProfile(t *testing.T) {
+// 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+// 	// dut := ondatra.DUT(t, "dut")
+// 	// otg := ondatra.ATE(t, "ate")
+// 	// // ctx := context.Background()
+// 	// tcArgs := &testArgs{
+// 	// 	dut:  dut,
+// 	// 	ate:  otg,
+// 	// 	topo: topo,
+// 	// }
+// 	configureBaseProfile(t)
+// }
 
 func TestGoogleBaseConfPush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	baseConf := "configpushfiles/google_conf.textproto"
-	drainConf := "configpushfiles/google_drain_conf.textproto"
-	undrainConf := "configpushfiles/google_undrain_conf.textproto"
-	// var dutConf string
-	// cwd, err := os.Getwd()
-	// if err != nil {
-	// 	t.Fatalf("Failed to get current working directory: %v", err)
-	// }
-	// if strings.Contains(cwd, "/featureprofiles/") {
-	// 	rootSrc := strings.Split(cwd, "featureprofiles")[0]
-	// 	dutConf = rootSrc + "featureprofiles/topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto"
-	// }
-	cases := []struct {
-		desc           string
-		configFilePath string
-		clientTimeout  time.Duration
-		wantTime       time.Duration
-	}{
-		{
-			desc:           "Initial Google config push",
-			configFilePath: drainConf,
-			clientTimeout:  10 * time.Minute,
-			wantTime:       5 * time.Minute,
-		},
-		{
-			desc:           "Subsequent same google config push",
-			configFilePath: baseConf,
-			clientTimeout:  10 * time.Minute,
-			wantTime:       2 * time.Minute,
-		},
-		{
-			desc:           "Drain config push",
-			configFilePath: drainConf,
-			clientTimeout:  10 * time.Minute,
-			wantTime:       5 * time.Minute,
-		},
-		{
-			desc:           "Undrain config push",
-			configFilePath: undrainConf,
-			clientTimeout:  10 * time.Minute,
-			wantTime:       3 * time.Minute,
-		},
+	// baseConf := "configpushfiles/google_conf.textproto"
+	// test := "configpushfiles/set1.textproto"
+	// // drainConf := "configpushfiles/google_drain_conf.textproto"
+	// // undrainConf := "configpushfiles/google_undrain_conf.textproto"
+	// // var dutConf string
+	// // cwd, err := os.Getwd()
+	// // if err != nil {
+	// // 	t.Fatalf("Failed to get current working directory: %v", err)
+	// // }
+	// // if strings.Contains(cwd, "/featureprofiles/") {
+	// // 	rootSrc := strings.Split(cwd, "featureprofiles")[0]
+	// // 	dutConf = rootSrc + "featureprofiles/topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto"
+	// // }
+	// cases := []struct {
+	// 	desc           string
+	// 	configFilePath string
+	// 	clientTimeout  time.Duration
+	// 	wantTime       time.Duration
+	// }{
+	// 	{
+	// 		desc:           "Initial Google config push",
+	// 		configFilePath: test,
+	// 		clientTimeout:  10 * time.Minute,
+	// 		wantTime:       5 * time.Minute,
+	// 	},
+		// {
+		// 	desc:           "Subsequent same google config push",
+		// 	configFilePath: baseConf,
+		// 	clientTimeout:  10 * time.Minute,
+		// 	wantTime:       2 * time.Minute,
+		// },
+		// {
+		// 	desc:           "Drain config push",
+		// 	configFilePath: drainConf,
+		// 	clientTimeout:  10 * time.Minute,
+		// 	wantTime:       5 * time.Minute,
+		// },
+		// {
+		// 	desc:           "Undrain config push",
+		// 	configFilePath: undrainConf,
+		// 	clientTimeout:  10 * time.Minute,
+		// 	wantTime:       3 * time.Minute,
+		// },
 		// {
 		// 	desc:           "Initial DUT config",
 		// 	configFilePath: dutConf,
 		// 	clientTimeout:  10 * time.Minute,
 		// 	wantTime:       5 * time.Minute,
 		// },
-	}
-	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			// Start the timer.
-			start := time.Now()
-			t.Log("Config Push start time: ", start)
-			util.GnmiProtoSetConfigPush(t, dut, tc.configFilePath, tc.clientTimeout)
-			// End the timer and calculate time requied to apply the config on DUT.
-			elapsedTime := time.Since(start)
-			t.Logf("Time taken for %v configuration replace: %v", tc.desc, elapsedTime)
-			if elapsedTime > tc.wantTime {
-				t.Errorf("Time taken for %v configuration replace is less than expected. Got: %v, Want: %v", tc.desc, elapsedTime, tc.wantTime)
-			}
+	// }
+	// for _, tc := range cases {
+	// 	t.Run(tc.desc, func(t *testing.T) {
+	// 		// Start the timer.
+	// 		start := time.Now()
+	// 		t.Log("Config Push start time: ", start)
+	// 		util.GnmiProtoSetConfigPush(t, dut, tc.configFilePath, tc.clientTimeout)
+	// 		// End the timer and calculate time requied to apply the config on DUT.
+	// 		elapsedTime := time.Since(start)
+	// 		t.Logf("Time taken for %v configuration replace: %v", tc.desc, elapsedTime)
+	// 		if elapsedTime > tc.wantTime {
+	// 			t.Errorf("Time taken for %v configuration replace is less than expected. Got: %v, Want: %v", tc.desc, elapsedTime, tc.wantTime)
+	// 		}
+	// 	})
+	// }
+	// t.Run("Config Push after LC reload", func(t *testing.T) {
+// 	// })
+	t.Run("Config Push after chassis reboot followed by Switchover", func(t *testing.T) {
+		t.Logf("Doing chassis reboot")
+		gnoiClient := dut.RawAPIs().GNOI(t)
+		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+			Method:  spb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Reboot chassis without delay",
+			Force:   false,
 		})
-	}
-	t.Run("Config Push after LC reload", func(t *testing.T) {
+		if err != nil {
+			t.Fatalf("Reboot failed %v", err)
+		}
+		time.Sleep(350 * time.Second)
+		t.Logf("Check for cfgmgr LC restore config sessions started")
+		cliHandle := dut.RawAPIs().CLI(t)
+		ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Minute)
+		defer cancel()
+		for {
+			showConfigSession, _ := cliHandle.RunCommand(ctx, "show configuration sessions detail")
+			fmt.Println(showConfigSession.Output())
+			// if err != nil {
+			// 	t.Error(err)
+			// }
+			if strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
+				t.Logf("Cfgmgr restore session has started")
+				break
+			}
+		}
+		time.Sleep(5 * time.Second)
+		//Active RP0 Reload
+		useNameOnly := deviations.GNOISubcomponentPath(dut)
+		rebootSubComponentRequest := &spb.RebootRequest{
+			Method: spb.RebootMethod_COLD,
+			Subcomponents: []*tpb.Path{
+				components.GetSubcomponentPath("0/RP0/CPU0", useNameOnly),
+			},
+		}
+		t.Logf("Initiate Active RP0 reboot: %v", rebootSubComponentRequest)
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+		if err != nil {
+			t.Fatalf("Failed to perform component reboot with unexpected err: %v", err)
+		}
+		t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+		time.Sleep(3 * time.Minute)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		// go func() {
+		// 	defer wg.Done()
+		// 	t.Log("Start Google config push")
+		// 	util.GnmiProtoSetConfigPush(t, dut, baseConf, 10*time.Minute)
+		// }()
+
+		go func() {
+			defer wg.Done()
+			t.Log("Check for cfgmgr LC restore config sessions")
+			cliHandle := dut.RawAPIs().CLI(t)
+			startTime := time.Now()
+			duration := 20 * time.Minute
+			var iter int
+			for time.Since(startTime) < duration  {
+				iter = iter + 1
+				showConfigSession, err := cliHandle.RunCommand((context.Background()), "show configuration lock")
+				fmt.Println(showConfigSession.Output())
+				time.Sleep(5 * time.Second)
+				if err != nil {
+					t.Log(err)
+				}
+				if iter > 180 {
+					t.Errorf("Failed to get out of lock state")
+					break
+				}
+				if !strings.Contains(showConfigSession.Output(),"lock_subtree"){
+					t.Logf("No config session is in lock state")
+					break
+				}
+			}
+
+		}()
+		wg.Wait() // Wait for all four goroutines to finish before exiting.
 	})
 }
