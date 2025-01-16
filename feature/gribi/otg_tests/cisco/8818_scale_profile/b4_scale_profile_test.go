@@ -178,7 +178,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 				break
 			}
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		//Active RP0 Reload
 		useNameOnly := deviations.GNOISubcomponentPath(dut)
 		rebootSubComponentRequest := &spb.RebootRequest{
