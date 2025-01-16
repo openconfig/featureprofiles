@@ -204,7 +204,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 
 		go func() {
 			defer wg.Done()
-			t.Log("Check for cfgmgr LC restore config sessions")
+			t.Log("Check for cfgmgr LC restore config sessions & lock state")
 			cliHandle := dut.RawAPIs().CLI(t)
 			startTime := time.Now()
 			duration := 20 * time.Minute
@@ -215,6 +215,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 				showConfigSession, err2 := cliHandle.RunCommand((context.Background()), "show configuration sessions detail")
 
 				fmt.Println(showConfigLock.Output())
+				fmt.Println(showConfigSession.Output())
 				time.Sleep(5 * time.Second)
 				if err1 != nil && err2 != nil {
 					t.Log(err)
