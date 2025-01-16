@@ -534,8 +534,10 @@ func redistributeStaticRoute(t *testing.T, isV4 bool, mPropagation, policyResult
 	}
 	astmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetRouteOrigin(oc.E_BgpPolicy_BgpOriginAttrType(oc.BgpPolicy_BgpOriginAttrType_IGP))
 	astmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(medZero))
+	astmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	if mPropagation {
 		astmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.E_BgpActions_SetMed(oc.BgpActions_SetMed_IGP))
+		astmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	}
 
 	return routingPolicy
@@ -808,6 +810,7 @@ func redistributeIPv6StaticDefaultRejectPolicy(t *testing.T, dut *ondatra.DUTDev
 
 // 1.27.1 validation function
 func validateRedistributeIPv4DefaultRejectPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	time.Sleep(10 * time.Second)
 	validateRedistributeStatic(t, dut, !acceptRoute, isV4, !metricPropagate)
 	validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medZero, !shouldBePresent)
 }
@@ -962,6 +965,7 @@ func redistributeStaticRoutePolicyWithMED(t *testing.T, dut *ondatra.DUTDevice, 
 	policyStatementAction := policyStatement.GetOrCreateActions()
 	policyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(medValue))
+	policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 
