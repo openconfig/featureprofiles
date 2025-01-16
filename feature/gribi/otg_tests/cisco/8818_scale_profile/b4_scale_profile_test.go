@@ -152,6 +152,8 @@ func TestGoogleBaseConfPush(t *testing.T) {
 // 	// })
 	t.Run("Config Push after chassis reboot followed by Switchover", func(t *testing.T) {
 		t.Logf("Doing chassis reboot")
+		currentTime := time.Now()
+		fmt.Println("Chasiss reboot request sent at:", currentTime)
 		gnoiClient := dut.RawAPIs().GNOI(t)
 		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 			Method:  spb.RebootMethod_COLD,
@@ -173,8 +175,10 @@ func TestGoogleBaseConfPush(t *testing.T) {
 			// if err != nil {
 			// 	t.Error(err)
 			// }
+			currentTime2 := time.Now()
+			fmt.Println(currentTime2)
 			if strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
-				t.Logf("Cfgmgr restore session has started")
+				t.Logf("Cfgmgr restore session has started at: %v", currentTime2)
 				break
 			}
 		}
@@ -188,6 +192,8 @@ func TestGoogleBaseConfPush(t *testing.T) {
 			},
 		}
 		t.Logf("Initiate Active RP0 reboot: %v", rebootSubComponentRequest)
+		currentTime3 := time.Now()
+		fmt.Println("Active RP0 reload done at:", currentTime3)
 		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
 		if err != nil {
 			t.Fatalf("Failed to perform component reboot with unexpected err: %v", err)
