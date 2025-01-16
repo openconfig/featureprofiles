@@ -1293,7 +1293,7 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
-// VerifyExpectedBreakoutSupportedConfig is to skip checking for breakout config mode.
-func VerifyExpectedBreakoutSupportedConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetVerifyExpectedBreakoutSupportedConfig()
+// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
+func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
 }
