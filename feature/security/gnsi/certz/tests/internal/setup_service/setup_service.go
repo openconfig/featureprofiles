@@ -18,7 +18,7 @@
 package setupservice
 
 import (
-	context "context"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -147,16 +147,20 @@ func CreateCertzChain(t *testing.T, certData CertificateChainRequest) certzpb.Ce
 				t.Fatalf("Error reading Server Key file at: %v with error: %v", certData.ServerKeyFile, err)
 			}
 			return certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-				Certificate: serverCertContent,
-				PrivateKey:  serverKeyContent}, Parent: nil}
+				Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate:     serverCertContent,
+				PrivateKey:      serverKeyContent,
+				PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: serverKeyContent},
+				CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: serverCertContent}}, Parent: nil}
 		}
 		return certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: serverCertContent,
-			PrivateKey:  nil}, Parent: nil}
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			Certificate:     serverCertContent,
+			PrivateKey:      nil,
+			PrivateKeyType:  nil,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: serverCertContent}}, Parent: nil}
 
 	case EntityTypeTrustBundle:
 		if len(certData.TrustBundleFile) == 0 {
