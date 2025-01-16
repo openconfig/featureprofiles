@@ -211,17 +211,19 @@ func TestGoogleBaseConfPush(t *testing.T) {
 			var iter int
 			for time.Since(startTime) < duration  {
 				iter = iter + 1
-				showConfigSession, err := cliHandle.RunCommand((context.Background()), "show configuration lock")
-				fmt.Println(showConfigSession.Output())
+				showConfigLock, err1 := cliHandle.RunCommand((context.Background()), "show configuration lock")
+				showConfigSession, err2 := cliHandle.RunCommand((context.Background()), "show configuration sessions detail")
+
+				fmt.Println(showConfigLock.Output())
 				time.Sleep(5 * time.Second)
-				if err != nil {
+				if err1 != nil && err2 != nil {
 					t.Log(err)
 				}
 				if iter > 180 {
 					t.Errorf("Failed to get out of lock state")
 					break
 				}
-				if !strings.Contains(showConfigSession.Output(),"lock_subtree"){
+				if !strings.Contains(showConfigLock.Output(),"lock_subtree") && !strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
 					t.Logf("No config session is in lock state")
 					break
 				}
