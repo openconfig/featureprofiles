@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "387c1f76-7811-4a04-99e3-f690fba1e98e"
-plan_id: "TRANSCEIVER-10"
+plan_id: "TRANSCEIVER-10 (400ZR_PLUS)"
 description: "Telemetry: 400ZR_PLUS Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming."
 testbed: TESTBED_DUT_400ZR_PLUS
 platform_exceptions: {
