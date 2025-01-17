@@ -36,6 +36,7 @@ import (
 	tpb "github.com/openconfig/gnoi/types"
 
 	// "github.com/openconfig/featureprofiles/internal/gribi"
+	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	// "github.com/openconfig/gribigo/fluent"
 	// "github.com/openconfig/ondatra"
 	// "github.com/openconfig/featureprofiles/internal/gribi"
@@ -237,5 +238,17 @@ func TestGoogleBaseConfPush(t *testing.T) {
 
 		}()
 		wg.Wait() // Wait for all four goroutines to finish before exiting.
+
+		t.Logf("Check when Standby RP0 is ready")
+		if ok := util.SwitchoverReady(t, dut, "0/RP0/CPU0", 10 * time.Minute); !ok {
+			t.Logf("Controller %q did not become switchover-ready before test.", "0/RP0/CPU0")
+		}
+		t.Logf("Collect show configuration inconsistency replica log")
+		cliHandle1 := dut.RawAPIs().CLI(t)
+		showConfigReplica, err := cliHandle1.RunCommand((context.Background()), "show configuration inconsistency replica location 0/RP0/CPU0")
+		fmt.Println(showConfigReplica.Output())
+		if err != nil {
+			t.Log(err)
+		}
 	})
 }

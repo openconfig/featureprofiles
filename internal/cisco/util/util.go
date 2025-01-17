@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
@@ -1305,4 +1306,14 @@ func GnmiProtoSetConfigPush(t *testing.T, dut *ondatra.DUTDevice, configFilePath
 	if _, err = gNMIC.Set(ctx, setReq); err != nil {
 		t.Fatalf("gnmi Set Config Push failed with unexpected error: %v", err)
 	}
+}
+
+// SwitchoverReady checks if the RP is ready for switchover.
+func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) bool {
+	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
+	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		ready, present := val.Val()
+		return present && ready
+	}).Await(t)
+	return ok
 }
