@@ -113,8 +113,8 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevelTimers.HelloMultiplier = ygot.Uint8(3)
 
 	if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
-	 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
-	 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
 	}
 	if !deviations.ISISInterfaceAfiUnsupported(ts.DUT) {
 		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
@@ -422,4 +422,3 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 		})
 	})
 }
-
