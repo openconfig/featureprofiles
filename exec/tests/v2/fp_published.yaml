@@ -858,7 +858,6 @@ tests:
     owners:
       - arvbaska
     mustpass: true  
-    pr: 3134     
   - name: TE-11.21 (DCGate - Backup NHG Multiple NH with PBF)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_pbf_test
     owners:
