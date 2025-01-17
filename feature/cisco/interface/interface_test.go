@@ -2134,7 +2134,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 
 	})
 
-	t.Run("Verify edt subscription for LLA continues to work after ipv6_nd process restart.", func(t *testing.T) {
+	t.Run("Verify LLA continues to work after ipv6_nd process restart.", func(t *testing.T) {
 		ctx := context.Background()
 		configureDUTLinkLocalInterface(t, dut)
 
