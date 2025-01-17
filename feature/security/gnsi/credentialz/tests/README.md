@@ -63,6 +63,19 @@ stream.Send(
 )
 ```
 
+### Configure and enable GLOME
+
+```
+stream.Send(
+    RotateHostParametersRequest {
+        enabled: true,
+        key: "4242424242424242424242424242424242424242424242",
+        key_version: 4,
+        url_prefix: "https://example.invalid",
+    }
+)
+```
+
 ### Populate Authorized Principals
 
 ```
@@ -204,7 +217,7 @@ and
 * Create a ssh CA keypair with `ssh-keygen -f /tmp/ca`.
 * Fetch the ssh server's host public key.
 * Sign the public key from the previous step into a host certificate using the
-  CA key `ssh-keygen -s /tmp/ca -I dut -h -n dut.test.com -V +52w
+  CA key `ssh-keygen -s /tmp/ca -I dut -h -n dut.example.invalid -V +52w
   /location/of/host/public_key.pub`
 * Add the certificate to the server (see RotateHostParameters,
   AuthenticationArtifacts, certificate)
@@ -281,3 +294,36 @@ and
   * Ensure that access rejects telemetry counter is incremented
     `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-rejects`
 
+### Credentialz-6, GLOME Configuration
+
+#### Setup
+* Create a glome key with `glome` following [these
+  instructions](https://github.com/google/glome?tab=readme-ov-file#getting-started).
+* Send a RotateHostParameters GlomeRequest message, with key, key_version, and
+  prefix_url.
+
+#### Pass case
+* Attempt a console connection.
+  * Prompt must include a GLOME challenge.
+  * Use the `glome` binary along with your generated key to generate an
+    authorization code.
+  * Use the authorization code at the console prompt.
+  * Authorization must succeed.
+  * Ensure telemetry values for version and enabled match what was set in Setup.
+
+#### Fail case
+* Attempt a console connection.
+  * Enter `fake-authorization-code` in the prompt.
+  * Authentication must fail.
+=======
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+TODO(OCRPC): Record may not be complete
+
+```yaml
+rpcs:
+  gnsi:
+    credentialz.v1.Credentialz.RotateAccountCredentials:
+```

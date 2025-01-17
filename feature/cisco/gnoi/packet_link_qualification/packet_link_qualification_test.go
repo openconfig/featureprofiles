@@ -31,6 +31,8 @@ func TestGnmiSubscriptionDuringPlq(t *testing.T) {
 	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
 	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", d1p.Name(), d2p.Name())
 
+	checkInterfaceStatusUp(t, dut1, d1p)
+
 	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
@@ -54,7 +56,7 @@ func TestGnmiSubscriptionDuringPlq(t *testing.T) {
 		t.Fatalf("Failed to handle generator LinkQualification().Create() for Generator: %v", err)
 	}
 	if got, want := genCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-		t.Errorf("generatorCreateResp: got %v, want %v", got, want)
+		t.Fatalf("generatorCreateResp: got %v, want %v", got, want)
 	}
 
 	refCreateReq := reflectorCreateRequest(t, plqID, d2p)
@@ -64,7 +66,7 @@ func TestGnmiSubscriptionDuringPlq(t *testing.T) {
 		t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
 	}
 	if got, want := refCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-		t.Errorf("reflectorCreateResponse: got %v, want %v", got, want)
+		t.Fatalf("reflectorCreateResponse: got %v, want %v", got, want)
 	}
 
 	sleepTime := 30 * time.Second
@@ -83,10 +85,10 @@ func TestGnmiSubscriptionDuringPlq(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to handle gnoi LinkQualification().Get() for testID %v on Reflector: %v", plqID, err)
 		}
-		if generatorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+		if generatorGetResponse.GetResults()[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
 			genRunning = true
 		}
-		if reflectorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+		if reflectorGetResponse.GetResults()[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
 			refRunning = true
 		}
 		if genRunning && refRunning {
@@ -121,6 +123,7 @@ func TestPlqInvalidEndpoints(t *testing.T) {
 	d2p := dut2.Port(t, "port1")
 	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
 	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", d1p.Name(), d2p.Name())
+	checkInterfaceStatusUp(t, dut1, d1p)
 
 	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	gnoiClient2 := dut2.RawAPIs().GNOI(t)
@@ -196,13 +199,15 @@ func TestPlqInvalidEndpoints(t *testing.T) {
 	})
 }
 
-func TestPlqGeneratorRequest(t *testing.T) {
+func TestPlqGeneratorInvalidRequest(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 	d1p := dut1.Port(t, "port1")
-	d2p := dut2.Port(t, "port2")
+	d2p := dut2.Port(t, "port1")
 	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
 	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", d1p.Name(), d2p.Name())
+	checkInterfaceStatusUp(t, dut1, d1p)
+
 	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	//plqID := dut1.Name() + ":" + d1p.Name() + "<->" + dut2.Name() + ":" + d2p.Name()
 
@@ -317,6 +322,7 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 	plqID := dut1.Name() + ":" + d1p.Name() + "<->" + dut2.Name() + ":" + d2p.Name()
 
 	t.Run("Delete during qualification on Generator", func(t *testing.T) {
+		checkInterfaceStatusUp(t, dut1, d1p)
 		genCreateReq := generatorCreateRequest(t, plqID, d1p, capResponse)
 		genCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), genCreateReq)
 		t.Logf("LinkQualification().Create() GeneratorCreateResponse: %v, err: %v", genCreateResp, err)
@@ -324,7 +330,7 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 			t.Fatalf("Failed to handle generator LinkQualification().Create() for Generator: %v", err)
 		}
 		if got, want := genCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-			t.Errorf("generatorCreateResp: got %v, want %v", got, want)
+			t.Fatalf("generatorCreateResp: got %v, want %v", got, want)
 		}
 
 		refCreateReq := reflectorCreateRequest(t, plqID, d2p)
@@ -334,7 +340,7 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 			t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
 		}
 		if got, want := refCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-			t.Errorf("reflectorCreateResponse: got %v, want %v", got, want)
+			t.Fatalf("reflectorCreateResponse: got %v, want %v", got, want)
 		}
 
 		sleepTime := 30 * time.Second
@@ -343,21 +349,25 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 		for i := 0; i <= counter; i++ {
 			t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
 			time.Sleep(sleepTime)
-			t.Logf("Check client: %d", i+1)
+			t.Logf("Check client. Iteration: %d", i+1)
 
 			listResp, err := gnoiClient1.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
 			t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
 			if err != nil {
 				t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
 			}
-			if listResp.GetResults()[0].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
-				// Test is underway. Delete the test on Generator
-				deleteResp, err := gnoiClient1.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{plqID}})
-				t.Logf("LinkQualification().Delete(): %v, err: %v", deleteResp, err)
-				if err != nil {
-					t.Fatalf("Failed to handle gnoi LinkQualification().Delete() on Generator: %v", err)
+			if listResp != nil {
+				if listResp.GetResults()[0].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+					// Test is underway. Delete the test on Generator
+					deleteResp, err := gnoiClient1.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{plqID}})
+					t.Logf("LinkQualification().Delete(): %v, err: %v", deleteResp, err)
+					if err != nil {
+						t.Fatalf("Failed to handle gnoi LinkQualification().Delete() on Generator: %v", err)
+					}
+					break
 				}
-				break
+			} else if i == counter && listResp == nil {
+				t.Errorf("LinkQualification().List() on Generator: got nil listResp after %v iterations, want non-nil listResp in last iteration", i)
 			}
 		}
 	})
@@ -373,18 +383,7 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 			}(clients[i], duts[i])
 		}
 		wg.Wait()
-
-		time.Sleep(5 * time.Second)
-
-		refCreateReq := reflectorCreateRequest(t, plqID, d2p)
-		refCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), refCreateReq)
-		t.Logf("LinkQualification().Create() ReflectorCreateResponse: %v, err: %v", refCreateResp, err)
-		if err != nil {
-			t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
-		}
-		if got, want := refCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-			t.Errorf("reflectorCreateResponse: got %v, want %v", got, want)
-		}
+		checkInterfaceStatusUp(t, dut1, d1p)
 
 		genCreateReq := generatorCreateRequest(t, plqID, d1p, capResponse)
 		genCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), genCreateReq)
@@ -393,7 +392,18 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 			t.Fatalf("Failed to handle generator LinkQualification().Create() for Generator: %v", err)
 		}
 		if got, want := genCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-			t.Errorf("generatorCreateResp: got %v, want %v", got, want)
+			t.Fatalf("generatorCreateResp: got %v, want %v", got, want)
+		}
+
+		refCreateReq := reflectorCreateRequest(t, plqID, d2p)
+		refCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), refCreateReq)
+		t.Logf("LinkQualification().Create() ReflectorCreateResponse: %v, err: %v", refCreateResp, err)
+		if err != nil {
+			t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
+		}
+		if got, want := refCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
+			checkInterfaceStatusUp(t, dut2, d2p)
+			t.Fatalf("reflectorCreateResponse: got %v, want %v", got, want)
 		}
 
 		sleepTime := 30 * time.Second
@@ -402,27 +412,32 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 		for i := 0; i <= counter; i++ {
 			t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
 			time.Sleep(sleepTime)
-			t.Logf("Check client: %d", i+1)
+			t.Logf("Check client. Iteration: %d", i+1)
 
 			listResp, err := gnoiClient2.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
 			t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
 			if err != nil {
 				t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
 			}
-			if listResp.GetResults()[0].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
-				// Test is underway. Delete the test on Reflector
-				deleteResp, err := gnoiClient2.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{plqID}})
-				t.Logf("LinkQualification().Delete(): %v, err: %v", deleteResp, err)
-				if err != nil {
-					t.Fatalf("Failed to handle gnoi LinkQualification().Delete() on Generator: %v", err)
+			if listResp != nil {
+				if listResp.GetResults()[0].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+					// Test is underway. Delete the test on Reflector
+					deleteResp, err := gnoiClient2.LinkQualification().Delete(context.Background(), &plqpb.DeleteRequest{Ids: []string{plqID}})
+					t.Logf("LinkQualification().Delete(): %v, err: %v", deleteResp, err)
+					if err != nil {
+						t.Fatalf("Failed to handle gnoi LinkQualification().Delete() on Reflector: %v", err)
+					}
+					break
 				}
-				break
+			} else if i == counter && listResp == nil {
+				t.Errorf("LinkQualification().List() on Reflector: got nil listResp after %v iterations, want non-nil listResp in last iteration", i)
 			}
 		}
 	})
 
-	basePlqSingleInterface(t, dut1, dut2, gnoiClient1, gnoiClient2, d1p, d2p, plqID)
-
+	t.Run("PLQ test on single interface", func(t *testing.T) {
+		basePlqSingleInterface(t, dut1, dut2, gnoiClient1, gnoiClient2, d1p, d2p, plqID)
+	})
 }
 
 func TestPlqSingleInterface(t *testing.T) {
@@ -478,7 +493,7 @@ func TestPlqSingleInterface(t *testing.T) {
 		time.Sleep(sleepTime)
 		testDone := true
 		for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
-			t.Logf("Check client: %d", i+1)
+			t.Logf("Check client. Iteration: %d", i+1)
 
 			listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
 			t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
@@ -515,7 +530,6 @@ func TestPlqSingleInterface(t *testing.T) {
 		}
 		t.Logf("Check client: %d", i+1)
 		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
-		t.Logf("LinkQualification().Get(): %v, err: %v", getResp.Results[plqID], err)
 		if err != nil {
 			t.Fatalf("Failed to handle LinkQualification().Get(): %v", err)
 		}

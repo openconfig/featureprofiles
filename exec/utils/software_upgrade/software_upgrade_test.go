@@ -36,6 +36,7 @@ var (
 	efrFlag       = flag.String("efr", "", "efr")
 	forceFlag     = flag.Bool("force", false, "Force install even if image already installed")
 	gnoiFlag      = flag.Bool("gnoi", false, "Use gNOI to copy image instead of SCP")
+	reimageFlag   = flag.Bool("reimage", true, "Use install replace reimage")
 
 	installTimeout = 1800 * time.Second
 )
@@ -89,7 +90,12 @@ func TestSoftwareUpgrade(t *testing.T) {
 			installTimeout += imgCopyTimeout
 		}
 
-		installCmd := "install replace reimage " + imageLocation + " noprompt commit"
+		reimage := ""
+		if *reimageFlag {
+			reimage = "reimage"
+		}
+
+		installCmd := fmt.Sprintf("install replace %s %s noprompt commit", reimage, imageLocation)
 		if result, err := sendCLI(t, dut, installCmd); err == nil {
 			if !strings.Contains(result, "has started") {
 				t.Fatalf("Unexpected response:\n%s\n", result)
@@ -130,6 +136,16 @@ func TestSoftwareUpgrade(t *testing.T) {
 		if !verifyInstall(t, dut, lineup, efr) {
 			t.Fatalf("Found unexpected image after install on %v", dut.ID())
 		}
+
+		//TODO: remove one configuration inconsistency issue is resolved
+		time.Sleep(5 * time.Second)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if ret, err := sendCLI(t, dut, "clear configuration inconsistency"); err == nil {
+				t.Logf("%s", ret)
+			} else {
+				t.Logf("Error running command: %v. Ignoring...", err)
+			}
+		})
 	}
 }
 
@@ -234,6 +250,7 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
+	t.Logf("Running: %s", cmd)
 	out, err := sshClient.RunCommand(ctx, cmd)
 	return out.Output(), err
 }

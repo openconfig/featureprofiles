@@ -1,0 +1,409 @@
+hostname R4
+clock timezone EST America/Toronto
+logging console disable
+logging buffered 125000000
+username cafyauto
+ group root-lr
+ group cisco-support
+ secret 10 $6$ymqNNgRK4bZ/N...$LI6ixV0OvuH.6RWHTE0z/FLVoZ3NPIoLedmrH0QJeBPce0Plu2qpulW.nThYDvOtdUGT5zM7NH4jmpjo0j0L00
+!
+grpc
+ vrf mgmt
+ port 57400
+ address-family dual
+!
+vrf mgmt
+ address-family ipv4 unicast
+ !
+ address-family ipv6 unicast
+ !
+!
+line console
+ exec-timeout 0 0
+ absolute-timeout 0
+ session-timeout 0
+!
+line default
+ exec-timeout 0 0
+ absolute-timeout 0
+ session-timeout 0
+!
+ipv4 virtual address vrf mgmt 5.78.24.105/16
+interface MgmtEth0/RP0/CPU0/0
+ vrf mgmt
+ ipv4 address 5.78.24.106 255.255.0.0
+!
+interface MgmtEth0/RP1/CPU0/0
+ vrf mgmt
+ ipv4 address 5.78.24.107 255.255.0.0
+!
+interface TenGigE0/0/0/35/0
+ vrf mgmt
+ ipv6 address 2607:f8b0:8007:51c0::ab/127
+ ipv6 enable
+!
+controller Optics0/0/0/2
+ breakout 4x10
+!
+controller Optics0/0/0/35
+ breakout 4x10
+!
+controller Optics0/6/0/2
+ breakout 4x10
+!
+controller preconfigure Optics0/5/0/0
+ breakout 4x10
+!
+controller preconfigure Optics0/5/0/34
+ breakout 4x10
+!
+router static
+ address-family ipv4 unicast
+  5.0.0.0/8 5.78.0.1
+  223.0.0.0/8 5.78.0.1
+ !
+ vrf mgmt
+  address-family ipv4 unicast
+   5.0.0.0/8 5.78.0.1
+   223.0.0.0/8 5.78.0.1
+  !
+  address-family ipv6 unicast
+   ::/0 2607:f8b0:8007:51c0::aa
+  !
+ !
+!
+cef proactive-arp-nd enable
+ssh server v2
+ssh server vrf mgmt
+ssh server netconf vrf default
+hw-module profile pbr vrf-redirect
+hw-module profile npu-compatibility Q200
+!
+interface FortyGigE0/6/0/0
+ description not connected interface
+ shutdown
+!
+!
+interface FortyGigE0/6/0/35
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/0
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/10
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/11
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/12
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/13
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/14
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/15
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/16
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/17
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/1
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/20
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/21
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/22
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/23
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/24
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/25
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/26
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/27
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/28
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/29
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/30
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/31
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/32
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/33
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/3
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/5
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/6
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/7
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/8
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/0/0/9
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/10
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/11
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/12
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/13
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/14
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/15
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/16
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/17
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/18
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/19
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/1
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/20
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/21
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/22
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/23
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/26
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/27
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/28
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/29
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/30
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/31
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/33
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/34
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/3
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/6
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/7
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/8
+ description not connected interface
+ shutdown
+!
+interface FourHundredGigE0/6/0/9
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/0/0/18
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/0/0/19
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/0/0/34
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/0/0/4
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/6/0/24
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/6/0/25
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/6/0/32
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/6/0/4
+ description not connected interface
+ shutdown
+!
+interface HundredGigE0/6/0/5
+ description not connected interface
+ shutdown
+!
+interface PTP0/RP0/CPU0/0
+ description not connected interface
+ shutdown
+!
+interface PTP0/RP1/CPU0/0
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/0/0/2/0
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/0/0/2/1
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/0/0/2/2
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/0/0/2/3
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/0/0/35/1
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/0/0/35/2
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/0/0/35/3
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/6/0/2/0
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/6/0/2/1
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/6/0/2/2
+ description not connected interface
+ shutdown
+!
+interface TenGigE0/6/0/2/3
+ description not connected interface
+ shutdown

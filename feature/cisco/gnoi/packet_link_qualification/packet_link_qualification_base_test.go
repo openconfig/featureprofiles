@@ -9,6 +9,9 @@ import (
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -152,7 +155,7 @@ func basePlqSingleInterface(t *testing.T, dut1, dut2 *ondatra.DUTDevice, gnoiCli
 	for i := 0; i < len(clients) && i < len(duts); i++ {
 		listAndDeleteResults(t, clients[i], duts[i])
 	}
-
+	checkInterfaceStatusUp(t, dut1, d1p)
 	capResponse, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 	t.Logf("LinkQualification().CapabilitiesResponse: %v", capResponse)
 	if err != nil {
@@ -169,12 +172,19 @@ func basePlqSingleInterface(t *testing.T, dut1, dut2 *ondatra.DUTDevice, gnoiCli
 	if err != nil {
 		t.Fatalf("Failed to handle generator LinkQualification().Create() for Generator: %v", err)
 	}
+	if got, want := genCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
+		t.Fatalf("generatorCreateResp: got %v, want %v", got, want)
+	}
 
 	refCreateReq := reflectorCreateRequest(t, plqID, d2p)
 	refCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), refCreateReq)
 	t.Logf("LinkQualification().Create() ReflectorCreateResponse: %v, err: %v", refCreateResp, err)
 	if err != nil {
 		t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
+	}
+	if got, want := refCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
+		checkInterfaceStatusUp(t, dut2, d2p)
+		t.Fatalf("reflectorCreateResponse: got %v, want %v", got, want)
 	}
 
 	sleepTime := 30 * time.Second
@@ -217,7 +227,7 @@ func basePlqSingleInterface(t *testing.T, dut1, dut2 *ondatra.DUTDevice, gnoiCli
 	for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
 		t.Logf("Check client: %d", i+1)
 		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
-		t.Logf("LinkQualification().Get(): %v, err: %v", getResp.Results[plqID], err)
+		t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
 		if err != nil {
 			t.Fatalf("Failed to handle LinkQualification().Get(): %v", err)
 		}
@@ -248,5 +258,16 @@ func basePlqSingleInterface(t *testing.T, dut1, dut2 *ondatra.DUTDevice, gnoiCli
 	} else {
 		portPair := dut1.Name() + ":" + d1p.Name() + "<->" + dut2.Name() + ":" + d2p.Name()
 		t.Logf("Packet Link Qualification successful between the ports %v", portPair)
+	}
+}
+
+func checkInterfaceStatusUp(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+	t.Helper()
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), 1*time.Minute, func(y *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		operState, ok := y.Val()
+		return ok && operState == oc.Interface_OperStatus_UP
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Interface is not UP between Generator and Reflector")
 	}
 }

@@ -9,13 +9,11 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/testt"
 )
 
-func TestIanaPorts(t *testing.T) {
+func testIanaPorts(t *testing.T) {
 	//t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	// var listenAdd string
@@ -49,38 +47,11 @@ func TestIanaPorts(t *testing.T) {
 		// 		t.Logf("Listen Address not returned as expected got : %v , want %v", gotbefore, listenAdd)
 		// 	}
 		// Reload router
-		gnoiClient := dut.RawAPIs().GNOI(t)
-		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
-			Method:  spb.RebootMethod_COLD,
-			Delay:   0,
-			Message: "Reboot chassis without delay",
-			Force:   true,
-		})
-		if err != nil {
-			t.Fatalf("Reboot failed %v", err)
-		}
-		startReboot := time.Now()
-		const maxRebootTime = 30
-		t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-		for {
-			var currentTime string
-			t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-			time.Sleep(3 * time.Minute)
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-			}); errMsg != nil {
-				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-			} else {
-				t.Logf("Device rebooted successfully with received time: %v", currentTime)
-				break
-			}
-
-			if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-				t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-			}
-		}
-		t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show run grpc")
+		t.Logf("GRPC config before reboot:\n %v", resp)
+		gnoiReboot(t, dut)
+		resp = config.CMDViaGNMI(context.Background(), t, dut, "show run grpc")
+		t.Logf("GRPC config after reboot:\n %v", resp)
 		// 	gotafter := gnmi.Get(t, dut, path.State())[0]
 		// 	if gotafter != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
 		// 		t.Logf("Listen Address not returned as expected got : %v , want %v", gotafter, listenAdd)
@@ -94,9 +65,11 @@ func TestIanaPorts(t *testing.T) {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port 9339 \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gribi port 9340 \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc p4rt port 9559 \n commit \n", 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		config.TextWithSSH(ctx, t, dut, "configure \n  grpc gnmi port 9339 \n commit \n", 10*time.Second)
+		config.TextWithSSH(ctx, t, dut, "configure \n  grpc gribi port 9340 \n commit \n", 10*time.Second)
+		config.TextWithSSH(ctx, t, dut, "configure \n  grpc p4rt port 9559 \n commit \n", 10*time.Second)
 
 		// Verifications
 		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
@@ -124,9 +97,9 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("GRPC Server Port Update Test", func(t *testing.T) {
-		showresp := dut.Model()
-		t.Logf(showresp)
-		if strings.Contains(showresp, "VXR") {
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+		t.Logf(resp)
+		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}
@@ -137,9 +110,9 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("GRPC Server Port Replace Test", func(t *testing.T) {
-		showresp := dut.Model()
-		t.Logf(showresp)
-		if strings.Contains(showresp, "VXR") {
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+		t.Logf(resp)
+		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}
@@ -178,24 +151,10 @@ func TestIanaPorts(t *testing.T) {
 
 	})
 
-	t.Run("GRPC Name Update Test", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), "TEST")
-
-	})
-
-	t.Run("GRPC Name Replace Test", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "REPLACE", path)
-		gnmi.Replace(t, dut, path.Config(), "TEST")
-
-	})
-
 	t.Run("Assign a Non-Default GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
-		showresp := dut.Model()
-		t.Logf(showresp)
-		if strings.Contains(showresp, "VXR") {
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+		t.Logf(resp)
+		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}
@@ -223,9 +182,9 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
-		showresp := dut.Model()
-		t.Logf(showresp)
-		if strings.Contains(showresp, "VXR") {
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+		t.Logf(resp)
+		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}

@@ -40,10 +40,6 @@ duts {
     id: "port8"
     speed: S_10GB
   }
-  ports {
-    id: "port9"
-    speed: S_10GB
-  }
 }
 
 ates {
@@ -71,9 +67,6 @@ ates {
   }
   ports {
     id: "port8"
-  }
-  ports {
-    id: "port9"
   }
 }
 
@@ -115,10 +108,5 @@ links {
 links {
   a: "dut:port8"
   b: "ate:port8"
-}
-
-links {
-  a: "dut:port9"
-  b: "ate:port9"
 }
 

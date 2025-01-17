@@ -1,0 +1,97 @@
+hostname xx25.den8808
+clock timezone EST America/Toronto
+logging trap informational
+logging archive
+ device harddisk
+ severity informational
+ file-size 10
+ archive-size 100
+ archive-length 52
+!
+logging console disable
+logging monitor informational
+logging buffered 125000000
+logging buffered informational
+logging facility local1
+logging hostnameprefix xx25.den8808
+username cisco
+ group root-lr
+ group cisco-support
+ secret 10 $6$MaIdA07J8XZm6A0.$yeORzJ/jWzAYC.Y0WQ6ySU.ioOrm04uXKBu8.8WXAhUK0ha.ZnEAMIXnqICvPq.58DrFMIYS2R41O3JwvVfQZ0
+!
+ vrf mgmt
+ server-private 5.18.23.199 port 3502
+  key 7 304E17790117455301364063015C7C775B523E0C162F6D504F
+ !
+!
+grpc
+ vrf mgmt
+ port 57999
+ gnmi
+ !
+ p4rt
+ !
+ gribi
+ max-streams 128
+ max-streams-per-user 128
+ address-family dual
+ max-request-total 256
+ max-request-per-user 32
+!
+vrf mgmt
+ address-family ipv4 unicast
+ !
+ address-family ipv6 unicast
+ !
+!
+line console
+ exec-timeout 30 0
+!
+line default
+ exec-timeout 30 0
+!
+vty-pool default 0 20 line-template default
+ipv4 virtual address vrf mgmt 5.78.26.1/16
+interface MgmtEth0/RP0/CPU0/0
+ vrf mgmt
+ ipv4 address 5.78.26.2/16
+!
+interface MgmtEth0/RP1/CPU0/0
+ vrf mgmt
+ ipv4 address 5.78.26.3/16
+!
+router static
+ address-family ipv4 unicast
+  5.0.0.0/8 5.78.0.1
+  5.5.14.197/32 5.78.0.1
+  5.24.27.1/32 5.78.0.1
+  223.255.253.253/32 5.78.0.1
+  223.255.254.0/24 5.78.0.1
+  223.255.254.254/32 5.78.0.1
+ !
+ vrf mgmt
+  address-family ipv4 unicast
+   5.0.0.0/8 5.78.0.1
+   5.5.14.197/32 5.78.0.1
+   5.24.27.1/32 5.78.0.1
+   223.255.253.253/32 5.78.0.1
+   223.255.254.0/24 5.78.0.1
+   223.255.254.254/32 5.78.0.1
+  !
+  address-family ipv6 unicast
+   ::/0 2607:f8b0:f800:c00::8
+   ::/0 2607:f8b0:f800:c00::4e
+  !
+ !
+!
+cef proactive-arp-nd enable
+lldp
+!
+ssh server dscp 32
+ssh server rate-limit 600
+ssh server rekey-volume 4095
+ssh server v2
+ssh server vrf mgmt
+ssh server vrf default
+hw-module profile pbr vrf-redirect
+hw-module profile npu-compatibility Q200

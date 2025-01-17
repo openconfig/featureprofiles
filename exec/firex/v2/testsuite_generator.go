@@ -35,11 +35,11 @@ type GoTest struct {
 	Timeout         int
 	Skip            bool
 	MustPass        bool
-	HasDeviations   bool
 	Internal        bool
 	PreTests        []GoTest `yaml:"pre_tests"`
 	PostTests       []GoTest `yaml:"post_tests"`
 	Groups          []string
+	OTGVersion      map[string]string `yaml:"otg_version"`
 }
 
 // FirexTest represents a single firex test suite
@@ -74,7 +74,11 @@ var (
 	)
 
 	exTestNamesFlag = flag.String(
-		"exclude_test_names", "", "comma separated list of tests to exclude",
+		"exclude_test_names", "", "comma separated list of test groups to include",
+	)
+
+	exGroupNamesFlag = flag.String(
+		"exclude_group_names", "", "comma separated list of test groups to exclude",
 	)
 
 	pluginsFlag = flag.String(
@@ -105,6 +109,10 @@ var (
 		"default_test_repo_rev", "", "fp repo rev to use for test execution by default",
 	)
 
+	testArgsFlag = flag.String(
+		"test_args", "", "comma separated list of test args",
+	)
+
 	testNamePrefixFlag = flag.String(
 		"test_name_prefix", "", "prefix to pre-append to test name",
 	)
@@ -133,16 +141,14 @@ var (
 		"use_short_names", false, "output short test names",
 	)
 
-	ignoreDeviationsFlag = flag.Bool(
-		"ignore_deviations", false, "ignore all deviation flags",
-	)
-
 	files              []string
 	testNames          []string
 	groupNames         []string
 	excludeTestNames   []string
+	excludeGroupNames  []string
 	extraPlugins       []string
 	testbeds           []string
+	testArgs           []string
 	env                map[string]string
 	outDir             string
 	testRepoRev        string
@@ -155,7 +161,6 @@ var (
 	randomize          bool
 	sorted             bool
 	useShortName       bool
-	ignoreDeviations   bool
 )
 
 var (
@@ -200,7 +205,7 @@ var (
         {{- if $.UseShortTestNames}}
         - {{ $.TestNamePrefix }}{{ $.Test.ShortName }}:
         {{- else }}
-        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Branch }} ({{ if $.Test.Internal }}I-{{ end }}BR#{{ $.Test.Branch }}){{ end }}{{ if $.Test.PrNum }} ({{ if $.Test.Internal }}I-{{ end }}PR#{{ $.Test.PrNum }}){{ end }}{{ if $.Test.HasDeviations }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
+        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Branch }} ({{ if $.Test.Internal }}I-{{ end }}BR#{{ $.Test.Branch }}){{ end }}{{ if $.Test.PrNum }} ({{ if $.Test.Internal }}I-{{ end }}PR#{{ $.Test.PrNum }}){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
         {{- end }}
             test_name: {{ $.Test.ShortName }}
             test_path: {{ $.Test.Path }}
@@ -220,6 +225,12 @@ var (
             test_timeout: {{ $.Test.Timeout }}
             {{- if $.InternalRepoRev }}
             internal_fp_repo_rev: {{ $.InternalRepoRev}}
+            {{- end }}
+            {{- if $.Test.OTGVersion }}
+            otg_version:
+                controller: {{ index $.Test.OTGVersion "controller" }}
+                hw: {{ index $.Test.OTGVersion "hw" }}
+                gnmi: {{ index $.Test.OTGVersion "gnmi" }}
             {{- end }}
             smart_sanity_exclude: True
     {{- if gt (len $.Test.PostTests) 0 }}
@@ -254,8 +265,16 @@ func init() {
 		excludeTestNames = strings.Split(*exTestNamesFlag, ",")
 	}
 
+	if len(*exGroupNamesFlag) > 0 {
+		excludeGroupNames = strings.Split(*exGroupNamesFlag, ",")
+	}
+
 	if len(*pluginsFlag) > 0 {
 		extraPlugins = strings.Split(*pluginsFlag, ",")
+	}
+
+	if len(*testArgsFlag) > 0 {
+		testArgs = strings.Split(*testArgsFlag, ",")
 	}
 
 	if len(*envFlag) > 0 {
@@ -298,7 +317,6 @@ func init() {
 	randomize = *randomizeFlag
 	sorted = *sortFlag
 	useShortName = *useShortNameFlag
-	ignoreDeviations = *ignoreDeviationsFlag
 }
 
 func main() {
@@ -357,15 +375,17 @@ func main() {
 		}
 	} else if len(groupNames) > 0 {
 		keptTests := map[string][]GoTest{}
-		for _, tg := range groupNames {
-			for i := range suite {
-				if _, ok := keptTests[suite[i].Name]; !ok {
-					keptTests[suite[i].Name] = []GoTest{}
-				}
-				for j := range suite[i].Tests {
-					for _, g := range suite[i].Tests[j].Groups {
+		for i := range suite {
+			if _, ok := keptTests[suite[i].Name]; !ok {
+				keptTests[suite[i].Name] = []GoTest{}
+			}
+		outer:
+			for j := range suite[i].Tests {
+				for _, g := range suite[i].Tests[j].Groups {
+					for _, tg := range groupNames {
 						if tg == g {
 							keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
+							continue outer
 						}
 					}
 				}
@@ -427,10 +447,39 @@ func main() {
 		}
 	}
 
+	if len(excludeGroupNames) > 0 {
+		excludedTests := map[string]bool{}
+
+		for i := range suite {
+		out:
+			for j := range suite[i].Tests {
+				for _, g := range excludeGroupNames {
+					for _, tg := range suite[i].Tests[j].Groups {
+						if g == tg {
+							excludedTests[strings.Split(suite[i].Tests[j].Name, " ")[0]] = true
+							continue out
+						}
+					}
+				}
+			}
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := excludedTests[prefix]; !found {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+	}
+
 	// adjust timeouts, priorities, & owners
 	for i := range suite {
 		if suite[i].Priority == 0 {
-			suite[i].Priority = 100000000
+			suite[i].Priority = 1000
 		}
 
 		for j := range suite[i].Tests {
@@ -447,7 +496,7 @@ func main() {
 			}
 
 			if suite[i].Tests[j].Priority == 0 {
-				suite[i].Tests[j].Priority = 100000000
+				suite[i].Tests[j].Priority = 1000
 			}
 
 			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
@@ -519,20 +568,6 @@ func main() {
 		for j := range suite[i].Tests {
 			suite[i].Tests[j].ID = fmt.Sprintf("%0"+fmt.Sprint(widthNeeded)+"d", id)
 			id = id + 1
-		}
-	}
-
-	if ignoreDeviations {
-		for i := range suite {
-			for j := range suite[i].Tests {
-				keptsArgs := []string{}
-				for k := range suite[i].Tests[j].Args {
-					if !strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") {
-						keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
-					}
-				}
-				suite[i].Tests[j].Args = keptsArgs
-			}
 		}
 	}
 
@@ -619,6 +654,10 @@ func main() {
 
 			for _, tb := range suite[i].Tests[j].Testbeds {
 				tbFound[tb] = true
+			}
+
+			if len(testArgs) > 0 {
+				suite[i].Tests[j].Args = testArgs
 			}
 
 			firexSuiteTemplate.Execute(&testSuiteCode, struct {

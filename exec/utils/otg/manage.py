@@ -1,4 +1,5 @@
 import subprocess
+import platform
 import tempfile
 import argparse
 import shutil
@@ -39,15 +40,16 @@ def _get_testbed_by_id(fp_repo_dir, testbed_id):
             return tb
     raise Exception(f'Testbed {testbed_id} not found')
 
-def _otg_docker_compose_template(control_port, gnmi_port):
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port):
     return f"""
-version: "2"
+version: "2.1"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:firex
+    image: ghcr.io/open-traffic-generator/keng-controller:1.3.0-2
     restart: always
     ports:
       - "{control_port}:40051"
+      - "{rest_port}:8443"
     depends_on:
       layer23-hw-server:
         condition: service_started
@@ -65,7 +67,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:1.3.0-4
     restart: always
     command:
       - "dotnet"
@@ -80,7 +82,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.15
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -104,16 +106,20 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port']))
 
-def _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file):
+def _replace_binding_placeholders(fp_repo_dir, baseconf_file, binding_file):
     tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
     key_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
     cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
-    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
-    check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ate_binding_file}")
-    check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ate_binding_file}")
-    check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ate_binding_file}")
+    with open(binding_file, 'r') as fp:
+        data = fp.read()
+    data = data.replace('$BASE_CONF_PATH', baseconf_file)
+    data = data.replace('$TRUST_BUNDLE_FILE', tb_file)
+    data = data.replace('$CERT_FILE', cert_file)
+    data = data.replace('$KEY_FILE', key_file)
+    with open(binding_file, 'w') as fp:
+        fp.write(data)
     
 def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file):
     otg_info = reserved_testbed['otg']
@@ -122,7 +128,7 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/tojson ' \
+            f'./exec/utils/proto/binding/tojson ' \
             f'-binding {reserved_testbed["binding"]} ' \
             f'-out {outFile}'
 
@@ -167,7 +173,7 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
             outfile.write(json.dumps(j))
             
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/fromjson ' \
+            f'./exec/utils/proto/binding/fromjson ' \
             f'-binding {tmp_binding_file} ' \
             f'-out {otg_binding_file}'
             

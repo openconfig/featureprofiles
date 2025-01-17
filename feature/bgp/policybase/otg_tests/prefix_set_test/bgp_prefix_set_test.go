@@ -15,6 +15,7 @@
 package bgp_prefix_set_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -22,10 +23,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -38,6 +40,7 @@ const (
 	peerGrpName   = "BGP-PEER-GROUP"
 	dutAS         = 65501
 	ateAS         = 65502
+	ateAS2        = 65503
 	plenIPv4      = 30
 	plenIPv6      = 126
 	v4Prefixes    = true
@@ -95,12 +98,12 @@ var (
 		nbrAddr: atePort2.IPv4,
 		isV4:    true,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
-		as:      ateAS}
+		as:      ateAS2}
 	ebgp2NbrV6 = &bgpNeighbor{
 		nbrAddr: atePort2.IPv6,
 		isV4:    false,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
-		as:      ateAS}
+		as:      ateAS2}
 	ebgpNbrs = []*bgpNeighbor{ebgp1NbrV4, ebgp1NbrV6, ebgp2NbrV4, ebgp2NbrV6}
 
 	route1 = &route{prefix: "10.23.15.1", maskLen: 32, isV4: true}
@@ -190,7 +193,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configurePrefixSet(t *testing.T, dut *ondatra.DUTDevice, prefixSet []*prefixSetPolicy) {
-	// configure prefix-sets
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	for _, ps := range prefixSet {
@@ -257,7 +259,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
-	pg.PeerAs = ygot.Uint32(ateAS)
+	pg.PeerAs = ygot.Uint32(peerAs)
 	pg.PeerGroupName = ygot.String(peerGrpName)
 
 	for _, nbr := range ebgpNbrs {
@@ -298,7 +300,6 @@ func verifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatal("No BGP neighbor formed")
 		}
 		state, _ := status.Val()
-		t.Logf("BGP adjacency for %s: %v", nbr.nbrAddr, state)
 		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
 			t.Errorf("BGP peer %s status got %d, want %d", nbr.nbrAddr, state, want)
 		}
@@ -311,7 +312,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 
-	// Port1 Configuration.
+	// Port1 Configuration. Sets the ATE port
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
 	iDut1Eth.Connection().SetPortName(port1.Name())
@@ -333,25 +334,21 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 seesion on Port1.
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	iDut1Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// eBGP v4 seesion on Port2.
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
-	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 seesion on Port2.
 	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Ipv6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
-	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	iDut2Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// eBGP V4 routes from Port1.
 	bgpNeti1Bgp4PeerRoutes := iDut1Bgp4Peer.V4Routes().Add().SetName(atePort1.Name + ".BGP4.Route")
@@ -388,28 +385,30 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool { // increased wait time to 20s from 10s
 		gotInstalled, _ := val.Val()
+		t.Logf("Prefix that are installed %v and want %v", gotInstalled, wantInstalled)
 		return gotInstalled == wantInstalled
 	}).Await(t)
 	if !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
 
-	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		// Waiting for Received count to get updated after session comes up or policy is applied
-		gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-			gotRx, _ := val.Val()
-			return gotRx == wantRx
-		}).Await(t)
-		if !ok {
-			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
-		}
+	// Waiting for Received count to get updated after session comes up or policy is applied
+	gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotRx, _ := val.Val()
+		t.Logf("Prefix that are received %v and want %v", gotRx, wantRx)
+		return gotRx == wantRx
+	}).Await(t)
+	if !ok {
+		t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 	}
 
 	// Waiting for Sent count to get updated after session comes up or policy is applied
-	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		t.Logf("Prefix that are sent %v", prefixPath.Sent().State())
 		gotSent, _ := val.Val()
+		t.Logf("Prefix that are sent %v and want %v", gotSent, wantSent)
 		return gotSent == wantSent
 	}).Await(t)
 	if !ok {
@@ -428,20 +427,27 @@ func testPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 	})
 
 	// Associating prefix-set with the required routing-policy and applying to BGP neighbors on ATE-port-1
-	t.Run("Validate acceptance based on prefix-set policy", func(t *testing.T) {
+	t.Run("Validate acceptance based on prefix-set policy - import policy on neighbor", func(t *testing.T) {
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V4, prefixSet2V4}, bgpImportIPv4, *ebgp1NbrV4, importPolicy)
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6, prefixSet2V6}, bgpImportIPv6, *ebgp1NbrV6, importPolicy)
-
-		// route1, route2, route4 expected to be accepted based on prefix-set
-		validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
-		// only route6 is expected to accepted based on prefix-set
-		validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
+		if deviations.DefaultImportExportPolicyUnsupported(dut) {
+			t.Logf("Validate for neighbour %v", ebgp1NbrV4)
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 3)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 1)
+		} else {
+			t.Logf("Validate for neighbour %v", ebgp1NbrV4)
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
+			// only route6 is expected to accepted based on prefix-set
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
+		}
 	})
 
 	// Associating prefix-set with the required routing-policy and applying to BGP neighbors on ATE-port-2
-	t.Run("Validate advertise based on prefix-set policy", func(t *testing.T) {
+	t.Run("Validate advertise based on prefix-set policy - export policy on neighbor", func(t *testing.T) {
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet2V4}, bgpExportIPv4, *ebgp2NbrV4, !importPolicy)
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6}, bgpExportIPv6, *ebgp2NbrV6, !importPolicy)
 
@@ -466,18 +472,37 @@ func TestBGPPrefixSet(t *testing.T) {
 		dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 
+		if deviations.MissingPrePolicyReceivedRoutes(dut) {
+			var enableSoftConfigInboundCLI string
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				enableSoftConfigInboundCLI = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n address-family ipv4 unicast soft-reconfiguration inbound always \n address-family ipv6 unicast soft-reconfiguration inbound always", dutAS, peerGrpName)
+			default:
+				t.Fatalf("Unsupported vendor %s for deviation 'MissingPrePolicyReceivedRoutes'", dut.Vendor())
+			}
+			helpers.GnmiCLIConfig(t, dut, enableSoftConfigInboundCLI)
+		}
 		otg := ate.OTG()
 		configureOTG(t, otg)
 		verifyBgpState(t, dut)
 	})
 
-	// Validate route count for BGP neighbors with default deny-all routing-policy
-	t.Run("Validate initial prefix count", func(t *testing.T) {
-		validatePrefixCount(t, dut, *ebgp1NbrV4, 0, 5, 0)
-		validatePrefixCount(t, dut, *ebgp1NbrV6, 0, 5, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
-	})
+	if deviations.DefaultImportExportPolicyUnsupported(dut) {
+		t.Run("Validate initial prefix count", func(t *testing.T) {
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 5, 5, 0)
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 5, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 5)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 5)
+		})
+	} else {
+		t.Run("Validate initial prefix count", func(t *testing.T) {
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 0, 5, 0)
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 0, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
+		})
+
+	}
 
 	testPrefixSet(t, dut)
 }

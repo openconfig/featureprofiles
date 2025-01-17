@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,30 +16,17 @@ import (
 
 	log "github.com/golang/glog"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/gnoi/system"
 	credz "github.com/openconfig/gnsi/credentialz"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"golang.org/x/crypto/ssh"
-
-	"github.com/openconfig/featureprofiles/internal/args"
-
-	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/testt"
-)
-
-const (
-	maxSwitchoverTime = 900
-	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
-	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
@@ -456,6 +444,11 @@ func finalizeAccountRequest(t *testing.T, stream credz.Credentialz_RotateAccount
 	if err != nil {
 		t.Fatalf("Stream send finalize failed : " + err.Error())
 	}
+	if _, err = stream.Recv(); err != nil {
+		if err != io.EOF {
+			log.Exit("Failed, finalize Rotation is cancelled", err)
+		}
+	}
 	log.Infof("Finalize Request done")
 }
 
@@ -473,6 +466,12 @@ func finalizeHostRequest(t *testing.T, stream credz.Credentialz_RotateHostParame
 	if err != nil {
 		fmt.Println("Credz:  Stream send finalize failed : " + err.Error())
 	}
+	if _, err = stream.Recv(); err != nil {
+		if err != io.EOF {
+			log.Exit("Failed, finalize Rotation is cancelled", err)
+		}
+	}
+	log.Infof("Finalize Request done")
 }
 
 func rotateHostParametersRequest(t *testing.T, stream credz.Credentialz_RotateHostParametersClient, aareq credz.AllowedAuthenticationRequest) {
@@ -678,108 +677,6 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 	return nil
 }
 
-func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
-
-	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found controller card list: %v", controllerCards)
-
-	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
-		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
-	}
-
-	if got, want := len(controllerCards), 2; got < want {
-		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
-	}
-
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
-	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
-
-	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
-	}
-
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &system.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
-	want := rpStandbyBeforeSwitch
-	got := ""
-	if deviations.GNOISubcomponentPath(dut) {
-		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-	} else {
-		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
-	}
-	if got != want {
-		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
-	}
-	if got, want := switchoverResponse.GetVersion(), ""; got == want {
-		t.Errorf("switchoverResponse.GetVersion(): got %v, want non-empty version", got)
-	}
-	if got := switchoverResponse.GetUptime(); got == 0 {
-		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
-	}
-
-	startSwitchover := time.Now()
-	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-		}
-	}
-	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
-
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
-	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
-
-	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
-		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
-	}
-	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
-		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
-	}
-
-	t.Log("Validate OC Switchover time/reason.")
-	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
-
-	swTime, swTimePresent := gnmi.Watch(t, dut, activeRP.LastSwitchoverTime().State(), 1*time.Minute, func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }).Await(t)
-	if !swTimePresent {
-		t.Errorf("activeRP.LastSwitchoverTime().Watch(t).IsPresent(): got %v, want %v", false, true)
-	} else {
-		st, _ := swTime.Val()
-		t.Logf("Found activeRP.LastSwitchoverTime(): %v", st)
-	}
-
-	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
-		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
-		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
-}
-
 func TestCredentialz_2(t *testing.T) {
 	filePath := "credz"
 	accountName := "CREDZ"
@@ -828,8 +725,6 @@ func TestCredentialz_2(t *testing.T) {
 	rotateHostParametersRequest(t, hostParamStream, aareq)
 	finalizeHostRequest(t, hostParamStream)
 	hostParamStream.CloseSend()
-	time.Sleep(2 * time.Second)
-
 	var akreq credz.AuthorizedKeysRequest
 
 	credentialsData := createAccountCredentials(filePath, accountName)
@@ -843,7 +738,6 @@ func TestCredentialz_2(t *testing.T) {
 	roatateAccountCredentialsRequest(t, stream, akreq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	sshPasswordParams := sshPasswordParams{
 		user:     accountName,
@@ -852,7 +746,9 @@ func TestCredentialz_2(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
-
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
 	t.Run("Set Password as authentication type and check ssh with password and pubkey", func(t *testing.T) {
 		var authTypePwd []credz.AuthenticationType
 		authTypePwd = append(authTypePwd, credz.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD)
@@ -867,7 +763,7 @@ func TestCredentialz_2(t *testing.T) {
 		}
 		rotateHostParametersRequest(t, hostParamStream, aareq)
 		finalizeHostRequest(t, hostParamStream)
-		time.Sleep(2 * time.Second)
+		hostParamStream.CloseSend()
 		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshPasswordParams, "password", nil)
 		if err != nil {
 			t.Fatalf("Error in establishing SSH connection with password: %v", err.Error())
@@ -896,6 +792,11 @@ func TestCredentialz_2(t *testing.T) {
 
 	})
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
 	t.Run("set Pubkey as authentication type and check ssh with password and pubkey", func(t *testing.T) {
 		var authTypePubkey []credz.AuthenticationType
 		authTypePubkey = append(authTypePubkey, credz.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY)
@@ -906,8 +807,7 @@ func TestCredentialz_2(t *testing.T) {
 		log.Infof("Aollowed Authentication request type PubKey")
 		rotateHostParametersRequest(t, hostParamStream, aareq)
 		finalizeHostRequest(t, hostParamStream)
-		time.Sleep(2 * time.Second)
-
+		hostParamStream.CloseSend()
 		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshPasswordParams, "password", nil)
 		if err == nil {
 			t.Fatalf("Establishing SSH connection with password which is not expected")
@@ -938,6 +838,11 @@ func TestCredentialz_2(t *testing.T) {
 
 	aareq = credz.AllowedAuthenticationRequest{
 		AuthenticationTypes: authTypes,
+	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
 	}
 	log.Infof("Aollowed Authentication request type Password, PubKey and KBDInteractive")
 	rotateHostParametersRequest(t, hostParamStream, aareq)
@@ -989,7 +894,6 @@ func TestCredentialz_3(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -999,6 +903,7 @@ func TestCredentialz_3(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1031,9 +936,15 @@ func TestCredentialz_3(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
+	defer hostParamStream.CloseSend()
+
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 
 	t.Run("Client Based Authentication", func(t *testing.T) {
 		errCount := 0
@@ -1150,7 +1061,8 @@ func TestCredentialz_4(t *testing.T) {
 	roatateAccountCredentialsRequest(t, stream, akreq)
 
 	finalizeAccountRequest(t, stream)
-
+	stream.CloseSend()
+	time.Sleep(2 * time.Second)
 	t.Run("PublicKey Based Authentication", func(t *testing.T) {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
@@ -1178,6 +1090,12 @@ func TestCredentialz_4(t *testing.T) {
 		Version:   "1.1",
 		CreatedOn: 123}
 	akreqForNeg.Credentials = append(akreqForNeg.Credentials, &credentials)
+
+	stream, err = gnsiC.Credentialz().RotateAccountCredentials(context.Background())
+	defer stream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 
 	log.Infof("Removing all authorized keys from user")
 	roatateAccountCredentialsRequest(t, stream, akreqForNeg)
@@ -1309,8 +1227,7 @@ func TestCredentialz_5(t *testing.T) {
 	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	caPubkey, err := os.ReadFile(fmt.Sprintf("%s/ca.pub", filePath))
 	if err != nil {
 		t.Fatalf("Error in reading ca Pubkey file: %v", err.Error())
@@ -1320,9 +1237,14 @@ func TestCredentialz_5(t *testing.T) {
 		Version:         "1.1",
 		CreatedOn:       123}
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
-
+	hostParamStream.CloseSend()
 	err = createGrantFileWithClientName(hibaGenPath, grantsFile, idKeyPairs)
 	if err != nil {
 		t.Fatalf("Error creating grants file with client name: %v", err.Error())
@@ -1345,10 +1267,14 @@ func TestCredentialz_5(t *testing.T) {
 	pcreq := credz.AuthorizedPrincipalCheckRequest{
 		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(1),
 	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	out, err := createSSHClientWithCmd(tartgetIP, tartgetPort, fmt.Sprintf("%s/%s-cert.pub", usersFilePath, accountName),
 		fmt.Sprintf("%s/%s", usersFilePath, accountName), accountName)
 	if err != nil {
@@ -1363,8 +1289,14 @@ func TestCredentialz_5(t *testing.T) {
 	pcreq = credz.AuthorizedPrincipalCheckRequest{
 		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(0),
 	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 }
 
 func TestPubkeyWithHA(t *testing.T) {
@@ -1438,7 +1370,7 @@ func TestPubkeyWithHA(t *testing.T) {
 	sshVerification()
 	RestartProcess(t, dut, "cepki")
 	sshVerification()
-	rpSwitchOver(t, dut)
+	utils.Dorpfo(context.Background(), t, true)
 	sshVerification()
 
 }
@@ -1486,7 +1418,6 @@ func TestExpiredHostCert(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -1496,6 +1427,7 @@ func TestExpiredHostCert(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1528,6 +1460,11 @@ func TestExpiredHostCert(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	err = hostParamStream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_ServerKeys{ServerKeys: &skreq}})
 	if err != nil {
 		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
@@ -1585,7 +1522,6 @@ func TestExpiredClientCert(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -1595,6 +1531,7 @@ func TestExpiredClientCert(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1627,10 +1564,14 @@ func TestExpiredClientCert(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
 	hostParamStream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	errCount := 0
 	for i := 0; i < len(clientKeyNames); i++ {
@@ -1660,10 +1601,6 @@ func TestExpiredClientCert(t *testing.T) {
 	} else {
 		log.Infof("client based authentication failed, which is expected")
 	}
-}
-
-func TestForSecondRPSwitchOver(t *testing.T) {
-	time.Sleep(360 * time.Second) // This sleep is to get ready for the second RP switchover
 }
 
 func TestClientCertWithHA(t *testing.T) {
@@ -1708,7 +1645,6 @@ func TestClientCertWithHA(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -1718,6 +1654,7 @@ func TestClientCertWithHA(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1750,10 +1687,14 @@ func TestClientCertWithHA(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	sshVerification := func() {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
@@ -1790,6 +1731,6 @@ func TestClientCertWithHA(t *testing.T) {
 	sshVerification()
 	RestartProcess(t, dut, "cepki")
 	sshVerification()
-	rpSwitchOver(t, dut)
+	utils.Dorpfo(context.Background(), t, true)
 	sshVerification()
 }

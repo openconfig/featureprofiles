@@ -1,0 +1,50 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "00e08af7-9b22-4b0e-bf1b-c84e0af5a896"
+plan_id:  "RT-1.34"
+description:  "BGP route-distance configuration"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    isis_instance_enabled_required:  true
+    omit_l2_mtu:  true
+    missing_value_for_defaults:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+    isis_interface_afi_unsupported:  true
+    skip_isis_set_level:  true
+    skip_set_rp_match_set_options:  true
+    skip_setting_disable_metric_propagation:  true
+    skip_setting_statement_for_policy:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    bgp_rib_oc_path_unsupported:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    bgp_rib_oc_path_unsupported:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+

@@ -1,6 +1,11 @@
 from pwd import getpwuid
 from random import randint
+from datetime import datetime
+from pathlib import Path
+from logging.handlers import RotatingFileHandler
+import logging
 import argparse
+import getpass
 import yaml
 import json
 import time
@@ -8,39 +13,29 @@ import errno
 import os
 
 def _find_owner(filename):
+    with open(filename, 'r') as fp:
+        tokens = fp.read().split(',')
+        if(len(tokens) == 2): # remove check once old locks are released
+            return tokens[0]
     return getpwuid(os.stat(filename).st_uid).pw_name
 
-_session_locked_files = []
-def _lockfile(filename):
+def _get_reason(filename):
+    with open(filename, 'r') as fp:
+        tokens = fp.read().split(',')
+        if(len(tokens) == 2): # remove check once old locks are released
+            return tokens[1]
+        return tokens[0]
+
+def _lockfile(filename, user, reason=""):
     try:
-        if not filename in _session_locked_files:
-            os.close(os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY));
-            _session_locked_files.append(filename)
+        fp = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fp, str.encode(f"{user},{reason}"))
+        os.close(fp)
     except OSError as e:
         if e.errno == errno.EEXIST:
             return False
         else:
             raise
-    return True
-
-def _unlockfile(filename):
-    if os.path.exists(filename):
-        os.remove(filename)
-    if filename in _session_locked_files:
-        _session_locked_files.remove(filename)
-
-def _lock_hw(hw):
-    if type(hw) == str:
-        return _lockfile(os.path.join(ldir, hw))
-    
-    locked = []
-    for e in hw:
-        if _lockfile(os.path.join(ldir, e)):
-            locked.append(e)
-        else:
-            for lf in locked:
-                _unlockfile(lf)
-            return False
     return True
 
 def _print_table(rows):
@@ -56,7 +51,7 @@ def _print_table(rows):
   print('└' + '┴'.join('─' * (n + 2) for n in max_col_lens) + '┘')
         
 def _show(available_only=False, json_output=False):
-    data = [["Testbed", "Owner", "Available", "Reserved By"]]
+    data = [["Testbed", "Owner", "Reserved By", "Reason"]]
     for t in testbeds:
         if t.get('sim', False):
             continue
@@ -70,12 +65,14 @@ def _show(available_only=False, json_output=False):
         for e in t['hw']:
             lock_file = os.path.join(ldir, e)
             locked |= os.path.exists(lock_file)
+            reason = ""
             if locked:
-                reserved_by =  _find_owner(lock_file) 
+                reserved_by = _find_owner(lock_file) 
+                reason = _get_reason(lock_file)
                 break
 
         if not available_only or not locked:
-            data.append([t['id'], t['owner'], not locked, reserved_by])
+            data.append([t['id'], t['owner'], reserved_by, reason])
     if json_output:
         json_data = {
             'status': 'ok',
@@ -85,78 +82,79 @@ def _show(available_only=False, json_output=False):
             json_data['testbeds'].append({
                 'id': r[0],
                 'owner': r[1],
-                'available': r[2],
-                'reserved_by': r[3]
+                'reserved_by': r[2],
+                'reason': r[3]
             })
         print(json.dumps(json_data))
     else:
         _print_table(data)
 
-def _get_testbed(id):
+def _get_testbed(id, json_output=False):
     for tb in testbeds:
         if tb['id'] == id:
             return tb
-    return None
+    if json_output: print(json.dumps({"status": "not found"}))
+    else: print(f"Testbed '{id}' not found.")
+    exit(1)
 
-def _trylock_helper(tb):
+def _trylock_helper(tb, user, reason=""):
     if tb.get('sim', False):
         return True
-    return _lock_hw(tb['hw'])
+    if not getpass.getuser() in allowed_users:
+        return False
+    lock_file = os.path.join(ldir, tb['hw'])
+    if _lockfile(lock_file, user, reason):
+        return True
+    return False
 
 def _release_helper(tb):
-    if tb.get('sim', False):
-        return
-    
-    if type(tb['hw']) == str:
-        tb['hw'] = [tb['hw']]
-
-    for e in tb['hw']:
-        lock_file = os.path.join(ldir, e)
-        _unlockfile(lock_file)
+    if not tb.get('sim', False) and getpass.getuser() in allowed_users:
+        lock_file = os.path.join(ldir, tb['hw'])
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
 
 def _release_all(tbs):
     for tb in tbs:
         _release_helper(tb)
+    logger.info(f"Testbeds {[tb['hw'] for tb in tbs]} released by user {getpass.getuser()}")
 
-def _trylock(testbeds, wait=False, json_output=False):
+def _trylock(testbeds, user, wait=False, reason=""):
     while True:
         locked = []
         for tb in testbeds:        
-            if _trylock_helper(tb):
+            if _trylock_helper(tb, user, reason):
                 locked.append(tb)
             else:
-                _release_all(locked)
+                for tb in locked:
+                    _release_helper(tb)
                 break
         
         if len(locked) == len(testbeds):
-            if json_output:
-                print(json.dumps({'status': 'ok', 'testbeds': locked}))
-            else:
-                print(f"Success. Testbed(s) reserved.")
-            exit(0)
+            logger.info(f"Testbeds {[tb['hw'] for tb in locked]} locked by user {getpass.getuser()} with reason '{reason}'")
+            return testbeds
         else: 
             if wait:
                 time.sleep(randint(1,3))
             else:
-                if json_output:
-                    print(json.dumps({'status': 'fail'}))
-                else:
-                    print(f"Not all testbeds are available.")
-                exit(1)
+                return None
             
-def _release(testbeds, json_output=False):
+def _release(testbeds):
     _release_all(testbeds)
-    if json_output: print(json.dumps({'status': 'ok'}))
-    else: print(f"Testbed(s) released")
+
+def _get_actual_testbeds(ids, json_output=False):
+    testbeds = {}
+    for id in ids.split(","):
+        tb = _get_testbed(id, json_output)
+        hw = tb.get('hw', id)
+        if type(hw) != list: hw = [hw]
+        for h in hw:
+            testbeds[h] = _get_testbed(h, json_output)
+    return testbeds.values()
 
 def _get_testbeds(ids, json_output=False):
     testbeds = []
     for id in ids.split(","):
-        tb = _get_testbed(id)
-        if not tb:
-            if json_output: print(json.dumps({"status": "not found"}))
-            else: print(f"Testbed '{id}' not found.")
-            exit(1)
+        tb = _get_testbed(id, json_output)
         testbeds.append(tb)
     return testbeds
     
@@ -171,6 +169,7 @@ if __name__ == "__main__":
     main_parser.add_argument('testbeds_file', type=lambda x: _is_valid_file(main_parser, x), help='path to testbeds.yaml file')
     main_parser.add_argument('locks_dir', type=str, help='path to locks directory')
     main_parser.add_argument('-j', '--json', action='store_true', default=False, help='json output')
+
     command_subparser = main_parser.add_subparsers(title='command', dest='command')
     command_subparser.required = True
 
@@ -180,15 +179,36 @@ if __name__ == "__main__":
     lock_parser = command_subparser.add_parser('lock', help='lock a testbed')
     lock_parser.add_argument('id', help='testbed id')
     lock_parser.add_argument('-w', '--wait',  default=False, action='store_true', help='wait until testbed is available')
+    lock_parser.add_argument('-r', '--reason',  default="", help='reason for locking')
+    lock_parser.add_argument('-u', '--user',  default=getpass.getuser(), help='requestor username')
 
     release_parser = command_subparser.add_parser('release', help='release a testbed')
     release_parser.add_argument('id', help='testbed id')
 
 args = main_parser.parse_args()
 
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+allowed_users = []
+with open(os.path.join(__location__, 'users.txt')) as fp:
+    allowed_users = [line.rstrip() for line in fp]
+
 ldir = args.locks_dir
 if not os.path.exists(ldir):
     os.makedirs(ldir, mode=0o777, exist_ok=True)
+
+log_file = os.path.join(ldir, "logs.txt")
+if not os.path.exists(log_file):
+    open(log_file, 'a').close()
+    os.chmod(log_file, 0o666)
+
+logger = logging.getLogger("tblock")
+logger.setLevel(logging.INFO)
+log_handler = RotatingFileHandler(log_file, maxBytes=100000000, backupCount=1)
+log_formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+log_handler.setFormatter(log_formatter)
+logger.addHandler(log_handler)
 
 testbeds = []
 with open(args.testbeds_file, 'r') as fp:
@@ -196,13 +216,25 @@ with open(args.testbeds_file, 'r') as fp:
     tbs = tf['testbeds']
     for k in tbs:
         tbs[k]['id'] = k
+        if not 'hw' in tbs[k]: tbs[k]['hw'] = k
         testbeds.append(tbs[k])
 
 if args.command == 'show':
     _show(available_only=args.available, json_output=args.json)
 elif args.command == 'lock':
-    tbs = _get_testbeds(args.id, json_output=args.json)
-    _trylock(tbs, args.wait, json_output=args.json)
+    tbs = _get_actual_testbeds(args.id, json_output=args.json)
+    if _trylock(tbs, args.user, args.wait, args.reason):
+        if args.json:
+            print(json.dumps({'status': 'ok', 'testbeds': _get_testbeds(args.id)}))
+        else:
+            print(f"Success. Testbed(s) reserved.")
+    else:
+        if args.json:
+            print(json.dumps({'status': 'fail'}))
+        else:
+            print(f"Not all testbeds are available.")
 elif args.command == 'release':
-    tbs = _get_testbeds(args.id, json_output=args.json)
-    _release(tbs, json_output=args.json)
+    tbs = _get_actual_testbeds(args.id, json_output=args.json)
+    _release(tbs)
+    if args.json: print(json.dumps({'status': 'ok'}))
+    else: print(f"Testbed(s) released")

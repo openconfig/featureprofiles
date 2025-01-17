@@ -1097,30 +1097,36 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		q1.Name = ygot.String(queue)
 		queueid := 7 - i
 		q1.QueueId = ygot.Uint8(uint8(queueid))
-		//gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+	var schedulerPolName = "eg_policy1111"
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
-	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = oc.Scheduler_Priority_STRICT
+	schedule := make(map[uint32]*oc.Qos_SchedulerPolicy_Scheduler)
+	schedule1 := schedulerpol.GetOrCreateScheduler(1)
+	schedule[1] = schedule1
+	schedule1.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
-		input := schedule.GetOrCreateInput(schedqueue)
+		input := schedule1.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
 		input.Weight = ygot.Uint64(7 - ind)
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
 	}
-	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	gnmi.Replace(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.Get(t, dut, configprior.Config())
-	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+	gnmi.Replace(t, dut, configprior.Config(), &oc.Qos_SchedulerPolicy{
+		Name:      &schedulerPolName,
+		Scheduler: schedule,
+	})
+	configGotprior := gnmi.Get(t, dut, configprior.Scheduler(1).Config())
+	if diff := cmp.Diff(*configGotprior, *schedule1); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
+	schedule[1] = schedulenonprior
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
@@ -1131,7 +1137,10 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
 		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
+		gnmi.Update(t, dut, configprior.Config(), &oc.Qos_SchedulerPolicy{
+			Name:      &schedulerPolName,
+			Scheduler: schedule,
+		})
 		configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
@@ -1204,7 +1213,6 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	}
-
 }
 
 func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {

@@ -273,6 +273,14 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 				NH = NH.WithNextHopNetworkInstance(opt.VrfName)
 			}
 		}
+	} else if address == "Encap" {
+		NH = NH.WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			for _, dst := range opt.Dest {
+				NH = NH.WithIPinIP(opt.Src, dst)
+				NH = NH.WithNextHopNetworkInstance(opt.VrfName)
+			}
+		}
 	} else if address != "" {
 		NH = NH.WithIPAddress(address)
 		aftNh.IpAddress = &address
@@ -301,7 +309,7 @@ func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, n
 
 	if check.AFTCheck {
 		//if address is "decap", prefix will be 0.0.0.0, nhInstance is "", and InterfaceRef is Null0
-		if address == DECAP || address == ENCAP {
+		if address == DECAP || address == ENCAP || address == "Encap" {
 			c.checkNH(t, nhIndex, "0.0.0.0", instance, "", "Null0")
 		} else if address != "" && address != DecapEncap {
 			c.checkNH(t, nhIndex, address, instance, nhInstance, interfaceRef)
@@ -610,4 +618,27 @@ func (c *Client) AddNHWithIPinIP(t testing.TB, nhIndex uint64, address, instance
 			t.Fatalf("AFT Check failed for aft/nexthop-entry got ip %s, want ip %s; got index %d , want index %d", *nh.IpAddress, address, *nh.Index, nhIndex)
 		}
 	}
+}
+
+// AddIPv6 adds an IPv6Entry mapping a prefix to a given next hop group index within a given network instance.
+func (c *Client) AddIPv6(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).
+		WithNetworkInstance(instance).
+		WithNextHopGroup(nhgIndex)
+	if nhgInstance != "" && nhgInstance != instance {
+		ipv6Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+	}
+	c.fluentC.Modify().AddEntry(t, ipv6Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add IPv6: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv6Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
 }
