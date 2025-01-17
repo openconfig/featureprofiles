@@ -2004,6 +2004,41 @@ func connectgribi(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 }
+
+func edt(t *testing.T, dut *ondatra.DUTDevice) {
+	gotCount := 0
+	watcher := gnmi.WatchAll(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().AddressAny().State(),
+		time.Minute,
+		func(value *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+			ip, present := value.Val()
+			fmt.Printf("**val :%v\n", value)
+			if !present {
+				return false
+			}
+			if len(value.Path.Elem) < 2 {
+				t.Fatalf("Got erroneous path: %v", value.Path.String())
+			}
+			intf, ok := value.Path.Elem[1].Key["name"]
+			if !ok {
+				t.Fatalf("Got erroneous path: %v", value.Path.String())
+			}
+			t.Logf("intf - %s", intf)
+			t.Logf("ip - %s", ip.GetIp())
+			if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" || ip.GetIp() == "fe80::5" {
+				gotCount += 1
+				t.Logf("Interface %s id updated to target value %v", intf, ip.GetIp())
+			}
+			return gotCount == len(interfaceList)-1
+		})
+	_, gotall := watcher.Await(t)
+	if !gotall {
+		t.Fatalf("Did not receive all values an interfacegot %v want %v", gotCount, len(interfaceList))
+	}
+
+}
+
 func TestIPv6LinkLocal(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
@@ -2043,7 +2078,40 @@ func TestIPv6LinkLocal(t *testing.T) {
 	}
 
 	t.Run("Configure Local Unicast IPv6 and verify", func(t *testing.T) {
+		gotCount := 0
+		watcher := gnmi.WatchAll(t,
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+			gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().AddressAny().State(),
+			time.Minute,
+			func(value *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+				ip, present := value.Val()
+				fmt.Printf("**val :%v\n", value)
+				if !present {
+					return false
+				}
+				if len(value.Path.Elem) < 2 {
+					t.Fatalf("Got erroneous path: %v", value.Path.String())
+				}
+				intf, ok := value.Path.Elem[1].Key["name"]
+				if !ok {
+					t.Fatalf("Got erroneous path: %v", value.Path.String())
+				}
+				t.Logf("intf - %s", intf)
+				t.Logf("ip - %s", ip.GetIp())
+				if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" || ip.GetIp() == "fe80::5" {
+					gotCount += 1
+					t.Logf("Interface %s id updated to target value %v", intf, ip.GetIp())
+				}
+				return gotCount == len(interfaceList)-1
+			})
+
 		configureDUTLinkLocalInterface(t, dut)
+
+		_, gotall := watcher.Await(t)
+
+		if !gotall {
+			t.Fatalf("Did not receive all values an interfacegot %v want %v", gotCount, len(interfaceList))
+		}
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Interface Telemetry", func(t *testing.T) {
@@ -2052,16 +2120,48 @@ func TestIPv6LinkLocal(t *testing.T) {
 	})
 
 	t.Run("Delete and Addition Local Unicast IPv6", func(t *testing.T) {
-
+		// gotCount := 0
+		// watcher := gnmi.WatchAll(t,
+		// 	dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		// 	gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().AddressAny().State(),
+		// 	time.Minute,
+		// 	func(value *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+		// 		ip, present := value.Val()
+		// 		fmt.Printf("**val :%v\n", value)
+		// 		if !present {
+		// 			return false
+		// 		}
+		// 		if len(value.Path.Elem) < 2 {
+		// 			t.Fatalf("Got erroneous path: %v", value.Path.String())
+		// 		}
+		// 		intf, ok := value.Path.Elem[1].Key["name"]
+		// 		if !ok {
+		// 			t.Fatalf("Got erroneous path: %v", value.Path.String())
+		// 		}
+		// 		t.Logf("intf - %s", intf)
+		// 		t.Logf("ip - %s", ip.GetIp())
+		// 		if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" || ip.GetIp() == "fe80::5" {
+		// 			gotCount += 1
+		// 			t.Logf("Interface %s id updated to target value %v", intf, ip.GetIp())
+		// 		}
+		// 		return gotCount == len(interfaceList)-1
+		// 	})
+		edt(t, dut)
 		deleteDUTLocalIPv6(t, dut)
 		configureDUTLinkLocalInterface(t, dut)
 
+		// _, gotall := watcher.Await(t)
+
+		// if !gotall {
+		// 	t.Fatalf("Did not receive all values an interfacegot %v want %v", gotCount, len(interfaceList))
+		// }
 		t.Run("Interface Telemetry", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
 		})
 	})
 
 	t.Run("Configure And Delete Global Unicast IPv6", func(t *testing.T) {
+		edt(t, dut)
 		configureDUTGlobalIPv6(t, dut)
 		deleteDUTGlobalIPv6(t, dut)
 		t.Run("Interface Telemetry", func(t *testing.T) {
@@ -2070,6 +2170,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 	})
 
 	t.Run("Disable and Enable Ports", func(t *testing.T) {
+		edt(t, dut)
 		triggerDUTLocalInterfaces(t, dut)
 		t.Run("Interface Telemetry", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
@@ -2077,7 +2178,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 	})
 
 	t.Run("Update LLA IPv6", func(t *testing.T) {
-
+		edt(t, dut)
 		IPv6 := "fe80::1"
 		configureDUTLinkLocalInterface(t, dut)
 		for _, interfaces := range interfaceList {
