@@ -1,0 +1,28 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "387c1f76-7811-4a04-99e3-f690fba1e98e"
+plan_id: "TRANSCEIVER-10"
+description: "Telemetry: 400ZR_PLUS Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming."
+testbed: TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+    channel_assignment_rate_class_parameters_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+    eth_channel_assignment_cisco_numbering: true
+  }
+}
