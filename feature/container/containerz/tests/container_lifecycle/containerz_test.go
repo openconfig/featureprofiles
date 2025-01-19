@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/containerz/client"
@@ -11,8 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"testing"
-	"time"
 )
 
 var (
@@ -40,7 +41,7 @@ func containerzClient(ctx context.Context, t *testing.T) *client.Client {
 func startContainer(ctx context.Context, t *testing.T) *client.Client {
 	cli := containerzClient(ctx, t)
 
-	progCh, err := cli.PushImage(ctx, "cntrsrv", "latest", *containerTar)
+	progCh, err := cli.PushImage(ctx, "cntrsrv", "latest", *containerTar, false)
 	if err != nil {
 		t.Fatalf("unable to push image: %v", err)
 	}
@@ -61,11 +62,27 @@ func startContainer(ctx context.Context, t *testing.T) *client.Client {
 		t.Fatalf("unable to start container: %v", err)
 	}
 
-	// wait for cntr container to come up.
-	time.Sleep(5 * time.Second)
-	t.Logf("Started %s", ret)
+	for i := 0; i < 5; i++ {
+		ch, err := cli.ListContainer(ctx, true, 0, map[string][]string{
+			"name": []string{instanceName},
+		})
+		if err != nil {
+			t.Fatalf("unable to list container state for %s", instanceName)
+		}
 
-	return cli
+		for info := range ch {
+			if info.State == "RUNNING" {
+				t.Logf("Started %s", ret)
+				return cli
+			}
+		}
+		// wait for cntr container to come up.
+		time.Sleep(5 * time.Second)
+	}
+
+	t.Fatalf("unable to start %s", instanceName)
+
+	return nil
 }
 
 func stopContainer(ctx context.Context, t *testing.T, cli *client.Client) {
@@ -162,6 +179,8 @@ func TestStopContainer(t *testing.T) {
 	}
 }
 
+// TestVolumes checks that volumes can be created or removed, it does not test
+// if they can actually be used.
 func TestVolumes(t *testing.T) {
 	ctx := context.Background()
 	cli := containerzClient(ctx, t)
@@ -206,7 +225,7 @@ func TestUpgrade(t *testing.T) {
 	cli := startContainer(ctx, t)
 	defer stopContainer(ctx, t, cli)
 
-	progCh, err := cli.PushImage(ctx, "cntrsrv", "upgrade", *containerUpgradeTar)
+	progCh, err := cli.PushImage(ctx, "cntrsrv", "upgrade", *containerUpgradeTar, false)
 	if err != nil {
 		t.Fatalf("unable to push image: %v", err)
 	}
@@ -222,8 +241,7 @@ func TestUpgrade(t *testing.T) {
 		}
 	}
 
-	_, err = cli.UpdateContainer(ctx, "cntrsrv", "upgrade", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"}))
-	if err != nil {
+	if _, err := cli.UpdateContainer(ctx, "cntrsrv", "upgrade", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err != nil {
 		t.Errorf("unable to upgrade container: %v", err)
 	}
 

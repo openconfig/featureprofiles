@@ -108,7 +108,8 @@ and removing it.
 ## CNTR-1.6: Upgrade a container on the DUT.
 
 Using the same container started as part of CNTR-1.1, validate that the container
-can upgraded. 
+can be upgraded to the new version of the image identified by a different tag
+than the current running container image. 
 
 ## OpenConfig Path and RPC Coverage
 
