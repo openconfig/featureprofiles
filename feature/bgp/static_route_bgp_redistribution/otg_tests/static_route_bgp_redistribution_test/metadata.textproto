@@ -16,7 +16,7 @@ platform_exceptions:  {
     static_protocol_name:  "static"
     interface_enabled:  true
     skip_prefix_set_mode:  true
-    table_connections_unsupported:  true
+    enable_table_connections: true
     use_vendor_native_tag_set_config:  true
     skip_bgp_send_community_type:  true
     default_bgp_instance_name: "BGP"
