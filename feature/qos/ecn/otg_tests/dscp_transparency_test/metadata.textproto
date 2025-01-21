@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid:  "61af8f04-c537-499e-9ac9-dbadccb677a3"
-plan_id:  "DP-1.15"
+plan_id:  "DP-1.17"
 description:  "DSCP Transparency with ECN"
 testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions:  {

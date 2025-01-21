@@ -1,4 +1,4 @@
-# DP-1.15: DSCP Transparency with ECN
+# DP-1.17: DSCP Transparency with ECN
 
 ## Summary
 
@@ -88,41 +88,47 @@ This test evaluates if all 64 combination of DSCP bits are transparently handled
 * verify on ATEPort3 that:
     * all received packets with DSCP has CE value
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-  *  qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
-  *  qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
-  *  qos/classifiers/classifier/terms/term/actions/config/target-group
-  *  qos/queues/queue/config/name
-  *  qos/forwarding-groups/forwarding-group/config/name
-  *  qos/forwarding-groups/forwarding-group/config/output-queue
-  *  qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority
-  *  qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence
-  *  qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id
-  *  qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type
-  *  qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue
-  *  qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight
-  *  qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn
-  *  qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent
-  *  qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold
-  *  qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold
-  *  qos/interfaces/interface/output/queues/queue/config/name
-  *  qos/interfaces/interface/output/queues/queue/config/queue-management-profile
-  *  qos/interfaces/interface/output/scheduler-policy/config/name
-  *  qos/interfaces/interface/input/classifiers/classifier/config/name
-  *  qos/interfaces/interface/input/classifiers/classifier/config/type
+The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
+  ## Config Paths ##
+  /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+  /qos/queues/queue/config/name:
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold:
+  /qos/interfaces/interface/output/queues/queue/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/queue-management-profile:
+  /qos/interfaces/interface/output/scheduler-policy/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
+    
+  ## State Paths ##
+  /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/name:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
 
-  *  qos/interfaces/interface/output/queues/queue/state/dropped-octets
-  *  qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-  *  qos/interfaces/interface/output/queues/queue/state/name
-  *  qos/interfaces/interface/output/queues/queue/state/transmit-octets
-  *  qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-
-## Protocol/RPC Parameter Coverage
-
-  * NONE.
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
 
 ## Required DUT platform
 
