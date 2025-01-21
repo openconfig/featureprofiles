@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "43776caf-2340-4f35-ab30-8c763feaadae"
-plan_id: "RT-9"
+plan_id: "RT-5.9"
 description: "Disable IPv6 ND Router Arvetisment"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
@@ -11,5 +11,31 @@ platform_exceptions: {
   }
   deviations: {
     ipv6_router_advertisement_config_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    ipv6_router_advertisement_interval_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv6_router_advertisement_interval_unsupported: true
   }
 }

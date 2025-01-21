@@ -11,43 +11,41 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@dc323e67f16fb5f7663d20ff7941f27f5809e9b6
     - name: Set up Go
-      uses: actions/setup-go@v2.1.3
+      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
       with:
         go-version: 1.21.x
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Build
       run: go build -v ./...
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@dc323e67f16fb5f7663d20ff7941f27f5809e9b6
       - name: Set up Go
-        uses: actions/setup-go@v2.1.3
+        uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
         with:
           go-version: 1.21.x
       - name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@f4b3439a656ba812b8cb417d2d49f9c810103092
         with:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
           key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
       # Dependency for Go module github.com/google/gopacket
       - name: Install libpcap-dev
         run: sudo apt-get -y install libpcap-dev
       - run: go test -v -coverprofile=profile.cov $(go list ./... | grep -v /.*test.*)
       - name: Send coverage
-        uses: shogo82148/actions-goveralls@v1
+        uses: shogo82148/actions-goveralls@7b1bd2871942af030d707d6574e5f684f9891fb2
         with:
           path-to-profile: profile.cov
   static_analysis:
@@ -55,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
       with:
         go-version: '1.21'
     # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
@@ -65,17 +63,18 @@ jobs:
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mv "${HOME}/.cache" /mnt/cache
+        ln -s /mnt/cache "${HOME}/.cache"
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
           ~/.cache/staticcheck
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -99,9 +98,11 @@ jobs:
         #
         # goimports does not support "gofmt -s" so both goimports and gofmt are
         # required.
-        if goimports -d . | grep '^'; then
-          exit 1
-        fi
+        find . -name "*.go" | egrep -v "pb.go$" | while read l; do
+          if goimports -d $l | grep '^'; then
+            exit 1;
+          fi;
+        done
     - name: Get revive
       run: go install github.com/mgechev/revive@v1.3.4
     - name: Run revive
