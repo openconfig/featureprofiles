@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package dscp_transparency_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -43,7 +44,6 @@ const (
 	ipv6                           = "IPv6"
 	ipv4PrefixLen                  = 30
 	ipv6PrefixLen                  = 126
-	mtu                            = 1_500
 	subInterfaceIndex              = 0
 	flowFrameSize           uint32 = 1_000
 	trafficRunDuration             = 1 * time.Minute
@@ -54,32 +54,26 @@ const (
 var (
 	dutPort1 = &attrs.Attributes{
 		Name:    "dutPort1",
-		MAC:     "00:12:01:01:01:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
-		MTU:     mtu,
 	}
 
 	dutPort2 = &attrs.Attributes{
 		Name:    "dutPort2",
-		MAC:     "00:12:02:01:01:01",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
-		MTU:     mtu,
 	}
 
 	dutPort3 = &attrs.Attributes{
 		Name:    "dutPort3",
-		MAC:     "00:12:03:01:01:01",
 		IPv4:    "192.0.2.9",
 		IPv6:    "2001:db8::9",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
-		MTU:     mtu,
 	}
 
 	atePort1 = &attrs.Attributes{
@@ -89,7 +83,6 @@ var (
 		IPv6:    "2001:db8::2",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
-		MTU:     mtu,
 	}
 
 	atePort2 = &attrs.Attributes{
@@ -99,17 +92,15 @@ var (
 		IPv6:    "2001:db8::6",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
-		MTU:     mtu,
 	}
 
 	atePort3 = &attrs.Attributes{
 		Name:    "atePort3",
 		MAC:     "02:00:03:01:01:01",
 		IPv4:    "192.0.2.10",
-		IPv6:    "2001:db8::10",
+		IPv6:    "2001:db8::a",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
-		MTU:     mtu,
 	}
 
 	dutPorts = map[string]*attrs.Attributes{
@@ -163,10 +154,15 @@ type queueCounters struct {
 	transmitOctets  uint64
 }
 
+func prettyPrint(i any) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
+
 func getZeroIshThresholds(dutPortSpeed int) (uint64, uint64) {
-	// max allowed "zero" counters -- as in things that are supposed to be zero per the test but
+	// Max allowed "zero" counters -- counters that are supposed to be zero per the test but
 	// can have a few packets trickling about for random things; basically: a fudge factor,
-	// proportional to the port speed
+	// proportional to the port speed.
 	maxAllowedZeroPackets := uint64(5 * dutPortSpeed)
 	maxAllowedZeroOctets := uint64(40 * dutPortSpeed)
 
@@ -181,7 +177,6 @@ func configureDUTQoS(
 	dp2 := dut.Port(t, "port2")
 	dp3 := dut.Port(t, "port3")
 
-	// always fresh/new qos container
 	qosConfig := &oc.Qos{}
 
 	if deviations.QOSQueueRequiresID(dut) {
@@ -193,7 +188,7 @@ func configureDUTQoS(
 		}
 	}
 
-	// forwarding group :: queue config
+	// Forwarding group :: queue config.
 	for _, queueName := range allQueueNames {
 		qoscfg.SetForwardingGroup(
 			t,
@@ -204,7 +199,7 @@ func configureDUTQoS(
 		)
 	}
 
-	// queue management profile
+	// Queue management profile.
 	queueManagementProfile := qosConfig.GetOrCreateQueueManagementProfile("queueManagementProfile")
 	wredUniformProfile := queueManagementProfile.GetOrCreateWred().GetOrCreateUniform()
 	wredUniformProfile.SetEnableEcn(true)
@@ -212,7 +207,7 @@ func configureDUTQoS(
 	wredUniformProfile.SetMaxThreshold(uint64(3_000_000))
 	wredUniformProfile.SetMaxDropProbabilityPercent(uint8(100))
 
-	// classifier config
+	// Classifier config.
 	classifiers := []struct {
 		name        string
 		termID      string
@@ -274,7 +269,6 @@ func configureDUTQoS(
 			}
 
 			name := fmt.Sprintf("%s%s", tc.name, protocolString)
-
 			classifier := qosConfig.GetOrCreateClassifier(name)
 			classifier.SetName(name)
 			classifier.SetType(protocol)
@@ -283,7 +277,6 @@ func configureDUTQoS(
 			if err != nil {
 				t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
 			}
-
 			term.SetId(tc.termID)
 			action := term.GetOrCreateActions()
 			action.SetTargetGroup(tc.targetGroup)
@@ -298,7 +291,7 @@ func configureDUTQoS(
 		}
 	}
 
-	// ingress classifier config
+	// Ingress classifier config.
 	for _, inputInterfaceName := range []string{dp2.Name(), dp3.Name()} {
 		for _, protocol := range []oc.E_Input_Classifier_Type{
 			oc.Input_Classifier_Type_IPV4,
@@ -320,50 +313,41 @@ func configureDUTQoS(
 		}
 	}
 
-	// egress scheduler config
+	// Egress scheduler config.
 	schedulerPolicy := qosConfig.GetOrCreateSchedulerPolicy("schedulerPolicy")
-
 	strictScheduler := schedulerPolicy.GetOrCreateScheduler(uint32(0))
 	strictScheduler.SetPriority(oc.Scheduler_Priority_STRICT)
-
 	strictInput := strictScheduler.GetOrCreateInput(string(entname.QoSNC1))
+	strictInput.SetInputType(oc.Input_InputType_QUEUE)
 	strictInput.SetQueue(string(entname.QoSNC1))
 
 	wrrScheduler := schedulerPolicy.GetOrCreateScheduler(uint32(1))
 
-	// wrr queues, equally weighted
+	// WRR queues, equally weighted.
 	for _, queueName := range allQueueNames {
 		if queueName == entname.QoSNC1 {
-			// skipping nc1 since its in its own strict scheduler
+			// Skipping NC1 since it's in its own strict scheduler.
 			continue
 		}
-
 		input := wrrScheduler.GetOrCreateInput(string(queueName))
-
 		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.SetQueue(string(queueName))
 		input.SetWeight(uint64(10))
 	}
 
-	// egress policy config
+	// Egress policy config.
 	for _, queueName := range allQueueNames {
 		qosInterface := qosConfig.GetOrCreateInterface(dp1.Name())
 		qosInterface.GetOrCreateInterfaceRef().Interface = ygot.String(dp1.Name())
-
 		output := qosInterface.GetOrCreateOutput()
-
 		outputSchedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		outputSchedulerPolicy.SetName("schedulerPolicy")
-
 		queue := output.GetOrCreateQueue(string(queueName))
 		queue.SetQueueManagementProfile("queueManagementProfile")
-
 		if deviations.QOSBufferAllocationConfigRequired(dut) {
 			bufferAllocationProfile := qosConfig.GetOrCreateBufferAllocationProfile("bufferAllocationProfile")
-
 			bufferAllocationQueue := bufferAllocationProfile.GetOrCreateQueue(string(queueName))
-			bufferAllocationQueue.SetStaticSharedBufferLimit(uint32(8_000_000))
-
+			bufferAllocationQueue.SetStaticSharedBufferLimit(uint32(268435456))
 			output.SetBufferAllocationProfile("bufferAllocationProfile")
 		}
 	}
@@ -386,10 +370,6 @@ func configureDUTPort(
 		portAttrs.NewOCInterface(port.Name(), dut),
 	)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, port)
-	}
-
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(
 			t, dut, port.Name(), deviations.DefaultNetworkInstance(dut), subInterfaceIndex,
@@ -400,35 +380,26 @@ func configureDUTPort(
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for portName, portAttrs := range dutPorts {
 		port := dut.Port(t, portName)
-
 		configureDUTPort(t, dut, port, portAttrs)
 	}
-
 	configureDUTQoS(t, dut)
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgConfig := gosnappi.NewConfig()
-
 	for portName, portAttrs := range atePorts {
 		port := ate.Port(t, portName)
-
 		dutPort := dutPorts[portName]
-
 		portAttrs.AddToOTG(otgConfig, port, dutPort)
 	}
-
 	return otgConfig
 }
 
 func trafficClassFieldsToDecimal(dscpValue, ecnValue int) uint32 {
 	dscpByte := byte(dscpValue)
 	ecnByte := byte(ecnValue)
-
 	tosStr := fmt.Sprintf("%06b%02b", dscpByte, ecnByte)
-
 	tosDec, _ := strconv.ParseInt(tosStr, 2, 64)
-
 	return uint32(tosDec)
 }
 
@@ -436,32 +407,32 @@ func createFlow(otgConfig gosnappi.Config, protocol string, targetTotalFlowRate 
 	flow := otgConfig.Flows().Add().SetName(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name))
 	flow.Metrics().SetEnable(true)
 
-	// flows go from ate port 2 -> dut -> ate port 1 and
+	// Flows go from ate port 2 -> dut -> ate port 1 and
 	// from ate port 3 -> dut -> ate port 1 to be consistent with the previous test which
-	// can be run with only 2 ports instead of three
+	// can be run with only two ports instead of three.
 	flow.TxRx().Device().
 		SetTxNames([]string{fmt.Sprintf("%s.%s", sourceAtePort.Name, protocol)}).
 		SetRxNames([]string{fmt.Sprintf("%s.%s", atePort1.Name, protocol)})
 	flow.EgressPacket().Add().Ethernet()
 
 	ethHeader := flow.Packet().Add().Ethernet()
-	ethHeader.Src().SetValue(atePort2.MAC)
+	ethHeader.Src().SetValue(sourceAtePort.MAC)
 
 	switch protocol {
 	case ipv4:
 		v4 := flow.Packet().Add().Ipv4()
-		v4.Src().SetValue(atePort2.IPv4)
+		v4.Src().SetValue(sourceAtePort.IPv4)
 		v4.Dst().SetValue(atePort1.IPv4)
-		v4.Priority().Raw().SetValue(trafficClassFieldsToDecimal(dscpValue, 1))
+		v4.Priority().Raw().SetValue(trafficClassFieldsToDecimal(dscpValue, 2))
 
 		tracking := flow.EgressPacket().Add().Ipv4()
-		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-dscp-%d", dscpValue)).SetOffset(0).SetLength(6)
-		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-ecn-%d", dscpValue)).SetOffset(6).SetLength(2)
+		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-dscp-%d-%s", dscpValue, sourceAtePort.Name)).SetOffset(0).SetLength(6)
+		tracking.Priority().Raw().MetricTags().Add().SetName(fmt.Sprintf("dst-ecn-%d-%s", dscpValue, sourceAtePort.Name)).SetOffset(6).SetLength(2)
 	case ipv6:
 		v6 := flow.Packet().Add().Ipv6()
-		v6.Src().SetValue(atePort2.IPv6)
+		v6.Src().SetValue(sourceAtePort.IPv6)
 		v6.Dst().SetValue(atePort1.IPv6)
-		v6.TrafficClass().SetValue(trafficClassFieldsToDecimal(dscpValue, 1))
+		v6.TrafficClass().SetValue(trafficClassFieldsToDecimal(dscpValue, 2))
 
 		tracking := flow.EgressPacket().Add().Ipv6()
 		tracking.TrafficClass().MetricTags().Add().SetName(fmt.Sprintf("dst-dscp-%d-%s", dscpValue, sourceAtePort.Name)).SetOffset(0).SetLength(6)
@@ -470,15 +441,12 @@ func createFlow(otgConfig gosnappi.Config, protocol string, targetTotalFlowRate 
 
 	flow.Size().SetFixed(flowFrameSize)
 	flow.Rate().SetKbps(targetTotalFlowRate)
-
 	return flow
 }
 
 func getQueueCounters(t *testing.T, dut *ondatra.DUTDevice) map[entname.QoSQueue]*queueCounters {
 	t.Helper()
-
 	ep := dut.Port(t, dutEgressPort)
-
 	qc := map[entname.QoSQueue]*queueCounters{}
 
 	for _, egressQueueName := range allQueueNames {
@@ -525,8 +493,8 @@ func logAndGetResolvedQueueCounters(t *testing.T, egressQueueName entname.QoSQue
 }
 
 func testNoCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPortSpeed int) {
-	// target flow rate is 60% of the ate port speed spread across 64 flows (do this in kbps so we
-	// still work w/ round numbers on 1g interfaces)
+	// Target flow rate is 60% of the ate port speed spread across 64 flows (do this in kbps so we
+	// still work w/ round numbers on 1g interfaces).
 	portSpeedInKbps := dutPortSpeed * 1_000_000
 	portSpeedSixtyPercent := float32(portSpeedInKbps) * float32(0.6)
 	targetTotalFlowRate := uint64(portSpeedSixtyPercent / 64)
@@ -534,8 +502,8 @@ func testNoCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dut
 	for dscpValue := 0; dscpValue < 64; dscpValue++ {
 		finalTargetFlowRate := targetTotalFlowRate
 		if dscpValue <= 7 {
-			// there are fewer flows in the be0/be1 queues so let's crank those flows up to have
-			// a similar amount of traffic so wred handles things consistently-ish
+			// There are fewer flows in the BE0/BE1 queues so increase those flows to have
+			// a similar amount of traffic so wred handles things consistently.
 			finalTargetFlowRate = targetTotalFlowRate * 2
 		}
 
@@ -551,7 +519,6 @@ func testNoCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dut
 
 func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
 	maxAllowedZeroPackets, _ := getZeroIshThresholds(dutPortSpeed)
-
 	endingCounters := getQueueCounters(t, dut)
 
 	for egressQueueName, egressQueueEndingCounters := range endingCounters {
@@ -565,15 +532,15 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 		)
 
 		if queueDroppedPackets > maxAllowedZeroPackets {
-			t.Fatalf("queue %s indicates %d dropped packets but should show zero or near-zero", egressQueueName, queueDroppedPackets)
+			t.Errorf("queue %s indicates %d dropped packets but should show zero or near-zero", egressQueueName, queueDroppedPackets)
 		}
 
 		if queueTransmitPackets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
+			t.Errorf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
 		}
 
 		if queueTransmitOctets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
+			t.Errorf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
 		}
 	}
 
@@ -584,33 +551,28 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 		dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
 
 		if len(ets) != 1 {
-			t.Logf(
-				"got two flows, but expected one, this probably indicates that the flow has" +
-					" some packets tagged 01 and some tagged 11 (congestion experienced) -- " +
-					"this should not happen in this test case, will continue validation...",
-			)
+			t.Logf("got %d flows, but expected one, this probably indicates that the flow has"+
+				" some packets tagged 01 and some tagged 11 (congestion experienced) -- "+
+				"this should not happen in this test case, will continue validation...", len(ets))
 		}
 
 		for _, et := range ets {
 			if len(et.Tags) != 2 {
-				t.Fatalf("expected two metric tags (dscp/ecn) but got %d", len(ets))
+				t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(et.Tags))
 			}
 
 			for _, tag := range et.Tags {
 				tagName := tag.GetTagName()
-
 				valueAsHex := tag.GetTagValue().GetValueAsHex()
-
 				t.Logf("flow with dscp value %d, tag name %q, got value %s", dscpValue, tagName, valueAsHex)
-
 				if strings.Contains(tagName, "dscp") {
 					if valueAsHex != dscpAsHex {
-						t.Fatalf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+						t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
 					}
 				} else {
-					// ecn should be 01 -- ecn capable but no congestion experienced
-					if valueAsHex != "0x1" {
-						t.Fatalf("expected ecn bit to be 0x1, but got %s", valueAsHex)
+					// ECN should be 10 -- ecn capable but no congestion experienced.
+					if valueAsHex != "0x2" {
+						t.Errorf("expected ecn bit to be 0x2, but got %s", valueAsHex)
 					}
 				}
 			}
@@ -619,8 +581,8 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 }
 
 func testCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPortSpeed int) {
-	// target flow rate is 60% of the ate port speed spread across 64 flows (do this in kbps so we
-	// still work w/ round numbers on 1g interfaces)
+	// Target flow rate is 60% of the ate port speed spread across 64 flows (do this in kbps so we
+	// still work w/ round numbers on 1g interfaces).
 	portSpeedInKbps := dutPortSpeed * 1_000_000
 	portSpeedSixtyPercent := float32(portSpeedInKbps) * float32(0.6)
 	targetTotalFlowRate := uint64(portSpeedSixtyPercent / 64)
@@ -629,8 +591,8 @@ func testCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPo
 		for dscpValue := 0; dscpValue < 64; dscpValue++ {
 			finalTargetFlowRate := targetTotalFlowRate
 			if dscpValue <= 7 {
-				// there are fewer flows in the be0/be1 queues so let's crank those flows up to have
-				// a similar amount of traffic so wred handles things consistently-ish
+				// There are fewer flows in the be0/be1 queues so increase those flows to have
+				// a similar amount of traffic so wred handles things consistently.
 				finalTargetFlowRate = targetTotalFlowRate * 2
 			}
 
@@ -647,7 +609,6 @@ func testCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPo
 
 func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
 	maxAllowedZeroPackets, _ := getZeroIshThresholds(dutPortSpeed)
-
 	endingCounters := getQueueCounters(t, dut)
 
 	for egressQueueName, egressQueueEndingCounters := range endingCounters {
@@ -661,22 +622,22 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 		)
 
 		if queueTransmitPackets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
+			t.Errorf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
 		}
 
 		if queueTransmitOctets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
+			t.Errorf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
 		}
 
 		if egressQueueName == entname.QoSNC1 {
-			// nc1 should have no drops
+			// NC1 should have no drops
 			if queueDroppedPackets > maxAllowedZeroPackets {
-				t.Fatalf("queue %s indicates %d dropped packets but should show zero or near-zero", egressQueueName, queueDroppedPackets)
+				t.Errorf("queue %s indicates %d dropped packets but should show zero or near-zero", egressQueueName, queueDroppedPackets)
 			}
 		} else {
-			// any other queue should have at least some drops
+			// Any other queue should have at least some drops.
 			if queueDroppedPackets == 0 {
-				t.Fatalf(
+				t.Errorf(
 					"queue %s indicates %d dropped packets but should show some non-zero value as there is congestion in this case",
 					egressQueueName, queueDroppedPackets)
 			}
@@ -685,7 +646,7 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 
 	var congestedFlowCount int
 
-	// these should have the majority of flows have ecn set
+	// These should have the majority of flows have ecn set.
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
 		for dscpValue := 0; dscpValue < 48; dscpValue++ {
 			etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
@@ -694,45 +655,41 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 			dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
 
 			if len(ets) != 2 {
-				// we should always have two sets of metric tags for flows in this test case -- the
+				// We should always have two sets of metric tags for flows in this test case -- the
 				// initial packets will not be marked as congestion experienced of course, but all
 				// the flows should eventually be marked as such. if we get a flow w/ only 1 path
-				// we know this flow had no congestion
-				t.Logf("expected two sets of tags for flow but got one")
-
+				// we know this flow had no congestion.
+				t.Logf("expected two sets of tags for flow but got %d\n\t%s", len(ets), prettyPrint(ets))
 				continue
 			}
 
-			// we only care about checking the second set of tags as these are the ones that should
-			// have been marked w/ congestion experienced
+			// We only care about checking the second set of tags as these are the ones that should
+			// have been marked w/ congestion experienced.
 			if len(ets[1].Tags) != 2 {
-				t.Fatalf("expected two metric tags (dscp/ecn) but got %d", len(ets))
+				t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(ets[1].Tags))
 			}
 
 			for _, tag := range ets[1].Tags {
 				tagName := tag.GetTagName()
-
 				valueAsHex := tag.GetTagValue().GetValueAsHex()
-
 				t.Logf("flow with dscp value %d, tag name %q, got value %s", dscpValue, tagName, valueAsHex)
-
 				if strings.Contains(tagName, "dscp") {
 					if valueAsHex != dscpAsHex {
-						t.Fatalf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+						t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
 					}
-				} else if valueAsHex != "0x01" {
-					// not dscp tag, and not 0x01, meaning ecn tag and congestion experienced
+				} else if valueAsHex != "0x2" {
+					// Not dscp tag, and not 0x2, meaning ecn tag and congestion experienced.
 					congestedFlowCount++
 				}
 			}
 		}
 	}
 
-	if float32(48/congestedFlowCount) > 0.9 {
-		t.Fatalf("less than 90 percent of flows (not in nc1 queue) had congestion experienced")
+	if float32(congestedFlowCount/96) < 0.9 {
+		t.Errorf("less than 90 percent of flows (not in nc1 queue) had congestion experienced")
 	}
 
-	// these should all have no ecn set
+	// These flows should all have no ecn set.
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
 		for dscpValue := 48; dscpValue < 64; dscpValue++ {
 			etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
@@ -742,23 +699,20 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 
 			for _, et := range ets {
 				if len(et.Tags) != 2 {
-					t.Fatalf("expected two metric tags (dscp/ecn) but got %d", len(ets))
+					t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(et.Tags))
 				}
 
 				for _, tag := range et.Tags {
 					tagName := tag.GetTagName()
-
 					valueAsHex := tag.GetTagValue().GetValueAsHex()
-
 					t.Logf("flow with dscp value %d, tag name %q, got value %s", dscpValue, tagName, valueAsHex)
-
 					if strings.Contains(tagName, "dscp") {
 						if valueAsHex != dscpAsHex {
-							t.Fatalf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+							t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
 						}
 					} else {
-						if valueAsHex != "0x1" {
-							t.Fatalf("expected ecn bit for dscp value %d to be 0x1, but got %s", dscpValue, valueAsHex)
+						if valueAsHex != "0x2" {
+							t.Errorf("expected ecn bit for dscp value %d to be 0x2, but got %s", dscpValue, valueAsHex)
 						}
 					}
 				}
@@ -768,8 +722,8 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 }
 
 func testNC1CongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPortSpeed int) {
-	// target flow rate is 60% of the ate port speed spread across 16 flows (do this in kbps so we
-	// still work w/ round numbers on 1g interfaces)
+	// Target flow rate is 60% of the ate port speed spread across 16 flows (do this in kbps so we
+	// still work w/ round numbers on 1g interfaces).
 	portSpeedInKbps := dutPortSpeed * 1_000_000
 	portSpeedSixtyPercent := float32(portSpeedInKbps) * float32(0.6)
 	targetTotalFlowRate := uint64(portSpeedSixtyPercent / 16)
@@ -789,7 +743,6 @@ func testNC1CongestionCreateFlows(otgConfig gosnappi.Config, protocol string, du
 
 func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
 	maxAllowedZeroPackets, maxAllowedZeroOctets := getZeroIshThresholds(dutPortSpeed)
-
 	endingCounters := getQueueCounters(t, dut)
 
 	for egressQueueName, egressQueueEndingCounters := range endingCounters {
@@ -804,23 +757,23 @@ func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *o
 
 		if egressQueueName == entname.QoSNC1 {
 			if queueTransmitPackets == 0 {
-				t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
+				t.Errorf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
 			}
 
 			if queueTransmitOctets == 0 {
-				t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
+				t.Errorf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
 			}
 
 			if queueDroppedPackets == 0 {
-				t.Fatalf("queue %s indicates %d dropped packets but should show non-zero", egressQueueName, queueDroppedPackets)
+				t.Errorf("queue %s indicates %d dropped packets but should show non-zero", egressQueueName, queueDroppedPackets)
 			}
 		} else {
 			if queueTransmitPackets > maxAllowedZeroPackets {
-				t.Fatalf("queue %s indicates non zero transmit packets but should be zero or near zero", egressQueueName)
+				t.Errorf("queue %s indicates non zero transmit packets but should be zero or near zero", egressQueueName)
 			}
 
 			if queueTransmitOctets > maxAllowedZeroOctets {
-				t.Fatalf("queue %s indicates non zero transmit octets but should be zero or near zero", egressQueueName)
+				t.Errorf("queue %s indicates non zero transmit octets but should be zero or near zero", egressQueueName)
 			}
 		}
 	}
@@ -835,38 +788,34 @@ func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *o
 			dscpAsHex := fmt.Sprintf("0x%02x", dscpValue)
 
 			if len(ets) != 2 {
-				// like the congestion (non nc1) test, we expect two sets of metrics -- one for
-				// the start of the flow where ecn is not yet set, and the second for when it is
-				t.Logf("expected two sets of tags for flow but got one")
-
+				// Similar to the congestion (non NC1) test, we expect two sets of metrics -- one for
+				// the start of the flow where ecn is not yet set, and the second for when it is.
+				t.Logf("expected two sets of tags for flow but got %d\n\t%s", len(ets), prettyPrint(ets))
 				continue
 			}
 
 			if len(ets[1].Tags) != 2 {
-				t.Fatalf("expected two metric tags (dscp/ecn) but got %d", len(ets))
+				t.Errorf("expected two metric tags (dscp/ecn) but got %d", len(ets[1].Tags))
 			}
 
 			for _, tag := range ets[1].Tags {
 				tagName := tag.GetTagName()
-
 				valueAsHex := tag.GetTagValue().GetValueAsHex()
-
 				t.Logf("flow with dscp value %d, tag name %q, got value %s", dscpValue, tagName, valueAsHex)
-
 				if strings.Contains(tagName, "dscp") {
 					if valueAsHex != dscpAsHex {
-						t.Fatalf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
+						t.Errorf("expected dscp bit to be %x, but got %s", dscpAsHex, valueAsHex)
 					}
-				} else if valueAsHex != "0x01" {
-					// not dscp tag, and not 0x01, meaning ecn tag and congestion experienced
+				} else if valueAsHex != "0x2" {
+					// Not dscp tag, and not 0x2, meaning ecn tag and congestion experienced.
 					congestedFlowCount++
 				}
 			}
 		}
 	}
 
-	if float32(16/congestedFlowCount) > 0.9 {
-		t.Fatalf("less than 90 percent of flows (in nc1 queue) had congestion experienced")
+	if float32(congestedFlowCount/32) < 0.9 {
+		t.Errorf("less than 90 percent of flows (in nc1 queue) had congestion experienced")
 	}
 }
 
@@ -881,32 +830,30 @@ func TestDSCPTransparency(t *testing.T) {
 
 	dutPortSpeed := dut.Ports()[0].Speed()
 	if dutPortSpeed == 0 {
-		t.Log("dut port 0 speed was unset, assuming 100gb, this may be wrong!")
-
+		t.Log("dut port speed was unset, assuming 100G.")
 		dutPortSpeed = 100
 	}
 
 	for _, testCase := range testCases {
 		for _, flowProto := range []string{ipv4, ipv6} {
 			t.Run(fmt.Sprintf("%s-%s", testCase.name, flowProto), func(t *testing.T) {
-				startingCounters := getQueueCounters(t, dut)
-
 				otgConfig.Flows().Clear()
-
 				testCase.createFlowsF(otgConfig, flowProto, int(dutPortSpeed))
 
 				otg.PushConfig(t, otgConfig)
 				otg.StartProtocols(t)
-
 				otgutils.WaitForARP(t, otg, otgConfig, flowProto)
+
+				// Get QoS egress packet counters before the traffic.
+				startingCounters := getQueueCounters(t, dut)
 
 				otg.StartTraffic(t)
 				time.Sleep(trafficRunDuration)
-
 				otg.StopTraffic(t)
 				time.Sleep(trafficStopWaitDuration)
 
 				testCase.validateFlowsF(t, dut, ate, int(dutPortSpeed), startingCounters)
+				otg.StopProtocols(t)
 			})
 		}
 	}
