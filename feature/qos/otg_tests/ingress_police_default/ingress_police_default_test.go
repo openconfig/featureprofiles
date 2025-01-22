@@ -98,8 +98,9 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 	ConfigureDUTIntf(t, dut)
 	if deviations.QosSchedulerIngressPolicer(dut) {
 		configureIntertfaceIngressPolicerCLI(t, dut)
+	} else {
+            // TODO: Generate openconfig for ingress policier and use gNMI to set it.
 	}
-
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
