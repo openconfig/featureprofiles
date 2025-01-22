@@ -269,6 +269,12 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 			chassisLineCards = append(chassisLineCards, lc)
 		}
 	}
+
+	for _, lc := range lineCards {
+		if !gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()) {
+			t.Skipf("Skip the test on non-removable linecard.")
+		}
+	}
 	lineCards = chassisLineCards
 	if len(lineCards) == 0 || len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
@@ -324,6 +330,7 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	if len(cardList) == 0 {
 		t.Errorf("ERROR: No card has been found.")
 	}
+
 	for _, component := range cardList {
 		t.Run(component, func(t *testing.T) {
 			query := gnmi.OC().Component(component).State()
@@ -333,7 +340,9 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 			if componentType == lineCardType && deviations.LinecardMemoryUtilizationUnsupported(dut) {
 				t.Skipf("INFO: Skipping test for linecard component %s due to deviation linecard_memory_utilization_unsupported", component)
 			}
-
+			if componentType == lineCardType && !gnmi.Get(t, dut, gnmi.OC().Component(component).Removable().State()) {
+				t.Skipf("Skip the test on non-removable linecard.")
+			}
 			memoryState := componentState.GetMemory()
 			if memoryState == nil {
 				t.Errorf("ERROR: %s - Device: %s - %s: %-40s - Type: %-20s - Memory data not available",
