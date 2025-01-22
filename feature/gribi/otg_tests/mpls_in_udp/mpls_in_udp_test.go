@@ -23,7 +23,6 @@ import (
 	// "github.com/google/gopacket"
 	// "github.com/google/gopacket/layers"
 	// "github.com/google/gopacket/pcap"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -31,11 +30,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ygot/ygot"
 	// "google3/third_party/openconfig/gribigo/client/client"
 	// "google3/third_party/openconfig/gribigo/fluent/fluent"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/otg"
 )
 
@@ -102,26 +102,26 @@ var (
 )
 
 type flowAttr struct {
-	src      string   // source IP address
-	dst      string   // destination IP address
+	src        string   // source IP address
+	dst        string   // destination IP address
 	defaultDst string // default destination IP address
-	srcPort  string   // source OTG port
-	dstPorts []string // destination OTG ports
-	srcMac   string   // source MAC address
-	dstMac   string   // destination MAC address
-	topo     gosnappi.Config
+	srcPort    string   // source OTG port
+	dstPorts   []string // destination OTG ports
+	srcMac     string   // source MAC address
+	dstMac     string   // destination MAC address
+	topo       gosnappi.Config
 }
 
 var (
 	fa6 = flowAttr{
-		src:      otgPort1.IPv6,
-		dst:      outerIpv6DstA,
+		src:        otgPort1.IPv6,
+		dst:        outerIpv6DstA,
 		defaultDst: ipv6FlowIP,
-		srcMac:   otgPort1.MAC,
-		dstMac:   dutPort1.MAC,
-		srcPort:  otgSrcPort,
-		dstPorts: otgDstPorts,
-		topo:     gosnappi.NewConfig(),
+		srcMac:     otgPort1.MAC,
+		dstMac:     dutPort1.MAC,
+		srcPort:    otgSrcPort,
+		dstPorts:   otgDstPorts,
+		topo:       gosnappi.NewConfig(),
 	}
 )
 
@@ -250,16 +250,16 @@ func configureEncapHeaderCli(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		// TODO: vvardhanreddy - Verification of CLI is not possible check once we have support.
-		  var encapHeaderCLI string
-		  encapHeaderCLI = fmt.Sprintf("tunnel type mpls-over-udp udp destination port %s\n", outerDstUDPPort)
-		  encapHeaderCLI += fmt.Sprintf(" nexthop-group %s type mpls-over-udp\n", nhgName)
-		  encapHeaderCLI += fmt.Sprintf(" tos %s\n", outerDscp)
-		  encapHeaderCLI += fmt.Sprintf(" ttl %s\n", outerIPTTL)
-		  encapHeaderCLI += fmt.Sprintf(" fec hierarchical\n")
-		  encapHeaderCLI += fmt.Sprintf(" tunnel-source %s\n", outerIpv6Src)
-		  encapHeaderCLI += fmt.Sprintf(" entry 0 push label-stack 899999 tunnel-destination %s\n", outerIpv6DstA)
-		  encapHeaderCLI += fmt.Sprintf(" ip route vrf customer %s nexthop-group nhg%d\n", outerIpv6DstA, nhg10ID)
-		  helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
+		var encapHeaderCLI string
+		encapHeaderCLI = fmt.Sprintf("tunnel type mpls-over-udp udp destination port %s\n", outerDstUDPPort)
+		encapHeaderCLI += fmt.Sprintf(" nexthop-group %s type mpls-over-udp\n", nhgName)
+		encapHeaderCLI += fmt.Sprintf(" tos %s\n", outerDscp)
+		encapHeaderCLI += fmt.Sprintf(" ttl %s\n", outerIPTTL)
+		encapHeaderCLI += fmt.Sprintf(" fec hierarchical\n")
+		encapHeaderCLI += fmt.Sprintf(" tunnel-source %s\n", outerIpv6Src)
+		encapHeaderCLI += fmt.Sprintf(" entry 0 push label-stack 899999 tunnel-destination %s\n", outerIpv6DstA)
+		encapHeaderCLI += fmt.Sprintf(" ip route vrf customer %s nexthop-group nhg%d\n", outerIpv6DstA, nhg10ID)
+		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
 	default:
 		t.Logf("Unsupported vendor %s for native command support for deviation 'GribiEncapHeaderUnsupported'", dut.Vendor())
 	}
