@@ -28,7 +28,7 @@ require (
 	github.com/openconfig/gribigo v0.0.0-20240829231637-69cf06726cc3
 	github.com/openconfig/kne v0.1.18
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
-	github.com/openconfig/ondatra v0.6.1
+	github.com/openconfig/ondatra v0.7.1
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.11.1
