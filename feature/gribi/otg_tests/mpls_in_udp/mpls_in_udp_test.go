@@ -104,7 +104,7 @@ var (
 type flowAttr struct {
 	src        string   // source IP address
 	dst        string   // destination IP address
-	defaultDst string // default destination IP address
+	defaultDst string   // default destination IP address
 	srcPort    string   // source OTG port
 	dstPorts   []string // destination OTG ports
 	srcMac     string   // source MAC address
