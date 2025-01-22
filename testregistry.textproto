@@ -219,8 +219,8 @@ test: {
 }
 test: {
   id: "DP-1.14"
-  description: "DSCP transperency with ECN"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/DSCP-transparency/README.md"
+  description: "QoS basic test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/qos_basic_test/README.md"
   exec: " "
 }
 test: {
@@ -233,6 +233,12 @@ test: {
   id: "DP-1.16"
   description: "Ingress traffic classification and rewrite"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test/README.md"
+  exec: " "
+}
+test: {
+  id: "DP-1.17"
+  description: "DSCP transparency with ECN"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/dscp_transparency_test/README.md"
   exec: " "
 }
 test: {
