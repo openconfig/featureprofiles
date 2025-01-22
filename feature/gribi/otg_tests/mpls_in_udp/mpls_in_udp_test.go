@@ -16,7 +16,6 @@ package mpls_in_udp_test
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"testing"
 	"time"
