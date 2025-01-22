@@ -328,7 +328,7 @@ func TestMPLSOUDPEncap(t *testing.T) {
 			t.Log("Start capture and send traffic")
 			sendTraffic(t, tcArgs, tc.flows, true)
 			t.Log("Validate captured packet attributes")
-			// TODO: vvardhanreddy - Validate packet capture when functionality is added.
+			// TODO: b/364961777 upstream GUE decoder to gopacket addition is pending.
 			// err := validatePacketCapture(t, tcArgs, tc.capturePorts)
 			clearCapture(t, otg.OTG(), topo)
 			// if err != nil {
@@ -366,47 +366,6 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
-}
-
-// validatePacketCapture reads capture files and checks the encapped packet for desired protocol, dscp and ttl
-func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string) error {
-	for _, otgPortName := range otgPortNames {
-		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
-		f, err := os.CreateTemp("", ".pcap")
-		if err != nil {
-			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
-		}
-		if _, err := f.Write(bytes); err != nil {
-			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
-		}
-		f.Close()
-		t.Logf("Verifying packet attributes captured on %s", otgPortName)
-		handle, err := pcap.OpenOffline(f.Name())
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer handle.Close()
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		for packet := range packetSource.Packets() {
-			gue := packet.Layer(gopacket.LayerType(layers.LayerTypeAGUEVar0)).(*layers.AGUEVar0)
-			if uint8(0) != gue.Version {
-				return fmt.Errorf("gue.Version is not 0")
-			}
-			mpls := packet.Layer(gopacket.LayerType(layers.LayerTypeMPLS)).(*layers.MPLS)
-			if mpls.Label == 0 {
-				return fmt.Errorf("MPLS label is not set")
-			}
-			innerPacket := packet.Layer(gopacket.LayerType(layers.LayerTypeIPv6)).(*layers.IPv6)
-			if innerPacket == nil {
-				return fmt.Errorf("No IPv6 header found in packet")
-			}
-			// Validate destination IPs are outer_ipv6_dst_A
-			if innerPacket.DstIP.String() != outerIpv6DstA {
-				return fmt.Errorf("IPv6 destination not found in packet")
-			}
-		}
-	}
-	return nil
 }
 
 // startCapture starts the capture on the otg ports
