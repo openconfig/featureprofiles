@@ -29,7 +29,7 @@ func TestDeployAndStartContainer(t *testing.T) {
 		t.Fatalf("unable to dial containerz: %v", err)
 	}
 
-	progCh, err := cli.PushImage(ctx, "cntrsrv", "latest", *containerTar)
+	progCh, err := cli.PushImage(ctx, "cntrsrv", "latest", *containerTar, false)
 	if err != nil {
 		t.Fatalf("unable to push image: %v", err)
 	}

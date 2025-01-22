@@ -879,7 +879,7 @@ test: {
 test: {
   id: "RT-5.4"
   description: "Aggregate Forwarding Viable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/ate_tests/aggregate_forwarding_viable_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test/README.md"
   exec: " "
 }
 test: {
@@ -896,7 +896,7 @@ test: {
 test: {
   id: "RT-5.7"
   description: "Aggregate Not Viable All"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/ate_tests/aggregate_all_not_viable_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test/README.md"
   exec: " "
 }
 test: {
