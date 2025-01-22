@@ -1265,6 +1265,39 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
 
+// TcDefaultImportPolicyUnsupported returns true if default import policy for table connection is unsupported
+func TcDefaultImportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcDefaultImportPolicyUnsupported()
+}
+
+// TcMetricPropagationUnsupported returns true if metric propagation for table connection is unsupported
+func TcMetricPropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcMetricPropagationUnsupported()
+}
+
+// TcAttributePropagationUnsupported returns true if attribute propagation for table connection is unsupported
+func TcAttributePropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcAttributePropagationUnsupported()
+}
+
+// TcSubscriptionUnsupported returns true if subscription for table connection is unsupported
+func TcSubscriptionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcSubscriptionUnsupported()
+}
+
+// DefaultBgpInstanceName returns bgp instance name as set in deviation to override default value "DEFAULT"
+func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
+	if dbin := lookupDUTDeviations(dut).GetDefaultBgpInstanceName(); dbin != "" {
+		return dbin
+	}
+	return "DEFAULT"
+}
+
+// QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
+func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
+}
+
 // GribiEncapHeaderUnsupported returns true if gribi encap header is unsupported
 func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
