@@ -1295,7 +1295,7 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 
 // ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
 func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
 }
 
 // QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
