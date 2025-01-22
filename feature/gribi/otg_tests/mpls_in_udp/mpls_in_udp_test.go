@@ -19,10 +19,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	// "github.com/google/gopacket"
-	// "github.com/google/gopacket/layers"
-	// "github.com/google/gopacket/pcap"
+	
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -31,8 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ygot/ygot"
-	// "google3/third_party/openconfig/gribigo/client/client"
-	// "google3/third_party/openconfig/gribigo/fluent/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
