@@ -3,7 +3,7 @@
 
 uuid:  "36cc79b5-3766-4cb4-b83b-1baea1464dc8"
 plan_id:  "TE-18.1"
-description:  "MPLS in UDP Encapsulation and Decapsulation using gRIBI"
+description:  "gRIBI MPLS in UDP Encapsulation"
 testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions:  {
   platform:  {
