@@ -687,8 +687,13 @@ message Metadata {
     // Cisco: b/388983709
     // default bgp instance name is used to set bgp instance name value other than DEFAULT
     string default_bgp_instance_name = 246;
+
     // Arista does not support ETHChannel rate-class
     bool channel_assignment_rate_class_parameters_unsupported = 247;
+    
+    // Arista: b/346557012  
+    // Devices that do not support qos scheduler ingress policer.
+    bool qos_scheduler_ingress_policer_unsupported = 248;
 
     // verify_expected_breakout_supported_config is used to verify on Cisco devices if optic supports a given breakout mode
     // Cisco:
