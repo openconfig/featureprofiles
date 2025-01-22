@@ -253,7 +253,7 @@ func configureEncapHeaderCli(t *testing.T, dut *ondatra.DUTDevice) {
 		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
 		encapHeaderCLI = fmt.Sprintf(" ttl %s\n", outerIPTTL)
 		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = fmt.Sprintf(" fec hierarchical\n")
+		encapHeaderCLI = " fec hierarchical"
 		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
 		encapHeaderCLI = fmt.Sprintf(" tunnel-source %s\n", outerIpv6Src)
 		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
@@ -302,12 +302,12 @@ func TestMPLSOUDPEncap(t *testing.T) {
 		capturePorts []string
 	}{
 		{
-			name:         fmt.Sprintf("TE-18.1.1 Match and Encapsulate using gRIBI aft modify"),
+			name:         "TE-18.1.1 Match and Encapsulate using gRIBI aft modify",
 			flows:        []gosnappi.Flow{fa6.getFlow("ipv6", "ip6a1")},
 			capturePorts: otgDstPorts,
 		},
 		{
-			name:         fmt.Sprintf("TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route"),
+			name:         "TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route",
 			flows:        []gosnappi.Flow{fa6.getFlow("ipv6", "ip6a2")},
 			capturePorts: otgDstPorts,
 		},
