@@ -38,6 +38,7 @@ message Metadata {
     TESTBED_DUT_DUT_ATE_2LINKS = 6;
     TESTBED_DUT_ATE_8LINKS = 7;
     TESTBED_DUT_400ZR = 8;
+    TESTBED_DUT_400ZR_PLUS = 9;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -686,12 +687,18 @@ message Metadata {
     // Cisco: b/388983709
     // default bgp instance name is used to set bgp instance name value other than DEFAULT
     string default_bgp_instance_name = 246;
+    // Arista does not support ETHChannel rate-class
+    bool channel_assignment_rate_class_parameters_unsupported = 247;
+    // Arista: b/346557012  
+    // Devices that do not support qos scheduler ingress policer.
+    bool qos_scheduler_ingress_policer_unsupported = 248;
     // Nokia: b/383369830
     // RequireZrOperMode returns true if a user-configured value is required in operational-mode for the optical-channel
-    bool require_zr_oper_mode = 247;
+    bool require_zr_oper_mode = 249;
     // Nokia: b/383075189
     // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
-    bool explicit_dco_config = 248;
+    bool explicit_dco_config = 250;
+    
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;

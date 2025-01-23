@@ -1293,6 +1293,16 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
+// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
+func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
+}
+
+// QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
+func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
+}
+
 // RequireZrOperMode returns true for the devices that require a mandatory value in operational-mode leaf for optical-channel
 func RequireZrOperMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRequireZrOperMode()
