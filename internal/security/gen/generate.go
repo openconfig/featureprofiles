@@ -75,7 +75,7 @@ var (
 		"gnoi.healthz":            hpb.File_healthz_healthz_proto.Services(),
 		"gnoi.layer2":             lpb.File_layer2_layer2_proto.Services(),
 		"gnoi.mppls":              mpb.File_mpls_mpls_proto.Services(),
-		"gnoi.os":                 ospb.File_os_os_proto.Services(),
+		"gnoi.os":                 ospb.File_github_com_openconfig_gnoi_os_os_proto.Services(),
 		"gnoi.otdr":               otpb.File_otdr_otdr_proto.Services(),
 		"gnoi.link_qualification": plqpb.File_packet_link_qualification_packet_link_qualification_proto.Services(),
 		"gnoi.system":             spb.File_system_system_proto.Services(),
