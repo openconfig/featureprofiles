@@ -319,7 +319,7 @@ func configureDUTAggregate(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 	gnmi.Await(t, dut2, gnmi.OC().Interface(aggIdDut2).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 }
 
-func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port) {
+func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string) {
 
 	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
 		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
