@@ -82,32 +82,28 @@ func verifyAllCDValues(t *testing.T, dut1 *ondatra.DUTDevice, p1StreamInstant, p
 		{
 			desc:       "Instant",
 			stream:     p1StreamInstant,
-			streamType: "Instant",
 			operStatus: operStatus,
 		},
 		{
 			desc:       "Max",
 			stream:     p1StreamMax,
-			streamType: "Max",
 			operStatus: operStatus,
 		},
 		{
 			desc:       "Min",
 			stream:     p1StreamMin,
-			streamType: "Min",
 			operStatus: operStatus,
 		},
 		{
 			desc:       "Avg",
 			stream:     p1StreamAvg,
-			streamType: "Avg",
 			operStatus: operStatus,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			verifyCDValue(t, dut1, tt.stream, tt.streamType, tt.operStatus)
+			verifyCDValue(t, dut1, tt.stream, tt.desc, tt.operStatus)
 		})
 	}
 }
