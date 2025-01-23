@@ -219,8 +219,8 @@ test: {
 }
 test: {
   id: "DP-1.14"
-  description: "DSCP transperency with ECN"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/DSCP-transparency/README.md"
+  description: "QoS basic test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/qos_basic_test/README.md"
   exec: " "
 }
 test: {
@@ -233,6 +233,12 @@ test: {
   id: "DP-1.16"
   description: "Ingress traffic classification and rewrite"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test/README.md"
+  exec: " "
+}
+test: {
+  id: "DP-1.17"
+  description: "DSCP transparency with ECN"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/dscp_transparency_test/README.md"
   exec: " "
 }
 test: {
@@ -432,6 +438,12 @@ test: {
   id: "PF-1.6"
   description: "IPv4 & IPV6 based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "PF-1.7"
+  description: "Decapsulate MPLS in GRE and UDP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_decap_test/README.md"
   exec: " "
 }
 test: {
@@ -745,9 +757,15 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-2.15"
+  id: "RT-2.16"
   description: "IS-IS Graceful Restart Helper"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.17"
+  description: "Graceful Restart Restarting"
+    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
   exec: " "
 }
 test: {
@@ -867,7 +885,7 @@ test: {
 test: {
   id: "RT-5.4"
   description: "Aggregate Forwarding Viable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/ate_tests/aggregate_forwarding_viable_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test/README.md"
   exec: " "
 }
 test: {
@@ -884,7 +902,7 @@ test: {
 test: {
   id: "RT-5.7"
   description: "Aggregate Not Viable All"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/ate_tests/aggregate_all_not_viable_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test/README.md"
   exec: " "
 }
 test: {
