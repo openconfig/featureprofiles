@@ -551,7 +551,7 @@ func TestLinkQualification(t *testing.T) {
 	cases := []struct {
 		desc      string
 		testFunc  func(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string)
-		plqID   string
+		plqID     string
 		aggregate bool
 	}{{
 		desc:      "Singleton Interface LinkQualification",
