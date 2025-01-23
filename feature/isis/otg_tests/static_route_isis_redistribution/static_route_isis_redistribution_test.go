@@ -65,8 +65,6 @@ const (
 	dummyV6         = "2001:db8::192:0:2:d"
 	dummyMAC        = "00:1A:11:00:0A:BC"
 	tagValue        = 100
-	v4Tag           = 40
-	v6Tag           = 60
 	v4Metric        = uint32(104)
 	v6Metric        = uint32(106)
 	isisMetric      = uint32(1000)
@@ -253,7 +251,7 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		}
 		v4tagSet := getTagSetName(dut, rplName, v4Statement, "v4")
 		tagSet1 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v4tagSet)
-		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V4tagValue)})
+		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
 		stmt1.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v4tagSet)
 		stmt1.GetOrCreateActions().SetPolicyResult(rplType)
 
@@ -263,7 +261,7 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		}
 		v6tagSet := getTagSetName(dut, rplName, v6Statement, "v6")
 		tagSet2 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v6tagSet)
-		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V6tagValue)})
+		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
 		stmt2.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v6tagSet)
 		stmt2.GetOrCreateActions().SetPolicyResult(rplType)
 	} else {
@@ -500,11 +498,11 @@ func verifyMatchingPrefixWithTag(t *testing.T, ts *isissession.TestSession) {
 
 	t.Run("Configuring correct tag value", func(t *testing.T) {
 		v4tagSet := getTagSetName(ts.DUT, v4RoutePolicy, v4Statement, "v4")
-		gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v4tagSet).TagValue().Config(), []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(v4Tag)})
+		gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v4tagSet).TagValue().Config(), []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V4tagValue)})
 	})
 	if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
 		t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
-			verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, v4RoutePolicy, v4Statement, "v4"), oc.UnionUint32(v4Tag))
+			verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, v4RoutePolicy, v4Statement, "v4"), oc.UnionUint32(V4tagValue))
 		})
 	}
 	verifyPrefix(t, ts, shouldBePresent)
@@ -516,11 +514,11 @@ func verifyMatchingV6PrefixWithTag(t *testing.T, ts *isissession.TestSession) {
 
 	t.Run("Configuring correct tag value", func(t *testing.T) {
 		v6tagSet := getTagSetName(ts.DUT, v6RoutePolicy, v6Statement, "v6")
-		gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v6tagSet).TagValue().Config(), []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(v6Tag)})
+		gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v6tagSet).TagValue().Config(), []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V6tagValue)})
 	})
 	if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
 		t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
-			verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, v6RoutePolicy, v6Statement, "v6"), oc.UnionUint32(v6Tag))
+			verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, v6RoutePolicy, v6Statement, "v6"), oc.UnionUint32(V6tagValue))
 		})
 	}
 	verifyV6Prefix(t, ts, shouldBePresent)
@@ -669,11 +667,11 @@ func TestStaticToISISRedistribution(t *testing.T) {
 			if tc.TagSetCondition {
 				if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
 					t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
-						verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v4Statement, "v4"), oc.UnionUint32(V4tagValue))
-						verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v6Statement, "v6"), oc.UnionUint32(V6tagValue))
+						verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v4Statement, "v4"), oc.UnionUint32(tagValue))
+						verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v6Statement, "v6"), oc.UnionUint32(tagValue))
 					})
 				}
-
+			}
 			t.Run(fmt.Sprintf("Attach RPL %v Type %v to ISIS %v", tc.RplName, tc.policyStmtType.String(), dni), func(t *testing.T) {
 				isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
 			})
