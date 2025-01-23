@@ -768,37 +768,48 @@ func TestP4rtNodeID(t *testing.T) {
 	}
 }
 
-func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port,
+	inTarget, outTarget uint64) (uint64, uint64) {
 	t.Helper()
-	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 60*time.Second)
+
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 10*time.Second)
 	defer inPktStream.Close()
-	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 60*time.Second)
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 10*time.Second)
 	defer outPktStream.Close()
 
 	var wg sync.WaitGroup
 	var inPktsV, outPktsV uint64
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if v := inPktStream.Next(); v != nil {
+	startTime := time.Now()
+	timeout := 10 * time.Second
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		timeout = 30 * time.Second
+	}
+
+	for {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if v := inPktStream.Next(); v != nil {
+				if val, ok := v.Val(); ok {
+					inPktsV = val
+				}
+			}
+		}()
+		if v := outPktStream.Next(); v != nil {
 			if val, ok := v.Val(); ok {
-				inPktsV = val
+				outPktsV = val
 			}
 		}
-	}()
-	if v := outPktStream.Next(); v != nil {
-		if val, ok := v.Val(); ok {
-			outPktsV = val
-		}
-	}
-	wg.Wait()
+		wg.Wait()
 
-	if inPktsV == 0 {
-		t.Fatalf("Did not receive a value for in packet counter")
-	}
-	if outPktsV == 0 {
-		t.Fatalf("Did not receive a value for out packet counter")
+		if inPktsV >= inTarget && outPktsV >= outTarget {
+			break
+		}
+
+		if time.Since(startTime) > timeout {
+			t.Fatalf("Did not receive a packet counters in time")
+		}
 	}
 
 	return inPktsV, outPktsV
@@ -852,7 +863,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
-	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2, 0, 0)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
@@ -885,7 +896,8 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2,
+		dutInPktsBeforeTraffic+ateOutPkts, dutOutPktsBeforeTraffic+ateInPkts)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
 	if got, want := dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts; got < want {
