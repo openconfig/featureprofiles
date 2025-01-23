@@ -128,15 +128,15 @@ func (d *otgData) waitInterface(t *testing.T) {
 	otgutils.WaitForARP(t, d.otg, d.otgConfig, d.flowProto)
 }
 
-func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
+func createFlow(flowName string, flowSize uint32, ipv6 string) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(flowSize)
 	flow.Rate().SetPps(ppsRate)
 	flow.Duration().FixedPackets().SetPackets(packetsToSend)
 	flow.TxRx().Device().
-		SetTxNames([]string{fmt.Sprintf("%s.%s", ateSrc.Name, ipv)}).
-		SetRxNames([]string{fmt.Sprintf("%s.%s", ateDst.Name, ipv)})
+		SetTxNames([]string{fmt.Sprintf("%s.%s", ateSrc.Name, ipv6)}).
+		SetRxNames([]string{fmt.Sprintf("%s.%s", ateDst.Name, ipv6)})
 	ethHdr := flow.Packet().Add().Ethernet()
 	ethHdr.Src().SetValue(ateSrc.MAC)
 	flow.SetSize(gosnappi.NewFlowSize().SetFixed(flowSize))
