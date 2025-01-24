@@ -95,6 +95,7 @@ func Test400ZRPlusTunableFrequency(t *testing.T) {
 			}
 		})
 	}
+
 }
 func Test400ZRPlusTunableOutputPower(t *testing.T) {
 	if operationalModeFlag != nil {
@@ -148,6 +149,7 @@ func Test400ZRPlusTunableOutputPower(t *testing.T) {
 		}
 	}
 }
+
 func Test400ZRPlusInterfaceFlap(t *testing.T) {
 	if operationalModeFlag != nil {
 		operationalMode = uint16(*operationalModeFlag)
@@ -205,6 +207,7 @@ func Test400ZRPlusInterfaceFlap(t *testing.T) {
 		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower, oc.Interface_OperStatus_UP)
 	})
 }
+
 func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component], frequency uint64, outputPower float64, operStatus oc.E_Interface_OperStatus) {
 	dut := ondatra.DUT(t, "dut")
 	var ocs []*oc.Component_OpticalChannel
