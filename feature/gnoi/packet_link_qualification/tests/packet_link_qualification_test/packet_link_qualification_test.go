@@ -314,9 +314,9 @@ func configureDUTAggregate(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 		}
 	}
 	// Wait for LAG interfaces to be UP
-	gnmi.Await(t, dut1, gnmi.OC().Interface(aggIdDut1).AdminStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(aggIdDut1).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 
-	gnmi.Await(t, dut2, gnmi.OC().Interface(aggIdDut2).AdminStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut2, gnmi.OC().Interface(aggIdDut2).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 }
 
 func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string) {
