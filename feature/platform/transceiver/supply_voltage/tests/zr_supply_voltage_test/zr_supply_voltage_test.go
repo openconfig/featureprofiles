@@ -15,6 +15,7 @@
 package zr_supply_voltage_test
 
 import (
+	"flag"
 	"fmt"
 	"reflect"
 	"testing"
@@ -32,6 +33,11 @@ import (
 const (
 	samplingInterval = 10 * time.Second
 	intUpdateTime    = 2 * time.Minute
+)
+
+var (
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -57,8 +63,15 @@ func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64
 
 func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
+
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
+
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"), operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"), operationalMode)
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {

@@ -692,12 +692,9 @@ message Metadata {
     // Arista: b/346557012  
     // Devices that do not support qos scheduler ingress policer.
     bool qos_scheduler_ingress_policer_unsupported = 248;
-    // Nokia: b/383369830
-    // RequireZrOperMode returns true if a user-configured value is required in operational-mode for the optical-channel
-    bool require_zr_oper_mode = 249;
     // Nokia: b/383075189
     // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
-    bool explicit_dco_config = 250;
+    bool explicit_dco_config = 249;
     
 
     // Reserved field numbers and identifiers.

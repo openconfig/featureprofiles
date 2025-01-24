@@ -50,27 +50,8 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 			},
 		})
 	}
-	if deviations.RequireZrOperMode(dut) {
-		ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
-		t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
-		var operMode uint16 = 83
-		gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).Config(), &oc.Component{
-			Name: ygot.String(ocComponent),
-			OpticalChannel: &oc.Component_OpticalChannel{
-				TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
-				Frequency:         ygot.Uint64(targetFrequencyMHz),
-				OperationalMode:   ygot.Uint16(operMode),
-			},
-		})
-	} else {
-		ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
-		t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
-		gnmi.Update(t, dut, gnmi.OC().Component(ocComponent).Name().Config(), ocComponent)
-		gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-			TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
-			Frequency:         ygot.Uint64(targetFrequencyMHz),
-		})
-	}
+	oc := components.OpticalChannelComponentFromPort(t, dut, dp)
+	ConfigOpticalChannel(t, dut, oc, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
@@ -101,11 +82,13 @@ func ToggleInterface(t *testing.T, dut *ondatra.DUTDevice, intf string, isEnable
 
 // ConfigOpticalChannel configures the optical channel.
 func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
-	gnmi.Update(t, dut, gnmi.OC().Component(och).Name().Config(), och)
-	gnmi.Replace(t, dut, gnmi.OC().Component(och).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		OperationalMode:   ygot.Uint16(operationalMode),
-		Frequency:         ygot.Uint64(frequency),
-		TargetOutputPower: ygot.Float64(targetOpticalPower),
+	gnmi.Replace(t, dut, gnmi.OC().Component(och).Config(), &oc.Component{
+		Name: ygot.String(och),
+		OpticalChannel: &oc.Component_OpticalChannel{
+			OperationalMode:   ygot.Uint16(operationalMode),
+			Frequency:         ygot.Uint64(frequency),
+			TargetOutputPower: ygot.Float64(targetOpticalPower),
+		},
 	})
 }
 
