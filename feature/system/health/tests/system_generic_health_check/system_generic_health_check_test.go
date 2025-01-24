@@ -270,7 +270,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		}
 	}
 
-	for _, lc := range lineCards {
+	for _, lc := range chassisLineCards {
 		if !gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()) {
 			t.Skipf("Skip the test on non-removable linecard.")
 		}
