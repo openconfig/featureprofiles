@@ -55,6 +55,7 @@ var (
 	otgDstPorts = []string{"port2"}
 	otgSrcPort  = "port1"
 	
+	
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		MAC:     "02:01:00:00:00:01",
@@ -105,7 +106,6 @@ type flowAttr struct {
 	dstMac     string   // destination MAC address
 	topo       gosnappi.Config
 }
-
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
