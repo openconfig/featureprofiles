@@ -17,7 +17,7 @@ require (
 	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v1.3.0
 	github.com/openconfig/containerz v0.0.0-20250119143156-ea1f112cd31c
-	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
+	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
 	github.com/openconfig/gnmi v0.11.0
 	github.com/openconfig/gnoi v0.6.0
 	github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c
