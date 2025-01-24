@@ -184,12 +184,12 @@ func verifyDUTPort(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	switch {
 	case deviations.OmitL2MTU(dut):
 		configuredIpv6SubInterfaceMtu := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Subinterface(subInterfaceIndex).Ipv6().Mtu().State())
-		expectedSuBInterfaceMtu := mtu
+		expectedSubInterfaceMtu := mtu
 
-		if int(configuredIpv6SubInterfaceMtu) != expectedSuBInterfaceMtu {
+		if int(configuredIpv6SubInterfaceMtu) != expectedSubInterfaceMtu {
 			t.Errorf(
 				"dut %s configured mtu is incorrect, got: %d, want: %d",
-				dut.Name(), configuredIpv6SubInterfaceMtu, expectedSuBInterfaceMtu,
+				dut.Name(), configuredIpv6SubInterfaceMtu, expectedSubInterfaceMtu,
 			)
 		}
 	default:
