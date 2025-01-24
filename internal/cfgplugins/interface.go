@@ -34,7 +34,7 @@ const (
 )
 
 // InterfaceConfig configures the interface with the given port.
-func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, operationalMode uint16) {
 	t.Helper()
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
