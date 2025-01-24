@@ -210,21 +210,13 @@ func TestBGPSetup(t *testing.T) {
 			helpers.GnmiCLIConfig(t, bs.DUT, communitySetCLIConfig)
 		}
 	} else {
-		if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
-			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
-			bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().GetOrCreateLinkBandwidthExtCommunity().Enabled = ygot.Bool(true)
-			switch bs.DUT.Vendor() {
-			case ondatra.ARISTA:
-				helpers.GnmiCLIConfig(t, bs.DUT, "router bgp 65501\n ucmp mode 1\n")
-			default:
-				t.Fatalf("Unsupported vendor %s for deviation 'SkipSettingAllowMultipleAS'", bs.DUT.Vendor())
-			}
-		} else {
-			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+		if !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
 			gEBGP.AllowMultipleAs = ygot.Bool(true)
-			gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
-			gEBGP.GetOrCreateLinkBandwidthExtCommunity().Enabled = ygot.Bool(true)
 		}
+		gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
+		gEBGP.GetOrCreateLinkBandwidthExtCommunity().Enabled = ygot.Bool(true)
+
 	}
 
 	configureOTG(t, bs)
