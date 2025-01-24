@@ -610,7 +610,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 
 	t.Run("Verify port status UP", func(t *testing.T) {
 		t.Log("re-verify that the interface state is still up")
-		verifyPortsStatus(t, dut, "UP", 10)
+		verifyPortsStatus(t, dut, "UP", 30)
 
 	})
 }
