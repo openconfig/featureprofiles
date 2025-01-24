@@ -132,59 +132,38 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnC
 	}
 	var assignmentIndexTestcases []testcase
 
+	index := 0
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
-		assignmentIndexTestcases = []testcase{
-			{
-				desc: "Assignment: Index",
-				got:  ec.GetAssignment(1).GetIndex(),
-				want: uint32(1)},
-			{
-				desc: "Assignment: Logical Channel",
-				got:  ec.GetAssignment(1).GetLogicalChannel(),
-				want: otnChIdx,
-			},
-			{
-				desc: "Assignment: Description",
-				got:  ec.GetAssignment(1).GetDescription(),
-				want: "ETH to OTN",
-			},
-			{
-				desc: "Assignment: Allocation",
-				got:  ec.GetAssignment(1).GetAllocation(),
-				want: float64(400),
-			},
-			{
-				desc: "Assignment: Type",
-				got:  ec.GetAssignment(1).GetAssignmentType().String(),
-				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
-			}}
-	} else {
-		assignmentIndexTestcases = []testcase{
-			{
-				desc: "Assignment: Index",
-				got:  ec.GetAssignment(0).GetIndex(),
-				want: uint32(0),
-			},
-			{
-				desc: "Assignment: Logical Channel",
-				got:  ec.GetAssignment(0).GetLogicalChannel(),
-				want: otnChIdx,
-			},
-			{
-				desc: "Assignment: Description",
-				got:  ec.GetAssignment(0).GetDescription(),
-				want: "ETH to OTN",
-			},
-			{
-				desc: "Assignment: Allocation",
-				got:  ec.GetAssignment(0).GetAllocation(),
-				want: float64(400),
-			},
-			{
-				desc: "Assignment: Type",
-				got:  ec.GetAssignment(0).GetAssignmentType().String(),
-				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
-			}}
+		index = 1
+	}
+
+	assignment := ec.GetAssignment(uint32(index))
+	assignmentIndexTestcases = []testcase{
+		{
+			desc: "Assignment: Index",
+			got:  assignment.GetIndex(),
+			want: uint32(index),
+		},
+		{
+			desc: "Assignment: Logical Channel",
+			got:  assignment.GetLogicalChannel(),
+			want: otnChIdx,
+		},
+		{
+			desc: "Assignment: Description",
+			got:  assignment.GetDescription(),
+			want: "ETH to OTN",
+		},
+		{
+			desc: "Assignment: Allocation",
+			got:  assignment.GetAllocation(),
+			want: float64(400),
+		},
+		{
+			desc: "Assignment: Type",
+			got:  assignment.GetAssignmentType().String(),
+			want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
+		},
 	}
 	tcs = append(tcs, assignmentIndexTestcases...)
 	for _, tc := range tcs {
@@ -224,62 +203,39 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 	}
 	var opticalChannelAssignmentIndexTestcases []testcase
 
+	index := 0
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
-		ciscoOpticalChannelFormat := strings.ReplaceAll(opticalChannel, "/", "_") // Ex: OpticalChannel0_0_0_18
-		opticalChannelAssignmentIndexTestcases = []testcase{
-			{
-				desc: "Assignment: Index",
-				got:  cc.GetAssignment(1).GetIndex(),
-				want: uint32(1),
-			},
-			{
-				desc: "Optical Channel Assignment: Optical Channel",
-				got:  cc.GetAssignment(1).GetOpticalChannel(),
-				want: ciscoOpticalChannelFormat,
-			},
-			{
-				desc: "Optical Channel Assignment: Description",
-				got:  cc.GetAssignment(1).GetDescription(),
-				want: "OTN to Optical Channel",
-			},
-			{
-				desc: "Optical Channel Assignment: Allocation",
-				got:  cc.GetAssignment(1).GetAllocation(),
-				want: float64(400),
-			},
-			{
-				desc: "Optical Channel Assignment: Type",
-				got:  cc.GetAssignment(1).GetAssignmentType().String(),
-				want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
-			},
-		}
-	} else {
-		opticalChannelAssignmentIndexTestcases = []testcase{
-			{
-				desc: "Assignment: Index",
-				got:  cc.GetAssignment(0).GetIndex(),
-				want: uint32(0)},
-			{
-				desc: "Optical Channel Assignment: Optical Channel",
-				got:  cc.GetAssignment(0).GetOpticalChannel(),
-				want: opticalChannel,
-			},
-			{
-				desc: "Optical Channel Assignment: Description",
-				got:  cc.GetAssignment(0).GetDescription(),
-				want: "OTN to Optical Channel",
-			},
-			{
-				desc: "Optical Channel Assignment: Allocation",
-				got:  cc.GetAssignment(0).GetAllocation(),
-				want: float64(400),
-			},
-			{
-				desc: "Optical Channel Assignment: Type",
-				got:  cc.GetAssignment(0).GetAssignmentType().String(),
-				want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
-			},
-		}
+		opticalChannel = strings.ReplaceAll(opticalChannel, "/", "_") // Ex: ciscoOpticalChannelFormat is OpticalChannel0_0_0_18
+		index = 1
+	}
+
+	assignment := cc.GetAssignment(uint32(index))
+	opticalChannelAssignmentIndexTestcases = []testcase{
+		{
+			desc: "Assignment: Index",
+			got:  assignment.GetIndex(),
+			want: uint32(index),
+		},
+		{
+			desc: "Optical Channel Assignment: Optical Channel",
+			got:  assignment.GetOpticalChannel(),
+			want: opticalChannel,
+		},
+		{
+			desc: "Optical Channel Assignment: Description",
+			got:  assignment.GetDescription(),
+			want: "OTN to Optical Channel",
+		},
+		{
+			desc: "Optical Channel Assignment: Allocation",
+			got:  assignment.GetAllocation(),
+			want: float64(400),
+		},
+		{
+			desc: "Optical Channel Assignment: Type",
+			got:  assignment.GetAssignmentType().String(),
+			want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
+		},
 	}
 	tcs = append(tcs, opticalChannelAssignmentIndexTestcases...)
 
