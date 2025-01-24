@@ -561,7 +561,7 @@ func TestLinkQualification(t *testing.T) {
 	}, {
 		desc:      "Member Link LinkQualification",
 		plqID:     dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name() + ":memberlink",
-		testFunc:  testLinkQualification,	
+		testFunc:  testLinkQualification,
 		aggregate: true,
 	}}
 
