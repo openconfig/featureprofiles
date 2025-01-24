@@ -40,33 +40,21 @@ const (
 	trafficDuration    = 15 * time.Second
 	nhg10ID            = 10
 	vrfEncapA          = "ENCAP_TE_VRF_A"
-	inneripv6dstA      = "2001:aa:bb::1/128"
-	innerIpv6DstB      = "2001:aa:bb::2/128"
-	innerIpv6Default   = "::/0"
-	ipv4InnerDstA      = "10.5.1.1/32"
-	ipv4InnerDstB      = "10.5.1.2/32"
-	ipv4InnerDefault   = "0.0.0.0/0"
 	ipv6EntryPrefix    = "2015:aa8::"
 	ipv6EntryPrefixLen = 128
 	nh201ID            = 201
-	nh202ID            = 202
 	nhgName            = "nh-group-1"
 	outerIpv6Src       = "2001:f:a:1::0"
 	outerIpv6DstA      = "2001:f:c:e::1"
-	outerIpv6DstB      = "2001:f:c:e::2"
-	outerIpv6DstDef    = "2001:1:1:1::0"
 	outerDstUDPPort    = "6635"
 	outerDscp          = "26"
 	outerIPTTL         = "64"
-	vrfTransit         = "TE_VRF_1"
 )
 
 var (
 	otgDstPorts = []string{"port2"}
 	otgSrcPort  = "port1"
-)
-
-var (
+	
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		MAC:     "02:01:00:00:00:01",
@@ -94,6 +82,17 @@ var (
 		IPv6:    "2001:f:d:e::6",
 		IPv6Len: ipv6PrefixLen,
 	}
+
+	fa6 = flowAttr{
+		src:        otgPort1.IPv6,
+		dst:        outerIpv6DstA,
+		defaultDst: ipv6FlowIP,
+		srcMac:     otgPort1.MAC,
+		dstMac:     dutPort1.MAC,
+		srcPort:    otgSrcPort,
+		dstPorts:   otgDstPorts,
+		topo:       gosnappi.NewConfig(),
+	}
 )
 
 type flowAttr struct {
@@ -107,18 +106,6 @@ type flowAttr struct {
 	topo       gosnappi.Config
 }
 
-var (
-	fa6 = flowAttr{
-		src:        otgPort1.IPv6,
-		dst:        outerIpv6DstA,
-		defaultDst: ipv6FlowIP,
-		srcMac:     otgPort1.MAC,
-		dstMac:     dutPort1.MAC,
-		srcPort:    otgSrcPort,
-		dstPorts:   otgDstPorts,
-		topo:       gosnappi.NewConfig(),
-	}
-)
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
