@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gnoi"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -884,15 +885,13 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		})
 
 		t.Run("Restart routing", func(t *testing.T) {
-			restartRoutingProcess(t, dut)
+			gnoi.KillProcess(t, dut, gnoi.ROUTING, gnoi.SigTerm, true, true)
 		})
 
 		var bgpIxPeer []*ixnet.BGP
 		t.Run("configure 5 more new BGP peers", func(t *testing.T) {
 			configureDUTNewPeers(t, dut, dutNbrs)
-			if len(ateIntfList) > 0 {
-				bgpIxPeer = configureATENewPeers(t, topo, ateIntfList)
-			}
+			bgpIxPeer = configureATENewPeers(t, topo, ateIntfList)
 		})
 
 		t.Run("Remove newly added 5 BGP peers", func(t *testing.T) {
