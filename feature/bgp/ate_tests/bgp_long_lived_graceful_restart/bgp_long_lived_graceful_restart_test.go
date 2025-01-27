@@ -285,17 +285,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) int {
-	var portDownCnt int
+func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
-			portDownCnt++
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+			t.Fatalf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
-	return portDownCnt
 }
 
 type bgpNeighbor struct {
@@ -812,18 +809,14 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	var allFlows []*ondatra.Flow
 	var topo *ondatra.ATETopology
 	var ateIntfList []*ondatra.Interface
-	var portDownCount int
 	t.Run("configureATE", func(t *testing.T) {
 		topo, allFlows, ateIntfList = configureATE(t, ate)
 	})
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
-		portDownCount = verifyPortsUp(t, dut.Device)
+		verifyPortsUp(t, dut.Device)
 	})
 
-	if len(ateIntfList) == 0 || portDownCount > 0 {
-		t.Fatalf("Not all ATE interfaces are up")
-	}
 	t.Run("VerifyBGPParameters", func(t *testing.T) {
 		checkBgpStatus(t, dut, nbrList)
 	})
@@ -905,9 +898,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 
 		t.Run("Remove newly added 5 BGP peers", func(t *testing.T) {
 			removeNewPeers(t, dut, dutNbrs)
-			if len(ateIntfList) > 0 {
-				removeATENewPeers(t, topo, bgpIxPeer)
-			}
+			removeATENewPeers(t, topo, bgpIxPeer)
 		})
 
 		t.Run("Remove policy configured", func(t *testing.T) {
@@ -986,18 +977,13 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	})
 
 	var allFlows []*ondatra.Flow
-	var portDownCount int
 	t.Run("configureATE", func(t *testing.T) {
 		_, allFlows, _ = configureATE(t, ate)
 	})
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
-		portDownCount = verifyPortsUp(t, dut.Device)
+		verifyPortsUp(t, dut.Device)
 	})
-
-	if portDownCount > 0 {
-		t.Fatalf("Not all ATE interfaces are up")
-	}
 
 	t.Run("VerifyBGPParameters", func(t *testing.T) {
 		checkBgpStatus(t, dut, nbrList)
