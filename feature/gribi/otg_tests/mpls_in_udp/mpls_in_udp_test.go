@@ -54,36 +54,30 @@ const (
 var (
 	otgDstPorts = []string{"port2"}
 	otgSrcPort  = "port1"
-	
-	
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		MAC:     "02:01:00:00:00:01",
 		IPv6:    "2001:f:d:e::1",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	otgPort1 = attrs.Attributes{
 		Name:    "otgPort1",
 		MAC:     "02:00:01:01:01:01",
 		IPv6:    "2001:f:d:e::2",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		MAC:     "02:01:00:00:00:02",
 		IPv6:    "2001:f:d:e::5",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	otgPort2 = attrs.Attributes{
 		Name:    "otgPort2",
 		MAC:     "02:00:02:01:01:01",
 		IPv6:    "2001:f:d:e::6",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	fa6 = flowAttr{
 		src:        otgPort1.IPv6,
 		dst:        outerIpv6DstA,
@@ -253,6 +247,10 @@ func configureEncapHeaderCli(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// Tests TE-18.1.1, TE-18.1.2. TE-18.1.2 was also added due to following reasons:
+// TE-18.1.2 describes sending traffic flow that does not match any AFT nexthop
+// so try match using already configured TE-18.1.1 gRIBI rules but
+// make sure to catch on the default route.
 func TestMPLSOUDPEncap(t *testing.T) {
 	// Configure DUT
 	dut := ondatra.DUT(t, "dut")
