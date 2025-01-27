@@ -29,8 +29,8 @@ const (
 	dutSysID          = "1920.0000.2001"
 	asn               = 64501
 	acceptRoutePolicy = "PERMIT-ALL"
-	trafficPPS        = 50000 // Should be 5000000
-	trafficv6PPS      = 50000 // Should be 5000000
+	trafficPPS        = 50000 // Should be 5000000 // Should be 1000 for kne env(SW)
+	trafficv6PPS      = 50000 // Should be 5000000 // Should be 1000 for kne env(SW)
 	srcTrafficV4      = "192.0.2.2"
 	srcTrafficV6      = "2000:db8::2"
 	dstTrafficV4      = "100.0.1.1"
@@ -154,7 +154,7 @@ var (
 	equalDistributionWeights   = []uint64{33, 33, 33}
 	unequalDistributionWeights = []uint64{20, 40, 40}
 
-	ecmpTolerance = uint64(1)
+	ecmpTolerance = uint64(1) // Should be 3 for kne env
 	vendor        ondatra.Vendor
 )
 
