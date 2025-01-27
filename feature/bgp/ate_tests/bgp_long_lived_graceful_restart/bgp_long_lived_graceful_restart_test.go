@@ -891,9 +891,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		var bgpIxPeer []*ixnet.BGP
 		t.Run("configure 5 more new BGP peers", func(t *testing.T) {
 			configureDUTNewPeers(t, dut, dutNbrs)
-			if len(ateIntfList) > 0 {
-				bgpIxPeer = configureATENewPeers(t, topo, ateIntfList)
-			}
+			bgpIxPeer = configureATENewPeers(t, topo, ateIntfList)
 		})
 
 		t.Run("Remove newly added 5 BGP peers", func(t *testing.T) {
