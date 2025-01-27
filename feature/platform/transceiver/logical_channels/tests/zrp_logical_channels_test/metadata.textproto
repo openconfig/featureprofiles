@@ -1,0 +1,28 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "e5b469c9-f765-4f95-b3dc-af4c926309f5"
+plan_id: "TRANSCEIVER-11 (400ZR_PLUS)"
+description: "Telemetry: 400ZR_PLUS Optics logical channels provisioning and related telemetry."
+testbed: TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+    channel_assignment_rate_class_parameters_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+    eth_channel_assignment_cisco_numbering: true
+    otn_channel_assignment_cisco_numbering: true
+  }
+}

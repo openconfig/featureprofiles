@@ -32,7 +32,6 @@ platform_exceptions: {
   }
   deviations: {
     connect_retry: true
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     network_instance_table_deletion_required: true
     missing_value_for_defaults: true

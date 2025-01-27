@@ -224,6 +224,14 @@ func testAdditionalCompliance(tcArgs *testArgs, t *testing.T) {
 			fn:   addNHGReferencingToDownPort,
 		},
 	}
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(tcArgs.client); err != nil {
+			t.Error(err)
+		}
+	}()
+
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			if err := gribi.FlushAll(tcArgs.client); err != nil {

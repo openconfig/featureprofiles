@@ -1,4 +1,4 @@
-# TRANSCEIVER-1: Telemetry: 400ZR_PLUS Chromatic Dispersion(CD) telemetry values streaming
+# TRANSCEIVER-1 (400ZR_PLUS): Telemetry: 400ZR_PLUS Chromatic Dispersion(CD) telemetry values streaming
 
 ## Summary
 

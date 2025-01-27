@@ -1,4 +1,4 @@
-# TRANSCEIVER-5: Configuration: 400ZR_PLUS channel frequency, output TX launch power and operational mode setting.
+# TRANSCEIVER-5 (400ZR_PLUS): Configuration: 400ZR_PLUS channel frequency, output TX launch power and operational mode setting.
 
 ## Summary
 
