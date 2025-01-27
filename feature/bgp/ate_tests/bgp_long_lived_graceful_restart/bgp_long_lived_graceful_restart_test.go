@@ -24,13 +24,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	gnps "github.com/openconfig/gnoi/system"
-	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/acl"
-	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -192,12 +189,6 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	routingDaemon = map[ondatra.Vendor]string{
-		ondatra.JUNIPER: "rpd",
-		ondatra.ARISTA:  "Bgp-main",
-		ondatra.CISCO:   "emsd",
-		ondatra.NOKIA:   "sr_bgp_mgr",
-	}
 )
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
@@ -294,17 +285,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) int {
-	var portDownCnt int
+func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
-			portDownCnt++
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+			t.Fatalf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
-	return portDownCnt
 }
 
 type bgpNeighbor struct {
@@ -655,56 +643,6 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 }
 
-func restartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	if _, ok := routingDaemon[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var routingDaemon", dut.Vendor())
-	}
-	t.Run("KillGRIBIDaemon", func(t *testing.T) {
-		// Find the PID of routing Daemon.
-		var pId uint64
-		pName := routingDaemon[dut.Vendor()]
-		t.Run("FindroutingDaemonPid", func(t *testing.T) {
-			pId = findProcessByName(t, dut, pName)
-			if pId == 0 {
-				t.Fatalf("Couldn't find pid of routing daemon '%s'", pName)
-			} else {
-				t.Logf("Pid of routing daemon '%s' is '%d'", pName, pId)
-			}
-		})
-
-		// Kill routing daemon through gNOI Kill Request.
-		t.Run("ExecuteGnoiKill", func(t *testing.T) {
-			// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto.
-			// Until the models are brought in line, typecasting the uint64 to uint32.
-			gNOIKillProcess(t, dut, pName, uint32(pId))
-			// Wait for a bit for routing daemon on the DUT to restart.
-			time.Sleep(30 * time.Second)
-		})
-	})
-}
-
-// findProcessByName uses telemetry to find out the PID of a process
-func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
-	t.Helper()
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	var pID uint64
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			pID = proc.GetPid()
-			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
-		}
-	}
-	return pID
-}
-
-// gNOIKillProcess kills a daemon on the DUT, given its name and pid.
-func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
-	t.Helper()
-	killResponse := gnoi.Execute(t, dut, system.NewKillProcessOperation().Name(pName).PID(pID).Signal(gnps.KillProcessRequest_SIGNAL_TERM).Restart(true))
-	t.Logf("Got kill process response: %v\n\n", killResponse)
-}
-
 // setBgpPolicy is used to configure routing policy on DUT.
 func setBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	t.Helper()
@@ -870,18 +808,14 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	var allFlows []*ondatra.Flow
 	var topo *ondatra.ATETopology
 	var ateIntfList []*ondatra.Interface
-	var portDownCount int
 	t.Run("configureATE", func(t *testing.T) {
 		topo, allFlows, ateIntfList = configureATE(t, ate)
 	})
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
-		portDownCount = verifyPortsUp(t, dut.Device)
+		verifyPortsUp(t, dut.Device)
 	})
 
-	if len(ateIntfList) == 0 || portDownCount > 0 {
-		t.Fatalf("Not all ATE interfaces are up")
-	}
 	t.Run("VerifyBGPParameters", func(t *testing.T) {
 		checkBgpStatus(t, dut, nbrList)
 	})
@@ -963,9 +897,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 
 		t.Run("Remove newly added 5 BGP peers", func(t *testing.T) {
 			removeNewPeers(t, dut, dutNbrs)
-			if len(ateIntfList) > 0 {
-				removeATENewPeers(t, topo, bgpIxPeer)
-			}
+			removeATENewPeers(t, topo, bgpIxPeer)
 		})
 
 		t.Run("Remove policy configured", func(t *testing.T) {
@@ -1044,18 +976,13 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 	})
 
 	var allFlows []*ondatra.Flow
-	var portDownCount int
 	t.Run("configureATE", func(t *testing.T) {
 		_, allFlows, _ = configureATE(t, ate)
 	})
 
 	t.Run("verifyDUTPorts", func(t *testing.T) {
-		portDownCount = verifyPortsUp(t, dut.Device)
+		verifyPortsUp(t, dut.Device)
 	})
-
-	if portDownCount > 0 {
-		t.Fatalf("Not all ATE interfaces are up")
-	}
 
 	t.Run("VerifyBGPParameters", func(t *testing.T) {
 		checkBgpStatus(t, dut, nbrList)
