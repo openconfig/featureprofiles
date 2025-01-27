@@ -1,0 +1,20 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "3A0314F5-B8BF-418C-AF23-F052B3E1F28F"
+plan_id: "RT-2-17"
+description: "IS-IS Graceful Restart Restarting"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    omit_l2_mtu: true
+    isis_interface_afi_unsupported: true
+    isis_instance_enabled_required: true
+    missing_value_for_defaults: true
+  }
+}

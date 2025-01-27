@@ -6,7 +6,7 @@ BGP Prefix Limit
 
 ## Procedure
 
-*   Configure eBGP session between ATE port-1 and DUT port-1,with an Accept-route all import-policy/export-policy under the neighbor AFI/SAFI.
+*   Configure eBGP session between ATE port-1 and DUT port-1,with an Accept-route all import-policy/export-policy under the BGP peer-group AFI/SAFI.
 *   With maximum prefix limits of unlimited, and N.
     *   Advertise prefixes of `limit - 1`, `limit`, `limit + 1`. Validate
         session state meets expected value at ATE.
@@ -20,31 +20,22 @@ BGP Prefix Limit
     table by forwarding traffic to `prefix{0..n-1}` and `prefix{n}` where n is
     the maximum prefix limit configured.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-For prefixes:
+```yaml
+paths:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-group-name:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/warning-threshold-pct:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/prefix-limit-exceeded:
 
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
-
-Parameters:
-
-*   afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes
-*   afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/restart-timer
-
-## Telemetry Parameter coverage
-
-*   TODO: afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/restart-timer
-*   TODO:
-    afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/warning-threshold-pct
-*   TODO:
-    afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/max-prefix-limit
-*   TODO:
-    afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/prefix-limit-exceeded
-
-## Protocol/RPC Parameter coverage
-
-N/A
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
 ## Minimum DUT platform requirement
 

@@ -95,7 +95,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
-	rpStandby, rpActive := components.FindStandbyRP(t, dut, controllerCards)
+	rpStandby, rpActive := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
 	gnoiClient := dut.RawAPIs().GNOI(t)

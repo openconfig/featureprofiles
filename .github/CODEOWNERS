@@ -1,16 +1,38 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Each line is a file pattern followed by one or more owners.
+# Order is important; the last matching pattern takes the most
+# precedence.
 
 # These owners will be the default owners for everything in
 # the repo. Unless a later match takes precedence,
-# @openconfig/featureprofiles-maintainers will be requested for
+# @openconfig/featureprofiles-approvers will be requested for
 # review when someone opens a pull request.
-*       @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
+*       @openconfig/featureprofiles-approvers
 
-# Tests which are ported from ate_tests to otg_tests may be reviewed by this team.
-**/otg_tests/**      @openconfig/featureprofiles-maintainers-otg @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
-/internal/otgutils/  @openconfig/featureprofiles-maintainers-otg @openconfig/featureprofiles-maintainers @openconfig/featureprofiles-quattro-tl
+# /feature folders each have owners who are auto requested for review and may merge PR's
+/feature/acl/          @openconfig/featureprofiles-owner-acl
+/feature/aft/          @openconfig/featureprofiles-owner-aft
+/feature/bgp/          @openconfig/featureprofiles-owner-bgp
+/feature/dhcp/         @alokmtri-g
+/feature/ethernet/     @ram-mac
+/feature/gribi/        @openconfig/featureprofiles-owner-gribi
+/feature/interface/    @openconfig/featureprofiles-owner-interface
+/feature/isis/         @openconfig/featureprofiles-owner-isis
+/feature/lldp/         @openconfig/featureprofiles-owner-lldp
+/feature/mpls/         @openconfig/featureprofiles-owner-mpls
+/feature/mtu/          @openconfig/featureprofiles-owner-mtu
+/feature/networkinstance/    @openconfig/featureprofiles-owner-networkinstance
+/feature/platform/           @openconfig/featureprofiles-owner-platform
+/feature/platform/transceiver  @openconfig/featureprofiles-owner-platform-transceiver
+/feature/qos                 @openconfig/featureprofiles-owner-qos
+/feature/routing_policy/     @swetha-haridasula
+/feature/sampling/           @sudhinj
+/feature/security            @openconfig/featureprofiles-owner-security
+/feature/staticroute/        @openconfig/featureprofiles-owner-staticroute
+/feature/stp/                @alokmtri-g
+/feature/system              @openconfig/featureprofiles-owner-system
+/feature/vrrp                @amrindrr
 
-# Order is important; the last matching pattern takes the most
-# precedence.
+# Common OTG utilities 
+/internal/otgutils/  @openconfig/featureprofiles-maintainers-otg

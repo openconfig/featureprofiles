@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "262084aa-ab98-4492-849e-d7ca83105a0e"
+plan_id: "GNMI-2"
+description: "gnmi_subscriptionlist_test"
+testbed: TESTBED_DUT

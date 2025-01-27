@@ -4,4 +4,4 @@
 uuid: "15e3ade1-e3c4-4da3-8553-3a9ef5fba344"
 plan_id: "gNOI-6.1"
 description: "Factory Reset"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT
