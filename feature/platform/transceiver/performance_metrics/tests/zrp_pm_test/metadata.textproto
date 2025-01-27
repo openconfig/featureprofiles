@@ -25,4 +25,3 @@ platform_exceptions: {
     cisco_pre_fec_ber_inactive_value: true
   }
   }
- 
