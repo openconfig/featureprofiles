@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -66,6 +67,34 @@ type portData struct {
 }
 
 var (
+	dutSrc = attrs.Attributes{
+		Desc:    "DUT to ATE source",
+		IPv4:    "192.0.2.1",
+		IPv6:    "2000:db8::1",
+		IPv4Len: ipv4PLen,
+		IPv6Len: ipv6PLen,
+	}
+	dutagg1 = attrs.Attributes{
+		Desc:    "DUT to ATE LAG1",
+		IPv4:    "192.0.2.5",
+		IPv6:    "2001:db8::1",
+		IPv4Len: ipv4PLen,
+		IPv6Len: ipv6PLen,
+	}
+	dutagg2 = attrs.Attributes{
+		Desc:    "DUT to ATE LAG2",
+		IPv4:    "192.0.2.9",
+		IPv6:    "2002:db8::1",
+		IPv4Len: ipv4PLen,
+		IPv6Len: ipv6PLen,
+	}
+	dutagg3 = attrs.Attributes{
+		Desc:    "DUT to ATE LAG2",
+		IPv4:    "192.0.2.13",
+		IPv6:    "2003:db8::1",
+		IPv4Len: ipv4PLen,
+		IPv6Len: ipv6PLen,
+	}
 	ateSrc = portData{
 		name:         "srcPort",
 		dutIPv4:      "192.0.2.1",
@@ -219,13 +248,6 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, weight)
 	}
 
-	top.Flows().Clear()
-
-	flows = configureFlows(t, top)
-	ate.OTG().PushConfig(t, top)
-	time.Sleep(30 * time.Second)
-	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
 
 	startTraffic(t, ate, top)
@@ -270,7 +292,7 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(time.Minute)
+	time.Sleep(10 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogLAGMetrics(t, ate.OTG(), top)
 }
@@ -407,56 +429,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	d := &oc.Root{}
-	p1 := dut.Port(t, "port1")
-
-	i := d.GetOrCreateInterface(p1.Name())
-
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-	}
-	a4 := s4.GetOrCreateAddress(ateSrc.dutIPv4)
-	a4.PrefixLength = ygot.Uint8(ipv4PLen)
-
-	s6 := s.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s6.Enabled = ygot.Bool(true)
-	}
-	a6 := s6.GetOrCreateAddress(ateSrc.dutIPv6)
-	a6.PrefixLength = ygot.Uint8(ipv6PLen)
-
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), i)
+	dc := gnmi.OC()
+	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name(), dut)
+	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
 	var aggIDs []string
-	for aggIdx, a := range []*aggPortData{agg1, agg2, agg3} {
+	for aggIdx, a := range []attrs.Attributes{dutagg1, dutagg2, dutagg3} {
 		b := &gnmi.SetBatch{}
 
 		aggID := netutil.NextAggregateInterface(t, dut)
 		aggIDs = append(aggIDs, aggID)
 
-		agg := d.GetOrCreateInterface(aggID)
-		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+		agg := a.NewOCInterface(aggID, dut)
 		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-		agg.Description = ygot.String(a.ateAggName)
-		if deviations.InterfaceEnabled(dut) {
-			agg.Enabled = ygot.Bool(true)
-		}
-		s := agg.GetOrCreateSubinterface(0)
-		s4 := s.GetOrCreateIpv4()
-		if deviations.InterfaceEnabled(dut) {
-			s4.Enabled = ygot.Bool(true)
-		}
-		a4 := s4.GetOrCreateAddress(a.dutIPv4)
-		a4.PrefixLength = ygot.Uint8(ipv4PLen)
-
-		s6 := s.GetOrCreateIpv6()
-		if deviations.InterfaceEnabled(dut) {
-			s6.Enabled = ygot.Bool(true)
-		}
-		a6 := s6.GetOrCreateAddress(a.dutIPv6)
-		a6.PrefixLength = ygot.Uint8(ipv6PLen)
+		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
 
 		gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
@@ -466,6 +453,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		for _, port := range []*ondatra.Port{p1, p2} {
 			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 
+			d := &oc.Root{}
 			i := d.GetOrCreateInterface(port.Name())
 			i.Description = ygot.String(fmt.Sprintf("LAG - Member -%s", port.Name()))
 			e := i.GetOrCreateEthernet()
