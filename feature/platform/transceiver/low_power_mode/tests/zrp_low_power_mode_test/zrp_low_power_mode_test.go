@@ -33,9 +33,9 @@ import (
 const (
 	intUpdateTime                 = 5 * time.Minute
 	samplingInterval              = 10 * time.Second
-	targetOutputPower             = -3
-	frequency                     = 193100000
+	targetOutputPowerdBm          = -3
 	targetOutputPowerTolerancedBm = 1
+	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
 )
 
@@ -101,8 +101,8 @@ func TestLowPowerMode(t *testing.T) {
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
 	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
 	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
+	cfgplugins.ConfigOpticalChannel(t, dut, och1, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	cfgplugins.ConfigOpticalChannel(t, dut, och2, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -196,31 +196,8 @@ func TestLowPowerMode(t *testing.T) {
 				"max":  opMax,
 			}
 			validateOutputPower(t, powerStreamMap)
-			// Validate the output power and frequency for the given port.
-			// NOTE: Default values should be removed in ValidateInterfaceConfig in cfgplugins.
-			// cfgplugins.ValidateInterfaceConfig(t, dut, dp)
-			targetOutputPowerStream := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().TargetOutputPower().State(), samplingInterval)
-			defer targetOutputPowerStream.Close()
-			if targetOutputPowerStreamN := targetOutputPowerStream.Next(); targetOutputPowerStreamN != nil {
-				if val, ok := targetOutputPowerStreamN.Val(); ok {
-					if reflect.TypeOf(val).Kind() != reflect.Float64 {
-						t.Fatalf("Return value is not type float64 for key :%f", val)
-					}
-				}
-			}
-			// // TODO: jchenjian - Uncomment the output power and frequency checks from the test once the bug b/382296833 is fixed.
-			// outputPower := gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().TargetOutputPower().State())
-			// t.Logf("Type and value of outputPower: %T, %v", outputPower, outputPower)
-			// t.Logf("port: %s, Power delta: %v", dp.Name(), math.Abs(float64(outputPower)-float64(targetOutputPower)))
-			// if math.Abs(float64(outputPower)-float64(targetOutputPower)) > targetOutputPowerTolerancedBm {
-			// 	t.Fatalf("Output power is not within expected tolerance, got: %v want: %v tolerance: %v", outputPower, targetOutputPower, targetOutputPowerTolerancedBm)
-			// }
-
-			// freq := gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().Frequency().State())
-			// t.Logf("port: %s, Frequency delta: %v", dp.Name(), math.Abs(float64(freq)-float64(frequency)))
-			// if math.Abs(float64(freq)-float64(frequency)) > targetFrequencyToleranceMHz {
-			// 	t.Fatalf("Frequency is not within expected tolerance, got: %v want: %v tolerance: %v", freq, frequency, targetFrequencyToleranceMHz)
-			// }
+			// TODO: jchenjian - Uncomment the output power and frequency checks from the test once the bug b/382296833 is fixed.
+			// cfgplugins.ValidateInterfaceConfig(t, dut, dp, targetOutputPowerdBm, targetFrequencyMHz, targetOutputPowerTolerancedBm, targetFrequencyToleranceMHz)
 		})
 	}
 }
