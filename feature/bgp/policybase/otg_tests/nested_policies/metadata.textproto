@@ -14,7 +14,25 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     missing_value_for_defaults: true
-    skip_set_rp_match_set_options: true
+    routing_policy_chaining_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    skip_setting_statement_for_policy: true
+    skip_checking_attribute_index: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_rib_oc_path_unsupported:  true
   }
 }
 

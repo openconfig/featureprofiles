@@ -10,11 +10,20 @@ platform_exceptions:  {
     vendor:  NOKIA
   }
   deviations:  {
-    explicit_port_speed:  true
     explicit_interface_in_default_vrf:  true
     interface_enabled:  true
-    bgp_conditions_match_community_set_unsupported:  true
     bgp_actions_set_community_method_unsupported:  true
+    skip_bgp_send_community_type: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor: ARISTA
+  }
+  deviations:  {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
   }
 }
 tags:  TAGS_AGGREGATION
