@@ -72,7 +72,7 @@ var (
 		IPv6:    "2001:f:d:e::5",
 		IPv6Len: ipv6PrefixLen,
 	}
-	otgPort2 = attrs.Attributes{		
+	otgPort2 = attrs.Attributes{
 		Name:    "otgPort2",
 		MAC:     "02:00:02:01:01:01",
 		IPv6:    "2001:f:d:e::6",
