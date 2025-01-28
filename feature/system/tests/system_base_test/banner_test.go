@@ -30,6 +30,7 @@ import (
 // config_path:/system/config/motd-banner
 // telemetry_path:/system/state/motd-banner
 func TestMotdBanner(t *testing.T) {
+
 	testCases := []struct {
 		description string
 		banner      string
@@ -41,7 +42,6 @@ func TestMotdBanner(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			config := gnmi.OC().System().MotdBanner()
@@ -97,7 +97,6 @@ func TestMotdBanner(t *testing.T) {
 // config_path:/system/config/login-banner
 // telemetry_path:/system/state/login-banner
 func TestLoginBanner(t *testing.T) {
-
 	testCases := []struct {
 		description string
 		banner      string
@@ -116,38 +115,44 @@ func TestLoginBanner(t *testing.T) {
 			state := gnmi.OC().System().LoginBanner()
 
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
-			if testCase.banner == "" {
-				if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
-					t.Errorf("Config Login Banner not empty")
-				} else {
-					t.Logf("No response for the path expected is expected as the config is empty")
-				}
-			} else {
-				configGot := gnmi.Get(t, dut, config.Config())
-				configGot = strings.TrimSpace(configGot)
-				if configGot != testCase.banner {
-					t.Errorf("Config Login Banner: got %s, want %s", configGot, testCase.banner)
-				}
-			}
 
-			if testCase.banner == "" {
-				if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
-					t.Errorf("Telemetry Login Banner not empty")
+			t.Run("Get Login Banner Config", func(t *testing.T) {
+				if testCase.banner == "" {
+					if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
+						t.Errorf("Config Login Banner not empty")
+					} else {
+						t.Logf("No response for the path expected is expected as the config is empty")
+					}
 				} else {
-					t.Logf("No response for the path is expected as the config is empty")
+					configGot := gnmi.Get(t, dut, config.Config())
+					configGot = strings.TrimSpace(configGot)
+					if configGot != testCase.banner {
+						t.Errorf("Config Login Banner: got %s, want %s", configGot, testCase.banner)
+					}
 				}
-			} else {
-				stateGot := gnmi.Get(t, dut, state.Config())
-				stateGot = strings.TrimSpace(stateGot)
-				if stateGot != testCase.banner {
-					t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
-				}
-			}
+			})
 
-			gnmi.Delete(t, dut, config.Config())
-			if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-				t.Errorf("Delete Login Banner fail: got %v", qs)
-			}
+			t.Run("Get Login Banner Telemetry", func(t *testing.T) {
+				if testCase.banner == "" {
+					if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
+						t.Errorf("Telemetry Login Banner not empty")
+					} else {
+						t.Logf("No response for the path is expected as the config is empty")
+					}
+				} else {
+					stateGot := gnmi.Get(t, dut, state.Config())
+					stateGot = strings.TrimSpace(stateGot)
+					if stateGot != testCase.banner {
+						t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
+					}
+				}
+			})
+			t.Run("Delete Login Banner", func(t *testing.T) {
+				gnmi.Delete(t, dut, config.Config())
+				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
+					t.Errorf("Delete Login Banner fail: got %v", qs)
+				}
+			})
 		})
 	}
 }
