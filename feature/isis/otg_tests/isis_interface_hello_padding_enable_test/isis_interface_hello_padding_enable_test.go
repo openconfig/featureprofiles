@@ -400,7 +400,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 		t.Run("Traffic checks", func(t *testing.T) {
 			t.Logf("Starting traffic")
 			otg.StartTraffic(t)
-			time.Sleep(time.Second * 15)
+			time.Sleep(time.Second * 30)
 			t.Logf("Stop traffic")
 			otg.StopTraffic(t)
 
