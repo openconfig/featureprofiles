@@ -60,25 +60,25 @@ var (
 		IPv6:    "2001:f:d:e::1",
 		IPv6Len: ipv6PrefixLen,
 	}
-	otgPort1    = attrs.Attributes{
+	otgPort1 = attrs.Attributes{
 		Name:    "otgPort1",
 		MAC:     "02:00:01:01:01:01",
 		IPv6:    "2001:f:d:e::2",
 		IPv6Len: ipv6PrefixLen,
 	}
-	dutPort2    = attrs.Attributes{
+	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		MAC:     "02:01:00:00:00:02",
 		IPv6:    "2001:f:d:e::5",
 		IPv6Len: ipv6PrefixLen,
 	}
-	otgPort2    = attrs.Attributes{
+	otgPort2 = attrs.Attributes{		
 		Name:    "otgPort2",
 		MAC:     "02:00:02:01:01:01",
 		IPv6:    "2001:f:d:e::6",
 		IPv6Len: ipv6PrefixLen,
 	}
-	fa6         = flowAttr{
+	fa6 = flowAttr{
 		src:        otgPort1.IPv6,
 		dst:        outerIpv6DstA,
 		defaultDst: ipv6FlowIP,
