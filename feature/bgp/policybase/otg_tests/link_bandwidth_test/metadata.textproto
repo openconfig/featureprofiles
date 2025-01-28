@@ -33,5 +33,13 @@ platform_exceptions:  {
     bgp_explicit_extended_community_enable: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_rib_oc_path_unsupported: true
+  }
+}
 tags:  TAGS_AGGREGATION
 tags:  TAGS_DATACENTER_EDGE

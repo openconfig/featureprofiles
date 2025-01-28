@@ -1307,9 +1307,3 @@ func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
 func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
 }
-
-// PolicyResultTypeNextStatementUnsupported returns true if devices which are not
-// supporting next statement in policy options.
-func PolicyResultTypeNextStatementUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyResultTypeNextStatementUnsupported()
-}

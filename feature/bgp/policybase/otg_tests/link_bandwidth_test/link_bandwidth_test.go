@@ -39,24 +39,24 @@ import (
 const (
 	ipv4PrefixLen     = 30
 	ipv6PrefixLen     = 126
-	v41Route          = "203.0.113.0"
+	v41Route          = "203.0.113.1"
 	v41TrafficStart   = "203.0.113.1"
-	v42Route          = "203.0.114.0"
+	v42Route          = "203.0.114.1"
 	v42TrafficStart   = "203.0.114.1"
-	v43Route          = "203.0.115.0"
+	v43Route          = "203.0.115.1"
 	v43TrafficStart   = "203.0.115.1"
 	v4RoutePrefix     = uint32(24)
-	v61Route          = "2001:db8:128:128::0"
-	v61RouteOtg       = "2001:db8:128:128::"
-	v61RouteAdvertise = "2001:db8:128:128::/64"
+	v61Route          = "2001:db8:128:128::1"
+	v61RouteOtg       = "2001:db8:128:128::1"
+	v61RouteAdvertise = "2001:db8:128:128::1/64"
 	v61TrafficStart   = "2001:db8:128:128::1"
-	v62Route          = "2001:db8:128:129::0"
-	v62RouteAdvertise = "2001:db8:128:129::/64"
-	v62RouteOtg       = "2001:db8:128:129::"
+	v62Route          = "2001:db8:128:129::1"
+	v62RouteAdvertise = "2001:db8:128:129::1/64"
+	v62RouteOtg       = "2001:db8:128:129::1"
 	v62TrafficStart   = "2001:db8:128:129::1"
-	v63Route          = "2001:db8:128:130::0"
-	v63RouteAdvertise = "2001:db8:128:130::/64"
-	v63RouteOtg       = "2001:db8:128:130::"
+	v63Route          = "2001:db8:128:130::1"
+	v63RouteAdvertise = "2001:db8:128:130::1/64"
+	v63RouteOtg       = "2001:db8:128:130::1"
 	v63TrafficStart   = "2001:db8:128:130::1"
 	v6RoutePrefix     = uint32(64)
 	dutAS             = uint32(32001)
@@ -121,6 +121,12 @@ var (
 		"linkbw_1M":  "23456:1000000",
 		"linkbw_2G":  "23456:2000000000",
 		"linkbw_any": "^.*:.*$",
+	}
+
+	extCommunitySetJuniper = map[string]string{
+		"linkbw_1M":  "link-bandwidth:23456:1M",
+		"linkbw_2G":  "link-bandwidth:23456:2G",
+		"linkbw_any": "^link-bandwidth:.*",
 	}
 
 	communitySet = map[string]string{
@@ -442,7 +448,9 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						}
 
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
-							verifyExtCommunityIndexV4(t, td, v4Prefix)
+							if !deviations.BGPRibOcPathUnsupported(td.dut) {
+								verifyExtCommunityIndexV4(t, td, v4Prefix)
+							}
 						}
 					}
 				}
@@ -510,7 +518,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
-							verifyExtCommunityIndexV6(t, td, v6Prefix)
+							if !deviations.BGPRibOcPathUnsupported(td.dut) {
+								verifyExtCommunityIndexV6(t, td, v6Prefix)
+							}
 						}
 					}
 				}
@@ -626,6 +636,9 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("Unsupported vendor %s for native command support for deviation 'BgpExtendedCommunitySetUnsupported'", dut.Vendor())
 		}
 	} else {
+		if dut.Vendor() == ondatra.JUNIPER {
+			extCommunitySet = extCommunitySetJuniper
+		}
 		for name, community := range extCommunitySet {
 			rp := root.GetOrCreateRoutingPolicy()
 			pdef := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
@@ -1063,7 +1076,9 @@ func baseSetupConfigAndVerification(t *testing.T, td testData) {
 	td.verifyDUTBGPEstablished(t)
 	td.verifyOTGBGPEstablished(t)
 	configureImportRoutingPolicyAllowAll(t, td.dut)
-	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate)
+	if !deviations.BGPRibOcPathUnsupported(td.dut) {
+		validateImportRoutingPolicyAllowAll(t, td.dut, td.ate)
+	}
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev1", dstIP: v41TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev2", dstIP: v42TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev3", dstIP: v43TrafficStart})
