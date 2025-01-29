@@ -1292,3 +1292,18 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 	}
 	return "DEFAULT"
 }
+
+// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
+func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
+}
+
+// QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
+func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
+}
+
+// GribiEncapHeaderUnsupported returns true if gribi encap header is unsupported
+func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
+}
