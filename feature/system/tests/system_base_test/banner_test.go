@@ -73,7 +73,7 @@ func TestMotdBanner(t *testing.T) {
 						t.Logf("No response for the path is expected as the config is empty")
 					}
 				} else {
-					stateGot := gnmi.Get(t, dut, state.Config())
+					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
@@ -140,7 +140,7 @@ func TestLoginBanner(t *testing.T) {
 						t.Logf("No response for the path is expected as the config is empty")
 					}
 				} else {
-					stateGot := gnmi.Get(t, dut, state.Config())
+					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
