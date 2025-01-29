@@ -19,7 +19,6 @@ package system_base_test
 import (
 	"testing"
 	"strings"
-
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
