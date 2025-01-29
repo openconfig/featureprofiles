@@ -115,7 +115,7 @@ var (
 		"port3": atePort3,
 	}
 
-	allQueueNames = []entname.QoSQueue{
+	allQueueNames = []entname.QoSClass{
 		entname.QoSNC1,
 		entname.QoSAF4,
 		entname.QoSAF3,
@@ -128,7 +128,7 @@ var (
 	testCases = []struct {
 		name           string
 		createFlowsF   func(otgConfig gosnappi.Config, protocol string, atePortSpeed int)
-		validateFlowsF func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, atePortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters)
+		validateFlowsF func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, atePortSpeed int, startingCounters map[entname.QoSClass]*queueCounters)
 	}{
 		{
 			name:           "TestNoCongestion",
@@ -444,10 +444,10 @@ func createFlow(otgConfig gosnappi.Config, protocol string, targetTotalFlowRate 
 	return flow
 }
 
-func getQueueCounters(t *testing.T, dut *ondatra.DUTDevice) map[entname.QoSQueue]*queueCounters {
+func getQueueCounters(t *testing.T, dut *ondatra.DUTDevice) map[entname.QoSClass]*queueCounters {
 	t.Helper()
 	ep := dut.Port(t, dutEgressPort)
-	qc := map[entname.QoSQueue]*queueCounters{}
+	qc := map[entname.QoSClass]*queueCounters{}
 
 	for _, egressQueueName := range allQueueNames {
 		qc[egressQueueName] = &queueCounters{
@@ -460,7 +460,7 @@ func getQueueCounters(t *testing.T, dut *ondatra.DUTDevice) map[entname.QoSQueue
 	return qc
 }
 
-func logAndGetResolvedQueueCounters(t *testing.T, egressQueueName entname.QoSQueue, egressQueueStartingCounters, egressQueueEndingCounters *queueCounters) (uint64, uint64, uint64) {
+func logAndGetResolvedQueueCounters(t *testing.T, egressQueueName entname.QoSClass, egressQueueStartingCounters, egressQueueEndingCounters *queueCounters) (uint64, uint64, uint64) {
 	queueDroppedPackets := egressQueueEndingCounters.droppedPackets - egressQueueStartingCounters.droppedPackets
 	queueTransmitPackets := egressQueueEndingCounters.transmitPackets - egressQueueStartingCounters.transmitPackets
 	queueTransmitOctets := egressQueueEndingCounters.transmitOctets - egressQueueStartingCounters.transmitOctets
@@ -517,7 +517,7 @@ func testNoCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dut
 	}
 }
 
-func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
+func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSClass]*queueCounters) {
 	maxAllowedZeroPackets, _ := getZeroIshThresholds(dutPortSpeed)
 	endingCounters := getQueueCounters(t, dut)
 
@@ -607,7 +607,7 @@ func testCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPo
 	}
 }
 
-func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
+func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSClass]*queueCounters) {
 	maxAllowedZeroPackets, _ := getZeroIshThresholds(dutPortSpeed)
 	endingCounters := getQueueCounters(t, dut)
 
@@ -741,7 +741,7 @@ func testNC1CongestionCreateFlows(otgConfig gosnappi.Config, protocol string, du
 	}
 }
 
-func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
+func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSClass]*queueCounters) {
 	maxAllowedZeroPackets, maxAllowedZeroOctets := getZeroIshThresholds(dutPortSpeed)
 	endingCounters := getQueueCounters(t, dut)
 
