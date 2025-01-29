@@ -16,6 +16,7 @@ package packet_link_qualification_test
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -36,7 +38,7 @@ func TestMain(m *testing.M) {
 }
 
 // Topology:
-//   dut1:port1 <--> port1:dut2
+//   dut1:port1 <--> port1:dut2 (port1 as singleton and memberlink)
 //
 // Test notes:
 //
@@ -44,9 +46,28 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
+type aggPortData struct {
+	dut1IPv4      string
+	dut2IPv4      string
+	ateAggName    string
+	aggPortIDDUT1 uint32
+	aggPortIDDUT2 uint32
+}
+
+const (
+	ipv4PLen = 30
+)
+
 var (
 	minRequiredGeneratorMTU = uint64(8184)
 	minRequiredGeneratorPPS = uint64(1e8)
+	agg1                    = &aggPortData{
+		dut1IPv4:      "192.0.2.1",
+		dut2IPv4:      "192.0.2.2",
+		ateAggName:    "lag3",
+		aggPortIDDUT1: 10,
+		aggPortIDDUT2: 11,
+	}
 )
 
 func TestCapabilitiesResponse(t *testing.T) {
@@ -224,26 +245,81 @@ func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 	return i
 }
 
-func TestLinkQualification(t *testing.T) {
-	dut1 := ondatra.DUT(t, "dut1")
-	dut2 := ondatra.DUT(t, "dut2")
-
-	dp1 := dut1.Port(t, "port1")
-	dp2 := dut2.Port(t, "port1")
-	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
-	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", dp1.Name(), dp2.Name())
+// configures DUT1 lagID <-----> lagID DUT2 with 1 member link.
+func configureDUTAggregate(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice) {
+	t.Helper()
+	fptest.ConfigureDefaultNetworkInstance(t, dut1)
+	fptest.ConfigureDefaultNetworkInstance(t, dut2)
+	var aggIdDut1 string
+	var aggIdDut2 string
 
 	for _, dut := range []*ondatra.DUTDevice{dut1, dut2} {
-		d := gnmi.OC()
-		p := dut.Port(t, "port1")
-		i := &oc.Interface{Name: ygot.String(p.Name())}
-		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i, dut))
-		if deviations.ExplicitPortSpeed(dut) {
-			fptest.SetPortSpeed(t, p)
+		b := &gnmi.SetBatch{}
+		d := &oc.Root{}
+		aggID := netutil.NextAggregateInterface(t, dut)
+
+		agg := d.GetOrCreateInterface(aggID)
+		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		agg.Description = ygot.String(agg1.ateAggName)
+		if !deviations.OmitL2MTU(dut) {
+			agg.Mtu = ygot.Uint16(9000)
+		}
+		if deviations.InterfaceEnabled(dut) {
+			agg.Enabled = ygot.Bool(true)
+		}
+
+		s := agg.GetOrCreateSubinterface(0)
+		s4 := s.GetOrCreateIpv4()
+		if deviations.InterfaceEnabled(dut) {
+			s4.Enabled = ygot.Bool(true)
+		}
+		var a4 *oc.Interface_Subinterface_Ipv4_Address
+		if dut == dut1 {
+			a4 = s4.GetOrCreateAddress(agg1.dut1IPv4)
+			aggIdDut1 = aggID
+		} else {
+			a4 = s4.GetOrCreateAddress(agg1.dut2IPv4)
+			aggIdDut2 = aggID
+		}
+		a4.PrefixLength = ygot.Uint8(ipv4PLen)
+
+		gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
+		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
+
+		p1 := dut.Port(t, "port1")
+		for _, port := range []*ondatra.Port{p1} {
+			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+			i := d.GetOrCreateInterface(port.Name())
+			if dut == dut1 {
+				i.Id = ygot.Uint32(agg1.aggPortIDDUT1)
+			} else {
+				i.Id = ygot.Uint32(agg1.aggPortIDDUT2)
+			}
+			i.Description = ygot.String(fmt.Sprintf("LAG - Member -%s", port.Name()))
+			e := i.GetOrCreateEthernet()
+			e.AggregateId = ygot.String(aggID)
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+			if deviations.InterfaceEnabled(dut) {
+				i.Enabled = ygot.Bool(true)
+			}
+			gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Config(), i)
+		}
+
+		b.Set(t, dut)
+
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
+	// Wait for LAG interfaces to be UP
+	gnmi.Await(t, dut1, gnmi.OC().Interface(aggIdDut1).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 
-	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()
+	gnmi.Await(t, dut2, gnmi.OC().Interface(aggIdDut2).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+}
+
+func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string) {
 
 	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
 		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
@@ -450,5 +526,51 @@ func TestLinkQualification(t *testing.T) {
 		if ((math.Abs(float64(reflectorPktsSent)-float64(generatorPktsRxed)))/(float64(reflectorPktsSent)+float64(generatorPktsRxed)+tolerance))*200.00 > tolerance {
 			t.Errorf("The difference between packets received count at Generator and packets sent count at Reflector is greater than %0.4f percent: reflectorPktsSent %v, generatorPktsRxed %v", tolerance, reflectorPktsSent, generatorPktsRxed)
 		}
+	}
+}
+
+func TestLinkQualification(t *testing.T) {
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
+
+	dp1 := dut1.Port(t, "port1")
+	dp2 := dut2.Port(t, "port1")
+	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
+	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", dp1.Name(), dp2.Name())
+
+	for _, dut := range []*ondatra.DUTDevice{dut1, dut2} {
+		d := gnmi.OC()
+		p := dut.Port(t, "port1")
+		i := &oc.Interface{Name: ygot.String(p.Name())}
+		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i, dut))
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, p)
+		}
+	}
+
+	cases := []struct {
+		desc      string
+		plqID     string
+		testFunc  func(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string)
+		aggregate bool
+	}{{
+		desc:      "Singleton Interface LinkQualification",
+		plqID:     dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name() + ":singleton",
+		testFunc:  testLinkQualification,
+		aggregate: false,
+	}, {
+		desc:      "Member Link LinkQualification",
+		plqID:     dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name() + ":memberlink",
+		testFunc:  testLinkQualification,
+		aggregate: true,
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if tc.aggregate {
+				configureDUTAggregate(t, dut1, dut2)
+			}
+			tc.testFunc(t, dut1, dut2, dp1, dp2, tc.plqID)
+		})
 	}
 }
