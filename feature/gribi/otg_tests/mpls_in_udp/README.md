@@ -1,4 +1,4 @@
-# TE-18.1 gRIBI MPLS in UDP Encapsulation
+# TE-18.1: gRIBI MPLS in UDP Encapsulation
 
 Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate the matching packets in MPLS in UDP with outer header as IPv6 Header.
