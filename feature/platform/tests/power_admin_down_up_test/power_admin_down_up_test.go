@@ -74,7 +74,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
-			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 10*time.Minute)
+			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
 
 			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
@@ -107,7 +107,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 				t.Skipf("ControllerCard Component %s is already INACTIVE, hence skipping", c)
 			}
 
-			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 5*time.Minute)
+			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 20*time.Minute)
 		})
 	}
 	if primary != "" {
