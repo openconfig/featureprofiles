@@ -218,22 +218,17 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	})
 
 	// Disable ATE2:Port1
-	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-		p3 := dut.Port(t, "port3")
-		gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Enabled().Config(), false)
-		t.Logf("Disable ATE2:Port1: %s, %s", p3.Name(), gnmi.OC().Interface(p3.Name()).OperStatus().State())
-	} else {
-		p3 := ate.Port(t, "port3") // ATE:port3 is ATE2:port1
+	atep3 := ate.Port(t, "port3") // ATE:port3 is ATE2:port1
+	psa := gosnappi.NewControlState()
+	psa.Port().Link().SetPortNames([]string{atep3.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+	ate.OTG().SetControlState(t, psa)
+	time.Sleep(10 * time.Second)
+	defer func() {
 		psa := gosnappi.NewControlState()
-		psa.Port().Link().SetPortNames([]string{p3.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+		psa.Port().Link().SetPortNames([]string{atep3.ID()}).SetState(gosnappi.StatePortLinkState.UP)
 		ate.OTG().SetControlState(t, psa)
-		time.Sleep(10 * time.Second)
-		defer func() {
-			psa := gosnappi.NewControlState()
-			psa.Port().Link().SetPortNames([]string{p3.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-			ate.OTG().SetControlState(t, psa)
-		}()
-	}
+	}()
+
 	p3 := dut.Port(t, "port3")
 	gnmi.Await(t, dut, gnmi.OC().Interface(p3.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_DOWN)
 
