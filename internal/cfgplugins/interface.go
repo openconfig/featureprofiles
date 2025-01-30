@@ -43,6 +43,7 @@ func init() {
 	OpMode = 1
 }
 
+// Initialize assigns OpMode with value recieved through operationalMode flag.
 func Initialize(operationalMode uint16) {
 	once.Do(func() {
 		OpMode = operationalMode
