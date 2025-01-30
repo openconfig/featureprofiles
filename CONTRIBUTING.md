@@ -292,6 +292,12 @@ Do not write [assertion] helpers.
 
 [assertion]: https://go.dev/doc/faq#assertions
 
+## Use gnmi.Watch with Await instead of sleep in tests
+
+Avoid using time.Sleep to wait for a change to occur in a test.  Instead use
+gnmi.Watch with .Await in an appropriate validation function call.  See the
+[ONDATRA best practice on avoiding use of sleep in tests](https://pkg.go.dev/github.com/openconfig/ondatra/gnmi#hdr-Best_Practice__Avoid_time_Sleep).
+
 ## Enum
 
 Sometimes a test may need to set a ygot field with an OpenConfig enum type, e.g.
