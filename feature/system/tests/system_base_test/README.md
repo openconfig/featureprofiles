@@ -37,3 +37,22 @@ used for mTLS.
 2. Each test will then create a client to those services and valid each service is properly
    listening on the standard port.
 3. Validate client properly connects and execute a simple RPC to validate no errors are returned.
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+   /system/state/motd-banner:
+   /system/state/login-banner:
+   /system/state/hostname:
+   /system/state/current-datetime:
+   /system/state/boot-time:
+   /system/clock/state/timezone-name:
+
+rpcs:
+   gnmi:
+      gNMI.Set:
+         replace: true
+         delete: true
+      gNMI.Subscribe:
+```
