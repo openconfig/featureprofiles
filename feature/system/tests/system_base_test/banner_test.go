@@ -17,10 +17,10 @@
 package system_base_test
 
 import (
-	"testing"
-	"strings"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"strings"
+	"testing"
 )
 
 // TestMotdBanner verifies that the MOTD configuration paths can be read,
