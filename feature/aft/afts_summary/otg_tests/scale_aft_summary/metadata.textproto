@@ -49,6 +49,5 @@ platform_exceptions: {
 		default_network_instance: "default"
     isis_instance_enabled_required: true
     isis_interface_afi_unsupported: true
-    route_policy_under_afi_unsupported: true
   }
 }
