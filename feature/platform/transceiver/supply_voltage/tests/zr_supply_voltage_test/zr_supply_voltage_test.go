@@ -70,8 +70,9 @@ func TestZrSupplyVoltage(t *testing.T) {
 		t.Fatalf("Please specify the vendor-specific operational-mode flag")
 	}
 
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"), operationalMode)
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"), operationalMode)
+	cfgplugins.Initialize(operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {

@@ -16,6 +16,7 @@ package cfgplugins
 
 import (
 	"math"
+	"sync"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -33,8 +34,23 @@ const (
 	targetFrequencyToleranceMHz   = 100000
 )
 
+var (
+	OpMode uint16
+	once   sync.Once
+)
+
+func init() {
+	OpMode = 1
+}
+
+func Initialize(operationalMode uint16) {
+	once.Do(func() {
+		OpMode = operationalMode
+	})
+}
+
 // InterfaceConfig configures the interface with the given port.
-func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, operationalMode uint16) {
+func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
@@ -51,7 +67,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, ope
 		})
 	}
 	oc := components.OpticalChannelComponentFromPort(t, dut, dp)
-	ConfigOpticalChannel(t, dut, oc, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	ConfigOpticalChannel(t, dut, oc, targetFrequencyMHz, targetOutputPowerdBm, OpMode)
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
