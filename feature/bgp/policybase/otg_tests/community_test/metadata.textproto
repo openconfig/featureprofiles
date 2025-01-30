@@ -11,14 +11,10 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     missing_value_for_defaults: true
     interface_enabled: true
     default_network_instance: "default"
-    skip_set_rp_match_set_options: true
-    skip_setting_disable_metric_propagation: true
-    bgp_conditions_match_community_set_unsupported: true
   }
 }
 platform_exceptions: {
@@ -38,6 +34,14 @@ platform_exceptions: {
     explicit_interface_in_default_vrf:  true
     interface_enabled: true
     bgp_conditions_match_community_set_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    community_invert_any_unsupported: true
   }
 }
 

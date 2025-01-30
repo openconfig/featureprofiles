@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -27,13 +28,13 @@ func TestFabricPowerAdmin(t *testing.T) {
 	for _, f := range fs {
 		t.Run(f, func(t *testing.T) {
 
-			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
-				t.Skipf("Skip the test on non-removable fabric.")
-			}
-
 			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 			if ok && empty {
 				t.Skipf("Fabric Component %s is empty, hence skipping", f)
+			}
+
+			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+				t.Skipf("Skip the test on non-removable fabric.")
 			}
 
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
@@ -73,7 +74,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
-			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 10*time.Minute)
+			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
 
 			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
 		})
@@ -106,7 +107,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 				t.Skipf("ControllerCard Component %s is already INACTIVE, hence skipping", c)
 			}
 
-			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 3*time.Minute)
+			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 20*time.Minute)
 		})
 	}
 	if primary != "" {
@@ -132,7 +133,11 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	default:
 		t.Fatalf("Unknown component type: %s", cType.String())
 	}
-
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(name),
+		})
+	}
 	start := time.Now()
 	t.Logf("Starting %s POWER_DISABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_DISABLED)
