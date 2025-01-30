@@ -88,6 +88,15 @@ const (
 	gribiIPv6EntryEncapVRF  = "2001:db8::138:0:11:0"
 	ipv6InnerDst            = "2001:db8::138:0:11:8"
 	ipv6InnerDstNoEncap     = "2001:db8::20:0:0:1"
+	niTEVRF111             = "TE_VRF_111"
+	niTEVRF222             = "TE_VRF_222"
+	gribiIPv4EntryDefVRF1  = "192.0.2.101"
+	gribiIPv4EntryDefVRF2  = "192.0.2.102"
+	gribiIPv4EntryDefVRF3  = "192.0.2.103"
+	gribiIPv4EntryDefVRF4  = "192.0.2.104"
+	gribiIPv4EntryDefVRF5  = "192.0.2.105"
+	gribiIPv4EntryVRF2221  = "203.0.113.100"
+	gribiIPv4EntryVRF2222  = "203.0.113.101"
 
 	dutAreaAddress     = "49.0001"
 	dutSysID           = "1920.0000.2001"
@@ -460,6 +469,152 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 
 // configureAdditionalGribiAft configures additional AFT entries for Gribi.
 func configureAdditionalGribiAft(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
+	// Programming AFT entries for backup NHG
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(2000).WithDecapsulateHeader(fluent.IPinIP).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(2000).AddNextHop(2000, 1),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	// Programming AFT entries for prefixes in TE_VRF_222
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(3).WithIPAddress(gribiIPv4EntryDefVRF3),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(2).AddNextHop(3, 1).WithBackupNHG(2000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(5).WithIPAddress(gribiIPv4EntryDefVRF5),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(4).AddNextHop(5, 1).WithBackupNHG(2000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	teVRF222IPList := []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF2222}
+	for ip := range teVRF222IPList {
+		chk.HasResult(t, args.client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(teVRF222IPList[ip]+"/32").
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+
+	// Programming AFT entries for backup NHG
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2221).
+			WithNextHopNetworkInstance(niTEVRF222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1000).AddNextHop(1000, 1).WithBackupNHG(2000),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).
+			WithNextHopNetworkInstance(niTEVRF222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1001).AddNextHop(1001, 1).WithBackupNHG(2000),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(3000).AddNextHop(3000, 1),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	// Programming AFT entries for prefixes in TE_VRF_111
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1).WithIPAddress(gribiIPv4EntryDefVRF1),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(2).WithIPAddress(gribiIPv4EntryDefVRF2),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(3000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF111).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(3).AddNextHop(4, 1).WithBackupNHG(3000),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF111).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3),
+
+		fluent.IPv4Entry().WithNetworkInstance(niRepairVrf).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1000),
+		fluent.IPv4Entry().WithNetworkInstance(niRepairVrf).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(1001),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	teVRF111IPList := []string{gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}
+	for ip := range teVRF111IPList {
+		chk.HasResult(t, args.client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(teVRF111IPList[ip]+"/32").
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+
+	// Programming AFT entries for backup NHG
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(2001).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(2001).AddNextHop(2001, 1),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	// Programming AFT entries for prefixes in ENCAP_TE_VRF_A
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(101).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1111).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(102).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1112).
+			WithNextHopNetworkInstance(niTEVRF111),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(2001),
+		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(101),
+	)
+	if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(gribiIPv4EntryEncapVRF+"/24").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
