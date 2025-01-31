@@ -496,12 +496,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
 }
 
-// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
-// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
-func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
-}
-
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
 // /components/component/cpu/utilization/state/avg for linecards' CPU card.
 // Default value is false.
@@ -1263,4 +1257,57 @@ func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
 // EnableTableConnections returns true if admin state of tableconnections needs to be enabled in SRL native model
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
+
+// TcDefaultImportPolicyUnsupported returns true if default import policy for table connection is unsupported
+func TcDefaultImportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcDefaultImportPolicyUnsupported()
+}
+
+// TcMetricPropagationUnsupported returns true if metric propagation for table connection is unsupported
+func TcMetricPropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcMetricPropagationUnsupported()
+}
+
+// TcAttributePropagationUnsupported returns true if attribute propagation for table connection is unsupported
+func TcAttributePropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcAttributePropagationUnsupported()
+}
+
+// TcSubscriptionUnsupported returns true if subscription for table connection is unsupported
+func TcSubscriptionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcSubscriptionUnsupported()
+}
+
+// DefaultBgpInstanceName returns bgp instance name as set in deviation to override default value "DEFAULT"
+func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
+	if dbin := lookupDUTDeviations(dut).GetDefaultBgpInstanceName(); dbin != "" {
+		return dbin
+	}
+	return "DEFAULT"
+}
+
+// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
+func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
+}
+
+// QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
+func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
+}
+
+// GribiEncapHeaderUnsupported returns true if gribi encap header is unsupported
+func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
+}
+
+// P4RTCapabilitiesUnsupported returns true for devices that don't support P4RT Capabilities rpc.
+func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtCapabilitiesUnsupported()
+}
+
+// GNMIGetOnRootUnsupported returns true if the device does not support gNMI get on root.
+func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
