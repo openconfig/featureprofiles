@@ -74,6 +74,7 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	actions5 := stmt.GetOrCreateActions()
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
+	setMedBGP.SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
 		actions5.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED)
