@@ -62,7 +62,8 @@ Loopback address for one or more VLANs
 16 source addresses corresponding to the 16 tunnel destinations to achieve maximum entropy.
 Tunnels to be shared across one or more VLANs
 
-If TTL of the packet is 1 then the TTL must be preserved as 1 while encapsulating the packet. If TTL greater than 1 TTL may be decremented by 1.
+#### If TTL of the packet is 1 then the TTL must be preserved as 1 while encapsulating the packet. If TTL greater than 1 TTL may be decremented by 1
+
 DSCP of the incoming packet must be preserved
 DSCP of the GRE header must be configurable (Default TOS 96)
 TTL of the outer GRE must be configurable (Default TTL 64)
