@@ -1311,3 +1311,8 @@ func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
+
+// DecapGreHeaderUnsupported returns true if gribi decap gre header is unsupported
+func DecapGreHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapGreHeadersUnsupported()
+}
