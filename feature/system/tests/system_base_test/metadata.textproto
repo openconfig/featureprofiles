@@ -13,3 +13,12 @@ platform_exceptions:  {
     cli_takes_precedence_over_oc:  true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    p4rt_capabilities_unsupported: true
+    gnmi_get_on_root_unsupported: true
+  }
+}
