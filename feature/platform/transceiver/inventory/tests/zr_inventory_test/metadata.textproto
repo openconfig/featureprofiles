@@ -27,7 +27,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    require_zr_oper_mode: true
     explicit_dco_config: true
   }
 }

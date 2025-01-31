@@ -496,12 +496,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
 }
 
-// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
-// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
-func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
-}
-
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
 // /components/component/cpu/utilization/state/avg for linecards' CPU card.
 // Default value is false.
@@ -1303,9 +1297,19 @@ func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
 }
 
-// RequireZrOperMode returns true for the devices that require a mandatory value in operational-mode leaf for optical-channel
-func RequireZrOperMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetRequireZrOperMode()
+// GribiEncapHeaderUnsupported returns true if gribi encap header is unsupported
+func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
+}
+
+// P4RTCapabilitiesUnsupported returns true for devices that don't support P4RT Capabilities rpc.
+func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtCapabilitiesUnsupported()
+}
+
+// GNMIGetOnRootUnsupported returns true if the device does not support gNMI get on root.
+func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
 
 // ExplicitDcoConfig returns true if a user-configured value is required in module-functional-type for the transceiver
