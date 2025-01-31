@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 func TestSampledBackplaneCapacityCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	ics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	ics := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
 	if len(ics) == 0 {
 		t.Fatalf("Get IntegratedCircuit card list for %q: got 0, want > 0", dut.Model())
 	}
@@ -65,7 +65,6 @@ func TestSampledBackplaneCapacityCounters(t *testing.T) {
 		if !isCompNameExpected(t, ic, dut.Vendor()) {
 			continue
 		}
-
 		t.Run(fmt.Sprintf("Backplane:%s", ic), func(t *testing.T) {
 			if deviations.BackplaneFacingCapacityUnsupported(dut) {
 				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
@@ -110,20 +109,16 @@ func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
 func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	ics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	ics := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
 	if len(ics) == 0 {
 		t.Fatalf("Get IntegratedCircuit card list for %q: got 0, want > 0", dut.Model())
 	}
 	t.Logf("IntegratedCircuit components count: %d", len(ics))
 
-	fabrics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
+	fabrics := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
 	t.Logf("fabrics are %v", fabrics)
 	removable_fabrics := make([]string, 0)
 	for _, f := range fabrics {
-		compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
-		if compMtyPresent && compMtyVal {
-			continue
-		}
 		if gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
 			removable_fabrics = append(removable_fabrics, f)
 		}
@@ -226,7 +221,6 @@ func getBackplaneCapacityCounters(t *testing.T, dut *ondatra.DUTDevice, ics []st
 		if !isCompNameExpected(t, ic, dut.Vendor()) {
 			continue
 		}
-
 		t.Run(fmt.Sprintf("Backplane:%s", ic), func(t *testing.T) {
 			if deviations.BackplaneFacingCapacityUnsupported(dut) {
 				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
