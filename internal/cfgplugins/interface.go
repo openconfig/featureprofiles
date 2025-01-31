@@ -35,18 +35,18 @@ const (
 )
 
 var (
-	OpMode uint16
+	opmode uint16
 	once   sync.Once
 )
 
 func init() {
-	OpMode = 1
+	opmode = 1
 }
 
 // Initialize assigns OpMode with value recieved through operationalMode flag.
 func Initialize(operationalMode uint16) {
 	once.Do(func() {
-		OpMode = operationalMode
+		opmode = operationalMode
 	})
 }
 
@@ -68,7 +68,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 		})
 	}
 	oc := components.OpticalChannelComponentFromPort(t, dut, dp)
-	ConfigOpticalChannel(t, dut, oc, targetFrequencyMHz, targetOutputPowerdBm, OpMode)
+	ConfigOpticalChannel(t, dut, oc, targetFrequencyMHz, targetOutputPowerdBm, opmode)
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
