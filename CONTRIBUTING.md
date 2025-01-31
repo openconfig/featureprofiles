@@ -63,6 +63,7 @@ The directory tree is organized as follows:
     routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
 *   `internal/` contains packages used by feature profile tests.
+*   `internal/cfgplugins` contains packages used to generate device configuration.
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
 *   `topologies/` contains the testbed topology definitions.
@@ -135,49 +136,26 @@ For example:
 *   `feature/interface/singleton/otg_tests/singleton_test/rundata_test.go`
     contains the rundata.
 
-## Code Should Follow The Test Plan
+## Code Should Follow The Test README
 
-The test plan in `README.md` is generally structured like this:
-
-```
-# RT-5.1: Singleton Interface
-
-## Summary
-
-...
-
-## Procedure
-
-1. Step 1
-2. Step 2
-3. ...
-
-## Config Parameter Coverage
-
-*   /interfaces/interface/config/name
-*   /interfaces/interface/config/description
-*   ...
-
-## Telemetry Parameter Coverage
-
-*   /interfaces/interface/state/oper-status
-*   /interfaces/interface/state/admin-status
-*   ...
-```
+The test `README.md` should be structured following the
+[test plan template]([url](https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md)).
 
 Each step in the test plan procedure should correspond to a comment or `t.Log`
-in the code. Steps not covered by code should have a TODO.
+in the code. Steps not covered by code should have a TODO comment in the test
+code.
 
-In the PR, please mention any corrections made to the test plan for errors that
+In the PR, please mention any corrections made to the test README for errors that
 were discovered when implementing the code.
 
 ## Test Structure
 
 Generally, a Feature Profiles ONDATRA test has the following stages: configure
 DUT, configure OTG, generate and verify traffic, verify telemetry. The
-configuration stages should be factored out to their own functions, and any
-subtests should be run under `t.Run` so the test output clearly reflects which
-parts of the test passed and which parts failed.
+configuration generation code should be factored out to their own functions and
+placed in the `/internal/cfgplugins` folder.  Subtests should be run under `t.Run` 
+so the test output clearly reflects which parts of the test passed and which parts
+failed.
 
 They typically just report the error using `t.Error()` for checks. This way, the
 error message is accurately attributed to the line of code where the error
