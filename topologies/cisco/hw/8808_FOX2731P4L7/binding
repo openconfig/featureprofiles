@@ -22,9 +22,9 @@ options {
   password: "cisco123"
   insecure: false 
   skip_verify: false
-  trust_bundle_file: "/auto/ced-ottawa/harikri4/B4/certs/client/ca.cert.pem"
-  cert_file: "/auto/ced-ottawa/harikri4/B4/certs/client/cafyauto.cert.pem"
-  key_file:  "/auto/ced-ottawa/harikri4/B4/certs/client/cafyauto.key.pem"
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
 }
 
 duts {
