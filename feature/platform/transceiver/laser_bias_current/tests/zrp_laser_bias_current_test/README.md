@@ -1,4 +1,4 @@
-# TRANSCEIVER-9: Telemetry: 400ZR_PLUS TX laser bias current telemetry values streaming. 
+# TRANSCEIVER-9 (400ZR_PLUS): Telemetry: 400ZR_PLUS TX laser bias current telemetry values streaming. 
 
 ## Summary
 
