@@ -16,10 +16,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/ondatra"
-	"github.com/openconfig/ondatra/otg/otg"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/otg"
 )
 
 const (
@@ -248,38 +248,6 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	t.Log("Traffic stopped")
 }
 
-// validatePacketCapture reads capture files and checks the encapped packet for desired protocol, dscp and ttl
-func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string) error {
-	for _, otgPortName := range otgPortNames {
-		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
-		f, err := os.CreateTemp("", ".pcap")
-		if err != nil {
-			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
-		}
-		if _, err := f.Write(bytes); err != nil {
-			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
-		}
-		f.Close()
-		t.Logf("Verifying packet attributes captured on %s", otgPortName)
-		handle, err := pcap.OpenOffline(f.Name())
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer handle.Close()
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		for packet := range packetSource.Packets() {
-			innerPacket := packet.Layer(gopacket.LayerType(layers.LayerTypeIPv6)).(*layers.IPv6)
-			if innerPacket == nil {
-				return fmt.Errorf("No IPv6 header found in packet")
-			}
-			// Validate destination IPs are inner_ipv6_dst_A
-			if innerPacket.DstIP.String() != innerIPv6DstA {
-				return fmt.Errorf("IPv6 destination not found in packet")
-			}
-		}
-	}
-	return nil
-}
 
 // startCapture starts the capture on the otg ports
 func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
