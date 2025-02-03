@@ -3,7 +3,6 @@ package mpls_in_gre_decap_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
