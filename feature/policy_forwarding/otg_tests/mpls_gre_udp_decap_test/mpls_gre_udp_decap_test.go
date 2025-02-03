@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -18,6 +17,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 	trafficDuration = 15 * time.Second
 	innerIPv6DstA   = "2001:aa:bb::1/128"
 	outerIPv6Src    = "2015:aa8::2"
-	vrfB             = "VRF-10"
+	vrfB            = "VRF-10"
 	mplsGREProtocol = 47
 )
 
@@ -174,7 +174,6 @@ func (fa *flowAttr) CreateFlow(flowType string, name string) gosnappi.Flow {
 	return flow
 }
 
-
 func configForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(vrfB)
@@ -245,7 +244,6 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
 }
-
 
 // startCapture starts the capture on the otg ports
 func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
@@ -332,7 +330,7 @@ func TestMPLSOGREDecap(t *testing.T) {
 			t.Log("Start capture and send traffic")
 			sendTraffic(t, tcArgs, tc.flows, true)
 			t.Log("Validate captured packet attributes")
-      // TODO: b/364961777 upstream GUE decoder to gopacket addition is pending.
+			// TODO: b/364961777 upstream GUE decoder to gopacket addition is pending.
 			// err := validatePacketCapture(t, tcArgs, tc.capturePorts)
 			clearCapture(t, otg.OTG(), topo)
 			// if err != nil {
