@@ -1,7 +1,4 @@
 simulation: 
-  vxr_sim_config:
-    default:
-      ConfigInternalPxe: "true"
   pyvxr_flags: 
     port_file_timeout: 10000
     spitfire_cvac_override: true
