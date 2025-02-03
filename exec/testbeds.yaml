@@ -280,6 +280,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp.conf
+  8808-1DUT-pxe-boot:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT/topo-pxe-boot.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp.conf
   8201-1DUT-vrf-mgmt:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml

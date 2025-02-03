@@ -3,9 +3,12 @@ package os_install_test
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
+	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -90,13 +93,34 @@ func TestOSInstall(t *testing.T) {
 
 	testCases := []testCase{}
 
+	if *debugCommandYaml == "" {
+		// Get the current working directory
+		currentDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current working directory: %v", err)
+		}
+
+		// Get the absolute path of the test file
+		absPath, err := filepath.Abs(currentDir)
+		if err != nil {
+			t.Fatalf("Failed to get absolute path: %v", err)
+		}
+		*debugCommandYaml = absPath + "/debug.yaml"
+	}
+	command, err := log_collector.ParseYAML(*debugCommandYaml)
+	// command = command["commandPatterns"]
+	if err != nil {
+		t.Fatalf("Error parsing debug YAML = %v , %v", *debugCommandYaml, err)
+	}
+
 	for _, device := range ondatra.DUTs(t) {
 		tc1 := testCase{
-			dut:      device,
-			osc:      device.RawAPIs().GNOI(t).OS(),
-			sc:       device.RawAPIs().GNOI(t).System(),
-			ctx:      context.Background(),
-			noReboot: deviations.OSActivateNoReboot(device),
+			dut:             device,
+			osc:             device.RawAPIs().GNOI(t).OS(),
+			sc:              device.RawAPIs().GNOI(t).System(),
+			ctx:             context.Background(),
+			noReboot:        deviations.OSActivateNoReboot(device),
+			commandPatterns: command,
 		}
 		tc1.negActivateTestCases = []activateNegativeTestCases{
 			//version,noReboot,standby,expectFail,expectedError
@@ -111,17 +135,10 @@ func TestOSInstall(t *testing.T) {
 		}
 		tc1.fetchStandbySupervisorStatus(t)
 		tc1.fetchOsFileDetails(t, *osFileForceDownloadSupported)
-		// if i == 0 {
-		// 	tc1.fetchOsFileDetails(t, *osFileForceDownloadSupported)
-		// } else {
-		// 	tc1.fetchOsFileDetails(t, *osFileForceDownloadNotSupported)
-		// }
 		tc1.updatePackageReader(t)
 		tc1.setTimeout(t, *timeout)
 		tc1.updateForceDownloadSupport(t)
 		testCases = append(testCases, tc1)
-		// }
-
 	}
 
 	var wg sync.WaitGroup

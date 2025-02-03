@@ -47,11 +47,11 @@ type testCase struct {
 	forceDownloadSupported bool
 	oss                    cliparser.OSPProtoStats
 
-	osFile    string
-	osVersion string
-	timeout   time.Duration
-
+	osFile               string
+	osVersion            string
+	timeout              time.Duration
 	negActivateTestCases []activateNegativeTestCases
+	commandPatterns      map[string]map[string]interface{}
 }
 
 var packageReader func(context.Context, string) (io.ReadCloser, error) = func(ctx context.Context, os_file string) (io.ReadCloser, error) {

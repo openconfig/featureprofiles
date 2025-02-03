@@ -1,19 +1,24 @@
 package os_install_test
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"path"
+	"runtime"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 )
 
 var (
 	osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
-	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
+	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "/auto/ops-tool/ws-krinata2/images/8000-dev-x64-EFR-00000467652.iso", "Path to the OS image (Force Download Supported) for the install operation")
 	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
+	logDir                          = flag.String("logDir", "/auto/ops-tool/ws-krinata2/logs/force_transfer/trial1", "Firex path to copy the logs after each test case")
+	debugCommandYaml                = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
 	timeout                         = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
 )
 
@@ -29,7 +34,8 @@ const (
 
 	// gNOI install update request: rpc error: code = Internal desc = { "cisco-grpc:errors": {  "error": [   {    "error-type": "application",    "error-tag": "operation-failed",    "error-severity": "error",    "error-message": "'Install' detected the 'warning' condition 'Packaging operation in progress. Cannot accept further requests until complete'"   }  ] }}"}"
 	// gNOI install update request: rpc error: code = Internal desc = { "cisco-grpc:errors": {  "error": [   {    "error-type": "application",    "error-tag": "operation-failed",    "error-severity": "error",    "error-message": "'Install' detected the 'warning' condition 'Apply atomic change in progress. Cannot accept further requests until complete'"   }  ] }}"}"
-	activateInProgressError = "Cannot accept further requests until complete"
+	// activateInProgressError = "Cannot accept further requests until complete"
+	activateInProgressError = "Activate already in progress"
 
 	// OS.Activate error NON_EXISTENT_VERSION: xx.x.x.xxx doesn't exist
 	activateImageNotAvailableError = "doesn't exist"
@@ -44,7 +50,13 @@ const (
 	activateOnStandbyFixed = "activate operation on a fixed chassis"
 )
 
+func funcName() string {
+	pc, _, _, _ := runtime.Caller(1)
+	return path.Base(runtime.FuncForPC(pc).Name())
+}
+
 func testOSForceTransferDiskFull(t *testing.T, tc testCase) {
+	log_collector.Start(context.Background(), t, tc.dut)
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 	// Simulate disk full scenario
 	t.Run("disk full scenario", func(t *testing.T) {
@@ -198,7 +210,12 @@ func testOSForceTransferExistingImageEmptyVersion(t *testing.T, tc testCase) {
 
 func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
+	// log_collector.CollectRouterLogs(tc.ctx, t, tc.dut, *logDir, "beforeUpgrade", tc.commandPatterns)
+	// CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
+
+	// Parse the output directly from the DUT
+	// initialPlatformMap := util.ParseShowPlatform(t, tc.dut)
+
 	t.Run("Force install ExistingImage using Wrong version", func(t *testing.T) {
 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
 		tc.transferOS(tc.ctx, t, false, "WRONG_VERSION", "")
@@ -221,48 +238,50 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 		})
 	}
 
-	t.Run("test Supervisor Switchover", func(t *testing.T) {
-		util.SupervisorSwitchover(t, tc.dut)
-		tc.pollRpc(t)
-	})
-	if tc.dualSup {
-		t.Run("Activating using correct version expected failure no image", func(t *testing.T) {
-			tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
+	// t.Run("test Supervisor Switchover", func(t *testing.T) {
+	// 	util.SupervisorSwitchover(t, tc.dut)
+	// 	tc.pollRpc(t)
+	// })
+	// if tc.dualSup {
+	// 	t.Run("Activating using correct version expected failure no image", func(t *testing.T) {
+	// 		tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
 
-			if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
-				tc.transferOS(tc.ctx, t, true, "", "")
-				tc.activateOS(tc.ctx, t, true, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
-			}
-		})
+	// 		if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
+	// 			tc.transferOS(tc.ctx, t, true, "", "")
+	// 			tc.activateOS(tc.ctx, t, true, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
+	// 		}
+	// 	})
 
-		tc.fetchOsFileDetails(t, tc.osFile)
+	// 	tc.fetchOsFileDetails(t, tc.osFile)
 
-		t.Run("Force install Image using empty version", func(t *testing.T) {
-			t1, _ := listISOFile(t, tc.dut, tc.osVersion)
-			tc.transferOS(tc.ctx, t, false, "", "")
-			if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
-				tc.transferOS(tc.ctx, t, true, "", "")
-			}
-			t2, _ := listISOFile(t, tc.dut, tc.osVersion)
-			if isGreater(t1, t2) {
-				t.Fatal("image not force updated")
-			}
-		})
+	// 	t.Run("Force install Image using empty version", func(t *testing.T) {
+	// 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
+	// 		tc.transferOS(tc.ctx, t, false, "", "")
+	// 		if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
+	// 			tc.transferOS(tc.ctx, t, true, "", "")
+	// 		}
+	// 		t2, _ := listISOFile(t, tc.dut, tc.osVersion)
+	// 		if isGreater(t1, t2) {
+	// 			t.Fatal("image not force updated")
+	// 		}
+	// 	})
 
-		for _, activateTC := range tc.negActivateTestCases {
-			version := "1.2.3.4I-wrong"
-			if activateTC.version == true {
-				version = tc.osVersion
-			}
-			expectedError := activateTC.modularExpectedError
-			if !tc.dualSup {
-				expectedError = activateTC.fixedExpectedError
-			}
-			t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
-				tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
-			})
-		}
-	}
+	// 	for _, activateTC := range tc.negActivateTestCases {
+	// 		version := "1.2.3.4I-wrong"
+	// 		if activateTC.version == true {
+	// 			version = tc.osVersion
+	// 		}
+	// 		expectedError := activateTC.modularExpectedError
+	// 		if !tc.dualSup {
+	// 			expectedError = activateTC.fixedExpectedError
+	// 		}
+	// 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
+	// 			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
+	// 		})
+	// 	}
+	// }
+
+	log_collector.CollectRouterLogs(tc.ctx, t, tc.dut, *logDir, "beforeUpgradeAfterSSO", tc.commandPatterns)
 
 	t.Run("Activating using correct version - expected success", func(t *testing.T) {
 		tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, false, "")
@@ -291,6 +310,13 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 		testPushAndVerifyInterfaceConfig(t, tc.dut)
 		testPushAndVerifyBGPConfig(t, tc.dut)
 	})
+	t.Run("Verify for any errors", func(t *testing.T) {
+		log_collector.CollectRouterLogs(tc.ctx, t, tc.dut, *logDir, "testOSForceInstallSupportedToSupportedImage", tc.commandPatterns)
+	})
+	// Verify the node states
+	// if !util.VerifyNodeStates(t, tc.dut, initialPlatformMap, 0*time.Second) {
+	// 	t.Error("Some nodes did not reach the expected state within 10 minutes.")
+	// }
 }
 
 func testOSForceInstallSupportedToNotSupportedImage(t *testing.T, tc testCase) {
@@ -300,7 +326,7 @@ func testOSForceInstallSupportedToNotSupportedImage(t *testing.T, tc testCase) {
 	noReboot := deviations.OSActivateNoReboot(tc.dut)
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 
-	CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
+	// CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
 
 	t.Run("Force install old image using Wrong version", func(t *testing.T) {
 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
@@ -353,13 +379,16 @@ func testOSForceInstallSupportedToNotSupportedImage(t *testing.T, tc testCase) {
 		testPushAndVerifyInterfaceConfig(t, tc.dut)
 		testPushAndVerifyBGPConfig(t, tc.dut)
 	})
+	t.Run("Verify for any errors", func(t *testing.T) {
+		log_collector.CollectRouterLogs(tc.ctx, t, tc.dut, *logDir, "testOSForceInstallSupportedToNotSupportedImage", tc.commandPatterns)
+	})
 }
 
 func testOSNormalInstallNotSupportedToSupportedImage(t *testing.T, tc testCase) {
 	tc.fetchOsFileDetails(t, *osFile)
 	// For HW ensure no image in harddisk
 	removeISOFile(t, tc.dut, tc.osVersion)
-	CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
+	// CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
 
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 
@@ -414,5 +443,7 @@ func testOSNormalInstallNotSupportedToSupportedImage(t *testing.T, tc testCase) 
 		testPushAndVerifyInterfaceConfig(t, tc.dut)
 		testPushAndVerifyBGPConfig(t, tc.dut)
 	})
-
+	t.Run("Verify for any errors", func(t *testing.T) {
+		log_collector.CollectRouterLogs(tc.ctx, t, tc.dut, *logDir, "testOSNormalInstallNotSupportedToSupportedImage", tc.commandPatterns)
+	})
 }

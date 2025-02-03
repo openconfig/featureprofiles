@@ -2,7 +2,6 @@ package os_install_test
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"testing"
 
@@ -125,41 +124,47 @@ func testPushAndVerifyBGPConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func compareStructs(t *testing.T, dutConf, val interface{}) {
-	vdutConf := reflect.ValueOf(dutConf).Elem()
-	vval := reflect.ValueOf(val).Elem()
-	tdutConf := vdutConf.Type()
+// compareStructs iterates over want comparing values with got
+func compareStructs(t *testing.T, want, got interface{}) {
+	vwant := reflect.ValueOf(want).Elem()
+	vgot := reflect.ValueOf(got).Elem()
+	twant := vwant.Type()
 
-	for i := 0; i < vdutConf.NumField(); i++ {
-		fieldName := tdutConf.Field(i).Name
-		fdutConf := vdutConf.Field(i)
-		fval := vval.FieldByName(fieldName)
-		if fdutConf.Kind() == reflect.Ptr && fdutConf.IsNil() {
+	// Iterate over the fields of the struct
+	for i := 0; i < vwant.NumField(); i++ {
+		fieldName := twant.Field(i).Name
+		fwant := vwant.Field(i)
+		fgot := vgot.FieldByName(fieldName)
+		// check if the field is a pointer and is nil, this means its the end of the leaf node
+		if fwant.Kind() == reflect.Ptr && fwant.IsNil() {
 			continue
 		} else {
-			if fdutConf.Kind() == reflect.Ptr && fdutConf.Elem().Kind() == reflect.Struct {
-				compareStructs(t, fdutConf.Interface(), fval.Interface())
-			} else if fdutConf.Kind() == reflect.Map && fdutConf.IsValid() {
-				for _, key := range fdutConf.MapKeys() {
-					strct := fdutConf.MapIndex(key)
-					strctVal := fval.MapIndex(key)
-					log.Printf("strct %v \t, strctVal %v\n", strct, strctVal)
+			// check if the field is a struct or a pointer to a struct, if so call compareStructs recursively
+			if fwant.Kind() == reflect.Ptr && fwant.Elem().Kind() == reflect.Struct {
+				compareStructs(t, fwant.Interface(), fgot.Interface())
+				// check if the field is a slice and non empty, if so iterate over the slice and call compareStructs recursively
+			} else if fwant.Kind() == reflect.Map && fwant.IsValid() {
+				for _, key := range fwant.MapKeys() {
+					strct := fwant.MapIndex(key)
+					strctVal := fgot.MapIndex(key)
+					// if there is a map inside a struct, call compareStructs recursively
 					if strct.Kind() == reflect.Map {
 						compareStructs(t, strct.Interface(), strctVal.Interface())
-					} else if fdutConf.Kind() == reflect.Ptr && fdutConf.IsNil() {
+					} else if fwant.Kind() == reflect.Ptr && fwant.IsNil() {
 						continue
 					} else if strct.Kind() == reflect.Ptr && strct.Elem().Kind() == reflect.Struct {
 						compareStructs(t, strct.Interface(), strctVal.Interface())
 					}
 				}
-			} else if reflect.DeepEqual(fdutConf.Interface(), fval.Interface()) {
-				t.Logf("The field %s is equal in both structs\n got: %#v \t want: %#v \n", fieldName, fdutConf.Interface(), fval.Interface())
+				// check if the enum type is 0, this means the field is not set and should be skipped
+			} else if fwant.Kind() == reflect.Int64 && fwant.Int() == 0 {
+				t.Logf("Skipping default value with the field %s\n", fieldName)
+				continue
+				// compare the field values if they are the same or not
+			} else if reflect.DeepEqual(fwant.Interface(), fgot.Interface()) {
+				t.Logf("The field %s is equal in both structs\n got: %#v \t want: %#v \n", fieldName, fwant.Interface(), fgot.Interface())
 			} else {
-				if !(fieldName == "SendCommunity") {
-					t.Errorf("The field %s is not equal in both structs\n got: %#v \t want: %#v \n", fieldName, fdutConf.Interface(), fval.Interface())
-				} else {
-					continue
-				}
+				t.Errorf("The field %s is not equal in both structs\n got: %#v \t want: %#v \n", fieldName, fwant.Interface(), fgot.Interface())
 			}
 		}
 
