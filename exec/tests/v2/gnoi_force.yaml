@@ -9,9 +9,10 @@ tests:
   timeout: 36000
   mustpass: true
   internal: true
-  branch: krinata2_os_install
+  branch: master
   args:
   - '-osFileForceDownloadSupported="/auto/b4ws/xr/builds/nightly/latest-1/img-8000/8000-x64.iso"'
   - '-osFileForceDownloadNotSupported="/auto/b4ws/xr/builds/nightly/latest-2/img-8000/8000-x64.iso"'
   - '-osFile="/auto/b4ws/xr/builds/nightly/latest/img-8000/8000-x64.iso"'
   - '-timeout="50m"'
+  - '-logDir ($test_log_directory_path)'
