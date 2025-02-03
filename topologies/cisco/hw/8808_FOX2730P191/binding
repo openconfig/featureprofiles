@@ -108,10 +108,10 @@ ates {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-    target: "10.85.72.53"
+    target: "10.85.72.36"
     skip_verify: true
     username: "admin"
-    password: "Admin!@#123123"
+    password: "IxNetwork2022!"
    # windows
    # target: "10.85.84.161:12009" 
    # skip_verify: true
