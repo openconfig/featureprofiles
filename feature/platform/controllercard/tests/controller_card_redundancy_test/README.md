@@ -96,7 +96,7 @@
 
 ```yaml
 paths:
-  /components/component/controller-card/state/power-admin-state
+  /components/component/state/power-admin-state
   /components/component/state/empty
   /components/component/state/location
   /components/component/state/oper-status
@@ -124,8 +124,8 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
   gnoi:
-    system.System.SwitchControlProcessor
-    system.System.Reboot
+    system.System.SwitchControlProcessor:
+    system.System.Reboot:
 ```
 
 ## Minimum DUT platform requirement
