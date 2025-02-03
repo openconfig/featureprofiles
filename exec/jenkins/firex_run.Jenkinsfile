@@ -44,7 +44,7 @@ pipeline {
             customWorkspace "${auto_job_dir}"
         }
     }
-
+    
     options {
         disableConcurrentBuilds()
     }
@@ -255,7 +255,7 @@ pipeline {
             steps {
                 script {
                     testgen_cmd_parts = [
-                        "go run exec/firex/v2/testsuite_generator.go",
+                        "/auto/firex/bin/go run exec/firex/v2/testsuite_generator.go",
                         "-files ${ts_internal.join(',')}",
                         "-internal_repo_rev '${env.GIT_COMMIT}'"
                     ]
@@ -631,7 +631,7 @@ def parseTestbeds(String testbeds_list) {
 }
 
 def lockTestbeds(List testbeds) {
-    sh "/auto/tftpboot-ottawa/b4/bin/tblock lock -w -r '${env.JOB_BASE_NAME}' '${testbeds.join(',')}'"
+    sh "/auto/tftpboot-ottawa/b4/bin/tblock lock -w -r '${env.BUILD_URL}' '${testbeds.join(',')}'"
 }
 
 def releaseTestbeds(List testbeds) {

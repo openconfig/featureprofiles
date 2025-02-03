@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 class IDatabase(ABC):
+    """Implement abstract class to handle database functions"""
     @abstractmethod
     def insert_logs(self, documents):
         pass

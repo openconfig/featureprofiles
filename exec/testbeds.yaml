@@ -170,6 +170,13 @@ testbeds:
       gnmi_port: 58818
       rest_port: 38818
 
+  8808_FOX2731P4L7: 
+    hw: 8808_FOX2731P4L7
+    owner: harikri4
+    testbed: topologies/cisco/hw/8808_FOX2731P4L7/testbed
+    binding: topologies/cisco/hw/8808_FOX2731P4L7/binding
+    baseconf: topologies/cisco/hw/8808_FOX2731P4L7/base_config.proto
+  
   2DUT-TB1:
     hw:
       - 8808-FOX2508P0JU
@@ -254,6 +261,18 @@ testbeds:
       controller_port: 40063
       gnmi_port: 50063
       rest_port: 30063
+  
+  8201-32FH-FLM254506DQ:
+    hw: 8201-32FH-FLM254506DQ
+    owner: wdolaast
+    testbed: topologies/cisco/hw/8201-32FH-FLM254506DQ/testbed
+    binding: topologies/cisco/hw/8201-32FH-FLM254506DQ/binding
+    baseconf: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
+    otg:
+      host: kne2-lnx
+      controller_port: 40066
+      gnmi_port: 50066
+      rest_port: 30066
   
   2DUT-TB3:
     hw:
@@ -369,3 +388,20 @@ testbeds:
       controller_port: 40051
       gnmi_port: 50051
       rest_port: 30051
+
+  2DUT-TB4:
+    hw:
+      - 8808-36FH_FOX2504P3CE
+      - 8201-32FH-FLM254506DQ
+    owner: wdolaast
+    testbed: topologies/cisco/hw/2DUT-TB4/testbed
+    binding: topologies/cisco/hw/2DUT-TB4/binding
+    baseconf:
+      dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+      dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
+    otg:
+      host: kne2-lnx
+      controller_port: 40062
+      gnmi_port: 50062
+      rest_port: 30062
+

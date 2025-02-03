@@ -48,7 +48,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2962  
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/otg_tests/base_leader_election_test
     owners:
@@ -484,7 +483,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 1002
-    pr: 2964
     testbeds:
       - 2DUT-TB2
   - name: RT-1.3 (BGP Route Propagation)
@@ -706,9 +704,9 @@ tests:
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
-      - sahubbal
+      - kjahed
     mustpass: true
-    timeout: 2400
+    timeout: 3600
     skip: true # danger?
   - name: FP-1.1 (Power admin DOWN/UP Test)
     path: feature/platform/tests/power_admin_down_up_test
@@ -859,7 +857,6 @@ tests:
     owners:
       - arvbaska
     mustpass: true  
-    pr: 3134     
   - name: TE-11.21 (DCGate - Backup NHG Multiple NH with PBF)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_pbf_test
     owners:
