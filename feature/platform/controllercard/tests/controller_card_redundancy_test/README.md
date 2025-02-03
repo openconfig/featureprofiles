@@ -36,10 +36,11 @@
 * Verify that all controller_cards have `switchover-ready=TRUE`
 * Collect and store `redundant-role` for each controller_card as "previous-role"
 * Initiate controller-card switchover
-* Try periodicaly (60 sec interval) untill sucesfull but no longer then 20 min: Collect `redundant-role` for each controller_card. Compare it with "previous-role"
-  * for controller_card of **current** "PRIMARY" role, **previous** role must be "SECONDARY"
-  * for controller_card of **current** "SECONDARY" role, **previous** role must be "PRIMARY"
-* try until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
+* Try periodicaly (60 sec interval)  get `state/redundant-role` and `state/switchover-ready` of both CONTROLLER_CARDS  untill sucesfully recived responce, but no longer then 20 min.
+  * Collect `redundant-role` for each controller_card. Compare it with "previous-role"
+    * for controller_card of **current** "PRIMARY" role, **previous** role must be "SECONDARY"
+    * for controller_card of **current** "SECONDARY" role, **previous** role must be "PRIMARY"
+* Keep periodicly get `state/switchover-ready` until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
   * Wait(5min)
   * Verify that all controller_cards has `switchover-ready=TRUE`; if so test PASSED
 
