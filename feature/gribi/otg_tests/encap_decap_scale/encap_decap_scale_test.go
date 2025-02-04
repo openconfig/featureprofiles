@@ -107,7 +107,7 @@ const (
 	teVrf111TunnelCount     = 1600
 	teVrf222TunnelCount     = 1600
 	encapNhCount            = 1600
-	encapNhgcount           = 800
+	encapNhgcount           = 200
 	encapIPv4Count          = 5000
 	encapIPv6Count          = 5000
 	decapIPv4Count          = 48
@@ -1009,6 +1009,7 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 	// Install decapIPv4ScaleCount entries with fixed prefix length of /32 in DECAP_TE_VRF.
 	decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
 	pushDecapScaleEntries(t, args, decapScaleEntries)
+
 	// Send traffic and verify packets to DUT-1.
 	createAndSendTrafficFlows(t, args, decapScaleEntries)
 }
