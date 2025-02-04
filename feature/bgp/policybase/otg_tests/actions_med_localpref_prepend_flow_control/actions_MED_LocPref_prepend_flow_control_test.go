@@ -260,6 +260,7 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 				}
 			} else {
 				actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
+				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 			}
 		} else {
