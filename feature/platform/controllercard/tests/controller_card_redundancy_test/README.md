@@ -96,7 +96,7 @@
 
 ```yaml
 paths:
-  /components/component/state/power-admin-state
+  /components/component/state/controller-card/power-admin-state
   /components/component/state/empty
   /components/component/state/location
   /components/component/state/oper-status
