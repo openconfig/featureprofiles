@@ -15,6 +15,7 @@
 package qos_basic_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -111,6 +113,10 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 		ConfigureJuniperQos(t, dut)
 	default:
 		ConfigureQoS(t, dut)
+	}
+
+	if deviations.NoZeroSuppression(dut) {
+		configureNoZeroSuppression(t, dut)
 	}
 
 	// Configure ATE interfaces.
@@ -398,24 +404,13 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			ate.OTG().StartProtocols(t)
 
 			counters := make(map[string]map[string]uint64)
-			var counterNames []string
 
-			if !deviations.QOSDroppedOctets(dut) {
-				counterNames = []string{
+			var counterNames = []string{
 
-					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-					"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
-					"dutQosDroppedOctetsAfterTraffic",
-				}
-			} else {
-				counterNames = []string{
-
-					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-					"dutQosDroppedPktsAfterTraffic",
-				}
-
+				"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+				"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+				"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+				"dutQosDroppedOctetsAfterTraffic",
 			}
 
 			for _, name := range counterNames {
@@ -449,13 +444,12 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				}
 				counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-				if !deviations.QOSDroppedOctets(dut) {
-					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
-					if !ok {
-						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
-					}
-					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
 				}
+				counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
 			}
 
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
@@ -475,9 +469,8 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
 				counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				if !deviations.QOSDroppedOctets(dut) {
-					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
-				}
+				counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
 				if ateTxPkts == 0 {
@@ -518,14 +511,37 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 					}
 				}
 
-				if !deviations.QOSDroppedOctets(dut) {
-					dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-					t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
-					if dutDropOctetCounterDiff != 0 {
-						t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
-					}
+				dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+				t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+				if dutDropOctetCounterDiff != 0 {
+					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
 				}
 
+			}
+
+			// gnmi subscribe sample mode(10 and 15 seconds sample interval) for queue counters
+			subscribeTimeout := 30 * time.Second
+			for _, sampleInterval := range []time.Duration{10 * time.Second, 15 * time.Second} {
+				minWant := int(subscribeTimeout/sampleInterval) - 1
+				for _, data := range trafficFlows {
+					transmitPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), subscribeTimeout).Await(t)
+					if len(transmitPkts) < minWant {
+						t.Errorf("TransmitPkts: got %d, want >= %d", len(transmitPkts), minWant)
+					}
+					transmitOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), subscribeTimeout).Await(t)
+					if len(transmitOctets) < minWant {
+						t.Errorf("TransmitOctets: got %d, want >= %d", len(transmitOctets), minWant)
+					}
+					droppedPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), subscribeTimeout).Await(t)
+					if len(droppedPkts) < minWant {
+						t.Errorf("DroppedPkts: got %d, want >= %d", len(droppedPkts), minWant)
+					}
+					droppedOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), subscribeTimeout).Await(t)
+					if len(droppedOctets) < minWant {
+						t.Errorf("DroppedOctets: got %d, want >= %d", len(droppedOctets), minWant)
+					}
+
+				}
 			}
 		})
 	}
@@ -1725,4 +1741,60 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		queue.SetQueueManagementProfile("ECNProfile")
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
+}
+
+func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(interval),
+	)
+}
+func configureNoZeroSuppression(t *testing.T, dut *ondatra.DUTDevice) {
+	// Disable Zero suppression
+	t.Logf("Disable zero suppression:\n%s", dut.Vendor())
+	var config string
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		config = disableZeroSuppression()
+		t.Logf("Push the CLI config:\n%s", config)
+
+	default:
+		t.Errorf("Invalid configuration")
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	gpbSetRequest := buildCliConfigRequest(config)
+
+	t.Log("gnmiClient Set CLI config")
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+	}
+}
+
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	// Build config with Origin set to cli and Ascii encoded config.
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest
+}
+
+func disableZeroSuppression() string {
+	return (`
+	services {
+		analytics {
+			zero-suppression {
+				no-zero-suppression;
+			}
+		}
+	}`)
 }

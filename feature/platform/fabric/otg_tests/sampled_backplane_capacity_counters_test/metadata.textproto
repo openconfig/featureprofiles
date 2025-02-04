@@ -1,0 +1,25 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ef804c64-84dd-432d-ab38-630e9c82b42d"
+plan_id: "gNMI-1.18"
+description: "gNMI subscribe with sample mode for backplane capacity counters"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    missing_value_for_defaults: true
+  }
+}
+

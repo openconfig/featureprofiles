@@ -51,6 +51,9 @@ const (
 
 	// gcpPhysicalTestTopic is the name of the pubsub topic in gcpProjectID for launching physical tests.
 	gcpPhysicalTestTopic = "featureprofiles-physical-tests"
+
+	// gcpCloudBuildServiceAccount is the service account used by all Cloud Build jobs launched for KNE tests.
+	gcpCloudBuildServiceAccount = "fp-kne-cloudbuild@disco-idea-817.iam.gserviceaccount.com"
 )
 
 // authorizedTeams is the list of GitHub organization teams authorized to launch Cloud Build jobs.
@@ -67,7 +70,6 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
-		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
 		{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
@@ -82,7 +84,6 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
-		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
 		{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
@@ -92,7 +93,6 @@ var triggerKeywords = map[string][]deviceType{
 	"/fptest cisco-8000e":        {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
 	"/fptest cisco-8808":         {{Vendor: opb.Device_CISCO, HardwareModel: "8808"}},
 	"/fptest cisco-xrd":          {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
-	"/fptest juniper-cptx":       {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
 	"/fptest juniper-ncptx":      {{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}},
 	"/fptest juniper-ptx10008":   {{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"}},
 	"/fptest nokia-7250":         {{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"}},
@@ -103,7 +103,6 @@ var triggerKeywords = map[string][]deviceType{
 	"/fptest ceos":    {{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}},
 	"/fptest 8000e":   {{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}},
 	"/fptest xrd":     {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
-	"/fptest cptx":    {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
 	"/fptest srl":     {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
 	"/fptest lemming": {{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}},
 }
@@ -113,7 +112,6 @@ var virtualDeviceTypes = []deviceType{
 	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"},
 	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
 	{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
@@ -124,7 +122,6 @@ var virtualDeviceMachineType = map[deviceType]string{
 	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-16",
 	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:        "n2-standard-32",
 	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-16",
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}:       "n2-standard-32",
 	{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}:      "e2-standard-16",
 	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-16",
 	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-16",

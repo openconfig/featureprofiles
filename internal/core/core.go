@@ -20,6 +20,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sync"
@@ -30,7 +31,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/eventlis"
-	"google.golang.org/grpc"
 
 	fpb "github.com/openconfig/gnoi/file"
 	opb "github.com/openconfig/ondatra/proto"
@@ -75,7 +75,6 @@ type checker struct {
 
 	mu        sync.Mutex
 	startTime time.Time
-	endTime   time.Time
 	prevCores coreFiles
 }
 
@@ -88,7 +87,7 @@ func newChecker(dut binding.DUT) (*checker, error) {
 	if _, ok := vendorCoreFileNamePattern[dutVendor]; !ok {
 		return nil, fmt.Errorf("add support for vendor %v in var vendorCoreFileNamePattern", dutVendor)
 	}
-	gClients, err := dut.DialGNOI(context.Background(), grpc.WithBlock())
+	gClients, err := dut.DialGNOI(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +198,7 @@ func createReport(d map[string]dutCoreFiles) string {
 	return b.String()
 }
 
-func registerAfter(e *eventlis.AfterTestsEvent) error {
+func registerAfter(_ *eventlis.AfterTestsEvent) error {
 	cores := validator.stop()
 	foundCores := false
 	for _, files := range cores {
@@ -213,7 +212,7 @@ func registerAfter(e *eventlis.AfterTestsEvent) error {
 	glog.Infof(msg)
 	ondatra.Report().AddSuiteProperty("validator.core.end", report)
 	if foundCores {
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 	return nil
 }

@@ -16,21 +16,27 @@
 package helpers
 
 import (
+	"context"
+	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 // FetchOperStatusUPIntfs function uses telemetry to generate a list of all up interfaces.
 // When CheckInterfacesInBinding is set to true, all interfaces that are not defined in binding file are excluded.
 func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, checkInterfacesInBinding bool) []string {
 	t.Helper()
-	intfsOperStatusUP := []string{}
+	var intfsOperStatusUP []string
 	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
 	bindedIntf := make(map[string]bool)
 	for _, port := range dut.Ports() {
@@ -89,4 +95,62 @@ func ValidateOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, upIntfs []s
 		}
 		t.Fatalf("DUT did not reach target state: got %v", val)
 	}
+}
+
+// GNMINotifString builds a string from a gnmi notification message
+func GNMINotifString(n *gpb.Notification) string {
+	var build strings.Builder
+	prefix, err := ygot.PathToString(n.Prefix)
+	if err != nil {
+		return prototext.Format(n)
+	}
+	build.WriteString(fmt.Sprintf("prefix: %s\n", prefix))
+	build.WriteString(fmt.Sprintf("timestamp: %d\n", n.GetTimestamp()))
+	for _, d := range n.Delete {
+		path, err := ygot.PathToString(d)
+		if err != nil {
+			return prototext.Format(n)
+		}
+		build.WriteString(fmt.Sprintf("delete: %s\n", path))
+	}
+	for _, u := range n.Update {
+		path, err := ygot.PathToString(u.GetPath())
+		if err != nil {
+			return prototext.Format(n)
+		}
+		build.WriteString(fmt.Sprintf("update %s: %v\n", path, u.GetVal()))
+	}
+	return build.String()
+}
+
+// GnmiCLIConfig sets config built with buildCliConfigRequest.
+func GnmiCLIConfig(t testing.TB, dut *ondatra.DUTDevice, config string) {
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	gpbSetRequest, err := buildCliConfigRequest(config)
+	if err != nil {
+		t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
+	}
+
+	t.Log("gnmiClient Set CLI config")
+	if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+	}
+}
+
+// buildCliConfigRequest Build config with Origin set to cli and Ascii encoded config.
+func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest, nil
 }

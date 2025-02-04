@@ -101,12 +101,12 @@ func TestQoSCounters(t *testing.T) {
 
 	dev1 := top.Devices().Add().SetName(ateSrcName)
 	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac(ateSrcMac)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth1.Connection().SetPortName(ap1.ID())
 	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ateSrcIp).SetGateway(ateSrcGateway).SetPrefix(uint32(prefixLen))
 
 	dev2 := top.Devices().Add().SetName(ateDstName)
 	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth").SetMac(ateDstMac)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
+	eth2.Connection().SetPortName(ap2.ID())
 	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(uint32(prefixLen))
 
 	queues := netutil.CommonTrafficQueues(t, dut)
@@ -178,22 +178,12 @@ func TestQoSCounters(t *testing.T) {
 	var counterNames []string
 	counters := make(map[string]map[string]uint64)
 
-	if !deviations.QOSDroppedOctets(dut) {
-		counterNames = []string{
+	counterNames = []string{
 
-			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-			"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
-			"dutQosDroppedOctetsAfterTraffic",
-		}
-	} else {
-		counterNames = []string{
-
-			"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-			"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-			"dutQosDroppedPktsAfterTraffic",
-		}
-
+		"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+		"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+		"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+		"dutQosDroppedOctetsAfterTraffic",
 	}
 
 	for _, name := range counterNames {
@@ -226,13 +216,12 @@ func TestQoSCounters(t *testing.T) {
 		}
 		counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-		if !deviations.QOSDroppedOctets(dut) {
-			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
-			if !ok {
-				t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
-			}
-			counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+		count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+		if !ok {
+			t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp2.Name(), data.queue, timeout)
 		}
+		counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
 	}
 
 	ate.OTG().PushConfig(t, top)
@@ -254,9 +243,8 @@ func TestQoSCounters(t *testing.T) {
 		counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State())
 		counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitOctets().State())
 		counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedPkts().State())
-		if !deviations.QOSDroppedOctets(dut) {
-			counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
-		}
+		counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).DroppedOctets().State())
+
 		t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
 		ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
@@ -296,12 +284,10 @@ func TestQoSCounters(t *testing.T) {
 			}
 		}
 
-		if !deviations.QOSDroppedOctets(dut) {
-			dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-			t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
-			if dutDropOctetCounterDiff != 0 {
-				t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
-			}
+		dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+		t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+		if dutDropOctetCounterDiff != 0 {
+			t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
 		}
 
 	}

@@ -62,14 +62,13 @@ The directory tree is organized as follows:
 *   `cloudbuild/` contains google cloud build scripts for running virtual
     routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
-*   `feature/experimental` contains new features and tests which are not yet
-    categorized or not confirmed to pass on any hardware platform or software
-    release. When the test is deemed more mature, it is moved to the `feature/`
-    directory.
 *   `internal/` contains packages used by feature profile tests.
+*   `internal/cfgplugins` contains packages used to generate device configuration.
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
 *   `topologies/` contains the testbed topology definitions.
+
+Directory names are not allowed to contain hyphen (-) characters.
 
 ## Allowed File Types
 
@@ -94,7 +93,7 @@ allowed file types, please file an issue for discussion.
 ## Test Suite Organization
 
 Test suites should be placed in subdirectories formatted like
-`feature/<featurename>/[<sub-feature>/]<tests|ate_tests|otg_tests|kne_tests>/<test_name>/<test_name>.go`.
+`feature/<featurename>/[<sub-feature>/]<tests|otg_tests|kne_tests>/<test_name>/<test_name>.go`.
 For example:
 
 *   `feature/interface/` is the collection of interface feature profiles.
@@ -105,7 +104,8 @@ For example:
 *   `feature/interface/singleton/feature.textproto` - defines the singleton
     interface feature profile in machine readable format.
 *   `feature/interface/singleton/ate_tests/` contains the singleton interfaces
-    test suite using ATE traffic generation API.
+    test suite using ATE traffic generation API.  Note, use of the ATE API is
+    deprecated and should not be used for any new test development.
 *   `feature/interface/singleton/otg_tests/` contains the singleton interfaces
     test suite using OTG traffic generation API.
 *   `feature/interface/singleton/kne_tests/` contains the singleton interfaces
@@ -123,8 +123,8 @@ in the [project](https://github.com/orgs/openconfig/projects/2/views/1) item.
 
 Each test must also be accompanied by a `metadata.textproto` file that supplies
 the metadata for annotating the JUnit XML test results. This file can be
-generated or updated using the command: `go run ./tools/addrundata --fix`.
-See [addrundata](/tools/addrundata/README.md) for more info.
+generated or updated using the command: `go run ./tools/addrundata --fix`. See
+[addrundata](/tools/addrundata/README.md) for more info.
 
 For example:
 
@@ -136,49 +136,26 @@ For example:
 *   `feature/interface/singleton/otg_tests/singleton_test/rundata_test.go`
     contains the rundata.
 
-## Code Should Follow The Test Plan
+## Code Should Follow The Test README
 
-The test plan in `README.md` is generally structured like this:
-
-```
-# RT-5.1: Singleton Interface
-
-## Summary
-
-...
-
-## Procedure
-
-1. Step 1
-2. Step 2
-3. ...
-
-## Config Parameter Coverage
-
-*   /interfaces/interface/config/name
-*   /interfaces/interface/config/description
-*   ...
-
-## Telemetry Parameter Coverage
-
-*   /interfaces/interface/state/oper-status
-*   /interfaces/interface/state/admin-status
-*   ...
-```
+The test `README.md` should be structured following the
+[test plan template]([url](https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md)).
 
 Each step in the test plan procedure should correspond to a comment or `t.Log`
-in the code. Steps not covered by code should have a TODO.
+in the code. Steps not covered by code should have a TODO comment in the test
+code.
 
-In the PR, please mention any corrections made to the test plan for errors that
+In the PR, please mention any corrections made to the test README for errors that
 were discovered when implementing the code.
 
 ## Test Structure
 
 Generally, a Feature Profiles ONDATRA test has the following stages: configure
-DUT, configure ATE, generate and verify traffic, verify telemetry. The
-configuration stages should be factored out to their own functions, and any
-subtests should be run under `t.Run` so the test output clearly reflects which
-parts of the test passed and which parts failed.
+DUT, configure OTG, generate and verify traffic, verify telemetry. The
+configuration generation code should be factored out to their own functions and
+placed in the `/internal/cfgplugins` folder.  Subtests should be run under `t.Run` 
+so the test output clearly reflects which parts of the test passed and which parts
+failed.
 
 They typically just report the error using `t.Error()` for checks. This way, the
 error message is accurately attributed to the line of code where the error
@@ -187,13 +164,13 @@ occurred.
 ```
 func TestFoo(t *testing.T) {
   configureDUT(t) // calls t.Fatal() on error.
-  configureATE(t) // calls t.Fatal() on error.
+  configureOTG(t) // calls t.Fatal() on error.
   t.Run("Traffic", func(t *testing.T) { ... })
   t.Run("Telemetry", func(t *testing.T) { ... })
 }
 ```
 
-In the above example, `configureDUT` and `configureATE` should not be subtests,
+In the above example, `configureDUT` and `configureOTG` should not be subtests,
 otherwise they could be skipped when someone specifies a test filter. The
 "Traffic" and "Telemetry" subtests will both run even if there is a fatal
 condition during `t.Run()`.
@@ -217,7 +194,7 @@ func TestTableDriven(t *testing.T) {
     t.Run(c.name, func(t *testing.T) {
       t.Log("Description: ", c.desc)
       configureDUT(t, /* parameterized by c */)
-      configureATE(t, /* parameterized by c */)
+      configureOTG(t, /* parameterized by c */)
       t.Run("Traffic", func(t *testing.T) { ... })
       t.Run("Telemetry", func(t *testing.T) { ... })
     })
@@ -293,6 +270,12 @@ Do not write [assertion] helpers.
 
 [assertion]: https://go.dev/doc/faq#assertions
 
+## Use gnmi.Watch with Await instead of sleep in tests
+
+Avoid using time.Sleep to wait for a change to occur in a test.  Instead use
+gnmi.Watch with .Await in an appropriate validation function call.  See the
+[ONDATRA best practice on avoiding use of sleep in tests](https://pkg.go.dev/github.com/openconfig/ondatra/gnmi#hdr-Best_Practice__Avoid_time_Sleep).
+
 ## Enum
 
 Sometimes a test may need to set a ygot field with an OpenConfig enum type, e.g.
@@ -338,28 +321,29 @@ a1v4.Protocol, _ = a1v4.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
 
 ## IP Addresses Assignment
 
-Netblocks used in the test topology should follow IPv4 Address Blocks Reserved
-for Documentation ([RFC 5737]), IPv4 reserved for Benchmarking Methodology
-([RFC 2544]), and IPv6 Address Prefix Reserved for Documentation ([RFC 3849]).
-In particular:
-
-[RFC 5737]: https://datatracker.ietf.org/doc/html/rfc5737
-[RFC 2544]: https://datatracker.ietf.org/doc/html/rfc2544
-[RFC 3849]: https://datatracker.ietf.org/doc/html/rfc3849
+> **Warning:** Though we are trying to use RFC defined non-globally routable
+> space in tests, there might be tests (e.g. scaling tests) that are still using
+> public routable ranges. Users who run the tests own the responsibility of not
+> leaking test traffic to internet.
 
 ### IPv4
 
-*   `TEST-NET-1`: (192.0.2.0/24): control plane addresses split into /30 subnets
-    for each ATE/DUT port pair.
-*   `TEST-NET-2`: (198.51.100.0/24): data plane source network addresses used
-    for traffic testing; split as needed.
-*   `TEST-NET-3`: (203.0.113.0/24): data plane destination network addresses
-    used for traffic testing; split as needed.
-*   `BMWG`: (198.18.0.0/15): additional data plane networks.
+*   192.0.2.0/24 ([TEST-NET-1](https://www.iana.org/go/rfc5737)): control plane
+    addresses split into /30 subnets for each ATE/DUT port pair.
+*   198.51.100.0/24 ([TEST-NET-2](https://www.iana.org/go/rfc5737)): data plane
+    source network addresses used for traffic testing; split as needed.
+*   203.0.113.0/24 ([TEST-NET-3](https://www.iana.org/go/rfc5737)): data plane
+    destination network addresses used for traffic testing; split as needed.
+*   100.64.0.0/10 ([CGN Shared Space](https://www.iana.org/go/rfc6598)):
+    additional network address; split as needed.
+*   198.18.0.0/15 ([Device Benchmark Testing](https://www.iana.org/go/rfc2544)):
+    additional network address; split as needed.
 
 ### IPv6
 
-2001:DB8::/32 is a very large space, so we divide them as follows.
+2001:DB8::/32
+([Reserved for Documentation](https://datatracker.ietf.org/doc/html/rfc3849)) is
+a very large space, so we divide them as follows.
 
 *   2001:DB8:0::/64: control plane addresses split into /126 subnets for each
     ATE/DUT port pair.
@@ -367,6 +351,9 @@ In particular:
     address; split as needed.
 *   2001:DB8:2::/64: data plane addresses used for traffic testing as the
     destination address; split as needed.
+
+Link local addresses (FE80::/10) addresses are allowed in contexts where link
+local is being tested.
 
 ### Rationale
 
@@ -426,8 +413,6 @@ To contribute a pull request:
     [GitHub Quickstart](https://docs.github.com/en/get-started/quickstart)
     guide.
 
-    *   New contributions should be in the feature/experimental directory.
-
 1.  When opening a pull request, use a descriptive title and detail. See
     [Pull Request Title](#pull-request-title) below.
 
@@ -474,7 +459,7 @@ preferred format is:
 ```
     * (M) internal/fptest/*
       - Add a helper for referencing a keychain from other modules.
-    * (M) feature/experimental/isis/ate_tests/base_adjacencies_test
+    * (M) feature/isis/otg_tests/base_adjacencies_test
       - Fix testing of hello-authentication to reference a specific
         keychain.
       - Fix authentication of *SNP packets, referencing a keychain

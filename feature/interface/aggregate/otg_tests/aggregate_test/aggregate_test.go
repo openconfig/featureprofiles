@@ -21,6 +21,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,7 +117,12 @@ type testCase struct {
 	ate *ondatra.ATEDevice
 	top gosnappi.Config
 
+	// dutPorts is the set of ports the DUT -- the first (i.e., dutPorts[0])
+	// is not configured in the aggregate interface.
 	dutPorts []*ondatra.Port
+	// atePorts is the set of ports on the ATE -- the first, as with the DUT
+	// is not configured in the aggregate interface.
+	// is not configured in the aggregate interface.
 	atePorts []*ondatra.Port
 	aggID    string
 }
@@ -218,7 +224,9 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	}
 	lacpPath := d.Lacp().Interface(tc.aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
-	gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	if tc.lagType == lagTypeLACP {
+		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	}
 
 	// TODO - to remove this sleep later
 	time.Sleep(5 * time.Second)
@@ -268,7 +276,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(p0.ID())
 	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p0.ID())
+	srcEth.Connection().SetPortName(p0.ID())
 	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
@@ -276,7 +284,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagId))
+		agg.Protocol().Static().SetLagId(uint32(lagId))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -286,7 +294,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
 		}
 	} else {
-		agg.Protocol().SetChoice("lacp")
 		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateDst.MAC)
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
@@ -317,7 +324,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
+	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
@@ -335,6 +342,68 @@ const (
 	full           = oc.Ethernet_DuplexMode_FULL
 	dynamic        = oc.IfIp_NeighborOrigin_DYNAMIC
 )
+
+// verifyLACPTelemetry validats that the telemetry matches between the ATE's LACP
+// and the device LACP for values that correspond to one another.
+func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
+	// If the test case is validating static LAGs then we do not check
+	// the LACP telemetry since it isn't populated.
+	if tc.lagType != oc.IfAggregate_AggregationType_LACP {
+		return
+	}
+
+	gotLAG := gnmi.Get(t, tc.dut, gnmi.OC().Lacp().Interface(tc.aggID).State())
+	if got := gotLAG.GetName(); got != tc.aggID {
+		t.Errorf("DUT LAG had incorrect name, got: %s, want: %s", got, tc.aggID)
+	}
+
+	for i := 1; i < len(tc.dutPorts); i++ {
+		// The ports in dutPort correspond 1:1 with the ports in atePort.
+		// port1 is reserved for traffic injection.
+		dutPort := tc.dutPorts[i]
+		atePort := tc.atePorts[i]
+
+		// We are validating LACP statistics, so we need to validate each member port.
+		// The ATE ports are configured with the ID rather than the name.
+		ateLACP := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(atePort.ID()).State())
+		dutLACP := gnmi.Get(t, tc.dut, gnmi.OC().Lacp().Interface(tc.aggID).Member(dutPort.Name()).State())
+
+		if got := dutLACP.GetInterface(); got != dutPort.Name() {
+			t.Errorf("DUT LAG had incorrect name, got: %s, want: %s", got, tc.aggID)
+		}
+
+		// We want to check:
+		//	port-num of the ATE matches partner-port-num of the DUT.
+		//	oper-key of the ATE matches partner-key of the DUT.
+		//	partner-id of the ATE matches system-id of the DUT.
+		// And vice versa so that we know that the telemetry from both
+		// sides matches.
+
+		if ateLACP.PortNum == nil || dutLACP.PartnerPortNum == nil || *ateLACP.PortNum != *dutLACP.PartnerPortNum {
+			t.Errorf("DUT LAG %s: ATE port-num (%d) did not match DUT partner-port-num (%d)", tc.aggID, ateLACP.PortNum, dutLACP.PartnerPortNum)
+		}
+
+		if dutLACP.PortNum == nil || ateLACP.PartnerPortNum == nil || *dutLACP.PortNum != *ateLACP.PartnerPortNum {
+			t.Errorf("DUT LAG %s: ATE partner-port-num (%d) did not match DUT port-num (%d)", tc.aggID, ateLACP.PartnerPortNum, dutLACP.PortNum)
+		}
+
+		if ateLACP.OperKey == nil || dutLACP.PartnerKey == nil || *ateLACP.OperKey != *dutLACP.PartnerKey {
+			t.Errorf("DUT LAG %s: ATE oper-key (%d) did not match DUT partner-key (%d)", tc.aggID, ateLACP.OperKey, dutLACP.PartnerKey)
+		}
+
+		if dutLACP.OperKey == nil || ateLACP.PartnerKey == nil || *dutLACP.OperKey != *ateLACP.PartnerKey {
+			t.Errorf("DUT LAG %s: ATE partner-key (%d) did not match DUT oper-key (%d)", tc.aggID, ateLACP.PartnerKey, dutLACP.OperKey)
+		}
+
+		if ateLACP.PartnerId == nil || dutLACP.SystemId == nil || !strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
+			t.Errorf("DUT LAG %s: ATE partner-id (%s) did not match DUT system-id (%s)", tc.aggID, *ateLACP.PartnerId, *dutLACP.SystemId)
+		}
+
+		if dutLACP.PartnerId == nil || ateLACP.SystemId == nil || !strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
+			t.Errorf("DUT LAG %s: ATE system-id (%s) did not match DUT partner-id (%s)", tc.aggID, *ateLACP.SystemId, *dutLACP.PartnerId)
+		}
+	}
+}
 
 func (tc *testCase) verifyAggID(t *testing.T, dp *ondatra.Port) {
 	dip := gnmi.OC().Interface(dp.Name())
@@ -518,7 +587,7 @@ func TestNegotiation(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	aggID := netutil.NextAggregateInterface(t, dut)
 
-	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
+	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeSTATIC, lagTypeLACP}
 
 	for _, lagType := range lagTypes {
 		top := gosnappi.NewConfig()
@@ -541,6 +610,8 @@ func TestNegotiation(t *testing.T) {
 
 			tc.configureATE(t)
 			t.Run("VerifyATE", tc.verifyATE)
+
+			t.Run("VerifyLACPTelemetry", tc.verifyLACPTelemetry)
 
 			t.Run("MinLinks", tc.verifyMinLinks)
 

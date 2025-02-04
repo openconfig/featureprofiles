@@ -205,14 +205,17 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		return pktCounterOK
 	}
 
+	var tolerance = uint64(70)
 	for i := 1; i < len(inPkts); i++ {
 		inValOld, _ := inPkts[i-1].Val()
 		outValOld, _ := outPkts[i-1].Val()
 		inValLatest, _ := inPkts[i].Val()
 		outValLatest, _ := outPkts[i].Val()
+		inValDelta := inValLatest - inValOld
+		outValDelta := outValLatest - outValOld
 		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
-		if inValLatest == inValOld || outValLatest == outValOld || (inValLatest-inValOld != outValLatest-outValOld) {
-			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d", inValLatest-inValOld, outValLatest-outValOld)
+		if inValLatest == inValOld || outValLatest == outValOld || outValDelta <= inValDelta-tolerance || outValDelta >= inValDelta+tolerance {
+			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d, Tolerance: %d", inValDelta, outValDelta, tolerance)
 			pktCounterOK = false
 			break
 		}
@@ -241,6 +244,31 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.
 	return inPkts, outPkts
 }
 
+func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath,
+	inTarget, outTarget uint64) (map[string]uint64, map[string]uint64) {
+	inWatcher := gnmi.Watch(t, dut, i1.Counters().InUnicastPkts().State(), time.Second*60, func(v *ygnmi.Value[uint64]) bool {
+		got, present := v.Val()
+		return present && got >= inTarget
+	})
+	outWatcher := gnmi.Watch(t, dut, i2.Counters().OutUnicastPkts().State(),
+		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
+			got, present := v.Val()
+			return present && got >= outTarget
+		})
+
+	inPktsV, ok := inWatcher.Await(t)
+	if !ok {
+		t.Fatalf("InPkts counter did not update in time")
+	}
+	outPktsV, ok := outWatcher.Await(t)
+	if !ok {
+		t.Fatalf("OutPkts counter did not update in time")
+	}
+	inPkts, _ := inPktsV.Val()
+	outPkts, _ := outPktsV.Val()
+	return map[string]uint64{"parent": inPkts}, map[string]uint64{"parent": outPkts}
+}
+
 func TestIntfCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -259,7 +287,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
 	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth1.Connection().SetPortName(ap1.ID())
 	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
@@ -269,7 +297,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
 	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").SetMac("02:00:01:02:01:01")
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
+	eth2.Connection().SetPortName(ap2.ID())
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)
@@ -375,7 +403,14 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, i1, i2)
+	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic map[string]uint64
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, i1, i2,
+			dutInPktsBeforeTraffic["parent"]+ateInPkts["parent"],
+			dutOutPktsBeforeTraffic["parent"]+ateOutPkts["parent"])
+	} else {
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, i1, i2)
+	}
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 	for k := range dutInPktsAfterTraffic {

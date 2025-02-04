@@ -11,6 +11,15 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    prefix_limit_exceeded_telemetry_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    prefix_limit_exceeded_telemetry_unsupported: true
   }
 }
 platform_exceptions: {
@@ -20,16 +29,8 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-    route_policy_under_afi_unsupported: true
     interface_enabled: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    route_policy_under_afi_unsupported: true
+    bgp_explicit_prefix_limit_received: true
   }
 }
 platform_exceptions: {
@@ -37,7 +38,6 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
