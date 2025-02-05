@@ -328,6 +328,7 @@ github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kI
 github.com/openconfig/ygnmi v0.11.1 h1:tIHlAinvOX+8jA2YTk4ACb7IOQe1PXsjT41Ci7E2KUk=
 github.com/openconfig/ygnmi v0.11.1/go.mod h1:naCxQR+/wBItM82ilJXWgapCRkrx8bphBmUHXJmRhuQ=
 github.com/openconfig/ygot v0.6.0/go.mod h1:o30svNf7O0xK+R35tlx95odkDmZWS9JyWWQSmIhqwAs=
+github.com/openconfig/ygot v0.13.2/go.mod h1:kJN0yCXIH07dOXvNBEFm3XxXdnDD5NI6K99tnD5x49c=
 github.com/openconfig/ygot v0.29.20 h1:XHLpwCN91QuKc2LAvnEqtCmH8OuxgLlErDhrdl2mJw8=
 github.com/openconfig/ygot v0.29.20/go.mod h1:K8HbrPm/v8/emtGQ9+RsJXx6UPKC5JzS/FqK7pN+tMo=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
