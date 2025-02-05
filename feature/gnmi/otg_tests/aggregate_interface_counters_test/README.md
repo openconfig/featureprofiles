@@ -1,4 +1,4 @@
-# gNMI-1.12: Telemetry: Aggregate Interface Counters
+# gNMI-1.111: Telemetry: Aggregate Interface Counters
 
 ## Summary
 
