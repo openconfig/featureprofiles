@@ -4,7 +4,7 @@
 
 uuid: "d951ea7e-a4fb-4f5d-ae34-820814dc6eba"
 plan_id: "gNMI-1.12"
-description: "Telemetry: Aggregate Interface  Counters"
+description: "Telemetry: Aggregate Interface Counters"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {

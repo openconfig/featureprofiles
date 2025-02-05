@@ -75,8 +75,8 @@ paths:
   ## Config Paths ##
   /interfaces/interface/config/enabled:
   /interfaces/interface/enabled:
-  /interfaces/interface/ipv4/config/enabled:
-  /interfaces/interface/ipv6/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
   /interfaces/interface/ethernet/config/port-speed:
   /interfaces/interface/ethernet/config/duplex-mode:
   /interfaces/interface/ethernet/config/aggregate-id:
@@ -101,7 +101,12 @@ paths:
   /interfaces/interface/state/counters/last-clear:
   /interfaces/interface/state/cpu:
   /interfaces/interface/state/management:
-
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
 rpcs:
   gnmi:
     gNMI.Subscribe:
