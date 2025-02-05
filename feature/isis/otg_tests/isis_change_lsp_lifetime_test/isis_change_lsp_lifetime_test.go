@@ -66,9 +66,6 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalIsis.GetOrCreateTimers().LspLifetimeInterval = ygot.Uint16(lspLifetime)
-	if deviations.ISISLspLifetimeIntervalRequiresLspRefreshInterval(ts.DUT) {
-		globalIsis.GetOrCreateTimers().LspRefreshInterval = ygot.Uint16(60)
-	}
 }
 
 // configureOTG configures isis and traffic on OTG.

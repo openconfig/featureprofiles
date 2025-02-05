@@ -38,6 +38,7 @@ message Metadata {
     TESTBED_DUT_DUT_ATE_2LINKS = 6;
     TESTBED_DUT_ATE_8LINKS = 7;
     TESTBED_DUT_400ZR = 8;
+    TESTBED_DUT_400ZR_PLUS = 9;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -117,8 +118,7 @@ message Metadata {
     // Device requires additional config for ECN.
     // Juniper: partnerissuetracker.corp.google.com/277657269
     bool ecn_profile_required_definition = 25;
-    // Set true for device that does not support interface ipv6 discarded packet
-    // statistics.
+    // Device does not support interface ipv6 discarded packet statistics.
     // Juniper: partnerissuetracker.corp.google.com/277762075
     bool ipv6_discarded_pkts_unsupported = 26;
     // Device does not support drop and weight leaves under queue management
@@ -127,6 +127,7 @@ message Metadata {
     bool drop_weight_leaves_unsupported = 27;
     // Config pushed through origin CLI takes precedence over config pushed
     // through origin OC.
+    // Juniper: partnerissuetracker.corp.google.com/270474468
     bool cli_takes_precedence_over_oc = 29;
     // Device does not support weight above 100.
     // Juniper: partnerissuetracker.corp.google.com/277066804
@@ -143,12 +144,15 @@ message Metadata {
     bool interface_counters_from_container = 33;
     // Use this deviation when the device does not support a mix of tagged and
     // untagged subinterfaces.
+    // Juniper: partnerissuetracker.corp.google.com/267822588
     bool no_mix_of_tagged_and_untagged_subinterfaces = 34;
     // Device does not support reporting software version according to the
     // requirements in gNMI-1.10.
+    // Juniper: partnerissuetracker.corp.google.com/278764547
     bool sw_version_unsupported = 37;
     // Device requires explicit interface ref configuration when applying
     // features to interface.
+    // Juniper: partnerissuetracker.corp.google.com/267691571
     bool explicit_interface_ref_definition = 38;
     // Device does not support telemetry path /components/component/storage.
     // Juniper: partnerissuetracker.corp.google.com/284239001
@@ -161,6 +165,7 @@ message Metadata {
     // Nokia: partnerissuetracker.corp.google.com/260928639
     bool explicit_interface_in_default_vrf = 42;
     // Skip checking QOS Dropped octets stats for interface.
+    // Juniper: partnerissuetracker.corp.google.com/282686094
     bool qos_dropped_octets = 43;
     // Device is missing subinterface packet counters for IPv4/IPv6.
     bool subinterface_packet_counters_missing = 44;
@@ -278,10 +283,6 @@ message Metadata {
     bool ate_port_link_state_operations_unsupported = 94;
     // Creates a user and assigns role/rbac to said user via native model.
     bool set_native_user = 95;
-    // Devices require configuring lspRefreshInterval ISIS timer when
-    // lspLifetimeInterval is configured.
-    // Arista: partnerissuetracker.corp.google.com/293667850
-    bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
     bool linecard_cpu_utilization_unsupported = 98;
@@ -639,7 +640,7 @@ message Metadata {
     // EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
     // CISCO: b/376241033
     // CISCO: b/340859662
-    bool enable_multipath_under_afi_safi = 230;
+    bool enable_multipath_under_afi_safi = 230;    
     // Device have different default value for allow own as.
     // Juniper : b/373559004
     bool bgp_allowownas_diff_default_value = 231;
@@ -651,10 +652,57 @@ message Metadata {
     // Cisco: b/377433951
     bool bgp_extended_next_hop_encoding_leaf_unsupported = 234;
     // Device does not support bgp afi safi wildcard.
-    // Cisco: b/379863985 
+    // Cisco: b/379863985
     bool bgp_afi_safi_wildcard_not_supported = 235;
     // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
     bool enable_table_connections = 236;
+    // Device has default zero suppression.
+    // Juniper : b/378646018
+    bool no_zero_suppression = 237;
+    // Cisco: b/378801305
+    bool isis_interface_level_passive_unsupported = 238;
+    // Cisco: b/378616912
+    bool isis_dis_sysid_unsupported = 239;
+    // Cisco: b/378616912
+    bool isis_database_overloads_unsupported = 240;
+    // Juniper: b/358534837
+    // Devices that do not support setting med value using union type in OC.
+    bool bgp_set_med_v7_unsupported = 241;
+    // Cisco: b/388980373
+    // default import policy for table connection unsupported is set to true for devices that do not support default import policy.
+    bool tc_default_import_policy_unsupported = 242;
+    // Cisco: b/388955361
+    // table connection metric propagation unsupported is set to true for devices that do not support metric propagation.
+    bool tc_metric_propagation_unsupported = 243;
+    // Cisco: b/388980376
+    // table connection attribute propagation unsupported is set to true for devices that do not support attribute propagation.
+    bool tc_attribute_propagation_unsupported = 244;
+    // Cisco: b/388955364
+    // table connection subscription unsupported is set to true for devices that do not support subscription for table connection leaves.
+    bool tc_subscription_unsupported = 245;
+    // Cisco: b/388983709
+    // default bgp instance name is used to set bgp instance name value other than DEFAULT
+    string default_bgp_instance_name = 246;
+
+    // Arista does not support ETHChannel rate-class
+    bool channel_assignment_rate_class_parameters_unsupported = 247;
+    
+    // Arista: b/346557012  
+    // Devices that do not support qos scheduler ingress policer.
+    bool qos_scheduler_ingress_policer_unsupported = 248;
+
+    // Arista: b/354689142  
+    // Devices that do not support gRIBIencap headers.
+    bool gribi_encap_header_unsupported = 249;
+
+    // Device does not support P4RT Capabilities rpc.
+    // Cisco: b/385298158
+    bool p4rt_capabilities_unsupported = 250;
+
+    // Device does not support gNMI GET on root.
+    // Cisco: b/385298159
+    bool gnmi_get_on_root_unsupported = 251;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
