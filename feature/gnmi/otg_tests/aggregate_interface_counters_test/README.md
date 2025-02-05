@@ -74,7 +74,6 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
 paths:
   ## Config Paths ##
   /interfaces/interface/config/enabled:
-  /interfaces/interface/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
   /interfaces/interface/ethernet/config/port-speed:
