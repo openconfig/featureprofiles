@@ -608,14 +608,13 @@ func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Co
 	subcomponentsValue := gnmi.Lookup(t, dut, gnmi.OC().Component(cName).SubcomponentMap().State())
 	subcomponents, ok := subcomponentsValue.Val()
 	if !ok {
-		t.Errorf("Error getting subcomponents for component %s", cName)
+		// Not all components have subcomponents
+		// If the component doesn't have subcomponent, skip the check and return early
+		return
 	}
 	for _, subc := range subcomponents {
-		if !ok {
-			t.Errorf("Error getting subcomponent for component %s", cName)
-		}
 		subcName := subc.GetName()
-		subComponent := gnmi.Lookup[*oc.Component](t, dut, gnmi.OC().Component(subcName).State())
+		subComponent := gnmi.Lookup(t, dut, gnmi.OC().Component(subcName).State())
 		if !subComponent.IsPresent() {
 			t.Errorf("Subcomponent %s does not exist as a component on the device", subcName)
 		}
@@ -1056,7 +1055,7 @@ func TestDefaultPowerAdminState(t *testing.T) {
 	t.Logf("Supervisors: %v", supervisors)
 
 	if len(fabrics) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config())
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().State())
 		t.Logf("Component %s PowerAdminState: %v", fabrics[0].GetName(), pas)
 		if pas == oc.Platform_ComponentPowerType_UNSET {
 			t.Errorf("Component %s PowerAdminState is unset", fabrics[0].GetName())
@@ -1064,18 +1063,19 @@ func TestDefaultPowerAdminState(t *testing.T) {
 	}
 
 	if len(linecards) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config())
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().State())
 		t.Logf("Component %s PowerAdminState: %v", linecards[0].GetName(), pas)
 		if pas == oc.Platform_ComponentPowerType_UNSET {
 			t.Errorf("Component %s PowerAdminState is unset", linecards[0].GetName())
 		}
 	}
-
-	if len(supervisors) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
-		t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
-		if pas == oc.Platform_ComponentPowerType_UNSET {
-			t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+	if !deviations.SkipControllerCardPowerAdmin(dut) {
+		if len(supervisors) != 0 {
+			pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().State())
+			t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
+			if pas == oc.Platform_ComponentPowerType_UNSET {
+				t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+			}
 		}
 	}
 }
