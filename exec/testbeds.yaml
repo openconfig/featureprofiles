@@ -65,7 +65,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40061
       gnmi_port: 50061
       rest_port: 30061
