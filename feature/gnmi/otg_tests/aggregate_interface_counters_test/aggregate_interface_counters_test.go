@@ -406,16 +406,6 @@ func (tc *testCase) verifyATE(t *testing.T) {
 
 }
 
-// setDutInterfaceWithState sets the admin state to a member of the lag
-func (tc *testCase) setDutInterfaceWithState(t testing.TB, p *ondatra.Port, state bool) {
-	dc := gnmi.OC()
-	i := &oc.Interface{}
-	i.Enabled = ygot.Bool(state)
-	i.Type = ethernetCsmacd
-	i.Name = ygot.String(p.Name())
-	gnmi.Update(t, tc.dut, dc.Interface(p.Name()).Config(), i)
-}
-
 // sortPorts sorts the ports by the testbed port ID.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	sort.SliceStable(ports, func(i, j int) bool {
