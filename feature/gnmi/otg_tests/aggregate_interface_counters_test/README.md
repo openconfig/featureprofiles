@@ -77,11 +77,11 @@ paths:
   /interfaces/interface/enabled:
   /interfaces/interface/ipv4/config/enabled:
   /interfaces/interface/ipv6/config/enabled:
-  /interfaces/interface/ethernet/config/port-speed
-  /interfaces/interface/ethernet/config/duplex-mode
-  /interfaces/interface/ethernet/config/aggregate-id
-  /interfaces/interface/aggregation/config/lag-type
-  /interfaces/interface/aggregation/config/min-links
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/ethernet/config/duplex-mode:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/aggregation/config/min-links:
 
   ## State Paths ##
   /interfaces/interface/state/counters/in-pkts:
