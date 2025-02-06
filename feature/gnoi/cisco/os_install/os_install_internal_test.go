@@ -10,14 +10,15 @@ import (
 	"time"
 
 	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 )
 
 var (
 	osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
-	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "/auto/ops-tool/ws-krinata2/images/8000-dev-x64-EFR-00000467652.iso", "Path to the OS image (Force Download Supported) for the install operation")
+	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
 	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
-	logDir                          = flag.String("logDir", "/auto/ops-tool/ws-krinata2/logs/force_transfer/trial1", "Firex path to copy the logs after each test case")
+	logDir                          = flag.String("logDir", "", "Firex path to copy the logs after each test case")
 	debugCommandYaml                = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
 	timeout                         = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
 )
@@ -238,48 +239,49 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 		})
 	}
 
-	// t.Run("test Supervisor Switchover", func(t *testing.T) {
-	// 	util.SupervisorSwitchover(t, tc.dut)
-	// 	tc.pollRpc(t)
-	// })
-	// if tc.dualSup {
-	// 	t.Run("Activating using correct version expected failure no image", func(t *testing.T) {
-	// 		tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
+	t.Run("test Supervisor Switchover", func(t *testing.T) {
+		t.Skip("workaround CSCwn79877")
+		util.SupervisorSwitchover(t, tc.dut)
+		tc.pollRpc(t)
+		if tc.dualSup {
+			t.Run("Activating using correct version expected failure no image", func(t *testing.T) {
+				tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
 
-	// 		if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
-	// 			tc.transferOS(tc.ctx, t, true, "", "")
-	// 			tc.activateOS(tc.ctx, t, true, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
-	// 		}
-	// 	})
+				if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
+					tc.transferOS(tc.ctx, t, true, "", "")
+					tc.activateOS(tc.ctx, t, true, tc.noReboot, tc.osVersion, true, activateImageNotAvailableError)
+				}
+			})
 
-	// 	tc.fetchOsFileDetails(t, tc.osFile)
+			tc.fetchOsFileDetails(t, tc.osFile)
 
-	// 	t.Run("Force install Image using empty version", func(t *testing.T) {
-	// 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
-	// 		tc.transferOS(tc.ctx, t, false, "", "")
-	// 		if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
-	// 			tc.transferOS(tc.ctx, t, true, "", "")
-	// 		}
-	// 		t2, _ := listISOFile(t, tc.dut, tc.osVersion)
-	// 		if isGreater(t1, t2) {
-	// 			t.Fatal("image not force updated")
-	// 		}
-	// 	})
+			t.Run("Force install Image using empty version", func(t *testing.T) {
+				t1, _ := listISOFile(t, tc.dut, tc.osVersion)
+				tc.transferOS(tc.ctx, t, false, "", "")
+				if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
+					tc.transferOS(tc.ctx, t, true, "", "")
+				}
+				t2, _ := listISOFile(t, tc.dut, tc.osVersion)
+				if isGreater(t1, t2) {
+					t.Fatal("image not force updated")
+				}
+			})
 
-	// 	for _, activateTC := range tc.negActivateTestCases {
-	// 		version := "1.2.3.4I-wrong"
-	// 		if activateTC.version == true {
-	// 			version = tc.osVersion
-	// 		}
-	// 		expectedError := activateTC.modularExpectedError
-	// 		if !tc.dualSup {
-	// 			expectedError = activateTC.fixedExpectedError
-	// 		}
-	// 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
-	// 			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
-	// 		})
-	// 	}
-	// }
+			for _, activateTC := range tc.negActivateTestCases {
+				version := "1.2.3.4I-wrong"
+				if activateTC.version == true {
+					version = tc.osVersion
+				}
+				expectedError := activateTC.modularExpectedError
+				if !tc.dualSup {
+					expectedError = activateTC.fixedExpectedError
+				}
+				t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
+					tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
+				})
+			}
+		}
+	})
 
 	log_collector.CollectRouterLogs(tc.ctx, t, tc.dut, *logDir, "beforeUpgradeAfterSSO", tc.commandPatterns)
 
