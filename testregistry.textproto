@@ -1064,7 +1064,7 @@ test: {
 }
 test: {
   id: "TE-14.2"
-  description: "encap and decap scale"
+  description: "gRIBI encap and decap scale"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_decap_scale/README.md"
   exec: " "
 }
