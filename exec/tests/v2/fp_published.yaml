@@ -443,7 +443,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 46
-    pr: 2605
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
     owners:
