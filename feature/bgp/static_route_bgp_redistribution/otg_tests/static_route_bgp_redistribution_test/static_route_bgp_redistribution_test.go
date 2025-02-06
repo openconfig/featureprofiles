@@ -597,11 +597,17 @@ func validateRedistributeStatic(t *testing.T, dut *ondatra.DUTDevice, acceptRout
 
 		if !deviations.SkipSettingDisableMetricPropagation(dut) {
 			if !mPropagation {
-				if tcState.GetDisableMetricPropagation() {
+				// If mPropagation variable is not set means metric propagation is disabled, which
+				// means disable-metric-propagation is set to true. Hence fail condition should
+				// be not setting disable-metric-propagation.
+				if !tcState.GetDisableMetricPropagation() {
 					t.Fatal("Metric propagation disabled for table connection, expected enabled")
 				}
 			} else {
-				if !tcState.GetDisableMetricPropagation() {
+				// If mPropagation variable is set means metric propagation is enabled, which
+				// means disable-metric-propagation is set to false. Hence fail condition should
+				// be setting disable-metric-propagation.
+				if tcState.GetDisableMetricPropagation() {
 					t.Fatal("Metric propagation is enabled for table connection, expected disabled")
 				}
 			}
