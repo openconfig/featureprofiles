@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"path"
-	"runtime"
 	"testing"
 	"time"
 
@@ -50,11 +48,6 @@ const (
 	// UNSPECIFIED: activate operation on a fixed chassis
 	activateOnStandbyFixed = "activate operation on a fixed chassis"
 )
-
-func funcName() string {
-	pc, _, _, _ := runtime.Caller(1)
-	return path.Base(runtime.FuncForPC(pc).Name())
-}
 
 func testOSForceTransferDiskFull(t *testing.T, tc testCase) {
 	log_collector.Start(context.Background(), t, tc.dut)
