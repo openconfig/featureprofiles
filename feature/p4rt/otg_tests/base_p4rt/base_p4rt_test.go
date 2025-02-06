@@ -57,7 +57,7 @@ const (
 
 var (
 	// Path to the p4Info file for sending it with SetFwdPipelineConfig
-	p4InfoFile  = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile  = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName1 = "p4rt1"
 	streamName2 = "p4rt2"
 
