@@ -527,7 +527,7 @@ func TestPMTUHanding(t *testing.T) {
 			}
 
 			t.Logf("%s%s Path MTU", flow[0], flow[1])
-			t.Run(fmt.Sprintf("%s", td.name), func(t *testing.T) {
+			t.Run(td.name, func(t *testing.T) {
 				t.Logf("Name: %s, Description: %s", tt.name, tt.desc)
 				outPkts := createFlowAndVerifyTraffic(t, td, tt, td.waitInterface)
 				captureAndValidateICMPPacketsReceived(t, td, &packetValidation{portName: ateSrc.Name})
