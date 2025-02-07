@@ -155,6 +155,10 @@ func TestCDValue(t *testing.T) {
 			t.Logf("Interfaces are up: %v, %v", dp1.Name(), dp2.Name())
 			verifyAllCDValues(t, dut, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
 
+			p1StreamInstant.Close()
+			p1StreamMin.Close()
+			p1StreamMax.Close()
+			p1StreamAvg.Close()
 		}
 	}
 }
