@@ -48,7 +48,7 @@ Base IS-IS functionality and adjacency establishment.
 *   Confirm in each case that that adjacency forms and the correct values
     are reported back by the device.
 
-### RT-2.1.4 [TODO: https://github.com/openconfig/featureprofiles/issues/3421]
+### RT-2.1.4 P2P Circuit Type
 
 *   Configuration:
     *   Configure ISIS for ATE port-1 and DUT port-1.
@@ -70,7 +70,7 @@ Base IS-IS functionality and adjacency establishment.
 *   With a known LSP content, ensure that the telemetry received from the
     device for the LSP matches the expected content.
 
-### RT-2.1.6 [TODO: https://github.com/openconfig/featureprofiles/issues/3422]
+### RT-2.1.6 ISIS Hello Timer
 
 *   Baseline Configuration on the DUT:
     *   Set the hello-interval to a standard value (10 seconds).
