@@ -45,6 +45,7 @@ const (
 
 var (
 	fibResource = map[ondatra.Vendor]string{
+		ondatra.CISCO:  "central_em_0",
 		ondatra.ARISTA: "Routing/Resource6",
 		ondatra.NOKIA:  "ip-lpm-routes",
 	}
@@ -107,11 +108,13 @@ func TestResourceUtilization(t *testing.T) {
 	otgV6Peer, otgPort1, otgConfig := configureOTG(t, otg)
 
 	verifyBgpTelemetry(t, dut)
-	gnmi.Replace(t, dut, gnmi.OC().System().Utilization().Resource(fibResource[dut.Vendor()]).Config(), &oc.System_Utilization_Resource{
-		Name:                    ygot.String(fibResource[dut.Vendor()]),
-		UsedThresholdUpper:      ygot.Uint8(usedThresholdUpper),
-		UsedThresholdUpperClear: ygot.Uint8(usedThresholdUpperClear),
-	})
+	if !deviations.UpperAndClearThresholdsConfigUnsupported(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().System().Utilization().Resource(fibResource[dut.Vendor()]).Config(), &oc.System_Utilization_Resource{
+			Name:                    ygot.String(fibResource[dut.Vendor()]),
+			UsedThresholdUpper:      ygot.Uint8(usedThresholdUpper),
+			UsedThresholdUpperClear: ygot.Uint8(usedThresholdUpperClear),
+		})
+	}
 	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
 	beforeUtzs := componentUtilizations(t, dut, comps)
 	if len(beforeUtzs) != len(comps) {

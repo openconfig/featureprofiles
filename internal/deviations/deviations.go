@@ -1311,3 +1311,8 @@ func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
+
+// UpperAndClearThresholdsConfigUnsupported returns true if config for UsedThresholdUpper and UsedThresholdUpperClear is unsupported
+func UpperAndClearThresholdsConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUpperAndClearThresholdsConfigUnsupported()
+}

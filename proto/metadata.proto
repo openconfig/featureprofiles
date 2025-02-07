@@ -703,6 +703,9 @@ message Metadata {
     // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 251;
 
+    // Devices that do not support config for UsedThresholdUpper and UsedThresholdUpperClear
+    bool upper_and_clear_thresholds_config_unsupported = 252;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
