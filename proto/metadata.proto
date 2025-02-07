@@ -700,6 +700,12 @@ message Metadata {
     // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 251;
 
+    // Device does not support packet processing aggregate drops.
+    bool packet_processing_aggregate_drops_unsupported = 252;
+
+    // Device does not support fragment total drops.
+    bool fragment_total_drops_unsupported = 253;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }

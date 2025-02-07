@@ -1306,3 +1306,13 @@ func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
+
+// PacketProcessingAggregateDropsUnsupported returns true if the device does not support packet processing aggregate drops.
+func PacketProcessingAggregateDropsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPacketProcessingAggregateDropsUnsupported()
+}
+
+// FragmentTotalDropsUnsupported returns true if the device does not support fragment total drops.
+func FragmentTotalDropsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFragmentTotalDropsUnsupported()
+}
