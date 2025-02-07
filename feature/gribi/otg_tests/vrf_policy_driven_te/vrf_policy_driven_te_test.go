@@ -1620,7 +1620,6 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 
 func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 	t.Helper()
-	dut := ondatra.DUT(t, "dut")
 	var packetCheckCount uint32 = 0
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
