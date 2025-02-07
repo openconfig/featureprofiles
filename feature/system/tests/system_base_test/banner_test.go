@@ -51,10 +51,8 @@ func TestMotdBanner(t *testing.T) {
 
 			t.Run("Get MOTD Config", func(t *testing.T) {
 				if testCase.banner == "" {
-					if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
+					if v, ok := gnmi.LookupConfig(t, dut, config.Config()).Val(); ok && v != "" {
 						t.Errorf("MOTD Banner not empty")
-					} else {
-						t.Logf("No response for the path is expected as the config is empty")
 					}
 				} else {
 					configGot := gnmi.Get(t, dut, config.Config())
@@ -67,10 +65,8 @@ func TestMotdBanner(t *testing.T) {
 
 			t.Run("Get MOTD Telemetry", func(t *testing.T) {
 				if testCase.banner == "" {
-					if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
+					if v, ok := gnmi.Lookup(t, dut, state.State()).Val(); ok && v != "" {
 						t.Errorf("MOTD Telemetry Banner not empty")
-					} else {
-						t.Logf("No response for the path is expected as the config is empty")
 					}
 				} else {
 					stateGot := gnmi.Get(t, dut, state.State())
@@ -118,10 +114,8 @@ func TestLoginBanner(t *testing.T) {
 
 			t.Run("Get Login Banner Config", func(t *testing.T) {
 				if testCase.banner == "" {
-					if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
+					if v, ok := gnmi.LookupConfig(t, dut, config.Config()).Val(); ok && v != "" {
 						t.Errorf("Config Login Banner not empty")
-					} else {
-						t.Logf("No response for the path expected is expected as the config is empty")
 					}
 				} else {
 					configGot := gnmi.Get(t, dut, config.Config())
@@ -134,10 +128,8 @@ func TestLoginBanner(t *testing.T) {
 
 			t.Run("Get Login Banner Telemetry", func(t *testing.T) {
 				if testCase.banner == "" {
-					if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
+					if v, ok := gnmi.Lookup(t, dut, state.State()).Val(); ok && v != "" {
 						t.Errorf("Telemetry Login Banner not empty")
-					} else {
-						t.Logf("No response for the path is expected as the config is empty")
 					}
 				} else {
 					stateGot := gnmi.Get(t, dut, state.State())
