@@ -37,19 +37,21 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesv4CIDR   = "203.0.113.1/32"
-	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv4Prefix = 32
-	peerGrpName1             = "BGP-PEER-GROUP1"
-	peerGrpName2             = "BGP-PEER-GROUP2"
-	dutGlobalAS              = 64512
-	dutLocalAS1              = 65501
-	dutLocalAS2              = 64513
-	ateAS1                   = 65502
-	ateAS2                   = 65503
-	plenIPv4                 = 30
-	plenIPv6                 = 126
-	policyName               = "ALLOW"
+	advertisedRoutesv4CIDR      = "203.0.113.1/32"
+	advertisedRoutesv4Net       = "203.0.113.1"
+	advertisedRoutesv4Prefix    = 32
+	advertisedRoutesv4PrefixLen = "32..32"
+	peerGrpName1                = "BGP-PEER-GROUP1"
+	peerGrpName2                = "BGP-PEER-GROUP2"
+	dutGlobalAS                 = 64512
+	dutLocalAS1                 = 65501
+	dutLocalAS2                 = 64513
+	ateAS1                      = 65502
+	ateAS2                      = 65503
+	plenIPv4                    = 30
+	plenIPv6                    = 126
+	policyName                  = "ALLOW"
+	prefixSetName               = "prefSet"
 )
 
 var (
@@ -234,17 +236,17 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
+
+	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
+	prefixSet.GetOrCreatePrefix(advertisedRoutesv4CIDR, advertisedRoutesv4PrefixLen)
 	pdef := rp.GetOrCreatePolicyDefinition(name)
 	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	stmt.GetOrCreateActions().PolicyResult = pr
-	if dut.Vendor() == ondatra.JUNIPER {
-		stmt.GetOrCreateConditions().InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	}
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-
 }
 
 // verifyOTGPrefixTelemetry is to Validate prefix received on OTG por2.
