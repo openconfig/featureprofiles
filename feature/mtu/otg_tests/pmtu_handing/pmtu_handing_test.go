@@ -380,8 +380,8 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	if tt.flowSize > mtuSrc {
 		if inPkts == 0 {
 			t.Logf(
-				"flow sent '%d' packets and received '%d' packets, this is expected "+
-					"due to flow size '%d' being > interface MTU of '%d' bytes",
+				"flow sent '%v' packets and received '%v' packets, this is expected "+
+					"due to flow size '%v' being > interface MTU of '%v' bytes",
 				outPkts, inPkts, tt.flowSize, mtuSrc,
 			)
 		} else {
@@ -393,7 +393,7 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 		}
 	}
 	if tt.flowSize > mtuDst && outPkts == 0 && inPkts != 0 {
-		t.Logf("flow size: '%d' inPkts: '%d' outPkts: '%d'", tt.flowSize, inPkts, outPkts)
+		t.Logf("flow size: '%v' inPkts: '%v' outPkts: '%v'", tt.flowSize, inPkts, outPkts)
 		t.Errorf("flow should have sent packets and not received any, this did not happen.")
 	}
 	lossPercent := (float32(outPkts-inPkts) / float32(outPkts)) * 100
@@ -526,7 +526,7 @@ func TestPMTUHanding(t *testing.T) {
 				otgConfig: otgConfig,
 			}
 
-			t.Logf("%s%s Path MTU", flow[0], flow[1])
+			t.Logf("%s%s-%s Path MTU", flow[0], flow[1], tt.name)
 			t.Run(td.name, func(t *testing.T) {
 				t.Logf("Name: %s, Description: %s", tt.name, tt.desc)
 				outPkts := createFlowAndVerifyTraffic(t, td, tt, td.waitInterface)
