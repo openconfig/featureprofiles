@@ -1,0 +1,18 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "61af8f04-c537-499e-9ac9-dbadccb677a3"
+plan_id:  "DP-1.17"
+description:  "DSCP Transparency with ECN"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_interface_in_default_vrf:  true
+    interface_enabled:  true
+    qos_queue_requires_id: true
+    qos_buffer_allocation_config_required: true
+  }
+}

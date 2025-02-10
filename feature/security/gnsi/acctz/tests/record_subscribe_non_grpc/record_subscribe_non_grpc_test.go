@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package recordsubscribenongrpc
+package recordsubscribenongrpc_test
 
 import (
 	"context"
@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func prettyPrint(i interface{}) string {
+func prettyPrint(i any) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
 }

@@ -8,7 +8,7 @@ BGP Keepalive and HoldTimer Configuration Test
 
 *   Establish eBGP sessions as follows between ATE and DUT
     * The DUT has eBGP peering with ATE port 1 and ATE port 2.
-    * Enable an Accept-route all import-policy/export-policy under the neighbor AFI/SAFI.
+    * Enable an Accept-route all import-policy/export-policy under the BGP peer-group AFI/SAFI.
     * The first pair is called the "source" pair, and the second the "destination" pair
 
 *  Validate BGP session state on DUT using telemetry.
