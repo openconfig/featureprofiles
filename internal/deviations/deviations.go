@@ -1311,3 +1311,8 @@ func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
+
+// BannerEmptyDelimiterUnsupported returns true if the device does not support empty delimiter in banner
+func BannerEmptyDelimiterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBannerEmptyDelimiterUnsupported()
+}
