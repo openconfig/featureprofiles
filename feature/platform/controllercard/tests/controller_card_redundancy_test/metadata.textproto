@@ -5,3 +5,12 @@ uuid: ""
 plan_id: "gNMI-1.17"
 description: "Controller Card redundancy test"
 testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    gnoi_subcomponent_path: true
+    gnoi_subcomponent_reboot_status_unsupported: true
+  }
+}
