@@ -51,7 +51,7 @@ const (
 	mtuDst                  = 1514
 	trafficRunDuration      = 30 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
-	tgWaitDuration          = 10 * time.Second
+	tgWaitDuration          = 30 * time.Second
 	acceptableLossPercent   = 100.0
 	subInterfaceIndex       = 0
 	lineRatePrecentage      = 50
