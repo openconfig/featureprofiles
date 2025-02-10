@@ -31,7 +31,7 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-	)
+)
 
 // PortCount of topology
 type PortCount int
