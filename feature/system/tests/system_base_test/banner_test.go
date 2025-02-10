@@ -50,7 +50,7 @@ func TestMotdBanner(t *testing.T) {
 
 			t.Run("Get MOTD Config", func(t *testing.T) {
 
-				if testCase.description == "Empty String" {
+				if testCase.banner == "" {
 					if dut.Vendor() != ondatra.CISCO {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("MOTD Banner not empty")
@@ -68,7 +68,7 @@ func TestMotdBanner(t *testing.T) {
 			})
 
 			t.Run("Get MOTD Telemetry", func(t *testing.T) {
-				if testCase.description == "Empty String" {
+				if testCase.banner == "" {
 					if dut.Vendor() != ondatra.CISCO {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("MOTD Telemetry Banner not empty")
@@ -119,7 +119,7 @@ func TestLoginBanner(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
 			t.Run("Get Login Banner Config", func(t *testing.T) {
-				if testCase.description == "Empty String" {
+				if testCase.banner == "" {
 					if dut.Vendor() != ondatra.CISCO {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("Config Login Banner not empty")
@@ -137,7 +137,7 @@ func TestLoginBanner(t *testing.T) {
 			})
 
 			t.Run("Get Login Banner Telemetry", func(t *testing.T) {
-				if testCase.description == "Empty String" {
+				if testCase.banner == "" {
 					if dut.Vendor() != ondatra.CISCO {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("Telemetry Login Banner not empty")
