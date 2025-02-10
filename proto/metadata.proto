@@ -701,9 +701,11 @@ message Metadata {
     bool gnmi_get_on_root_unsupported = 251;
 
     // Device does not support packet processing aggregate drops.
+    // Cisco: b/395567844
     bool packet_processing_aggregate_drops_unsupported = 252;
 
     // Device does not support fragment total drops.
+    // Nokia: b/395553772
     bool fragment_total_drops_unsupported = 253;
 
     // Reserved field numbers and identifiers.
