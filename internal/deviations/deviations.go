@@ -735,11 +735,6 @@ func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
 }
 
-// TTLCopyUnsupported returns true for devices which does not support TTL copy.
-func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
-}
-
 // GribiDecapMixedPlenUnsupported returns true if devices does not support
 // programming with mixed prefix length.
 func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
