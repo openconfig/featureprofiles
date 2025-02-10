@@ -20,17 +20,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"github.com/golang/ygot/ygot/ygot"
+	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg/otg"
+	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 // PortCount of topology
@@ -256,6 +256,9 @@ func (bs *BGPSession) WithEBGP(t *testing.T, afiTypes []oc.E_BgpTypes_AFI_SAFI_T
 func (bs *BGPSession) configureRoutingPolicy() error {
 	rp := bs.DUTConf.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
+	if stmt := pdef.GetStatement("20"); stmt != nil {
+		return nil
+	}
 	stmt, err := pdef.AppendNewStatement("20")
 	if err != nil {
 		return err
