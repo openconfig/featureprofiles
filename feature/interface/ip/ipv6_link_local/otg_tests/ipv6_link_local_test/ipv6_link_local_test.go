@@ -287,7 +287,7 @@ func verifyGlobalUnicastTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondat
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(15 * time.Second)
+        time.Sleep(15 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
