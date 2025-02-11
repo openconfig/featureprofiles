@@ -31,7 +31,6 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 // This test topology connects the DUT and ATE over two ports.
