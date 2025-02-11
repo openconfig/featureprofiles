@@ -1058,11 +1058,9 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
 					break
 				}
-				if !deviations.TTLCopyUnsupported(args.dut) {
-					if got := uint32(v4Packet.TTL); got != pa.ttl {
-						t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-						break
-					}
+				if got := uint32(v4Packet.TTL); got != pa.ttl {
+					t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
+					break
 				}
 				if v4Packet.DstIP.String() == tunnelDstIP1 {
 					tunnel1Pkts++
