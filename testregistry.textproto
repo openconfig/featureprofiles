@@ -393,6 +393,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetout_test/README.md"
 }
 test: {
+  id: "P4RT-5.3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_with_vrf_selection_test/README.md"
+}
+test: {
   id: "P4RT-6.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/performance_test/README.md"
 }
@@ -1059,9 +1063,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-14.1"
-  description: "gRIBI Scaling"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/gribi_scaling/README.md"
+  id: "TE-14.2"
+  description: "gRIBI encap and decap scale"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_decap_scale/README.md"
   exec: " "
 }
 test: {
