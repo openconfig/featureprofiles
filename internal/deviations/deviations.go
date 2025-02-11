@@ -1306,3 +1306,8 @@ func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
+
+// ExplicitDcoConfig returns true if a user-configured value is required in module-functional-type for the transceiver
+func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
+}

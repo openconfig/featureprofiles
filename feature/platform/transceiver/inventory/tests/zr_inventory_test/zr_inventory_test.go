@@ -1,6 +1,7 @@
 package zr_inventory_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -17,6 +18,11 @@ const (
 	samplingInterval = 10 * time.Second
 	timeout          = 5 * time.Minute
 	waitInterval     = 30 * time.Second
+)
+
+var (
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -57,6 +63,14 @@ func TestInventory(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
+
+	cfgplugins.Initialize(operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 
