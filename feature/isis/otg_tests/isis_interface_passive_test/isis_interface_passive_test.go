@@ -200,11 +200,9 @@ func TestIsisInterfacePassive(t *testing.T) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
 			// Checking dis system id.
-			if !deviations.MissingValueForDefaults(ts.DUT) {
-				if !deviations.IsisDisSysidUnsupported(ts.DUT) {
-					if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
-						t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
-					}
+			if !deviations.MissingValueForDefaults(ts.DUT) && !deviations.IsisDisSysidUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
+					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
 				}
 			}
 			// Checking isis local extended circuit id.
@@ -284,11 +282,9 @@ func TestIsisInterfacePassive(t *testing.T) {
 				}
 			}
 			// Checking database_overloads counters.
-			if !deviations.MissingValueForDefaults(ts.DUT) {
-				if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
-					if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
-						t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
-					}
+			if !deviations.MissingValueForDefaults(ts.DUT) && !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
 				}
 			}
 			// Checking execeeded maximum seq number counters").
