@@ -12,9 +12,7 @@ following features:
 *   Ethernet interface
 
     *   Check the telemetry port-speed exists with correct speed.
-        *   /interfaces/interfaces/interface/ethernet/state/port-speed
     *   Check the telemetry mac-address with correct format.
-        *   /interfaces/interfaces/interface/ethernet/state/mac-address
     *   Check if the telemetry get all path exists and returns correct responses for mac address and port-speed
         *   /interfaces/interface/ethernet/state/port-speed
         *   /interfaces/interface/ethernet/state/mac-address
@@ -147,11 +145,11 @@ paths:
   /lacp/interfaces/interface/members/member/state/partner-key:
   /lacp/interfaces/interface/members/member/state/partner-port-num:
   /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/state/hardware-port:
   /interfaces/interface/state/id:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/ethernet/state/port-speed:
-  /interfaces/interface/ethernet/state/mac-address:
   /interfaces/interface/state/physical-channel:
   /components/component/integrated-circuit/state/node-id:
     platform_type: [ "INTEGRATED_CIRCUIT" ]
