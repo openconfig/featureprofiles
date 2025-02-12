@@ -1,0 +1,16 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "4fdd3abd-24b6-482c-9b32-da96910ef080"
+plan_id:  "System-1.2"
+description:  "System g protocol test"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    p4rt_capabilities_unsupported: true
+    gnmi_get_on_root_unsupported: true
+  }
+}
