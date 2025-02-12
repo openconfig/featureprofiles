@@ -2573,7 +2573,7 @@ func (x *Metadata_Deviations) GetTcSubscriptionUnsupported() bool {
 }
 
 func (x *Metadata_Deviations) GetDefaultBgpInstanceName() string {
-	if x != nil {
+		if x != nil {
 		return x.DefaultBgpInstanceName
 	}
 	return ""
