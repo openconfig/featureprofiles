@@ -283,10 +283,6 @@ message Metadata {
     bool ate_port_link_state_operations_unsupported = 94;
     // Creates a user and assigns role/rbac to said user via native model.
     bool set_native_user = 95;
-    // Devices require configuring lspRefreshInterval ISIS timer when
-    // lspLifetimeInterval is configured.
-    // Arista: partnerissuetracker.corp.google.com/293667850
-    bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
     bool linecard_cpu_utilization_unsupported = 98;
@@ -410,9 +406,6 @@ message Metadata {
     // Skip tests with decap encap vrf as PBF action
     //  Nokia: partnerissuetracker.corp.google.com/issues/323251581
     bool skip_pbf_with_decap_encap_vrf = 141;
-    // Devices which does not support copying TTL.
-    // Juniper: b/307258544
-    bool ttl_copy_unsupported = 142;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
     bool gribi_decap_mixed_plen_unsupported = 143;
@@ -694,6 +687,26 @@ message Metadata {
     // Arista: b/346557012  
     // Devices that do not support qos scheduler ingress policer.
     bool qos_scheduler_ingress_policer_unsupported = 248;
+
+    // Arista: b/354689142  
+    // Devices that do not support gRIBIencap headers.
+    bool gribi_encap_header_unsupported = 249;
+
+    // Device does not support P4RT Capabilities rpc.
+    // Cisco: b/385298158
+    bool p4rt_capabilities_unsupported = 250;
+
+    // Device does not support gNMI GET on root.
+    // Cisco: b/385298159
+    bool gnmi_get_on_root_unsupported = 251;
+
+    // Devices that do no support static lsp config
+    // Juniper b/356635233
+    bool static_lsp_unsupported = 252;
+
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 253;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
