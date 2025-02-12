@@ -148,8 +148,6 @@ paths:
   /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/state/hardware-port:
   /interfaces/interface/state/id:
-  /interfaces/interface/state/oper-status:
-  /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/state/physical-channel:
   /components/component/integrated-circuit/state/node-id:
     platform_type: [ "INTEGRATED_CIRCUIT" ]
