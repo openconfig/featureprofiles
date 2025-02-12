@@ -53,7 +53,12 @@ func TestMain(m *testing.M) {
 func TestSampledBackplaneCapacityCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	ics := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+        var ics []string
+        if deviations.OperStatusForIcUnsupported(dut) {
+                ics = components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+        } else {
+                ics = components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+        }
 	if len(ics) == 0 {
 		t.Fatalf("Get IntegratedCircuit card list for %q: got 0, want > 0", dut.Model())
 	}
@@ -109,7 +114,12 @@ func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
 func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	ics := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+        var ics []string
+        if deviations.OperStatusForIcUnsupported(dut) {
+                ics = components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+        } else {
+                ics = components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+        }
 	if len(ics) == 0 {
 		t.Fatalf("Get IntegratedCircuit card list for %q: got 0, want > 0", dut.Model())
 	}
