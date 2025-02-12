@@ -406,9 +406,6 @@ message Metadata {
     // Skip tests with decap encap vrf as PBF action
     //  Nokia: partnerissuetracker.corp.google.com/issues/323251581
     bool skip_pbf_with_decap_encap_vrf = 141;
-    // Devices which does not support copying TTL.
-    // Juniper: b/307258544
-    bool ttl_copy_unsupported = 142;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
     bool gribi_decap_mixed_plen_unsupported = 143;
@@ -703,9 +700,26 @@ message Metadata {
     // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 251;
 
+    // Device does not support packet processing aggregate drops.
+    // Cisco: b/395567844
+    bool packet_processing_aggregate_drops_unsupported = 252;
+
+    // Device does not support fragment total drops.
+    // Nokia: b/395553772
+    bool fragment_total_drops_unsupported = 253;
+
+    // Devices that do no support static lsp config
+    // Juniper b/356635233
+    bool static_lsp_unsupported = 254;
+
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 255;
+
     // Arista: b/354689142  
     // Devices that do not support DecapGre headers.
     bool decap_gre_headers_unsupported = 252;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
