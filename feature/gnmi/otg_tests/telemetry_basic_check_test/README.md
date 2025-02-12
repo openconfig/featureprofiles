@@ -15,14 +15,20 @@ following features:
         *   /interfaces/interfaces/interface/ethernet/state/port-speed
     *   Check the telemetry mac-address with correct format.
         *   /interfaces/interfaces/interface/ethernet/state/mac-address
+    *   Check if the telemetry get all path exists and returns correct responses for mac address and port-speed
+        *   /interfaces/interface/ethernet/state/port-speed
+        *   /interfaces/interface/ethernet/state/mac-address
 
 
 *   Interface status
 
     *   Check admin-status and oper-status exist and correct.
         *   /interfaces/interfaces/interface/state/admin-status
-        *   /interfaces/interfaces/interface/state/oper-status
+        *   /interfaces/interfaces/interface/state/admin-status
+    *   Check if the telemetry get all path exists and returns correct responses for admin-status, admin-status and last-change
+        *   /interfaces/interface/state/
 
+          
 *   Interface physical channel
 
     *   Check interface physical-channel exists.
@@ -68,6 +74,10 @@ following features:
     *   Check the following component paths exists
         *   /components/component/integrated-circuit/state/node-id
         *   /components/component/state/parent
+     
+    *   Check if the telemetry get all path exists and returns correct responses for transceiver state
+        *   /components/component/state/transceiver/state
+          
 
 *   CPU component state
 
@@ -125,6 +135,8 @@ paths:
 
   ## State Paths ##
   /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/last-change:
   /lacp/interfaces/interface/members/member/state/interface:
   /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts:
   /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts:
@@ -139,6 +151,7 @@ paths:
   /interfaces/interface/state/id:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/ethernet/state/mac-address:
   /interfaces/interface/state/physical-channel:
   /components/component/integrated-circuit/state/node-id:
     platform_type: [ "INTEGRATED_CIRCUIT" ]
@@ -150,6 +163,9 @@ paths:
         "POWER_SUPPLY",
         "INTEGRATED_CIRCUIT"
     ]
+  /components/component/transceiver/state/form-factor:
+  /components/component/transceiver/state/serial-no:
+  /components/component/transceiver/state/present:
   /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/in-unicast-pkts:
   /interfaces/interface/state/counters/in-broadcast-pkts:
