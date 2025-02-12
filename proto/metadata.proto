@@ -680,10 +680,7 @@ message Metadata {
     // Cisco: b/388983709
     // default bgp instance name is used to set bgp instance name value other than DEFAULT
     string default_bgp_instance_name = 246;
-    // Juniper: b/383145521
-    // Device needs route policy reference to stream prefix set info.
-    bool bgp_prefixset_req_routepol_ref = 247;
-
+    
     // Arista does not support ETHChannel rate-class
     bool channel_assignment_rate_class_parameters_unsupported = 247;
     
@@ -706,6 +703,10 @@ message Metadata {
     // Devices that do no support static lsp config
     // Juniper b/356635233
     bool static_lsp_unsupported = 252;
+
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 253;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
