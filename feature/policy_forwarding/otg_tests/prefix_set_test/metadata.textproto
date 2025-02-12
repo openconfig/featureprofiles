@@ -12,7 +12,8 @@ platform_exceptions: {
     deviations: {
       skip_prefix_set_mode: true
     }
-  }
+}
+
 platform_exceptions: {
     platform: {
       vendor: JUNIPER
