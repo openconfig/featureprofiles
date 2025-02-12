@@ -708,6 +708,15 @@ message Metadata {
     // Nokia: b/395553772
     bool fragment_total_drops_unsupported = 253;
 
+    // Devices that do no support static lsp config
+    // Juniper b/356635233
+    bool static_lsp_unsupported = 254;
+
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 255;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
