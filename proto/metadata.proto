@@ -700,13 +700,22 @@ message Metadata {
     // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 251;
 
+    // Device does not support packet processing aggregate drops.
+    // Cisco: b/395567844
+    bool packet_processing_aggregate_drops_unsupported = 252;
+
+    // Device does not support fragment total drops.
+    // Nokia: b/395553772
+    bool fragment_total_drops_unsupported = 253;
+
     // Devices that do no support static lsp config
     // Juniper b/356635233
-    bool static_lsp_unsupported = 252;
+    bool static_lsp_unsupported = 254;
 
     // Juniper: b/383145521
     // Device needs route policy reference to stream prefix set info.
-    bool bgp_prefixset_req_routepol_ref = 253;
+    bool bgp_prefixset_req_routepol_ref = 255;
+
 
     // Devices that do not support oper-status for Integrated Circuits telemetry path
     // Juniper b/395551640
