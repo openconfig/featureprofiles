@@ -62,6 +62,7 @@ const (
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "DUT to ATE Port1",
+		Name:    "port1",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
@@ -77,6 +78,7 @@ var (
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "DUT to ATE Port2",
+		Name:    "port2",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: plenIPv4,
@@ -111,12 +113,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := dutPort2.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
+func verifyPortsUp(t *testing.T, dev *ondatra.Device, portList []string) {
 	t.Helper()
-	for _, p := range dev.Ports() {
+	for _, port := range portList {
+		p := dev.Port(t, port)
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
@@ -144,7 +151,11 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 	pg2 := bgp.GetOrCreatePeerGroup(peerGrpName2) // V6 peer group
 	pg2.PeerAs = ygot.Uint32(dutAS)
 	pg2.PeerGroupName = ygot.String(peerGrpName2)
-
+	if isV4Only {
+		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	} else {
+		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	}
 	for _, nbr := range nbrs {
 		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		nv4.PeerGroup = ygot.String(nbr.peerGrp)
@@ -479,7 +490,8 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 			})
 
 			t.Run("Verify port status on DUT", func(t *testing.T) {
-				verifyPortsUp(t, dut.Device)
+				portList := []string{"port1", "port2"}
+				verifyPortsUp(t, dut.Device, portList)
 			})
 
 			t.Run("Verify BGP telemetry", func(t *testing.T) {
