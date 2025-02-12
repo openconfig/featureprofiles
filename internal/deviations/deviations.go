@@ -1307,6 +1307,11 @@ func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
 
+// StaticLspConfigUnsupported returns true if static lsp config is not supported
+func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticLspUnsupported()
+}
+
 // BgpAspathsetUnsupported returns true if as-path-set for bgp-defined-sets is unsupported
 func BgpAspathsetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAspathsetUnsupported()

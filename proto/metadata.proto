@@ -700,9 +700,13 @@ message Metadata {
     // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 251;
 
+    // Devices that do no support static lsp config
+    // Juniper b/356635233
+    bool static_lsp_unsupported = 252;
+
     // bgp_aspathset_unsupported is set to true for devices that do not support as-path-set for bgp-defined-sets.
     // Juniper: b/330173167
-    bool bgp_aspathset_unsupported = 252;
+    bool bgp_aspathset_unsupported = 253;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
