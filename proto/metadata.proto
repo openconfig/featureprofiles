@@ -704,6 +704,10 @@ message Metadata {
     // Juniper b/356635233
     bool static_lsp_unsupported = 252;
 
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 253;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
