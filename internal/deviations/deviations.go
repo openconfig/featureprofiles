@@ -1316,3 +1316,8 @@ func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
 }
+
+// OperStatusForIcUnsupported return true if oper-status leaf is unsupported for Integration Circuit
+func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
+}
