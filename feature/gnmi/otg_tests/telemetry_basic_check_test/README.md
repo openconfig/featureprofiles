@@ -160,8 +160,11 @@ paths:
         "INTEGRATED_CIRCUIT"
     ]
   /components/component/transceiver/state/form-factor:
+    platform_type: [ "TRANSCEIVER" ]
   /components/component/transceiver/state/serial-no:
+    platform_type: [ "TRANSCEIVER" ]
   /components/component/transceiver/state/present:
+    platform_type: [ "TRANSCEIVER" ]
   /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/in-unicast-pkts:
   /interfaces/interface/state/counters/in-broadcast-pkts:
