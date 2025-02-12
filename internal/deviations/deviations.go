@@ -1306,3 +1306,23 @@ func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }
+
+// PacketProcessingAggregateDropsUnsupported returns true if the device does not support packet processing aggregate drops.
+func PacketProcessingAggregateDropsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPacketProcessingAggregateDropsUnsupported()
+}
+
+// FragmentTotalDropsUnsupported returns true if the device does not support fragment total drops.
+func FragmentTotalDropsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFragmentTotalDropsUnsupported()
+}
+
+// StaticLspConfigUnsupported returns true if static lsp config is not supported
+func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticLspUnsupported()
+}
+
+// Devices needs route policy reference to stream prefix set info.
+func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
+}
