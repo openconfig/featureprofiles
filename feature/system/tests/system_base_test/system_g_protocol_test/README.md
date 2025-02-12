@@ -1,4 +1,4 @@
-# System-1.2: System g protocol testing
+# System-1.2: System g protocol test
 
 ## Summary
 
