@@ -53,5 +53,5 @@ rpcs:
    gnoi:
       system.System.Ping:
    gribi:
-      gribi.Get:
+      gRIBI.Get:
 ```
