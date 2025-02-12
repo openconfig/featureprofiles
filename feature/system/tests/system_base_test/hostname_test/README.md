@@ -24,7 +24,8 @@ paths:
 
 rpcs:
    gnmi:
-      gNMI.Get:
-      gNMI.Replace:
-      gNMI.Delete:
+      gNMI.Set:
+         replace: true
+         delete: true
+      gNMI.Subscribe:
 ```
