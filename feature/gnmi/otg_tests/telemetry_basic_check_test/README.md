@@ -24,7 +24,7 @@ following features:
 
     *   Check admin-status and oper-status exist and correct.
         *   /interfaces/interfaces/interface/state/admin-status
-        *   /interfaces/interfaces/interface/state/admin-status
+        *   /interfaces/interfaces/interface/state/oper-status
     *   Check if the telemetry get all path exists and returns correct responses for admin-status, admin-status and last-change
         *   /interfaces/interface/state/
 
