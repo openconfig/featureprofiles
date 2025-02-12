@@ -1315,6 +1315,7 @@ func PacketProcessingAggregateDropsUnsupported(dut *ondatra.DUTDevice) bool {
 // FragmentTotalDropsUnsupported returns true if the device does not support fragment total drops.
 func FragmentTotalDropsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFragmentTotalDropsUnsupported()
+}
 
 // StaticLspConfigUnsupported returns true if static lsp config is not supported
 func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
