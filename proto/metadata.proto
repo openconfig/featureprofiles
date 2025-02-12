@@ -718,7 +718,7 @@ message Metadata {
 
     // Arista: b/354689142  
     // Devices that do not support DecapGre headers.
-    bool decap_gre_headers_unsupported = 252;
+    bool decap_gre_headers_unsupported = 256;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
