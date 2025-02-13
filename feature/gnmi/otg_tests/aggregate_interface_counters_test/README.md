@@ -39,7 +39,7 @@ following features:
 *   Configure aggregate interfaces and assign 4 members to the aggregate interface:
     * For both static LAG
         Ensure that LAG is successfully negotiated, verifying port status for each of DUT ports 2-9 reflects expected LAG state via ATE and DUT telemetry.
-        Ensure that below status with minimum links configuration on LAG:
+        Ensure that below status with minimum links configuration on LAG
             Down when min-1 links are up
             Up when min links are up
             Up when >min links are up
