@@ -63,22 +63,24 @@ func DisableIGPLDPSync(t *testing.T, ts *isissession.TestSession) {
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	prot.Enabled = ygot.Bool(true)
 
-	// Global configs - disable IGP LDP sync
+	// Global level - disable IGP LDP sync
 	isis := prot.GetOrCreateIsis()
+	t.Logf("Disable IGP LDP sync on global")
 	isismpls := prot.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateMpls()
 	isismplsldpsync := isismpls.GetOrCreateIgpLdpSync()
-	t.Logf("isismplsldpsync: %v", isismplsldpsync.GetEnabled())
 	isismplsldpsync.Enabled = ygot.Bool(false)
+	t.Logf("isismplsldpsync status after disabling at global level: %v", isismplsldpsync.GetEnabled())
 
-	// Interface configs - disable IGP LDP sync
+	// Interface level - disable IGP LDP sync
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		intfName += ".0"
 	}
 	intf := isis.GetOrCreateInterface(intfName)
+	t.Logf("Disable IGP LDP sync on interface %s", intfName)
 	isisintfmplsldpsync := intf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
-	t.Logf("isisintfmplsldpsync: %v", isisintfmplsldpsync.GetEnabled())
 	isisintfmplsldpsync.Enabled = ygot.Bool(false)
+	t.Logf("isisintfmplsldpsync status after disabling at interface level: %v", isisintfmplsldpsync.GetEnabled())
 }
 
 // configureISIS configures isis on DUT.
