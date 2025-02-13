@@ -17,13 +17,13 @@
 package hostname_test
 
 import (
-	"testing"
-	"time"
-	
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
+        "testing"
+        "time"
+
+        "github.com/openconfig/featureprofiles/internal/deviations"
+        "github.com/openconfig/featureprofiles/internal/fptest"
+        "github.com/openconfig/ondatra"
+        "github.com/openconfig/ondatra/gnmi"
 )
 
 // TestHostname verifies that the hostname configuration paths can be read,
@@ -33,55 +33,55 @@ import (
 // telemetry_path:/system/state/hostname
 
 func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+        fptest.RunTests(m)
 }
 
 func TestHostname(t *testing.T) {
-	testCases := []struct {
-		description string
-		hostname    string
-	}{
-		{"15 Letters", "abcdefghijkmnop"},
-		{"15 Numbers", "123456789012345"},
-		{"Single Character", "x"},
-		{"Periods", "test.name.example"},
-		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
-	}
+        testCases := []struct {
+                description string
+                hostname    string
+        }{
+                {"15 Letters", "abcdefghijkmnop"},
+                {"15 Numbers", "123456789012345"},
+                {"Single Character", "x"},
+                {"Periods", "test.name.example"},
+                {"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+        }
 
-	dut := ondatra.DUT(t, "dut")
+        dut := ondatra.DUT(t, "dut")
 
-	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
-			config := gnmi.OC().System().Hostname()
-			state := gnmi.OC().System().Hostname()
+        for _, testCase := range testCases {
+                t.Run(testCase.description, func(t *testing.T) {
+                        config := gnmi.OC().System().Hostname()
+                        state := gnmi.OC().System().Hostname()
 
-			gnmi.Replace(t, dut, config.Config(), testCase.hostname)
+                        gnmi.Replace(t, dut, config.Config(), testCase.hostname)
 
-			t.Run("Get Hostname Config", func(t *testing.T) {
-				configGot := gnmi.Get(t, dut, config.Config())
-				if configGot != testCase.hostname {
-					t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
-				}
-			})
+                        t.Run("Get Hostname Config", func(t *testing.T) {
+                                configGot := gnmi.Get(t, dut, config.Config())
+                                if configGot != testCase.hostname {
+                                        t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
+                                }
+                        })
 
-			if deviations.CLITakesPrecedenceOverOC(dut) {
-				t.Logf("Skipping hostname telemetry check")
-			} else {
-				t.Run("Get Hostname Telemetry", func(t *testing.T) {
-					stateGot := gnmi.Await(t, dut, state.State(), 1*time.Minute, testCase.hostname)
-					if got, _ := stateGot.Val(); got != testCase.hostname {
-						t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
-					}
-				})
-			}
-			t.Run("Delete Hostname", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
-				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-					t.Errorf("Delete hostname fail: got %v", qs)
-				}
-			})
-		})
-	}
+                        if deviations.CLITakesPrecedenceOverOC(dut) {
+                                t.Logf("Skipping hostname telemetry check")
+                        } else {
+                                t.Run("Get Hostname Telemetry", func(t *testing.T) {
+                                        stateGot := gnmi.Await(t, dut, state.State(), 1*time.Minute, testCase.hostname)
+                                        if got, _ := stateGot.Val(); got != testCase.hostname {
+                                                t.Errorf("Telemetry hostname: got %v, want %s", stateGot, testCase.hostname)
+                                        }
+                                })
+                        }
+                        t.Run("Delete Hostname", func(t *testing.T) {
+                                gnmi.Delete(t, dut, config.Config())
+                                if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
+                                        t.Errorf("Delete hostname fail: got %v", qs)
+                                }
+                        })
+                })
+        }
 }
 
 // TestDomainName verifies that the domainname configuration paths can be read,
@@ -90,50 +90,50 @@ func TestHostname(t *testing.T) {
 // config_path:/system/config/domain-name
 // telemetry_path:/system/state/domain-name
 func TestDomainName(t *testing.T) {
-	testCases := []struct {
-		description string
-		domainname  string
-	}{
-		{"15 Letters", "abcdefghijkmnop"},
-		{"15 Numbers", "123456789012345"},
-		{"Single Character", "x"},
-		{"Dash and Underscore", "foo_bar-baz"},
-		{"Periods", "test.name.example"},
-		{"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
-	}
+        testCases := []struct {
+                description string
+                domainname  string
+        }{
+                {"15 Letters", "abcdefghijkmnop"},
+                {"15 Numbers", "123456789012345"},
+                {"Single Character", "x"},
+                {"Dash and Underscore", "foo_bar-baz"},
+                {"Periods", "test.name.example"},
+                {"63 Characters", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+        }
 
-	dut := ondatra.DUT(t, "dut")
+        dut := ondatra.DUT(t, "dut")
 
-	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
-			config := gnmi.OC().System().DomainName()
-			state := gnmi.OC().System().DomainName()
+        for _, testCase := range testCases {
+                t.Run(testCase.description, func(t *testing.T) {
+                        config := gnmi.OC().System().DomainName()
+                        state := gnmi.OC().System().DomainName()
 
-			gnmi.Replace(t, dut, config.Config(), testCase.domainname)
+                        gnmi.Replace(t, dut, config.Config(), testCase.domainname)
 
-			t.Run("Get Domainname Config", func(t *testing.T) {
-				configGot := gnmi.Get(t, dut, config.Config())
-				if configGot != testCase.domainname {
-					t.Errorf("Config domainname: got %s, want %s", configGot, testCase.domainname)
-				}
-			})
+                        t.Run("Get Domainname Config", func(t *testing.T) {
+                                configGot := gnmi.Get(t, dut, config.Config())
+                                if configGot != testCase.domainname {
+                                        t.Errorf("Config domainname: got %s, want %s", configGot, testCase.domainname)
+                                }
+                        })
 
-			if deviations.CLITakesPrecedenceOverOC(dut) {
-				t.Logf("Skipping domain-name telemetry check")
-			} else {
-				t.Run("Get Domainname Telemetry", func(t *testing.T) {
-					stateGot := gnmi.Await(t, dut, state.State(), 1*time.Minute, testCase.domainname)
-					if got, _ := stateGot.Val(); got != testCase.domainname {
-						t.Errorf("Telemetry domainname: got %v, want %s", stateGot, testCase.domainname)
-					}
-				})
-			}
-			t.Run("Delete Domainname", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
-				if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-					t.Errorf("Delete domainname fail: got %v", qs)
-				}
-			})
-		})
-	}
+                        if deviations.CLITakesPrecedenceOverOC(dut) {
+                                t.Logf("Skipping domain-name telemetry check")
+                        } else {
+                                t.Run("Get Domainname Telemetry", func(t *testing.T) {
+                                        stateGot := gnmi.Await(t, dut, state.State(), 1*time.Minute, testCase.domainname)
+                                        if got, _ := stateGot.Val(); got != testCase.domainname {
+                                                t.Errorf("Telemetry domainname: got %v, want %s", stateGot, testCase.domainname)
+                                        }
+                                })
+                        }
+                        t.Run("Delete Domainname", func(t *testing.T) {
+                                gnmi.Delete(t, dut, config.Config())
+                                if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
+                                        t.Errorf("Delete domainname fail: got %v", qs)
+                                }
+                        })
+                })
+        }
 }
