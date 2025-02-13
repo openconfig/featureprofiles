@@ -1331,3 +1331,8 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
+
+// NoFallbackRouteInTransitVrf returns true if fallback route (0/0 or 0::0/) not supported in transit network instances.
+func NoFallbackRouteInTransitVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoFallbackRouteInTransitVrf()
+}
