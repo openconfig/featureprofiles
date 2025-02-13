@@ -716,6 +716,9 @@ message Metadata {
     // Device needs route policy reference to stream prefix set info.
     bool bgp_prefixset_req_routepol_ref = 255;
 
+    // Devices that do not support oper-status for Integrated Circuits telemetry path
+    // Juniper b/395551640
+    bool oper_status_for_ic_unsupported = 256;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
