@@ -124,11 +124,10 @@ rpcs:
   * MFF - A modular form factor device containing LINECARDs, FABRIC and
     redundant CONTROLLER_CARD components
   * FFF - fixed form factor
-  * vRX - virtual router device
-
+  * 
     gNMI.Set:
 
 ## Minimum DUT platform requirement
-
-N/A
-
+  * MFF - A modular form factor device containing LINECARDs, FABRIC and
+    redundant CONTROLLER_CARD components
+  * FFF - fixed form factor
