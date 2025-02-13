@@ -1,12 +1,20 @@
-# gNMI-1.111: Telemetry: Aggregate Interface Counters
+# gNMI-1.23: Telemetry: Aggregate Interface Counters
 
 ## Summary
 
 Validate aggregate interfaces counters including both IPv4 and IPv6 counters.
 Also enable/disable the aggregate interface a few times and check if telemetry counters for interfaces are still available.
 
-## Procedure
+## Testbed type
 
+* [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
+
+## Test environment setup
+The test uses a 4 port ATE setup where 1 port is used as a singleton interface and 3 other ports will be used as aggregate interface.
+The aggregate interface is a static LAG. Traffic will be sent using port1 and recieved by the port2,3,4 which are member ports of the aggregate interface.
+
+
+## Procedure
 In the automated ondatra test, verify the presence of the telemetry paths of the
 following features:
 
@@ -109,6 +117,15 @@ paths:
 rpcs:
   gnmi:
     gNMI.Subscribe:
+
+## Required DUT platform
+
+* Specify the minimum DUT-type:
+  * MFF - A modular form factor device containing LINECARDs, FABRIC and
+    redundant CONTROLLER_CARD components
+  * FFF - fixed form factor
+  * vRX - virtual router device
+
     gNMI.Set:
 ```
 ## Minimum DUT platform requirement
