@@ -116,8 +116,8 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
 rpcs:
   gnmi:
-    gNMI.Subscribe:
-
+    gNMI.Get:
+```
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
@@ -127,7 +127,7 @@ rpcs:
   * vRX - virtual router device
 
     gNMI.Set:
-```
+
 ## Minimum DUT platform requirement
 
 N/A
