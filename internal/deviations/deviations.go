@@ -730,10 +730,6 @@ func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
 }
 
-// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
-func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
-}
 
 // GribiDecapMixedPlenUnsupported returns true if devices does not support
 // programming with mixed prefix length.
