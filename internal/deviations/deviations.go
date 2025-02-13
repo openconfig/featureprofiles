@@ -730,7 +730,6 @@ func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
 }
 
-
 // GribiDecapMixedPlenUnsupported returns true if devices does not support
 // programming with mixed prefix length.
 func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
