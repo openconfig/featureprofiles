@@ -1329,5 +1329,5 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 
 // OperStatusForIcUnsupported return true if oper-status leaf is unsupported for Integration Circuit
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
+	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
