@@ -923,6 +923,76 @@ tests:
       - mastarke
     mustpass: true
     timeout: 4200
+  - name: TRANSCEIVER-1 (Telemetry 400ZR Chromatic Dispersion(CD) telemetry values streaming)
+    path: feature/platform/transceiver/tests/zr_cd_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-3 (Telemetry 400ZR Optics firmware version streaming)
+    path: feature/platform/transceiver/tests/zr_firmware_version_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-4 (Telemetry 400ZR RX input and TX output power telemetry values streaming)
+    path: feature/platform/transceiver/tests/zr_input_output_power_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-5 (Configuration 400ZR channel frequency, output TX launch power and operational mode setting)
+    path: feature/platform/transceiver/tests/zr_tunable_parameters_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-7 (Telemetry 400ZR Optics inventory info streaming)
+    path: feature/platform/transceiver/tests/zr_inventory_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-8 (Telemetry 400ZR Optics module temperature streaming.)
+    path: feature/platform/transceiver/tests/zr_temperature_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-9 (Telemetry 400ZR TX laser bias current telemetry values streaming.)
+    path: feature/platform/transceiver/tests/zr_laser_bias_current_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-10 (Telemetry 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
+    path: feature/platform/transceiver/tests/zr_fec_uncorrectable_frames_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-11 (Telemetry 400ZR Optics logical channels provisioning and related telemetry)
+    path: feature/platform/transceiver/tests/zr_logical_channels_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-12 (Telemetry 400ZR Transceiver Supply Voltage streaming.)
+    path: feature/platform/transceiver/tests/zr_supply_voltage_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
     
     
 
