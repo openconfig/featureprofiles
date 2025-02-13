@@ -3,7 +3,7 @@
 ## Summary
 
 Validate aggregate interfaces counters including both IPv4 and IPv6 counters.
-Also enable the rea
+Also enable/disable the aggregate interface a few times and check if telemetry counters for interfaces are still available.
 
 ## Procedure
 
