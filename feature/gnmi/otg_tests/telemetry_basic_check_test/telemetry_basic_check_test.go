@@ -124,6 +124,20 @@ func TestEthernetMacAddress(t *testing.T) {
 	}
 }
 
+func TestEthernetWildcard(t *testing.T) {
+	t.Helper()
+	dut := ondatra.DUT(t, "dut")
+	portsSpeeds := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Ethernet().PortSpeed().State())
+	// Iterate over the retrieved port speeds.
+	for _, portSpeed := range portsSpeeds {
+		t.Logf("Ethernet path and speed: %v", portSpeed)
+	}
+	macAddresses := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Ethernet().MacAddress().State())
+	for _, macAddress := range macAddresses {
+		t.Logf("Ethernet path and MacAddress: %v", macAddress)
+	}
+}
+
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
@@ -358,6 +372,14 @@ func TestQoSCounters(t *testing.T) {
 	}
 }
 
+func TestInterfaceWildcard(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	interfaceStates := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range interfaceStates {
+		t.Logf("Interface Name: %v, Interface AdminStatus: %v, Interface OperStatus: %v, Last change: %v", intf.GetName(), intf.GetAdminStatus(), intf.GetOperStatus(), intf.GetLastChange())
+	}
+}
+
 func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]string {
 	t.Helper()
 	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -464,6 +486,19 @@ func TestComponentParent(t *testing.T) {
 				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
+	}
+}
+
+func TestComponentTransceiverWildcard(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	transceivers := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Transceiver().State())
+	for _, tcv := range transceivers {
+		if tcv.GetPresent() == oc.Transceiver_Present_PRESENT {
+			t.Logf("Serial Number: %s, Transceiver Form Factor: %v", tcv.GetSerialNo(), tcv.GetFormFactor())
+		}
+		if tcv.GetPresent() != oc.Transceiver_Present_PRESENT {
+			t.Logf("Transceiver Not Present : %v", tcv)
+		}
 	}
 }
 
