@@ -538,7 +538,7 @@ func configureImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice) 
 		t.Fatalf("AppendNewStatement failed: %v", err)
 	}
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	// Apply ipv4 policy to bgp neighbour.
 	dni := deviations.DefaultNetworkInstance(dut)
