@@ -56,11 +56,6 @@ type utilization struct {
 }
 
 var (
-	fibResource = map[ondatra.Vendor]string{
-		ondatra.ARISTA: "Routing/Resource6",
-		ondatra.NOKIA:  "ip-lpm-routes",
-		ondatra.CISCO:  "l2_service_port_0",
-	}
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
 		IPv4:    "100.121.1.1",
