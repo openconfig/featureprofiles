@@ -14,12 +14,13 @@
  limitations under the License.
 */
 
-package system_base_test
+package system_banner_test
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -29,6 +30,11 @@ import (
 //
 // config_path:/system/config/motd-banner
 // telemetry_path:/system/state/motd-banner
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 func TestMotdBanner(t *testing.T) {
 
 	testCases := []struct {
