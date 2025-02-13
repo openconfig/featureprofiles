@@ -90,8 +90,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/seq-num-skips:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/spf-runs:
-  /network-instances/network-instance/protocols/protocol/isis/global/mpls/igp-ldp-sync/state/enabled
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/mpls/igp-ldp-sync/state/enabled
+  /network-instances/network-instance/protocols/protocol/isis/global/mpls/igp-ldp-sync/state/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/mpls/igp-ldp-sync/state/enabled:
 
 rpcs:
   gnmi:
