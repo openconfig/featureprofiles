@@ -43,6 +43,8 @@ Establish eBGP sessions between:
 *   ATE Port 1: Advertise BGP routes to the DUT via Port 1.
 *   ATE Port 2: Verify that the DUT has received and propagated only one single path.
 
+### RT-1.3.6: Disabling Add-Path Receive: [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
