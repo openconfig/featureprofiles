@@ -1336,4 +1336,3 @@ func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 func DecapGreHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapGreHeadersUnsupported()
 }
-
