@@ -232,15 +232,19 @@ func TestGRIBIFailover(t *testing.T) {
 	})
 
 	t.Run("RT-14.2.4: Traffic Match to Transit_Vrf, noMatch Tunnel Prefix Egress to Port3", func(t *testing.T) {
-		flow := createFlow(&flowArgs{flowName: "flow4in4",
-			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst222,
-			InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
-		sendTraffic(t, args, top, ate, flow, 30, []string{"port3"})
-		if ok := verifyTrafficFlow(t, ate, flow); !ok {
-			t.Fatal("Packet Dropped, LossPct for flow ")
+		if !deviations.NoFallbackRouteInTransitVrf(dut) {
+			flow := createFlow(&flowArgs{flowName: "flow4in4",
+				outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst222,
+				InnHdrSrcIP: ipv4OuterSrc111, InnHdrDstIP: ipv4InnerDst, isIPInIP: true}, dstMac)
+			sendTraffic(t, args, top, ate, flow, 30, []string{"port3"})
+			if ok := verifyTrafficFlow(t, ate, flow); !ok {
+				t.Fatal("Packet Dropped, LossPct for flow ")
+			}
+			captureAndValidatePackets(t, args, &packetValidation{portName: atePort3.Name,
+				outDstIP: []string{ipv4OuterDst222}, inHdrIP: ipv4InnerDst, validateDecap: true})
+		} else {
+			t.Skip("Fallback route not supported in Transit network instances.,Hence skipping the test")
 		}
-		captureAndValidatePackets(t, args, &packetValidation{portName: atePort3.Name,
-			outDstIP: []string{ipv4OuterDst222}, inHdrIP: ipv4InnerDst, validateDecap: true})
 	})
 }
 
@@ -256,11 +260,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)

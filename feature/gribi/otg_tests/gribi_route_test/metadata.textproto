@@ -23,12 +23,12 @@ platform_exceptions:  {
     vendor:  NOKIA
   }
   deviations:  {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     aggregate_atomic_update: true
     interface_enabled: true
     missing_value_for_defaults: true
     missing_isis_interface_afi_safi_enable: true
+    no_fallback_route_in_transit_vrf: true
   }
 }
 
