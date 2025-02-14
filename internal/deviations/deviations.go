@@ -1327,7 +1327,13 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
 }
 
+// OperStatusForIcUnsupported return true if oper-status leaf is unsupported for Integration Circuit
+func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
+}
+
 // DecapGreHeaderUnsupported returns true if gribi decap gre header is unsupported
 func DecapGreHeaderUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapGreHeadersUnsupported()
 }
+
