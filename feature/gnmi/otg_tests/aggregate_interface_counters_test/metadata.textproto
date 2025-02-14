@@ -1,0 +1,50 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+
+uuid: "d951ea7e-a4fb-4f5d-ae34-820814dc6eba"
+plan_id: "gNMI-1.23"
+description: "Telemetry: Aggregate Interface Counters"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_counters_from_container: true
+    subinterface_packet_counters_missing: true
+    interface_counters_update_delayed: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    ipv6_discarded_pkts_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    aggregate_atomic_update: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    ipv6_discarded_pkts_unsupported: true
+    aggregate_atomic_update: true
+    default_network_instance: "default"
+    interface_enabled: true
+  }
+}
+
