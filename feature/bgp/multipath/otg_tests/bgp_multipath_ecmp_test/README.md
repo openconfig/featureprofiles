@@ -69,6 +69,10 @@ Validate BGP in multipath scenario
     *   Check entire traffic should only be equally forwarded by any two among DUT
         port2, port3 or port4
 
+*   RT-1.51.4: Verify use of allow-multiple-as for ECMP routing across different
+    peer AS
+
+
 ## Config Parameter Coverage
 
 *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
