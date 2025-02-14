@@ -306,36 +306,39 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equal to ATE port-2 ASN and other 10 equal to ```23456``` ASN.
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equal to ATE port-2 ASN and other 10 equal to ```23456``` ASN.
 
-## Config parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
-*   /routing-policy/policy-definitions/policy-definition/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-preference
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-prefrence
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/asn
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+The below yaml defines the OC paths intended to be covered by this test.
 
-## Telemetry parameter coverage
+```yaml
+paths:
+    ## Config parameter coverage
+    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+    /routing-policy/policy-definitions/policy-definition/config/name:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/default-import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/default-export-policy
+    ## Telemetry parameter coverage
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/default-import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/default-export-policy:
 
-## Protocol/RPC Parameter Coverage
-
-* gNMI
-  * Subscribe (ONCE)
-  * Set (REPLACE)
+    ## Protocol/RPC Parameter Coverage
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
 ## Required DUT platform
 
 * FFF
-

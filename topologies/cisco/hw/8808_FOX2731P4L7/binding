@@ -1,0 +1,172 @@
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 10.85.72.41 255.255.255.0
+# no shut
+#!
+
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 10.85.72.42 255.255.255.0
+# no shut
+#!
+
+#telnet: RP0 - telnet 10.85.72.22 2001
+#telnet: RP1 - telnet 10.85.72.22 2002
+
+# Username: cafyauto
+# Password: cisco123
+
+## Management Virtual IP:
+# ipv4 address 10.85.72.43
+
+options {
+  username: "cafyauto"
+  password: "cisco123"
+  insecure: false 
+  skip_verify: false
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
+}
+
+duts {
+  id: "dut"
+  name: "SFD-DUT3"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  options {
+    insecure: false 
+    skip_verify: false
+    mutual_tls: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.72.43:57400"
+  }
+  gnmi {
+    target: "10.85.72.43:57400"
+  }
+  gribi{
+    target: "10.85.72.43:57400"
+  }
+  ssh{
+    target: "10.85.72.43:22"
+  }
+  p4rt{
+    target: "10.85.72.43:57400"
+  }
+  gnsi{
+    target: "10.85.72.43:57400"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+    id: "port1"
+    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port2"
+    name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port3"
+    name: "TenGigE0/0/0/2/2" # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port4"
+    name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port5"
+    name: "TenGigE0/0/0/35/0"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port6"
+    name: "TenGigE0/0/0/35/1"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port7"
+    name: "TenGigE0/0/0/35/2"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+   id: "port8"
+   name: "TenGigE0/0/0/35/3"  # Change this to the actual port name.
+   speed: S_10GB       
+  }
+}
+
+ates {
+  id: "ate"
+  name: "10.85.72.36"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+   #linux
+    target: "10.85.72.36"
+    skip_verify: true
+    username: "admin"
+    password: "IxNetwork2022!"
+   # windows
+   # target: "10.85.84.161:12009" 
+   # skip_verify: true
+   # session_id: 1
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "1/9"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port2"
+    name: "1/10"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port3"
+    name: "1/11"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port4"
+    name: "1/12"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port5"
+    name: "1/13" # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port6"
+    name: "1/14"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+    id: "port7"
+    name: "1/15"  # Change this to the actual port name.
+    speed: S_10GB       
+  }
+  ports {
+   id: "port8"
+   name: "1/16"  # Change this to the actual port name.
+   speed: S_10GB       
+  }
+}

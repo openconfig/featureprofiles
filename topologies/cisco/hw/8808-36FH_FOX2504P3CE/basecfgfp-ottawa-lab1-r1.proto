@@ -106,6 +106,7 @@ replace: {
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile npu-compatibility Q200\n"
 "hw-module profile qos qos-stats-push-collection\n"
+"ssh server session-limit 150\n"
 "ssh server v2\n"
 "ssh server vrf default\n"
 "ssh server vrf mgmt\n"

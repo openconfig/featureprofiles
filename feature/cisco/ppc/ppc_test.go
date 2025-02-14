@@ -61,11 +61,11 @@ func TestOcPpcDropLookupBlock(t *testing.T) {
 		ctx: ctx,
 	}
 	testcases := []Testcase{
-		{
-			name:      "drop/lookup-block/state/acl-drops",
-			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),
-			eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true},
-		},
+		//{ TODO 14 June 2024 - reenable once CSCwj89869 is fixed
+		//	name:      "drop/lookup-block/state/acl-drops",
+		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),
+		//	eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true},
+		//},
 		{
 			name:      "drop/lookup-block/state/no-route",
 			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),

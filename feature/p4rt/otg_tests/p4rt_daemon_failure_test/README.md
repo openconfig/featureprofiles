@@ -23,11 +23,14 @@ Ensure that data plane traffic is not interrupted by P4RT daemon failure.
     test tables only configure the control plane traffic. Instead, this test
     configures the data plane using gRIBI. 
 
-## Protocol/RPC Parameter Coverage
-
-*   gRIBI
-    *   ModifyRequest
-    *   GetRequest
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Telemetry Parameter Coverage
 *   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix/

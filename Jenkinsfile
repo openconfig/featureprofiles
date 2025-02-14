@@ -36,7 +36,7 @@ pipeline {
         
         stage('Static Check') {
             steps {
-                sh 'go install honnef.co/go/tools/cmd/staticcheck@latest'
+                sh 'go install honnef.co/go/tools/cmd/staticcheck@2023.1.7'
                 script {
                     def ret = sh(
                         script: '${GOPATH}/bin/staticcheck ./...', 

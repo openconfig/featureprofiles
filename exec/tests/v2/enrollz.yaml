@@ -1,0 +1,12 @@
+name: security_gnsi_enrollz
+owners: 
+  - anidamod
+testbeds:
+  - 8608-FOX2543PNNM
+tests:
+- name: enrollz_test
+  path: feature/system/attestz/cisco/tests
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master

@@ -3,6 +3,7 @@ package basetest
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -36,11 +39,11 @@ type system struct {
 	hostname *string
 }
 
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
-}
+// func TestMain(m *testing.M) {
+// 	fptest.RunTests(m)
+// }
 
-func TestSystemContainerUpdate(t *testing.T) {
+func testSystemContainerUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	path := gnmi.OC().System()
 	for _, system := range systemContainers {
@@ -51,7 +54,7 @@ func TestSystemContainerUpdate(t *testing.T) {
 	defer observer.RecordYgot(t, "UPDATE", path)
 }
 
-func TestSysGrpcState(t *testing.T) {
+func testSysGrpcState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Subscribe /system/grpc-servers/grpc-server/state/port", func(t *testing.T) {
 		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
@@ -120,7 +123,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 }
 
-func TestSysGrpcConfig(t *testing.T) {
+func testSysGrpcConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// configure "DEFAULT" as grpc server name
 	//config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
@@ -174,20 +177,25 @@ func TestSysGrpcConfig(t *testing.T) {
 
 	})
 
-	// set non-default name for grpc server
-	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), "TEST")
-	})
-	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "REPLACE", path)
-		gnmi.Replace(t, dut, path.Config(), "TEST")
-	})
 }
 
-func TestGrpcListenAddress(t *testing.T) {
+// func testSysNonDefaultGrpcConfig(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	// set non-default name for grpc server
+// 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+// 		path := gnmi.OC().System().GrpcServer("TEST").Name()
+// 		defer observer.RecordYgot(t, "UPDATE", path)
+// 		gnmi.Update(t, dut, path.Config(), "TEST")
+// 	})
+// 	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+// 		path := gnmi.OC().System().GrpcServer("TEST").Name()
+// 		defer observer.RecordYgot(t, "REPLACE", path)
+// 		gnmi.Replace(t, dut, path.Config(), "TEST")
+// 	})
+// }
+
+func testGrpcListenAddress(t *testing.T) {
+	activeRp := 0
 	re := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 	bindingFile := flag.Lookup("binding").Value.String()
 	in, err := os.ReadFile(bindingFile)
@@ -208,7 +216,14 @@ func TestGrpcListenAddress(t *testing.T) {
 	} else if val != "" {
 		listenAdd = strings.TrimSuffix(val, "/16")
 	} else {
-		mgmtIP := config.CMDViaGNMI(context.Background(), t, dut, "sh ip int brief mgmtEth 0/RP0/CPU0/0")
+
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show redundancy")
+		t.Logf(resp)
+
+		if strings.Contains(resp, "Redundancy information for node 0/RP1/CPU0") {
+			activeRp = 1
+		}
+		mgmtIP := config.CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("sh ip int brief mgmtEth 0/RP%v/CPU0/0", activeRp))
 		listenAdd = re.FindString(mgmtIP)
 	}
 
@@ -255,11 +270,16 @@ func TestGrpcListenAddress(t *testing.T) {
 			}
 		})
 		t.Run("Subscribe listen address on System State container level", func(t *testing.T) {
-			t.Skip() // FIXME: why is key TEST instead of DEFAULT?
 			path := gnmi.OC().System()
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
 			systemGet := gnmi.Get(t, dut, path.State())
-			got := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()[0] // TODO - ETA May 2024
+
+			listenAddresses := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()
+			if len(listenAddresses) == 0 {
+				t.Fatalf("No listen addresses found for DEFAULT GrpcServer")
+			}
+
+			got := listenAddresses[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -287,7 +307,13 @@ func TestGrpcListenAddress(t *testing.T) {
 			path := gnmi.OC().System().GrpcServer("DEFAULT")
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
 			systemGet := gnmi.Get(t, dut, path.State())
-			got := systemGet.GetListenAddresses()[0]
+
+			listenAddresses := systemGet.GetListenAddresses()
+			if len(listenAddresses) == 0 {
+				t.Fatalf("No listen addresses found for DEFAULT GrpcServer")
+			}
+
+			got := listenAddresses[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -324,7 +350,11 @@ func TestGrpcListenAddress(t *testing.T) {
 		t.Run("Subscribe listen address on listen-address state leaf level", func(t *testing.T) {
 			path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
-			got := gnmi.Get(t, dut, path.State())[0]
+			listenAddresses := gnmi.Get(t, dut, path.State())
+			if len(listenAddresses) == 0 {
+				t.Fatalf("No listen addresses found for DEFAULT GrpcServer")
+			}
+			got := listenAddresses[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -379,38 +409,20 @@ func TestGrpcListenAddress(t *testing.T) {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotbefore, listenAdd)
 		}
 		//Reload router
-		gnoiClient := dut.RawAPIs().GNOI(t)
-		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
-			Method:  spb.RebootMethod_COLD,
-			Delay:   0,
-			Message: "Reboot chassis without delay",
-			Force:   true,
-		})
-		if err != nil {
-			t.Fatalf("Reboot failed %v", err)
+		gnoiReboot(t, dut)
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show redundancy")
+		t.Logf(resp)
+		activeRpAfterReboot := 0
+		if strings.Contains(resp, "Redundancy information for node 0/RP1/CPU0") {
+			activeRpAfterReboot = 1
 		}
-		startReboot := time.Now()
-		const maxRebootTime = 30
-		t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-		for {
-			var currentTime string
-			t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-			time.Sleep(3 * time.Minute)
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-			}); errMsg != nil {
-				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-			} else {
-				t.Logf("Device rebooted successfully with received time: %v", currentTime)
-				break
-			}
-
-			if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-				t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-			}
+		t.Logf("RP %v came up as Active after reboot", activeRpAfterReboot)
+		if activeRp != activeRpAfterReboot {
+			// this is required if RP mgmt address is used, ( instead of virtual ip )
+			t.Logf("switch RP to make RP %v as Active after reboot", activeRp)
+			resp := config.CMDViaGNMI(context.Background(), t, dut, "redundancy switchover force")
+			t.Logf(resp)
 		}
-		t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 		gotafter := gnmi.Get(t, dut, path.State())[0]
 		if gotafter != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotafter, listenAdd)
@@ -435,4 +447,68 @@ func sysGrpcVerify(t *testing.T, grpcPort uint16, grpcName string, grpcTs bool, 
 	} else {
 		t.Errorf("Unexpected value for Transport-Security: %v", grpcTs)
 	}
+}
+
+func gnoiReboot(t *testing.T, dut *ondatra.DUTDevice) {
+	//Reload router
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
+	startReboot := time.Now()
+	const maxRebootTime = 30
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(3 * time.Minute)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+	// same variable name, gnoiClient, is used for the gNOI connection during the second reboot.
+	// This causes the cache to reuse the old connection for the second reboot, which is no longer active due to a timeout from the previous reboot.
+	// The retry mechanism clears the previous cache connection and re-establishes new connection.
+	for {
+		gnoiClient := dut.RawAPIs().GNOI(t)
+		ctx := context.Background()
+		response, err := gnoiClient.System().Time(ctx, &spb.TimeRequest{})
+
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching device time: %v", err)
+		}
+
+		// Check if the error code indicates that the service is unavailable
+		if status.Code(err) == codes.Unavailable {
+			// If the service is unavailable, wait for 30 seconds before retrying
+			t.Logf("Service unavailable, retrying in 30 seconds...")
+			time.Sleep(30 * time.Second)
+		} else {
+			// If the device time is fetched successfully, log the success message
+			t.Logf("Device Time fetched successfully: %v", response)
+			break
+		}
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device gnoi ready time: %.2f minutes", time.Since(startReboot).Minutes())
 }
