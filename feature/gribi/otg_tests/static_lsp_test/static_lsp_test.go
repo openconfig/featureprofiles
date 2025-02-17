@@ -174,6 +174,7 @@ func createTrafficFlow(t *testing.T,
 	mplsFlow.Metrics().SetEnable(true)
 	mplsFlow.Rate().SetPps(500)
 	mplsFlow.Size().SetFixed(512)
+	mplsFlow.Duration().FixedPackets().SetPackets(1500)
 
 	// Set up ethernet layer.
 	eth := mplsFlow.Packet().Add().Ethernet()
