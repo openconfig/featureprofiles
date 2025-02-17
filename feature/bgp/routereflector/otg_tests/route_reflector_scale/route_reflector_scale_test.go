@@ -472,8 +472,8 @@ func createInternetPrefixesV4(t *testing.T) []netip.Prefix {
 	// Create 1500000 /32s - internet prefixes
 	for i := 50; i < 74; i++ {
 		for j := 0; j < 250; j++ {
-			for k := 0; k < 25; k++ {
-				ips = append(ips, netip.MustParsePrefix(fmt.Sprintf("182.%d.%d.%d/32", i, j, k)))
+			for k := 0; k < 100; k+=4 {
+				ips = append(ips, netip.MustParsePrefix(fmt.Sprintf("182.%d.%d.%d/30", i, j, k)))
 			}
 		}
 	}
@@ -481,8 +481,8 @@ func createInternetPrefixesV4(t *testing.T) []netip.Prefix {
 	// Create 500000 /32s - internal prefixes
 	for i := 16; i < 24; i++ {
 		for j := 0; j < 250; j++ {
-			for k := 0; k < 25; k++ {
-				ips = append(ips, netip.MustParsePrefix(fmt.Sprintf("172.%d.%d.%d/32", i, j, k)))
+			for k := 0; k < 100; k+=4 {
+				ips = append(ips, netip.MustParsePrefix(fmt.Sprintf("172.%d.%d.%d/30", i, j, k)))
 			}
 		}
 	}
@@ -495,16 +495,16 @@ func createInternetPrefixesV6(t *testing.T) []netip.Prefix {
 	var ips []netip.Prefix
 	// Create 600000 /64s - internet prefixes
 	for j := 10; j < 70; j++ {
-		for i := 0; i < 1000; i++ {
-			ip := netip.MustParsePrefix(fmt.Sprintf("2001:db8:%d:%d::/64", i, j))
+		for i := 0; i < 4000; i+=4 {
+			ip := netip.MustParsePrefix(fmt.Sprintf("2001:db8:%d:%d::/126", i, j))
 			ips = append(ips, ip)
 		}
 	}
 
 	// Create 400000 /64s - internal prefixes
 	for j := 10; j < 50; j++ {
-		for i := 0; i < 1000; i++ {
-			ip := netip.MustParsePrefix(fmt.Sprintf("fc00:abcd:%d:%d::/64", i, j))
+		for i := 0; i < 4000; i+=4 {
+			ip := netip.MustParsePrefix(fmt.Sprintf("fc00:abcd:%d:%d::/126", i, j))
 			ips = append(ips, ip)
 		}
 	}
