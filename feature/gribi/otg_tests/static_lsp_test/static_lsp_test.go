@@ -142,60 +142,15 @@ func configureOTG(t *testing.T) gosnappi.Config {
 
 // configureStaticLSP configures a static MPLS LSP with the provided parameters.
 func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) {
-	if deviations.StaticLspConfigUnsupported(dut) {
-		t.Logf("Push config via native CLI:%s", dut.Vendor())
-		switch dut.Vendor() {
-		case ondatra.JUNIPER:
-			config := juniperMplsLSPConfig(t, dut, lspName, incomingLabel, nextHopIP)
-			helpers.GnmiCLIConfig(t, dut, config)
-		default:
-			t.Fatalf("StaticLspConfigUnsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
-		}
-	} else {
-		d := &oc.Root{}
-		// ConfigureDefaultNetworkInstance configures the default network instance name and type.
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
-	}
-}
-
-// juniperMplsLSPConfig is used to configure mpls lsp configuration via native cli as an alternative to below xpaths.
-// /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop
-// /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label
-// /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label
-func juniperMplsLSPConfig(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) string {
-	p1 := dut.Port(t, "port1").Name()
-	p2 := dut.Port(t, "port2").Name()
-	return fmt.Sprintf(`
-        interfaces {
-            %s {
-                unit %d {
-                    family mpls;
-                }
-            }
-            %s {
-                unit %d {
-                    family mpls;
-                }
-            }
-        }
-        protocols {
-            mpls {
-                interface %s;
-                interface %s;
-                static-label-switched-path %s {
-                    transit %d {
-                        next-hop %s;
-                        pop;
-                    }
-                }
-            }
-        }`, p1, 0, p2, 0, p1, p2, lspName, incomingLabel, nextHopIP)
+	d := &oc.Root{}
+	// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
 func createTrafficFlow(t *testing.T,
@@ -219,7 +174,6 @@ func createTrafficFlow(t *testing.T,
 	mplsFlow.Metrics().SetEnable(true)
 	mplsFlow.Rate().SetPps(500)
 	mplsFlow.Size().SetFixed(512)
-	mplsFlow.Duration().FixedPackets().SetPackets(1500)
 
 	// Set up ethernet layer.
 	eth := mplsFlow.Packet().Add().Ethernet()
