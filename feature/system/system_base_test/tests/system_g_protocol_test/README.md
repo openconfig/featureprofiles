@@ -1,10 +1,8 @@
-# System-1: System testing
+# System-1.2: System g protocol test
 
 ## Summary
 
 Ensures the device support basic system requirements for a device supporting g* APIs.
-
-## service-1
 
 ### Procedure
 
@@ -51,8 +49,9 @@ paths:
 
 rpcs:
    gnmi:
-      gNMI.Set:
-         replace: true
-         delete: true
-      gNMI.Subscribe:
+      gNMI.Get:
+   gnoi:
+      system.System.Ping:
+   gribi:
+      gRIBI.Get:
 ```
