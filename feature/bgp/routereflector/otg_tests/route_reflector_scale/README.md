@@ -83,18 +83,22 @@ ATE (Port1) <-EBGP-> (Port1) DUT (Port2) <-IS-IS/IBGP-> (Port2) ATE, DUT (Port3)
     *   Communities
     *   AS-Path
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-cluster-id
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-client
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-type
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address
+```yaml
+paths:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-cluster-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-client:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-type:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-cluster-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-client:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
 
-## Telemetry Parameter Coverage
-
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-cluster-id
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/state/route-reflector-client
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
