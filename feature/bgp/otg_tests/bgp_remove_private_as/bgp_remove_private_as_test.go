@@ -101,15 +101,14 @@ var (
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
-	pd := rp.GetOrCreatePolicyDefinition(name)
-	st, err := pd.AppendNewStatement("id-1")
+	pdef := rp.GetOrCreatePolicyDefinition(name)
+	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
-	stc := st.GetOrCreateConditions()
-	stc.InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	st.GetOrCreateActions().PolicyResult = pr
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	stmt.GetOrCreateActions().PolicyResult = pr
+	// stmt.GetOrCreateConditions().InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
 // configureDUT configures all the interfaces on the DUT.
@@ -381,8 +380,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	})
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
-		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
