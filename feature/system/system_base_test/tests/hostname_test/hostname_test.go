@@ -14,13 +14,14 @@
  limitations under the License.
 */
 
-package system_base_test
+package hostname_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -30,6 +31,11 @@ import (
 //
 // config_path:/system/config/hostname
 // telemetry_path:/system/state/hostname
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 func TestHostname(t *testing.T) {
 	testCases := []struct {
 		description string
