@@ -25,6 +25,8 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     isis_interface_level1_disable_required: true
+    isis_dis_sysid_unsupported: true
+    isis_database_overloads_unsupported: true
   }
 }
 platform_exceptions: {

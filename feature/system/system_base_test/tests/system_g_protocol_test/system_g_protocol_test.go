@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package system_base_test
+package system_g_protocol_test
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/grpc"
@@ -34,6 +35,10 @@ import (
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	p4rtpb "github.com/p4lang/p4runtime/go/p4/v1"
 )
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
 
 func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, wantPort uint32) *grpc.ClientConn {
 	t.Helper()
