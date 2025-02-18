@@ -386,11 +386,15 @@ func TestPacketIn(t *testing.T) {
 	//testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inDC", deviceSet)
 	//testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcp", deviceSet, &TOptions{ptcp: 4})
 ///enable this
-	//testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcp", deviceSet, &TOptions{ptcp: 4})
+//dc ipinip
+	testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcp", deviceSet, &TOptions{ptcp: 4})
 	//testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, &TOptions{pudp: 8})
-
-	testWithDCUnoptimized(ctx, t, args, true, false, "", "Ipv6inIpUDP", deviceSet)
-
+//dc ipv6inip
+	testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet)
+//pop ipinip
+	testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIp", deviceSet)
+//pop ipv6inip
+	testWithPoPUnoptimized(ctx, t, args, false, false, "", "IpinIp", deviceSet)
 
 	// //Do intf shut here.//shut primary2
 	// testWithDCUnoptimized(ctx, t, args, true, false, "flap", deviceSet)
@@ -484,7 +488,7 @@ func TestPacketIn(t *testing.T) {
 	//testWithDCUnoptimized(ctx, t, args, , true)
 	//testWithDCUnoptimized(ctx, t, args, false)
 ////ennnnable this onee for pop
-	testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIp", deviceSet)
+	//testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIp", deviceSet)
 	//testWithPoPUnoptimized(ctx, t, args, false, false, "", "IpinIp", deviceSet)
 
 	//testWithPoPUnoptimized(ctx, t, args, false)
