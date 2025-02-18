@@ -1,0 +1,39 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "6c70f15c-b4da-4f98-95b1-27d97cceed05"
+plan_id: "gNOI-2.2"
+description: "Packet-based Link Qualification on 400G ZR Plus links"
+testbed: TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    link_qual_wait_after_delete_required: true
+    skip_plq_interface_oper_status_check: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_port_speed: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    skip_plq_interface_oper_status_check: true
+    plq_reflector_stats_unsupported: true
+    plq_generator_capabilities_max_mtu: 512
+    plq_generator_capabilities_max_pps: 40000000
+  }
+}
