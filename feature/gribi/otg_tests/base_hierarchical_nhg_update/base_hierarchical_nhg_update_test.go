@@ -280,16 +280,15 @@ type transitKey struct{}
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
-	}
-	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 
 	// Remove interface from VRF-1.
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
 	p1 := args.dut.Port(t, "port1")
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
-
+	if deviations.ExplicitInterfaceInDefaultVRF(args.dut) {
+		fptest.AssignToNetworkInstance(t, args.dut, p1.Name(), deviations.DefaultNetworkInstance(args.dut), 0)
+	}
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
 	// Delete Policy-forwarding PolicyW from the ingress interface
