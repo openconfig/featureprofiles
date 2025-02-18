@@ -339,6 +339,15 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 		// time required to bring the interface back to pre-test state
 		tearDownDuration time.Duration
 	}
+
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	plqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+	t.Logf("LinkQualification().Capabilities(): %v, err: %v", plqResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+	}
+	pblqMinTearDown := float64(plqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
+
 	plqDuration := &LinkQualificationDuration{
 		generatorpreSyncDuration:  30 * time.Second,
 		reflectorpreSyncDuration:  0 * time.Second,
@@ -347,7 +356,7 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 		testDuration:              120 * time.Second,
 		generatorPostSyncDuration: 5 * time.Second,
 		reflectorPostSyncDuration: 10 * time.Second,
-		tearDownDuration:          30 * time.Second,
+		tearDownDuration:          time.Duration(math.Max(30, pblqMinTearDown)) * time.Second,
 	}
 
 	generatorCreateRequest := &plqpb.CreateRequest{
@@ -406,7 +415,7 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 	}
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
-	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient1 = dut1.RawAPIs().GNOI(t)
 	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
