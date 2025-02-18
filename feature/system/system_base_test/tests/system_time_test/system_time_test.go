@@ -14,12 +14,13 @@
  limitations under the License.
 */
 
-package system_base_test
+package system_time_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -28,6 +29,11 @@ import (
 // be parsed as RFC3339 time format.
 //
 // telemetry_path:/system/state/current-datetime
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 func TestCurrentDateTime(t *testing.T) {
 	t.Skip("Need working implementation to validate against")
 

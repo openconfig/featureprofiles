@@ -1,0 +1,20 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "329bfa6e-280a-4997-80b7-fd5d86110c90"
+plan_id: "MTU-1.5"
+description: "Path MTU handing"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    omit_l2_mtu: true
+    fragment_total_drops_unsupported: true
+    aggregate_atomic_update: true
+    interface_enabled: true
+  }
+}

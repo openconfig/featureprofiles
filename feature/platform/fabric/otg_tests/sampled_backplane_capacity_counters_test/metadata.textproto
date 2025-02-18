@@ -22,4 +22,11 @@ platform_exceptions: {
     missing_value_for_defaults: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    oper_status_for_ic_unsupported: true
+  }
+}
