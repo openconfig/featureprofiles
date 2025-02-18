@@ -12,4 +12,13 @@ platform_exceptions: {
     deviations: {
       skip_prefix_set_mode: true
     }
-  }
+}
+
+platform_exceptions: {
+    platform: {
+      vendor: JUNIPER
+    }
+    deviations: {
+      bgp_prefixset_req_routepol_ref: true
+    }
+}

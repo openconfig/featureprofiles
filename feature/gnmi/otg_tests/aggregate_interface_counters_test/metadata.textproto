@@ -1,9 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "9167593f-9a06-4e8c-8bf7-96b5e30bd996"
-plan_id: "TE-3.7"
-description: "Base Hierarchical NHG Update"
+
+uuid: "d951ea7e-a4fb-4f5d-ae34-820814dc6eba"
+plan_id: "gNMI-1.23"
+description: "Telemetry: Aggregate Interface Counters"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
@@ -11,10 +12,9 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    gribi_mac_override_with_static_arp: true
-    interface_ref_interface_id_format: true
-    pf_require_match_default_rule: true
-    pf_require_sequential_order_pbr_rules: true   
+    interface_counters_from_container: true
+    subinterface_packet_counters_missing: true
+    interface_counters_update_delayed: true
   }
 }
 platform_exceptions: {
@@ -22,7 +22,7 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    ipv6_enable_for_gribi_nh_dmac: true
+    ipv6_discarded_pkts_unsupported: true
   }
 }
 platform_exceptions: {
@@ -30,8 +30,9 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    explicit_port_speed: true
+    aggregate_atomic_update: true
     explicit_interface_in_default_vrf: true
-    static_protocol_name: "static"
     interface_enabled: true
   }
 }
@@ -40,11 +41,10 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    omit_l2_mtu: true
-    static_protocol_name: "STATIC"
-    interface_config_vrf_before_address: true
-    gribi_mac_override_static_arp_static_route: true
-    interface_enabled: true
+    ipv6_discarded_pkts_unsupported: true
+    aggregate_atomic_update: true
     default_network_instance: "default"
+    interface_enabled: true
   }
 }
+

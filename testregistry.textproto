@@ -337,6 +337,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "MTU-1.4"
+  description: "Large IP Packet through GRE/GUE tunnel Transmission"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/largeippacket/otg_tests/large_ip_packet_gre_gue_tunnel_transmission"
+  exec: " "
+}
+test: {
   id: "MTU-1.5"
   description: "Path MTU handling"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/otg_tests/pmtu_handing"
@@ -1673,6 +1679,11 @@ test: {
   id: "gNMI-1.22"
   description: "Controller card port attributes"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/port/README.md"
+}
+test: {
+  id: "gNMI-1.23"
+  description: "Telemetry: Aggregate Interface Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/aggregate_interface_counters_test/README.md"
 }
 test: {
   id: "gNMI-1.4"
