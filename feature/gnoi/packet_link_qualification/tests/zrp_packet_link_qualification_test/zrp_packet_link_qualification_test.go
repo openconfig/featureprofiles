@@ -15,22 +15,22 @@
 package zrp_packet_link_qualification_test
 
 import (
-	"context"
-	"fmt"
-	"math"
-	"testing"
-	"time"
+        "context"
+        "fmt"
+        "math"
+        "testing"
+        "time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
-	"github.com/openconfig/gnoigo"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/types/known/durationpb"
+        "github.com/openconfig/featureprofiles/internal/deviations"
+        "github.com/openconfig/featureprofiles/internal/fptest"
+        plqpb "github.com/openconfig/gnoi/packet_link_qualification"
+        "github.com/openconfig/gnoigo"
+        "github.com/openconfig/ondatra"
+        "github.com/openconfig/ondatra/gnmi"
+        "github.com/openconfig/ondatra/gnmi/oc"
+        "github.com/openconfig/ondatra/netutil"
+        "github.com/openconfig/ygot/ygot"
+        "google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestMain(m *testing.M) {
