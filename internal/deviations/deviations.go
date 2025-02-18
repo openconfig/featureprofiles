@@ -1326,3 +1326,8 @@ func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
 }
+
+// Devices don't support configuring ISIS levels/level/config/enabled.
+func IsisLevelEnabledUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLevelEnabledUnsupported()
+}

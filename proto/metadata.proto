@@ -716,6 +716,8 @@ message Metadata {
     // Device needs route policy reference to stream prefix set info.
     bool bgp_prefixset_req_routepol_ref = 255;
 
+    // Devices don't support configuring ISIS levels/level/config/enabled.
+    bool isis_level_enabled_unsupported = 256;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
