@@ -17,7 +17,6 @@ platform_exceptions:  {
     interface_enabled:  true
     skip_prefix_set_mode:  true
     enable_table_connections: true
-    use_vendor_native_tag_set_config:  true
     skip_bgp_send_community_type:  true
     default_bgp_instance_name: "BGP"
   }
@@ -31,10 +30,7 @@ platform_exceptions:  {
     default_network_instance: "default"
     interface_enabled: true
     static_protocol_name: "STATIC"
-    skip_bgp_send_community_type: true
-    skip_setting_disable_metric_propagation: true
     same_policy_attached_to_all_afis: true
-    set_metric_as_preference: true
   }
 }
 platform_exceptions:  {
