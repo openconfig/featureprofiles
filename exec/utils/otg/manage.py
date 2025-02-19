@@ -14,6 +14,10 @@ MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.p
 MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
 MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
 
+DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller:'
+DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server:'
+DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server:'
+
 def check_output(cmd, **kwargs):
     kwargs['shell'] = True
     kwargs['text'] = True
@@ -43,7 +47,7 @@ def _get_testbed_by_id(fp_repo_dir, testbed_id):
 def _otg_docker_compose_template(control_port, gnmi_port, rest_port, controller,layer23,gnmi,controller_command):
     if controller_command:
         # Remove the enclosing brackets and split the command into a list
-        controller_command = controller_command.strip('[]').split()
+        controller_command = controller_command[0].strip('[]').split()
         controller_command_formatted = ""
         for i in controller_command:
             controller_command_formatted = controller_command_formatted + f"\n      - \"{i}\""
@@ -53,7 +57,7 @@ def _otg_docker_compose_template(control_port, gnmi_port, rest_port, controller,
 version: "2.1"
 services:
   controller:
-    image: {controller}
+    image: {DOCKER_KENG_CONTROLLER+controller}
     restart: always
     ports:
       - "{control_port}:40051"
@@ -76,7 +80,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: {layer23}
+    image: {DOCKER_KENG_LAYER23+layer23}
     restart: always
     command:
       - "dotnet"
@@ -91,7 +95,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: {gnmi}
+    image: {DOCKER_OTG_GNMI+gnmi}
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -217,9 +221,9 @@ command_parser = parser.add_subparsers(title="command", dest="command", help="co
 start_parser = command_parser.add_parser("start", help="start OTG container")
 start_parser.add_argument('testbed', help="testbed id")
 # check if there are more args that can modify docker-compose file
-start_parser.add_argument('--controller', help='Docker image for controller e.g. --controller=ghcr.io/open-traffic-generator/keng-controller:1.20.0-6', default='ghcr.io/open-traffic-generator/keng-controller:1.3.0-2')
-start_parser.add_argument('--layer23', help='Docker image for layer23 e.g. ghcr.io/open-traffic-generator/keng-layer23-hw-server:1.20.0-1', default='ghcr.io/open-traffic-generator/keng-layer23-hw-server:1.3.0-4')
-start_parser.add_argument('--gnmi', help='Docker image for gnmi e.g. ghcr.io/open-traffic-generator/otg-gnmi-server:1.20.2', default='ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.15')
+start_parser.add_argument('--controller', help='Docker version number for image controller e.g. --controller=1.20.0-6', default='1.3.0-2')
+start_parser.add_argument('--layer23', help='Docker version number image for image layer23 e.g. 1.20.0-1', default='1.3.0-4')
+start_parser.add_argument('--gnmi', help='Docker version number image for gnmi e.g. 1.20.2', default='1.13.15')
 # controller command options
 start_parser.add_argument('--controller_command', help='Command line for controller e.g. --controller_command=[--grpc-max-msg-size 500]', nargs='*')
 
