@@ -1326,3 +1326,7 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
+// GNMIGetOnStateUnsupported returns true if the device does not support gNMI with state.
+func GNMIGetOnStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetOnStateUnsupported()
+}
