@@ -916,7 +916,7 @@ type Metadata_Deviations struct {
 	BgpSessionStateIdleInPassiveMode bool `protobuf:"varint,229,opt,name=bgp_session_state_idle_in_passive_mode,json=bgpSessionStateIdleInPassiveMode,proto3" json:"bgp_session_state_idle_in_passive_mode,omitempty"`
 	// EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
 	// CISCO: b/376241033
-	// CISCO: b/340859662
+		// CISCO: b/340859662
 	EnableMultipathUnderAfiSafi bool `protobuf:"varint,230,opt,name=enable_multipath_under_afi_safi,json=enableMultipathUnderAfiSafi,proto3" json:"enable_multipath_under_afi_safi,omitempty"`
 	// Device have different default value for allow own as.
 	// Juniper : b/373559004
@@ -989,6 +989,11 @@ type Metadata_Deviations struct {
 	// Devices that do not support oper-status for Integrated Circuits telemetry path
 	// Juniper b/395551640
 	OperStatusForIcUnsupported bool `protobuf:"varint,256,opt,name=oper_status_for_ic_unsupported,json=operStatusForIcUnsupported,proto3" json:"oper_status_for_ic_unsupported,omitempty"`
+	// Arista: b/354689142
+	// Devices that do not support DecapGre headers.
+	DecapGreHeadersUnsupported bool `protobuf:"varint,257,opt,name=decap_gre_headers_unsupported,json=decapGreHeadersUnsupported,proto3" json:"decap_gre_headers_unsupported,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2643,6 +2648,13 @@ func (x *Metadata_Deviations) GetBgpPrefixsetReqRoutepolRef() bool {
 func (x *Metadata_Deviations) GetOperStatusForIcUnsupported() bool {
 	if x != nil {
 		return x.OperStatusForIcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDecapGreHeadersUnsupported() bool {
+	if x != nil {
+		return x.DecapGreHeadersUnsupported
 	}
 	return false
 }
