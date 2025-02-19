@@ -338,16 +338,39 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 		reflectorPostSyncDuration time.Duration
 		// time required to bring the interface back to pre-test state
 		tearDownDuration time.Duration
+                generatorTearDownDuration time.Duration
+                reflectorTearDownDuration time.Duration
 	}
+
+        gnoiClient1 := dut1.RawAPIs().GNOI(t)
+        gnoiClient2 := dut2.RawAPIs().GNOI(t)
+        generatorPlqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+        t.Logf("LinkQualification().Capabilities(): %v, err: %v", generatorPlqResp, err)
+        if err != nil {
+                t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+        }
+
+        reflectorPlqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+        t.Logf("LinkQualification().Capabilities(): %v, err: %v", reflectorPlqResp, err)
+        if err != nil {
+                t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+        }
+
+        genPblqMinSetup := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
+        refPblqMinSetup := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
+        genPblqMinTearDown := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
+        refPblqMinTearDown := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
+
 	plqDuration := &LinkQualificationDuration{
 		generatorpreSyncDuration:  30 * time.Second,
 		reflectorpreSyncDuration:  0 * time.Second,
-		generatorsetupDuration:    30 * time.Second,
-		reflectorsetupDuration:    60 * time.Second,
+                generatorsetupDuration:    time.Duration(math.Max(30, genPblqMinSetup)) * time.Second,
+                reflectorsetupDuration:    time.Duration(math.Max(60, refPblqMinSetup)) * time.Second,
 		testDuration:              120 * time.Second,
 		generatorPostSyncDuration: 5 * time.Second,
 		reflectorPostSyncDuration: 10 * time.Second,
-		tearDownDuration:          30 * time.Second,
+                generatorTearDownDuration: time.Duration(math.Max(30, genPblqMinTearDown)) * time.Second,
+                reflectorTearDownDuration: time.Duration(math.Max(30, refPblqMinTearDown)) * time.Second,
 	}
 
 	generatorCreateRequest := &plqpb.CreateRequest{
@@ -367,7 +390,7 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 						PreSyncDuration:  durationpb.New(plqDuration.generatorpreSyncDuration),
 						SetupDuration:    durationpb.New(plqDuration.generatorsetupDuration),
 						PostSyncDuration: durationpb.New(plqDuration.generatorPostSyncDuration),
-						TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
+						TeardownDuration: durationpb.New(plqDuration.generatorTearDownDuration),
 					},
 				},
 			},
@@ -385,7 +408,7 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 				PreSyncDuration:  durationpb.New(plqDuration.reflectorpreSyncDuration),
 				SetupDuration:    durationpb.New(plqDuration.reflectorsetupDuration),
 				PostSyncDuration: durationpb.New(plqDuration.reflectorPostSyncDuration),
-				TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
+				TeardownDuration: durationpb.New(plqDuration.reflectorTearDownDuration),
 			},
 		},
 	}
@@ -406,9 +429,6 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 	}
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
-	gnoiClient1 := dut1.RawAPIs().GNOI(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI(t)
-
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
 	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
 	if err != nil {
@@ -428,7 +448,8 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 	}
 
 	sleepTime := 30 * time.Second
-	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.generatorpreSyncDuration + plqDuration.generatorsetupDuration + plqDuration.tearDownDuration
+        minTearDownDuration := time.Duration(math.Max(float64(plqDuration.generatorTearDownDuration), float64(plqDuration.reflectorTearDownDuration)))
+        minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.generatorpreSyncDuration + plqDuration.generatorsetupDuration +  minTearDownDuration
 	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
 	for i := 0; i <= counter; i++ {
 		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
