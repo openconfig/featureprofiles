@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package zrp_packet_link_qualification_test
+package packet_link_qualification_test
 
 import (
 	"context"
@@ -21,16 +21,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
-	"github.com/openconfig/gnoigo"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/types/known/durationpb"
+	durationpb "google3/google/protobuf/duration_go_proto"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	plqpb "google3/third_party/openconfig/gnoi/packet_link_qualification/packet_link_qualification_go_proto"
+	"google3/third_party/openconfig/gnoigo/gnoigo"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/netutil/netutil"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 func TestMain(m *testing.M) {
@@ -148,6 +148,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 		ref := plqResp.GetReflector()
 		if pmdLB := ref.GetPmdLoopback(); pmdLB.GetMinSetupDuration().GetSeconds() >= 1 && pmdLB.GetMinTeardownDuration().GetSeconds() >= 1 {
 			t.Logf("Device supports PMD loopback reflector mode")
+
 		} else if asicLB := ref.GetAsicLoopback(); asicLB.GetMinSetupDuration().GetSeconds() >= 1 && asicLB.GetMinTeardownDuration().GetSeconds() >= 1 {
 			t.Logf("Device supports ASIC loopback reflector mode")
 		} else {
@@ -321,6 +322,7 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut) != 0 {
 		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut))
 	}
+
 	type LinkQualificationDuration struct {
 		// time needed to complete preparation
 		generatorsetupDuration time.Duration
@@ -334,17 +336,44 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		generatorPostSyncDuration time.Duration
 		reflectorPostSyncDuration time.Duration
 		// time required to bring the interface back to pre-test state
-		tearDownDuration time.Duration
+		// tearDownDuration          time.Duration
+		generatorTeardownDuration time.Duration
+		reflectorTeardownDuration time.Duration
 	}
+
+	var reflectorSetupDuration time.Duration
+	var reflectorTeardownDuration time.Duration
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	capabilities, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+	if err != nil {
+		t.Logf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+	}
+	ref := capabilities.GetReflector()
+	if pmdLB := ref.GetPmdLoopback(); pmdLB.GetMinSetupDuration().GetSeconds() >= 1 && pmdLB.GetMinTeardownDuration().GetSeconds() >= 1 {
+		reflectorSetupDuration = capabilities.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration()
+		reflectorTeardownDuration = capabilities.GetReflector().GetPmdLoopback().GetMinTeardownDuration().AsDuration()
+	} else if asicLB := ref.GetAsicLoopback(); asicLB.GetMinSetupDuration().GetSeconds() >= 1 && asicLB.GetMinTeardownDuration().GetSeconds() >= 1 {
+		t.Logf("Device supports ASIC loopback reflector mode")
+		reflectorSetupDuration = capabilities.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration()
+		reflectorTeardownDuration = capabilities.GetReflector().GetAsicLoopback().GetMinTeardownDuration().AsDuration()
+	} else {
+		t.Errorf("Reflector MinSetupDuration or MinTeardownDuration is not >=1 for supported mode. Device reflector capabilities")
+	}
+
+	generatorSetupDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinSetupDuration().AsDuration()
+	generatorTeardownDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().AsDuration()
+
 	plqDuration := &LinkQualificationDuration{
 		generatorpreSyncDuration:  30 * time.Second,
 		reflectorpreSyncDuration:  0 * time.Second,
-		generatorsetupDuration:    30 * time.Second,
-		reflectorsetupDuration:    60 * time.Second,
+		generatorsetupDuration:    generatorSetupDuration,
+		reflectorsetupDuration:    reflectorSetupDuration,
 		testDuration:              120 * time.Second,
 		generatorPostSyncDuration: 5 * time.Second,
 		reflectorPostSyncDuration: 10 * time.Second,
-		tearDownDuration:          30 * time.Second,
+		// tearDownDuration:          30 * time.Second,
+		generatorTeardownDuration: generatorTeardownDuration,
+		reflectorTeardownDuration: reflectorTeardownDuration,
 	}
 
 	// Create unique IDs for generator and reflector.
@@ -368,7 +397,7 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 						PreSyncDuration:  durationpb.New(plqDuration.generatorpreSyncDuration),
 						SetupDuration:    durationpb.New(plqDuration.generatorsetupDuration),
 						PostSyncDuration: durationpb.New(plqDuration.generatorPostSyncDuration),
-						TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
+						TeardownDuration: durationpb.New(plqDuration.generatorTeardownDuration),
 					},
 				},
 			},
@@ -386,25 +415,28 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 				PreSyncDuration:  durationpb.New(plqDuration.reflectorpreSyncDuration),
 				SetupDuration:    durationpb.New(plqDuration.reflectorsetupDuration),
 				PostSyncDuration: durationpb.New(plqDuration.reflectorPostSyncDuration),
-				TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
+				TeardownDuration: durationpb.New(plqDuration.reflectorTeardownDuration),
 			},
 		},
 	}
 
-	switch dut.Vendor() {
-	case ondatra.NOKIA, ondatra.JUNIPER:
+	asicLoopbackSupported := capabilities.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration() > 0
+	pmdLoopbackSupported := capabilities.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration() > 0
+
+	if asicLoopbackSupported {
 		intf.EndpointType = &plqpb.QualificationConfiguration_AsicLoopback{
 			AsicLoopback: &plqpb.AsicLoopbackConfiguration{},
 		}
-	default:
+	} else if pmdLoopbackSupported {
 		intf.EndpointType = &plqpb.QualificationConfiguration_PmdLoopback{
 			PmdLoopback: &plqpb.PmdLoopbackConfiguration{},
 		}
+	} else {
+		// Handle case where neither loopback mode is supported
+		t.Fatalf("Neither ASIC nor PMD loopback is supported by the DUT.")
 	}
 
 	generatorCreateRequest.Interfaces = append(generatorCreateRequest.Interfaces, intf)
-
-	gnoiClient := dut.RawAPIs().GNOI(t)
 
 	generatorCreateResp, err := gnoiClient.LinkQualification().Create(context.Background(), generatorCreateRequest)
 	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
@@ -447,7 +479,7 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		t.Fatalf("Could not discover a Link Qualification ID after Create.  List response: %v", listResp)
 	}
 	sleepTime := 30 * time.Second
-	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.generatorpreSyncDuration + plqDuration.generatorsetupDuration + plqDuration.tearDownDuration
+	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.generatorpreSyncDuration + plqDuration.generatorsetupDuration + plqDuration.generatorTeardownDuration
 	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
 	for i := 0; i <= counter; i++ {
 		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
