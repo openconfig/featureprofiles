@@ -3,7 +3,7 @@
 
 uuid: "E2B5D167-5536-475B-BA26-8939A15FFB0E"
 plan_id: "gNMI-1.19"
-description: "ConfigPush after Control Card switchover"
+description: "ConfigPush, ConfigPull after Control Card switchover"
 testbed: TESTBED_DUT
 #platform_exceptions: {
 #  platform: {
