@@ -345,12 +345,12 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
         gnoiClient1 := dut1.RawAPIs().GNOI(t)
         gnoiClient2 := dut2.RawAPIs().GNOI(t)
         generatorPlqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
-        reflectorPlqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
-
         t.Logf("LinkQualification().Capabilities(): %v, err: %v", generatorPlqResp, err)
         if err != nil {
                 t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
         }
+
+        reflectorPlqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
         t.Logf("LinkQualification().Capabilities(): %v, err: %v", reflectorPlqResp, err)
         if err != nil {
                 t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
@@ -428,9 +428,6 @@ func testLinkQualification(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.
 		Interfaces: []*plqpb.QualificationConfiguration{intf},
 	}
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
-
-	gnoiClient1 = dut1.RawAPIs().GNOI(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
 	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
