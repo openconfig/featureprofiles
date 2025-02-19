@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet_link_qualification_test
+package zrp_packet_link_qualification_test
 
 import (
 	"context"
@@ -21,16 +21,16 @@ import (
 	"testing"
 	"time"
 
-	durationpb "google3/google/protobuf/duration_go_proto"
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	plqpb "google3/third_party/openconfig/gnoi/packet_link_qualification/packet_link_qualification_go_proto"
-	"google3/third_party/openconfig/gnoigo/gnoigo"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/netutil/netutil"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
+	"github.com/openconfig/gnoigo"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestMain(m *testing.M) {
