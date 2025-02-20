@@ -10,14 +10,11 @@ platform_exceptions:  {
     vendor:  NOKIA
   }
   deviations:  {
-    explicit_port_speed:  true
     explicit_interface_in_default_vrf:  true
-    aggregate_atomic_update:  true
     static_protocol_name:  "static"
     interface_enabled:  true
     skip_prefix_set_mode:  true
     enable_table_connections: true
-    skip_bgp_send_community_type:  true
     default_bgp_instance_name: "BGP"
   }
 }

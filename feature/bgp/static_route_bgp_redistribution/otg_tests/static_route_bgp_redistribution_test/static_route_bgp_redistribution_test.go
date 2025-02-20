@@ -24,8 +24,6 @@
 package static_route_bgp_redistribution_test
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -38,7 +36,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -185,12 +182,7 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ipv4StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic("192.168.10.0/24")
 	// TODO - we dont support, guessing table connection related?
-	if !deviations.UseVendorNativeTagSetConfig(dut) {
-		ipv4StaticRoute.SetSetTag(oc.UnionString("40"))
-	} else {
-		configureStaticRouteTagSet(t, dut)
-		attachTagSetToStaticRoute(t, dut, "192.168.10.0/24", "tag-static-v4")
-	}
+	ipv4StaticRoute.SetSetTag(oc.UnionString("40"))
 
 	ipv4StaticRouteNextHop := ipv4StaticRoute.GetOrCreateNextHop("0")
 	if deviations.SetMetricAsPreference(dut) {
@@ -201,11 +193,7 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString(atePort2.IPv4))
 
 	ipv6StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic("2024:db8:128:128::/64")
-	if !deviations.UseVendorNativeTagSetConfig(dut) {
-		ipv6StaticRoute.SetSetTag(oc.UnionString("60"))
-	} else {
-		attachTagSetToStaticRoute(t, dut, "2024:db8:128:128::/64", "tag-static-v6")
-	}
+	ipv6StaticRoute.SetSetTag(oc.UnionString("60"))
 
 	ipv6StaticRouteNextHop := ipv6StaticRoute.GetOrCreateNextHop("0")
 	if deviations.SetMetricAsPreference(dut) {
@@ -969,14 +957,12 @@ func redistributeStaticRoutePolicyWithTagSet(t *testing.T, dut *ondatra.DUTDevic
 func redistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, isV4 bool) {
 
 	redistributeStaticPolicyName := redistributeStaticPolicyNameV4
-	tagSetName := "tag-set-v4"
 	tagValue := "40"
 	policyStatementName := policyStatementNameV4
 	ipRoute := "192.168.20.0/24"
 	routeNextHop := "192.168.1.9"
 	if !isV4 {
 		redistributeStaticPolicyName = redistributeStaticPolicyNameV6
-		tagSetName = "tag-set-v6"
 		tagValue = "60"
 		policyStatementName = policyStatementNameV6
 		ipRoute = "2024:db8:64:64::/64"
@@ -1000,12 +986,8 @@ func redistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDevice, at
 	networkInstanceProtocolStatic := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	networkInstanceProtocolStatic.SetEnabled(true)
 	ipStaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic(ipRoute)
-	if !deviations.UseVendorNativeTagSetConfig(dut) {
-		ipStaticRoute.SetSetTag(oc.UnionString(tagValue))
-	} else {
-		configureStaticRouteTagSet(t, dut)
-		attachTagSetToStaticRoute(t, dut, ipRoute, tagSetName)
-	}
+	ipStaticRoute.SetSetTag(oc.UnionString(tagValue))
+
 	ipStaticRouteNextHop := ipStaticRoute.GetOrCreateNextHop("0")
 	ipStaticRouteNextHop.SetNextHop(oc.UnionString("DROP"))
 	gnmi.Update(t, dut, staticPath.Config(), networkInstanceProtocolStatic)
@@ -1605,110 +1587,6 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			tc.setup()
 			tc.validate()
 		})
-	}
-}
-
-// Function using native-yang to attach tag-set to static-route
-func attachTagSetToStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix, tagPolicy string) {
-
-	tagValue, err := json.Marshal(tagPolicy)
-	if err != nil {
-		t.Fatalf("Error with json Marshal: %v", err)
-	}
-
-	gpbSetRequest := &gpb.SetRequest{
-		Prefix: &gpb.Path{
-			Origin: "native",
-		},
-		Update: []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Elem: []*gpb.PathElem{
-						{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-						{Name: "static-routes"},
-						{Name: "route", Key: map[string]string{"prefix": prefix}},
-						{Name: "tag-set"},
-					},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_JsonIetfVal{
-						JsonIetfVal: tagValue,
-					},
-				},
-			},
-		},
-	}
-
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
-	}
-
-}
-
-// Function using native-yang to configure tag-set used by static-route
-func configureStaticRouteTagSet(t *testing.T, dut *ondatra.DUTDevice) {
-
-	var routingPolicyTagSetValueV4 = []any{
-		map[string]any{
-			"tag-value": []any{
-				40,
-			},
-		},
-	}
-	tagValueV4, err := json.Marshal(routingPolicyTagSetValueV4)
-	if err != nil {
-		t.Fatalf("Error with json Marshal: %v", err)
-	}
-	var routingPolicyTagSetValueV6 = []any{
-		map[string]any{
-			"tag-value": []any{
-				60,
-			},
-		},
-	}
-	tagValueV6, err := json.Marshal(routingPolicyTagSetValueV6)
-	if err != nil {
-		t.Fatalf("Error with json Marshal: %v", err)
-	}
-
-	gpbSetRequest := &gpb.SetRequest{
-		Prefix: &gpb.Path{
-			Origin: "native",
-		},
-		Update: []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Elem: []*gpb.PathElem{
-						{Name: "routing-policy"},
-						{Name: "tag-set", Key: map[string]string{"name": "tag-static-v4"}},
-					},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_JsonIetfVal{
-						JsonIetfVal: tagValueV4,
-					},
-				},
-			},
-			{
-				Path: &gpb.Path{
-					Elem: []*gpb.PathElem{
-						{Name: "routing-policy"},
-						{Name: "tag-set", Key: map[string]string{"name": "tag-static-v6"}},
-					},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_JsonIetfVal{
-						JsonIetfVal: tagValueV6,
-					},
-				},
-			},
-		},
-	}
-
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Unexpected error updating SRL routing-policy tag-set for static-route: %v", err)
 	}
 }
 
