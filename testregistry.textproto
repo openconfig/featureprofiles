@@ -457,6 +457,23 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.8"
+  description: "Ingress handling of the TTL, for all ingress packets decrement TTL , and for TTL=1 generate ICMP time exceeded message"
+  readme: " "
+  exec: " "
+}test: {
+  id: "PF-1.9"
+  description: "Egress handling of the TTL, all egress packets should have their TTL decremented,egress packets with TTL=1 should generate ICMP time exceeded to source"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.10"
+  description: "DSCP Egress handling, all egress packets IP, IPoGRE, IPoMPLSoGRE and IPoGUE, IPoMPLSoGUE should have their DSCP values re-written to 0x0 via egress QOS policy (or equivalent)"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
