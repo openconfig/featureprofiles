@@ -449,7 +449,6 @@ func TestAuthentication(t *testing.T) {
 			ts := isissession.MustNew(t).WithISIS()
 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 				level := isis.GetOrCreateLevel(2)
-				level.Enabled = ygot.Bool(true)
 				auth := level.GetOrCreateAuthentication()
 				auth.Enabled = ygot.Bool(true)
 				auth.AuthMode = tc.mode
