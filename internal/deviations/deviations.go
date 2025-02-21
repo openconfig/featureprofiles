@@ -1326,3 +1326,8 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
+
+// GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
+func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
+}
