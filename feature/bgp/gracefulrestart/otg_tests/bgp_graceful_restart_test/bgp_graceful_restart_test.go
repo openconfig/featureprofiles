@@ -143,10 +143,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure/update Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
-		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
-	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
@@ -196,7 +192,6 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 	pgGrV4.Enabled = ygot.Bool(true)
 	pgGrV4.RestartTime = ygot.Uint16(grRestartTime)
 	pgGrV4.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
-	// pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerv4GrpName)
 
 	pgV6 := bgp.GetOrCreatePeerGroup(peerv6GrpName)
@@ -204,7 +199,6 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 	pgGrV6.Enabled = ygot.Bool(true)
 	pgGrV6.RestartTime = ygot.Uint16(grRestartTime)
 	pgGrV6.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
-	// pgv6.PeerAs = ygot.Uint32(ateAS)
 	pgV6.PeerGroupName = ygot.String(peerv6GrpName)
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -360,6 +354,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, keepaliveTimer uint32) {
 
 	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
 	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
+	// The hold timer is ussually 3 times longer than the keep-alive..which means that after 3 failed keep-alives the session is considered down
 	srcBgp4Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
 	srcBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
 	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
@@ -401,8 +396,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, keepaliveTimer uint32) {
 	dstBgp6PeerRoutes.Addresses().Add().SetAddress(ibgpV6AdvStartRoute).SetPrefix(advertisedRoutesv6Prefix).SetCount(routeCount)
 
 	ate.OTG().PushConfig(t, config)
-	// ate.OTG().StartProtocols(t)
-	t.Log("Pushing config to ATE and starting protocols...")
 
 }
 
