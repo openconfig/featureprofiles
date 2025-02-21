@@ -398,4 +398,3 @@ func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, "flow")
 	}
 }
-
