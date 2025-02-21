@@ -142,14 +142,14 @@ func configureOTG(t *testing.T) gosnappi.Config {
 // configureStaticLSP configures a static MPLS LSP with the provided parameters.
 func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) {
 	d := &oc.Root{}
+	// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
 	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
 	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
 	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
-
 }
 
 func createTrafficFlow(t *testing.T,
@@ -173,7 +173,7 @@ func createTrafficFlow(t *testing.T,
 	mplsFlow.Metrics().SetEnable(true)
 	mplsFlow.Rate().SetPps(500)
 	mplsFlow.Size().SetFixed(512)
-	mplsFlow.Duration().Continuous()
+	mplsFlow.Duration().FixedPackets().SetPackets(1500)
 
 	// Set up ethernet layer.
 	eth := mplsFlow.Packet().Add().Ethernet()

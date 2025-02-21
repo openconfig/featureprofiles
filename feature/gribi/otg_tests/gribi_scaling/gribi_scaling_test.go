@@ -263,6 +263,7 @@ func incrementMAC(mac string, i int) (string, error) {
 
 func TestScaling(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	overrideScaleParams(dut)
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
@@ -313,17 +314,38 @@ func TestScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
+	createFlow(t, ate, top, vrfConfigs[1])
+	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
 		entries = append(entries, vrfConfig.V4Entries...)
-		client.Modify().AddEntry(t, entries...)
-		if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
-			t.Fatalf("Could not program entries, got err: %v", err)
+		// Breaking more than 10k gribi entries from 1 modify operation into multiple
+		// modify operations with 10k entries each.
+		if len(entries) > maxEntries {
+			index := 0
+			for idx := 0; idx < len(entries)/maxEntries; idx++ {
+				client.Modify().AddEntry(t, entries[index:maxEntries+index]...)
+				if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+					t.Fatalf("Could not program entries, got err: %v", err)
+				}
+				index += maxEntries
+			}
+			// Program the remaining entries less than 10k in another modify operation.
+			if len(entries)%maxEntries != 0 {
+				client.Modify().AddEntry(t, entries[index:]...)
+				if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+					t.Fatalf("Could not program entries, got err: %v", err)
+				}
+			}
+
+		} else {
+			client.Modify().AddEntry(t, entries...)
+			if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+				t.Fatalf("Could not program entries, got err: %v", err)
+			}
 		}
 		t.Logf("Created %d NHs, %d NHGs, %d IPv4Entries in %s VRF", len(vrfConfig.NHs), len(vrfConfig.NHGs), len(vrfConfig.V4Entries), vrfConfig.Name)
 	}
-
-	createFlow(t, ate, top, vrfConfigs[1])
 	checkTraffic(t, ate, top)
 }
 
@@ -375,5 +397,14 @@ func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 
 	if lossPct > 1 {
 		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, "flow")
+	}
+}
+
+// overrideScaleParams allows to override the default scale parameters based on the DUT vendor.
+func overrideScaleParams(dut *ondatra.DUTDevice) {
+	if deviations.OverrideDefaultNhScale(dut) {
+		if dut.Vendor() == ondatra.CISCO {
+			*fpargs.V4TunnelCount = 3328
+		}
 	}
 }
