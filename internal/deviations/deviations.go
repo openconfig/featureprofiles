@@ -1326,3 +1326,8 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
+
+// SrIgpConfigUnsupported return true if SR IGP config is not supported
+func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSrIgpConfigUnsupported()
+}

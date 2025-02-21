@@ -33,6 +33,7 @@ import (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+
 }
 
 const (
@@ -364,9 +365,14 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession, LowerBoundLabel int
 		if !SREnabled {
 			t.Errorf("FAIL- Segment Routing is not enabled on DUT")
 		}
-		if ts.DUT.Vendor() == ondatra.CISCO {
-			t.Log("Skipping Protocol Checks")
-		} else {
+
+		switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+		case true:
+			// Handle the case where SR IGP config is unsupported
+			t.Log("Skipping Protocol Checks as SR IGP Configuration is not required or supported")
+
+		case false:
+			// Handle the case where SR IGP config is supported
 			srgbValue := pcl.GetIsis().GetGlobal().GetSegmentRouting().GetSrgb()
 			if srgbValue == "nil" || srgbValue == "" {
 				t.Errorf("FAIL- SRGB is not present on DUT")
@@ -402,23 +408,38 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	ts := isissession.MustNew(t).WithISIS()
 	configureISISMPLSSR(t, ts)
 
-	if ts.DUT.Vendor() == ondatra.CISCO {
-		t.Log("configure SR label block via MPLS OC path for Cisco")
+	switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+	case true:
+		// Configures SRGB via network-instance/mpls/global/ OC Path as SR-IGP Not needed or supported
+		t.Log("configure SR label block via network-instance/mpls/global/ OC Path")
 		srgbGlobalConfig := configureSRGBViaMplsGlobalPath(SRReservedLabelblockLowerbound, SRReservedLabelblockUpperbound)
 		gnmi.Update(t, dut, gnmi.OC().Config(), srgbGlobalConfig)
+	case false:
+		// Other vendors
+		t.Log("SRGB configuration under only network-instance/MPLS")
 	}
 
 	configureOTG(t, ts)
 	otg := ts.ATE.OTG()
-	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
-	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
-	isissr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).GetIsis().GetGlobal().GetSegmentRouting()
-	fptest.LogQuery(t, "Protocol ISIS Global Segment Routing", isissession.ProtocolPath(ts.DUT).Config(), isissr)
-	if ts.DUT.Vendor() == ondatra.CISCO {
-		t.Log("Skipping SR Protocol Check")
-	} else {
+
+	switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+	case true:
+
+		//  Verify SR only under the
+		t.Log(" Verify SRGB via only the network-instance/mpls/global/ OC Path")
 		sr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetMpls().GetGlobal()
 		fptest.LogQuery(t, "Protocol MPLS and SR", isissession.ProtocolPath(ts.DUT).Config(), sr)
+
+	case false:
+
+		pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
+		fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
+		isissr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).GetIsis().GetGlobal().GetSegmentRouting()
+		fptest.LogQuery(t, "Protocol ISIS Global Segment Routing", isissession.ProtocolPath(ts.DUT).Config(), isissr)
+
+		sr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetMpls().GetGlobal()
+		fptest.LogQuery(t, "Protocol MPLS and SR", isissession.ProtocolPath(ts.DUT).Config(), sr)
+
 	}
 
 	ts.PushAndStart(t)
@@ -431,10 +452,12 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	verifyMPLSSR(t, ts, SRReservedLabelblockLowerbound, SRReservedLabelblockUpperbound)
 
 	// Reconfigure MPLS SR
-	if ts.DUT.Vendor() == ondatra.CISCO {
+	switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+	case true:
 		// Verify SR Config via MPLS OC Path
+		t.Log("in this case we only need to reconfigure the SRGP block under MPLS")
 		ReconfigureSRGBViaMplsGlobalPath(t, ts.DUT)
-	} else {
+	case false:
 		configureISISMPLSSRReconfigure(t, ts, SRReservedLabelblockLowerboundReconfigure, SRReservedLabelblockUpperboundReconfigure, srgbGblBlockReconfigure, srgbLclBlockReconfigure)
 		// Checking MPLS SR
 		verifyMPLSSR(t, ts, srgbGlobalLowerBound, srgbGlobalUpperBound)
