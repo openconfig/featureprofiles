@@ -209,8 +209,9 @@ func configureDecapIPGroups(t *testing.T, dut *ondatra.DUTDevice) {
 	case ondatra.ARISTA:
 		var defaultPolicyCLI string
 		defaultPolicyCLI = fmt.Sprintf("ip decap-group pf-decap-range")
-		helpers.GnmiCLIConfig(t, dut, defaultPolicyCLI)	
+		helpers.GnmiCLIConfig(t, dut, defaultPolicyCLI)
 		defaultPolicyCLI = fmt.Sprintf("tunnel decap-ip %s", outerIPv6Src)
+		helpers.GnmiCLIConfig(t, dut, defaultPolicyCLI)
 		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("tunnel type gre \n %s \n %s \n", defaultPolicyCLI, "tunnel overlay mpls qos map mpls-traffic-class to traffic-class"))
 	default:
 		t.Fatalf("Unsupported vendor %s for native command support for deviation 'GribiEncapHeaderUnsupported'", dut.Vendor())
