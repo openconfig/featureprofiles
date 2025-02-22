@@ -210,7 +210,8 @@ func configureDecapIPGroups(t *testing.T, dut *ondatra.DUTDevice) {
 		var defaultPolicyCLI string
 		defaultPolicyCLI = fmt.Sprintf("ip decap-group pf-decap-range")
 		helpers.GnmiCLIConfig(t, dut, defaultPolicyCLI)
-		defaultPolicyCLI = fmt.Sprintf("tunnel decap-ip %s", outerIPv6Src)
+		// Arista does not support IPv6 yet revisit when functionality is available
+		// defaultPolicyCLI = fmt.Sprintf("tunnel decap-ip %s", outerIPv6Src)
 		helpers.GnmiCLIConfig(t, dut, defaultPolicyCLI)
 		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("tunnel type gre \n %s \n %s \n", defaultPolicyCLI, "tunnel overlay mpls qos map mpls-traffic-class to traffic-class"))
 	default:
