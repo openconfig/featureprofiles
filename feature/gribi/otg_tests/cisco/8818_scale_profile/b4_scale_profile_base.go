@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+
 	// "strings"
 	"testing"
 	"time"
@@ -88,13 +89,13 @@ const (
 	v4TunnelNHGCount         = 256
 	v4TunnelNHGSplitCount    = 2
 	v4ReEncapNHGCount        = 256
-	egressNHGSplitCount      = 16
+	egressNHGSplitCount      = 16 //6
 	vipLevelWeight           = 3
 	transitLevelWeight       = 3
 	encapLevelWeight         = 3
 	flowCount                = 254
 	ipTTL                    = uint32(255)
-	vrfDecap                 = "DECAP"
+	vrfDecap                 = "DECAP_TE_VRF" //"DECAP"
 	vrfTransit               = "TRANSIT_VRF"
 	vrfRepaired              = "REPAIRED"
 	vrfRepair                = "REPAIR"
@@ -105,6 +106,7 @@ const (
 	vrfEncapB                = "ENCAP_TE_VRF_B"
 	vrfEncapC                = "ENCAP_TE_VRF_C"
 	vrfEncapD                = "ENCAP_TE_VRF_D"
+	niDecapTeVrf             = "DECAP_TE_VRF"
 	vrfDefault               = "DEFAULT"
 	ipv4PrefixLen            = 30
 	ipv6PrefixLen            = 126
@@ -203,13 +205,17 @@ type trafficflowAttr struct {
 	withInnerHeader bool // flow type
 	withNativeV6    bool
 	withInnerV6     bool
-	outerSrc        string // source IP address
-	outerDst        string // destination IP address
-	innerV4SrcStart string // Inner v4 source IP address
-	innerV4DstStart string // Inner v4 destination IP address
-	innerV6SrcStart string // Inner v6 source IP address
-	innerV6DstStart string // Inner v6 destination IP address
+	outerSrc        string   // source IP address
+	outerDst        []string // destination IP addresses
+	innerSrc        string
+	innerDst        []string // set of destination IP addresses
+	innerV4SrcStart string   // Inner v4 source IP address
+	innerV4DstStart string   // Inner v4 destination IP address
+	innerV6SrcStart string   // Inner v6 source IP address
+	innerV6DstStart string   // Inner v6 destination IP address
 	innerFlowCount  uint32
+	outerDscp       uint32   // DSCP value
+	innerDscp       uint32   // Inner DSCP value
 	srcPort         []string // source OTG port
 	dstPorts        []string // destination OTG ports
 	srcMac          string   // source MAC address
@@ -360,7 +366,7 @@ var (
 		withNativeV6:    false,
 		withInnerV6:     false,
 		outerSrc:        v4DefaultSrc,                    // source IP address
-		outerDst:        v4BGPDefaultStart,               // source IP address
+		outerDst:        []string{v4BGPDefaultStart},     // destination IP address
 		srcPort:         []string{lagName1 + ".IPv4"},    // source OTG port
 		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
 		srcMac:          otgSrc1.MAC,                     // source MAC address
@@ -373,7 +379,7 @@ var (
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := &oc.Root{}
-	vrfs := []string{vrfDecap, vrfTransit, vrfRepaired, vrfEncapA, vrfEncapB}
+	vrfs := []string{vrfDecap, vrfTransit, vrfRepaired, vrfEncapA, vrfEncapB, vrfEncapC, vrfEncapD, niDecapTeVrf}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
@@ -513,6 +519,7 @@ func configureOTGBundle(t *testing.T, ate *ondatra.ATEDevice, otgIntfAttr, dutIn
 	dstEth := dstDev.Ethernets().Add().SetName(lagName + ".Eth").SetMac(otgIntfAttr.MAC)
 	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(lagName + ".IPv4").SetAddress(otgIntfAttr.IPv4).SetGateway(dutIntfAttr.IPv4).SetPrefix(uint32(otgIntfAttr.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(lagName + ".IPv6").SetAddress(otgIntfAttr.IPv6).SetGateway(dutIntfAttr.IPv6).SetPrefix(uint32(otgIntfAttr.IPv6Len))
 }
 
 func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) (aggID1, aggID2 string) {
@@ -574,25 +581,38 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 	if fa.withNativeV6 {
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(fa.outerSrc)
-		v6.Dst().SetValue(fa.outerDst)
+		v6.Dst().SetValues(fa.outerDst)
 		v6.HopLimit().SetValue(ipTTL)
 		v6.TrafficClass().SetValue(dscp << 2)
 	} else {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(fa.outerSrc)
-		v4.Dst().SetValue(fa.outerDst)
+		v4.Dst().SetValues(fa.outerDst)
 		v4.TimeToLive().SetValue(ipTTL)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
 		if fa.withInnerHeader {
 			if fa.withInnerV6 {
 				innerV6 := flow.Packet().Add().Ipv6()
-				innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerFlowCount)
-				innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
+				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+					innerV6.Src().SetValue(fa.innerSrc)
+					innerV6.Dst().SetValues(fa.innerDst)
+				} else { // create inner srouce and destination addresses
+					innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerFlowCount)
+					innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
+				}
+				innerV6.TrafficClass().SetValue(fa.innerDscp << 2)
 			} else {
 				innerV4 := flow.Packet().Add().Ipv4()
-				innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerFlowCount)
-				innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
+				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+					innerV4.Src().SetValue(fa.innerSrc)
+					innerV4.Dst().SetValues(fa.innerDst)
+				} else { // create inner srouce and destination addresses}
+					innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerFlowCount)
+					innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
+				}
+				innerV4.Priority().Dscp().Phb().SetValue(fa.innerDscp)
 			}
+
 		}
 	}
 	udp := flow.Packet().Add().Udp()
@@ -629,6 +649,108 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, c
 		}
 
 	}
+}
+
+// getDecapFlows returns the ipv4inipv4 and ipv6inipv4 flows.
+func getDecapFlows(decapEntries []string) []gosnappi.Flow {
+
+	var dInV4 = trafficflowAttr{
+		withInnerHeader: true, // flow type
+		withNativeV6:    false,
+		withInnerV6:     false,
+		outerSrc:        v4DefaultSrc,                    // source IP address
+		outerDst:        []string{v4BGPDefaultStart},     // destination IP address
+		srcPort:         []string{lagName2 + ".IPv4"},    // source OTG port
+		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
+		srcMac:          otgSrc2.MAC,                     // source MAC address
+		dstMac:          dutSrc2.MAC,                     // destination MAC address
+		topo:            gosnappi.NewConfig(),
+	}
+
+	dInV4.outerDst = decapEntries
+
+	dInV4.outerSrc = ipv4OuterSrc111
+	dInV4.innerDst = encapVrfAIPv4Enries
+	dInV4.innerSrc = otgSrc2.IPv4
+	dInV4.innerDscp = dscpEncapA1
+	flow1 := dInV4.createTrafficFlow("flow1", dscpEncapA1)
+
+	dInV4.outerSrc = ipv4OuterSrc222
+	dInV4.innerDst = encapVrfBIPv4Enries
+	dInV4.innerDscp = dscpEncapB1
+	flow2 := dInV4.createTrafficFlow("flow2", dscpEncapB1)
+
+	// dInV4.outerSrc = ipv4OuterSrc111
+	// dInV4.innerDst = encapVrfCIPv4Enries
+	// dInV4.innerDscp = dscpEncapA2
+	// flow3 := dInV4.createTrafficFlow("flow3", dscpEncapA2)
+
+	// dInV4.outerSrc = ipv4OuterSrc222
+	// dInV4.innerDst = encapVrfDIPv4Enries
+	// dInV4.innerDscp = dscpEncapB2
+	// flow4 := dInV4.createTrafficFlow("flow4", dscpEncapB2)
+
+	dInV4.withInnerV6 = true
+	dInV4.outerSrc = ipv4OuterSrc111
+	dInV4.innerDst = encapVrfAIPv6Enries
+	dInV4.innerSrc = otgSrc2.IPv6
+	dInV4.innerDscp = dscpEncapA1
+	flow5 := dInV4.createTrafficFlow("flow5", dscpEncapA1)
+
+	dInV4.outerSrc = ipv4OuterSrc222
+	dInV4.innerDst = encapVrfBIPv6Enries
+	dInV4.innerDscp = dscpEncapB1
+	flow6 := dInV4.createTrafficFlow("flow6", dscpEncapB1)
+
+	// dInV4.outerSrc = ipv4OuterSrc111
+	// dInV4.innerDst = encapVrfCIPv6Enries
+	// dInV4.innerDscp = dscpEncapA2
+	// flow7 := dInV4.createTrafficFlow("flow7", dscpEncapA2)
+
+	// dInV4.outerSrc = ipv4OuterSrc222
+	// dInV4.innerDst = encapVrfDIPv6Enries
+	// dInV4.innerDscp = dscpEncapB2
+	// flow8 := dInV4.createTrafficFlow("flow8", dscpEncapB2)
+
+	return []gosnappi.Flow{flow1, flow2, flow5, flow6}
+
+}
+
+// getEncapFlows returns ipv4 and ipv6 flows. These flows are used to simulate clusterfacing traffic.
+func getEncapFlows() []gosnappi.Flow {
+
+	// encap flow attribute
+	var enFa = trafficflowAttr{
+		withInnerHeader: false, // flow type
+		withNativeV6:    false,
+		withInnerV6:     false,
+		outerSrc:        v4DefaultSrc,                    // source IP address
+		outerDst:        []string{v4BGPDefaultStart},     // destination IP address
+		srcPort:         []string{lagName1 + ".IPv4"},    // source OTG port
+		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
+		srcMac:          otgSrc1.MAC,                     // source MAC address
+		dstMac:          dutSrc1.MAC,                     // destination MAC address
+		topo:            gosnappi.NewConfig(),
+	}
+
+	enFa.outerDst = encapVrfAIPv4Enries
+	flow1 := enFa.createTrafficFlow("flow1", dscpEncapA1)
+
+	enFa.outerDst = encapVrfBIPv4Enries
+	flow2 := enFa.createTrafficFlow("flow2", dscpEncapB1)
+
+	// ipv6 native traffic
+	enFa.withNativeV6 = true
+	enFa.srcPort = []string{lagName1 + ".IPv6"}
+
+	enFa.outerSrc = innerSrcIPv6Start
+	enFa.outerDst = encapVrfAIPv6Enries
+	flow3 := enFa.createTrafficFlow("flow3", dscpEncapA1)
+
+	enFa.outerDst = encapVrfBIPv6Enries
+	flow4 := enFa.createTrafficFlow("flow4", dscpEncapB1)
+
+	return []gosnappi.Flow{flow1, flow2, flow3, flow4}
 }
 
 // validateAftTelmetry verifies aft telemetry entries.
@@ -982,6 +1104,24 @@ func configureBaseProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	peer := ondatra.DUT(t, "peer")
 	otg := ondatra.ATE(t, "ate")
+
+	ctx := context.Background()
+	gribic := dut.RawAPIs().GRIBI(t)
+	client := fluent.NewClient()
+	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
+		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+
+	client.Start(ctx, t)
+	// cleanup all existing gRIBI entries at the end of the test
+	defer gribi.FlushAll(client)
+	// cleanup all existing gRIBI entries in the begining of the test
+	if err := gribi.FlushAll(client); err != nil {
+		t.Error(err)
+	}
+	// Wait for the gribi entries get flushed
+	time.Sleep(300 * time.Second)
+	defer client.Stop(t)
+
 	// configureNetworkInstance(t, dut)
 	// t.Log("Configure DUT & PEER devices")
 	configureDevices(t, dut, peer)
@@ -989,10 +1129,12 @@ func configureBaseProfile(t *testing.T) {
 	topo := configureOTG(t, otg)
 	t.Log("OTG CONFIG: ", topo)
 	tcArgs := &testArgs{
-		dut:  dut,
-		peer: peer,
-		ate:  otg,
-		topo: topo,
+		dut:    dut,
+		peer:   peer,
+		ate:    otg,
+		topo:   topo,
+		client: client,
+		ctx:    ctx,
 	}
 	t.Run("Verify default BGP traffic", func(t *testing.T) {
 		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
@@ -1000,7 +1142,9 @@ func configureBaseProfile(t *testing.T) {
 	})
 	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
 	peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
-	// dutIPv4 := []string{"80.1.2.2", "80.1.3.2", "80.1.4.2", "80.1.4.2", "80.1.6.2", "80.1.7.2", "80.1.8.2", "80.1.9.2", "80.1.10.2", "80.1.11.2", "80.1.12.2", "80.1.13.2", "80.1.14.2", "80.1.15.2", "80.1.16.2", "80.1.17.2"}
+
+	// add static route on peer for the tunnel destination for encap, decap+encap traffic
+	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	t.Log("Program base gRIBI entries")
-	BaseGRIBIProgramming(t, dut, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
+	BaseGRIBIProgramming(t, tcArgs, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
 }

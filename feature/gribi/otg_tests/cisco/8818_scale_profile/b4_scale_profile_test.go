@@ -22,16 +22,16 @@ import (
 	// "strconv"
 	"context"
 	"fmt"
-	"sync"
 	"strings"
+	"sync"
 
 	// "os"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 
@@ -110,30 +110,30 @@ func TestGoogleBaseConfPush(t *testing.T) {
 	// 		clientTimeout:  10 * time.Minute,
 	// 		wantTime:       5 * time.Minute,
 	// 	},
-		// {
-		// 	desc:           "Subsequent same google config push",
-		// 	configFilePath: baseConf,
-		// 	clientTimeout:  10 * time.Minute,
-		// 	wantTime:       2 * time.Minute,
-		// },
-		// {
-		// 	desc:           "Drain config push",
-		// 	configFilePath: drainConf,
-		// 	clientTimeout:  10 * time.Minute,
-		// 	wantTime:       5 * time.Minute,
-		// },
-		// {
-		// 	desc:           "Undrain config push",
-		// 	configFilePath: undrainConf,
-		// 	clientTimeout:  10 * time.Minute,
-		// 	wantTime:       3 * time.Minute,
-		// },
-		// {
-		// 	desc:           "Initial DUT config",
-		// 	configFilePath: dutConf,
-		// 	clientTimeout:  10 * time.Minute,
-		// 	wantTime:       5 * time.Minute,
-		// },
+	// {
+	// 	desc:           "Subsequent same google config push",
+	// 	configFilePath: baseConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       2 * time.Minute,
+	// },
+	// {
+	// 	desc:           "Drain config push",
+	// 	configFilePath: drainConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       5 * time.Minute,
+	// },
+	// {
+	// 	desc:           "Undrain config push",
+	// 	configFilePath: undrainConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       3 * time.Minute,
+	// },
+	// {
+	// 	desc:           "Initial DUT config",
+	// 	configFilePath: dutConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       5 * time.Minute,
+	// },
 	// }
 	// for _, tc := range cases {
 	// 	t.Run(tc.desc, func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 	// 	})
 	// }
 	// t.Run("Config Push after LC reload", func(t *testing.T) {
-// 	// })
+	// 	// })
 	t.Run("Config Push after chassis reboot followed by Switchover", func(t *testing.T) {
 		t.Logf("Doing chassis reboot")
 		currentTime := time.Now()
@@ -168,7 +168,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 		time.Sleep(350 * time.Second)
 		t.Logf("Check for cfgmgr LC restore config sessions started")
 		cliHandle := dut.RawAPIs().CLI(t)
-		ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		for {
 			showConfigSession, _ := cliHandle.RunCommand(ctx, "show configuration sessions detail")
@@ -215,7 +215,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 			startTime := time.Now()
 			duration := 20 * time.Minute
 			var iter int
-			for time.Since(startTime) < duration  {
+			for time.Since(startTime) < duration {
 				iter = iter + 1
 				showConfigLock, err1 := cliHandle.RunCommand((context.Background()), "show configuration lock")
 				showConfigSession, err2 := cliHandle.RunCommand((context.Background()), "show configuration sessions detail")
@@ -230,7 +230,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 					t.Errorf("Failed to get out of lock state")
 					break
 				}
-				if !strings.Contains(showConfigLock.Output(),"lock_subtree") && !strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
+				if !strings.Contains(showConfigLock.Output(), "lock_subtree") && !strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
 					t.Logf("No config session is in lock state")
 					break
 				}
@@ -240,7 +240,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 		wg.Wait() // Wait for all four goroutines to finish before exiting.
 
 		t.Logf("Check when Standby RP0 is ready")
-		if ok := util.SwitchoverReady(t, dut, "0/RP0/CPU0", 10 * time.Minute); !ok {
+		if ok := util.SwitchoverReady(t, dut, "0/RP0/CPU0", 10*time.Minute); !ok {
 			t.Logf("Controller %q did not become switchover-ready before test.", "0/RP0/CPU0")
 		}
 		t.Logf("Collect show configuration inconsistency replica log")
@@ -251,4 +251,17 @@ func TestGoogleBaseConfPush(t *testing.T) {
 			t.Log(err)
 		}
 	})
+}
+
+func TestGribiScaleProfile(t *testing.T) {
+	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	// dut := ondatra.DUT(t, "dut")
+	// otg := ondatra.ATE(t, "ate")
+	// // ctx := context.Background()
+	// tcArgs := &testArgs{
+	// 	dut:  dut,
+	// 	ate:  otg,
+	// 	topo: topo,
+	// }
+	configureBaseProfile(t)
 }

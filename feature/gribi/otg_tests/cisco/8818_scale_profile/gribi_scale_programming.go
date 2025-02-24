@@ -16,11 +16,11 @@
 package b4_scale_profile_test
 
 import (
-	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -45,18 +45,20 @@ const (
 	V4VIPIPBlock        = "100.100.100.1/22"
 	tunnelSrcIP         = "18.18.18.18"
 	encapNhCount        = 1600
-	encapNhgcount       = 200
-	encapIPv4Count      = 5000
-	encapIPv6Count      = 5000
-	encapNhSize         = 8
-	decapIPv4ScaleCount = 1000
+	encapNhgcount       = 100  // 200
+	encapIPv4Count      = 5000 // 5000
+	encapIPv6Count      = 5000 // 5000
+	encapNhSize         = 2    // 8
+	decapIPv4Count      = 48   // mixed prefix decap entries
+	decapIPv4ScaleCount = 1000 // 1000 /32 prefix decap entries
+	aftProgTimeout      = 10 * time.Minute
 )
 
 var (
-	IPBlockEncapA       = "138.1.1.1/24" // IPBlockEncapA represents the ipv4 entries in EncapVRFA
-	IPBlockEncapB       = "138.1.2.1/24" // IPBlockEncapB represents the ipv4 entries in EncapVRFB
-	IPBlockEncapC       = "138.1.3.1/24" // IPBlockEncapC represents the ipv4 entries in EncapVRFC
-	IPBlockEncapD       = "138.1.4.1/24" // IPBlockEncapD represents the ipv4 entries in EncapVRFD
+	IPBlockEncapA       = "138.1.1.1/16" // IPBlockEncapA represents the ipv4 entries in EncapVRFA
+	IPBlockEncapB       = "138.2.1.1/16" // IPBlockEncapB represents the ipv4 entries in EncapVRFB
+	IPBlockEncapC       = "138.3.1.1/16" // IPBlockEncapC represents the ipv4 entries in EncapVRFC
+	IPBlockEncapD       = "138.4.1.1/16" // IPBlockEncapD represents the ipv4 entries in EncapVRFD
 	IPBlockDecap        = "102.0.0.1/15" // IPBlockDecap represents the ipv4 entries in Decap VRF
 	IPv6BlockEncapA     = "2001:DB8:0:1::/64"
 	IPv6BlockEncapB     = "2001:DB8:1:1::/64"
@@ -236,12 +238,13 @@ func buildGRIBIProgramming(dut *ondatra.DUTDevice, egressIPs []string, param Sca
 
 	// * each VIP 1:1 map to a NHG
 	// * each NHG points to unique NHs
+	fmt.Println("**** v4EgressIPAddrs.AllIPs():", v4EgressIPAddrs.AllIPs())
 	for _, ip := range v4VIPAddrs.AllIPs() {
 		nhgID := idPool.NextNHGID()
 		nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF)
 		// Build NHs and link NHs to NHG.
 		for i := 0; i < param.EgressNHGSplitCount; i++ {
-			vip := v4EgressIPAddrs.AllIPs()[i]
+			vip := v4EgressIPAddrs.AllIPs()[i%len(v4EgressIPAddrs.AllIPs())] // round-robin if not enough egress IPs
 			nhID = idPool.NextNHID()
 			vrfDefault.NHs = append(vrfDefault.NHs,
 				fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(defaultVRF).WithIPAddress(vip),
@@ -435,7 +438,7 @@ func installEncapEntries(t *testing.T, vrf string, routeParams *routesParam, arg
 		)
 		nextHopIndices = append(nextHopIndices, index)
 	}
-	if err := awaitTimeout(args.ctx, args.client, t, 5*time.Minute); err != nil {
+	if err := awaitTimeout(args.ctx, args.client, t, aftProgTimeout); err != nil {
 		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 
@@ -456,7 +459,7 @@ func installEncapEntries(t *testing.T, vrf string, routeParams *routesParam, arg
 		args.client.Modify().AddEntry(t, nhgEntry)
 		nextHopGroupIndices = append(nextHopGroupIndices, index)
 	}
-	if err := awaitTimeout(args.ctx, args.client, t, 5*time.Minute); err != nil {
+	if err := awaitTimeout(args.ctx, args.client, t, aftProgTimeout); err != nil {
 		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 
@@ -469,7 +472,7 @@ func installEncapEntries(t *testing.T, vrf string, routeParams *routesParam, arg
 				WithNextHopGroup(nextHopGroupIndices[i%len(nextHopGroupIndices)]).
 				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(args.dut)))
 	}
-	if err := awaitTimeout(args.ctx, args.client, t, 5*time.Minute); err != nil {
+	if err := awaitTimeout(args.ctx, args.client, t, aftProgTimeout); err != nil {
 		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 	t.Logf("Installed entries VRF %s - IPv4 entry count: %d, next-hop-group count: %d (index %d - %d), next-hop count: %d (index %d - %d)", vrf, len(routeParams.ipEntries), len(nextHopGroupIndices), nextHopGroupIndices[0], nextHopGroupIndices[len(nextHopGroupIndices)-1], len(nextHopIndices), nextHopIndices[0], nextHopIndices[len(nextHopIndices)-1])
@@ -483,7 +486,7 @@ func installEncapEntries(t *testing.T, vrf string, routeParams *routesParam, arg
 				WithNextHopGroup(nextHopGroupIndices[i%len(nextHopGroupIndices)]).
 				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(args.dut)))
 	}
-	if err := awaitTimeout(args.ctx, args.client, t, 5*time.Minute); err != nil {
+	if err := awaitTimeout(args.ctx, args.client, t, aftProgTimeout); err != nil {
 		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 	t.Logf("Installed entries VRF %s - IPv6 entry count: %d, next-hop-group count: %d (index %d - %d), next-hop count: %d (index %d - %d)", vrf, len(routeParams.ipv6Entries), len(nextHopGroupIndices), nextHopGroupIndices[0], nextHopGroupIndices[len(nextHopGroupIndices)-1], len(nextHopIndices), nextHopIndices[0], nextHopIndices[len(nextHopIndices)-1])
@@ -537,32 +540,14 @@ func generateNextHopWeights(weightSum int, nextHopCount int) []int {
 	return weights
 }
 
-func BaseGRIBIProgramming(t *testing.T, dut *ondatra.DUTDevice, egressIPs []string, param ScaleParam, l1Weight, l2Weight, l3Weight uint64) {
-	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI(t)
-	client := fluent.NewClient()
-	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
-		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+func BaseGRIBIProgramming(t *testing.T, args *testArgs, egressIPs []string, param ScaleParam, l1Weight, l2Weight, l3Weight uint64) {
 
-	client.Start(ctx, t)
-	if err := gribi.FlushAll(client); err != nil {
-		t.Error(err)
-	}
-	defer client.Stop(t)
-
-	// defer func() {
-	// 	// Flush all entries after test.
-	// 	if err := gribi.FlushAll(client); err != nil {
-	// 		t.Error(err)
-	// 	}
-	// }()
-
-	client.StartSending(ctx, t)
-	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
+	args.client.StartSending(args.ctx, t)
+	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for client: %v", err)
 	}
-	gribi.BecomeLeader(t, client)
-	vrfConfigs := buildGRIBIProgramming(dut, egressIPs, param, l1Weight, l2Weight, l3Weight)
+	args.electionID = gribi.BecomeLeader(t, args.client)
+	vrfConfigs := buildGRIBIProgramming(args.dut, egressIPs, param, l1Weight, l2Weight, l3Weight)
 	for _, vrfConfig := range vrfConfigs {
 		// skip adding unwanted entries
 		if vrfConfig.Name == "vrf_rd" {
@@ -570,10 +555,115 @@ func BaseGRIBIProgramming(t *testing.T, dut *ondatra.DUTDevice, egressIPs []stri
 		}
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
 		entries = append(entries, vrfConfig.V4Entries...)
-		client.Modify().AddEntry(t, entries...)
-		if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+		args.client.Modify().AddEntry(t, entries...)
+		if err := awaitTimeout(args.ctx, args.client, t, aftProgTimeout); err != nil {
 			t.Fatalf("Could not program entries, got err: %v", err)
 		}
 		t.Logf("Created %d NHs, %d NHGs, %d IPv4Entries in %s VRF", len(vrfConfig.NHs), len(vrfConfig.NHGs), len(vrfConfig.V4Entries), vrfConfig.Name)
 	}
+
+	// push encap entries
+	defaultIpv4Entries := []string{}
+	for _, v4Entry := range vrfConfigs[1].V4Entries {
+		ep, _ := v4Entry.EntryProto()
+		defaultIpv4Entries = append(defaultIpv4Entries, strings.Split(ep.GetIpv4().GetPrefix(), "/")[0])
+	}
+
+	// Inject 5000 IPv4Entry-ies and 5000 IPv6Entry-ies to each of the 4 encap VRFs.
+	pushEncapEntries(t, defaultIpv4Entries, args)
+	validateTrafficFlows(t, args, getEncapFlows(), false, true)
+
+	// Inject mixed length prefixes (48 entries) in the DECAP_TE_VRF.
+	decapEntries := pushDecapEntries(t, args)
+	validateTrafficFlows(t, args, getDecapFlows(decapEntries), false, true)
+
+	// Install decapIPv4ScaleCount entries with fixed prefix length of /32 in DECAP_TE_VRF.
+	decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
+	pushDecapScaleEntries(t, args, decapScaleEntries)
+	// Send traffic and verify packets are decapped then encapsulated and then forwarded to peer.
+	validateTrafficFlows(t, args, getDecapFlows(decapScaleEntries), false, true)
+}
+
+// generateIPv4Subnets creates IPv4 prefixes with a given seedBlock and subNets count
+func generateIPv4Subnets(seedBlock string, subNets uint32) []string {
+
+	_, netCIDR, _ := net.ParseCIDR(seedBlock)
+	maskSize, _ := netCIDR.Mask.Size()
+	incrSize := 0x00000001 << (32 - maskSize)
+	firstIP := binary.BigEndian.Uint32(netCIDR.IP)
+	entries := []string{}
+	for i := firstIP; subNets > 0; subNets-- {
+		ip := make(net.IP, 4)
+		binary.BigEndian.PutUint32(ip, i)
+		tip := netip.MustParsePrefix(fmt.Sprintf("%v/%d", ip, maskSize))
+		if tip.Addr().IsValid() {
+			entries = append(entries, tip.String())
+		}
+		i = i + uint32(incrSize)
+	}
+	return entries
+}
+
+func pushDecapEntries(t *testing.T, args *testArgs) []string {
+	decapIPBlocks := []string{}
+	decapIPBlocks = append(decapIPBlocks, generateIPv4Subnets("102.51.100.1/22", 12)...)
+	decapIPBlocks = append(decapIPBlocks, generateIPv4Subnets("107.51.105.1/24", 12)...)
+	decapIPBlocks = append(decapIPBlocks, generateIPv4Subnets("112.51.110.1/26", 12)...)
+	decapIPBlocks = append(decapIPBlocks, generateIPv4Subnets("117.51.115.1/28", 12)...)
+
+	nhIndex := uint64(lastNhIndex)
+	nhgIndex := uint64(lastNhgIndex)
+	decapEntries := []string{}
+	for i, ipBlock := range decapIPBlocks {
+		entries := iputil.GenerateIPs(ipBlock, 1)
+		decapEntries = append(decapEntries, entries...)
+		nhgIndex = nhgIndex + 1
+		nhIndex = nhIndex + 1
+		installDecapEntry(t, args, nhIndex, nhgIndex, decapIPBlocks[i])
+	}
+
+	lastNhIndex = int(nhIndex) + 1
+	lastNhgIndex = int(nhgIndex) + 1
+
+	if err := awaitTimeout(args.ctx, args.client, t, 5*time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+
+	t.Logf("Installed %v Decap VRF IPv4 entries with mixed prefix length", decapIPv4Count)
+	return decapEntries
+}
+
+func pushDecapScaleEntries(t *testing.T, args *testArgs, decapEntries []string) {
+	nhIndex := uint64(lastNhIndex)
+	nhgIndex := uint64(lastNhgIndex)
+	for i := 0; i < len(decapEntries); i++ {
+		nhgIndex = nhgIndex + 1
+		nhIndex = nhIndex + 1
+		installDecapEntry(t, args, nhIndex, nhgIndex, decapEntries[i]+"/32")
+	}
+
+	lastNhIndex = int(nhIndex) + 1
+	lastNhgIndex = int(nhgIndex) + 1
+
+	if err := awaitTimeout(args.ctx, args.client, t, 5*time.Minute); err != nil {
+		t.Fatalf("Could not program entries via client, got err: %v", err)
+	}
+
+	t.Logf("Installed %v Decap VRF IPv4 scale entries with prefix length 32", decapIPv4ScaleCount)
+}
+
+func installDecapEntry(t *testing.T, args *testArgs, nhIndex, nhgIndex uint64, prefix string) {
+	decapNH := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+		WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP)
+	if !deviations.DecapNHWithNextHopNIUnsupported(args.dut) {
+		decapNH.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut))
+	}
+	args.client.Modify().AddEntry(t,
+		decapNH,
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(nhgIndex).AddNextHop(nhIndex, 1),
+		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
+			WithPrefix(prefix).WithNextHopGroup(nhgIndex).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(args.dut)),
+	)
 }
