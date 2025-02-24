@@ -207,12 +207,12 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 func configureDecapIPGroups(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		var defaultPolicyCLI string
+		// var defaultPolicyCLI string
 		helpers.GnmiCLIConfig(t, dut, "ip decap-group pf-decap-range")
-		// Arista does not support IPv6 yet revisit when functionality is available
+		// TODO: b/354689142 - Add IPv6 support when available
 		// defaultPolicyCLI = fmt.Sprintf("tunnel decap-ip %s", outerIPv6Src)
 		// helpers.GnmiCLIConfig(t, dut, defaultPolicyCLI)
-		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("tunnel type gre \n %s \n %s \n", defaultPolicyCLI, "tunnel overlay mpls qos map mpls-traffic-class to traffic-class"))
+		// helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("tunnel type gre \n %s \n %s \n", defaultPolicyCLI, "tunnel overlay mpls qos map mpls-traffic-class to traffic-class"))
 	default:
 		t.Fatalf("Unsupported vendor %s for native command support for deviation 'GribiEncapHeaderUnsupported'", dut.Vendor())
 	}
