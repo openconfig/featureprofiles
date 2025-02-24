@@ -259,12 +259,15 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 					t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
 				}
 			} else {
-				actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
+				metric, _ := strconv.Atoi(policyValue)
+				actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 			}
 		} else {
 			metric, _ := strconv.Atoi(policyValue)
 			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+			actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 			actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		}
 	case setPrependPolicy:
