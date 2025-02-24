@@ -24,6 +24,10 @@ const (
 	vlanMTU       = 1518
 )
 
+var ind uint64
+var weight uint64
+var schedulerPolName = "eg_policy1111"
+
 func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
 	println(baseConfigEgress)
@@ -103,7 +107,6 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 				queuestats[queueName] += *queue.TransmitPkts
 
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -124,14 +127,12 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
 
+// testSchedulerwrr tests the Weighted Round Robin (WRR) scheduling on the DUT (Device Under Test).
 func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	//defer flushServer(t, args)
 	t.Logf("clear qos counters on all interfaces")
@@ -187,7 +188,6 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 				queuestats[queueName] += *queue.TransmitPkts
 
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -204,12 +204,9 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
 
 func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
@@ -253,8 +250,8 @@ func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		})
 	})
-
 }
+
 func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 	var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
 	println(baseConfigEgress)
@@ -299,7 +296,6 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 			queuestats[queueName] += *queue.TransmitPkts
 
 			queueNames = append(queueNames, queueName)
-
 		}
 	})
 
@@ -320,12 +316,9 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
 
 func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
@@ -397,9 +390,7 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 			for queueName, queue := range gote.Output.Queue {
 				queuestats[queueName] += *queue.TransmitPkts
-
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -420,54 +411,70 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
-func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 
+func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
+	// Initialize maps to store QoS packet counters before and after traffic
 	dutQosPktsBeforeTraffic := make(map[string]uint64)
 	dutQosPktsAfterTraffic := make(map[string]uint64)
-	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+
+	// Define the queue names to be monitored
+	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
+
+	// Create a list of interface names to be monitored
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
 		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
 	}
+
+	// Collect QoS packet counters before traffic for each queue on each interface
 	for _, EgressInterface := range interfaceList {
 		for _, queueName := range queueNames {
 			dutQosPktsBeforeTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
-	// for _, queueName := range queueNames {
-	// 	dutQosPktsBeforeTraffic[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-	// }
 
+	// Define the weights for the traffic streams
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+
+	// Get the source endpoint for the traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
+
+	// Start the traffic streaming test
 	testTrafficsreaming(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 
+	// Get the initial QoS queue counter values
 	QueueCounter := gnmi.OC().Qos().Interface("Bundle-Ether121")
 	val := gnmi.Get(t, args.dut, QueueCounter.State())
+
+	// Wait for the QoS queue counter values to be updated
 	gnmi.Await(t, args.dut, QueueCounter.State(), 3*time.Minute, val)
+
+	// Stop the traffic
 	args.ate.Traffic().Stop(t)
+
+	// Collect QoS packet counters after traffic for each queue on each interface
 	for _, EgressInterface := range interfaceList {
 		for _, queueName := range queueNames {
 			dutQosPktsAfterTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
+
+	// Log the QoS egress packet counters before and after traffic
 	t.Logf("QoS egress packet counters before traffic: %v", dutQosPktsBeforeTraffic)
 	t.Logf("QoS egress packet counters after traffic: %v", dutQosPktsAfterTraffic)
+
+	// Verify that the packet counters have increased for each queue
 	for _, queue := range queueNames {
 		if dutQosPktsAfterTraffic[queue] <= dutQosPktsBeforeTraffic[queue] {
-
 			t.Errorf("packets not increased for queue %v", queue)
 		}
 	}
-
 }
+
 func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.clientA.FlushServer(t)
 	//defer teardownQos(t, args.dut)
@@ -519,7 +526,6 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 				queuestats[queueName] += *queue.TransmitPkts
 
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -540,17 +546,32 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
+
+// testSchedulerwrr tests the Weighted Round Robin (WRR) scheduling on the DUT (Device Under Test).
+// It configures the WRR scheduler, sets up the necessary network configurations, and verifies
+// the traffic flow and queue statistics.
+//
+// Parameters:
+// - ctx: The context for the test.
+// - t: The testing object.
+// - args: The arguments required for the test, encapsulated in a testArgs struct.
+//
+// The function performs the following steps:
+// 1. Configures the WRR scheduler on the DUT.
+// 2. Sets up static routes and next-hop groups on the DUT.
+// 3. Configures traffic flows and sends traffic from source endpoints to a destination endpoint.
+// 4. Collects and compares traffic statistics from the ATE (Automated Test Equipment) and the DUT's QoS telemetry.
+// 5. Verifies that the queue statistics match the expected values, ensuring that the WRR scheduling is functioning correctly.
+//
+// Note: The function includes deferred cleanup steps to ensure that the DUT configuration is reverted after the test.
 func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrSche(t, args.dut)
 	defer args.clientA.FlushServer(t)
-	defer teardownQos(t, args.dut)
+	// defer teardownQos(t, args.dut)
 	args.clientA.BecomeLeader(t)
 	args.clientA.FlushServer(t)
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
@@ -566,7 +587,7 @@ func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort3.Name], args.top.Interfaces()[atePort4.Name]}
 	DstEndpoint := args.top.Interfaces()[atePort2.Name]
 	testTrafficqoswrr(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, weights...)
-	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+	queueNames := []string{"SYSTEM", "tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	queuestats := make(map[string]uint64)
 	ixiastats := make(map[string]uint64)
 	ixiaallflows := make(map[string][]string)
@@ -590,7 +611,6 @@ func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	// 		flowcounterpkts += *flowcounters.InPkts
 	// 	}
 	// 	ixiastats[queueName] = flowcounterpkts
-
 	// }
 	interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface("Bundle-Ether121").State()
 	gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
@@ -601,17 +621,14 @@ func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 				t.Errorf("Stats not matching for queue %+v", queueName)
 			}
 		} else {
-
 			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 				queuestats[queueName] >= ixiastats[queueName]-10) {
 				t.Errorf("Stats not matching for queue %+v", queueName)
-
 			}
 		}
-
 	}
-
 }
+
 func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog1P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -694,17 +711,13 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 			if queueName == "tc7" {
 				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
 					t.Errorf("Stats not matching for queue %+v", queueName)
-
 				}
 			} else {
 				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
 					t.Errorf("Stats not matching for queue %+v", queueName)
-
 				}
-
 			}
-
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
@@ -714,6 +727,7 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 		time.Sleep(3 * time.Minute)
 	}
 }
+
 func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -824,8 +838,8 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
-
 }
+
 func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2Pwrr(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -898,9 +912,7 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
 				t.Errorf("Stats not matching for queue %+v", queueName)
-
 			}
-
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
@@ -909,8 +921,8 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
-
 }
+
 func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -930,7 +942,7 @@ func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort1.Name], args.top.Interfaces()[atePort4.Name]}
 	DstEndpoint := args.top.Interfaces()[atePort2.Name]
 	testTrafficqoswrrgoogmix(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, weights...)
-	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	queuestats := make(map[string]uint64)
 	ixiastats := make(map[string]uint64)
 	ixiadropstats := make(map[string]uint64)
@@ -960,7 +972,6 @@ func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 		} else {
 			t.Logf("got right values %v", ixiastats[queue]/ixiastats["tc1"])
 		}
-
 	}
 	for _, queueName := range queueNames {
 		queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
@@ -971,20 +982,17 @@ func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 		if queueName == "tc7" || queueName == "tc6" {
 			if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
 				t.Errorf("Tcfail Stats not matching for queue %+v", queueName)
-
 			}
-		} else {
-
+		}
+		if queueName != "SYSTEM" {
 			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
 				t.Errorf("TcFail Stats not matching for queue %+v", queueName)
-
 			}
 		}
-
 	}
-
 }
+
 func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -1004,7 +1012,7 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 	srcEndPoints := []*ondatra.Interface{args.top.Interfaces()[atePort1.Name], args.top.Interfaces()[atePort4.Name]}
 	DstEndpoint := args.top.Interfaces()[atePort2.Name]
 
-	internalQueDscpMap := map[string]uint8{"tc7": 56, "tc6": 48, "tc5": 33, "tc4": 25, "tc3": 17, "tc2": 9, "tc1": 1}
+	internalQueDscpMap := map[string]uint8{"tc7": 56, "tc6": 48, "tc5": 33, "tc4": 25, "tc3": 17, "tc2": 9, "tc1": 1, "SYSTEM": 10}
 
 	dstmacaddress := []string{"00:01:00:02:00:00", "00:01:00:04:00:00"}
 	srcmacaddress := []string{"00:11:01:00:00:01", "00:17:01:00:00:01"}
@@ -1024,7 +1032,6 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 		queueNames := []string{intFlowName1, intFlowName2}
 
 		queuestats := make(map[string]uint64)
-		// queusocts := make(map[string]uint64)
 		queuedropstats := make(map[string]uint64)
 		ixiastats := make(map[string]uint64)
 		ixiadropstats := make(map[string]uint64)
@@ -1071,7 +1078,6 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 		if !(queuestats[queue] <= ixiastats[queue]+10 ||
 			queuestats[queue] >= ixiastats[queue]-10) || !(queuedropstats[queue] == ixiadropstats[queue]) {
 			t.Errorf("Stats not matching for queue %+v", queue)
-
 		}
 
 		// 	}
@@ -1085,28 +1091,28 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 		// time.Sleep(3 * time.Minute)
 		// cliHandle.Close()
 	}
-
 }
 
 func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for i, queue := range queues {
+	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
+	ind = 1
+	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := 7 - i
+		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
+		ind += 1
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
-	var schedulerPolName = "eg_policy1111"
 	priorqueues := []string{"tc7", "tc6"}
-	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
+	schedulerpol := qos.GetOrCreateSchedulerPolicy(schedulerPolName)
 	schedule := make(map[uint32]*oc.Qos_SchedulerPolicy_Scheduler)
 	schedule1 := schedulerpol.GetOrCreateScheduler(1)
 	schedule[1] = schedule1
 	schedule1.Priority = oc.Scheduler_Priority_STRICT
-	var ind uint64
+
 	ind = 0
 	for _, schedqueue := range priorqueues {
 		input := schedule1.GetOrCreateInput(schedqueue)
@@ -1124,11 +1130,11 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	if diff := cmp.Diff(*configGotprior, *schedule1); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
+	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
 	schedule[1] = schedulenonprior
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
-	var weight uint64
+
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
@@ -1145,10 +1151,9 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
-
 	}
+
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
-	// confignonprior.Update(t, schedulenonprior)
 	configGotnonprior := gnmi.Get(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1159,30 +1164,29 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
 	}
 	for _, inter := range interfaceList {
-
 		schedinterface := qos.GetOrCreateInterface(inter)
 		schedinterface.InterfaceId = ygot.String(inter)
 		schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inter)
 		schedinterfaceout := schedinterface.GetOrCreateOutput()
 		scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
-		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-		queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+		scheinterfaceschedpol.Name = ygot.String(schedulerPolName)
+		queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 		for _, queue := range queues {
 			q1 := schedinterfaceout.GetOrCreateQueue(queue)
 			q1.SetName(queue)
 		}
-		//gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
-
+		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
+		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterface)
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 
-	//qosi := d.GetOrCreateQos()
+	// gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+
 	classifiers := qos.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
 	classifiers.Type = oc.Qos_Classifier_Type_IPV4
-	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
-	dscps := []int{1, 9, 17, 25, 33, 41, 49}
+	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7", "cmap8"}
+	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
+	dscps := []int{1, 9, 17, 25, 33, 41, 49, 10}
 	for index, classmap := range classmaps {
 		terms := classifiers.GetOrCreateTerm(classmap)
 		terms.Id = ygot.String(classmap)
@@ -1195,9 +1199,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		fwdgroups := qos.GetOrCreateForwardingGroup(tclass[index])
 		fwdgroups.Name = ygot.String(tclass[index])
 		fwdgroups.OutputQueue = ygot.String(tclass[index])
-
 	}
-	//gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qosi)
 	interfaceListIngress := []string{}
 	for i := 120; i < 128; i++ {
 		interfaceListIngress = append(interfaceListIngress, fmt.Sprintf("Bundle-Ether%d", i))
@@ -1217,14 +1219,14 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 
 func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 
-	gnmi.Delete(t, dut, gnmi.OC().Qos().SchedulerPolicy("eg_policy1111").Scheduler(2).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Qos().SchedulerPolicy(schedulerPolName).Scheduler(2).Config())
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
-	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
-	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
+	schedulerpol := qos.GetOrCreateSchedulerPolicy(schedulerPolName)
+	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
-	var weight uint64
+
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
@@ -1238,7 +1240,6 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 		// 	t.Errorf("Config Input fail: \n%v", diff)
 		// }
-
 	}
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
@@ -1251,36 +1252,36 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 		schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inter)
 		schedinterfaceout := schedinterface.GetOrCreateOutput()
 		scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
-		scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-		queues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
+		scheinterfaceschedpol.Name = ygot.String(schedulerPolName)
+		queues := []string{"tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 		for _, queue := range queues {
 			q1 := schedinterfaceout.GetOrCreateQueue(queue)
 			q1.SetName(queue)
 		}
-		//gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
-
 	}
 	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qos)
-
 }
+
 func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
 	//defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for i, queue := range queues {
+	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
+	ind = 1
+	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := 7 - i
+		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
+		ind += 1
 		//gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
-	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
+	schedulerpol := qos.GetOrCreateSchedulerPolicy(schedulerPolName)
 	schedule := schedulerpol.GetOrCreateScheduler(1)
 	schedule.Priority = oc.Scheduler_Priority_STRICT
-	var ind uint64
+
 	ind = 0
 	for _, schedqueue := range priorqueues {
 		input := schedule.GetOrCreateInput(schedqueue)
@@ -1288,12 +1289,10 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		input.Weight = ygot.Uint64(7 - ind)
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
-
 	}
-	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
+	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
-	var weight uint64
 	weight = 0
 	for _, wrrqueue := range nonpriorqueues {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
@@ -1301,22 +1300,22 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-
 	}
+
 	minthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		minthresholdlist = append(minthresholdlist, 24576000+uint64(i*6144))
 	}
 	maxthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		maxthresholdlist = append(maxthresholdlist, 27576000+uint64(i*6144))
 	}
 	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
 	}
 	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	for i, wredprofile := range wredprofilelist {
@@ -1328,15 +1327,15 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.Drop = ygot.Bool(false)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-
 	}
+
 	schedinterface := qos.GetOrCreateInterface("Bundle-Ether121")
 	schedinterface.InterfaceId = ygot.String("Bundle-Ether121")
 	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
@@ -1349,13 +1348,12 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 	// 	t.Errorf("Config Schedule fail: \n%v", diff)
 	// }
 	time.Sleep(1 * time.Minute)
-	//qos := d.GetOrCreateQos()
 	classifiers := qos.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
 	classifiers.Type = oc.Qos_Classifier_Type_IPV4
-	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
-	dscps := []int{1, 9, 17, 25, 33, 48, 56}
+	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7", "cmap8"}
+	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
+	dscps := []int{1, 9, 17, 25, 33, 48, 56, 10}
 	for index, classmap := range classmaps {
 		terms := classifiers.GetOrCreateTerm(classmap)
 		terms.Id = ygot.String(classmap)
@@ -1368,7 +1366,6 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		fwdgroups := qos.GetOrCreateForwardingGroup(tclass[index])
 		fwdgroups.Name = ygot.String(tclass[index])
 		fwdgroups.OutputQueue = ygot.String(tclass[index])
-
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	inputinterfaces := []string{"Bundle-Ether122", "Bundle-Ether123"}
@@ -1384,26 +1381,28 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		//gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
-
 	gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 
 	// if diff := cmp.Diff(*ConfigQosGetfinal, *qos); diff != "" {
 	// 	t.Errorf("Config Schedule fail: \n%v", diff)
 	// }
 }
+
 func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
 	//defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for i, queue := range queues {
+	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
+	ind = 1
+	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := len(queues) - i
+		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
-
+		ind += 1
 	}
+
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	priorqueues := []string{"tc7"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
@@ -1419,10 +1418,10 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 		ind += 1
 
 	}
-	nonpriorqueues := []string{"tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+	nonpriorqueues := []string{"tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
-	weight := []uint64{48, 12, 8, 4, 2, 1}
+	weight := []uint64{48, 12, 8, 4, 2, 1, 1}
 
 	for i, wrrqueue := range nonpriorqueues {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
@@ -1432,19 +1431,19 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	}
 	minthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		minthresholdlist = append(minthresholdlist, 1000000+uint64(i*6144))
 	}
 	maxthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		maxthresholdlist = append(maxthresholdlist, 1300000+uint64(i*6144))
 	}
 	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
 	}
 	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	for i, wredprofile := range wredprofilelist {
@@ -1463,7 +1462,7 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
@@ -1479,9 +1478,9 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 	classifiers := qosi.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
 	classifiers.Type = oc.Qos_Classifier_Type_IPV4
-	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
-	dscps := []int{1, 9, 17, 25, 33, 48, 56}
+	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7", "cmao8"}
+	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
+	dscps := []int{1, 9, 17, 25, 33, 48, 56, 10}
 	for index, classmap := range classmaps {
 		terms := classifiers.GetOrCreateTerm(classmap)
 		terms.Id = ygot.String(classmap)
@@ -1510,17 +1509,20 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
+
 func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
 	//defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for i, queue := range queues {
+	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
+	ind = 1
+	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := len(queues) - i
+		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
+		ind += 1
 		//gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
@@ -1528,7 +1530,7 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedule := schedulerpol.GetOrCreateScheduler(1)
 	schedule.Priority = oc.Scheduler_Priority_STRICT
-	var ind uint64
+
 	ind = 0
 	for _, schedqueue := range priorqueues {
 		input := schedule.GetOrCreateInput(schedqueue)
@@ -1536,12 +1538,11 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 		input.Weight = ygot.Uint64(7 - ind)
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
-
 	}
-	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
+	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
-	weight := []uint64{32, 16, 8, 4, 1}
+	weight := []uint64{32, 16, 8, 4, 1, 1}
 
 	for i, wrrqueue := range nonpriorqueues {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
@@ -1551,19 +1552,19 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	}
 	minthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		minthresholdlist = append(minthresholdlist, 24576000+uint64(i*6144))
 	}
 	maxthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		maxthresholdlist = append(maxthresholdlist, 27576000+uint64(i*6144))
 	}
 	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
 	}
 	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	for i, wredprofile := range wredprofilelist {
@@ -1582,7 +1583,7 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
@@ -1598,9 +1599,9 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 	classifiers := qosi.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
 	classifiers.Type = oc.Qos_Classifier_Type_IPV4
-	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
-	dscps := []int{1, 9, 17, 25, 33, 48, 56}
+	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7", "cmap8"}
+	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
+	dscps := []int{1, 9, 17, 25, 33, 48, 56, 10}
 	for index, classmap := range classmaps {
 		terms := classifiers.GetOrCreateTerm(classmap)
 		terms.Id = ygot.String(classmap)
@@ -1629,23 +1630,26 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
+
 func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	//defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	for i, queue := range queues {
+	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
+	ind = 1
+	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := len(queues) - i
+		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
+		ind += 1
 	}
 	priorqueues := []string{"tc7", "tc6"}
-	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
+	schedulerpol := qos.GetOrCreateSchedulerPolicy(schedulerPolName)
 	schedule := schedulerpol.GetOrCreateScheduler(1)
 	schedule.Priority = oc.Scheduler_Priority_STRICT
-	var ind uint64
+
 	ind = 0
 	for _, schedqueue := range priorqueues {
 		input := schedule.GetOrCreateInput(schedqueue)
@@ -1655,10 +1659,10 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 		ind += 1
 
 	}
-	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
+	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
-	weight := []uint64{60, 15, 8, 4, 1}
+	weight := []uint64{60, 15, 8, 4, 1, 1}
 
 	for i, wrrqueue := range nonpriorqueues {
 		inputwrr := schedulenonprior.GetOrCreateInput(wrrqueue)
@@ -1668,19 +1672,19 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 
 	}
 	minthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		minthresholdlist = append(minthresholdlist, 24576000+uint64(i*6144))
 	}
 	maxthresholdlist := []uint64{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		maxthresholdlist = append(maxthresholdlist, 27576000+uint64(i*6144))
 	}
 	wredprofilelist := []string{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		wredprofilelist = append(wredprofilelist, fmt.Sprintf("wredprofile%d", i))
 	}
 	dropprobablity := []uint8{}
-	for i := 1; i < 8; i++ {
+	for i := 1; i < 9; i++ {
 		dropprobablity = append(dropprobablity, 10+uint8(i+2))
 	}
 	for i, wredprofile := range wredprofilelist {
@@ -1698,8 +1702,8 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
-	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+	scheinterfaceschedpol.Name = ygot.String(schedulerPolName)
+	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
 	for i, wrrque := range wrrqueues {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
@@ -1715,9 +1719,9 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	classifiers := qosi.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
 	classifiers.Type = oc.Qos_Classifier_Type_IPV4
-	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
-	dscps := []int{1, 9, 17, 25, 33, 48, 56}
+	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7", "cmap8"}
+	tclass := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
+	dscps := []int{1, 9, 17, 25, 33, 48, 56, 10}
 	for index, classmap := range classmaps {
 		terms := classifiers.GetOrCreateTerm(classmap)
 		terms.Id = ygot.String(classmap)
@@ -1745,5 +1749,4 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
-
 }
