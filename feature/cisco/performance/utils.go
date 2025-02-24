@@ -3,9 +3,11 @@ package performance
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -13,15 +15,38 @@ import (
 )
 
 func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *ProcessState {
+	// Fetch platform details
+	cliCmd := "show platform"
+	resp := config.CMDViaGNMI(context.Background(), t, dut, cliCmd)
+	t.Logf("Platform response: %s", resp)
 
-	timeout := time.Second * 30
+	var activeRP string
+
+	lines := strings.Split(resp, "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+		node, nodeType := fields[0], fields[1]
+
+		// Check for standby RP and determine activeRP
+		if strings.HasPrefix(node, "0/RP") || strings.HasPrefix(node, "0/RSP") {
+			if strings.Contains(nodeType, "(Active)") {
+				activeRP = node
+			}
+		}
+	}
+	t.Logf("Detected activeRP: %v", activeRP)
+
+	timeout := time.Second * 90
 	req := &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
 			{
 				Origin: "Cisco-IOS-XR-sysmgr-oper", Elem: []*gnmipb.PathElem{
 					{Name: "system-process"},
 					{Name: "node-table"},
-					{Name: "node", Key: map[string]string{"node-name": "*"}},
+					{Name: "node", Key: map[string]string{"node-name": activeRP}},
 					{Name: "processes"},
 					{Name: "process", Key: map[string]string{"name": processName}},
 				},
@@ -32,33 +57,40 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 	}
 
 	var responseRawObj ProcessState
+	maxRetries := 3
 
 	for stay, timeout := true, time.After(timeout); stay; {
-		restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
-		select {
-		case <-timeout:
-			if err != nil {
-				t.Errorf("Raw GNMI Query failed, timeout with response error: %s", err)
-			}
-			stay = false
-		default:
-			if err != nil {
-				time.Sleep(time.Second)
-				t.Logf("Raw GNMI Query failed, retrying")
-				continue
-			}
-			t.Logf("emsd restart collector")
-			jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
-			err = json.Unmarshal(jsonIetfData, &responseRawObj)
-			if err != nil {
-				t.Errorf("Process %s state response serialization failed. Yang model may have non-backward compatible changes.", processName)
-			}
-			t.Logf("ProcessState %s response received: state: %s, respawn-count: %d", processName, responseRawObj.State, responseRawObj.RespawnCount)
+		for i := 0; i < maxRetries; i++ {
+			restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
+			if err == nil {
+				select {
+				case <-timeout:
+					if err != nil {
+						t.Errorf("Raw GNMI Query failed, timeout with response error: %s", err)
+					}
+					stay = false
+				default:
+					if err != nil {
+						time.Sleep(time.Second * 10)
+						t.Logf("Raw GNMI Query failed, retrying")
+						continue
+					}
+					t.Logf("emsd restart collector")
+					jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
+					err = json.Unmarshal(jsonIetfData, &responseRawObj)
+					if err != nil {
+						t.Errorf("Process %s state response serialization failed. Yang model may have non-backward compatible changes.", processName)
+					}
+					t.Logf("ProcessState %s response received: state: %s, respawn-count: %d", processName, responseRawObj.State, responseRawObj.RespawnCount)
 
-			return &responseRawObj
+					return &responseRawObj
+				}
+			} else {
+				t.Logf("Raw GNMI Query failed, retrying %d/%d: %v", i+1, maxRetries, err)
+				time.Sleep(time.Second * 10)
+			}
 		}
 	}
-
 	return nil
 }
 

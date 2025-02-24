@@ -413,7 +413,7 @@ func TestSubComponentSwModule(t *testing.T) {
 		var s1 []string
 		for _, c := range components {
 			if len(r.FindString(c)) > 0 {
-				s1 = append(s1, c)
+				s1 = append(s1, strings.Split(c, " ")[1])
 			}
 		}
 		s2 := "IOSXR-PKG/2 " + s1[0]
@@ -451,7 +451,7 @@ func TestSubComponentSwModuleStream(t *testing.T) {
 		var s1 []string
 		for _, c := range components {
 			if len(r.FindString(c)) > 0 {
-				s1 = append(s1, c)
+				s1 = append(s1, strings.Split(c, " ")[1])
 			}
 		}
 		s2 := "IOSXR-PKG/2 " + s1[0]
@@ -892,7 +892,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]/config", componentName), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
@@ -954,7 +954,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			})
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
@@ -1016,7 +1016,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
@@ -1058,8 +1058,8 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName)
-				defer observer.RecordYgot(t, "UPDATE", path)
+				path := gnmi.OC().Component(componentName).Port()
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})

@@ -40,15 +40,16 @@ def _get_testbed_by_id(fp_repo_dir, testbed_id):
             return tb
     raise Exception(f'Testbed {testbed_id} not found')
 
-def _otg_docker_compose_template(control_port, gnmi_port):
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port):
     return f"""
-version: "2"
+version: "2.1"
 services:
   controller:
     image: ghcr.io/open-traffic-generator/keng-controller:1.3.0-2
     restart: always
     ports:
       - "{control_port}:40051"
+      - "{rest_port}:8443"
     depends_on:
       layer23-hw-server:
         condition: service_started
@@ -105,7 +106,7 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port']))
 
 def _replace_binding_placeholders(fp_repo_dir, baseconf_file, binding_file):
     tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
@@ -127,7 +128,7 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/tojson ' \
+            f'./exec/utils/proto/binding/tojson ' \
             f'-binding {reserved_testbed["binding"]} ' \
             f'-out {outFile}'
 
@@ -172,7 +173,7 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
             outfile.write(json.dumps(j))
             
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/fromjson ' \
+            f'./exec/utils/proto/binding/fromjson ' \
             f'-binding {tmp_binding_file} ' \
             f'-out {otg_binding_file}'
             

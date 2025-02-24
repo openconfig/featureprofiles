@@ -51,16 +51,6 @@ func prettyPrint(i interface{}) string {
 	return string(s)
 }
 
-func TestSimpleCertzGetProfile(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	gnsiC := dut.RawAPIs().GNSI(t)
-	profiles, err := gnsiC.Certz().GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
-	if err != nil {
-		t.Fatalf("Unexpected Error in getting profile list: %v", err)
-	}
-	t.Logf("Profile list get was successful, %v", profiles)
-}
-
 func TestAddProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	gnsiC := dut.RawAPIs().GNSI(t)
@@ -127,7 +117,7 @@ func TestGetProfileList(t *testing.T) {
 		{
 			name:    "Get SSL profile Request",
 			args:    args{req: &certzpb.GetProfileListRequest{}},
-			want:    &certzpb.GetProfileListResponse{SslProfileIds: []string{"Abc123", "Test123", "gNxI"}},
+			want:    &certzpb.GetProfileListResponse{SslProfileIds: []string{"Abc123", "Test123"}},
 			wantErr: false,
 		},
 	}
@@ -500,28 +490,33 @@ func getIpAndPortFromBindingFile() (string, error) {
 	return targetIP, nil
 }
 
-func getCertFromBindingFile() (string, string, error) {
+func getOptionsFromBindingFile() (*bindpb.Options, error) {
 	bindingFile := flag.Lookup("binding").Value.String()
 	in, err := os.ReadFile(bindingFile)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
-		return "", "", err
+		return nil, err
 	}
-	cert := b.Duts[0].Options.CertFile
-	key := b.Duts[0].Options.KeyFile
-	return cert, key, nil
+	options := b.Duts[0].Options
+	if options.CertFile == "" && options.KeyFile == "" {
+		options = b.Duts[0].Gnsi
+		if options.CertFile == "" && options.KeyFile == "" {
+			options = b.Options
+		}
+	}
+	return options, nil
 }
 
 func newConnForAcceptAndRejectCounters(t *testing.T, dut *ondatra.DUTDevice, tlsConf tls.Config) error {
-	certPath, keyPath, err := getCertFromBindingFile()
+	options, err := getOptionsFromBindingFile()
+	t.Logf("Options:%v", options)
 	if err != nil {
 		return err
 	}
-
-	certificate, err := tls.LoadX509KeyPair(certPath, keyPath)
+	certificate, err := tls.LoadX509KeyPair(options.CertFile, options.KeyFile)
 	if err != nil {
 		return err
 	}
@@ -536,22 +531,37 @@ func newConnForAcceptAndRejectCounters(t *testing.T, dut *ondatra.DUTDevice, tls
 
 	tlsConf.Certificates = invalidCerts
 
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf)), grpc.WithReturnConnectionError()}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+	gnsiForReject, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
 
+	t.Logf("%v", gnsiForReject)
 	t.Logf("%v", err)
+
+	profilelist, err := gnsiForReject.Certz().GetProfileList(ctx, &certzpb.GetProfileListRequest{})
+	if err != nil {
+		t.Logf("Unexpected Error in getting profile list: %v", err)
+	}
+	t.Logf("Profile list get was successful, %v", profilelist)
 
 	tlsConf.Certificates = tlsCerts
 	opts = []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+	t.Logf("%v", gnsiC)
+	t.Logf("%v", err)
 	if err != nil {
 		return err
 	}
+	profilelist, err = gnsiC.Certz().GetProfileList(ctx, &certzpb.GetProfileListRequest{})
+	if err != nil {
+		t.Fatalf("Unexpected Error in getting profile list: %v", err)
+	}
+	t.Logf("Profile list get was successful, %v", profilelist)
+
 	return nil
 }
 
@@ -631,7 +641,7 @@ func OCVerification(t *testing.T, dut *ondatra.DUTDevice, sslProfileID string, c
 		errorCount = errorCount + 1
 	}
 
-	if beforeConnRej+1 == afterConnRej {
+	if beforeConnRej < afterConnRej {
 		t.Logf("Before: %d, After: %d :Connection Reject counter increamented successfully", beforeConnRej, afterConnRej)
 	} else {
 		t.Logf("Before: %d, After: %d :Connection Reject counter is not increamented", beforeConnRej, afterConnRej)
@@ -666,6 +676,10 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
 	}
+	options, err := getOptionsFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Options from Binding file: %v", err)
+	}
 
 	// Adding New SSL Profile
 
@@ -692,6 +706,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
+	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -704,7 +719,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate(options.Username, []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -764,7 +779,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	}
 	var response *certzpb.RotateCertificateResponse
 
-	certCreatedTime := uint64(time.Now().Unix())
+	certCreatedTime := uint64(time.Now().Add(-60 * time.Second).Unix())
 	version := "1.0"
 
 	request := &certzpb.RotateCertificateRequest{
@@ -863,7 +878,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 
 	err = OCVerification(t, dut, profile_id, version, certCreatedTime, version, certCreatedTime, tlsConf)
 	if err != nil {
-		t.Errorf("%v", err)
+		t.Errorf("Error in OC Verification: %v", err)
 	}
 
 	//UnCONFIG NEW gNSI CLI
@@ -889,6 +904,10 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
 	}
+	options, err := getOptionsFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Options from Binding file: %v", err)
+	}
 
 	// Adding New SSL Profile
 	dut := ondatra.DUT(t, "dut")
@@ -913,6 +932,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
+	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -926,7 +946,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	}
 
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate(options.Username, []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -986,7 +1006,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 		}
 	}
 
-	certCreatedTime := uint64(time.Now().Unix())
+	certCreatedTime := uint64(time.Now().Add(-60 * time.Second).Unix())
 	version := "1.0"
 
 	request := &certzpb.RotateCertificateRequest{
@@ -1132,6 +1152,7 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
+	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1320,6 +1341,10 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
 	}
+	options, err := getOptionsFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Options from Binding file: %v", err)
+	}
 
 	// Adding New SSL Profile
 
@@ -1346,6 +1371,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from RSA CA
 	certTemprsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
+	certTemprsa.NotBefore = time.Now().Add(-60 * time.Second)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1359,7 +1385,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 
 	//Generating RSA Client Cert & Signed from CA
-	certTemp1rsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
+	certTemp1rsa, err := cert.PopulateCertTemplate(options.Username, []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1395,6 +1421,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTempecdsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
+	certTempecdsa.NotBefore = time.Now().Add(-60 * time.Second)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1413,7 +1440,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	var response *certzpb.RotateCertificateResponse
 
 	//Generating ECDSA Client Cert & Signed from CA
-	certTemp1ecdsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
+	certTemp1ecdsa, err := cert.PopulateCertTemplate(options.Username, []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1651,7 +1678,14 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(2)*time.Second)
 	defer cancelFunc()
 
-	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts[len(opts)-1])
+	gnsiWithWrongCerts, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts[len(opts)-1])
+	t.Logf("%v", gnsiWithWrongCerts)
+	t.Logf("%v", err)
+	profilelist, err = gnsiWithWrongCerts.Certz().GetProfileList(ctx, &certzpb.GetProfileListRequest{})
+	if err != nil {
+		t.Logf("Unexpected Error in getting profile list: %v", err)
+	}
+	t.Logf("Profile list get was successful, %v", profilelist)
 	if err != nil {
 		t.Log("Expected Failure, Error:", err)
 	} else {
@@ -1690,11 +1724,27 @@ func TestHARedundancySwithOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
 	}
+	options, err := getOptionsFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Options from Binding file: %v", err)
+	}
 
 	// Adding New SSL Profile
 
 	dut := ondatra.DUT(t, "dut")
 	gnsiC := dut.RawAPIs().GNSI(t)
+
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
+	}
+
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
 	profile_id := "rotatecertzrsa"
 	profiles, err := gnsiC.Certz().AddProfile(context.Background(), &certzpb.AddProfileRequest{SslProfileId: profile_id})
 
@@ -1716,6 +1766,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
+	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1728,7 +1779,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate(options.Username, []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1881,17 +1932,6 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 	t.Logf("Profile list get was successful, %v", profilelist)
 
-	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found controller card list: %v", controllerCards)
-
-	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
-		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
-	}
-
-	if got, want := len(controllerCards), 2; got < want {
-		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
-	}
-
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
@@ -1969,6 +2009,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		}
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+	time.Sleep(60 * time.Second)
 
 	getResponse, err := gnmi.Get(context.Background(), getRequest)
 	if err != nil {

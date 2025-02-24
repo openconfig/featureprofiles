@@ -26,13 +26,13 @@
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.84.53 2011
-#telnet: RP1 -  telnet 10.85.84.53 2012
+#telnet: RP0 -  telnet 10.85.84.47 2013
+#telnet: RP1 -  telnet 10.85.84.47 2014
 
 ##Exec server:
 #ssh ott2lab-as3
 
-## Consoe server:
+## Console server:
 # telnet 10.85.84.53
 # Pass1: lab
 # Pass2: lab
@@ -62,14 +62,6 @@ duts {
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
-  # telnet RP0: 10.85.84.54 2005
-  # telnet RP1: 10.85.84.54 2006
-  # Mgmt RP0: 5.78.26.27
-  # Mgmt RP0: 5.78.26.28
-  # Rack Location : 22-18-27
-  # Exec server: ott2lab-as3
-  # Options inherited by all protocols on this device unless
-  # overridden by individual protocols.  Remove if not needed.
   options {
     insecure: false 
     skip_verify: true

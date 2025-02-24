@@ -383,6 +383,7 @@ func TestWrrTrafficQos(t *testing.T) {
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "show version")
+
 	if err != nil {
 		t.Error(err)
 	}
