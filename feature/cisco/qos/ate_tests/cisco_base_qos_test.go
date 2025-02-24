@@ -281,7 +281,6 @@ func TestScheduler(t *testing.T) {
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "show version")
-	t.Logf(resp.Output())
 	if err != nil {
 		t.Error(err)
 	}
@@ -384,7 +383,6 @@ func TestWrrTrafficQos(t *testing.T) {
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "show version")
-	t.Logf(resp.Output())
 	if err != nil {
 		t.Error(err)
 	}

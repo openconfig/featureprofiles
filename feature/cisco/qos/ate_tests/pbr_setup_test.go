@@ -20,7 +20,7 @@ type PBROptions struct {
 	SrcIP string
 }
 
-func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *oc.NetworkInstance_PolicyForwarding_Interface {
+func getPolicyForwardingInterfaceConfig(policyName, intf string) *oc.NetworkInstance_PolicyForwarding_Interface {
 
 	d := &oc.Root{}
 	pfCfg := d.GetOrCreateNetworkInstance("DEFAULT").GetOrCreatePolicyForwarding().GetOrCreateInterface(intf + ".0")
@@ -85,7 +85,7 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	ports := []string{"Bundle-Ether120", "Bundle-Ether122", "Bundle-Ether123"}
 	for _, portInterface := range ports {
 		pfPath := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Interface(portInterface + ".0")
-		pfCfg := getPolicyForwardingInterfaceConfig(t, pbrName, portInterface)
+		pfCfg := getPolicyForwardingInterfaceConfig(pbrName, portInterface)
 		gnmi.Update(t, dut, pfPath.Config(), pfCfg)
 	}
 }
