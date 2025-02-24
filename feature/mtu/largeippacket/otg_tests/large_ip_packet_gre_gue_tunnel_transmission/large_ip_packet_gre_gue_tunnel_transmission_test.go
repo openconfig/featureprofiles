@@ -173,7 +173,6 @@ type testDefinition struct {
 type testData struct {
 	flowProto   string
 	otg         *otg.OTG
-	dut         *ondatra.DUTDevice
 	otgConfig   gosnappi.Config
 	dutLAGNames []string
 }
@@ -795,9 +794,10 @@ func testLargeIPPacketTunnelTransmissionBundle(t *testing.T, dut *ondatra.DUTDev
 	allDutBundleMembers = append(allDutBundleMembers, lagOneDutBundleMembers...)
 	allDutBundleMembers = append(allDutBundleMembers, lagTwoDutBundleMembers...)
 
+	var lagOneGre, lagTwoGre, lagOneGue, lagTwoGue, lagOne, lagTwo string
 	for _, tunnelType := range []string{"gre", "gue"} {
-		lagOne := configureDUTBundle(t, dut, dutSrc, lagOneDutBundleMembers)
-		lagTwo := configureDUTBundle(t, dut, dutDst, lagTwoDutBundleMembers)
+		lagOne = configureDUTBundle(t, dut, dutSrc, lagOneDutBundleMembers)
+		lagTwo = configureDUTBundle(t, dut, dutDst, lagTwoDutBundleMembers)
 		otgConfig := configureATEBundles(allAtePorts, bundleMemberCount)
 		configureNetworkInstance(t, dut)
 		configureTunnelRouting(t, dut)
@@ -821,11 +821,19 @@ func testLargeIPPacketTunnelTransmissionBundle(t *testing.T, dut *ondatra.DUTDev
 				})
 			}
 		}
+		if tunnelType == "gre" {
+			lagOneGre = lagOne
+			lagTwoGre = lagTwo
+		} else {
+			lagOneGue = lagOne
+			lagTwoGue = lagTwo
+		}
 		cleanTunnelConfigs(t, dut, tunnelInterfaceName)
-		t.Run("MTU-1.4-cleanup-bundle", func(t *testing.T) {
-			cleanUpBundle(t, dut, lagOne, lagTwo, allDutBundleMembers)
-		})
 	}
+	t.Run("MTU-1.4-cleanup-bundle", func(t *testing.T) {
+		cleanUpBundle(t, dut, lagOneGre, lagTwoGre, allDutBundleMembers)
+		cleanUpBundle(t, dut, lagOneGue, lagTwoGue, allDutBundleMembers)
+	})
 }
 
 func TestLargeIPPacketTransmissionTunnel(t *testing.T) {

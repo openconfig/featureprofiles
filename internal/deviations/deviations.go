@@ -1317,7 +1317,7 @@ func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticLspUnsupported()
 }
 
-// Devices needs route policy reference to stream prefix set info.
+// BgpPrefixsetReqRoutepolRef returns true if devices needs route policy reference to stream prefix set info.
 func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
 }
