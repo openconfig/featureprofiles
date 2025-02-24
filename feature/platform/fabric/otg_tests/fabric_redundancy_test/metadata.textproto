@@ -22,5 +22,6 @@ platform_exceptions: {
   deviations: {
     missing_value_for_defaults: true
     default_network_instance: "default"
+    omit_l2_mtu:  true
   }
 }
