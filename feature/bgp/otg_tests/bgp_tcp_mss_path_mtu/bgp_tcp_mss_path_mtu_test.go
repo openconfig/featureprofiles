@@ -118,6 +118,8 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice, authPwd, routerID string
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(routerID)
 	global.As = ygot.Uint32(localAs)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
 	pg1.PeerAs = ygot.Uint32(ateAS1)
