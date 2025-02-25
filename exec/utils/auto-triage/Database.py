@@ -49,7 +49,7 @@ class Database(IDatabase):
                             "testcases.label": {"$in": valid_labels},
                             "testcases.status": "failed",
                             #FIXME: tmp fix until we move this into a service
-                            "timestamp": {"$gte": datetime.now() - timedelta(days=1)}
+                            "timestamp": {"$gte": datetime.now() - timedelta(days=30)}
                         }
                     },
                     {
