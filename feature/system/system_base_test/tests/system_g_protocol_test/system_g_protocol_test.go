@@ -70,8 +70,7 @@ func TestGNMIClient(t *testing.T) {
 		req = &gpb.GetRequest{
 			Path: []*gpb.Path{{
 				Elem: []*gpb.PathElem{
-					{Name: "system"}, {Name: "state"}, {Name: "hostname"}}},
-			},
+					}}},
 			Type:     gpb.GetRequest_CONFIG,
 			Encoding: gpb.Encoding_JSON_IETF,
 		}
