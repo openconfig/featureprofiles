@@ -177,6 +177,17 @@
                     "id": "6"
                 },
                 "id": "6"
+                },
+                {
+                  "actions": {
+                    "config": {
+                      "target-group": "SYSTEM"
+                    }
+                  },
+                  "config": {
+                    "id": "99"
+                  },
+                  "id": "99"
                 }
             ]
             }
@@ -365,6 +376,13 @@
     },
     "openconfig-qos:forwarding-groups": {
         "forwarding-group": [
+        {
+            "config": {
+            "name": "SYSTEM",
+            "output-queue": "SYSTEM"
+            },
+            "name": "SYSTEM"
+        },
         {
             "config": {
             "fabric-priority": 1,
@@ -587,6 +605,13 @@
                     "queue-management-profile": "DropProfile"
                     },
                     "name": "NC1"
+                },
+                {
+                    "config": {
+                      "name": "SYSTEM",
+                      "queue-management-profile": "DropProfile"
+                    },
+                    "name": "SYSTEM"
                 }
                 ]
             },
@@ -660,6 +685,13 @@
             "name": "NC1"
             },
             "name": "NC1"
+        },
+        {
+            "config": {
+              "name": "SYSTEM",
+              "queue-id": 0
+            },
+            "name": "SYSTEM"
         }
         ]
     },
@@ -744,7 +776,15 @@
                         "queue": "BE0"
                         },
                         "id": "BE0"
-                    }
+                    },
+                    {
+                        "config": {
+                          "id": "SYSTEM",
+                          "input-type": "QUEUE",
+                          "queue": "SYSTEM"
+                        },
+                        "id": "SYSTEM"
+                      }
                     ]
                 },
                 "sequence": 1
