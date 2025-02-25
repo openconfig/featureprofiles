@@ -69,8 +69,7 @@ func TestGNMIClient(t *testing.T) {
 	if deviations.GNMIGetOnRootUnsupported(dut) {
 		req = &gpb.GetRequest{
 			Path: []*gpb.Path{{
-				Elem: []*gpb.PathElem{
-					}}},
+				Elem: []*gpb.PathElem{}}},
 			Type:     gpb.GetRequest_CONFIG,
 			Encoding: gpb.Encoding_JSON_IETF,
 		}
