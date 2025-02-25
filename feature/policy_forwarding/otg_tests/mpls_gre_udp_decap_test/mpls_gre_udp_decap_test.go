@@ -22,6 +22,7 @@ import (
 const (
 	ipv6PrefixLen   = 126
 	ipv6FlowIP      = "2015:aa8::1"
+	ipv4FlowIP      = "138.0.11.8"
 	trafficDuration = 15 * time.Second
 	innerIPv6DstA   = "2001:aa:bb::1/128"
 	outerIPv6Src    = "2015:aa8::2"
@@ -75,6 +76,15 @@ var (
 	fa6 = flowAttr{
 		srcIP:    otgPort1.IPv6,
 		dstIP:    ipv6FlowIP,
+		srcMac:   otgPort1.MAC,
+		dstMac:   dutPort1.MAC,
+		srcPort:  otgSrcPort,
+		dstPorts: otgDstPorts,
+		topo:     gosnappi.NewConfig(),
+	}
+	fa4 = flowAttr{
+		srcIP:    otgPort1.IPv4,
+		dstIP:    ipv4FlowIP,
 		srcMac:   otgPort1.MAC,
 		dstMac:   dutPort1.MAC,
 		srcPort:  otgSrcPort,
@@ -315,7 +325,7 @@ func TestMPLSOGREDecap(t *testing.T) {
 	}{
 		{
 			name:         "TE-18.1.3 MPLS in GRE decapsulation set by gNMI",
-			flows:        []gosnappi.Flow{fa6.CreateFlow("4", "ip4a1")},
+			flows:        []gosnappi.Flow{fa4.CreateFlow("4", "ip4a1")},
 			capturePorts: otgDstPorts,
 		},
 	}
