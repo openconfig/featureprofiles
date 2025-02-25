@@ -484,11 +484,7 @@ func TestWrrTrafficQos(t *testing.T) {
 func TestGooglePopgate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
-	// cliHandle := dut.RawAPIs().CLI(t)
-	// defer cliHandle.Close()
-	// resp, err := cliHandle.RunCommand(context.Background(), "show version")
 	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -518,16 +514,6 @@ func TestGooglePopgate(t *testing.T) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		addPrototoAte(t, top)
 	}
-
-	//Configure IPv6 addresses and VLANS on DUT
-	//configureIpv6AndVlans(t, dut)
-
-	// Disable Flowspec and Enable PBR
-
-	// Configure the ATE
-	// ate := ondatra.ATE(t, "ate")
-	// top := configureATE(t, ate)
-	// top.Push(t).StartProtocols(t)
 
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
@@ -596,8 +582,3 @@ func TestGooglePopgate(t *testing.T) {
 		})
 	}
 }
-
-// func TestDelQos(t *testing.T) {
-// 	dut := ondatra.DUT(t, "dut")
-// 	dut.Config().Qos().Delete(t)
-// }

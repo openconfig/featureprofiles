@@ -165,12 +165,10 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	s4 := s.GetOrCreateIpv4()
 
 	//s4.Enabled = ygot.Bool(true)
-
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
 	s6 := s.GetOrCreateIpv6()
-
 	//s6.Enabled = ygot.Bool(true)
 
 	s6a := s6.GetOrCreateAddress(a.IPv6)
@@ -178,8 +176,6 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	return i
 }
-
-// interfaceaction shuts/unshuts provided interface
 
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
