@@ -268,11 +268,11 @@ func flapOTGInterface(t *testing.T,
 			expectedStatus = oc.Interface_OperStatus_DOWN
 		}
 	}
-		
+
 	// Shut down OTG Interface
 	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
 	portStateAction := gosnappi.NewControlState()
-		
+
 	// TC2 Step 1 Read timestamp of last oper-status change  form DUT port-1
 	preStateTSSTR := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 	DutLastChangeTS1 := time.Unix(0, int64(preStateTSSTR)).UTC().Format(time.RFC3339Nano)
