@@ -37,6 +37,7 @@ var (
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
+		MAC:     "02:01:00:00:00:01",
 		IPv4:    "198.51.100.0",
 		IPv4Len: 31,
 	}
@@ -48,6 +49,7 @@ var (
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
+		MAC:     "02:01:00:00:00:02",
 		IPv4:    "198.51.100.2",
 		IPv4Len: 31,
 	}
