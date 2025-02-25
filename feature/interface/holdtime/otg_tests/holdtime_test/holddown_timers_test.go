@@ -62,9 +62,35 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func setupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
+	t.Helper()
+	d := &oc.Root{}
+	agg := d.GetOrCreateInterface(aggID)
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+
+	for _, port := range aggPorts {
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+	}
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+}
+
 func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
 	t.Helper()
 
+	if deviations.AggregateAtomicUpdate(dut) {
+		// Clear aggregate & ip config on ports.
+		for _, port := range aggPorts {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().Config())
+		}
+		setupAggregateAtomically(t, dut, aggPorts, aggID)
+	}
 	agg := dutDst.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
@@ -230,12 +256,23 @@ func flapOTGInterface(t *testing.T,
 	dut *ondatra.DUTDevice,
 	actionState string) (time.Time, time.Time, string, string) {
 
+	var otgStateChangeTsStr string
+	var expectedStatus oc.E_Interface_OperStatus
+	if actionState == "UP" {
+		expectedStatus = oc.Interface_OperStatus_UP
+	} else if actionState == "DOWN" {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			expectedStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		default:
+			expectedStatus = oc.Interface_OperStatus_DOWN
+		}
+	}
+		
 	// Shut down OTG Interface
 	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
 	portStateAction := gosnappi.NewControlState()
-
-	var otgStateChangeTsStr string
-
+		
 	// TC2 Step 1 Read timestamp of last oper-status change  form DUT port-1
 	preStateTSSTR := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 	DutLastChangeTS1 := time.Unix(0, int64(preStateTSSTR)).UTC().Format(time.RFC3339Nano)
@@ -261,18 +298,11 @@ func flapOTGInterface(t *testing.T,
 	DutLastChangeTS2STR := time.Unix(0, int64(postStateTSSTR)).UTC().Format(time.RFC3339Nano)
 	DutLastChangeOper2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 
-	var expectedStatus oc.E_Interface_OperStatus
-	if actionState == "UP" {
-		expectedStatus = oc.Interface_OperStatus_UP
-	} else if actionState == "DOWN" {
-		expectedStatus = oc.Interface_OperStatus_DOWN
-	}
-
 	// Step 5. verify oper-status is DOWN
 	if DutLastChangeOper2 != expectedStatus {
-		t.Errorf("Interface %s status got %v, want %v", aggID, DutLastChangeTS2STR, expectedStatus.String())
+		t.Errorf("Interface %s status got %v, want %v", aggID, DutLastChangeOper2, expectedStatus.String())
 	} else {
-		t.Logf("Interface %s status got %v, want %v", aggID, DutLastChangeTS2STR, expectedStatus.String())
+		t.Logf("Interface %s status got %v, want %v", aggID, DutLastChangeOper2, expectedStatus.String())
 	}
 
 	// convert string type change to time.time
@@ -317,11 +347,16 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 			time.Second*waitTime,
 			oc.Interface_OperStatus_UP)
 	} else {
-		want = oc.Interface_OperStatus_DOWN
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			want = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		default:
+			want = oc.Interface_OperStatus_DOWN
+		}
 		gnmi.Await(t, dut,
 			gnmi.OC().Interface(aggID).OperStatus().State(),
 			time.Second*waitTime,
-			oc.Interface_OperStatus_DOWN)
+			want)
 	}
 
 	status := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
