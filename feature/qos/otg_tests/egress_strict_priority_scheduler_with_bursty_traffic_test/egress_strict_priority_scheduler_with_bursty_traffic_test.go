@@ -16,7 +16,9 @@ package egress_strict_priority_scheduler_with_bursty_traffic_test
 
 import (
 	"testing"
+	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -25,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -62,9 +65,9 @@ func TestMain(m *testing.M) {
 func TestEgressStrictPrioritySchedulerBurstTrafficIPv4(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	//dp1 := dut.Port(t, "port1")
-	//dp2 := dut.Port(t, "port2")
-	//dp3 := dut.Port(t, "port3")
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+	dp3 := dut.Port(t, "port3")
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntfIPv4(t, dut)
@@ -76,18 +79,343 @@ func TestEgressStrictPrioritySchedulerBurstTrafficIPv4(t *testing.T) {
 	}
 
 	// Configure ATE interfaces.
-	/*	ate := ondatra.ATE(t, "ate")
-		ap1 := ate.Port(t, "port1")
-		ap2 := ate.Port(t, "port2")
-		ap3 := ate.Port(t, "port3")
-		top := gosnappi.NewConfig()
+	ate := ondatra.ATE(t, "ate")
+	ap1 := ate.Port(t, "port1")
+	ap2 := ate.Port(t, "port2")
+	ap3 := ate.Port(t, "port3")
+	top := gosnappi.NewConfig()
 
-		intf1.AddToOTG(top, ap1, &dutPort1)
-		intf2.AddToOTG(top, ap2, &dutPort2)
-		intf3.AddToOTG(top, ap3, &dutPort3)
-		ate.OTG().PushConfig(t, top)
+	ateTxP1.AddToOTG(top, ap1, &dutIngressPort1AteP1)
+	ateTxP2.AddToOTG(top, ap2, &dutIngressPort2AteP2)
+	ateRxP3.AddToOTG(top, ap3, &dutEgressPort3AteP3)
+	ate.OTG().PushConfig(t, top)
 
-	queues := netutil.CommonTrafficQueues(t, dut)*/
+	queues := netutil.CommonTrafficQueues(t, dut)
+
+	// configuration of regular and burst flows on the ATE
+	/*
+		Non-burst flows on ateTxP1:
+
+		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
+		be1					12						512			100
+		af1					12						512			100
+		af2					15						512			50
+		af3					12						512			0
+		af4					30						512			0
+		nc1					1						512			0
+
+		Burst flows on ateTxP2:
+
+		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
+		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
+		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
+		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
+		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
+		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
+		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
+	*/
+	nc1TrafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-nc1": {
+			frameSize:             512,
+			trafficRate:           1,
+			expectedThroughputPct: 100.0,
+			dscp:                  6,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-nc1": {
+			frameSize:             256,
+			trafficRate:           10,
+			dscp:                  7,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+
+	af4TrafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-af4": {
+			frameSize:             512,
+			trafficRate:           30,
+			expectedThroughputPct: 100.0,
+			dscp:                  4,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af4": {
+			frameSize:             256,
+			trafficRate:           20,
+			dscp:                  5,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+
+	af3TrafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-af3": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 100.0,
+			dscp:                  3,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af3": {
+			frameSize:             256,
+			trafficRate:           10,
+			dscp:                  3,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+
+	af2TrafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-af2": {
+			frameSize:             512,
+			trafficRate:           15,
+			expectedThroughputPct: 100.0,
+			dscp:                  2,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af2": {
+			frameSize:             256,
+			trafficRate:           17,
+			dscp:                  2,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+
+	af1TrafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-af1": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 100.0,
+			dscp:                  1,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af1": {
+			frameSize:             256,
+			trafficRate:           13,
+			dscp:                  1,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+
+	be1TrafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-be1": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 100.0,
+			dscp:                  0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af1": {
+			frameSize:             256,
+			trafficRate:           20,
+			dscp:                  0,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+
+	cases := []struct {
+		desc         string
+		trafficFlows map[string]*trafficData
+	}{{
+		desc:         "Mixed NC1 traffic",
+		trafficFlows: nc1TrafficFlows,
+	}, {
+		desc:         "Mixed AF4 traffic",
+		trafficFlows: af4TrafficFlows,
+	}, {
+		desc:         "Mixed AF3 traffic",
+		trafficFlows: af3TrafficFlows,
+	}, {
+		desc:         "Mixed AF2 traffic",
+		trafficFlows: af2TrafficFlows,
+	}, {
+		desc:         "Mixed AF1 traffic",
+		trafficFlows: af1TrafficFlows,
+	}, {
+		desc:         "Mixed BE1 traffic",
+		trafficFlows: be1TrafficFlows,
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			trafficFlows := tc.trafficFlows
+			top.Flows().Clear()
+
+			for trafficID, data := range trafficFlows {
+				t.Logf("Configuring flow %s", trafficID)
+				flow := top.Flows().Add().SetName(trafficID)
+				flow.Metrics().SetEnable(true)
+				flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{ateRxP3.Name + ".IPv4"})
+				ethHeader := flow.Packet().Add().Ethernet()
+				ethHeader.Src().SetValue(data.inputIntf.MAC)
+
+				ipHeader := flow.Packet().Add().Ipv4()
+				ipHeader.Src().SetValue(data.inputIntf.IPv4)
+				ipHeader.Dst().SetValue(ateRxP3.IPv4)
+				ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
+
+				flow.Size().SetFixed(uint32(data.frameSize))
+				flow.Rate().SetPercentage(float32(data.trafficRate))
+				flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
+				flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
+
+			}
+			ate.OTG().PushConfig(t, top)
+			ate.OTG().StartProtocols(t)
+
+			var counterNames []string
+			counters := make(map[string]map[string]uint64)
+
+			counterNames = []string{
+
+				"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+				"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+				"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+				"dutQosDroppedOctetsAfterTraffic",
+			}
+
+			for _, name := range counterNames {
+				counters[name] = make(map[string]uint64)
+
+				// Set the initial counters to 0.
+				for _, data := range trafficFlows {
+					counters[name][data.queue] = 0
+				}
+			}
+
+			// Get QoS egress packet counters before the traffic.
+			const timeout = time.Minute
+			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+			for _, data := range trafficFlows {
+				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
+
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+				}
+				counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
+			}
+
+			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
+			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
+			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
+			time.Sleep(10 * time.Second)
+			ate.OTG().StartTraffic(t)
+			time.Sleep(30 * time.Second)
+			ate.OTG().StopTraffic(t)
+			time.Sleep(10 * time.Second)
+
+			for trafficID, data := range trafficFlows {
+				flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().State())
+				ateTxPkts := flowMetrics.GetOutPkts()
+				ateRxPkts := flowMetrics.GetInPkts()
+				counters["ateOutPkts"][data.queue] += ateTxPkts
+				counters["ateInPkts"][data.queue] += ateRxPkts
+
+				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
+				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
+				counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+				counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+
+				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
+				if ateTxPkts == 0 {
+					t.Fatalf("TxPkts == 0, want >0.")
+				}
+				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
+				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
+				if got, want := 100.0-lossPct, data.expectedThroughputPct; got != want {
+					t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
+				}
+			}
+
+			// Check QoS egress packet counters are updated correctly.
+			for _, name := range counterNames {
+				t.Logf("QoS %s: %v", name, counters[name])
+			}
+
+			for _, data := range trafficFlows {
+				dutPktCounterDiff := counters["dutQosPktsAfterTraffic"][data.queue] - counters["dutQosPktsBeforeTraffic"][data.queue]
+				atePktCounterDiff := counters["ateInPkts"][data.queue]
+				t.Logf("Queue %q: atePktCounterDiff: %v dutPktCounterDiff: %v", data.queue, atePktCounterDiff, dutPktCounterDiff)
+				if dutPktCounterDiff < atePktCounterDiff {
+					t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
+				}
+
+				dutDropPktCounterDiff := counters["dutQosDroppedPktsAfterTraffic"][data.queue] - counters["dutQosDroppedPktsBeforeTraffic"][data.queue]
+				t.Logf("Queue %q: dutDropPktCounterDiff: %v", data.queue, dutDropPktCounterDiff)
+				if dutDropPktCounterDiff != 0 {
+					t.Errorf("Get dutDropPktCounterDiff for queue %q: got %v, want 0", data.queue, dutDropPktCounterDiff)
+				}
+
+				dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
+				ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
+				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
+				if !deviations.QOSOctets(dut) {
+					if dutOctetCounterDiff < ateOctetCounterDiff {
+						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+					}
+				}
+
+				ateDropOctetCounterDiff := (counters["ateOutPkts"][data.queue] - counters["ateInPkts"][data.queue]) * uint64(data.frameSize)
+				dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+				t.Logf("Queue %q: ateDropOctetCounterDiff: %v dutDropOctetCounterDiff: %v", data.queue, ateDropOctetCounterDiff, dutDropOctetCounterDiff)
+				if dutDropOctetCounterDiff < ateDropOctetCounterDiff {
+					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropOctetCounterDiff, ateDropOctetCounterDiff)
+				}
+
+			}
+		})
+	}
 
 }
 
@@ -379,16 +707,6 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		inputType:   oc.Input_InputType_QUEUE,
 		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
-	}, {
-		desc:        "scheduler-policy-BE0",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "BE0",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.BE0,
-		targetGroup: "target-group-BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
 		sequence:    uint32(0),
@@ -688,16 +1006,6 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
 	}, {
-		desc:        "scheduler-policy-BE0",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "BE0",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.BE0,
-		targetGroup: "target-group-BE0",
-	}, {
 		desc:        "scheduler-policy-AF1",
 		sequence:    uint32(0),
 		setPriority: true,
@@ -777,10 +1085,6 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 	}{{
 		desc:      "output-interface-BE1",
 		queueName: queues.BE1,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-BE0",
-		queueName: queues.BE0,
 		scheduler: "scheduler",
 	}, {
 		desc:      "output-interface-AF1",
