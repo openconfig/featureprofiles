@@ -717,9 +717,6 @@ message Metadata {
     // Juniper b/395551640
     bool oper_status_for_ic_unsupported = 256;
 
-    // Device does not support gNMI GET on state.
-    // Juniper b/to_be_filled 
-    bool gnmi_get_on_state_unsupported = 257;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141;

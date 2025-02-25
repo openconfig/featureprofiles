@@ -67,24 +67,15 @@ func TestGNMIClient(t *testing.T) {
 
 	var req *gpb.GetRequest
 	if deviations.GNMIGetOnRootUnsupported(dut) {
-		if deviations.GNMIGetOnStateUnsupported(dut) {
-
-			req = &gpb.GetRequest{
-				Path: []*gpb.Path{{
-					Elem: []*gpb.PathElem{}}},
-				Type:     gpb.GetRequest_CONFIG,
-				Encoding: gpb.Encoding_JSON_IETF,
-			}
-		} else {
-			req = &gpb.GetRequest{
-				Path: []*gpb.Path{{
-					Elem: []*gpb.PathElem{
-						{Name: "system"}, {Name: "state"}, {Name: "hostname"}}},
-				},
-				Type:     gpb.GetRequest_STATE,
-				Encoding: gpb.Encoding_JSON_IETF,
-			}
+		req = &gpb.GetRequest{
+			Path: []*gpb.Path{{
+				Elem: []*gpb.PathElem{
+					{Name: "system"}, {Name: "state"}, {Name: "hostname"}}},
+			},
+			Type:     gpb.GetRequest_CONFIG,
+			Encoding: gpb.Encoding_JSON_IETF,
 		}
+
 	} else {
 		req = &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}
 	}

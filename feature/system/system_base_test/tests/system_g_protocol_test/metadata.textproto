@@ -20,6 +20,5 @@ platform_exceptions: {
   }
   deviations: {
     gnmi_get_on_root_unsupported: true
-    gnmi_get_on_state_unsupported: true
   }
 }
