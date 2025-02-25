@@ -315,7 +315,7 @@ func TestMPLSOGREDecap(t *testing.T) {
 	}{
 		{
 			name:         "TE-18.1.3 MPLS in GRE decapsulation set by gNMI",
-			flows:        []gosnappi.Flow{fa6.CreateFlow("6", "ip6a1")},
+			flows:        []gosnappi.Flow{fa6.CreateFlow("4", "ip4a1")},
 			capturePorts: otgDstPorts,
 		},
 	}
