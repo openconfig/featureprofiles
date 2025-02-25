@@ -105,7 +105,6 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 			for queueName, queue := range gote.Output.Queue {
 				queuestats[queueName] += *queue.TransmitPkts
-
 				queueNames = append(queueNames, queueName)
 			}
 		})
@@ -117,7 +116,6 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
 	for name := range queuestats {
-		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -186,7 +184,6 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 			for queueName, queue := range gote.Output.Queue {
 				queuestats[queueName] += *queue.TransmitPkts
-
 				queueNames = append(queueNames, queueName)
 			}
 		})
@@ -230,11 +227,9 @@ func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	// Programm the base double recursion entry
-
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Change VRF Level NHG to single recursion which is same as the VIP1
-
 	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 	baseConfigInterface := setup.GetAnyValue(baseConfig.Interface)
 	t.Run(fmt.Sprintf("Get Interface Output Queue Telemetry %s %s", *baseConfigInterface.InterfaceId, queuNameInput), func(t *testing.T) {
@@ -285,10 +280,26 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		}
 	})
+
 	queuestats := make(map[string]uint64)
 	ixiastats := make(map[string]uint64)
 	queueNames := []string{}
 
+	// bundle memeber interface
+	dutPorts := sortPorts(args.dut.Ports())
+	intflist := []string{"Bundle-Ether121", dutPorts[1].Name()}
+	for _, intf := range intflist {
+		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(intf).State()
+		t.Run(fmt.Sprintf("Get Interface Telemetry %s", intf), func(t *testing.T) {
+			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
+			for queueName, queue := range gote.Output.Queue {
+				queuestats[queueName] += *queue.TransmitPkts
+				queueNames = append(queueNames, queueName)
+			}
+		})
+	}
+
+	// bundle interface
 	interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface("Bundle-Ether121").State()
 	t.Run(fmt.Sprintf("Get Interface Telemetry %s", "Bundle-Ether121"), func(t *testing.T) {
 		gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
@@ -306,7 +317,6 @@ func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
 	for name := range queuestats {
-		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -359,32 +369,14 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 		outpackets = append(outpackets, *s.OutPkts)
 		inpackets = append(inpackets, *s.InPkts)
 	}
-	//outpupacket := outpackets[0]
+
 	t.Logf("*********************oupackets is %+v", outpackets)
 	t.Logf("*********************inputpackets is %+v", inpackets)
-	//interfaceTelemetryPath := gnmi.OC().Qos().Interface("Bundle-Ether120").State()
-	// t.Run(fmt.Sprintf("Get Interface Telemetry %s", "Bundle-Ether120"), func(t *testing.T) {
-	// 	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-	// 	for _, term := range classmaps {
-	// 		MatchedPkts := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether120").Input().Classifier(1).Term(term).MatchedPackets().State())
-	// 		if !(MatchedPkts >= outpupacket) {
-	// 			t.Errorf(" Error Get Interface Telemetry fail for term %v", term)
-	// 		}
 
-	// 	}
-
-	// })
-
-	//gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether120").Input().Classifier(4).Term("cmap1").MatchedPackets().State())
-	//gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
-	interfaceList := []string{}
-	for i := 121; i < 128; i++ {
-		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-	}
 	queuestats := make(map[string]uint64)
 	ixiastats := make(map[string]uint64)
 	queueNames := []string{}
-	for _, EgressInterface := range interfaceList {
+	for _, EgressInterface := range args.interfaceList {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(EgressInterface).State()
 		t.Run(fmt.Sprintf("Get Interface Telemetry %s", EgressInterface), func(t *testing.T) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
@@ -394,6 +386,19 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		})
 	}
+
+	// validate bundle member interface
+	for _, bundlemember := range args.dutPorts[1:] {
+		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(bundlemember.Name()).State()
+		t.Run(fmt.Sprintf("Get Bundle Member Interface Telemetry %s", bundlemember.Name()), func(t *testing.T) {
+			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
+			for queueName, queue := range gote.Output.Queue {
+				queuestats[queueName] += *queue.TransmitPkts
+				queueNames = append(queueNames, queueName)
+			}
+		})
+	}
+
 	for index, inPkt := range inpackets {
 		ixiastats[queueNames[index]] = inPkt
 	}
@@ -401,7 +406,6 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
 	for name := range queuestats {
-		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -420,6 +424,8 @@ func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 	// Initialize maps to store QoS packet counters before and after traffic
 	dutQosPktsBeforeTraffic := make(map[string]uint64)
 	dutQosPktsAfterTraffic := make(map[string]uint64)
+	dutQosbundlePktsBeforeTraffic := make(map[string]uint64)
+	dutQosbundlePktsAfterTraffic := make(map[string]uint64)
 
 	// Define the queue names to be monitored
 	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
@@ -434,6 +440,13 @@ func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 	for _, EgressInterface := range interfaceList {
 		for _, queueName := range queueNames {
 			dutQosPktsBeforeTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
+		}
+	}
+
+	// validate bundle member interface
+	for _, bundlemember := range args.dutPorts[1:] {
+		for _, queueName := range queueNames {
+			dutQosbundlePktsBeforeTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlemember.Name()).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
 
@@ -463,21 +476,31 @@ func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	}
 
-	// Log the QoS egress packet counters before and after traffic
-	t.Logf("QoS egress packet counters before traffic: %v", dutQosPktsBeforeTraffic)
-	t.Logf("QoS egress packet counters after traffic: %v", dutQosPktsAfterTraffic)
+	// validate bundle member interface
+	for _, bundlemember := range args.dutPorts[1:] {
+		for _, queueName := range queueNames {
+			dutQosbundlePktsAfterTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlemember.Name()).Output().Queue(queueName).TransmitPkts().State())
+		}
+	}
 
-	// Verify that the packet counters have increased for each queue
+	t.Logf("QoS egress Bundle intf packet counters before traffic: %v", dutQosPktsBeforeTraffic)
+	t.Logf("QoS egress Bundle intf packet counters after traffic: %v", dutQosPktsAfterTraffic)
+	t.Logf("QoS egress Bundle Member intf packet counters before traffic: %v", dutQosbundlePktsBeforeTraffic)
+	t.Logf("QoS egress Bundle Member intf packet counters after traffic: %v", dutQosbundlePktsAfterTraffic)
+
 	for _, queue := range queueNames {
-		if dutQosPktsAfterTraffic[queue] <= dutQosPktsBeforeTraffic[queue] {
-			t.Errorf("packets not increased for queue %v", queue)
+		if dutQosPktsBeforeTraffic[queue] > dutQosbundlePktsBeforeTraffic[queue] || dutQosPktsAfterTraffic[queue] > dutQosbundlePktsAfterTraffic[queue] {
+			t.Errorf("packets not mactch from bundle and bundle member interface queue %v", queue)
+			if dutQosPktsAfterTraffic[queue] <= dutQosPktsBeforeTraffic[queue] {
+				t.Errorf("packets not increased for queue %v", queue)
+			}
 		}
 	}
 }
 
 func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.clientA.FlushServer(t)
-	//defer teardownQos(t, args.dut)
+	defer teardownQos(t, args.dut)
 	ConfigureDelAddSeq(t, args.dut)
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	t.Logf("clear qos counters on all interfaces")
@@ -497,34 +520,31 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 		outpackets = append(outpackets, *s.OutPkts)
 		inpackets = append(inpackets, *s.InPkts)
 	}
-	//outpupacket := outpackets[0]
+
 	fmt.Printf("*********************oupackets is %+v", outpackets)
 	fmt.Printf("*********************inputpackets is %+v", inpackets)
 
-	// t.Run(fmt.Sprintf("Get Interface Telemetry %s", "Bundle-Ether120"), func(t *testing.T) {
-	// 	classmaps := []string{"cmap1", "cmap2", "cmap3", "cmap4", "cmap5", "cmap6", "cmap7"}
-	// 	for _, term := range classmaps {
-	// 		MatchedPkts := gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether120").Input().Classifier(1).Term(term).MatchedPackets().State())
-	// 		if !(MatchedPkts >= outpupacket) {
-	// 			t.Errorf(" Error Get Interface Telemetry fail for term %v", term)
-	// 		}
-
-	// 	}
-	// })
-	interfaceList := []string{}
-	for i := 121; i < 128; i++ {
-		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-	}
 	queuestats := make(map[string]uint64)
 	ixiastats := make(map[string]uint64)
 	queueNames := []string{}
-	for _, EgressInterface := range interfaceList {
+	for _, EgressInterface := range args.interfaceList {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(EgressInterface).State()
 		t.Run(fmt.Sprintf("Get Interface Telemetry %s", EgressInterface), func(t *testing.T) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 			for queueName, queue := range gote.Output.Queue {
 				queuestats[queueName] += *queue.TransmitPkts
+				queueNames = append(queueNames, queueName)
+			}
+		})
+	}
 
+	// validate bundle member interface
+	for _, bundlemember := range args.dutPorts[1:] {
+		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(bundlemember.Name()).State()
+		t.Run(fmt.Sprintf("Get Bundle Member Interface Telemetry %s", bundlemember.Name()), func(t *testing.T) {
+			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
+			for queueName, queue := range gote.Output.Queue {
+				queuestats[queueName] += *queue.TransmitPkts
 				queueNames = append(queueNames, queueName)
 			}
 		})
@@ -536,13 +556,11 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
 	for name := range queuestats {
-		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
 			}
 		} else {
-
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -571,7 +589,7 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrSche(t, args.dut)
 	defer args.clientA.FlushServer(t)
-	// defer teardownQos(t, args.dut)
+	defer teardownQos(t, args.dut)
 	args.clientA.BecomeLeader(t)
 	args.clientA.FlushServer(t)
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.2.40")
@@ -604,14 +622,25 @@ func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 
 		ixiastats[queueName] = flowcounterpkts
 	}
-	// for queueName, flowname := range ixiaallflows {
-	// 	var flowcounterpkts uint64
-	// 	for _, flow := range flowname {
-	// 		flowcounters := args.ate.Telemetry().Flow(flow).Counters().Get(t)
-	// 		flowcounterpkts += *flowcounters.InPkts
-	// 	}
-	// 	ixiastats[queueName] = flowcounterpkts
-	// }
+
+	for _, intf := range args.memIntfList {
+		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(intf).State()
+		gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
+		for _, queueName := range queueNames {
+			queuestats[queueName] = *gote.Output.Queue[queueName].TransmitPkts
+			if queueName == "tc7" || queueName == "tc6" {
+				if !(queuestats[queueName] >= ixiastats[queueName]) || *gote.Output.Queue[queueName].DroppedPkts > 0 {
+					t.Errorf("Stats not matching for queue %+v", queueName)
+				}
+			} else {
+				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+					queuestats[queueName] >= ixiastats[queueName]-10) {
+					t.Errorf("Stats not matching for queue %+v", queueName)
+				}
+			}
+		}
+	}
+
 	interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface("Bundle-Ether121").State()
 	gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 	for _, queueName := range queueNames {
@@ -677,8 +706,6 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 			var flowcounterpkts uint64
 			flo1 := "flow1-" + queueName
 			flo2 := "flow2-" + queueName
-			//ixiaallflows[queueName] = []string{flo1, flo2}
-			//flowcounters := args.ate.Telemetry().Flow(flo1).Counters().Get(t)
 			flowcounters := gnmi.Get(t, args.ate, gnmi.OC().Flow(flo1).Counters().State())
 			flowcounterpkts = *flowcounters.InPkts
 			OutPkts := *flowcounters.OutPkts
@@ -690,41 +717,41 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 			ixiadropstats[queueName] = droppedPkts
 		}
 
-		// interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether121")
-		// gote := interfaceTelemetryEgrPath.Get(t)
 		for _, queueName := range queueNames {
-			// 	queuestats[queueName] = *gote.Output.Queue[queueName].TransmitPkts
-			// 	if queueName == "tc7" || queueName == "tc6" {
-			// 		if !(queuestats[queueName] >= ixiastats[queueName]) || *gote.Output.Queue[queueName].DroppedPkts > 0 {
-			// 			t.Errorf("Stats not matching for queue %+v", queueName)
-			// 		}
-			// 	} else {
+			for _, intf := range args.memIntfList {
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
 
-			// 		if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-			// 			queuestats[queueName] >= ixiastats[queueName]-10) {
-			// 			t.Errorf("Stats not matching for queue %+v", queueName)
-
-			// 		}
-			// 	}
-			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
-			if queueName == "tc7" {
-				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
-					t.Errorf("Stats not matching for queue %+v", queueName)
+				if queueName == "tc7" {
+					if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
+				} else {
+					if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+						queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
+					queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
+					queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
+					if queueName == "tc7" {
+						if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+							t.Errorf("Stats not matching for queue %+v", queueName)
+						}
+					} else {
+						if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+							queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+							t.Errorf("Stats not matching for queue %+v", queueName)
+						}
+					}
 				}
-			} else {
-				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-					t.Errorf("Stats not matching for queue %+v", queueName)
-				}
+				t.Logf("clear qos counters on all interfaces")
+				cliHandle := args.dut.RawAPIs().CLI(t)
+				resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+				t.Logf(resp.Output(), err)
+				t.Logf("sleeping after clearing qos counters")
+				time.Sleep(3 * time.Minute)
 			}
 		}
-		t.Logf("clear qos counters on all interfaces")
-		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp.Output(), err)
-		t.Logf("sleeping after clearing qos counters")
-		time.Sleep(3 * time.Minute)
 	}
 }
 
@@ -777,7 +804,6 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 			var flowcounterpkts uint64
 			flo1 := "flow1-" + queueName
 			flo2 := "flow2-" + queueName
-			//ixiaallflows[queueName] = []string{flo1, flo2}
 			flowcounters := gnmi.Get(t, args.ate, gnmi.OC().Flow(flo1).Counters().State())
 			flowcounterpkts = *flowcounters.InPkts
 			OutPkts := *flowcounters.OutPkts
@@ -796,40 +822,24 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Errorf("Got %v want more than 8", ratio)
 		}
 
-		// interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether121")
-		// gote := interfaceTelemetryEgrPath.Get(t)
 		for _, queueName := range queueNames {
-			// 	queuestats[queueName] = *gote.Output.Queue[queueName].TransmitPkts
-			// 	if queueName == "tc7" || queueName == "tc6" {
-			// 		if !(queuestats[queueName] >= ixiastats[queueName]) || *gote.Output.Queue[queueName].DroppedPkts > 0 {
-			// 			t.Errorf("Stats not matching for queue %+v", queueName)
-			// 		}
-			// 	} else {
+			for _, intf := range args.memIntfList {
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+				queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitOctets().State())
+				t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
 
-			// 		if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-			// 			queuestats[queueName] >= ixiastats[queueName]-10) {
-			// 			t.Errorf("Stats not matching for queue %+v", queueName)
-
-			// 		}
-			// 	}
-			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-			queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
-			t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
-			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
-			if queueName == "tc6" {
-				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
-					t.Errorf("Stats not matching for queue %+v", queueName)
-
+				if queueName == "tc6" {
+					if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
+				} else {
+					if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+						queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
 				}
-			} else {
-				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-					t.Errorf("Stats not matching for queue %+v", queueName)
-
-				}
-
 			}
-
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
@@ -875,8 +885,6 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		testTrafficqoswrrgoog2Pwrr(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, trafficFlows, weights...)
 		queueNames := []string{"tc5", "tc4"}
-		queuestats := make(map[string]uint64)
-		queusocts := make(map[string]uint64)
 		queuedropstats := make(map[string]uint64)
 		ixiastats := make(map[string]uint64)
 		ixiadropstats := make(map[string]uint64)
@@ -884,7 +892,6 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 			var flowcounterpkts uint64
 			flo1 := "flow1-" + queueName
 			flo2 := "flow2-" + queueName
-			//ixiaallflows[queueName] = []string{flo1, flo2}
 			flowcounters := gnmi.Get(t, args.ate, gnmi.OC().Flow(flo1).Counters().State())
 			flowcounterpkts = *flowcounters.InPkts
 			OutPkts := *flowcounters.OutPkts
@@ -905,21 +912,37 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Errorf("Got %v want more than 3.9", ratio)
 		}
 		for _, queueName := range queueNames {
-			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-			queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
-			t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
-			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
-			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-				t.Errorf("Stats not matching for queue %+v", queueName)
+			for _, intf := range args.memIntfList {
+				queuestats := make(map[string]uint64)
+				queusocts := make(map[string]uint64)
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+				queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitOctets().State())
+				t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
+
+				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+					t.Errorf("Stats not matching for queue %+v", queueName)
+				}
+				if ratio <= 3.9 {
+					break
+				}
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
+				queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
+				t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
+				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+					t.Errorf("Stats not matching for queue %+v", queueName)
+				}
 			}
+			t.Logf("clear qos counters on all interfaces")
+			cliHandle := args.dut.RawAPIs().CLI(t)
+			resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+			t.Logf(resp.Output(), err)
+			t.Logf("sleeping after clearing qos counters")
+			time.Sleep(3 * time.Minute)
 		}
-		t.Logf("clear qos counters on all interfaces")
-		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp.Output(), err)
-		t.Logf("sleeping after clearing qos counters")
-		time.Sleep(3 * time.Minute)
 	}
 }
 
@@ -974,20 +997,43 @@ func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 	}
 	for _, queueName := range queueNames {
-		queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-		queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
-		t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
-		queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
 
-		if queueName == "tc7" || queueName == "tc6" {
-			if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
-				t.Errorf("Tcfail Stats not matching for queue %+v", queueName)
-			}
-		}
-		if queueName != "SYSTEM" {
-			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-				t.Errorf("TcFail Stats not matching for queue %+v", queueName)
+		//  Bundle Member interface
+		for _, intf := range args.memIntfList {
+			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+			queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitOctets().State())
+			t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
+
+			if queueName == "tc7" || queueName == "tc6" {
+				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+					t.Errorf("Tcfail Stats not matching for queue %+v", queueName)
+
+				}
+			} else {
+
+				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+					t.Errorf("TcFail Stats not matching for queue %+v", queueName)
+				}
+
+				//  Bundle interface
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
+				queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
+				t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
+
+				if queueName == "tc7" || queueName == "tc6" {
+					if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+						t.Errorf("Tcfail Stats not matching for queue %+v", queueName)
+					}
+				}
+				if queueName != "SYSTEM" {
+					if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+						queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+						t.Errorf("TcFail Stats not matching for queue %+v", queueName)
+					}
+				}
 			}
 		}
 	}
@@ -1028,7 +1074,6 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 		}
 
 		testTrafficqoswrrgoog2Pwrrburst(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, trafficFlows, weights...)
-
 		queueNames := []string{intFlowName1, intFlowName2}
 
 		queuestats := make(map[string]uint64)
@@ -1036,10 +1081,7 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 		ixiastats := make(map[string]uint64)
 		ixiadropstats := make(map[string]uint64)
 
-		//ixiaallflows[queueName] = []string{flo1, flo2}
-		//flowcounters := args.ate.Telemetry().Flow(queueNames[0]).Counters().Get(t)
 		flowcounters := gnmi.Get(t, args.ate, gnmi.OC().Flow(queueNames[0]).Counters().State())
-
 		flowcounterpkts := *flowcounters.InPkts
 		OutPkts := *flowcounters.OutPkts
 		flowcounters = gnmi.Get(t, args.ate, gnmi.OC().Flow(queueNames[1]).Counters().State())
@@ -1049,47 +1091,22 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 		ixiastats[queue] = flowcounterpkts
 		ixiadropstats[queue] = droppedPkts
 
-		// ratio := ixiastats["tc6"] / ixiastats[queue]
-		// t.Logf("ratio is %v", ratio)
+		for _, intf := range args.memIntfList {
+			queuestats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State())
+			queuedropstats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State())
 
-		// if ratio < 8 {
-		// 	t.Errorf("Got %v want more than 8", ratio)
-		// }
+			if !(queuestats[queue] <= ixiastats[queue]+10 ||
+				queuestats[queue] >= ixiastats[queue]-10) || !(queuedropstats[queue] == ixiadropstats[queue]) {
+				t.Errorf("Stats not matching for queue %+v", queue)
+			}
+			queuestats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queue).TransmitPkts().State())
+			queuedropstats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queue).DroppedPkts().State())
 
-		// // interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether121")
-		// // gote := interfaceTelemetryEgrPath.Get(t)
-		// for _, queueName := range queueNames {
-		// 	// 	queuestats[queueName] = *gote.Output.Queue[queueName].TransmitPkts
-		// 	// 	if queueName == "tc7" || queueName == "tc6" {
-		// 	// 		if !(queuestats[queueName] >= ixiastats[queueName]) || *gote.Output.Queue[queueName].DroppedPkts > 0 {
-		// 	// 			t.Errorf("Stats not matching for queue %+v", queueName)
-		// 	// 		}
-		// 	// 	} else {
-
-		// 	// 		if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-		// 	// 			queuestats[queueName] >= ixiastats[queueName]-10) {
-		// 	// 			t.Errorf("Stats not matching for queue %+v", queueName)
-
-		// 	// 		}
-		// 	// 	}
-		queuestats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queue).TransmitPkts().State())
-		queuedropstats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queue).DroppedPkts().State())
-
-		if !(queuestats[queue] <= ixiastats[queue]+10 ||
-			queuestats[queue] >= ixiastats[queue]-10) || !(queuedropstats[queue] == ixiadropstats[queue]) {
-			t.Errorf("Stats not matching for queue %+v", queue)
+			if !(queuestats[queue] <= ixiastats[queue]+10 ||
+				queuestats[queue] >= ixiastats[queue]-10) || !(queuedropstats[queue] == ixiadropstats[queue]) {
+				t.Errorf("Stats not matching for queue %+v", queue)
+			}
 		}
-
-		// 	}
-
-		// }
-		// t.Logf("clear qos counters on all interfaces")
-		// cliHandle := args.dut.RawAPIs().CLI(t)
-		// resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-		// t.Logf(resp, err)
-		// t.Logf("sleeping after clearing qos counters")
-		// time.Sleep(3 * time.Minute)
-		// cliHandle.Close()
 	}
 }
 
@@ -1158,7 +1175,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	//time.Sleep(5 * time.Hour)
+
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
 		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
@@ -1178,8 +1195,6 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterface)
 	}
-
-	// gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 
 	classifiers := qos.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
@@ -1210,9 +1225,6 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		classinterface.GetOrCreateInterfaceRef().Interface = ygot.String(iinter)
 		Inputs := classinterface.GetOrCreateInput()
 		Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
-		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	}
 }
@@ -1234,19 +1246,14 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 		inputwrr.Queue = ygot.String(wrrqueue)
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
-		// configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		// gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		// configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
-		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
-		// 	t.Errorf("Config Input fail: \n%v", diff)
-		// }
 	}
+
 	interfaceList := []string{}
 	for i := 121; i < 128; i++ {
 		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
 	}
-	for _, inter := range interfaceList {
 
+	for _, inter := range interfaceList {
 		schedinterface := qos.GetOrCreateInterface(inter)
 		schedinterface.InterfaceId = ygot.String(inter)
 		schedinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inter)
@@ -1265,7 +1272,7 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	//defer teardownQos(t, dut)
+	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1275,7 +1282,6 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 		ind += 1
-		//gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy(schedulerPolName)
@@ -1340,13 +1346,7 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		queueoutwred := schedinterfaceout.GetOrCreateQueue(wrrque)
 		queueoutwred.QueueManagementProfile = ygot.String(wredprofilelist[i])
 	}
-	// ConfigQos := gnmi.OC().Qos()
-	// gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	// ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
-	// if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
-	// 	t.Errorf("Config Schedule fail: \n%v", diff)
-	// }
 	time.Sleep(1 * time.Minute)
 	classifiers := qos.GetOrCreateClassifier("pmap9")
 	classifiers.Name = ygot.String("pmap9")
@@ -1375,23 +1375,15 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 		classinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inputinterface)
 		Inputs := classinterface.GetOrCreateInput()
 		Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
-		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
-		//gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	gnmi.Get(t, dut, gnmi.OC().Qos().Config())
-
-	// if diff := cmp.Diff(*ConfigQosGetfinal, *qos); diff != "" {
-	// 	t.Errorf("Config Schedule fail: \n%v", diff)
-	// }
 }
 
 func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	//defer teardownQos(t, dut)
+	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1503,9 +1495,6 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 		Inputs := classinterface.GetOrCreateInput()
 		classinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inputinterface)
 		Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
-		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
@@ -1513,7 +1502,7 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	//defer teardownQos(t, dut)
+	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1523,7 +1512,6 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 		ind += 1
-		//gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	priorqueues := []string{"tc7", "tc6"}
@@ -1624,16 +1612,13 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 		classinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inputinterface)
 		Inputs := classinterface.GetOrCreateInput()
 		Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
-		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
 
 func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
-	//defer teardownQos(t, dut)
+	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1744,9 +1729,6 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 		classinterface.GetOrCreateInterfaceRef().Interface = ygot.String(inputinterface)
 		Inputs := classinterface.GetOrCreateInput()
 		Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV4).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_IPV6).Name = ygot.String("pmap9")
-		// Inputs.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).Name = ygot.String("pmap9")
-		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }

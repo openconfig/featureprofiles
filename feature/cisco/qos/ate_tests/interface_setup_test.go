@@ -16,6 +16,7 @@ package qos_test
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -164,12 +165,10 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	s4 := s.GetOrCreateIpv4()
 
 	//s4.Enabled = ygot.Bool(true)
-
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 
 	s6 := s.GetOrCreateIpv6()
-
 	//s6.Enabled = ygot.Bool(true)
 
 	s6a := s6.GetOrCreateAddress(a.IPv6)
@@ -177,8 +176,6 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	return i
 }
-
-// interfaceaction shuts/unshuts provided interface
 
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -312,10 +309,10 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-// // sortPorts sorts the given slice of ports by the testbed port ID in ascending order.
-// func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
-// 	sort.SliceStable(ports, func(i, j int) bool {
-// 		return ports[i].ID() < ports[j].ID()
-// 	})
-// 	return ports
-// }
+// sortPorts sorts the given slice of ports by the testbed port ID in ascending order.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
+	return ports
+}
