@@ -73,15 +73,6 @@ type flowAttr struct {
 }
 
 var (
-	fa6 = flowAttr{
-		srcIP:    otgPort1.IPv6,
-		dstIP:    ipv6FlowIP,
-		srcMac:   otgPort1.MAC,
-		dstMac:   dutPort1.MAC,
-		srcPort:  otgSrcPort,
-		dstPorts: otgDstPorts,
-		topo:     gosnappi.NewConfig(),
-	}
 	fa4 = flowAttr{
 		srcIP:    otgPort1.IPv4,
 		dstIP:    ipv4FlowIP,
