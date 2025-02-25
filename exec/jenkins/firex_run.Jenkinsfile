@@ -364,7 +364,7 @@ pipeline {
                                 "${env.WORKSPACE}/exec/firex/v2/runner.py"
                             ]
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
-                                firex_plugins.add("${env.WORKSPACE}}/exec/firex/v2/feature_coverage.py")
+                                firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
                             } else if(firex_chain != 'CulpritFinder') {
                                 firex_plugins.add("webdt_cit.py")
                             }
