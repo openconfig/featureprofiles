@@ -1326,4 +1326,3 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
-
