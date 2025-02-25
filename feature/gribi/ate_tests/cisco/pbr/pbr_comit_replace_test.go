@@ -26,7 +26,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// disable hwmodule and expect the traffic to be failed even after adding gribi routes
@@ -39,7 +39,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 	})
 
 	// enable hwmodule and expect the traffic to be passed after adding gribi routes
@@ -53,7 +53,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 	})
 
 	// router reload and expect the traffic to be passed after adding gribi routes
@@ -70,7 +70,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 	})
 }
 
@@ -135,7 +135,7 @@ func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testA
 	baseConfigWithoutPBR := removePBRFromBaseConfing(t, baseConfig)
 	baseConfigWithoutPBRAndInterface := removeInterfacePBRFromBaseConfing(t, baseConfigWithoutPBR)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	t.Log("Adding GRIBI Entries")
@@ -148,15 +148,15 @@ func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testA
 	// remove PBR and expect the traffic to be failed even after adding gribi routes
 	t.Log("Remowing PBR Config and Intreface and checking traffic, the traffic should fail")
 	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfigWithoutPBRAndInterface)
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 
 	// add PBR config back and expect the traffic to be passed after adding gribi routes
 	t.Log("Adding PBR Config and Intreface again and checking traffic, the traffic should pass")
 	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
-func getBasePBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interface{}) {
+func getBasePBROCConfig() (ygnmi.PathStruct, interface{}) {
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
@@ -312,7 +312,7 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	baseConfigWithoutPBR = addHWModule(t, baseConfigWithoutPBR) // in case if it is missing
 	t.Logf("BaseConfig: %s", baseConfig)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//remove  HWModule and set PBR to wrong config,  and  expect the traffic to be failed even after adding gribi routes
@@ -324,7 +324,7 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 
 	// add PBR with OC and HWModule with text, and expect the traffic to be passed after adding gribi routes
 	t.Log("Add HWModule and set PBR to the right config, reload the router and check the traffic")
@@ -335,5 +335,5 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
