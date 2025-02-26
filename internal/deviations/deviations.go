@@ -1317,7 +1317,7 @@ func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticLspUnsupported()
 }
 
-// Devices needs route policy reference to stream prefix set info.
+// BgpPrefixsetReqRoutepolRef returns true if devices needs route policy reference to stream prefix set info.
 func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
 }
@@ -1325,4 +1325,9 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 // OperStatusForIcUnsupported return true if oper-status leaf is unsupported for Integration Circuit
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
+}
+
+// GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
+func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
 }
