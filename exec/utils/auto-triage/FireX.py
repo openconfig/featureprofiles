@@ -155,7 +155,8 @@ class FireX:
 
             failures_count = int(stats.get("failures", 0))
             errors_count = int(stats.get("errors", 0))
-            
+            test_passed = failures_count + errors_count == 0
+
             # Gather metadata for a given testsuite
             data = {
                 "group": run_info["group"],
@@ -168,6 +169,7 @@ class FireX:
                 "disabled": int(stats.get("disabled", 0)),
                 "skipped": int(stats.get("skipped", 0)),
                 "timestamp" : str(stats.get("timestamp", 0)),
+                "health": "ok",
                 "testcases": [],
                 "bugs": []
             }
@@ -213,6 +215,8 @@ class FireX:
                     name = bug["name"]
                     if bug["type"] == "DDTS":
                         data["bugs"].append(ddts.inherit(name))
+                        if test_passed and ddts.is_open(name):
+                            data["health"] = "unstable"
                     elif bug["type"] == "TechZone":
                         data["bugs"].append(techzone.inherit(name))
                     elif bug["type"] == "Github":

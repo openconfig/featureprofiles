@@ -40,14 +40,17 @@ const (
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx        context.Context
-	clientA    *gribi.Client
-	dut        *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	top        *ondatra.ATETopology
-	interfaces *interfaces
-	usecase    int
-	prefix     *gribiPrefix
+	ctx           context.Context
+	clientA       *gribi.Client
+	dut           *ondatra.DUTDevice
+	ate           *ondatra.ATEDevice
+	top           *ondatra.ATETopology
+	interfaces    *interfaces
+	usecase       int
+	prefix        *gribiPrefix
+	memIntfList   []string
+	interfaceList []string
+	dutPorts      []*ondatra.Port
 }
 
 type interfaces struct {
@@ -278,7 +281,6 @@ func TestScheduler(t *testing.T) {
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "show version")
-	t.Logf(resp.Output())
 	if err != nil {
 		t.Error(err)
 	}
@@ -307,6 +309,9 @@ func TestScheduler(t *testing.T) {
 	if *ciscoFlags.GRIBITrafficCheck {
 		addPrototoAte(t, top)
 	}
+
+	dutPorts := sortPorts(dut.Ports())
+	memIntfList := []string{"Bundle-Ether121", dutPorts[1].Name()}
 
 	for _, tt := range QosSchedulerTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -339,13 +344,16 @@ func TestScheduler(t *testing.T) {
 			}
 
 			args := &testArgs{
-				ctx:        ctx,
-				clientA:    &clientA,
-				dut:        dut,
-				ate:        ate,
-				top:        top,
-				usecase:    0,
-				interfaces: &interfaces,
+				ctx:           ctx,
+				clientA:       &clientA,
+				dut:           dut,
+				ate:           ate,
+				top:           top,
+				usecase:       0,
+				dutPorts:      dutPorts,
+				memIntfList:   memIntfList,
+				interfaces:    &interfaces,
+				interfaceList: interfaceList,
 				prefix: &gribiPrefix{
 					scale:           1,
 					host:            "11.11.11.0",
@@ -365,7 +373,6 @@ func TestScheduler(t *testing.T) {
 					vrfNhgIndex: uint64(1000),
 				},
 			}
-
 			tt.fn(ctx, t, args)
 		})
 	}
@@ -376,7 +383,7 @@ func TestWrrTrafficQos(t *testing.T) {
 	time.Sleep(time.Minute)
 	cliHandle := dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "show version")
-	t.Logf(resp.Output())
+
 	if err != nil {
 		t.Error(err)
 	}
@@ -407,6 +414,19 @@ func TestWrrTrafficQos(t *testing.T) {
 		addPrototoAte(t, top)
 	}
 
+	interfaceList := []string{}
+	for i := 121; i < 128; i++ {
+		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+	}
+
+	interfaces := interfaces{
+		in:  []string{"Bundle-Ether120"},
+		out: interfaceList,
+	}
+
+	dutPorts := sortPorts(dut.Ports())
+	memIntfList := []string{"Bundle-Ether121", dutPorts[1].Name()}
+
 	for _, tt := range QoSWrrTrafficTestcases {
 		// Each case will run with its own gRIBI fluent client.
 		t.Run(tt.name, func(t *testing.T) {
@@ -424,26 +444,18 @@ func TestWrrTrafficQos(t *testing.T) {
 			if err := clientA.Start(t); err != nil {
 				t.Fatalf("Could not initialize gRIBI: %v", err)
 			}
-			//clientA.BecomeLeader(t)
-
-			interfaceList := []string{}
-			for i := 121; i < 128; i++ {
-				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-			}
-
-			interfaces := interfaces{
-				in:  []string{"Bundle-Ether120"},
-				out: interfaceList,
-			}
 
 			args := &testArgs{
-				ctx:        ctx,
-				clientA:    &clientA,
-				dut:        dut,
-				ate:        ate,
-				top:        top,
-				usecase:    0,
-				interfaces: &interfaces,
+				ctx:           ctx,
+				clientA:       &clientA,
+				dut:           dut,
+				ate:           ate,
+				top:           top,
+				usecase:       0,
+				dutPorts:      dutPorts,
+				interfaces:    &interfaces,
+				interfaceList: interfaceList,
+				memIntfList:   memIntfList,
 				prefix: &gribiPrefix{
 					scale:           1,
 					host:            "11.11.11.0",
@@ -468,14 +480,11 @@ func TestWrrTrafficQos(t *testing.T) {
 		})
 	}
 }
+
 func TestGooglePopgate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	time.Sleep(time.Minute)
-	// cliHandle := dut.RawAPIs().CLI(t)
-	// defer cliHandle.Close()
-	// resp, err := cliHandle.RunCommand(context.Background(), "show version")
 	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -506,15 +515,17 @@ func TestGooglePopgate(t *testing.T) {
 		addPrototoAte(t, top)
 	}
 
-	//Configure IPv6 addresses and VLANS on DUT
-	//configureIpv6AndVlans(t, dut)
+	interfaceList := []string{}
+	for i := 121; i < 128; i++ {
+		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
+	}
 
-	// Disable Flowspec and Enable PBR
-
-	// Configure the ATE
-	// ate := ondatra.ATE(t, "ate")
-	// top := configureATE(t, ate)
-	// top.Push(t).StartProtocols(t)
+	interfaces := interfaces{
+		in:  []string{"Bundle-Ether120"},
+		out: interfaceList,
+	}
+	dutPorts := sortPorts(dut.Ports())
+	memIntfList := []string{"Bundle-Ether121", dutPorts[1].Name()}
 
 	for _, tt := range QosSPopGateTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -536,24 +547,17 @@ func TestGooglePopgate(t *testing.T) {
 			}
 			//clientA.BecomeLeader(t)
 
-			interfaceList := []string{}
-			for i := 121; i < 128; i++ {
-				interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-			}
-
-			interfaces := interfaces{
-				in:  []string{"Bundle-Ether120"},
-				out: interfaceList,
-			}
-
 			args := &testArgs{
-				ctx:        ctx,
-				clientA:    &clientA,
-				dut:        dut,
-				ate:        ate,
-				top:        top,
-				usecase:    0,
-				interfaces: &interfaces,
+				ctx:           ctx,
+				clientA:       &clientA,
+				dut:           dut,
+				ate:           ate,
+				top:           top,
+				usecase:       0,
+				dutPorts:      dutPorts,
+				interfaces:    &interfaces,
+				interfaceList: interfaceList,
+				memIntfList:   memIntfList,
 				prefix: &gribiPrefix{
 					scale:           1,
 					host:            "11.11.11.0",
@@ -578,9 +582,3 @@ func TestGooglePopgate(t *testing.T) {
 		})
 	}
 }
-
-// func TestDelQos(t *testing.T) {
-// 	dut := ondatra.DUT(t, "dut")
-// 	dut.Config().Qos().Delete(t)
-
-// }

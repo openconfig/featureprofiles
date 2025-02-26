@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 
 from IDatabase import IDatabase
+from datetime import datetime, timedelta
 
 class Database(IDatabase):
     """MongoDB Handler"""
@@ -47,6 +48,8 @@ class Database(IDatabase):
                         "$match": {
                             "testcases.label": {"$in": valid_labels},
                             "testcases.status": "failed",
+                            #FIXME: tmp fix until we move this into a service
+                            "timestamp": {"$gte": datetime.now() - timedelta(days=30)}
                         }
                     },
                     {
