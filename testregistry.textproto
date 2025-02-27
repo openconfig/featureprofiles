@@ -1014,6 +1014,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-7.10"
+  description: "Routing policy statement insertion and removal"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/statement_insertion_removal/README.md"
+  exec: " "
+}
+test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
