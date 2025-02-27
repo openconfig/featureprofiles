@@ -413,7 +413,7 @@ func TestSubComponentSwModule(t *testing.T) {
 		var s1 []string
 		for _, c := range components {
 			if len(r.FindString(c)) > 0 {
-				s1 = append(s1, c)
+				s1 = append(s1, strings.Split(c, " ")[1])
 			}
 		}
 		s2 := "IOSXR-PKG/2 " + s1[0]
@@ -451,7 +451,7 @@ func TestSubComponentSwModuleStream(t *testing.T) {
 		var s1 []string
 		for _, c := range components {
 			if len(r.FindString(c)) > 0 {
-				s1 = append(s1, c)
+				s1 = append(s1, strings.Split(c, " ")[1])
 			}
 		}
 		s2 := "IOSXR-PKG/2 " + s1[0]

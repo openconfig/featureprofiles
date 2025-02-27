@@ -883,7 +883,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
         test_did_pass = True
         for suite in suites:
-            test_did_pass = test_did_pass and suite.attrib['failures'] == '0'
+            test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
