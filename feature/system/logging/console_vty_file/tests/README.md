@@ -24,7 +24,7 @@ Verify if required OC configuration is accepted by DUT and exposed via gNMI get
 4. Read consloe logging configuration and compare with pushed configuration.\
    Note: two selectors must be presented.
 
-### [TODO] TC2 - VTY logging configuration
+### TC2 - VTY logging configuration
 The vty represents here terminal session - ssh, telnet.
 > NOTE: This is NOT yet modeled in OpenConfig
 
@@ -46,7 +46,7 @@ The vty represents here terminal session - ssh, telnet.
 5. Disable buffer logging
 
 
-### [TODO] TC3 - files logging configuration
+### TC3 - files logging configuration
 > NOTE: This is NOT yet modeled in OpenConfig
 1. configure and enable file logging with:
     - 2 selectors:
