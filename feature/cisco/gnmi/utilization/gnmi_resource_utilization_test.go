@@ -1062,7 +1062,6 @@ func TestSetSystemThreshold(t *testing.T) {
 }
 
 func TestReceiveSystemThresholdNotification(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 
 	tests := []struct {
