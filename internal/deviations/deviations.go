@@ -1326,3 +1326,8 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
+
+// BannerEmptyDelimiterUnsupported returns true if the device does not support empty delimiter in banner
+func BannerEmptyDelimiterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBannerEmptyDelimiterUnsupported()
+}

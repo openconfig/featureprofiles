@@ -717,6 +717,10 @@ message Metadata {
     // Juniper b/395551640
     bool oper_status_for_ic_unsupported = 256;
 
+    // Device does not support banner empty delimiter.
+    // Cisco: b/393684636
+    bool banner_empty_delimiter_unsupported = 257;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141;
   }
