@@ -29,7 +29,7 @@ import (
 const (
 	DEFAULT_THRESHOLD             uint8 = 80
 	DEFAULT_THRESHOLD_CLEAR       uint8 = 75
-	DEFAULT_POWER_THRESHOLD       uint8 = 50 
+	DEFAULT_POWER_THRESHOLD       uint8 = 50
 	DEFAULT_POWER_THRESHOLD_CLEAR uint8 = 40
 	binPath                             = "/auto/ng_ott_auto/tools/stress/stress"
 	binDestination                      = "/disk0:/stress"
@@ -127,7 +127,7 @@ func rollbackLastConfig(t testing.TB, dut *ondatra.DUTDevice) error {
 	return nil
 }
 
-	// This needs to be separate from rollbackLastConfigCLI as the power CLI is done in two steps
+// This needs to be separate from rollbackLastConfigCLI as the power CLI is done in two steps
 func rollbackLastPowerConfigCLI(t testing.TB, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	cli := dut.RawAPIs().CLI(t)
