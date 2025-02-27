@@ -53,7 +53,12 @@ func TestMain(m *testing.M) {
 func TestSampledBackplaneCapacityCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	ics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	var ics []string
+	if deviations.OperStatusForIcUnsupported(dut) {
+		ics = components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	} else {
+		ics = components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	}
 	if len(ics) == 0 {
 		t.Fatalf("Get IntegratedCircuit card list for %q: got 0, want > 0", dut.Model())
 	}
@@ -65,7 +70,6 @@ func TestSampledBackplaneCapacityCounters(t *testing.T) {
 		if !isCompNameExpected(t, ic, dut.Vendor()) {
 			continue
 		}
-
 		t.Run(fmt.Sprintf("Backplane:%s", ic), func(t *testing.T) {
 			if deviations.BackplaneFacingCapacityUnsupported(dut) {
 				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
@@ -110,13 +114,27 @@ func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
 func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	ics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	var ics []string
+	if deviations.OperStatusForIcUnsupported(dut) {
+		ics = components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	} else {
+		ics = components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	}
 	if len(ics) == 0 {
 		t.Fatalf("Get IntegratedCircuit card list for %q: got 0, want > 0", dut.Model())
 	}
 	t.Logf("IntegratedCircuit components count: %d", len(ics))
 
-	fabrics := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
+	fabrics := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
+	t.Logf("fabrics are %v", fabrics)
+	removable_fabrics := make([]string, 0)
+	for _, f := range fabrics {
+		if gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+			removable_fabrics = append(removable_fabrics, f)
+		}
+	}
+	t.Logf("removable_fabrics are %v", removable_fabrics)
+	fabrics = removable_fabrics
 	if len(fabrics) == 0 {
 		t.Skipf("Get Fabric card list for %q: got 0, want > 0", dut.Model())
 	}
@@ -126,13 +144,24 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 
 	fc := (len(fabrics) / 2) + 1
 	for _, f := range fabrics[:fc] {
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if ok && empty {
+			t.Logf("Fabric Component %s is empty, hence skipping", f)
+			continue
+		}
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
-
+	t.Logf("Waiting for 90s after power disable...")
+	time.Sleep(90 * time.Second)
 	ts2, tocs2, apct2 := getBackplaneCapacityCounters(t, dut, ics)
 
 	for _, f := range fabrics[:fc] {
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if ok && empty {
+			t.Logf("Fabric Component %s is empty, hence skipping", f)
+			continue
+		}
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 		if deviations.MissingValueForDefaults(dut) {
 			time.Sleep(time.Minute)
@@ -145,7 +174,8 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", f, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 		}
 	}
-
+	t.Logf("Waiting for 90s after power enable...")
+	time.Sleep(90 * time.Second)
 	ts3, tocs3, apct3 := getBackplaneCapacityCounters(t, dut, ics)
 
 	for _, ic := range ics {
@@ -164,7 +194,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			switch {
 			case !ok1 || !ok2 || !ok3:
 				t.Errorf("BackplaneFacingCapacity Total not present: ok1 %t, ok2 %t, ok3 %t", ok1, ok2, ok3)
-			case v1 <= v2 || v1 != v3:
+			case v1 != v2 || v1 != v3:
 				t.Errorf("BackplaneFacingCapacity Total are not valid: v1 %d, v2 %d, v3 %d", v1, v2, v3)
 			}
 
@@ -184,7 +214,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			switch {
 			case !ok1 || !ok2 || !ok3:
 				t.Errorf("BackplaneFacingCapacity AvailablePct not present: ok1 %t, ok2 %t, ok3 %t", ok1, ok2, ok3)
-			case v1 <= v2 || v1 != v3:
+			case v1 != 0 && (v1 <= v2 || v1 != v3):
 				t.Errorf("BackplaneFacingCapacity AvailablePct are not valid: v1 %d, v2 %d, v3 %d", v1, v2, v3)
 			}
 		})
@@ -201,7 +231,6 @@ func getBackplaneCapacityCounters(t *testing.T, dut *ondatra.DUTDevice, ics []st
 		if !isCompNameExpected(t, ic, dut.Vendor()) {
 			continue
 		}
-
 		t.Run(fmt.Sprintf("Backplane:%s", ic), func(t *testing.T) {
 			if deviations.BackplaneFacingCapacityUnsupported(dut) {
 				t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")

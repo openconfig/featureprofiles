@@ -20,6 +20,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -129,6 +130,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, true)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 		t.Run("Interface Telemetry", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
@@ -175,13 +177,40 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	srcIntf := dutSrc.NewOCInterface(p1.Name(), dut)
-	srcIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	subInt := srcIntf.GetOrCreateSubinterface(0)
+	subInt4 := subInt.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		subInt4.Enabled = ygot.Bool(true)
+	}
+	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	if deviations.LinkLocalMaskLen(dut) {
+		dutSrc.IPv6Len = 128
+	}
+	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetPrefixLength(dutSrc.IPv6Len)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), srcIntf)
-
 	p2 := dut.Port(t, "port2")
 	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
-	dstIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	dstSubInt := dstIntf.GetOrCreateSubinterface(0)
+	dstSubInt4 := dstSubInt.GetOrCreateIpv4()
+	dstSubInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		dstSubInt4.Enabled = ygot.Bool(true)
+	}
+	if deviations.LinkLocalMaskLen(dut) {
+		dutDst.IPv6Len = 128
+	}
+	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetPrefixLength(dutDst.IPv6Len)
+
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
+
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 }
 
 func configureOTGInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
@@ -227,9 +256,15 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	p1 := dut.Port(t, "port1")
 	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
 	ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Second*30, func(v *ygnmi.Value[uint64]) bool {
+		gotPkts, present := v.Val()
+		return present && (gotPkts-beforeInPkts) >= 100
+	}).Await(t)
+	if !ok {
+		t.Fatal("did not get expected number of packets after starting traffic. want > 100")
+	}
+
 	ate.OTG().StopTraffic(t)
-	time.Sleep(15 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
 	otgTxPkts := flowMetrics.GetOutPkts()
@@ -295,6 +330,10 @@ func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Errorf("IP address prefix length config-path mismatch for port: %s, got: %d, want: %d", p, got, want)
 		}
 
+		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Enabled().Config()), true; got != want {
+			t.Errorf("IPv6 subinterface status config-path mismatch for port: %s, got: %v, want: %v", p, got, want)
+		}
+
 		state := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Address(attr.IPv6).State())
 		if got, want := state.GetIp(), attr.IPv6; got != want {
 			t.Errorf("IP address state mismatch for port: %s, got: %s, want: %s", p, got, want)
@@ -304,6 +343,10 @@ func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		if got, want := state.GetPrefixLength(), attr.IPv6Len; got != want {
 			t.Errorf("IP address prefix length state mismatch for port: %s, got: %d, want: %d", p, got, want)
+		}
+
+		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Enabled().State()), true; got != want {
+			t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", p, got, want)
 		}
 	}
 }

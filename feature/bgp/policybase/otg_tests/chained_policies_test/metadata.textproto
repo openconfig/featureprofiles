@@ -1,0 +1,40 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "bf6a9bb0-caa7-40e9-bb2a-5a47b4589262"
+plan_id: "RT-1.29"
+description: "BGP chained import/export policy attachment"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_value_for_defaults: true
+    skip_setting_statement_for_policy: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_rib_oc_path_unsupported:  true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    bgp_rib_oc_path_unsupported: true
+    default_import_export_policy_unsupported: true
+    skip_setting_statement_for_policy: true
+    skip_checking_attribute_index: true
+    flatten_policy_with_multiple_statements: true
+  }
+}
+

@@ -34,15 +34,18 @@ import (
 // and for an ATETopology.  All fields are optional; only those that are
 // non-empty will be set when configuring an interface.
 type Attributes struct {
-	IPv4    string
-	IPv6    string
-	MAC     string
-	Name    string // Interface name, only applied to ATE ports.
-	Desc    string // Description, only applied to DUT interfaces.
-	IPv4Len uint8  // Prefix length for IPv4.
-	IPv6Len uint8  // Prefix length for IPv6.
-	MTU     uint16
-	ID      uint32 // /interfaces/interface/state/id p4rt interface id
+	IPv4         string
+	IPv4Sec      string // Secondary IPv4 address
+	IPv6         string
+	MAC          string
+	Name         string // Interface name, only applied to ATE ports.
+	Desc         string // Description, only applied to DUT interfaces.
+	Subinterface uint32 //Subinterface
+	IPv4Len      uint8  // Prefix length for IPv4.
+	IPv4LenSec   uint8  // Prefix length for Secondary IPv4 address.
+	IPv6Len      uint8  // Prefix length for IPv6.
+	MTU          uint16
+	ID           uint32 // /interfaces/interface/state/id p4rt interface id
 }
 
 // IPv4CIDR constructs the IPv4 CIDR notation with the given prefix
@@ -74,7 +77,7 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 		e.MacAddress = ygot.String(a.MAC)
 	}
 
-	s := intf.GetOrCreateSubinterface(0)
+	s := intf.GetOrCreateSubinterface(a.Subinterface)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
 		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
@@ -86,6 +89,18 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 		a4 := s4.GetOrCreateAddress(a.IPv4)
 		if a.IPv4Len > 0 {
 			a4.PrefixLength = ygot.Uint8(a.IPv4Len)
+		}
+	}
+
+	if a.IPv4Sec != "" {
+		s4 := s.GetOrCreateIpv4()
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+			s4.Enabled = ygot.Bool(true)
+		}
+		a4 := s4.GetOrCreateAddress(a.IPv4Sec)
+		if a.IPv4LenSec > 0 {
+			a4.PrefixLength = ygot.Uint8(a.IPv4LenSec)
+			a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
 		}
 	}
 
@@ -134,7 +149,7 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 	top.Ports().Add().SetName(ap.ID())
 	dev := top.Devices().Add().SetName(a.Name)
 	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
-	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
+	eth.Connection().SetPortName(ap.ID())
 
 	if a.MTU > 0 {
 		eth.SetMtu(uint32(a.MTU))

@@ -1,8 +1,10 @@
+# proto-file: github.com/openconfig/kne/proto/topo.proto
+# proto-message: Topology
 name: "nokia-srlinux"
 nodes: {
     name: "dut1"
     vendor: NOKIA
-    model: "ixr10"
+    model: "ixr10e"
     config: {
         image: "srlinux:latest"
         file: "config.cfg"
@@ -100,7 +102,7 @@ nodes: {
 nodes: {
     name: "dut2"
     vendor: NOKIA
-    model: "ixr10"
+    model: "ixr10e"
     config: {
         image: "srlinux:latest"
         file: "config.cfg"
