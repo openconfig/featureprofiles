@@ -1658,6 +1658,8 @@ github.com/openconfig/containerz v0.0.0-20250119143156-ea1f112cd31c h1:4WtTr8Iv2
 github.com/openconfig/containerz v0.0.0-20250119143156-ea1f112cd31c/go.mod h1:VcT2W5ddds98x7CS2r7q1tnUICgflBQ3Wv9rmRkb5TQ=
 github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31 h1:K/9O+J20+liIof8WjquMydnebD0N1U9ItjhJYF6H4hg=
 github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31/go.mod h1:ZRUrfwYYY+pLaOoWPad3p/8J4LLQcSqtXhBCkD2pXJc=
+github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64 h1:pS4NcCl49ker3FYRkvY+erNUw1CgL/lB8gnDQbax6Yk=
+github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64/go.mod h1:FDF5sbP9BbP2IM6EUopcAWfGJ5OPZ4VV2EYQ9vvqLjA=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.10.0/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=

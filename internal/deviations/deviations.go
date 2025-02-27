@@ -496,12 +496,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
 }
 
-// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
-// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
-func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
-}
-
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
 // /components/component/cpu/utilization/state/avg for linecards' CPU card.
 // Default value is false.
@@ -734,16 +728,6 @@ func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 // SkipSettingAllowMultipleAS return true if device needs to skip setting allow-multiple-as while configuring eBGP
 func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
-}
-
-// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
-func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
-}
-
-// TTLCopyUnsupported returns true for devices which does not support TTL copy.
-func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
 }
 
 // GribiDecapMixedPlenUnsupported returns true if devices does not support
@@ -1296,4 +1280,49 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 // ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
 func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
+}
+
+// QosSchedulerIngressPolicer returns true if qos ingress policing is unsupported
+func QosSchedulerIngressPolicer(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerIngressPolicerUnsupported()
+}
+
+// GribiEncapHeaderUnsupported returns true if gribi encap header is unsupported
+func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
+}
+
+// P4RTCapabilitiesUnsupported returns true for devices that don't support P4RT Capabilities rpc.
+func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtCapabilitiesUnsupported()
+}
+
+// GNMIGetOnRootUnsupported returns true if the device does not support gNMI get on root.
+func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
+}
+
+// PacketProcessingAggregateDropsUnsupported returns true if the device does not support packet processing aggregate drops.
+func PacketProcessingAggregateDropsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPacketProcessingAggregateDropsUnsupported()
+}
+
+// FragmentTotalDropsUnsupported returns true if the device does not support fragment total drops.
+func FragmentTotalDropsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFragmentTotalDropsUnsupported()
+}
+
+// StaticLspConfigUnsupported returns true if static lsp config is not supported
+func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticLspUnsupported()
+}
+
+// Devices needs route policy reference to stream prefix set info.
+func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
+}
+
+// OperStatusForIcUnsupported return true if oper-status leaf is unsupported for Integration Circuit
+func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
