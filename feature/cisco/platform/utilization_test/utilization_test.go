@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
@@ -35,7 +37,7 @@ func TestResourceUtilization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating ygnmi client: %v", err)
 	}
-
+	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
 	// Loop over the metrics to gather pre-test counters
 	pretest := make(map[string]interface{})
 	postTest := make(map[string]interface{})
@@ -50,6 +52,10 @@ func TestResourceUtilization(t *testing.T) {
 			}
 			if len(vals) == 0 {
 				t.Fatalf("No data received for metric %s", metric)
+			}
+			beforeUtzs := componentUtilizations(t, dut, comps)
+			if len(beforeUtzs) != len(comps) {
+				t.Fatalf("Couldn't retrieve Utilization on information for all Active Components")
 			}
 			pretest[metric] = vals[0]
 			t.Logf("Pre-test %s: %d", metric, pretest[metric])
@@ -110,6 +116,10 @@ func TestResourceUtilization(t *testing.T) {
 			}
 			if len(postVal) == 0 {
 				t.Fatalf("No data received for metric %s", metric)
+			}
+			afterUtzs := componentUtilizations(t, dut, comps)
+			if len(afterUtzs) != len(comps) {
+				t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
 			}
 			postTest[metric] = postVal[0]
 			t.Logf("Post-test %s: %d", metric, postTest[metric])

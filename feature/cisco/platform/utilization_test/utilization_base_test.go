@@ -328,4 +328,17 @@ func configureNextHopGroup(t *testing.T, dut *ondatra.DUTDevice, nhgConfig []str
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), routingPolicy)
 }
 
+func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string) map[string]*utilization {
+	t.Helper()
 
+	utzs := map[string]*utilization{}
+	for _, c := range comps {
+		comp := gnmi.Get(t, dut, gnmi.OC().Component(c).State())
+		res := comp.GetIntegratedCircuit().GetUtilization().GetResource("service_lp_attributes_table_0")
+		utzs[c] = &utilization{
+			used: res.GetUsed(),
+			free: res.GetFree(),
+		}
+	}
+	return utzs
+}
