@@ -38,11 +38,12 @@ func TestMain(m *testing.M) {
 
 func TestMotdBanner(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	dut := ondatra.DUT(t, "dut")
 	testCases := []struct {
 		description string
 		banner      string
 	}{
-		{"Empty String", ""},
+		{"Empty String", deviations.BannerDelimiter(dut) + "" + deviations.BannerDelimiter(dut)},
 		{"Single Character", deviations.BannerDelimiter(dut) + "x" + deviations.BannerDelimiter(dut)},
 		{"Short String", deviations.BannerDelimiter(dut) + "Warning Text" + deviations.BannerDelimiter(dut)},
 		{"Long String", deviations.BannerDelimiter(dut) + "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected." + deviations.BannerDelimiter(dut)},
@@ -56,7 +57,7 @@ func TestMotdBanner(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
 			t.Run("Get MOTD Config", func(t *testing.T) {
-				if testCase.banner == "" {
+				if testCase.banner == deviations.BannerDelimiter(dut)+""+deviations.BannerDelimiter(dut) {
 					if !deviations.BannerEmptyDelimiterUnsupported(dut) {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("MOTD Banner not empty")
@@ -74,7 +75,7 @@ func TestMotdBanner(t *testing.T) {
 			})
 
 			t.Run("Get MOTD Telemetry", func(t *testing.T) {
-				if testCase.banner == "" {
+				if testCase.banner == deviations.BannerDelimiter(dut)+""+deviations.BannerDelimiter(dut) {
 					if !deviations.BannerEmptyDelimiterUnsupported(dut) {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("MOTD Telemetry Banner not empty")
@@ -85,6 +86,7 @@ func TestMotdBanner(t *testing.T) {
 				} else {
 					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
+					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
@@ -109,11 +111,12 @@ func TestMotdBanner(t *testing.T) {
 // telemetry_path:/system/state/login-banner
 func TestLoginBanner(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	dut := ondatra.DUT(t, "dut")
 	testCases := []struct {
 		description string
 		banner      string
 	}{
-		{"Empty String", ""},
+		{"Empty String", deviations.BannerDelimiter(dut) + "" + deviations.BannerDelimiter(dut)},
 		{"Single Character", deviations.BannerDelimiter(dut) + "x" + deviations.BannerDelimiter(dut)},
 		{"Short String", deviations.BannerDelimiter(dut) + "Warning Text" + deviations.BannerDelimiter(dut)},
 		{"Long String", deviations.BannerDelimiter(dut) + "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected." + deviations.BannerDelimiter(dut)},
@@ -127,7 +130,7 @@ func TestLoginBanner(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), testCase.banner)
 
 			t.Run("Get Login Banner Config", func(t *testing.T) {
-				if testCase.banner == "" {
+				if testCase.banner == deviations.BannerDelimiter(dut)+""+deviations.BannerDelimiter(dut) {
 					if !deviations.BannerEmptyDelimiterUnsupported(dut) {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("Config Login Banner not empty")
@@ -145,7 +148,7 @@ func TestLoginBanner(t *testing.T) {
 			})
 
 			t.Run("Get Login Banner Telemetry", func(t *testing.T) {
-				if testCase.banner == "" {
+				if testCase.banner == deviations.BannerDelimiter(dut)+""+deviations.BannerDelimiter(dut) {
 					if !deviations.BannerEmptyDelimiterUnsupported(dut) {
 						if gnmi.LookupConfig(t, dut, config.Config()).IsPresent() {
 							t.Errorf("Telemetry Login Banner not empty")
@@ -156,6 +159,7 @@ func TestLoginBanner(t *testing.T) {
 				} else {
 					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
+					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
