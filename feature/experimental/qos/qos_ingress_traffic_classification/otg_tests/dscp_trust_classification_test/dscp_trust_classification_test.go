@@ -22,6 +22,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -563,9 +564,9 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		fwdGroup := q.GetOrCreateForwardingGroup(tc.targetGroup)
-		fwdGroup.SetOutputQueue(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		t.Run(tc.desc, func(t *testing.T) {
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+		})
 	}
 
 	t.Log("Create qos Classifiers config")
@@ -724,61 +725,89 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 
-	t.Log("Create qos scheduler policies config and Configure shaping rate on egress interface")
-	schedulerPolicies := []struct {
+	schedulers := []struct {
 		desc        string
 		sequence    uint32
 		priority    oc.E_Scheduler_Priority
 		inputID     string
-		inputType   oc.E_Input_InputType
 		weight      uint64
 		queueName   string
 		targetGroup string
 	}{{
 		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
-		sequence:    uint32(6),
-		targetGroup: "target-group-BE1",
+		inputID:     "BE1",
+		weight:      uint64(1),
+		queueName:   queues.BE1,
+		targetGroup: "BE1",
+	}, {
+		desc:        "scheduler-policy-BE0",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE0",
+		weight:      uint64(2),
+		queueName:   queues.BE0,
+		targetGroup: "BE0",
 	}, {
 		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
-		sequence:    uint32(4),
-		targetGroup: "target-group-AF1",
+		inputID:     "AF1",
+		weight:      uint64(4),
+		queueName:   queues.AF1,
+		targetGroup: "AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
-		sequence:    uint32(3),
-		targetGroup: "target-group-AF2",
+		inputID:     "AF2",
+		weight:      uint64(8),
+		queueName:   queues.AF2,
+		targetGroup: "AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(1),
 		priority:    oc.Scheduler_Priority_UNSET,
-		sequence:    uint32(2),
-		targetGroup: "target-group-AF3",
+		inputID:     "AF3",
+		weight:      uint64(16),
+		queueName:   queues.AF3,
+		targetGroup: "AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
-		priority:    oc.Scheduler_Priority_UNSET,
-		sequence:    uint32(1),
-		targetGroup: "target-group-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     queues.AF4,
+		weight:      uint64(99),
+		queueName:   queues.AF4,
+		targetGroup: "AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
-		priority:    oc.Scheduler_Priority_STRICT,
 		sequence:    uint32(0),
-		targetGroup: "target-group-NC1",
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		weight:      uint64(100),
+		queueName:   queues.NC1,
+		targetGroup: "NC1",
 	}}
 
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
 	schedulerPolicy.SetName("scheduler")
-	t.Logf("qos scheduler policies config: %v", schedulerPolicies)
-	for _, tc := range schedulerPolicies {
-		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
-		s.SetSequence(tc.sequence)
-		s.SetPriority(tc.priority)
-		output := s.GetOrCreateOutput()
-		output.SetOutputFwdGroup(tc.targetGroup)
-		s.TwoRateThreeColor.SetPirPct(50)
+	t.Logf("qos scheduler policies config cases: %v", schedulers)
+	for _, tc := range schedulers {
+		t.Run(tc.desc, func(t *testing.T) {
+			qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+			s.SetSequence(tc.sequence)
+			s.SetPriority(tc.priority)
+			input := s.GetOrCreateInput(tc.inputID)
+			input.SetId(tc.inputID)
+			input.SetInputType(oc.Input_InputType_QUEUE)
+			input.SetQueue(tc.queueName)
+			input.SetWeight(tc.weight)
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-
 	t.Logf("Create qos output interface config")
 	schedulerIntfs := []struct {
 		desc      string
