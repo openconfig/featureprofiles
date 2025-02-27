@@ -27,6 +27,7 @@ platform_exceptions: {
     isis_instance_enabled_required: true
     missing_value_for_defaults: true
     same_policy_attached_to_all_afis: true
+    skip_setting_disable_metric_propagation: true
   }
 }
 platform_exceptions: {
