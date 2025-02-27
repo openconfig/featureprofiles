@@ -39,7 +39,7 @@ const (
 	oneSecondInNanoSecond = 1e9
 )
 
-var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+// var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -183,7 +183,7 @@ func replaceOnlySrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, s
 	seq_id := uint32(SeqID)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().SourceAddress().Config(), srcAddr)
 }
-func replaceOnlyProtocol(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+func replaceOnlyProtocol(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	t.Helper()
 	seq_id := uint32(SeqID)
 	gnmi.Replace[oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4_Protocol_Union](t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Policy(policyName).Rule(seq_id).Ipv4().Protocol().Config(), oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP)
@@ -265,7 +265,7 @@ func configNewRule(t *testing.T, dut *ondatra.DUTDevice, policyName string, rule
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Rule(ruleID).Config(), &r)
 }
 
-func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen uint8) *oc.Interface {
+func generatePhysicalInterfaceConfig(name, ipv4 string, prefixlen uint8) *oc.Interface {
 	i := &oc.Interface{}
 	i.Name = ygot.String(name)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -276,7 +276,7 @@ func generatePhysicalInterfaceConfig(t *testing.T, name, ipv4 string, prefixlen 
 	return i
 }
 
-func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+func generateBundleMemberInterfaceConfig(name, bundleID string) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(name)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
@@ -285,8 +285,7 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 	return i
 }
 
-func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policyName string) {
-	// gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+".0").ApplyVrfSelectionPolicy().Config(), policyName)
+func configPBRunderInterface(t *testing.T, interfaceName, policyName string) {
 	t.Log("configPBRunderInterface")
 	dut := ondatra.DUT(t, "dut")
 	pfPath := gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName + ".0")
@@ -374,7 +373,7 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	util.GNMIWithText(ctx, t, args.dut, configToChange)
 
 	// Configure the physcial interface
-	config := generatePhysicalInterfaceConfig(t, physicalInterface, "192.192.192.1", 24)
+	config := generatePhysicalInterfaceConfig(physicalInterface, "192.192.192.1", 24)
 	gnmi.Replace(t, args.dut, physicalInterfaceConfig.Config(), config)
 
 	// Configure policy on the physical interface and bunlde interface
@@ -383,20 +382,20 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 		policyName = "new-PBR"
 		configNewPolicy(t, args.dut, policyName, 0)
 	}
-	configPBRunderInterface(t, args, physicalInterface, policyName)
-	configPBRunderInterface(t, args, args.interfaces.in[0], policyName)
+	configPBRunderInterface(t, physicalInterface, policyName)
+	configPBRunderInterface(t, args.interfaces.in[0], policyName)
 
 	gnmi.Delete(t, args.dut, gnmi.OC().Interface(physicalInterface).Subinterface(0).Ipv4().Config())
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(physicalInterface+".0").Config())
 
 	// Remove the interface from physical to bundle interface
-	memberConfig := generateBundleMemberInterfaceConfig(t, physicalInterface, args.interfaces.in[0])
+	memberConfig := generateBundleMemberInterfaceConfig(physicalInterface, args.interfaces.in[0])
 	gnmi.Replace(t, args.dut, physicalInterfaceConfig.Config(), memberConfig)
 
 	// Program GRIBI entry on the router
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -406,7 +405,7 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
 func testMovePhysicalToBundleWithSamePolicy(ctx context.Context, t *testing.T, args *testArgs) {
@@ -423,7 +422,7 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 	// Program GRIBI entry on the router
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -438,14 +437,13 @@ func testChangePBRUnderInterface(ctx context.Context, t *testing.T, args *testAr
 
 	// Change policy on the bunlde interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], newPbrName)
-	defer configPBRunderInterface(t, args, args.interfaces.in[0], pbrName)
+	configPBRunderInterface(t, args.interfaces.in[0], newPbrName)
+	defer configPBRunderInterface(t, args.interfaces.in[0], pbrName)
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal)
 }
 
 // testIPv6InIPv4Traffic tests sending IPv6inIPv4 and verify it is not matched by IPinIP
@@ -454,7 +452,7 @@ func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 	// Program GRIBI entry on the router
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -464,7 +462,7 @@ func testIPv6InIPv4Traffic(ctx context.Context, t *testing.T, args *testArgs) {
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTrafficWithInnerIPv6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTrafficWithInnerIPv6(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
 func configurePBR(t *testing.T, dut *ondatra.DUTDevice, name, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
@@ -647,10 +645,10 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 	ipv6vlan10flow := getBoundedFlowIpv6(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv6vlan10flow", 0)
 	t.Run("RT-3.1 Case1", func(t *testing.T) {
 		configureL2PBR(t, args.dut, "L2", "VRF10", "ipv4", 1)
-		configPBRunderInterface(t, args, args.interfaces.in[0], "L2")
+		configPBRunderInterface(t, args.interfaces.in[0], "L2")
 
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipv4vlan10flow)
-		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv6vlan10flow)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipv4vlan10flow)
+		testTrafficForFlows(t, args.ate, false, 0.90, ipv6vlan10flow)
 	})
 
 	//Case3 - Matching IPv4 protocol to VRF10, IPv6 protocol to VRF20. Dropping IPv6 traffic in VRF10 and IPv4 in VRF20.
@@ -661,8 +659,8 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 	t.Run("RT-3.1 Case3", func(t *testing.T) {
 		configureL2PBRRule(t, args.dut, "L2", "VRF20", "ipv6", 2)
 
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipv4vlan10flow, ipv6vlan20flow)
-		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv6vlan10flow, ipv4vlan20flow)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipv4vlan10flow, ipv6vlan20flow)
+		testTrafficForFlows(t, args.ate, false, 0.90, ipv6vlan10flow, ipv4vlan20flow)
 
 		//cleanup
 		unconfigPBRunderInterface(t, args, args.interfaces.in[0])
@@ -674,10 +672,10 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 	ipinipvlan10flow := getBoundedFlowIPinIP(t, args.ate, srcEndPoint, dstEndPointVlan10, "ipv4inipv4v10flow0", 0)
 	t.Run("RT-3.1 Case2", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+		configPBRunderInterface(t, args.interfaces.in[0], "L3")
 
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipvlan10flow)
-		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipv4vlan10flow, ipv6vlan10flow)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipinipvlan10flow)
+		testTrafficForFlows(t, args.ate, false, 0.90, ipv4vlan10flow, ipv6vlan10flow)
 	})
 
 	//Case4 - Match IPinIP and single DSCP46 to VRF10. Drop DSCP0 in VRF10.
@@ -686,8 +684,8 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 	t.Run("RT-3.1 Case4", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{46})
 
-		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipvlan10flow)
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipvlan10flowd46)
+		testTrafficForFlows(t, args.ate, false, 0.90, ipinipvlan10flow)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipinipvlan10flowd46)
 	})
 
 	//Case5 - Match IPinIP and single DSCP46, DSCP42 to VRF10. Drop DSCP0 in VRF10.
@@ -696,8 +694,8 @@ func testDscpProtocolBasedVRFSelection(ctx context.Context, t *testing.T, args *
 	t.Run("RT-3.1 Case5", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{42, 46})
 
-		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipvlan10flow)
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipvlan10flowd46, ipinipvlan10flowd42)
+		testTrafficForFlows(t, args.ate, false, 0.90, ipinipvlan10flow)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipinipvlan10flowd46, ipinipvlan10flowd42)
 
 		//cleanup
 		unconfigPBRunderInterface(t, args, args.interfaces.in[0])
@@ -725,9 +723,9 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10})
 		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
 		configurePBRRule(t, args.dut, "L3", "VRF30", "ipv4", 3, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30})
-		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+		configPBRunderInterface(t, args.interfaces.in[0], "L3")
 
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd20, ipinipd30)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipinipd10, ipinipd20, ipinipd30)
 	})
 
 	//Case2 - Ensure matching IPinIP with DSCP (10-12 - VRF10, 20-22- VRF20, 30-32-VRF30) traffic reaches to appropriate VLAN.
@@ -747,7 +745,7 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20, 21, 22})
 		configurePBRRule(t, args.dut, "L3", "VRF30", "ipv4", 3, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{30, 31, 32})
 
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90,
+		testTrafficForFlows(t, args.ate, true, 0.90,
 			ipinipd10, ipinipd11, ipinipd12,
 			ipinipd20, ipinipd21, ipinipd22,
 			ipinipd30, ipinipd31, ipinipd32)
@@ -766,10 +764,10 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 	t.Run("RT-3.2 Case3", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
 		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{10, 11, 12})
-		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+		configPBRunderInterface(t, args.interfaces.in[0], "L3")
 
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
-		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
+		testTrafficForFlows(t, args.ate, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20)
 
 		//cleanup
 		unconfigPBRunderInterface(t, args, args.interfaces.in[0])
@@ -783,10 +781,10 @@ func testMultipleDscpProtocolRuleBasedVRFSelection(ctx context.Context, t *testi
 	t.Run("RT-3.2 Case4", func(t *testing.T) {
 		configurePBR(t, args.dut, "L3", "VRF10", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 		configurePBRRule(t, args.dut, "L3", "VRF20", "ipv4", 2, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{20})
-		configPBRunderInterface(t, args, args.interfaces.in[0], "L3")
+		configPBRunderInterface(t, args.interfaces.in[0], "L3")
 
-		testTrafficForFlows(t, args.ate, args.top, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
-		testTrafficForFlows(t, args.ate, args.top, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20, ipinipd20)
+		testTrafficForFlows(t, args.ate, true, 0.90, ipinipd10, ipinipd11, ipinipd12)
+		testTrafficForFlows(t, args.ate, false, 0.90, ipinipd10v20, ipinipd11v20, ipinipd12v20, ipinipd20)
 
 		//cleanup
 		unconfigPBRunderInterface(t, args, args.interfaces.in[0])
@@ -799,7 +797,7 @@ func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
@@ -814,14 +812,14 @@ func testRemoveClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
 func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
@@ -837,7 +835,7 @@ func testChangeAction(ctx context.Context, t *testing.T, args *testArgs) {
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	// Expecting Traffic fail
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
 func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
@@ -849,7 +847,7 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	configNewRule(t, args.dut, pbrName, ruleID, 4, dscp)
 	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(ruleID).Config())
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
@@ -865,7 +863,7 @@ func testAddClassMap(ctx context.Context, t *testing.T, args *testArgs) {
 	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	// Expecting Traffic fail
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscp)
 }
 
 // testUnconfigPBRUnderBundleInterface tests unconfiguring the PBR policy under a bundle interface
@@ -874,7 +872,7 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	// Program GRIBI entry on the router
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	interfaceName := args.interfaces.in[0]
 
 	args.clientA.StartWithNoCache(t)
@@ -886,12 +884,7 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	t.Run("Delete apply-vrf-selection-policy leaf", func(t *testing.T) {
 		// gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config())
 		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+"."+"0").Config())
-		defer configPBRunderInterface(t, args, interfaceName, pbrName)
-
-		// // TODO: enabled once gNMI Get works on XR
-		// t.Run("Verify deleted", func(t *testing.T) {
-		// 	verifyConfigPBRUnderInterface(ctx, t, args, interfaceName, false)
-		// })
+		defer configPBRunderInterface(t, interfaceName, pbrName)
 
 		t.Run("Verify bundle still up", func(t *testing.T) {
 			if got := gnmi.Get(t, args.dut, gnmi.OC().Interface(interfaceName).OperStatus().State()); got != oc.Interface_OperStatus_UP {
@@ -903,14 +896,14 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 			// Create Traffic and check traffic
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
 			// Expecting Traffic fail
-			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+			testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 		})
 	})
 
 	t.Run("Delete interface list entry", func(t *testing.T) {
 		// gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).Config())
 		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+"."+"0").Config())
-		defer configPBRunderInterface(t, args, interfaceName, pbrName)
+		defer configPBRunderInterface(t, interfaceName, pbrName)
 
 		// // TODO: enabled once gNMI Get works on XR
 		// t.Run("Verify deleted", func(t *testing.T) {
@@ -927,7 +920,7 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 			// Create Traffic and check traffic
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
 			// Expecting Traffic fail
-			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+			testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 		})
 	})
 }
@@ -937,7 +930,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
@@ -970,7 +963,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
 			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
-			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+			testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 		})
 	})
 
@@ -1013,7 +1006,7 @@ func testRemoveMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 			// Expecting Traffic to pass as Rule1 still has match on dscp set {10}
-			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+			testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 		})
 	})
 }
@@ -1023,7 +1016,7 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
@@ -1039,7 +1032,7 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Expecting Traffic fail
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
 // testAddMatchField tests adding new match field in the existing class-map and verify traffic
@@ -1047,7 +1040,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1060,7 +1053,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		// Create Traffic and check traffic
 		t.Run("Verify traffic on DSCP 12", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+			testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 		})
 
 		// TODO: Make sure this is correct when current config failure is fixed.
@@ -1068,7 +1061,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 			// Expecting Traffic fail
-			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+			testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 		})
 	})
 
@@ -1079,7 +1072,7 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		// Create Traffic and check traffic
 		t.Run("Verify traffic", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+			testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 		})
 	})
 }
@@ -1089,7 +1082,7 @@ func testTrafficFlapInterface(ctx context.Context, t *testing.T, args *testArgs)
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1097,14 +1090,14 @@ func testTrafficFlapInterface(ctx context.Context, t *testing.T, args *testArgs)
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 
 	// Flap Interface
 	for _, interface_name := range args.interfaces.in {
 		util.FlapInterface(t, args.dut, interface_name, 5)
 	}
 	// Verify Traffic again
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
 // Function.PBR.:020 Verify PBR policy works with match DSCP and action VRF redirect
@@ -1112,7 +1105,7 @@ func testMatchDscpActionVRFRedirect(ctx context.Context, t *testing.T, args *tes
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1121,7 +1114,7 @@ func testMatchDscpActionVRFRedirect(ctx context.Context, t *testing.T, args *tes
 	// Create Traffic and check traffic
 	dscp := uint8(16)
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscp)
 }
 
 func GetIpv4Acl(name string, sequenceId uint32, dscp uint8, action oc.E_Acl_FORWARDING_ACTION) *oc.Acl {
@@ -1140,7 +1133,7 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 	defer configBasePBR(t, args.dut)
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1165,7 +1158,7 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 		})
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 
-		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscp)
 	})
 	//Create and apply ACL that drops DSCP16 traffic incoming on the ingress interface. Verify traffic drops.
 	aclName = "dscp_drop"
@@ -1184,7 +1177,7 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 		})
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 
-		testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
+		testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscp)
 	})
 }
 
@@ -1192,14 +1185,14 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 
 	configBasePBR(t, args.dut)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 
 	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
@@ -1232,7 +1225,7 @@ func testPolicesReplace(ctx context.Context, t *testing.T, args *testArgs) {
 
 	gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Config(), &policy)
 
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
 func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1240,14 +1233,14 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 	configBasePBR(t, args.dut)
 	defer configBasePBR(t, args.dut)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 
 	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
@@ -1277,12 +1270,12 @@ func testPolicyReplace(ctx context.Context, t *testing.T, args *testArgs) {
 
 	gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Config(), &p)
 
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 func testSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1296,21 +1289,20 @@ func testSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	//Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 }
 
 func testSrcIpNegative(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
-
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
@@ -1323,21 +1315,20 @@ func testSrcIpNegative(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// configure policy under interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//traffic fail expected
-	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 }
 
 func testPBRSrcIpWithDscp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1351,20 +1342,19 @@ func testPBRSrcIpWithDscp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy on the bunlde interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameDscp)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 }
 
 func testDettachAndAttachWrongSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1383,26 +1373,25 @@ func testDettachAndAttachWrongSrcIp(ctx context.Context, t *testing.T, args *tes
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Traffic verification
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc2)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Traffic failure expected
-	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 }
 
 func testDettachAndAttachDifferentSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1419,25 +1408,24 @@ func testDettachAndAttachDifferentSrcIp(ctx context.Context, t *testing.T, args 
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Traffic verification
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc2)
 
 	// Traffic pass expected
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip2)
 }
 func testUpdateSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1451,28 +1439,27 @@ func testUpdateSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// Traffic check
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
 	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
 
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Traffic verification - traffic pass expected
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip2)
 }
 func testUpdateWrongSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Program GRIBI entry on the router
-
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
@@ -1486,22 +1473,22 @@ func testUpdateWrongSrcIp(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
 	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
 
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	//Traffic failure expected
-	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 }
 func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
@@ -1518,19 +1505,19 @@ func testReplaceAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameDscp)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Configure policy under bundle-interface
 	replaceOnlySrcIp(t, args.dut, PbrNameDscp, SourceAddress2)
 
 	// Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip2)
 
 }
 
@@ -1549,19 +1536,19 @@ func testUpdateAtSrcIpLeaf(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Configure policy under bundle-interface
 	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
 
 	//Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip2)
 
 }
 func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1579,24 +1566,24 @@ func testUpdateAtSrcIpLeafNegative(ctx context.Context, t *testing.T, args *test
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Configure policy under bundle-interface
 	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
 
 	//Create Traffic and traffic expected to fail
-	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	updateOnlySrcIp(t, args.dut, PbrNameSrc, SourceAddress)
 
 	//Create Traffic and traffic expected to pass
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 }
 func testReplaceSrcIpRule(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1615,22 +1602,22 @@ func testReplaceSrcIpRule(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameDscp)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	//Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Replace the rule with different src adddress
 	replaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress2, SeqID)
 
 	// Create Traffic and check traffic expected to fail
-	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	replaceSrcIpRule(t, args.dut, PbrNameDscp, SourceAddress, SeqID)
 
 	//Create Traffic and check traffic expected to pass
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 }
 func testReplaceSrcIpEntirePolicy(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1650,20 +1637,20 @@ func testReplaceSrcIpEntirePolicy(ctx context.Context, t *testing.T, args *testA
 
 	//Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 
 	// Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Replace the pmap with different rule and match
 	replaceSrcpmap(t, args.dut, PbrNameSrc2, SourceAddress2, SeqID2)
 	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
 
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc2)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Create Traffic and check traffic expected to fail
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip2)
 
 }
 func testSrcIpMoreRules(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1681,15 +1668,15 @@ func testSrcIpMoreRules(ctx context.Context, t *testing.T, args *testArgs) {
 	defer deletePBRPolicy(t, args.dut, PbrNameSrc)
 
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress2)
 
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip2)
 
 }
 func testSrcIpWithDscp(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1708,23 +1695,23 @@ func testSrcIpWithDscp(ctx context.Context, t *testing.T, args *testArgs) {
 	defer deletePBRPolicy(t, args.dut, PbrNameDscp)
 
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameDscp)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameDscp)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Create Traffic and check traffic
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Update Wrong Src ip value
 	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress2)
 
 	//traffic fails as expected
-	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Update Correct Src ip value
 	configSrcIpDscp(t, args.dut, PbrNameDscp, dscpVal, SourceAddress)
 
 	//traffic should pass
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 }
 func testProtocolV6Negative(ctx context.Context, t *testing.T, args *testArgs) {
 
@@ -1741,22 +1728,22 @@ func testProtocolV6Negative(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 
 	//Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	testTrafficSrc(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	configSrcIpDscp(t, args.dut, PbrNameSrc2, dscpVal, SourceAddress2)
 	defer deletePBRPolicy(t, args.dut, PbrNameSrc2)
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc2)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc2)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
-	testTrafficSrcV6(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip2, weights...)
+	testTrafficSrcV6(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip2)
 
 }
 func testProtocolV6(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1774,13 +1761,13 @@ func testProtocolV6(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	//Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
-	testTrafficSrcV6(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrcV6(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 }
 
@@ -1799,19 +1786,19 @@ func testProtocolV6updateV4(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	//Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//Create Traffic and check traffic
-	testTrafficSrcV6(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrcV6(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Update protocol to 4
 	configSrcIpDscp(t, args.dut, PbrNameSrc, dscpVal, SourceAddress)
 
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 }
 func testProtocolV6replaceV4(ctx context.Context, t *testing.T, args *testArgs) {
@@ -1830,19 +1817,19 @@ func testProtocolV6replaceV4(ctx context.Context, t *testing.T, args *testArgs) 
 
 	// Configure policy under bundle-interface
 	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 	defer unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//Create Traffic and check traffic
-	testTrafficSrcV6(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrcV6(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 
 	//Replace  protocol to 4
-	replaceOnlyProtocol(t, args.dut, PbrNameSrc, SourceAddress)
-	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
+	replaceOnlyProtocol(t, args.dut, PbrNameSrc)
+	configPBRunderInterface(t, args.interfaces.in[0], PbrNameSrc)
 
-	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+	testTrafficSrc(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, dscpVal, IxiaSrcip)
 }
 
 func startGribiClient(t *testing.T) {
@@ -1854,8 +1841,13 @@ func startGribiClient(t *testing.T) {
 
 	clientA.Close(t)
 	time.Sleep(2 * time.Minute)
-	if err := clientA.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
+	for i := 0; i < 10; i++ {
+		if err := clientA.Start(t); err != nil {
+			if i == 9 {
+				t.Fatalf("gRIBI Connection can not be established")
+			}
+			time.Sleep(30 * time.Second)
+		}
 	}
 	clientA.StartWithNoCache(t)
 	clientA.BecomeLeader(t)
