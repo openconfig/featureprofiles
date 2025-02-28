@@ -100,7 +100,7 @@
 
 ```yaml
 paths:
-  /components/component/state/controller-card/power-admin-state:
+  /components/component/controller-card/state/power-admin-state:
     platform_type: ["CONTROLLER_CARD"]
   /components/component/state/empty:
     platform_type: ["CONTROLLER_CARD"]
