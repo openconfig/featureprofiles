@@ -68,7 +68,7 @@ func stressTestComponent(t testing.TB, dut *ondatra.DUTDevice, location string, 
 
 func stressCPU(t testing.TB, dut *ondatra.DUTDevice, location string) {
 	t.Helper()
-	cmd := "run /var/xr/scratch/stress --cpu 200 --timeout 10"
+	cmd := "run /var/xr/scratch/stress --cpu 300 --timeout 40"
 	if location != "" {
 		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
 	}
@@ -78,7 +78,7 @@ func stressCPU(t testing.TB, dut *ondatra.DUTDevice, location string) {
 func stressMem(t testing.TB, dut *ondatra.DUTDevice, location string) {
 	t.Helper()
 	// spawn 100 workers spinning on malloc()/free()
-	cmd := "run /var/xr/scratch/stress --vm 100 --timeout 10"
+	cmd := "run /var/xr/scratch/stress --vm 200 --timeout 40"
 	if location != "" {
 		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
 	}
@@ -316,7 +316,7 @@ func TestCopyFile(t *testing.T) {
 
 		cli := dut.RawAPIs().CLI(t)
 
-		result, _ := cli.RunCommand(context.Background(), "run ls ~/stress")
+		result, _ := cli.RunCommand(context.Background(), "run ls -la ~/stress")
 		t.Logf("output: %s", result.Output())
 
 		if !strings.Contains(result.Output(), "stress") {
