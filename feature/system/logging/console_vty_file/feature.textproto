@@ -50,7 +50,7 @@ config_path {
   path: "/system/logging/files/file/config/max-size"
 }
 config_path {
-  path: "/system/logging/files/file/config/max-open-size"
+  path: "/system/logging/files/file/config/max-open-time"
 }
 config_path {
   path: "/system/logging/files/file/config/rotate"
