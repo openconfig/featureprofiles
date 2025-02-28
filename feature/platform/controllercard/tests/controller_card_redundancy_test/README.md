@@ -49,10 +49,11 @@
 * Select component with `redundant-role=PRIMARY`, store name as "previous_primary"
 * Perfom Controller_Card switchover and then power down "previous_primary" component. Wait 5s.
 * Collect `redundant-role` and `oper-status` from all components of CONTROLLER_CARD type as collected in test 1;
-  * verify that "previous_primary" controller `oper-status` is **not** `ACTIVE`; 
+  * verify that "previous_primary" controller `oper-status` is **not** `ACTIVE` and/or its
+`power-admin-state` is `POWER_DISABLED`; 
   * verify that at exectly one controller_card has `redundant-role=PRIMARY` and `oper-status=ACTIVE`
-  * Depending on implementation, above state may be not returned for "previous_primary" controller_card.
-    This satisfy condition of this controller's `oper-status` is **not** `ACTIVE`, and it's `redundant-rol`
+  * Depending on implementation, above leaves may be not returned for "previous_primary" controller_card.
+    This satisfy condition of this controller's `oper-status` is **not** `ACTIVE`, and it's `redundant-role`
     is not `PRIMARY`
   * if gNMI client can get this information, it is asumed controller card redundancy works. 
     More torough tests of failover are part of forwarding tests.
