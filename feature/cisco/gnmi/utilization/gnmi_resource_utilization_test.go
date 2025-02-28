@@ -313,6 +313,15 @@ func TestCopyFile(t *testing.T) {
 		dut := ondatra.DUT(t, d.dut)
 		copyFileSCP(t, &d, binPath)
 		t.Logf("Installing file to %s", dut.ID())
+
+		cli := dut.RawAPIs().CLI(t)
+
+		result, _ := cli.RunCommand(context.Background(), "run ls ~/stress")
+		t.Logf("output: %s", result.Output())
+
+		if !strings.Contains(result.Output(), "stress") {
+			t.Error("error verifying file copy: not found")
+		}
 	}
 }
 
