@@ -65,7 +65,7 @@ The vty represents here terminal session - ssh, telnet.
 
 ## OpenConfig Path and RPC Coverage
 
-```
+```yaml
 paths:
   # interface configuration
   /system/logging/console/selectors/selector/config/facility:
