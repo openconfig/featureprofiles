@@ -60,40 +60,6 @@ var (
 	P4rtNode, P4rtNode2 string
 )
 
-// var (
-// 	dutPort1 = attrs.Attributes{
-// 		Desc:    "dutPort1",
-// 		IPv4:    "192.0.2.1",
-// 		IPv6:    "2001:db8::1",
-// 		IPv4Len: ipv4PrefixLen,
-// 		IPv6Len: ipv6PrefixLen,
-// 	}
-
-// 	atePort1 = attrs.Attributes{
-// 		Name:    "atePort1",
-// 		IPv4:    "192.0.2.2",
-// 		IPv6:    "2001:db8::2",
-// 		IPv4Len: ipv4PrefixLen,
-// 		IPv6Len: ipv6PrefixLen,
-// 	}
-
-// 	dutPort2 = attrs.Attributes{
-// 		Desc:    "dutPort2",
-// 		IPv4:    "192.0.2.5",
-// 		IPv6:    "2001:db8::5",
-// 		IPv4Len: ipv4PrefixLen,
-// 		IPv6Len: ipv6PrefixLen,
-// 	}
-
-// 	atePort2 = attrs.Attributes{
-// 		Name:    "atePort2",
-// 		IPv4:    "192.0.2.6",
-// 		IPv6:    "2001:db8::6",
-// 		IPv4Len: ipv4PrefixLen,
-// 		IPv6Len: ipv6PrefixLen,
-// 	}
-// )
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -378,132 +344,201 @@ func TestPacketIn(t *testing.T) {
 	args.packetIO = getTracerouteParameter(t)
 	fmt.Println("ooooo")
 	fmt.Println(args.packetIO)
-	// testPacketIn(ctx, t, args, true)  // testPacketin for Ipv4
-	// testPacketIn(ctx, t, args, false) // testPacketin for Ipv6
-	// testWithDCUnoptimized(ctx, t, args, true, false, "", deviceSet)
-	// fmt.Println("ipv6 ttest")
-	// //testWithDCUnoptimized(ctx, t, args, false, "", deviceSet)
-	//testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inDC", deviceSet)
-	//testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcp", deviceSet, &TOptions{ptcp: 4})
-///enable this
-//dc ipinip
-	testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcp", deviceSet, &TOptions{ptcp: 4})
-	//testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, &TOptions{pudp: 8})
-//dc ipv6inip
-	testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet)
-//pop ipinip
-	testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIp", deviceSet)
-//pop ipv6inip
-	testWithPoPUnoptimized(ctx, t, args, false, false, "", "IpinIp", deviceSet)
 
-	// //Do intf shut here.//shut primary2
-	// testWithDCUnoptimized(ctx, t, args, true, false, "flap", deviceSet)
-	// testWithDCUnoptimized(ctx, t, args, true, false, "flap1", deviceSet)
-	// args.interfaceaction(t, "port2", true)
-	// args.interfaceaction(t, "port4", true)
-	// args.interfaceaction(t, "port6", true)
-	// args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpDC", deviceSet)
+	testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpDC", deviceSet)
 
-	// testWithDCUnoptimized(ctx, t, args, true, false, "noflap", deviceSet)
-	// //tcp
-	//testWithDCUnoptimized(ctx, t, args, true, false, "", deviceSet, &TOptions{ptcp: 4})
+	testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcpDC", deviceSet, &TOptions{ptcp: 4})
+	testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpUdpDC", deviceSet, &TOptions{pudp: 8})
 
-	// //flap
-	// testWithDCUnoptimized(ctx, t, args, true, false, "flap", deviceSet, &TOptions{ptcp: 4})
-	// testWithDCUnoptimized(ctx, t, args, true, false, deviceSet, &TOptions{ptcp: 4})
-	// args.interfaceaction(t, "port2", true)
-	// args.interfaceaction(t, "port4", true)
-	// args.interfaceaction(t, "port6", true)
-	// args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, &TOptions{ptcp: 4})
+	testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, &TOptions{pudp: 8})
 
-	// testWithDCUnoptimized(ctx, t, args, true, false, "noflap", deviceSet, &TOptions{ptcp: 4})
+	//flap
+	testWithDCUnoptimized(ctx, t, args, true, false, "flap1", "IpinIpDCprimarychange", deviceSet)
+	args.interfaceaction(t, "port2", true)
 
-	// //udp
-	//testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpUDPDC", deviceSet, &TOptions{pudp: 8})
-	//testWithDCUnoptimized(ctx, t, args, false, true, "", "IpinIpUDPDC", deviceSet)
+	testWithDCUnoptimized(ctx, t, args, false, false, "flap1", "Ipv6inIpDCprimarychange", deviceSet)
+	args.interfaceaction(t, "port2", true)
 
-	//testWithDCUnoptimized(ctx, t, args, false, true, "", "IpinIpUDPDC", deviceSet, &TOptions{pudp: 8})
+	testWithDCUnoptimized(ctx, t, args, true, false, "flap1", "IpinIpTcpDCprimarychange", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
 
-	// //flap
-	// testWithDCUnoptimized(ctx, t, args, true, false, "flap", deviceSet, &TOptions{pudp: 8})
-	// testWithDCUnoptimized(ctx, t, args, true, false, "flap1", deviceSet, &TOptions{pudp: 8})
-	// args.interfaceaction(t, "port2", true)
-	// args.interfaceaction(t, "port4", true)
-	// args.interfaceaction(t, "port6", true)
-	// args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, true, false, "flap1", "IpinIpUdpDCprimarychange", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
 
-	// testWithDCUnoptimized(ctx, t, args, true, false, "noflap", deviceSet, &TOptions{pudp: 8})
+	testWithDCUnoptimized(ctx, t, args, false, false, "flap1", "Ipv6inIpUDPprimarychange", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
 
-	// //Encap chain.
-	// testWithDCUnoptimized(ctx, t, args, true, true, "", "Ipv6DC", deviceSet)
-	// testWithDCUnoptimized(ctx, t, args, true, true, "", "Ipv6Tcp", deviceSet, &TOptions{ptcp: 4})
-	// testWithDCUnoptimized(ctx, t, args, true, true, "", "Ipv6UDP", deviceSet, &TOptions{pudp: 8})
+	testWithDCUnoptimized(ctx, t, args, false, false, "flap1", "Ipv6inIpUDPprimarychange", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
 
-	// testWithDCUnoptimized(ctx, t, args, false, true, "", "IpDC", deviceSet)
-	// testWithDCUnoptimized(ctx, t, args, false, true, "", "IpTcp", deviceSet, &TOptions{ptcp: 4})
-	// testWithDCUnoptimized(ctx, t, args, false, true, "", "IpUDP", deviceSet, &TOptions{pudp: 8})
+	//flap1
 
-	// testWithDCUnoptimized(ctx, t, args, true, true, "encap", deviceSet)
+	testWithDCUnoptimized(ctx, t, args, true, false, "flap", "IpinIpDCfrr", deviceSet)
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
 
-	// testWithDCUnoptimized(ctx, t, args, true, true, "flap", deviceSet)
-	// testWithDCUnoptimized(ctx, t, args, true, true, "flap1", deviceSet)
-	// args.interfaceaction(t, "port2", true)
-	// args.interfaceaction(t, "port4", true)
-	// args.interfaceaction(t, "port6", true)
-	// args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, false, false, "flap", "Ipv6inIpDCfrr", deviceSet)
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, true, false, "flap", "IpinIpTcpDCfrr", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, true, false, "flap", "IpinIpUdpDCfrr", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, false, false, "flap", "Ipv6inIpUDPfrr", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, false, false, "flap", "Ipv6inIpUDPfrr", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	//Encap
+	testWithDCUnoptimized(ctx, t, args, true, true, "", "Ip", deviceSet)
 
-	// testWithDCUnoptimized(ctx, t, args, true, true, "noflap", deviceSet)
-	// //tcp
-	// testWithDCUnoptimized(ctx, t, args, true, true, "", deviceSet, &TOptions{ptcp: 4})
+	testWithDCUnoptimized(ctx, t, args, false, true, "", "Ipv6", deviceSet)
 
-	// //flap
-	// testWithDCUnoptimized(ctx, t, args, true, true, "flap", deviceSet, &TOptions{ptcp: 4})
-	// testWithDCUnoptimized(ctx, t, args, true, true, "flap1", deviceSet, &TOptions{ptcp: 4})
-	// args.interfaceaction(t, "port2", true)
-	// args.interfaceaction(t, "port4", true)
-	// args.interfaceaction(t, "port6", true)
-	// args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, true, true, "", "Iptcp", deviceSet, &TOptions{ptcp: 4})
+	testWithDCUnoptimized(ctx, t, args, true, true, "", "Ipudp", deviceSet, &TOptions{pudp: 8})
 
-	// testWithDCUnoptimized(ctx, t, args, true, true, "noflap", deviceSet, &TOptions{ptcp: 4})
+	testWithDCUnoptimized(ctx, t, args, false, true, "", "Ipv6tcp", deviceSet, &TOptions{ptcp: 4})
+	testWithDCUnoptimized(ctx, t, args, false, true, "", "Ipv6udp", deviceSet, &TOptions{pudp: 8})
+	//flap1
+	testWithDCUnoptimized(ctx, t, args, true, true, "flap1", "Ip", deviceSet)
+	args.interfaceaction(t, "port2", true)
 
-	// //udp
-	//testWithDCUnoptimized(ctx, t, args, true, true, "", deviceSet, &TOptions{pudp: 8})
+	testWithDCUnoptimized(ctx, t, args, false, true, "flap1", "Ipv6", deviceSet)
+	args.interfaceaction(t, "port2", true)
 
-	// //flap
-	// testWithDCUnoptimized(ctx, t, args, true, true, "flap", deviceSet, &TOptions{pudp: 8})
-	// testWithDCUnoptimized(ctx, t, args, true, true, "flap1", deviceSet, &TOptions{pudp: 8})
-	// args.interfaceaction(t, "port2", true)
-	// args.interfaceaction(t, "port4", true)
-	// args.interfaceaction(t, "port6", true)
-	// args.interfaceaction(t, "port8", true)
-	//commented till here
-	//testWithDCUnoptimized(ctx, t, args, , true)
-	//testWithDCUnoptimized(ctx, t, args, false)
-	//Do primarys and verify traffic drop shut here
+	testWithDCUnoptimized(ctx, t, args, true, true, "flap1", "Iptcp", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
 
-	//testWithDCUnoptimized(ctx, t, args, , true)
-	//testWithDCUnoptimized(ctx, t, args, false)
+	testWithDCUnoptimized(ctx, t, args, true, true, "flap1", "Ipudp", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
 
-	//no shut
-	//testWithDCUnoptimized(ctx, t, args, , true)
-	//testWithDCUnoptimized(ctx, t, args, false)
-////ennnnable this onee for pop
-	//testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIp", deviceSet)
-	//testWithPoPUnoptimized(ctx, t, args, false, false, "", "IpinIp", deviceSet)
+	testWithDCUnoptimized(ctx, t, args, false, true, "flap1", "Ipv6tcp", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
 
-	//testWithPoPUnoptimized(ctx, t, args, false)
-	//Do intf primary 2 shut here.
-	//testWithPoPUnnoptimized(ctx, t, args, , true)
-	//testWithPoPUnoptimized(ctx, t, args, false)
-	//Do intf primary1 shut here
+	testWithDCUnoptimized(ctx, t, args, false, true, "flap1", "Ipv6udp", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
 
-	//testWithPoPUnnoptimized(ctx, t, args, , true)
-	//testWithPoPUnoptimized(ctx, t, args, false)
-	//Do intf  no shut here
-	//testWithPoPUnnoptimized(ctx, t, args, , true)
-	//testWithPoPUnoptimized(ctx, t, args, false)
-	//14 cases +tcp
-	//14 cases with +udp
+	//flap2
+	testWithDCUnoptimized(ctx, t, args, true, true, "flap", "Ip", deviceSet)
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+
+	testWithDCUnoptimized(ctx, t, args, false, true, "flap", "Ipv6", deviceSet)
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+
+	testWithDCUnoptimized(ctx, t, args, true, true, "flap", "Iptcp", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, true, true, "flap", "Ipudp", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+
+	testWithDCUnoptimized(ctx, t, args, false, true, "flap", "Ipv6tcp", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithDCUnoptimized(ctx, t, args, false, true, "flap", "Ipv6udp", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+
+	//pop gate
+	testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIppop", deviceSet)
+	testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIptcppop", deviceSet, &TOptions{ptcp: 4})
+	testWithPoPUnoptimized(ctx, t, args, true, false, "", "IpinIpudppopg", deviceSet, &TOptions{pudp: 8})
+
+	testWithPoPUnoptimized(ctx, t, args, false, false, "", "IpinIpv6popg", deviceSet)
+	testWithPoPUnoptimized(ctx, t, args, false, false, "", "IpinIpv6tcppopg", deviceSet, &TOptions{ptcp: 4})
+	testWithPoPUnoptimized(ctx, t, args, false, false, "", "IpinIpv6udppop", deviceSet, &TOptions{pudp: 8})
+
+	testWithPoPUnoptimized(ctx, t, args, true, false, "flap1", "IpinIppop", deviceSet)
+	args.interfaceaction(t, "port2", true)
+
+	testWithPoPUnoptimized(ctx, t, args, true, false, "flap1", "IpinIptcppop", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+
+	testWithPoPUnoptimized(ctx, t, args, true, false, "flap1", "IpinIpudppopg", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+
+	testWithPoPUnoptimized(ctx, t, args, false, false, "flap1", "IpinIpv6popg", deviceSet)
+	args.interfaceaction(t, "port2", true)
+
+	testWithPoPUnoptimized(ctx, t, args, false, false, "flap1", "IpinIpv6tcppopg", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+
+	testWithPoPUnoptimized(ctx, t, args, false, false, "flap1", "IpinIpv6udppop", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+
+	testWithPoPUnoptimized(ctx, t, args, true, false, "flap", "IpinIppop", deviceSet)
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithPoPUnoptimized(ctx, t, args, true, false, "flap", "IpinIptcppop", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithPoPUnoptimized(ctx, t, args, true, false, "flap", "IpinIpudppopg", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+
+	testWithPoPUnoptimized(ctx, t, args, false, false, "flap", "IpinIpv6popg", deviceSet)
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithPoPUnoptimized(ctx, t, args, false, false, "flap", "IpinIpv6tcppopg", deviceSet, &TOptions{ptcp: 4})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+	testWithPoPUnoptimized(ctx, t, args, false, false, "flap", "IpinIpv6udppop", deviceSet, &TOptions{pudp: 8})
+	args.interfaceaction(t, "port2", true)
+	args.interfaceaction(t, "port4", true)
+	args.interfaceaction(t, "port6", true)
+	args.interfaceaction(t, "port8", true)
+
+	//regionalization
+	testWithregionalization(ctx, t, args, true, false, "", "IpinIpDC", deviceSet)
+	testWithregionalization(ctx, t, args, false, false, "", "Ipv6inIpDC", deviceSet)
+
+	testWithregionalization(ctx, t, args, true, false, "", "IpinIpTcpDC", deviceSet, &TOptions{ptcp: 4})
+	testWithregionalization(ctx, t, args, true, false, "", "IpinIpUdpDC", deviceSet, &TOptions{pudp: 8})
+
+	testWithregionalization(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, &TOptions{ptcp: 4})
+	testWithregionalization(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, &TOptions{pudp: 8})
+
 }
 
 type TraceroutePacketIO struct {

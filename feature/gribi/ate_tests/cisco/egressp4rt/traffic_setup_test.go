@@ -588,10 +588,10 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	if count == 6 || count == 22 {
 		fmt.Println("ttttttlllll")
 		time.Sleep(10 * time.Second)
-		time.Sleep(200000 * time.Minute)
+		//time.Sleep(200000 * time.Minute)
 
 	} else {
-		time.Sleep(20000 * time.Minute)
+		time.Sleep(2 * time.Minute)
 	}
 	ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
