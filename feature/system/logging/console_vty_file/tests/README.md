@@ -26,7 +26,6 @@ Verify if required OC configuration is accepted by DUT and exposed via gNMI get
 
 ### TC2 - VTY logging configuration
 The vty represents here terminal session - ssh, telnet.
-> NOTE: This is NOT yet modeled in OpenConfig
 
 1. configure and enable vty logging with 2 selectors:
     - facility = "Local7", severity = "informational"
@@ -37,17 +36,7 @@ The vty represents here terminal session - ssh, telnet.
 4. Read vty logging configuration and compare with intended configuration.\
    Note: two selectors must be presented.
 
-### [TODO] TC2 - buffer logging configuration
-> NOTE: This is NOT yet modeled in OpenConfig
-1. Configure and enable buffer logging with size set to 5000
-2. Read buffer logging configuration and compare with intended configuration.
-3. Change buffer logging with size set to 7000
-4. Read buffer logging configuration and verify that buffer size changed
-5. Disable buffer logging
-
-
 ### TC3 - files logging configuration
-> NOTE: This is NOT yet modeled in OpenConfig
 1. configure and enable file logging with:
     - 2 selectors:
       - facility = "Local7", severity = "informational"
@@ -62,20 +51,41 @@ The vty represents here terminal session - ssh, telnet.
       - facility = "Local6", severity = "warning"
     - file base name logfile_2
     - directory path
-    - log file management: number 3, maximum size 10M, log file max age 1min
-3. configure log file management for implicit logging: number 3, maximum size 1M, log file max age 1440min (4h)
-5. Read file logging configuration and compare with intended configuration.
-6. Wait 4 minutes and verify number of logfile_2 stored - should be 5
+    - log file management: number 10, maximum size 10M, log file max age 1min
+3. Read file logging configuration and compare with intended configuration.
+4. Wait 4 minutes and verify number of logfile_2 stored - should be 5
 
-## Configuration Paramenter Coverage
-*  /system/logging/console/selectors/selector/config/facility
-*  /system/logging/console/selectors/selector/config/severity
-*  [TODO: extend OC modle]/system/logging/console/config/enable
+### [TODO] TC4 - buffer logging configuration
+> NOTE: This is NOT yet modeled in OpenConfig
+1. Configure and enable buffer logging with size set to 5000
+2. Read buffer logging configuration and compare with intended configuration.
+3. Change buffer logging with size set to 7000
+4. Read buffer logging configuration and verify that buffer size changed
+5. Disable buffer logging
 
-## Telemety Paramenter Coverage
-*  /system/logging/console/selectors/selector/config/facility
-*  /system/logging/console/selectors/selector/config/severity
-*  [TODO: extend OC modle]/system/logging/console/config/enable
+## OpenConfig Path and RPC Coverage
 
+```
+paths:
+  # interface configuration
+  /system/logging/console/selectors/selector/config/facility:
+  /system/logging/console/selectors/selector/config/severity:
+  /system/logging/vty/selectors/selector/config/facility:
+  /system/logging/vty/selectors/selector/config/severity:
+  /system/logging/files/file/selectors/selector/config/facility:
+  /system/logging/files/file/selectors/selector/config/severity:
+  /system/logging/files/file/config/filename-prefix:
+  /system/logging/files/file/config/path:
+  /system/logging/files/file/config/max-size:
+  /system/logging/files/file/config/max-open-size:
+  /system/logging/files/file/config/rotate:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: false
+```
 ## DUT
 vRX
