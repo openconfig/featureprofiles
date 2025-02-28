@@ -100,26 +100,26 @@
 
 ```yaml
 paths:
-  /components/component/state/controller-card/power-admin-state
-  /components/component/state/empty
-  /components/component/state/location
-  /components/component/state/oper-status
-  /components/component/state/switchover-ready
-  /components/component/state/redundant-role
-  /components/component/state/last-switchover-time
-  /components/component/state/last-switchover-reason/trigger
-  /components/component/state/last-switchover-reason/details
-  /components/component/state/last-reboot-time
-  /components/component/state/last-reboot-reason
-  /components/component/state/description
-  /components/component/state/hardware-version
-  /components/component/state/id
-  /components/component/state/mfg-name
-  /components/component/state/name
-  /components/component/state/parent
-  /components/component/state/part-no
-  /components/component/state/serial-no
-  /components/component/state/type
+  /components/component/state/controller-card/power-admin-state:
+  /components/component/state/empty:
+  /components/component/state/location:
+  /components/component/state/oper-status:
+  /components/component/state/switchover-ready:
+  /components/component/state/redundant-role:
+  /components/component/state/last-switchover-time:
+  /components/component/state/last-switchover-reason/trigger:
+  /components/component/state/last-switchover-reason/details:
+  /components/component/state/last-reboot-time:
+  /components/component/state/last-reboot-reason:
+  /components/component/state/description:
+  /components/component/state/hardware-version:
+  /components/component/state/id:
+  /components/component/state/mfg-name:
+  /components/component/state/name:
+  /components/component/state/parent:
+  /components/component/state/part-no:
+  /components/component/state/serial-no:
+  /components/component/state/type:
 
 rpcs:
   gnmi:
