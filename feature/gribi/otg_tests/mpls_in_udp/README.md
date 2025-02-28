@@ -255,7 +255,7 @@ openconfig-network-instance:
 
 ### TE-18.1.5 Rewrite the ingress innner packet TTL = 1, if the incoming TTL = 1.
 Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
-redirect and inner packet TTL = 1.
+set inner packet TTL = 1.
 
 ```json
 {
@@ -283,7 +283,7 @@ redirect and inner packet TTL = 1.
                       }
                     },
                     "action": {
-                      "next-hop-group": "nhg" #TODO: Need to add to model as nhg will be doing encap and setting TTL.
+                      "set-ip-ttl": 1
                      }
                   }
                 ]
