@@ -18,23 +18,41 @@ id {
 }
 
 # Logging to console
+
 config_path {
   path: "/system/logging/console/selectors/selector/config/facility"
-}
-telemetry_path {
-  path: "/system/logging/console/selectors/selector/state/facility"
 }
 config_path {
   path: "/system/logging/console/selectors/selector/config/severity"
 }
-telemetry_path {
-  path: "/system/logging/console/selectors/selector/state/severity"
+config_path {
+  path: "/system/logging/vty/selectors/selector/config/facility"
 }
-# logging to VTY
-# Not available in OpenConfig model definition yet.
+config_path {
+  path: "/system/logging/vty/selectors/selector/config/severity"
+}
+config_path {
+  path: "/system/logging/files/file/selectors/selector/config/facility"
+}
+config_path {
+  path: "/system/logging/files/file/selectors/selector/config/severity"
+}
+config_path {
+  path: "/system/logging/files/file/config/filename-prefix"
+}
+config_path {
+  path: "/system/logging/files/file/config/path"
+}
+config_path {
+  path: "/system/logging/files/file/config/max-size"
+}
+config_path {
+  path: "/system/logging/files/file/config/max-open-size"
+}
+config_path {
+  path: "/system/logging/files/file/config/rotate"
+}
 
-# logging to files
-# Not available in OpenConfig model definition yet.
 
 # logging to buffer
 # Not available in OpenConfig model definition yet.
