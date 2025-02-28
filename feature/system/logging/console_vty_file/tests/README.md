@@ -77,7 +77,7 @@ paths:
   /system/logging/files/file/config/filename-prefix:
   /system/logging/files/file/config/path:
   /system/logging/files/file/config/max-size:
-  /system/logging/files/file/config/max-open-size:
+  /system/logging/files/file/config/max-open-time:
   /system/logging/files/file/config/rotate:
 
 rpcs:
