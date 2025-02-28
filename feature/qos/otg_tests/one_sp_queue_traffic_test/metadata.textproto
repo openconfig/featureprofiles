@@ -17,9 +17,6 @@ platform_exceptions: {
   platform: {
     vendor: JUNIPER
   }
-  deviations: {
-    explicit_interface_ref_definition: true
-  }
 }
 platform_exceptions: {
   platform: {

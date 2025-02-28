@@ -26,10 +26,18 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     isis_instance_enabled_required: true
     missing_value_for_defaults: true
-    skip_isis_set_level: true
-    skip_setting_disable_metric_propagation: true
-    ipv6_static_route_with_ipv4_next_hop_requires_static_arp: true
-    routing_policy_tag_set_embedded: true
     same_policy_attached_to_all_afis: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+  explicit_interface_in_default_vrf: true
+  interface_enabled: true
+  static_protocol_name: "static"
+  skip_prefix_set_mode: true
+  enable_table_connections: true
   }
 }

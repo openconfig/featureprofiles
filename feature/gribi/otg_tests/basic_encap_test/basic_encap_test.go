@@ -59,7 +59,7 @@ const (
 	vrfEncapB          = "ENCAP_TE_VRF_B"
 	ipv4PrefixLen      = 30
 	ipv6PrefixLen      = 126
-	trafficDuration    = 30 * time.Second
+	trafficDuration    = 15 * time.Second
 	nhg10ID            = 10
 	nh201ID            = 201
 	nh202ID            = 202
@@ -364,7 +364,7 @@ func TestBasicEncap(t *testing.T) {
 	}{
 		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -372,7 +372,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("Test2 IPv6 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -380,7 +380,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:  fmt.Sprintf("Test3 IPinIP Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows: []gosnappi.Flow{faIPinIP.getFlow("ipv4in4", "ip4in4a1", dscpEncapA1),
 				faIPinIP.getFlow("ipv6in4", "ip6in4a1", dscpEncapA1),
 			},
@@ -390,7 +390,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("No Match Dscp %d Traffic", dscpEncapNoMatch),
-			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch},
+			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4nm", dscpEncapNoMatch)},
 			weights:            noMatchWeight,
 			capturePorts:       otgDstPorts[:1],
@@ -577,8 +577,6 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	if clusterFacing {
 		pbrRules = append(pbrRules, encapRules...)
 	}
-
-	pbrRules = append(pbrRules, splitDefaultClassRules...)
 
 	if deviations.PfRequireMatchDefaultRule(dut) {
 		pbrRules = append(pbrRules, splitDefaultClassRules...)
@@ -803,6 +801,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// configure base PBF policies and network-instances
 	configureBaseconfig(t, dut)
 
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p5.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 	// apply PBF to src interface.
 	applyForwardingPolicy(t, dut, p1.Name())
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
@@ -1053,11 +1058,9 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
 					break
 				}
-				if !deviations.TTLCopyUnsupported(args.dut) {
-					if got := uint32(v4Packet.TTL); got != pa.ttl {
-						t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-						break
-					}
+				if got := uint32(v4Packet.TTL); got != pa.ttl {
+					t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
+					break
 				}
 				if v4Packet.DstIP.String() == tunnelDstIP1 {
 					tunnel1Pkts++

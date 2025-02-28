@@ -18,7 +18,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_in_default_vrf: true
     interface_enabled: true
     static_protocol_name: "static"
   }
@@ -33,5 +32,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     static_protocol_name: "STATIC"
+    sflow_source_address_update_unsupported: true
   }
 }

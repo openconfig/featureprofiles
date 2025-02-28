@@ -962,7 +962,7 @@ func TestBGPDefaultPolicies(t *testing.T) {
 	})
 
 	t.Run("Verify prefix telemetry on DUT for all iBGP and eBGP peers", func(t *testing.T) {
-		if deviations.DefaultImportExportPolicy(dut) {
+		if deviations.DefaultImportExportPolicyUnsupported(dut) {
 			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 3, 3, 3, v4Prefixes)
 			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 3, v4Prefixes)
 			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 3, 3, 3, !v4Prefixes)

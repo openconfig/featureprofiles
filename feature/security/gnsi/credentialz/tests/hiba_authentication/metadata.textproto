@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "4083a01e-9b52-44c0-aa5c-994e78be66fe"
+plan_id: "Credentialz-5"
+description: "Hiba Authentication"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    ssh_server_counters_unsupported: true
+  }
+}

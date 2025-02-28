@@ -23,10 +23,8 @@ platform_exceptions: {
   }
   deviations: {
     explicit_interface_in_default_vrf: true
-    explicit_interface_ref_definition: true
     static_protocol_name: "static"
     interface_enabled: true
-    skip_pbf_with_decap_encap_vrf: true
   }
 }
 platform_exceptions: {
