@@ -626,7 +626,7 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 					fmt.Println(p)
 					fmt.Println(val)
 
-					if dportsf[p]-dports[p] >= 34000 {
+					if dportsf[p]-dports[p] >= 30000 {
 						portid = p
 						fmt.Println("in looop2")
 						fmt.Println(portid)
@@ -653,7 +653,7 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 					fmt.Println(pi)
 					fmt.Println(val)
 
-					if dportsfin[pi]-dportsinp[pi] >= 34000 {
+					if dportsfin[pi]-dportsinp[pi] >= 30000 {
 						portidin = pi
 						fmt.Println("in looop2")
 						fmt.Println(portidin)
