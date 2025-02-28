@@ -82,6 +82,13 @@ var (
 	}
 )
 
+const (
+	mplsLabel1 = 1000001
+	mplsLabel2 = 1000002
+	mplsLabel3 = 1000003
+	// tolerance = 0.01 // 1% Traffic Tolerance
+)
+
 type trafficData struct {
 	trafficRate           float64
 	expectedThroughputPct float32
@@ -130,6 +137,9 @@ func TestEgressStrictPriorityScheduler(t *testing.T) {
 
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
+	configureStaticLSP(t, dut, "lsp1", mplsLabel1, intf1.IPv4)
+	configureStaticLSP(t, dut, "lsp2", mplsLabel2, intf2.IPv4)
+	configureStaticLSP(t, dut, "lsp3", mplsLabel3, intf3.IPv4)
 	if dut.Vendor() == ondatra.CISCO {
 		ConfigureCiscoQos(t, dut)
 	} else {
@@ -523,19 +533,39 @@ func TestEgressStrictPriorityScheduler(t *testing.T) {
 				ate.OTG().StartProtocols(t)
 				otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 			} else {
+				// get dut mac interface for traffic mpls flow
+				dutDstInterface := dut.Port(t, "port3").Name()
+				dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
+				t.Logf("DUT remote mac address is %s", dstMac)
 				for trafficID, data := range trafficFlows {
+					// t.Logf("Configuring flow %s", trafficID)
+					// flow := top.Flows().Add().SetName(trafficID)
+					// flow.Metrics().SetEnable(true)
+					// flow.TxRx().Port().SetTxName("port3").SetRxNames([]string{"port1", "port2"})
+					// ethHeader := flow.Packet().Add().Ethernet()
+					// ethHeader.Src().SetValue(data.inputIntf.MAC)
+					// ethHeader.Dst().SetValue(intf3.MAC)
+					// ipHeader := flow.Packet().Add().Mpls()
+					// ipHeader.TrafficClass().SetValue(uint32(data.dscp))
+					// flow.Size().SetFixed(uint32(data.frameSize))
+					// flow.Rate().SetPercentage(float32(data.trafficRate))
 					t.Logf("Configuring flow %s", trafficID)
 					flow := top.Flows().Add().SetName(trafficID)
 					flow.Metrics().SetEnable(true)
 					flow.TxRx().Port().SetTxName("port3").SetRxNames([]string{"port1", "port2"})
+					// Set up ethernet layer.
 					ethHeader := flow.Packet().Add().Ethernet()
 					ethHeader.Src().SetValue(data.inputIntf.MAC)
-					ethHeader.Dst().SetValue(intf3.MAC)
+					ethHeader.Dst().SetValue(dstMac)
+					// Set up mpls layer.
 					ipHeader := flow.Packet().Add().Mpls()
 					ipHeader.TrafficClass().SetValue(uint32(data.dscp))
 					flow.Size().SetFixed(uint32(data.frameSize))
 					flow.Rate().SetPercentage(float32(data.trafficRate))
-
+					ip4 := flow.Packet().Add().Ipv4()
+					ip4.Src().SetValue(data.inputIntf.IPv4)
+					ip4.Dst().SetValue(intf3.IPv4)
+					ip4.Version().SetValue(4)
 				}
 				ate.OTG().PushConfig(t, top)
 				ate.OTG().StartProtocols(t)
@@ -709,6 +739,56 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// Custom type that includes both the string and the enum value
+type CustomNetworkInstanceType struct {
+	Prefix string
+	Type   oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE
+}
+
+// Method to convert the custom type to the required enum type
+func (c CustomNetworkInstanceType) String() string {
+	return c.Prefix + c.Type.String()
+}
+
+// configureStaticLSP configures a static MPLS LSP with the provided parameters.
+func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) {
+	d := &oc.Root{}
+	dni := deviations.DefaultNetworkInstance(dut)
+	defPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	// Create an instance of the custom type
+	// failed to apply: Failed must constraint "(type='oc-ni-types:DEFAULT_INSTANCE' and name='default') or (type='oc-ni-types:L3VRF' and name!='default') or (type='oc-ni-types:L2VSI' and name!='default')" of node /network-instances/network-instance[name='DEFAULT']/config, found bad element: name
+	mplsType := CustomNetworkInstanceType{
+		Prefix: "oc-ni-types:",
+		Type:   oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	}
+	mplsName := "default" //  failed to process /network-instances/network-instance[name=DEFAULT]: cannot replace existing key "name" with default, already set to DEFAULT
+	t.Log("mohan type:", mplsType)
+	// ygot.String(deviations.DefaultNetworkInstance(dut))
+	gnmi.Update(t, dut, defPath.Config(), &oc.NetworkInstance{
+		Name: &mplsName,
+		Type: mplsType.Type, // Use the enum value directly
+	})
+	// Check if the NetworkInstance already exists
+	// existingNI := gnmi.Get(t, dut, defPath.Config()) // Get(t) on dut(dut) at /network-instances/network-instance[name=DEFAULT]: path origin:"openconfig" elem:{name:"network-instances"} elem:{name:"network-instance" key:{key:"name" value:"DEFAULT"}}: value not present
+	// if existingNI == nil {
+	// 	// If it doesn't exist, create a new NetworkInstance
+	// 	t.Log("mohan type1:", mplsType)
+	// 	gnmi.Update(t, dut, defPath.Config(), &oc.NetworkInstance{
+	// 		Name: &mplsName,
+	// 		Type: mplsType.Type, // Use the enum value directly
+	// 	})
+	// } else {
+	// 	// If it exists, update only the necessary fields
+	// 	gnmi.Update(t, dut, defPath.Type().Config(), mplsType.Type)
+	// }
+	mplsCfg := d.GetOrCreateNetworkInstance(dni).GetOrCreateMpls()
+	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+}
+
 func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
@@ -771,6 +851,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		termID      string
 		targetGroup string
 		dscpSet     []uint8
+		expSet      []uint8 // MPLS EXP values
 	}{{
 		desc:        "classifier_ipv4_be1",
 		name:        "dscp_based_classifier_ipv4",
@@ -855,6 +936,48 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		termID:      "6",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
+	}, {
+		desc:        "classifier_mpls_be1",
+		name:        "dscp_based_classifier_mpls",
+		classType:   oc.Qos_Classifier_Type_MPLS,
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		expSet:      []uint8{0, 1, 2, 3},
+	}, {
+		desc:        "classifier_mpls_af1",
+		name:        "dscp_based_classifier_mpls",
+		classType:   oc.Qos_Classifier_Type_MPLS,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		expSet:      []uint8{8, 9, 10, 11},
+	}, {
+		desc:        "classifier_mpls_af2",
+		name:        "dscp_based_classifier_mpls",
+		classType:   oc.Qos_Classifier_Type_MPLS,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		expSet:      []uint8{16, 17, 18, 19},
+	}, {
+		desc:        "classifier_mpls_af3",
+		name:        "dscp_based_classifier_mpls",
+		classType:   oc.Qos_Classifier_Type_MPLS,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		expSet:      []uint8{24, 25, 26, 27},
+	}, {
+		desc:        "classifier_mpls_af4",
+		name:        "dscp_based_classifier_mpls",
+		classType:   oc.Qos_Classifier_Type_MPLS,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		expSet:      []uint8{32, 33, 34, 35},
+	}, {
+		desc:        "classifier_mpls_nc1",
+		name:        "dscp_based_classifier_mpls",
+		classType:   oc.Qos_Classifier_Type_MPLS,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		expSet:      []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59},
 	}}
 
 	t.Logf("qos Classifiers config: %v", classifiers)
@@ -871,11 +994,17 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		action := term.GetOrCreateActions()
 		action.SetTargetGroup(tc.targetGroup)
 		condition := term.GetOrCreateConditions()
-		if tc.name == "dscp_based_classifier_ipv4" {
+		if len(tc.dscpSet) > 0 {
 			condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
-		} else if tc.name == "dscp_based_classifier_ipv6" {
 			condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
+		} else if len(tc.expSet) > 0 {
+			condition.GetOrCreateMpls().SetTrafficClass(tc.expSet[0])
 		}
+		// if tc.name == "dscp_based_classifier_ipv4" {
+		// 	condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
+		// } else if tc.name == "dscp_based_classifier_ipv6" {
+		// 	condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
+		// }
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
@@ -896,6 +1025,11 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputClassifierType: oc.Input_Classifier_Type_IPV6,
 		classifier:          "dscp_based_classifier_ipv6",
 	}, {
+		desc:                "Input Classifier Type MPLS",
+		intf:                dp1.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_MPLS,
+		classifier:          "exp_based_classifier_mpls",
+	}, {
 		desc:                "Input Classifier Type IPV4",
 		intf:                dp2.Name(),
 		inputClassifierType: oc.Input_Classifier_Type_IPV4,
@@ -905,6 +1039,11 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		intf:                dp2.Name(),
 		inputClassifierType: oc.Input_Classifier_Type_IPV6,
 		classifier:          "dscp_based_classifier_ipv6",
+	}, {
+		desc:                "Input Classifier Type MPLS",
+		intf:                dp2.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_MPLS,
+		classifier:          "exp_based_classifier_mpls",
 	}}
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
