@@ -918,6 +918,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.10"
+  description: "Interface LACP Intervals"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_interval_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/tests/core_lldp_tlv_population_test/README.md"
