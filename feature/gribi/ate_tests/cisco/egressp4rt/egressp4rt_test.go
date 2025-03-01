@@ -1556,6 +1556,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 
 	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 0.0.0.0/0 192.0.4.2")
 	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv6 unicast ::/0 192:0:2::16")
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1874,7 +1875,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			}
 		} else {
 			//inDst = net.ParseIP("2555::")
-			inDst = net.ParseIP("2555:1:")
+			inDst = net.ParseIP("2001:1:")
 
 			//for i := 8; i < 16; i++ {
 			// "random" is within 2555::/32/16
