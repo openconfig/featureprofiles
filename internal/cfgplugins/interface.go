@@ -39,6 +39,7 @@ var (
 	once   sync.Once
 )
 
+// Temporary code for assigning opmode 1 maintained until opmode is Initialized in all .go file
 func init() {
 	opmode = 1
 }
