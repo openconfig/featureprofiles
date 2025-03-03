@@ -10,7 +10,6 @@ platform_exceptions:  {
     vendor:  NOKIA
   }
   deviations:  {
-    explicit_port_speed:  true
     transceiver_thresholds_unsupported:  true
   }
 }

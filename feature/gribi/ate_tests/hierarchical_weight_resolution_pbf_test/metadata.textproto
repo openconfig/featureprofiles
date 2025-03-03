@@ -1,17 +1,29 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "139f3ee1-d0d0-45cf-8c92-4957c868d30a"
-plan_id: "TE-11.2"
-description: "Backup NHG: Multiple NH"
-testbed: TESTBED_DUT_ATE_4LINKS
+uuid: "bf5df0ee-79b7-460b-8146-3a1351fd56d7"
+plan_id: "TE-3.31"
+description: "Hierarchical weight resolution with PBF"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
+    hierarchical_weight_resolution_tolerance: 1.5
     ipv4_missing_enabled: true
     interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true 
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    hierarchical_weight_resolution_tolerance: 0.4
+    explicit_interface_ref_definition: true
   }
 }
 platform_exceptions: {
@@ -19,6 +31,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    explicit_interface_ref_definition: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
   }
@@ -29,10 +42,9 @@ platform_exceptions: {
   }
   deviations: {
     omit_l2_mtu: true
+    deprecated_vlan_id: true
     interface_enabled: true
     default_network_instance: "default"
-    interface_config_vrf_before_address: true
-    backup_nhg_requires_vrf_with_decap: true
   }
 }
-tags: TAGS_TRANSIT
+tags: TAGS_DATACENTER_EDGE
