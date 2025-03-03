@@ -467,6 +467,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	// TODO create as-path-set on the DUT, match-as-path-set not support.
 	// Configure set-med 100
 	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
+	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 
 	stmt5.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
@@ -817,7 +818,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.Address, ipAddr)
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case otgMED:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric[0] {
