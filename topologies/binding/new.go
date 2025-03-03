@@ -74,7 +74,7 @@ func New() (binding.Binding, error) {
 		return nil, err
 	}
 	// Register core file handler for DUTs.
-	// core.Register()
+	core.Register()
 	return &rundataBind{Binding: b}, nil
 }
 
