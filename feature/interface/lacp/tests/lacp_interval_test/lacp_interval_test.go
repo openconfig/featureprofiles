@@ -341,7 +341,6 @@ func TestLacpTimers(t *testing.T) {
 	lacpIntervals := []oc.E_Lacp_LacpPeriodType{oc.Lacp_LacpPeriodType_FAST, oc.Lacp_LacpPeriodType_SLOW}
 
 	for _, lacpInterval := range lacpIntervals {
-
 		tc := &testCase{
 			dut1:         dut1,
 			dut2:         dut2,
@@ -355,7 +354,6 @@ func TestLacpTimers(t *testing.T) {
 			tc.configureDUT(t)
 			tc.verifyDUT(t)
 
-		
 		})
 	}
 }
