@@ -25,7 +25,7 @@ import (
 	"flag"
 
 	"github.com/golang/glog"
-	// "github.com/openconfig/featureprofiles/internal/core"
+	"github.com/openconfig/featureprofiles/internal/core"
 	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
