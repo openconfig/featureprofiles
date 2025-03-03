@@ -42,7 +42,7 @@ def _get_testbed_by_id(fp_repo_dir, testbed_id):
 
 def _otg_docker_compose_template(control_port, gnmi_port, rest_port):
     return f"""
-version: "2"
+version: "2.1"
 services:
   controller:
     image: ghcr.io/open-traffic-generator/keng-controller:1.3.0-2
@@ -128,7 +128,7 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/tojson ' \
+            f'./exec/utils/proto/binding/tojson ' \
             f'-binding {reserved_testbed["binding"]} ' \
             f'-out {outFile}'
 
@@ -173,7 +173,7 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
             outfile.write(json.dumps(j))
             
         cmd = f'{GO_BIN} run ' \
-            f'./exec/utils/binding/fromjson ' \
+            f'./exec/utils/proto/binding/fromjson ' \
             f'-binding {tmp_binding_file} ' \
             f'-out {otg_binding_file}'
             

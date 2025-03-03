@@ -46,27 +46,27 @@ var (
 	dutSrc = attrs.Attributes{
 		Desc:    "dutsrc",
 		IPv6:    "fe80::1",
-		IPv6Len: 64,
+		IPv6Len: 128,
 	}
 
 	ateSrc = attrs.Attributes{
 		Name:    "atesrc",
 		MAC:     "02:11:01:00:00:01",
 		IPv6:    "fe80::2",
-		IPv6Len: 64,
+		IPv6Len: 128,
 	}
 
 	dutDst = attrs.Attributes{
 		Desc:    "dutdst",
 		IPv6:    "fe80::1",
-		IPv6Len: 64,
+		IPv6Len: 128,
 	}
 
 	ateDst = attrs.Attributes{
 		Name:    "atedst",
 		MAC:     "02:12:01:00:00:01",
 		IPv6:    "fe80::2",
-		IPv6Len: 64,
+		IPv6Len: 128,
 	}
 )
 

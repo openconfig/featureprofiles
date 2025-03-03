@@ -1,131 +1,163 @@
-import xml.etree.ElementTree as ET
 import json
 import glob
-import datetime
+import os
 
 from DDTS import DDTS
 from TechZone import TechZone
+from Github import Github
 
 ddts = DDTS()
 techzone = TechZone()
+github = Github()
 
 class FireX:
-    def get_run_information(self, file, version):
-        tree = ET.parse(file)
-        root = tree.getroot()
+    def __init__(self, xml_root):    
+        """Track FireX files and store run info from run.json"""    
+        self.root = xml_root 
+        self.testsuite_root = self.root.find(".//properties/property[@name='testsuite_root']").get("value")
+        run_info_file = os.path.join(self.testsuite_root, "run.json")
+        with open(run_info_file) as f:
+            self.run_info = json.load(f)
 
-        testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
-        run_file = testsuite_root + "/run.json"
+    def get_group(self):
+        """Return group to be used for subscription checking"""
+        return self.run_info["group"]
 
-        if version == "":
-            show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
+    def get_run_information(self, version, workspace):
+        """Extract FireX metadata to insert into Database"""  
+        # Only extract version and workspace if B4 Architecture, CAFY runs will result in nonempty strings  
+        if version == "" and workspace == "":
+            #TODO: need a better generic way
+            # Extract show version based on the show_version file
+            show_version = glob.glob(self.testsuite_root + "/tests_logs/*/debug_files/dut*/show_version")[0]
             with open(show_version) as show_version_contents:
-                header = show_version_contents.readlines()[0]
+                lines = show_version_contents.readlines()
+                header = lines[0]
+
                 version = header.split(",")[1].split(" ")[2].strip()
 
-        testsuites_metadata = root.attrib 
+                for line in lines:
+                    if line.strip().startswith("Workspace"):
+                        workspace = line.split(":")[1].strip()
 
-        with open(run_file) as metadata:
-            meta = json.load(metadata)
+        testsuites_metadata = self.root.attrib 
 
-            testsuites_metadata.update({
-                "firex_id": meta["firex_id"],
-                "group": meta["group"],
-                "lineup": meta["inputs"]["lineup"],
-                "tag": version,
-            })
+        # All runs are assumed to be hardware unless a sim-config.yaml files exists indicating it is a simulation
+        # TODO: handle hybrid configurations, where both hardware and simulation can coexist
+        testbed = "Hardware"
+        sim_files = glob.glob(self.testsuite_root + "/testbed_logs/*/bringup_success/sim-config.yaml")
+        if(len(sim_files) > 0):
+            testbed = "Simulation"
+
+        chain_index = self.run_info["submission_cmd"].index("--chain")
+
+        # Aggregate all metadata to insert into Database
+        testsuites_metadata.update({
+            "firex_id": self.run_info["firex_id"],
+            "group": self.run_info["group"],
+            "lineup": self.run_info["inputs"]["lineup"],
+            "testbed": testbed,
+            "chain": self.run_info["submission_cmd"][chain_index + 1],
+            "workspace": workspace,
+            "tag": version,
+        })
+
         return testsuites_metadata
 
-    def _create_testsuites(self, vectorstore, testcases, errors_count):
+    def _create_testsuites(self, vectorstore, testcases, historial_testsuite):
         testsuites = []
-
+    
+        # Visit every testcase inside a testsuite
         for testcase in testcases:
-            failure = testcase.find("failure")
+            inherit = historial_testsuite != None   
+            # Handle inheritance
+            if inherit:
+                history = None
+                for e in historial_testsuite["testcases"]:
+                    if e.get("name") == testcase.get("name"):
+                        history = e
+                        break
+                inherit = history != None
 
             testcase_data = {
                 "name": testcase.get("name"),
-                "time": float(testcase.get("time"))
+                "time": float(testcase.get("time", 0))
             }
 
-            if errors_count > 0:
-                # Aborted
-                testcase_data["status"] = "aborted"
-                testcase_data["triage_status"] = "New"
-                testcase_data["label"] = ""
-            elif failure is None:
-                # Passed Testcase
-                testcase_data["status"] = "passed"
-                testcase_data["label"] = "Test Passed. No Label Required."
-            else:
-                # Failed Testcase
-                testcase_data["message"] = failure.get("message")
-                testcase_data["logs"] = str(failure.text).strip()
-                testcase_data["status"] = "failed"
-                testcase_data["triage_status"] = "New"
+            failure_el = testcase.find("failure")
+            error_el = testcase.find("error")
+            skipped_el = testcase.find("skipped")
 
-                labels = vectorstore.query(
-                    failure.text if failure.text is not None else "",
-                )
-
-                if len(labels) > 0:
-                    testcase_data["generated_labels"] = labels
-                    testcase_data["generated"] = True
-                    testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
+            # Skipped Testcase
+            if skipped_el != None:
+                testcase_data["status"] = "skipped"
+                testcase_data["label"] = "Test Skipped. No Label Required."
+            # Aborted
+            elif error_el != None and error_el.get("message") is None:
+                if inherit and history.get("status") == "aborted":
+                    testcase_data["triage_status"] = history.get("triage_status", "New")
+                    testcase_data["label"] = history.get("label", "")
+                    testcase_data["bugs"] = history.get("bugs", [])
                 else:
+                    testcase_data["triage_status"] = "New"
                     testcase_data["label"] = ""
-            testsuites.append(testcase_data)
-        return testsuites
+            # Failed Testcase
+            elif (error_el != None and error_el.get("message")) or failure_el != None:
+                text = error_el.text if error_el != None else failure_el.text
 
-    def _create_testsuites_with_inheritance(self, database, testcases, group, plan, errors_count):
+                testcase_data["message"] = "Failed"
+                testcase_data["logs"] = str(text).strip()
 
-        historial_testsuite = database.get_historical_testsuite(group, plan)
+                if inherit and history.get("status") == "failed":
+                    testcase_data["triage_status"] = history.get("triage_status", "New")
+                    testcase_data["label"] = history.get("label", "")
+                    testcase_data["status"] = "failed"
+                    testcase_data["bugs"] = history.get("bugs", [])
+                else:
+                    testcase_data["status"] = "failed"
+                    testcase_data["triage_status"] = "New"
 
-        testsuites = []
+                    # Find reccomended failures
+                    labels = vectorstore.query(
+                        text if text is not None else "",
+                    )
 
-        for testcase_index in range(len(testcases)):
-            testcase = testcases[testcase_index]
-            history = historial_testsuite["testcases"][testcase_index]
+                    print(f"Called FireX._create_testsuites() and generated for {testcase.get('name')} the following labels: {labels}")
 
-            failure = testcase.find("failure")
-
-            testcase_data = {
-                "name": testcase.get("name"),
-                "time": float(testcase.get("time"))
-            }
-
-            if errors_count > 0:
-                # Aborted
-                testcase_data["status"] = "aborted"
-                testcase_data["triage_status"] = history["triage_status"]
-                testcase_data["label"] = history["label"]
-            elif failure is None:
-                # Passed Testcase
+                    if len(labels) > 0:
+                        testcase_data["generated_labels"] = labels
+                        testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
+                        # Handle auto tagging with a threshold of 0.9 similarity score
+                        if testcase_data["generated_labels"][0]["score"] > 0.9:
+                            testcase_data["generated"] = False
+                            testcase_data["triage_status"] = "Resolved"
+                        else:
+                            testcase_data["generated"] = True
+                    else:
+                        testcase_data["label"] = ""
+            # Passed Testcase
+            else:
                 testcase_data["status"] = "passed"
                 testcase_data["label"] = "Test Passed. No Label Required."
-            else:
-                # Failed Testcase
-                testcase_data["message"] = failure.get("message")
-                testcase_data["logs"] = str(failure.text).strip()
-                testcase_data["status"] = "failed"
-                testcase_data["triage_status"] = history["triage_status"]
-                testcase_data["label"] = history["label"]
+                
             testsuites.append(testcase_data)
         return testsuites
 
-    def get_testsuites(self, vectorstore, database, file, run_info):
-        tree = ET.parse(file)
-        root = tree.getroot()
-
+    def get_testsuites(self, vectorstore, database, run_info):
+        """Gather testsuite data to store into Database"""
         documents = []
 
-        for testsuite in root.findall("./testsuite"):         
+        # Visit all testsuites within a run
+        for testsuite in self.root.findall("./testsuite"):         
             stats = testsuite.attrib
             properties = testsuite.find("properties")
             testcases = testsuite.findall("testcase")
 
             failures_count = int(stats.get("failures", 0))
             errors_count = int(stats.get("errors", 0))
+            test_passed = failures_count + errors_count == 0
 
+            # Gather metadata for a given testsuite
             data = {
                 "group": run_info["group"],
                 "efr": run_info["tag"],
@@ -137,10 +169,12 @@ class FireX:
                 "disabled": int(stats.get("disabled", 0)),
                 "skipped": int(stats.get("skipped", 0)),
                 "timestamp" : str(stats.get("timestamp", 0)),
+                "health": "ok",
                 "testcases": [],
                 "bugs": []
             }
 
+            # Handle B4 specially named keys
             keys = [
                     "test.plan_id",
                     "test.description",
@@ -149,14 +183,16 @@ class FireX:
                     "testsuite_root",
                 ]
             
+            # Handle Cafy specially named keys
             cafy_keys_mappings = {
                 "testsuite_name": "plan_id",
                 "testsuite_hash": "testsuite_hash",
                 "testsuite_root": "testsuite_root"
             }
 
-            framework = root.find(".//properties/property[@name='framework']").get("value")
+            framework = self.root.find(".//properties/property[@name='framework']").get("value")
 
+            # Based on framework (B4 or Cafy) grab the correct attributes
             if framework == "cafy2":
                 for property in properties:
                     if property.get("name") in cafy_keys_mappings:
@@ -168,19 +204,26 @@ class FireX:
                             "value"
                         )
 
-            existing_bugs, existing = database.inherit_bugs(data["group"], data["plan_id"])
-
-            if existing:
-                for bug in existing_bugs[0]["bugs"]:
+            # Grab historical testsuite if it exists
+            historial_testsuite = None
+            if set(["plan_id", "group", "lineup"]).issubset(data.keys()):
+                historial_testsuite = database.get_historical_testsuite(data['lineup'], data["group"], data["plan_id"])
+        
+            # Inherit associated bugs
+            if historial_testsuite:
+                for bug in historial_testsuite.get("bugs", []):
                     name = bug["name"]
                     if bug["type"] == "DDTS":
-                        if ddts.is_open(name):
-                            data["bugs"].append(ddts.inherit(name))
+                        data["bugs"].append(ddts.inherit(name))
+                        if test_passed and ddts.is_open(name):
+                            data["health"] = "unstable"
                     elif bug["type"] == "TechZone":
                         data["bugs"].append(techzone.inherit(name))
-                data["testcases"] = self._create_testsuites_with_inheritance(database, testcases, data["group"], data["plan_id"], data["errors"])
-            else:
-                data["testcases"] = self._create_testsuites(vectorstore, testcases, data["errors"])
+                    elif bug["type"] == "Github":
+                        data["bugs"].append(github.inherit(name))
+
+            # Create the individual testcases taking into consideration the historical run
+            data["testcases"] = self._create_testsuites(vectorstore, testcases, historial_testsuite)
             documents.append(data)
         return documents
 

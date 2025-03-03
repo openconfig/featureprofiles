@@ -1,0 +1,228 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This 8818-DUT-PEER testbed provides 15 links between DUT-TGEN, and 1 link between the PEER-ATE.
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8818"
+  ports {
+    id: "port1"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port2"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB  
+  }
+    ports {
+    id: "port5"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port6"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port7"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port8"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port9"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port10"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port11"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port12"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port13"
+    speed: S_100GB  
+  }
+    ports {
+    id: "port14"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port15"
+    speed: S_100GB  
+  }   
+}
+
+duts {
+  id: "peer"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  ports {
+    id: "port16"
+    speed: S_100GB   
+  }  
+}
+
+ates {
+  id: "ate"
+    ports {
+    id: "port1"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port2"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB  
+  }
+    ports {
+    id: "port5"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port6"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port7"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port8"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port9"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port10"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port11"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port12"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port13"
+    speed: S_100GB  
+  }
+    ports {
+    id: "port14"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port15"
+    speed: S_100GB  
+  }  
+  ports {
+    id: "port16"
+    speed: S_100GB  
+  }    
+}
+
+links {
+  a: "dut:port1"
+  b: "ate:port1"
+}
+
+links {
+  a: "dut:port2"
+  b: "ate:port2"
+}
+
+links {
+  a: "dut:port3"
+  b: "ate:port3"
+}
+
+links {
+  a: "dut:port4"
+  b: "ate:port4"
+}
+
+links {
+  a: "dut:port5"
+  b: "ate:port5"
+}
+
+links {
+  a: "dut:port6"
+  b: "ate:port6"
+}
+
+links {
+  a: "dut:port7"
+  b: "ate:port7"
+}
+
+links {
+  a: "dut:port8"
+  b: "ate:port8"
+}
+
+links {
+  a: "dut:port9"
+  b: "ate:port9"
+}
+
+links {
+  a: "dut:port10"
+  b: "ate:port10"
+}
+
+links {
+  a: "dut:port11"
+  b: "ate:port11"
+}
+
+links {
+  a: "dut:port12"
+  b: "ate:port12"
+}
+
+links {
+  a: "dut:port13"
+  b: "ate:port13"
+}
+
+links {
+  a: "dut:port14"
+  b: "ate:port14"
+}
+
+links {
+  a: "dut:port15"
+  b: "ate:port15"
+}
+
+links {
+  a: "peer:port16"
+  b: "ate:port16"
+}

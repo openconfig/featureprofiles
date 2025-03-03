@@ -48,7 +48,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2962  
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/otg_tests/base_leader_election_test
     owners:
@@ -79,7 +78,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2962  
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -350,7 +348,7 @@ tests:
     mustpass: true
     priority: 31
     pr: 2805
-  - name: gNMI-1.14 (Telemetry Optics Thresholds)
+  - name: gNMI-1.20 (Telemetry Optics Thresholds)
     path: feature/platform/tests/optics_thresholds_test
     owners:
       - agvarghe
@@ -371,7 +369,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 65
-    pr: 2805
+    pr: 3536
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
@@ -444,7 +442,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 46
-    pr: 2605
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
     owners:
@@ -470,13 +467,20 @@ tests:
     priority: 49
     skip: false
     groups: [ancx]
+  - name: RT-2.13 (Weighted-ECMP for IS-IS)
+    path: feature/isis/otg_tests/weighted_ecmp_test
+    owners:
+      - arvbaska
+    mustpass: false
+    priority: 49
+    pr: 3328
+    skip: false
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
     owners:
       - agvarghe
     mustpass: true
     priority: 1002
-    pr: 2964
     testbeds:
       - 2DUT-TB2
   - name: RT-1.3 (BGP Route Propagation)
@@ -674,11 +678,19 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+  - name: gNMI-1.14 (Metadata consistency during large config push)
+    path: feature/system/gnmi/metadata/tests/large_set_consistency_test
+    owners:
+      - kjahed
+    mustpass: true
+    pr: 3573
   - name: gNMI-1.15 (Set Requests)
     path: feature/system/gnmi/set/tests/gnmi_set_test
     owners:
       - mbagherz
     mustpass: true
+    internal: true
+    branch: liawalsh/gnmi-container-replace-fix
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
@@ -690,9 +702,9 @@ tests:
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
-      - sahubbal
+      - kjahed
     mustpass: true
-    timeout: 2400
+    timeout: 3600
     skip: true # danger?
   - name: FP-1.1 (Power admin DOWN/UP Test)
     path: feature/platform/tests/power_admin_down_up_test
@@ -820,7 +832,6 @@ tests:
     owners:
       - arvbaska
     mustpass: true
-    pr: 2887  
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
     priority: 65
@@ -830,7 +841,6 @@ tests:
       - arvbaska
     timeout: 3600  
     mustpass: true
-    pr: 2887  
     testbeds_exclude:
       - 8201-32FH_FLM254206E7    
   - name: TE-16.2 (DCGate - encap FRR test)
@@ -845,7 +855,6 @@ tests:
     owners:
       - arvbaska
     mustpass: true  
-    pr: 3134     
   - name: TE-11.21 (DCGate - Backup NHG Multiple NH with PBF)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_pbf_test
     owners:
@@ -872,7 +881,13 @@ tests:
     owners:
       - arvbaska
     mustpass: true
-    pr: 3041
+  - name: RT-1.27 (Static route to BGP redistribution)
+    path: feature/bgp/static_route_bgp_redistribution/otg_tests/static_route_bgp_redistribution_test
+    priority: 2
+    owners:
+      - sprem
+    mustpass: true
+    pr: 3613
   - name: RT-1.33 (BGP Policy with prefix-set matching)
     path: feature/bgp/policybase/otg_tests/prefix_set_test
     priority: 2
@@ -900,5 +915,83 @@ tests:
       - arvbaska
     mustpass: true
     timeout: 4200
+  - name: RT-4.10 (AFTs Route Summary)
+    path: feature/aft/aft_summary/otg_tests/route_summary_counters_test
+    priority: 2
+    owners:
+      - mastarke
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-1 (Telemetry 400ZR Chromatic Dispersion(CD) telemetry values streaming)
+    path: feature/platform/transceiver/tests/zr_cd_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-3 (Telemetry 400ZR Optics firmware version streaming)
+    path: feature/platform/transceiver/tests/zr_firmware_version_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-4 (Telemetry 400ZR RX input and TX output power telemetry values streaming)
+    path: feature/platform/transceiver/tests/zr_input_output_power_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-5 (Configuration 400ZR channel frequency, output TX launch power and operational mode setting)
+    path: feature/platform/transceiver/tests/zr_tunable_parameters_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-7 (Telemetry 400ZR Optics inventory info streaming)
+    path: feature/platform/transceiver/tests/zr_inventory_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-8 (Telemetry 400ZR Optics module temperature streaming.)
+    path: feature/platform/transceiver/tests/zr_temperature_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-9 (Telemetry 400ZR TX laser bias current telemetry values streaming.)
+    path: feature/platform/transceiver/tests/zr_laser_bias_current_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-10 (Telemetry 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
+    path: feature/platform/transceiver/tests/zr_fec_uncorrectable_frames_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-11 (Telemetry 400ZR Optics logical channels provisioning and related telemetry)
+    path: feature/platform/transceiver/tests/zr_logical_channels_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-12 (Telemetry 400ZR Transceiver Supply Voltage streaming.)
+    path: feature/platform/transceiver/tests/zr_supply_voltage_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    
     
 

@@ -1,38 +1,23 @@
+import xml.etree.ElementTree as ET
 import argparse
 
 from Database import Database
-from FireX import FireX
-from Vectorstore import Vectorstore
-from DDTS import DDTS
+from CIT import CIT
 
-parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoDB')
-parser.add_argument('run_id', help="FireX Run ID")
-parser.add_argument('xunit_file', help="XUnit Result File")
-parser.add_argument('--version',  default='', help="OS Version")
-args = parser.parse_args()
+if __name__ == "__main__":
+    """Entry Point"""
+    parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoDB')
+    parser.add_argument('run_id', help="FireX Run ID")
+    parser.add_argument('xunit_file', help="XUnit Result File")
+    parser.add_argument('--version',  default='', help="OS Version")
+    parser.add_argument('--workspace',  default='', help="Workspace")
+    parser.add_argument('--dev',  default=False, help="Development")
+    args = parser.parse_args()
 
-database = Database()
-firex = FireX()
-vectorstore = Vectorstore()
-ddts = DDTS()
+    if args.dev:
+        db = Database("auto-triage-dev")
+    else: 
+        db = Database("auto-triage")
 
-def main():
-    # Get Metdata from run.json
-    run_info = firex.get_run_information(args.xunit_file, args.version)
-
-    # Only Consider Subscribed Groups
-    if database.is_subscribed(run_info["group"]) == False:
-        return
-    
-    # Add FireX Metadata
-    database.insert_metadata(run_info)
-    
-    # Create FAISS Index
-    datapoints = database.get_datapoints()
-    vectorstore.create_index(datapoints)
-    
-    # Add Testsuite Data
-    documents = firex.get_testsuites(vectorstore, database, args.xunit_file, run_info)
-    database.insert_logs(documents)
-
-main()
+    tree = ET.parse(args.xunit_file)
+    CIT(db).process_run(tree.getroot(), args.version, args.workspace)

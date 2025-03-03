@@ -75,6 +75,7 @@ ates {
     id: "port8"
     speed: S_100GB  
   }
+  
 }
 
 links {

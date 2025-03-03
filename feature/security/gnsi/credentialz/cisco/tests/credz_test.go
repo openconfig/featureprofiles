@@ -16,30 +16,17 @@ import (
 
 	log "github.com/golang/glog"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/gnoi/system"
 	credz "github.com/openconfig/gnsi/credentialz"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"golang.org/x/crypto/ssh"
-
-	"github.com/openconfig/featureprofiles/internal/args"
-
-	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/testt"
-)
-
-const (
-	maxSwitchoverTime = 900
-	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
-	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
 func TestMain(m *testing.M) {
@@ -690,108 +677,6 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 	return nil
 }
 
-func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
-
-	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found controller card list: %v", controllerCards)
-
-	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
-		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
-	}
-
-	if got, want := len(controllerCards), 2; got < want {
-		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
-	}
-
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
-	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
-
-	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
-	}
-
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &system.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
-	want := rpStandbyBeforeSwitch
-	got := ""
-	if deviations.GNOISubcomponentPath(dut) {
-		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-	} else {
-		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
-	}
-	if got != want {
-		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
-	}
-	if got, want := switchoverResponse.GetVersion(), ""; got == want {
-		t.Errorf("switchoverResponse.GetVersion(): got %v, want non-empty version", got)
-	}
-	if got := switchoverResponse.GetUptime(); got == 0 {
-		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
-	}
-
-	startSwitchover := time.Now()
-	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-		}
-	}
-	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
-
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
-	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
-
-	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
-		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
-	}
-	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
-		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
-	}
-
-	t.Log("Validate OC Switchover time/reason.")
-	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
-
-	swTime, swTimePresent := gnmi.Watch(t, dut, activeRP.LastSwitchoverTime().State(), 1*time.Minute, func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }).Await(t)
-	if !swTimePresent {
-		t.Errorf("activeRP.LastSwitchoverTime().Watch(t).IsPresent(): got %v, want %v", false, true)
-	} else {
-		st, _ := swTime.Val()
-		t.Logf("Found activeRP.LastSwitchoverTime(): %v", st)
-	}
-
-	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
-		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
-		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
-}
-
 func TestCredentialz_2(t *testing.T) {
 	filePath := "credz"
 	accountName := "CREDZ"
@@ -1177,6 +1062,7 @@ func TestCredentialz_4(t *testing.T) {
 
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
+	time.Sleep(2 * time.Second)
 	t.Run("PublicKey Based Authentication", func(t *testing.T) {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
@@ -1484,7 +1370,7 @@ func TestPubkeyWithHA(t *testing.T) {
 	sshVerification()
 	RestartProcess(t, dut, "cepki")
 	sshVerification()
-	rpSwitchOver(t, dut)
+	utils.Dorpfo(context.Background(), t, true)
 	sshVerification()
 
 }
@@ -1717,10 +1603,6 @@ func TestExpiredClientCert(t *testing.T) {
 	}
 }
 
-func TestForSecondRPSwitchOver(t *testing.T) {
-	time.Sleep(360 * time.Second) // This sleep is to get ready for the second RP switchover
-}
-
 func TestClientCertWithHA(t *testing.T) {
 	filePath := "credz"
 	accountName := "CERT"
@@ -1849,6 +1731,6 @@ func TestClientCertWithHA(t *testing.T) {
 	sshVerification()
 	RestartProcess(t, dut, "cepki")
 	sshVerification()
-	rpSwitchOver(t, dut)
+	utils.Dorpfo(context.Background(), t, true)
 	sshVerification()
 }
