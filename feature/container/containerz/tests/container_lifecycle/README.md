@@ -98,6 +98,23 @@ Using the container started as part of CNTR-1.2, validate that the container can
 be stopped, and is subsequently no longer listed in the `gnoi.Containerz.List`
 API.
 
+## CNTR-1.5: Restart Behaviour
+
+Using the containers started as part of CNTR-1.1, restart the device via gNOI
+and ensure that the containers are still running post reboot.
+
+## CNTR-1.6: Failover Behaviour
+
+Using the containers started as part of CNTR-1.1, trigger a failover and 
+ensure that the containers that were running on the failed RP are running 
+on the backup RP.
+
+## CNTR-1.7: Syslog logging
+
+Using the containers started as part of CNTR-1.1, configure syslog logging
+such that container logs are exported over syslog. The resulting logs
+should identify which container originated the logs.
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the RPCs intended to be covered by this test.
