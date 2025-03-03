@@ -66,6 +66,10 @@ replace: {
 " description interface\n"
 " no shutdown\n"
 "!\n"
+"interface HundredGigE0/2/0/32\n"
+" description interface\n"
+" no shutdown\n"
+"!\n"
 
 "interface MgmtEth0/RP0/CPU0/0\n"
 " ipv4 address 6.1.2.41 255.255.0.0\n"
