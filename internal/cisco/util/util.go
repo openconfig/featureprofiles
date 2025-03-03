@@ -31,9 +31,9 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
@@ -757,7 +757,6 @@ type InterfacePhysicalLink struct {
 	LineCardNumber     string
 	PeerIntfName       string
 	PeerV4Addr         string
-	PeerIntfName       string
 	PeerIntf           *oc.Interface
 	PeerLineCardNumber string
 }
@@ -822,7 +821,7 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 		// Get the peer interface name using LLDP data
 		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName)
 
-    // TODO logic to fectch the NPU
+		// TODO logic to fectch the NPU
 		// npu := getNpu(t,dut,intfName)
 		// PeerNpu := getNpu(t,peer,peerIntfName)
 
@@ -838,7 +837,7 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 				}
 			}
 
-      if peerIntf != nil {
+			if peerIntf != nil {
 				// peerLcNumber := re.FindString(peerIntfName)
 				peerMatches := re.FindStringSubmatch(peerIntfName)
 				var peerLcNumber string
@@ -1262,8 +1261,8 @@ func GetUsableIPs(cidr string) (net.IP, net.IP) {
 	_, subnet, _ := net.ParseCIDR(cidr)
 	if subnet.IP.To4() != nil {
 		// It's an IPv4 address
-		firstIP := incrementIP(subnet.IP)
-		secondIP := incrementIP(firstIP)
+		firstIP := incrementIP(subnet.IP, 1)
+		secondIP := incrementIP(firstIP, 1)
 		return firstIP, secondIP
 	} else {
 		// It's an IPv6 address
@@ -1349,6 +1348,7 @@ func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string, ti
 	}).Await(t)
 	return ok
 }
+
 // GetVersion fetches the software version from the device and splits it into components.
 func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
 	// Simulate fetching the version string from the device.
