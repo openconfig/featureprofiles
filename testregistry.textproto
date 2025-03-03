@@ -945,7 +945,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-5.10"
+  id: "RT-5.11"
   description: "Interface LACP Intervals"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_interval_test/README.md"
   exec: " "
