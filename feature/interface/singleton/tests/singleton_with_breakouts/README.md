@@ -16,7 +16,7 @@ This test requires a DUT with the following setup
 ### RT-8.1 - Baseline test:
 * Push interface configuration to the DUT including breakout configuration for all the PMDs stated in the Testbed section above.
 * Get an inventory of all the singleton interfaces on the DUT used for this test using `GET /interfaces/interface/` subscription.
-* For every interface, verify `interfaces/interface/state/hardware-port` is populated with a reference to `/components/component/name`
+* For configured interface, verify `interfaces/interface/state/hardware-port` is populated with a reference to `/components/component/name`
 
 ### RT-8.2 - Reboot test:
 * Reboot DUT
