@@ -66,7 +66,7 @@ var (
 	knownIssueURL = flag.String("known_issue_url", "", "Report a known issue that explains why the test fails.  This should be a URL to the issue tracker.")
 
 	// flags to disable collecting dut info.
-	collectDUTInfo = flag.Bool("collect_dut_info", false, "This flag specifies if the dut information to be collected before running tests.")
+	collectDUTInfo = flag.Bool("collect_dut_info", true, "This flag specifies if the dut information to be collected before running tests.")
 
 	// Stub out for unit tests.
 	metadataGetFn = metadata.Get
