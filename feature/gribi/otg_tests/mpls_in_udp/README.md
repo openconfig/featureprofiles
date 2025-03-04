@@ -209,11 +209,11 @@ set inner packet TTL = 1.
                     "ipv6": {
                       "config": {
                         "destination-address": "router_ip"
-                        "ip-ttl": 1
+                        "hop-limit": 1
                       }
                     },
                     "action": {
-                      "set-ip-ttl": 1
+                      "set-ip-ttl": 1  #TODO: Add set-ip-ttl [OC path]
                      }
                   }
                 ]
