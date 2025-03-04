@@ -220,61 +220,63 @@ Verify:
 
 ### Interfaces Config
 
-    interfaces/interface/config/description
-    interfaces/interface/config/enabled
-    interfaces/interface/config/name
-    interfaces/interface/config/type
-    interfaces/interface/config/id
-    interfaces/interface/config/load-interval
-    interfaces/interface/config/mtu
-    interfaces/interface/ethernet/config
-    interfaces/interface/ethernet/config/auto-negotiate
-    interfaces/interface/ethernet/config/duplex-mode
-    interfaces/interface/ethernet/config/port-speed
-    interfaces/interface/name
-    interfaces/interface/ethernet/config/mac-address
+```
+interfaces/interface/config/description
+interfaces/interface/config/enabled
+interfaces/interface/config/name
+interfaces/interface/config/type
+interfaces/interface/config/id
+interfaces/interface/config/load-interval
+interfaces/interface/config/mtu
+interfaces/interface/ethernet/config
+interfaces/interface/ethernet/config/auto-negotiate
+interfaces/interface/ethernet/config/duplex-mode
+interfaces/interface/ethernet/config/port-speed
+interfaces/interface/name
+interfaces/interface/ethernet/config/mac-address
 
-    interfaces/interface/aggregation/config
-    interfaces/interface/aggregation/config/lag-type
-    interfaces/interface/aggregation/config/min-links
+interfaces/interface/aggregation/config
+interfaces/interface/aggregation/config/lag-type
+interfaces/interface/aggregation/config/min-links
 
-    interfaces/interface/subinterfaces/subinterface/config
-    interfaces/interface/subinterfaces/subinterface/config/description
-    interfaces/interface/subinterfaces/subinterface/config/enabled
-    interfaces/interface/subinterfaces/subinterface/config/index
-    interfaces/interface/subinterfaces/subinterface/config/load-interval
-    interfaces/interface/subinterfaces/subinterface/index
-    interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config
-    interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip
-    interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length
-    interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip
-    interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/addr-type
-    interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/type
-    interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/ip
-    interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/ip
-    interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/link-layer-address
+interfaces/interface/subinterfaces/subinterface/config
+interfaces/interface/subinterfaces/subinterface/config/description
+interfaces/interface/subinterfaces/subinterface/config/enabled
+interfaces/interface/subinterfaces/subinterface/config/index
+interfaces/interface/subinterfaces/subinterface/config/load-interval
+interfaces/interface/subinterfaces/subinterface/index
+interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config
+interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip
+interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length
+interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip
+interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/addr-type
+interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/type
+interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/ip
+interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/ip
+interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/link-layer-address
 
-    interfaces/interface/subinterfaces/subinterface/ipv4/proxy-arp/config/google-mode (not supported)
+interfaces/interface/subinterfaces/subinterface/ipv4/proxy-arp/config/google-mode (not supported)
 
-    interfaces/interface/subinterfaces/subinterface/vlan/config/vlan-id
-    interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config
-    interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip
-    interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length
-    interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/ip
-    interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/addr-type
-    interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/type
-    interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/ip
-    interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/ip
-    interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/link-layer-address
+interfaces/interface/subinterfaces/subinterface/vlan/config/vlan-id
+interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config
+interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip
+interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length
+interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/ip
+interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/addr-type
+interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/type
+interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/ip
+interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/ip
+interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/link-layer-address
 
-    lacp/interfaces/interface/name
-    lacp/interfaces/interface/config/interval
-    lacp/interfaces/interface/config/name
+lacp/interfaces/interface/name
+lacp/interfaces/interface/config/interval
+lacp/interfaces/interface/config/name
 
-    lldp/config/enabled
-    lldp/interfaces/interface/name
-    lldp/interfaces/interface/config/enabled
-    lldp/interfaces/interface/config/name
+lldp/config/enabled
+lldp/interfaces/interface/name
+lldp/interfaces/interface/config/enabled
+lldp/interfaces/interface/config/name
+```
 
 ### Policy Config
 #### 
@@ -319,7 +321,7 @@ Verify:
 /network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ebgp/link-bandwidth-ext-community/config/enabled
 ```
 
-### Telemetry Path Coverage
+## Telemetry Path Coverage
 ####
 
 ```
