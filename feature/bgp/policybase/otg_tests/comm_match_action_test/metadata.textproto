@@ -26,6 +26,14 @@ platform_exceptions:  {
     default_network_instance: "default"
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor: JUNIPER
+  }
+  deviations:  {
+    bgp_rib_oc_path_unsupported: true
+  }
+}
 tags:  TAGS_AGGREGATION
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE
