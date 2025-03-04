@@ -4,22 +4,25 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+	"strconv"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/util"
-	"github.com/openconfig/ygot/ygot"
-	"google.golang.org/protobuf/proto"
+	"google3/third_party/golang/protobuf/v2/proto/proto"
+	"google3/third_party/golang/ygot/util/util"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"crypto/rand"
 )
 
 const (
@@ -208,6 +211,15 @@ func checkMetadata2(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDev
 	}
 }
 
+func checkLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, largeMetadata string, done *atomic.Int64) {
+	t.Helper()
+	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
+	want := largeMetadata
+	if got != want && getRespTimeStamp < done.Load() {
+		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
+	}
+}
+
 func TestLargeSetConsistency(t *testing.T) {
 	done := &atomic.Int64{}
 	dut := ondatra.DUT(t, "dut")
@@ -275,4 +287,18 @@ func TestLargeSetConsistency(t *testing.T) {
 	wg.Wait()
 	time.Sleep(5 * time.Second)
 	checkMetadata2(t, gnmiClient, dut)
+	b := make([]byte, 100*1024)
+	largeMetadataInt, err := rand.Read(b)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Error reading bytes: %v", err)
+	}
+	largeMetadata := strconv.Itoa(largeMetadataInt)
+	// send 3rd large metadata update request in one goroutine
+	gpbSetRequest = buildGNMISetRequest(t, largeMetadata, baselineConfig)
+	t.Log("gnmiClient Set large metadataconfig request")
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("gnmi.Set unexpected error: %v", err)
+	}
+	checkLargeMetadata(t, gnmiClient, dut, largeMetadata, done)
 }
+

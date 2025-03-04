@@ -29,6 +29,8 @@ dut.testbed
     * stop sending REQUEST requests
     * wait 5 seconds
     * SubscribeRequest once for configuration root-level metadata and verify that it is identical corresponding root-level metadata of 2nd_LARGE_CONFIGURATION.
+* Push a Large metadata of size 100KB and wait for SetResponse that confirm push was sucesfull.
+* Send subscribe `ONCE` for configuration root-level metadata and verify that it is identical to corresponding root-level metadata of the source that was earlier configured.
 
 ## Configuration path coverage
 * /@/openconfig-metadata:protobuf-metadata
