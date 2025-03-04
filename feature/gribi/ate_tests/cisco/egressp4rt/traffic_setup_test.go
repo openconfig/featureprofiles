@@ -386,14 +386,21 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology,
 	return portid, total
 }
 
-func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap, portval bool, ttl, ttl2 int, inDst, inSrc, outDst, outSrc string, opts ...*Countoptions) (string, string, int) {
+func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap, portval, sourceport bool, ttl, ttl2 int, inDst, inSrc, outDst, outSrc string, opts ...*Countoptions) (string, string, int) {
 
 	//allIntf := top.Interfaces()
 	dut := ondatra.DUT(t, "dut")
-
+	var intfName, intfs string
 	// ATE source endpoint.
 	//srcEndPoint := allIntf[atePort1.IPv4]
-	srcEndPoint := top.Interfaces()[atePort1.Name]
+	if sourceport {
+		intfName = atePort1.Name
+		intfs = "atePort1"
+	} else {
+		intfName = atePort3.Name
+		intfs = "atePort3"
+	}
+	srcEndPoint := top.Interfaces()[intfName]
 
 	// ATE destination endpoints.
 	dstEndPoints := []ondatra.Endpoint{}
@@ -402,7 +409,7 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	//dstEndPoints := a.top.Interfaces()[atePort1.Name]
 
 	for intf, intf_data := range top.Interfaces() {
-		if intf != "atePort1" {
+		if intf != intfs {
 			dstEndPoints = append(dstEndPoints, intf_data)
 		}
 	}
@@ -585,10 +592,10 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	}
 
 	ate.Traffic().Start(t, flow)
-	if count == 6 || count == 22 {
+	if ttl == 1 {
 		fmt.Println("ttttttlllll")
 		time.Sleep(10 * time.Second)
-		//time.Sleep(200000 * time.Minute)
+		//time.Sleep(20 * time.Minute)
 
 	} else {
 		time.Sleep(2 * time.Minute)
@@ -596,6 +603,8 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
 	got := gnmi.Get(t, args.ate, flowPath.LossPct().State())
+	fmt.Println("gooott")
+	fmt.Println(got)
 	if count == 6 || count == 22 {
 		if got != 100 {
 			t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", flow.Name(), got)
