@@ -14,6 +14,7 @@ platform_exceptions: {
     bgp_extended_next_hop_encoding_leaf_unsupported: true
     bgp_global_extended_next_hop_encoding_unsupported: true
     bgp_afi_safi_wildcard_not_supported: true
+
   }
 }
 platform_exceptions: {
