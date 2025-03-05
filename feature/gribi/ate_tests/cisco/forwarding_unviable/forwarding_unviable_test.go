@@ -91,33 +91,6 @@ var (
 	// }
 )
 
-// // configureDUT configures port1 and port2 on the DUT.
-// func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-// 	d := gnmi.OC()
-
-// 	p3 := dut.Port(t, "port3").Name()
-// 	member := gnmi.OC().Interface(p3)
-// 	gnmi.Delete(t, dut, member.Config())
-// 	i3 := dutPort3.NewOCInterface(p3, dut)
-// 	gnmi.Replace(t, dut, d.Interface(p3).Config(), i3)
-
-// }
-
-// // configureATE configures port1 and port2 on the ATE.
-// func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-// 	top := ate.Topology().New()
-
-// 	p1 := ate.Port(t, "port1")
-// 	atePort1.AddToATE(top, p1, &dutPort1)
-
-// 	p2 := ate.Port(t, "port2")
-// 	atePort2.AddToATE(top, p2, &dutPort2)
-
-// 	p3 := ate.Port(t, "port3")
-// 	atePort3.AddToATE(top, p3, &dutPort3)
-// 	return top
-// }
-
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	dut *ondatra.DUTDevice
