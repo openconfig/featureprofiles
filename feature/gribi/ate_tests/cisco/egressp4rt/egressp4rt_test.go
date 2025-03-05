@@ -125,11 +125,11 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	s := &oc.Root{}
 	static := s.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-	ipv4Nh := static.GetOrCreateStatic("0.0.0.0").GetOrCreateNextHop("0")
+	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union("192.0.4.2")
 	gnmi.Update(t, dut, d.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
 
-	ipv6nh := static.GetOrCreateStatic("::/0" + "/128").GetOrCreateNextHop("0")
+	ipv6nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
 	ipv6nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union("192:0:2::16")
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
@@ -1978,14 +1978,14 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			}
 		} else {
 			//inDst = net.ParseIP("2555::")
-			inDst = net.ParseIP("2001:1:")
+			inDst = net.ParseIP("2555::")
 
 			//for i := 8; i < 16; i++ {
 			// "random" is within 2555::/32/16
 			inDst[k] = uint8(rand.Intn(256))
 			//}
 			//inSrc = net.ParseIP("6666::")
-			inSrc = net.ParseIP("6666:1:")
+			inSrc = net.ParseIP("6666::")
 
 			inSrc[k] = uint8(rand.Intn(256))
 			c = 2
