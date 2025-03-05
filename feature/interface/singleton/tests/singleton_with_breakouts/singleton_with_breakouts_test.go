@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package singleton_with_breakouts
+package singleton_with_breakouts_test
 
 import (
 	"context"
