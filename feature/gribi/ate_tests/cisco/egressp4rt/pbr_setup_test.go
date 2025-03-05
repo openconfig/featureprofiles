@@ -166,12 +166,12 @@ func configureIntfPBR(t *testing.T, dut *ondatra.DUTDevice, pbrName, intfName st
 	pfpath.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	intfConfPath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Interface(intfName + ".0")
 
-	gnmi.Update(t, dut, intfConfPath.Config(), &oc.NetworkInstance_PolicyForwarding_Interface{
-		ApplyVrfSelectionPolicy: &pbrName,
-		InterfaceId:             ygot.String(intfName + ".0"),
-	})
+	// gnmi.Update(t, dut, intfConfPath.Config(), &oc.NetworkInstance_PolicyForwarding_Interface{
+	// 	ApplyVrfSelectionPolicy: &pbrName,
+	// 	InterfaceId:             ygot.String(intfName + ".0"),
+	// })
 
-	//gnmi.Update(t, dut, intfConfPath.Config(), pfpath)
+	gnmi.Update(t, dut, intfConfPath.Config(), pfpath)
 }
 
 func configDUT(t *testing.T, dut *ondatra.DUTDevice) {
