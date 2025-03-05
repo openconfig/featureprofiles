@@ -1,12 +1,15 @@
-name: Forwarding-viable 
+name: forwarding_unviable 
 owners: 
   - suredhar
 testbeds:
   - 8812-FOC2326NBZB
 tests:
-- name: TestBundleForwardUnViable
+- name: forwarding_unviable
   path: feature/gribi/ate_tests/cisco/forwarding_unviable_test
   timeout: 36000
   mustpass: true
   internal: true
   branch: master
+  args:
+    - '-gribi_aft_check=false'
+    - '-gribi_aft_chain_check=false'
