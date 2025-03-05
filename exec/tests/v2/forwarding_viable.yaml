@@ -5,7 +5,7 @@ testbeds:
   - 8812-FOC2326NBZB
 tests:
 - name: forwarding_unviable
-  path: feature/gribi/ate_tests/cisco/forwarding_unviable_test
+  path: feature/gribi/ate_tests/cisco/forwarding_unviable
   timeout: 36000
   mustpass: true
   internal: true
@@ -13,3 +13,4 @@ tests:
   args:
     - '-gribi_aft_check=false'
     - '-gribi_aft_chain_check=false'
+    

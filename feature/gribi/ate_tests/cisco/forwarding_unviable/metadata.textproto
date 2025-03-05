@@ -9,4 +9,3 @@ platform_exceptions: {
     gribi_mac_override_with_static_arp: true
   }
 }
-
