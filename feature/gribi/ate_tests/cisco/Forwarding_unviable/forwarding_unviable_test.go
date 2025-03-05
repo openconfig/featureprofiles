@@ -130,6 +130,10 @@ var (
 	rpfo_count = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
 )
 
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 // configure Lag on Dut
 func configureDutLag(t *testing.T, dut *ondatra.DUTDevice) {
 	dutPorts := sortPorts(dut.Ports())
