@@ -1030,6 +1030,8 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	//configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
+	configPBR(t, dut, "PBR", true)
+	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 
 	unconfigbasePBR(t, dut, "PBR", []string{"Bundle-Ether120"})
 
