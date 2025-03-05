@@ -106,7 +106,7 @@ func configPBR(t *testing.T, dut *ondatra.DUTDevice, vrf string, val bool) {
 	p := pf.GetOrCreatePolicy("PBR")
 	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
-	decapVrfSet := []string{vrfDecap, vrfEncapA, "REPAIR"}
+	decapVrfSet := []string{vrfDecap, vrfEncapA, "REPAIRED"}
 	if val {
 		r := p.GetOrCreateRule(1)
 		r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{DecapNetworkInstance: ygot.String(decapVrfSet[0]), PostDecapNetworkInstance: ygot.String(decapVrfSet[1]), DecapFallbackNetworkInstance: ygot.String(decapVrfSet[2])}

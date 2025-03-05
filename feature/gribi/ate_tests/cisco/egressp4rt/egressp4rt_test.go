@@ -994,10 +994,13 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 		}
 	} else if prog == 6 {
 		if deviceSet {
-			defer programmTableEntry(leader, args.packetIO, true, isIPv4, deviceId2)
+			defer programmTableEntry(leader, args.packetIO, true, true, deviceId2)
+			defer programmTableEntry(leader, args.packetIO, true, false, deviceId2)
+
 		}
 		// 	// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, isIPv4, deviceId)
+		defer programmTableEntry(leader, args.packetIO, true, true, deviceId)
+		defer programmTableEntry(leader, args.packetIO, true, false, deviceId)
 
 	}
 
@@ -1026,14 +1029,13 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
+	//configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 
 	unconfigbasePBR(t, dut, "PBR", []string{"Bundle-Ether120"})
 
 	configPBR(t, dut, "TE", false)
 	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
-
-	configvrfInt(t, dut, vrfEncapA, "Loopback22")
+	//configvrfInt(t, dut, vrfEncapA, "Loopback22")
 
 	nh := 1
 	for i := 1; i <= 15; i++ {

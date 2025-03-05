@@ -420,7 +420,12 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 		innerdst = inDst
 	}
 	var fps int
-	if count == 6 || count == 22 {
+	// if count == 6 || count == 22 {
+	// 	fps = 5
+	// } else {
+	// 	fps = 300
+	// }
+	if ttl == 1 {
 		fps = 5
 	} else {
 		fps = 300
