@@ -4,7 +4,7 @@
 uuid: "2beaac46-9b7b-49c4-9bde-62ad530aa5c4"
 plan_id: "RT-2.13"
 description: "Weighted-ECMP for IS-IS"
-testbed: TESTBED_DUT_ATE_8LINKS
+testbed: TESTBED_DUT_ATE_9LINKS_LAG
 platform_exceptions: {
   platform: {
     vendor: ARISTA
