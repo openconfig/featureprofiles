@@ -4,7 +4,7 @@ owners:
 testbeds:
   - 8808_FOX2625PLW8_MGMT_GRPC
 tests:
-- name: OC-PPC (openconfig pipeline counters)
+- name: OC-RES-Utilization (openconfig pipeline counters)
   path: feature/cisco/platform/utilization_test/
   timeout: 36000
   mustpass: true
