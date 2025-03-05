@@ -213,7 +213,7 @@ set inner packet TTL = 1.
                       }
                     },
                     "action": {
-                      "set-ip-ttl": 1  #TODO: Add set-ip-ttl [OC path]
+                      "set-ip-ttl": 1  #TODO: Add set-ip-ttl [https://github.com/openconfig/public/pull/1263/files]
                      }
                   }
                 ]
