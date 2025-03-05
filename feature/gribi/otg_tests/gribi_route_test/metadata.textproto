@@ -1,0 +1,53 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8beaac46-9b7b-49c4-9bde-62ad630aa6c7"
+plan_id: "RT-14.2"
+description: "GRIBI Route Test"
+testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    gribi_mac_override_with_static_arp: true
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true   
+    isis_single_topology_required: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    aggregate_atomic_update: true
+    interface_enabled: true
+    missing_value_for_defaults: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    omit_l2_mtu: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    missing_isis_interface_afi_safi_enable: true
+    isis_require_same_l1_metric_with_l2_metric: true
+    static_protocol_name: "STATIC"
+    aggregate_atomic_update: true
+    missing_value_for_defaults: true
+    max_ecmp_paths: true
+    explicit_interface_in_default_vrf: false
+  }
+}

@@ -108,9 +108,9 @@ var (
 	}
 
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.21",
-		IPv4Len: 30,
+		Desc:       "dutPort2",
+		IPv4Sec:    "192.0.2.21",
+		IPv4LenSec: 30,
 	}
 
 	atePort2DummyIP = attrs.Attributes{
@@ -173,11 +173,6 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
-}
-
-func deleteVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
 }
 
 type policyFwRule struct {
@@ -618,13 +613,8 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 // 198.51.100.1/32 (a) with vrf selection w
 func testRecursiveIPv4EntrywithVrfPolW(t *testing.T, args *testArgs) {
 
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-
-		t.Skip("Skipping Test as it is not supported")
-	}
 	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
 	configNonDefaultNetworkInstance(t, args.dut)
-	deleteVrfSelectionPolicy(t, args.dut)
 	configureVrfSelectionPolicyW(t, args.dut)
 
 	t.Logf("Adding IP %v with NHG %d NH %d with IP %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, atePort2.IPv4)
