@@ -608,7 +608,9 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 		} else {
 			sourceport = false
 			sport = srcport
+			stream = stream2
 		}
+		fmt.Println(sport)
 
 		if len(opts) != 0 {
 			for _, opt := range opts {
@@ -789,16 +791,16 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 		for _, test := range packetInTests {
 
 			t.Run(te+test.desc, func(t *testing.T) {
-				for i := 1; i <= 2; i++ {
+				for i := 1; i <= 1; i++ {
 
-					if i == 2 {
-						if deviceSet {
-							fmt.Println("2nd deviceid getpkts")
-							stream = stream2
-						} else {
-							continue
-						}
-					}
+					// if i == 2 {
+					// 	if deviceSet {
+					// 		fmt.Println("2nd deviceid getpkts")
+					// 		stream = stream2
+					// 	} else {
+					// 		continue
+					// 	}
+					// }
 					// Extract packets from PacketIn message sent to p4rt client
 					//time.Sleep(20000 * time.Minute)
 					_, packets, err := test.client.StreamChannelGetPackets(&stream, uint64(test.wantPkts), 90*time.Second)
@@ -806,13 +808,13 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 					fmt.Println("lengggggth")
 					fmt.Println(s)
 
-					if s == 0 && err != nil {
-						if i == 1 && sport == "port3" {
-							fmt.Println("inside port3 loop")
-							fmt.Println(sport)
-							continue
-						}
-					}
+					// if s == 0 && err != nil {
+					// 	if i == 1 && sport == "port3" {
+					// 		fmt.Println("inside port3 loop")
+					// 		fmt.Println(sport)
+					// 		continue
+					// 	}
+					// }
 
 					if s == 0 && err != nil {
 						if flap == "flap" {
@@ -1290,7 +1292,9 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 		} else {
 			sourceport = false
 			sport = srcport
+			stream = stream2
 		}
+		fmt.Println(sport)
 
 		if len(opts) != 0 {
 			for _, opt := range opts {
@@ -1465,16 +1469,16 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 		for _, test := range packetInTests {
 
 			t.Run(te+test.desc, func(t *testing.T) {
-				for i := 1; i <= 2; i++ {
+				for i := 1; i <= 1; i++ {
 
-					if i == 2 {
-						if deviceSet {
-							fmt.Println("2nd deviceid getpkts")
-							stream = stream2
-						} else {
-							continue
-						}
-					}
+					// if i == 2 {
+					// 	if deviceSet {
+					// 		fmt.Println("2nd deviceid getpkts")
+					// 		stream = stream2
+					// 	} else {
+					// 		continue
+					// 	}
+					// }
 					// Extract packets from PacketIn message sent to p4rt client
 
 					_, packets, err := test.client.StreamChannelGetPackets(&stream, uint64(test.wantPkts), 90*time.Second)
@@ -1482,11 +1486,11 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 					fmt.Println("lengggggth")
 					fmt.Println(s)
 
-					if s == 0 && err != nil {
-						if i == 1 && sport == "port3" {
-							continue
-						}
-					}
+					// if s == 0 && err != nil {
+					// 	if i == 1 && sport == "port3" {
+					// 		continue
+					// 	}
+					// }
 
 					if s == 0 && err != nil {
 						if flap == "flap" {
@@ -2071,7 +2075,9 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		} else {
 			sourceport = false
 			sport = srcport
+			stream = stream2
 		}
+		fmt.Println(sport)
 
 		if len(opts) != 0 {
 			for _, opt := range opts {
@@ -2248,27 +2254,27 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		for _, test := range packetInTests {
 
 			t.Run(te+test.desc, func(t *testing.T) {
-				for i := 1; i <= 2; i++ {
+				for i := 1; i <= 1; i++ {
 
-					if i == 2 {
-						if deviceSet {
-							fmt.Println("2nd deviceid getpkts")
-							stream = stream2
-						} else {
-							continue
-						}
-					}
+					// if i == 2 {
+					// 	if deviceSet {
+					// 		fmt.Println("2nd deviceid getpkts")
+					// 		stream = stream2
+					// 	} else {
+					// 		continue
+					// 	}
+					// }
 					// Extract packets from PacketIn message sent to p4rt client
 					_, packets, err := test.client.StreamChannelGetPackets(&stream, uint64(test.wantPkts), 90*time.Second)
 					s := len(packets)
 					fmt.Println("lengggggth")
 					fmt.Println(s)
 
-					if s == 0 && err != nil {
-						if i == 1 && sport == "port3" {
-							continue
-						}
-					}
+					// if s == 0 && err != nil {
+					// 	if i == 1 && sport == "port3" {
+					// 		continue
+					// 	}
+					// }
 					if s == 0 && err != nil {
 						if flap == "flap" {
 							// if len(opts) != 0 {
