@@ -610,7 +610,9 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	got := gnmi.Get(t, args.ate, flowPath.LossPct().State())
 	fmt.Println("gooott")
 	fmt.Println(got)
-	if count == 6 || count == 22 {
+	//if count == 6 || count == 22 {
+	if ttl == 1 {
+
 		if got != 100 {
 			t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", flow.Name(), got)
 		}

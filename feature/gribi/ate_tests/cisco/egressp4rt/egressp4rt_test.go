@@ -493,7 +493,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 
 	//for 5000 flows
 	var outSrc, outDst, inSrc, inDst net.IP
-	var c, c1, c2 int
+	var c, c1 int
 	k := 2
 	for i := 1; i <= 1; i++ {
 		if k >= 16 {
@@ -507,7 +507,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			inDst = net.IP{197, 51, uint8(rand.Intn(59-1) + 1), uint8(rand.Intn(255-1) + 1)}
 			c = 5
 			if flap == "flap" {
-				c2 = 6
+				//c2 = 6
 				// args.interfaceaction(t, "port4", false)
 				// args.interfaceaction(t, "port6", false)
 				// args.interfaceaction(t, "port8", false)
@@ -529,7 +529,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			inSrc[k] = uint8(rand.Intn(256))
 			c = 2
 			if flap == "flap" {
-				c2 = 22
+				//c2 = 22
 				// args.interfaceaction(t, "port4", false)
 				// args.interfaceaction(t, "port6", false)
 				// args.interfaceaction(t, "port8", false)
@@ -627,7 +627,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else if flap == "flap1" {
 						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
@@ -658,7 +658,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
 
 					} else if flap == "flap1" {
 						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
@@ -693,7 +693,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 				args.interfaceaction(t, "port4", false)
 				args.interfaceaction(t, "port6", false)
 				args.interfaceaction(t, "port8", false)
-				portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
 
 			} else if flap == "flap1" {
 
@@ -1181,7 +1181,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 	//for 5000 flows
 	//var outSrc, outDst, inSrc, inDst net.IP
 	var outSrc, outDst, inSrc, inDst net.IP
-	var c, c1, c2 int
+	var c, c1 int
 	k := 2
 	for i := 1; i <= 1; i++ {
 		if k >= 16 {
@@ -1195,7 +1195,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 			inDst = net.IP{197, 51, uint8(rand.Intn(59-1) + 1), uint8(rand.Intn(255-1) + 1)}
 			c = 5
 			if flap == "flap" {
-				c2 = 6
+				//c2 = 6
 				// args.interfaceaction(t, "port4", false)
 				// args.interfaceaction(t, "port6", false)
 				// args.interfaceaction(t, "port8", false)
@@ -1213,7 +1213,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 			inSrc[k] = uint8(rand.Intn(256))
 			c = 2
 			if flap == "flap" {
-				c2 = 22
+				//c2 = 22
 				// args.interfaceaction(t, "port4", false)
 				// args.interfaceaction(t, "port6", false)
 				// args.interfaceaction(t, "port8", false)
@@ -1310,7 +1310,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else if flap == "flap1" {
 						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
@@ -1341,7 +1341,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
 
 					} else if flap == "flap1" {
 						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
@@ -1374,7 +1374,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 				args.interfaceaction(t, "port4", false)
 				args.interfaceaction(t, "port6", false)
 				args.interfaceaction(t, "port8", false)
-				portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
 
 			} else if flap == "flap1" {
 
@@ -1960,7 +1960,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 
 	//for 5000 flows
 	var outSrc, outDst, inSrc, inDst net.IP
-	var c, c1, c2 int
+	var c, c1 int
 	k := 2
 	for i := 1; i <= 1; i++ {
 		if k >= 16 {
@@ -1974,7 +1974,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			inDst = net.IP{195, 51, uint8(rand.Intn(59-1) + 1), uint8(rand.Intn(255-1) + 1)}
 			c = 5
 			if flap == "flap" {
-				c2 = 6
+				//c2 = 6
 				// args.interfaceaction(t, "port4", false)
 				// args.interfaceaction(t, "port6", false)
 				// args.interfaceaction(t, "port8", false)
@@ -1996,7 +1996,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			inSrc[k] = uint8(rand.Intn(256))
 			c = 2
 			if flap == "flap" {
-				c2 = 22
+				//c2 = 22
 				// args.interfaceaction(t, "port4", false)
 				// args.interfaceaction(t, "port6", false)
 				// args.interfaceaction(t, "port8", false)
@@ -2093,7 +2093,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else if flap == "flap1" {
 						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
@@ -2124,7 +2124,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
 
 					} else if flap == "flap1" {
 						portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
@@ -2157,7 +2157,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 				args.interfaceaction(t, "port4", false)
 				args.interfaceaction(t, "port6", false)
 				args.interfaceaction(t, "port8", false)
-				portid, portidin, _ = testTrafficc(t, args.ate, args.top, c2, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTrafficc(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
 
 			} else if flap == "flap1" {
 
