@@ -739,14 +739,71 @@ tests:
     timeout: 21000
     priority: 65
     owners:
-      - harikri4   
+      - harikri4
+- name: ACCTZ-2.1 (Record Subscribe Partial)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-4.1 (Record History Truncation)
+    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-4.2 (Record Payload Truncation)
+    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
   - name: Credentialz-1 (Password console login)
     path: feature/security/gnsi/credentialz/tests/password_console_login
     mustpass: false
     timeout: 21000
     priority: 65
     owners:
-      - harikri4         
+      - harikri4
+  - name: Credentialz-2 (SSH Password Login Disallowed)
+    path: feature/security/gnsi/credentialz/tests/ssh_password_login_disallowed
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-3 (Host Certificates)
+    path: feature/security/gnsi/credentialz/tests/host_certificates
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-4 (SSH Public Key Authentication)
+    path: feature/security/gnsi/credentialz/tests/ssh_public_key_authentication
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-5 (Hiba Authentication)
+    path: feature/security/gnsi/credentialz/tests/hiba_authentication
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+           
   #?
   - name: Health-1.1 (Generic Health Check)
     path: feature/system/health/tests/system_generic_health_check
@@ -1010,6 +1067,3 @@ tests:
       - mananpat
     mustpass: true
     timeout: 4200
-    
-    
-
