@@ -730,7 +730,20 @@ tests:
       - harikri4
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
-    
+  - name: ACCTZ-1.1 (Record Subscribe Full)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_full
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4   
+  - name: Credentialz-1 (Password console login)
+    path: feature/security/gnsi/credentialz/tests/password_console_login
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4         
   #?
   - name: Health-1.1 (Generic Health Check)
     path: feature/system/health/tests/system_generic_health_check
