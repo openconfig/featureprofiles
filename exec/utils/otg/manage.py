@@ -6,6 +6,7 @@ import shutil
 import yaml
 import json
 import os
+import re
 
 GO_BIN = 'go'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
@@ -17,6 +18,11 @@ MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.
 DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller:'
 DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server:'
 DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server:'
+
+def _check_otg_version(otgContainer,version):
+    if not re.match(r'^\d+\.\d+\.\d+(-\d+)?$', version):
+        print(f'WARNING - The {otgContainer} version might not be valid: {version}, please check the version number format x.y.z or x.y.z-n')
+    return 
 
 def check_output(cmd, **kwargs):
     kwargs['shell'] = True
@@ -244,9 +250,12 @@ testbed_id = args.testbed
 command = args.command
 
 if command == "start":
-    controller = getattr(args, 'controller', 'ghcr.io/open-traffic-generator/keng-controller:1.3.0-2')
-    layer23 = getattr(args, 'layer23', 'ghcr.io/open-traffic-generator/keng-layer23-hw-server:1.3.0-4')
-    gnmi = getattr(args, 'gnmi', 'ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.15')
+    controller = getattr(args, 'controller', '1.3.0-2')
+    _check_otg_version("controller",controller)
+    layer23 = getattr(args, 'layer23', '1.3.0-4')
+    _check_otg_version("layer23",layer23)
+    gnmi = getattr(args, 'gnmi', '1.13.15')
+    _check_otg_version("gnmi",gnmi)
     controller_command = getattr(args, 'controller_command', [])
 else:
     controller = getattr(args, 'controller', None)
