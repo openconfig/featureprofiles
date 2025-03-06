@@ -182,7 +182,7 @@ encapsulate in GRE.
 * Generate traffic from ATE port 1 to ATE port 2
 * Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
 
-
+#TODO: Test code needs to be implemented.
 ### TE-18.1.5 Rewrite the ingress innner packet TTL = 1, if the incoming TTL = 1.
 Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
 set inner packet TTL = 1.
