@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/components"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -155,11 +154,11 @@ func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // GNMIWithText applies the cisco text config using gnmi
 func GNMIWithText(ctx context.Context, t testing.TB, dut *ondatra.DUTDevice, config string) {
-	r := &gnmipb.SetRequest{
-		Update: []*gnmipb.Update{
+	r := &gpb.SetRequest{
+		Update: []*gpb.Update{
 			{
-				Path: &gnmipb.Path{Origin: "cli"},
-				Val:  &gnmipb.TypedValue{Value: &gnmipb.TypedValue_AsciiVal{AsciiVal: config}},
+				Path: &gpb.Path{Origin: "cli"},
+				Val:  &gpb.TypedValue{Value: &gpb.TypedValue_AsciiVal{AsciiVal: config}},
 			},
 		},
 	}
@@ -1103,12 +1102,12 @@ func StartScaledStreams(t *testing.T, dut *ondatra.DUTDevice, numStreams int) *G
 }
 
 // startGNMISubscription starts a single gNMI subscription in a goroutine.
-func (manager *GNMIStreamManager) startGNMISubscription(t *testing.T, gnmiClient gnmipb.GNMIClient, streamID int) {
+func (manager *GNMIStreamManager) startGNMISubscription(t *testing.T, gnmiClient gpb.GNMIClient, streamID int) {
 	defer manager.wg.Done()
 
 	// Define the subscription path
-	path := &gnmipb.Path{
-		Elem: []*gnmipb.PathElem{
+	path := &gpb.Path{
+		Elem: []*gpb.PathElem{
 			{Name: "system"},
 			{Name: "state"},
 			{Name: "current-datetime"},
@@ -1123,18 +1122,18 @@ func (manager *GNMIStreamManager) startGNMISubscription(t *testing.T, gnmiClient
 	}
 
 	// Create the SubscribeRequest
-	subReq := &gnmipb.SubscribeRequest{
-		Request: &gnmipb.SubscribeRequest_Subscribe{
-			Subscribe: &gnmipb.SubscriptionList{
-				Subscription: []*gnmipb.Subscription{
+	subReq := &gpb.SubscribeRequest{
+		Request: &gpb.SubscribeRequest_Subscribe{
+			Subscribe: &gpb.SubscriptionList{
+				Subscription: []*gpb.Subscription{
 					{
 						Path:           path,
-						Mode:           gnmipb.SubscriptionMode_SAMPLE,
+						Mode:           gpb.SubscriptionMode_SAMPLE,
 						SampleInterval: uint64(2 * time.Second.Nanoseconds()), // 2 seconds
 					},
 				},
-				Mode:     gnmipb.SubscriptionList_STREAM,
-				Encoding: gnmipb.Encoding_JSON_IETF,
+				Mode:     gpb.SubscriptionList_STREAM,
+				Encoding: gpb.Encoding_JSON_IETF,
 			},
 		},
 	}
