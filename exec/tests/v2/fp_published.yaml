@@ -327,6 +327,8 @@ tests:
       - arvbaska
     mustpass: true
     priority: 39
+    pr: 1380
+    internal: true
     groups: [Common]    
   - name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection)
     path: feature/policy_forwarding/policy_vrf_selection/otg_tests/protocol_dscp_rules_for_vrf_selection_test
@@ -441,6 +443,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 3756
     priority: 46
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
@@ -852,7 +855,9 @@ tests:
     path: feature/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
-    timeout: 3600  
+    timeout: 3600
+    pr: 1428
+    internal: true
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7    
