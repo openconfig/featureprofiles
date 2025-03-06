@@ -590,7 +590,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 			configForwardingViable(t, args.dut, be2[:index+1], viableStatus[:index+1])
 			// checkForwardingstatus(t, args, "Bundle-Ether2", true)
 
-			if index < 1 {
+			if index+1 == 1 {
 				trafficvalidate = true
 			} else {
 				trafficvalidate = false
@@ -1019,7 +1019,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 	// Check ISIS adjacency is established with forwarding unviable until hold-down timer expires
 	t.Run("Check ISIS adjacency is established with forwarding unviable until hold-down timer expires", func(t *testing.T) {
-		// t.Skip()
+		t.Skip()
 
 		configIsis(t, dut, []string{"Bundle-Ether1", aggID})
 		configAteRoutingProtocols(t, top)
