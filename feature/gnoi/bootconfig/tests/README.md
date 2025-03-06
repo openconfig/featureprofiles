@@ -7,6 +7,7 @@
 ## Procedure
 
 * gNOI-7.1.1 : Validate ability to update the system boot configuration.
+
   1. Call gnoi.bootconfig.BootConfig.GetBootConfig.
   2. Validate that the returned information matches expected initial configuration
   3. Store bootconfig to be able to reset it to initial state at end of test
@@ -18,6 +19,7 @@
   9. Reset bootconfig to orignal state
 
 * gNOI-7.1.2 : Validate gNSI artifacts - Credentialz
+
   1. Call gnoi.bootconfig.BootConfig.GetBootConfig.
   2. Validate that the returned information matches expected initial configuration
   3. Store bootconfig to be able to reset it to initial state at end of test
@@ -42,6 +44,7 @@ passwords {
   10. Reset bootconfig to orginal configuration
 
 * gNOI-7.1.3 : Validate gNSI artifacts - Certz
+
   1. Call gnoi.bootconfig.BootConfig.GetBootConfig.
   2. Validate that the returned information matches expected initial configuration
   3. Store bootconfig to be able to reset it to initial state at end of test
