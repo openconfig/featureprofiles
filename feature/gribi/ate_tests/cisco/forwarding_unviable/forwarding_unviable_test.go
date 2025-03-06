@@ -579,6 +579,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 		checkForwardingClistatus(t, args, "Bundle-Ether2", unviable)
 		checkViablestatus(t, args, be2, []bool{unviable, unviable}, false)
 		checkCefCli(t, args, "ipv4", atePort2.IPv4)
+		configForwardingViable(t, args.dut, be2, []bool{viable, viable})
 	})
 
 	// With bundle interface having 2 members, mark one interface unviable and verify bundle interface is not marked as unviable
@@ -1103,17 +1104,20 @@ func TestBundleForwardUnViable(t *testing.T) {
 		forwardingState := []bool{unviable, viable}
 		var trafficState bool
 		var member []*ondatra.Port
+		var intfState bool
 		for _, state := range forwardingState {
 			t.Logf("Existing the %v member", state)
 			if state == viable {
+				intfState = unviable
 				trafficState = false
 				member = be2[:1]
 			} else {
+				intfState = viable
 				trafficState = true
 				member = be2[1:]
 			}
 			unConfigBundleMember(t, args, member)
-			checkForwardingClistatus(t, args, aggID, state)
+			checkForwardingClistatus(t, args, aggID, intfState)
 			checkIntfstatus(t, args, aggID, "UP")
 			checkViablestatus(t, args, be2, []bool{viable, unviable}, trafficState)
 
@@ -1142,17 +1146,20 @@ func TestBundleForwardUnViable(t *testing.T) {
 		forwardingState := []bool{unviable, viable}
 		var trafficState bool
 		var member []*ondatra.Port
+		var intfState bool
 		for _, state := range forwardingState {
 			t.Logf("Existing the %v member", state)
 			if state == viable {
 				member = be2[:1]
+				intfState = unviable
 				trafficState = false
 			} else {
 				member = be2[1:]
-				trafficState = false
+				intfState = viable
+				trafficState = true
 			}
 			unConfigBundleMember(t, args, member)
-			checkForwardingClistatus(t, args, aggID, state)
+			checkForwardingClistatus(t, args, aggID, intfState)
 			checkIntfstatus(t, args, aggID, "DOWN")
 			checkViablestatus(t, args, be2, []bool{viable, unviable}, trafficState)
 		}
@@ -1207,7 +1214,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 		t.Logf("Configure Forwarding UnViable")
 		configForwardingViable(t, args.dut, be2, []bool{unviable, unviable})
-		checkIntfstatus(t, args, aggID, "UP")
+		checkIntfstatus(t, args, aggID, "DOWN")
 		checkForwardingClistatus(t, args, aggID, unviable)
 		checkViablestatus(t, args, be2, []bool{unviable, unviable}, false)
 
@@ -1235,9 +1242,9 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 		t.Logf("Configure Forwarding unViable on Bundle-Ether3")
 		configForwardingViable(t, args.dut, be3, []bool{unviable, unviable})
-		checkIntfstatus(t, args, "Bundle-Ether3", "UP")
+		checkIntfstatus(t, args, "Bundle-Ether3", "DOWN")
 		checkForwardingClistatus(t, args, "Bundle-Ether3", unviable)
-		checkViablestatus(t, args, be3, []bool{unviable, unviable}, true)
+		checkViablestatus(t, args, be3, []bool{unviable, unviable}, false)
 
 		t.Logf("Configure Forwarding Viable and unViable on Bundle-Ether2")
 		configForwardingViable(t, args.dut, be2, []bool{viable, unviable})
