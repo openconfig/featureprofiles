@@ -26,8 +26,8 @@
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.72.15 2003
-#telnet: RP1 -  telnet 10.85.72.15 2004
+#telnet: RP0 -  telnet 10.85.72.15 2003
+#telnet: RP1 -  telnet 10.85.72.15 2004
 
 ##Exec server:
 #ssh ott1lab-as2
@@ -49,7 +49,7 @@ duts {
   hardware_model: "CISCO-8818"
   name: "8818_DUT"  # Change this to the device hostname.
   config:{
-    gnmi_set_file: "$BASE_CONF_PATH_DUT"
+    gnmi_set_file: "/auto/ops-tool/ws-krinata2/topologies/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto"
   }
   options {
     insecure: false 
@@ -173,8 +173,8 @@ duts {
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.72.15 2001
-#telnet: RP1 -  telnet 10.85.72.15 2002
+#telnet: RP0 -  telnet 10.85.72.15 2001
+#telnet: RP1 -  telnet 10.85.72.15 2002
 
 ##Exec server:
 #ssh ott1lab-as2
@@ -196,7 +196,7 @@ duts {
   vendor: CISCO
   hardware_model: "CISCO-8808"
   config:{
-    gnmi_set_file: "$BASE_CONF_PATH_PEER"
+    gnmi_set_file: "/auto/ops-tool/ws-krinata2/topologies/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig.proto"
   }
 
   options {
