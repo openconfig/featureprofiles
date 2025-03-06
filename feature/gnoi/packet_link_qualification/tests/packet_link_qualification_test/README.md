@@ -35,7 +35,7 @@ zrp links within 1 DUTs.
     *   Issue List qualifications request again.
     *   Verify that the qualification has been deleted successfully by checking
         List response.
-*   Set a device as the NEAR_END (generator) device for Packet Based Link Qual.
+*   Set a port as the NEAR_END (generator) device for Packet Based Link Qual.
     *   Issue gnoi.LinkQualification Create RPC to the device and provide
         following parameters:
         *   Id: A unique identifier for this run of the test
@@ -62,6 +62,17 @@ zrp links within 1 DUTs.
         *   TeardownDuration: The amount time required to bring the interface
             back to pre-test state.
     *       Verify generator interface oper-state is 'TESTING'
+   *   Set another port as the FAR_END (reflector) device for Packet Based Link
+    Qual.
+    *   Issue gnoi.LinkQualification Create RPC to the device and provide
+        following parameters:
+        *   Id: A unique identifier for this run of the test
+        *   InterfaceName: Interface as the interface to be used as a reflector
+            to turn the packet back.
+        *   EndpointType: Qualification_end set as FAR_END.
+        *   RPCSyncedTiming:
+            *   Reflector timers should be same as the ones on the generator.
+        *   Verify reflector interface oper-state is 'TESTING'
 *   Get the result by issuing gnoi.LinkQualification Get RPC to gather the
     result of link qualification. Provide the following parameter:
     *   Id: The identifier used above on the NEAR_END side.
