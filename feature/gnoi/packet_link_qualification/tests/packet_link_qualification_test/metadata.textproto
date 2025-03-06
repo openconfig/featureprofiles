@@ -3,7 +3,7 @@
 
 uuid: "e98e61ec-03cd-4bff-8094-2fc69491962a"
 plan_id: "gNOI-2.1"
-description: "Packet-based Link Qualification"
+description: "Packet-based Link Qualification on 400G ZR Plus links"
 testbed: TESTBED_DUT_400ZR_PLUS
 platform_exceptions: {
   platform: {
