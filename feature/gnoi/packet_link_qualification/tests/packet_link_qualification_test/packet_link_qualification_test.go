@@ -318,7 +318,7 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 }
 
 func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {
-	var minRequiredGeneratorMTU uint64
+	// var minRequiredGeneratorMTU uint64
 	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut) != 0 {
 		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut))
 	}
@@ -341,8 +341,8 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		reflectorTeardownDuration time.Duration
 	}
 
-	var reflectorSetupDuration time.Duration
-	var reflectorTeardownDuration time.Duration
+	// var reflectorSetupDuration time.Duration
+	// var reflectorTeardownDuration time.Duration
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	capabilities, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 	if err != nil {
@@ -350,29 +350,46 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	}
 	ref := capabilities.GetReflector()
 	if pmdLB := ref.GetPmdLoopback(); pmdLB.GetMinSetupDuration().GetSeconds() >= 1 && pmdLB.GetMinTeardownDuration().GetSeconds() >= 1 {
-		reflectorSetupDuration = capabilities.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration()
-		reflectorTeardownDuration = capabilities.GetReflector().GetPmdLoopback().GetMinTeardownDuration().AsDuration()
+		// reflectorSetupDuration = capabilities.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration()
+		// reflectorTeardownDuration = capabilities.GetReflector().GetPmdLoopback().GetMinTeardownDuration().AsDuration()
 	} else if asicLB := ref.GetAsicLoopback(); asicLB.GetMinSetupDuration().GetSeconds() >= 1 && asicLB.GetMinTeardownDuration().GetSeconds() >= 1 {
 		t.Logf("Device supports ASIC loopback reflector mode")
-		reflectorSetupDuration = capabilities.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration()
-		reflectorTeardownDuration = capabilities.GetReflector().GetAsicLoopback().GetMinTeardownDuration().AsDuration()
+		// reflectorSetupDuration = capabilities.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration()
+		// reflectorTeardownDuration = capabilities.GetReflector().GetAsicLoopback().GetMinTeardownDuration().AsDuration()
 	} else {
 		t.Errorf("Reflector MinSetupDuration or MinTeardownDuration is not >=1 for supported mode. Device reflector capabilities")
 	}
 
-	generatorSetupDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinSetupDuration().AsDuration()
-	generatorTeardownDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().AsDuration()
+	// generatorSetupDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinSetupDuration().AsDuration()
+	// generatorTeardownDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().AsDuration()
+
+	generatorPlqResp, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+	t.Logf("LinkQualification().Capabilities(): %v, err: %v", generatorPlqResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+	}
+
+	reflectorPlqResp, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+	t.Logf("LinkQualification().Capabilities(): %v, err: %v", reflectorPlqResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+	}
+
+	genPblqMinSetup := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
+	refPblqMinSetup := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
+	genPblqMinTearDown := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
+	refPblqMinTearDown := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
 
 	plqDuration := &LinkQualificationDuration{
 		generatorpreSyncDuration:  30 * time.Second,
 		reflectorpreSyncDuration:  0 * time.Second,
-		generatorsetupDuration:    generatorSetupDuration,
-		reflectorsetupDuration:    reflectorSetupDuration,
+		generatorsetupDuration:    time.Duration(math.Max(30, genPblqMinSetup)) * time.Second,
+		reflectorsetupDuration:    time.Duration(math.Max(60, refPblqMinSetup)) * time.Second,
 		testDuration:              120 * time.Second,
 		generatorPostSyncDuration: 5 * time.Second,
 		reflectorPostSyncDuration: 10 * time.Second,
-		generatorTeardownDuration: generatorTeardownDuration,
-		reflectorTeardownDuration: reflectorTeardownDuration,
+		generatorTeardownDuration: time.Duration(math.Max(30, genPblqMinTearDown)) * time.Second,
+		reflectorTeardownDuration: time.Duration(math.Max(30, refPblqMinTearDown)) * time.Second,
 	}
 
 	// Create unique IDs for generator and reflector.
