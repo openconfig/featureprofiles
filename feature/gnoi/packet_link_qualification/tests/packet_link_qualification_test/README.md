@@ -1,17 +1,17 @@
-# gNOI-2.1: Packet-based Link Qualification
+# gNOI-2.2: Packet-based Link Qualification on 400G ZR Plus links
 
 ## Summary
 
-Validate gNOI RPC can support packet-based link qualification test for the links
-between 2 DUTs.
+Validate gNOI RPC can support packet-based link qualification test for the 400g
+zrp links within 1 DUTs.
 
 ## Topology
 
-*   dut1:port1 <--> port1:dut2 (port1 as singleton and memberlink)
+*   dut1:port 1 <--> port 2:dut1 (port 1 and 2 as singleton and memberlink)
 
 ## Procedure
 
-*   Connect two vendor devices back to back on 100G bandwidth ports.
+*   Connect port 1 and port 2 of the same DUT.
     *   Validate the link qualification Capabilities response.
         *   MaxHistoricalResultsPerInterface is >= 2.
         *   Time exists.
@@ -42,7 +42,7 @@ between 2 DUTs.
         *   InterfaceName: interface as the interface to be used as generator
             end.
             *   This interface must be connected to the interface chosen on the
-                reflector device using 100G connection.
+                reflector device using 400G connection.
         *   EndpointType: Qualification_end set as NEAR_END with
             PacketGeneratorConfiguration.
     *   Set the following parameters for link qualification service usage:
@@ -62,17 +62,6 @@ between 2 DUTs.
         *   TeardownDuration: The amount time required to bring the interface
             back to pre-test state.
     *       Verify generator interface oper-state is 'TESTING'
-*   Set another device as the FAR_END (reflector) device for Packet Based Link
-    Qual.
-    *   Issue gnoi.LinkQualification Create RPC to the device and provide
-        following parameters:
-        *   Id: A unique identifier for this run of the test
-        *   InterfaceName: Interface as the interface to be used as a reflector
-            to turn the packet back.
-        *   EndpointType: Qualification_end set as FAR_END.
-        *   RPCSyncedTiming:
-            *   Reflector timers should be same as the ones on the generator.
-        *   Verify reflector interface oper-state is 'TESTING'
 *   Get the result by issuing gnoi.LinkQualification Get RPC to gather the
     result of link qualification. Provide the following parameter:
     *   Id: The identifier used above on the NEAR_END side.
@@ -80,7 +69,7 @@ between 2 DUTs.
         *   Ensure that the current_state is QUALIFICATION_STATE_COMPLETED
         *   Ensure that the num_corrupt_packets and num_packets_dropped_by_mmu
             are 0
-        *   Ensure that RPC status code is 0 for succuss.
+        *   Ensure that RPC status code is 0 for success.
         *   Packets sent count matches with packets received.
 
 ## OpenConfig Path and RPC Coverage
