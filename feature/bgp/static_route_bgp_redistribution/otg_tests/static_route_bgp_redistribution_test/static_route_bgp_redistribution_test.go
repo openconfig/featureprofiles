@@ -335,38 +335,28 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	devices := otgConfig.Devices().Items()
 	sortDevicesByName(devices)
 
-	var devPort1, devPort3 gosnappi.Device
-	for _, port := range devices {
-		switch port.Name() {
-		case atePort1.Name:
-			devPort1 = port
-		case atePort3.Name:
-			devPort3 = port
-		}
-	}
-
 	// eBGP v4 session on Port1.
-	bgp := devPort1.Bgp().SetRouterId(atePort1.IPv4)
-	iDut1Ipv4 := devPort1.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	bgp := devices[0].Bgp().SetRouterId(atePort1.IPv4)
+	iDut1Ipv4 := devices[0].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(atePeer1Asn).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 session on Port1.
-	iDut1Ipv6 := devPort1.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	iDut1Ipv6 := devices[0].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(atePeer1Asn).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// iBGP v4 session on Port3.
-	bgp = devPort3.Bgp().SetRouterId(atePort3.IPv4)
-	iDut3Ipv4 := devPort3.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	bgp = devices[2].Bgp().SetRouterId(atePort3.IPv4)
+	iDut3Ipv4 := devices[2].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	iDut3Bgp := bgp.SetRouterId(iDut3Ipv4.Address())
 	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3Ipv4.Name()).Peers().Add().SetName(atePort3.Name + ".BGP4.peer")
 	iDut3Bgp4Peer.SetPeerAddress(iDut3Ipv4.Gateway()).SetAsNumber(atePeer2Asn).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// iBGP v6 session on Port3.
-	iDut3Ipv6 := devPort3.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	iDut3Ipv6 := devices[2].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	iDut3Bgp6Peer := iDut3Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut3Ipv6.Name()).Peers().Add().SetName(atePort3.Name + ".BGP6.peer")
 	iDut3Bgp6Peer.SetPeerAddress(iDut3Ipv6.Gateway()).SetAsNumber(atePeer2Asn).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 	iDut3Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
@@ -618,11 +608,6 @@ func validatePrefixSetRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, isV4 b
 // 1.27.3 setup function
 func redistributeIPv4Static(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	configureTableConnection(t, dut, isV4, !metricPropagate, "", oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
-
-	// Restarting OTG protocols to flush old learnt routes by OTG with MED propagation
-	ate.OTG().StopProtocols(t)
-	ate.OTG().StartProtocols(t)
-	awaitBGPEstablished(t, dut, []string{atePort1.IPv4, atePort3.IPv4, atePort1.IPv6, atePort3.IPv6})
 }
 
 // 1.27.3 validation function
@@ -645,11 +630,6 @@ func validateRedistributeIPv4StaticWithMetricPropagation(t *testing.T, dut *onda
 // 1.27.14 setup function
 func redistributeIPv6Static(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	configureTableConnection(t, dut, !isV4, !metricPropagate, "", oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
-
-	// Restarting OTG protocols to flush old learnt routes by OTG with MED propagation
-	ate.OTG().StopProtocols(t)
-	ate.OTG().StartProtocols(t)
-	awaitBGPEstablished(t, dut, []string{atePort1.IPv4, atePort3.IPv4, atePort1.IPv6, atePort3.IPv6})
 }
 
 // 1.27.14 validation function
@@ -1360,9 +1340,20 @@ func validateLearnedIPv4Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == subnet {
 				found = true
 				t.Logf("Prefix received on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), subnet)
-				t.Logf("Prefix MED %d", bgpPrefix.GetMultiExitDiscriminator())
 
-				if gotMed = bgpPrefix.GetMultiExitDiscriminator(); gotMed == expectedMED {
+				// When metric-propagation is disabled, MED is not included in the route update, thus that leaf stop showing up under
+				// subscription and due to that WatchAll still holds old value. Here we re-query the MED and udpate it to zero if MED leaf
+				// is not present.
+				medVal := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(), bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).MultiExitDiscriminator().State())
+
+				if !medVal.IsPresent() {
+					gotMed = 0
+				} else {
+					gotMed, _ = medVal.Val()
+				}
+				t.Logf("Prefix MED %d", gotMed)
+
+				if gotMed == expectedMED {
 					medMatched = true
 					return true
 				}
@@ -1395,9 +1386,20 @@ func validateLearnedIPv6Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == subnet {
 				found = true
 				t.Logf("Prefix received on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), subnet)
-				t.Logf("Prefix MED %d", bgpPrefix.GetMultiExitDiscriminator())
 
-				if gotMed = bgpPrefix.GetMultiExitDiscriminator(); gotMed == expectedMED {
+				// When metric-propagation is disabled, MED is not included in the route update, thus that leaf stop showing up under
+				// subscription and due to that WatchAll still holds old value. Here we re-query the MED and udpate it to zero if MED leaf
+				// is not present.
+				medVal := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(), bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).MultiExitDiscriminator().State())
+
+				if !medVal.IsPresent() {
+					gotMed = 0
+				} else {
+					gotMed, _ = medVal.Val()
+				}
+				t.Logf("Prefix MED %d", gotMed)
+
+				if gotMed == expectedMED {
 					medMatched = true
 					return true
 				}
