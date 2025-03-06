@@ -22,3 +22,11 @@ platform_exceptions: {
     gnmi_get_on_root_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    gnmi_get_on_root_unsupported: true
+  }
+}
