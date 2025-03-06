@@ -1680,6 +1680,8 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
+	configPBR(t, dut, "PBR", true)
+
 	unconfigbasePBR(t, dut, "PBR", []string{"Bundle-Ether120"})
 
 	configPBR(t, dut, "PBR", true)
@@ -1978,7 +1980,7 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			}
 		} else {
 			//inDst = net.ParseIP("2555::")
-			inDst = net.ParseIP("2555::")
+			inDst = net.ParseIP("2005::")
 
 			//for i := 8; i < 16; i++ {
 			// "random" is within 2555::/32/16
