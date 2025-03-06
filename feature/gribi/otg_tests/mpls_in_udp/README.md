@@ -184,6 +184,7 @@ encapsulate in GRE.
 
 ### TE-18.1.5 Rewrite the ingress innner packet TTL = 1, if the incoming TTL = 1.
 **[TODO]** Test code needs to be implemented.
+
 Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
 set inner packet TTL = 1.
 
