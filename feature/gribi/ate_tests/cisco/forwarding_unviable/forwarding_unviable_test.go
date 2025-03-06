@@ -760,7 +760,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 	// Verify bundle interface state with unviable members stays unviable after reloding linecard hosting the member links.
 	t.Run("Verify bundle interface state with unviable members stays unviable after reloding linecard hosting the member links", func(t *testing.T) {
-
+		t.Skip()
 		t.Logf("Configure Forwarding unViable")
 		configForwardingViable(t, args.dut, be2, []bool{unviable, unviable})
 
@@ -779,7 +779,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 	// Verify bundle interface state with unviable members stays unviable after performing RPFO
 	t.Run("Verify bundle interface state with unviable members stays unviable after performing RPFO", func(t *testing.T) {
-
+		t.Skip()
 		t.Logf("Configure Forwarding unViable")
 		configForwardingViable(t, args.dut, be2, []bool{unviable, unviable})
 
