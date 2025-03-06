@@ -580,7 +580,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 		checkViablestatus(t, args, be2, []bool{unviable, unviable}, false)
 		checkCefCli(t, args, "ipv4", atePort2.IPv4)
 	})
-	t.Skip()
+
 	// With bundle interface having 2 members, mark one interface unviable and verify bundle interface is not marked as unviable
 	t.Run("With bundle interface having 2 members, mark one interface unviable and verify bundle interface is not marked as unviable", func(t *testing.T) {
 		viableStatus := []bool{unviable, unviable}
@@ -1019,7 +1019,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 	// Check ISIS adjacency is established with forwarding unviable until hold-down timer expires
 	t.Run("Check ISIS adjacency is established with forwarding unviable until hold-down timer expires", func(t *testing.T) {
-		t.Skip()
+		// t.Skip()
 
 		configIsis(t, dut, []string{"Bundle-Ether1", aggID})
 		configAteRoutingProtocols(t, top)
