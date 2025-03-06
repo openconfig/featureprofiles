@@ -33,7 +33,6 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -613,4 +612,3 @@ func TestLinkQualification(t *testing.T) {
 		})
 	}
 }
-
