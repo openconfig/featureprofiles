@@ -72,11 +72,6 @@ pipeline {
         persistentText(name: 'Test args', defaultValue: '', description: 'List of test args, one per line')
         persistentText(name: 'Test env', defaultValue: '', description: 'List of test env, one per line in "key: value" format')
 
-        separator(sectionHeader: "OTG image options")
-        persistentString(name: 'keng-controller', defaultValue: '1.3.0-2', description: 'Specify keng-controller version', trim: true)
-        persistentString(name: 'keng-layer23-hw-server', defaultValue: '1.3.0-4', description: 'Specify keng layer23 hw server version', trim: true)
-        persistentString(name: 'otg-gnmi-server', defaultValue: '1.13.15', description: 'Specify otg-gnmi-server version', trim: true)
-
         separator(sectionHeader: "Test Execution")
         persistentBoolean(name: 'Verbose Mode', defaultValue: true, description: 'Run test in verbose mode (i.e., -v 5 -alsologtostderr)')
         persistentBoolean(name: 'Collect DUT Info', defaultValue: true, description: 'Allow Ondatra to collect DUT information (i.e., collect_dut_info=true)')
@@ -121,7 +116,12 @@ pipeline {
         persistentBoolean(name: 'Decomission testbeds', defaultValue: false, description: 'Decomission testbeds after each test. This option makes sure the TB is "recycled" between each test. For sim runs, this ensures that a new sim is brought up for each test.')
         persistentString(name: 'Number of FireX workers', defaultValue: '', description: 'The number of FireX workers to launch. This is the number of tests that can execute in parallel (subject to testbed availability). Defaults to the number of testbeds.', trim: true)
         persistentString(name: 'Extra FireX Args', defaultValue: '', description: '', trim: true)
-        
+
+        separator(sectionHeader: "OTG image options")
+        persistentString(name: 'keng-controller', defaultValue: '1.3.0-2', description: 'Specify keng-controller version', trim: true)
+        persistentString(name: 'keng-layer23-hw-server', defaultValue: '1.3.0-4', description: 'Specify keng layer23 hw server version', trim: true)
+        persistentString(name: 'otg-gnmi-server', defaultValue: '1.13.15', description: 'Specify otg-gnmi-server version', trim: true)
+
     }
 
     stages {        
