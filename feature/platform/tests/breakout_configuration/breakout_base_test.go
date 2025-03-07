@@ -1,4 +1,4 @@
-package breakout_configuration
+package breakoutConfiguration
 
 import (
 	"context"
