@@ -720,7 +720,7 @@ func configureDUTWithTunnelInterface(t *testing.T, dut *ondatra.DUTDevice, tunne
 	i := &oc.Interface{Name: ygot.String(tunnelInterfaceName)}
 	i.Type = oc.IETFInterfaces_InterfaceType_tunnel
 	subInterface := i.GetOrCreateSubinterface(subInterfaceIndex)
-	v4 :=subInterface.GetOrCreateIpv4()
+	v4 := subInterface.GetOrCreateIpv4()
 	v4.SetMtu(mtu)
 	v4Address := v4.GetOrCreateAddress(greTunnelInterface.IPv4)
 	v4Address.PrefixLength = ygot.Uint8(greTunnelInterface.IPv4Len)
@@ -732,7 +732,23 @@ func configureDUTWithTunnelInterface(t *testing.T, dut *ondatra.DUTDevice, tunne
 	if deviations.GreGueTunnelInterfaceOcUnsupported(dut) {
 		configureTunnelInterface(t, tunnelInterfaceName, subInterfaceIndex, loopBackInterface.IPv4, tunnelInterfaceDst.IPv4, dut, tunnelType, ttl)
 	}
-	verifyDUTPort(t, dut, tunnelInterfaceName)
+	configuredIpv4SubInterfaceMtu := gnmi.Get(t, dut, gnmi.OC().Interface(tunnelInterfaceName).Subinterface(subInterfaceIndex).Ipv4().Mtu().State())
+	configuredIpv6SubInterfaceMtu := gnmi.Get(t, dut, gnmi.OC().Interface(tunnelInterfaceName).Subinterface(subInterfaceIndex).Ipv6().Mtu().State())
+	expectedSuBInterfaceMtu := mtu
+
+	if int(configuredIpv4SubInterfaceMtu) != expectedSuBInterfaceMtu {
+		t.Errorf(
+			"dut %s configured mtu is incorrect, got: %d, want: %d",
+			dut.Name(), configuredIpv4SubInterfaceMtu, expectedSuBInterfaceMtu,
+		)
+	}
+
+	if int(configuredIpv6SubInterfaceMtu) != expectedSuBInterfaceMtu {
+		t.Errorf(
+			"dut %s configured mtu is incorrect, got: %d, want: %d",
+			dut.Name(), configuredIpv6SubInterfaceMtu, expectedSuBInterfaceMtu,
+		)
+	}
 }
 
 func configureTunnelRouting(t *testing.T, dut *ondatra.DUTDevice) {
