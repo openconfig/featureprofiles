@@ -1,4 +1,4 @@
-# proto-file: 
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
 # 1 DUT, 2 port, 400ZR_PLUS optics
