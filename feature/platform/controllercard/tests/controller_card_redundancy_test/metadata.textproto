@@ -3,7 +3,7 @@
 
 uuid: "00677f4f-a6f9-4669-8ae8-7aa2d1ea75d5"
 plan_id: "gNMI-1.17"
-description: "Controller Card redundancy test"
+description: "Controller card redundnacy test"
 testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
