@@ -16,7 +16,6 @@
 package import_export_multi_test
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -29,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -481,11 +479,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	}
 
 	// Configure my_aspath: [ "65512" ] to match_aspath_set_med statement
-	if deviations.BgpAspathsetUnsupported(dut) {
-		configureAsPolicy(t, dut)
-		stmt5.GetOrCreateConditions().SetCallPolicy("multiPolicy-native")
-
-	} else {
+	if !deviations.BgpAspathsetUnsupported(dut) {
 		myAspath := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(myAsPathName)
 		myAspath.SetAsPathSetMember([]string{strconv.Itoa(int(cfgplugins.AteAS2))})
 
@@ -892,60 +886,6 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 	if !foundPrefix {
 		t.Errorf("Prefix %v not received on OTG", ipAddr)
 	}
-}
-
-// configureAsPolicy is used to configure vendor specific config statement.
-func configureAsPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	var config string
-	gnmiClient := dut.RawAPIs().GNMI(t)
-
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		config = juniperCLI()
-		t.Logf("Push the CLI config:%s", dut.Vendor())
-	}
-
-	gpbSetRequest, err := buildCliConfigRequest(config)
-	if err != nil {
-		t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
-	}
-
-	if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
-}
-
-// Build config with Origin set to cli and Ascii encoded config.
-func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-				Elem:   []*gpb.PathElem{},
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: config,
-				},
-			},
-		}},
-	}
-	return gpbSetRequest, nil
-}
-
-// juniperCLI returns Juniper CLI config statement.
-func juniperCLI() string {
-	return fmt.Sprintf(`
-	policy-options {
-		policy-statement %s-native {
-			term %s {
-				from as-path test1;
-				then accept;
-			}
-		}
-		as-path test1 ".*65512.*";
-	}`, parentPolicy, matchAspathSetMedStatement)
 }
 
 // TestImportExportMultifacetMatchActionsBGPPolicy covers RT-7.11
