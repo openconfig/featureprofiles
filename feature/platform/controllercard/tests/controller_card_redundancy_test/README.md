@@ -1,4 +1,4 @@
-# gNMI-1.17: Controller card redundanacy test
+# gNMI-1.17: Controller card redundancy test
 
 ## Summary
 - collect inventory data for each controller card
