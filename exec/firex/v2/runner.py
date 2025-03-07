@@ -560,6 +560,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         testbed_checks=False,
                         smus=None,
                         ):
+    print(f'Bringing up testbed..., with keng_controller {keng_controller}, keng_layer23_hw_server {keng_layer23_hw_server}, otg_gnmi_server {otg_gnmi_server}')
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,

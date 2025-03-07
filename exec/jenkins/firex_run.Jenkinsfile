@@ -118,9 +118,9 @@ pipeline {
         persistentString(name: 'Extra FireX Args', defaultValue: '', description: '', trim: true)
 
         separator(sectionHeader: "OTG image options")
-        persistentString(name: 'keng-controller', defaultValue: '1.3.0-2', description: 'Specify keng-controller version', trim: true)
-        persistentString(name: 'keng-layer23-hw-server', defaultValue: '1.3.0-4', description: 'Specify keng layer23 hw server version', trim: true)
-        persistentString(name: 'otg-gnmi-server', defaultValue: '1.13.15', description: 'Specify otg-gnmi-server version', trim: true)
+        persistentString(name: 'keng_controller', defaultValue: '1.3.0-2', description: 'Specify keng-controller version', trim: true)
+        persistentString(name: 'keng_layer23_hw_server', defaultValue: '1.3.0-4', description: 'Specify keng layer23 hw server version', trim: true)
+        persistentString(name: 'otg_gnmi_server', defaultValue: '1.13.15', description: 'Specify otg-gnmi-server version', trim: true)
 
     }
 
