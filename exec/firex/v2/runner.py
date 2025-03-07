@@ -560,10 +560,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         testbed_checks=False,
                         smus=None,
                         ):
-    print('keng_controller', keng_controller)
-    print('keng_layer23_hw_server', keng_layer23_hw_server) 
-    print('otg_gnmi_server', otg_gnmi_server)
-    
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
@@ -580,7 +576,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         testbeds.remove(reserved_testbed["id"])
 
         c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
-                    otg_gnmi_server=otg_gnmi_server,
+                    reserved_testbed=reserved_testbed,
                     **self.abog)
 
         using_sim = reserved_testbed.get('sim', False) 
@@ -617,10 +613,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
 
         if is_otg:
             try:
-                c |= BringupIxiaController.s(                    
-                    reserved_testbed=reserved_testbed,
-                    keng_controller=keng_controller,
-                    keng_layer23_hw_server=keng_layer23_hw_server,)
+                c |= BringupIxiaController.s(keng_controller=keng_controller, keng_layer23_hw_server=keng_layer23_hw_server, otg_gnmi_server=otg_gnmi_server)
             except Exception as e:
                 _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
                 raise e
