@@ -19,17 +19,17 @@ import (
 	"testing"
 	"time"
 
-       "github.com/openconfig/featureprofiles/internal/args"
-       "github.com/openconfig/featureprofiles/internal/components"
-       "github.com/openconfig/featureprofiles/internal/deviations"
-       "github.com/openconfig/featureprofiles/internal/fptest"
-       "github.com/openconfig/ondatra"
-       "github.com/openconfig/ondatra/gnmi"
-       "github.com/openconfig/ondatra/gnmi/oc"
-       spb "github.com/openconfig/gnoi/system"
-       tpb "github.com/openconfig/gnoi/types"
-       "github.com/openconfig/testt"
-       "github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
