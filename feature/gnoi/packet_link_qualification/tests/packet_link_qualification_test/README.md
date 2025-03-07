@@ -3,7 +3,7 @@
 ## Summary
 
 Validate gNOI RPC can support packet-based link qualification test for the 400g
-zrp links within 1 DUTs.
+and 100g links within 1 DUTs.
 
 ## Topology
 
