@@ -612,8 +612,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
             c |= ReleaseIxiaPorts.s()
 
         if is_otg:
-            c |= BringupIxiaController.s(keng_controller,keng_layer23_hw_server,otg_gnmi_server)
-
+            try:
+                c |= BringupIxiaController.s(keng_controller=keng_controller,keng_layer23_hw_server=keng_layer23_hw_server,otg_gnmi_server=otg_gnmi_server)
+            except Exception as e:
+                _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+                raise e
         if not using_sim:
             if testbed_checks:
                 c |= CheckTestbed.s(tgen=is_tgen, otg=is_otg)
@@ -1627,9 +1630,10 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
     # TODO: delete this line
-    logger.print(f"reserved_testbed [{reserved_testbed}]")
+    logger.print(f"BringupIxiaController, reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
+    logger.print(f'the controller images are keng_controller: {keng_controller}, keng_layer23: {keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}')
     _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server)
 
     conn_args = {}
