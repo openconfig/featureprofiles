@@ -218,7 +218,7 @@ Verify:
 
 
 ## OpenConfig Path Coverage
-TODO: Finalize and update the below paths after the review and testing on atlease one vendor device.
+TODO: Finalize and update the below paths after the review and testing on any vendor device.
 
 ### JSON Format
 ```
