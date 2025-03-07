@@ -72,6 +72,11 @@ pipeline {
         persistentText(name: 'Test args', defaultValue: '', description: 'List of test args, one per line')
         persistentText(name: 'Test env', defaultValue: '', description: 'List of test env, one per line in "key: value" format')
 
+        separator(sectionHeader: "OTG image options")
+        persistentString(name: 'keng-controller', defaultValue: '1.3.0-2', description: 'Specify keng-controller version', trim: true)
+        persistentString(name: 'keng-layer23-hw-server', defaultValue: '1.3.0-4', description: 'Specify keng layer23 hw server version', trim: true)
+        persistentString(name: 'otg-gnmi-server', defaultValue: '1.13.15', description: 'Specify otg-gnmi-server version', trim: true)
+
         separator(sectionHeader: "Test Execution")
         persistentBoolean(name: 'Verbose Mode', defaultValue: true, description: 'Run test in verbose mode (i.e., -v 5 -alsologtostderr)')
         persistentBoolean(name: 'Collect DUT Info', defaultValue: true, description: 'Allow Ondatra to collect DUT information (i.e., collect_dut_info=true)')
@@ -417,7 +422,10 @@ pipeline {
                                     firex_cmd_parts.add("--comps ${params['XR Components']}")
                                 }
                             }
-
+                            firex_cmd_parts.add("--keng_controller ${params['keng_controller']}")
+                            firex_cmd_parts.add("--keng_layer23_hw_server ${params['keng_layer23_hw_server']}")
+                            firex_cmd_parts.add("--otg_gnmi_server ${params['otg_gnmi_server']}")
+                            
                             firex_cmd_parts.add("--collect_debug_files ${params['Collect Debug Files']}")
                             firex_cmd_parts.add("--collect_dut_info ${params['Collect DUT Info']}")
                             firex_cmd_parts.add("--test_verbose ${params['Verbose Mode']}")
