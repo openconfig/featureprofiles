@@ -371,6 +371,32 @@ func TestEgressp4rt(t *testing.T) {
 				}
 			}
 			args.client = &clientr
+			time.Sleep(6 * time.Minute)
+
+			leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+			if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+				t.Fatalf("Could not initialize p4rt client: %v", err)
+			}
+
+			follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+			if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+				t.Fatalf("Could not initialize p4rt client: %v", err)
+			}
+
+			if err := setupP4RTClient(ctx, args, deviceId, stream); err != nil {
+				t.Fatalf("Could not setup p4rt client: %v", err)
+			}
+			if P4rtNode != P4rtNode2 {
+				fmt.Println(P4rtNode)
+				fmt.Println("2nd deviceid setup")
+				if err := setupP4RTClient(ctx, args, deviceId2, stream2); err != nil {
+					t.Fatalf("Could not setup p4rt client: %v", err)
+				}
+				deviceSet = true
+			} else {
+				deviceSet = false
+			}
+
 		}
 		var srcport string
 		for j := 1; j <= 2; j++ {
