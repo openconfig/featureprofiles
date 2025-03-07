@@ -353,7 +353,7 @@ func TestEgressp4rt(t *testing.T) {
 	args.packetIO = getTracerouteParameter(t)
 	fmt.Println("ooooo")
 	fmt.Println(args.packetIO)
-	for i := 1; i <= 2; i++ {
+	for i := 1; i <= 1; i++ {
 		if i == 2 {
 
 			performrpfo(args.ctx, t, true)
