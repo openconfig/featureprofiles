@@ -20,7 +20,7 @@ This test requires a DUT with the following setup
 
 ### RT-8.2 - Reboot test:
 * Reboot DUT
-* Repeat the test in RT-6.1 above.
+* Repeat the test in RT-8.1 above.
 
 ## Config Parameter coverage
 *   /components/component/port/breakout-mode/groups/group/index
