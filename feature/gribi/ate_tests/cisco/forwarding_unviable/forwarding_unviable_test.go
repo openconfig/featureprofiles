@@ -1156,7 +1156,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 			} else {
 				member = be2[1:]
 				intfState = viable
-				trafficState = true
+				trafficState = false
 			}
 			unConfigBundleMember(t, args, member)
 			checkForwardingClistatus(t, args, aggID, intfState)
@@ -1208,13 +1208,13 @@ func TestBundleForwardUnViable(t *testing.T) {
 		// Configure Forwarding Viable
 		t.Logf("Configure Forwarding Viable")
 		configForwardingViable(t, args.dut, be2, []bool{viable, viable})
-		checkIntfstatus(t, args, aggID, "UP")
+		checkIntfstatus(t, args, aggID, "DOWN")
 		checkForwardingClistatus(t, args, aggID, viable)
-		checkViablestatus(t, args, be2, []bool{viable, viable}, true)
+		checkViablestatus(t, args, be2, []bool{viable, viable}, false)
 
 		t.Logf("Configure Forwarding UnViable")
 		configForwardingViable(t, args.dut, be2, []bool{unviable, unviable})
-		checkIntfstatus(t, args, aggID, "DOWN")
+		checkIntfstatus(t, args, aggID, "UP")
 		checkForwardingClistatus(t, args, aggID, unviable)
 		checkViablestatus(t, args, be2, []bool{unviable, unviable}, false)
 
@@ -1255,11 +1255,11 @@ func TestBundleForwardUnViable(t *testing.T) {
 		for index, port := range be2 {
 			ConfigBundleMember(t, args, "Bundle-Ether3", []*ondatra.Port{port})
 			if index == 0 {
-				checkForwardingClistatus(t, args, "Bundle-Ether3", unviable)
-				checkForwardingClistatus(t, args, "Bundle-Ether2", viable)
-			} else {
 				checkForwardingClistatus(t, args, "Bundle-Ether3", viable)
 				checkForwardingClistatus(t, args, "Bundle-Ether2", unviable)
+			} else {
+				checkForwardingClistatus(t, args, "Bundle-Ether3", unviable)
+				checkForwardingClistatus(t, args, "Bundle-Ether2", viable)
 			}
 			ConfigBundleMember(t, args, "Bundle-Ether2", be2)
 		}
@@ -1268,6 +1268,16 @@ func TestBundleForwardUnViable(t *testing.T) {
 			unConfigBundleMember(t, args, be3)
 			t.Log("Unconfigure the Forwarding Viable")
 			unConfigViable(t, args, be3)
+
+			incoming := &oc.Interface{Name: ygot.String("Bundle-Ether3")}
+			gnmi.Replace(t, dut, gnmi.OC().Interface(*incoming.Name).Config(), configInterfaceDUT(dut, incoming, &dutPort3))
+
+			// configure bundle member to bundle3
+			for _, port := range be3 {
+				dutDest := generateBundleMemberInterfaceConfig(port.Name(), *incoming.Name)
+				gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), dutDest)
+			}
+			time.Sleep(1 * time.Minute)
 		})
 
 	})
@@ -1275,15 +1285,6 @@ func TestBundleForwardUnViable(t *testing.T) {
 	// With bundle3 having one viable member and bundle2 having one unviable and one unviable member, verify bundle3 interface stays viable when the viable member from bundle2 is added to it. verify bundle2 goes unviable in the absence of the viable member.
 	// With bundle3 having one viable member and bundle2 having one unviable and one unviable member, verify bundle3 interface stays viable when the unviable member from bundle2 is added to it. verify bundle2 stays viable.
 	t.Run("With bundle3 having one viable members and bundle2 having one unviable and one viable member, verify bundle3 interface stays unviable when the unviable member from bundle2 is added to it. verify bundle2 stays viable", func(t *testing.T) {
-
-		incoming := &oc.Interface{Name: ygot.String("Bundle-Ether3")}
-		gnmi.Replace(t, dut, gnmi.OC().Interface(*incoming.Name).Config(), configInterfaceDUT(dut, incoming, &dutPort3))
-
-		// configure bundle member to bundle1
-		for _, port := range be3 {
-			dutDest := generateBundleMemberInterfaceConfig(port.Name(), *incoming.Name)
-			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Config(), dutDest)
-		}
 
 		t.Logf("Configure Forwarding unViable on Bundle-Ether3")
 		configForwardingViable(t, args.dut, be3, []bool{viable, unviable})
