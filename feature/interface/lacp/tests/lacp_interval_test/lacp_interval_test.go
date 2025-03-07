@@ -56,7 +56,7 @@ const (
 
 var (
 	dut1Src = attrs.Attributes{
-		Desc:    "dutsrc",
+		Desc:    "dutdut",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: plen4,
@@ -77,6 +77,7 @@ type testCase struct {
 	lagType      oc.E_IfAggregate_AggregationType
 	dut1         *ondatra.DUTDevice
 	dut2         *ondatra.DUTDevice
+	desc         string
 	lacpInterval oc.E_Lacp_LacpPeriodType
 
 	// dutPorts is the set of ports the DUT -- the first (i.e., dutPorts[0])
@@ -148,19 +149,11 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-func (tc *testCase) verifyAggID1(t *testing.T, dp *ondatra.Port) {
+func (tc *testCase) verifyAggID(t *testing.T, dp *ondatra.Port, dut *ondatra.DUTDevice) {
 	dip := gnmi.OC().Interface(dp.Name())
-	di1 := gnmi.Get(t, tc.dut1, dip.State())
-	if lagID1 := di1.GetEthernet().GetAggregateId(); lagID1 != tc.aggID {
-		t.Errorf("%s LagID got %v, want %v", dp, lagID1, tc.aggID)
-	}
-}
-
-func (tc *testCase) verifyAggID2(t *testing.T, dp *ondatra.Port) {
-	dip := gnmi.OC().Interface(dp.Name())
-	di2 := gnmi.Get(t, tc.dut2, dip.State())
-	if lagID2 := di2.GetEthernet().GetAggregateId(); lagID2 != tc.aggID {
-		t.Errorf("%s LagID got %v, want %v", dp, lagID2, tc.aggID)
+	di := gnmi.Get(t, dut, dip.State())
+	if lagID := di.GetEthernet().GetAggregateId(); lagID != tc.aggID {
+		t.Errorf("%s LagID got %v, want %v", dp, lagID, tc.aggID)
 	}
 }
 
@@ -281,53 +274,36 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 	gnmi.Await(t, tc.dut1, gnmi.OC().Interface(tc.aggID).Type().State(), time.Minute, ieee8023adLag)
 
 	for _, port := range tc.dut1Ports {
-		t.Run(fmt.Sprintf("%s [member]", port.ID()), func(t *testing.T) {
-			tc.verifyInterfaceDUT1(t, port)
-			tc.verifyAggID1(t, port)
-		})
+		tc.verifyInterfaceDUT(t, port, tc.dut1)
+		tc.verifyAggID(t, port, tc.dut1)
 	}
 	for _, port := range tc.dut2Ports {
-		t.Run(fmt.Sprintf("%s [member]", port.ID()), func(t *testing.T) {
-			tc.verifyInterfaceDUT2(t, port)
-			tc.verifyAggID2(t, port)
-		})
+		tc.verifyInterfaceDUT(t, port, tc.dut2)
+		tc.verifyAggID(t, port, tc.dut2)
 	}
-	LACPIntervals := gnmi.OC().Lacp().Interface(tc.aggID).Interval()
-	LACPIntervalDUT1 := gnmi.Get(t, tc.dut1, LACPIntervals.State())
-	LACPIntervalDUT2 := gnmi.Get(t, tc.dut2, LACPIntervals.State())
-	if LACPIntervalDUT1 != LACPIntervalDUT2 {
-		t.Errorf("LACP Interval is not same on both the DUTs, DUT1: %v, DUT2: %v", LACPIntervalDUT1, LACPIntervalDUT2)
+	lacpIntervals := gnmi.OC().Lacp().Interface(tc.aggID).Interval()
+	lacpIntervalDUT1 := gnmi.Get(t, tc.dut1, lacpIntervals.State())
+	lacpIntervalDUT2 := gnmi.Get(t, tc.dut2, lacpIntervals.State())
+	if IntervalDUT1 != lacpIntervalDUT2 {
+		t.Errorf("LACP Interval is not same on both the DUTs, DUT1: %v, DUT2: %v", lacpIntervalDUT1, lacpIntervalDUT2)
 	}
-	if LACPIntervalDUT1 != tc.lacpInterval {
-		t.Errorf("LACP Interval is not same as configured, got: %v, want: %v", LACPIntervalDUT1, tc.lacpInterval)
+	if lacpIntervalDUT1 != tc.lacpInterval {
+		t.Errorf("LACP Interval is not same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
 	}
-	t.Logf("LACP Interval is same as configured, got: %v, want: %v", LACPIntervalDUT1, tc.lacpInterval)
+	t.Logf("LACP Interval is same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
 }
 
-func (tc *testCase) verifyInterfaceDUT1(t *testing.T, dp *ondatra.Port) {
+func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port, dut *ondatra.DUTDevice) {
 	dip := gnmi.OC().Interface(dp.Name())
-	di1 := gnmi.Get(t, tc.dut1, dip.State())
-	fptest.LogQuery(t, dp.String()+" before Await", dip.State(), di1)
+	di := gnmi.Get(t, dut, dip.State())
+	fptest.LogQuery(t, dp.String()+" before Await", dip.State(), di)
 
-	if got := di1.GetAdminStatus(); got != adminUp {
+	if got := di.GetAdminStatus(); got != adminUp {
 		t.Errorf("%s admin-status got %v, want %v", dp, got, adminUp)
 	}
 
 	// LAG members may fall behind, so wait for them to be up.
 	gnmi.Await(t, tc.dut1, dip.OperStatus().State(), time.Minute, opUp)
-}
-
-func (tc *testCase) verifyInterfaceDUT2(t *testing.T, dp *ondatra.Port) {
-	dip := gnmi.OC().Interface(dp.Name())
-	di2 := gnmi.Get(t, tc.dut2, dip.State())
-	fptest.LogQuery(t, dp.String()+" before Await", dip.State(), di2)
-
-	if got := di2.GetAdminStatus(); got != adminUp {
-		t.Errorf("%s admin-status got %v, want %v", dp, got, adminUp)
-	}
-
-	// LAG members may fall behind, so wait for them to be up.
-	gnmi.Await(t, tc.dut2, dip.OperStatus().State(), time.Minute, opUp)
 }
 
 func TestLacpTimers(t *testing.T) {
@@ -338,6 +314,7 @@ func TestLacpTimers(t *testing.T) {
 	lacpIntervals := []oc.E_Lacp_LacpPeriodType{oc.Lacp_LacpPeriodType_FAST, oc.Lacp_LacpPeriodType_SLOW}
 
 	for _, lacpInterval := range lacpIntervals {
+
 		tc := &testCase{
 			dut1:         dut1,
 			dut2:         dut2,
@@ -347,10 +324,9 @@ func TestLacpTimers(t *testing.T) {
 			dut2Ports:    sortPorts(dut2.Ports()),
 			aggID:        aggID,
 		}
-		t.Run(fmt.Sprintf("LACPInterval=%s", lacpInterval), func(t *testing.T) {
+		t.Run(fmt.Sprintf("lacpInterval=%s", lacpInterval), func(t *testing.T) {
 			tc.configureDUT(t)
 			tc.verifyDUT(t)
-
 		})
 	}
 }
