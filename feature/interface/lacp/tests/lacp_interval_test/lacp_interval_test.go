@@ -284,7 +284,7 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 	lacpIntervals := gnmi.OC().Lacp().Interface(tc.aggID).Interval()
 	lacpIntervalDUT1 := gnmi.Get(t, tc.dut1, lacpIntervals.State())
 	lacpIntervalDUT2 := gnmi.Get(t, tc.dut2, lacpIntervals.State())
-	if IntervalDUT1 != lacpIntervalDUT2 {
+	if lacpIntervalDUT1 != lacpIntervalDUT2 {
 		t.Errorf("LACP Interval is not same on both the DUTs, DUT1: %v, DUT2: %v", lacpIntervalDUT1, lacpIntervalDUT2)
 	}
 	if lacpIntervalDUT1 != tc.lacpInterval {
