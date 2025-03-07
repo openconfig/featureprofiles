@@ -325,8 +325,6 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
-    // Devices do not support forwarding for fib failed routes.
-    bool skip_fib_failed_traffic_forwarding_check = 113;
     // QOS requires buffer-allocation-profile configuration
     bool qos_buffer_allocation_config_required = 114;
     // Devices do not support configuring ExtendedNextHopEncoding at the BGP
@@ -719,7 +717,7 @@ message Metadata {
 
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
   }
 
   message PlatformExceptions {
