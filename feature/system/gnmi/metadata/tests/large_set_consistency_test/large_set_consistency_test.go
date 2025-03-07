@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -335,4 +334,3 @@ func TestLargeSetConsistency(t *testing.T) {
 		})
 	}
 }
-
