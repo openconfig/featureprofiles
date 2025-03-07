@@ -560,6 +560,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         testbed_checks=False,
                         smus=None,
                         ):
+    print('keng_controller', keng_controller)
+    print('keng_layer23_hw_server', keng_layer23_hw_server) 
+    print('otg_gnmi_server', otg_gnmi_server)
     
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
@@ -577,9 +580,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         testbeds.remove(reserved_testbed["id"])
 
         c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed,
-                    keng_controller=keng_controller,
-                    keng_layer23_hw_server=keng_layer23_hw_server,
                     otg_gnmi_server=otg_gnmi_server,
                     **self.abog)
 
@@ -617,7 +617,10 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
 
         if is_otg:
             try:
-                c |= BringupIxiaController.s()
+                c |= BringupIxiaController.s(                    
+                    reserved_testbed=reserved_testbed,
+                    keng_controller=keng_controller,
+                    keng_layer23_hw_server=keng_layer23_hw_server,)
             except Exception as e:
                 _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
                 raise e
