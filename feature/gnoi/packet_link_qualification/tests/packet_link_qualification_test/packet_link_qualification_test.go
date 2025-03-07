@@ -698,4 +698,3 @@ func TestLinkQualification(t *testing.T) {
 		})
 	}
 }
-
