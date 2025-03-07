@@ -7,11 +7,11 @@ zrp links within 1 DUTs.
 
 ## Topology
 
-*   dut1:port 1 <--> port 2:dut1 (port 1 and 2 as singleton and memberlink)
-
+*   dut1:port 1 <--> port 2:dut1 - 400G ports (port 1 and 2 as singleton and memberlink)
+*   dut1:port 3 <--> port 4:dut1 - 100G ports (port 1 and 2 as singleton and memberlink)
 ## Procedure
 
-*   Connect port 1 and port 2 of the same DUT.
+*   Connect the ports as per topology.
     *   Validate the link qualification Capabilities response.
         *   MaxHistoricalResultsPerInterface is >= 2.
         *   Time exists.
