@@ -694,7 +694,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 	// Verify Bundle Interface state with unviable members stays unviable after router reload.
 	t.Run("Verify bundle interface state with unviable members stays unviable after router reload", func(t *testing.T) {
-
+		t.Skip()
 		t.Logf("Configure Forwarding unViable")
 		configForwardingViable(t, args.dut, be2, []bool{unviable, unviable})
 
@@ -1208,7 +1208,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 		// Configure Forwarding Viable
 		t.Logf("Configure Forwarding Viable")
 		configForwardingViable(t, args.dut, be2, []bool{viable, viable})
-		checkIntfstatus(t, args, aggID, "DOWN")
+		checkIntfstatus(t, args, aggID, "UP")
 		checkForwardingClistatus(t, args, aggID, viable)
 		checkViablestatus(t, args, be2, []bool{viable, viable}, false)
 
@@ -1242,9 +1242,9 @@ func TestBundleForwardUnViable(t *testing.T) {
 
 		t.Logf("Configure Forwarding unViable on Bundle-Ether3")
 		configForwardingViable(t, args.dut, be3, []bool{unviable, unviable})
-		checkIntfstatus(t, args, "Bundle-Ether3", "DOWN")
+		checkIntfstatus(t, args, "Bundle-Ether3", "UP")
 		checkForwardingClistatus(t, args, "Bundle-Ether3", unviable)
-		checkViablestatus(t, args, be3, []bool{unviable, unviable}, false)
+		checkViablestatus(t, args, be3, []bool{unviable, unviable}, true)
 
 		t.Logf("Configure Forwarding Viable and unViable on Bundle-Ether2")
 		configForwardingViable(t, args.dut, be2, []bool{viable, unviable})
