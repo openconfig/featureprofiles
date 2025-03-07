@@ -1,9 +1,10 @@
-package breakout_configuration
+package breakoutConfiguration
 
 import (
 	"context"
 	"fmt"
 	"net"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -66,6 +67,46 @@ var (
 		IPv6Len: 64,
 	}
 )
+
+func findPortByPMD(t *testing.T, dut *ondatra.DUTDevice, targetPMD string) string {
+	t.Logf("Looking for port with PMD type %s", targetPMD)
+
+	// Get all ports from the device
+	portsAll := dut.Ports()
+
+	// Loop through all available ports to find matching PMD type
+	for _, port := range portsAll {
+		portID := port.ID()
+		portObj := dut.Port(t, portID)
+		portName := portObj.Name()
+
+		t.Logf("Examining port %s with name %s, PMD: %s", portID, portName, portObj.PMD().String())
+
+		// Check if this port has the matching PMD type
+		if portObj.PMD().String() == targetPMD {
+			t.Logf("Found port with matching PMD: %s (%s)", portID, portName)
+			return portID
+		}
+	}
+
+	// No match found, log and return empty string
+	t.Logf("No port found with PMD type %s", targetPMD)
+	return ""
+}
+
+// extractPortPrefixRegex extracts the prefix from port names like "HundredGigE0/0/0/30/1" to "HundredGigE"
+func extractPortPrefixRegex(portName string) string {
+
+	re := regexp.MustCompile(`^([a-zA-Z]+)`)
+
+	matches := re.FindStringSubmatch(portName)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+
+	// Fallback in case the regex doesn't match
+	return portName
+}
 
 // configureOTG configures port1 and port2 on the ATE.
 func configureOTG(t *testing.T,
@@ -152,30 +193,31 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	cases := []struct {
 		numbreakouts  uint8
 		breakoutspeed oc.E_IfEthernet_ETHERNET_SPEED
-		portPrefix    string
-		dutIntfIp     string
+		dutIntfIP     string
 		ateIntfIp     string
+		expectedPMD   string
 	}{
 		{
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			portPrefix:    "HundredGigE",
-			dutIntfIp:     dutPort1.IPv4,
+			dutIntfIP:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
+			expectedPMD:   "PMD_400GBASE_DR4",
 		},
 		{
-			portPrefix:    "HundredGigE",
+
 			numbreakouts:  2,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			dutIntfIp:     dutPort1.IPv4,
+			dutIntfIP:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
+			expectedPMD:   "PMD_100GBASE_LR4",
 		},
 		{
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-			portPrefix:    "TenGigE",
-			dutIntfIp:     dutPort2.IPv4,
+			dutIntfIP:     dutPort2.IPv4,
 			ateIntfIp:     atePort2.IPv4,
+			expectedPMD:   "PMD_40GBASE_SR4",
 		},
 	}
 
@@ -183,16 +225,43 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	for _, tc := range cases {
+
 		tc := tc // Capture range variable
 		t.Run(fmt.Sprintf("Starting case for %d X %v", tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 
-			if dut.Vendor() == ondatra.CISCO {
-				breakOutCompName, fullInterfaceName, foundComp = getCompName(dut, dutPort1.IPv4, tc.portPrefix, t)
+			// Find a port with the matching PMD type using vendor-agnostic approach
+			portID := findPortByPMD(t, dut, tc.expectedPMD)
+
+			if portID == "" {
+				t.Logf("No port with matching PMD found, using convention-based approach")
+			} else {
+				portObj := dut.Port(t, portID)
+				t.Logf("Selected port %s (%s) for breakout testing", portID, portObj.Name())
+			}
+
+			BreakoutPortFullName := dut.Port(t, portID).Name()
+			t.Log("Breakout Interface Convention is: ", BreakoutPortFullName)
+			expectedBreakOutPortConvention := extractPortPrefixRegex(BreakoutPortFullName)
+
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				breakOutCompName, fullInterfaceName, foundComp = getCompName(dut, dutPort1.IPv4, expectedBreakOutPortConvention, t)
 				t.Logf("breakOutCompName is: %s fullInterfaceName is %s: "+
 					"fullInterfaceName and foundComp is %v", breakOutCompName, fullInterfaceName, foundComp)
 				componentNameList = []string{breakOutCompName}
-			} else {
-				// other vendor method
+
+			case ondatra.JUNIPER:
+				// Add Juniper-specific implementation here
+				t.Logf("Juniper implementation for breakout components not yet available")
+				t.Skip("Skipping test for Juniper devices")
+
+			case ondatra.ARISTA:
+				// Add Arista-specific implementation here
+				t.Logf("Arista implementation for breakout components not yet available")
+				t.Skip("Skipping test for Arista devices")
+
+			default:
+				t.Fatalf("Unsupported vendor %s. Need to add breakout component names.", dut.Vendor())
 			}
 
 			for _, componentName := range componentNameList {
@@ -252,11 +321,9 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 					if dut.Vendor() == ondatra.CISCO {
 						sortBreakoutPorts(breakOutPorts)
-					} else {
-						// other vendor methods
 					}
 
-					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIp, tc.numbreakouts, true, 1)
+					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
 					if err != nil {
 						t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
 					}
