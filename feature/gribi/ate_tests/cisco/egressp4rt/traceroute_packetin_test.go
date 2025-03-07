@@ -390,8 +390,8 @@ func TestEgressp4rt(t *testing.T) {
 				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcpDC", deviceSet, srcport, &TOptions{ptcp: 4})
 				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpUdpDC", deviceSet, srcport, &TOptions{pudp: 8})
 
-				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, srcport, &TOptions{ptcp: 4})
-				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDP", deviceSet, srcport, &TOptions{pudp: 8})
+				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDPDC", deviceSet, srcport, &TOptions{ptcp: 4})
+				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDPDC", deviceSet, srcport, &TOptions{pudp: 8})
 
 				//flap
 				testWithDCUnoptimized(ctx, t, args, true, false, "flap1", "IpinIpDCprimarychange", deviceSet, srcport)
@@ -577,7 +577,7 @@ func TestEgressp4rt(t *testing.T) {
 				testWithregionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, srcport)
 				testWithregionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, srcport)
 
-				testWithregionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, srcport)
+				testWithregionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, srcport)
 				testWithregionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, srcport)
 				args.interfaceaction(t, "port1", true)
 			}
