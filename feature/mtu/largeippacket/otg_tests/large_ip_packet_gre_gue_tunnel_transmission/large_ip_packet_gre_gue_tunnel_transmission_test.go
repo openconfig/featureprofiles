@@ -866,7 +866,7 @@ func TestLargeIPPacketTransmissionTunnel(t *testing.T) {
 	case ondatra.JUNIPER:
 		tunnelInterfaceName = tunnelInterfaceNameJuniper
 	default:
-		t.Errorf("Update tunnel interface name for vendor %s", dut.Vendor())
+		t.Fatalf("Update tunnel interface name for vendor %s", dut.Vendor())
 	}
 
 	testLargeIPPacketTunnelTransmission(t, dut, ate, otg, tunnelInterfaceName)
