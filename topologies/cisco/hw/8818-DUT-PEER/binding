@@ -202,7 +202,6 @@ duts {
   options {
     insecure: false 
     skip_verify: false
-    mutual_tls: false
     username: "cafyauto"
     password: "cisco123"
   }
