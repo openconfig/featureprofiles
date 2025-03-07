@@ -577,7 +577,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         testbeds.remove(reserved_testbed["id"])
 
         c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed, **self.abog)
+                    reserved_testbed=reserved_testbed,
+                    keng_controller=keng_controller,
+                    keng_layer23_hw_server=keng_layer23_hw_server,
+                    otg_gnmi_server=otg_gnmi_server,
+                    **self.abog)
 
         using_sim = reserved_testbed.get('sim', False) 
         if using_sim:
