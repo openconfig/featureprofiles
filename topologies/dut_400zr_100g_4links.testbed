@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# 1 DUT, 2 port, 400ZR_PLUS optics
+# 1 DUT, 4 ports, 2 400ZR_PLUS and 2 100G optics
 
 duts {
   id: "dut"
