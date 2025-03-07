@@ -38,7 +38,8 @@ func TestMain(m *testing.M) {
 }
 
 // Topology:
-//   dut1:port1 <--> port2:dut1 (as singleton and memberlink)
+//   dut1:port1 <--> port2:dut1 - 400g links (as singleton and memberlink)
+//   dut1:port3 <--> port4:dut1 - 100g links(as singleton and memberlink)
 //
 // Test notes:
 //
@@ -47,11 +48,20 @@ func TestMain(m *testing.M) {
 //
 
 type aggPortData struct {
-	dut1IPv4      string
-	dut2IPv4      string
+	port1IPV4     string
+	port2IPV4     string
+	dutPort1IPv4  string
+	dutPort2IPv4  string
+	dutPort3IPv4  string
+	dutPort4IPv4  string
 	dutAgg1Name   string
+	dutAgg2Name   string
 	aggPortIDDUT1 uint32
 	aggPortIDDUT2 uint32
+	aggPortIDDUT3 uint32
+	aggPortIDDUT4 uint32
+	aggPortID1    uint32
+	aggPortID2    uint32
 }
 
 const (
@@ -62,22 +72,25 @@ var (
 	minRequiredGeneratorMTU = uint64(8184)
 	minRequiredGeneratorPPS = uint64(1e8)
 	agg1                    = &aggPortData{
-		dut1IPv4:      "192.0.2.1",
-		dut2IPv4:      "192.0.2.5",
+		port1IPV4:     "",
+		port2IPV4:     "",
+		aggPortID1:    0,
+		aggPortID2:    0,
+		dutPort1IPv4:  "192.0.2.1",
+		dutPort2IPv4:  "192.0.2.5",
+		dutPort3IPv4:  "192.0.2.9",
+		dutPort4IPv4:  "192.0.2.13",
 		dutAgg1Name:   "lag3",
+		dutAgg2Name:   "lag4",
 		aggPortIDDUT1: 10,
 		aggPortIDDUT2: 11,
+		aggPortIDDUT3: 12,
+		aggPortIDDUT4: 13,
 	}
 )
 
 func TestCapabilitiesResponse(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
-	dut2 := ondatra.DUT(t, "dut")
-	dp1 := dut1.Port(t, "port1")
-	dp2 := dut2.Port(t, "port2")
-	t.Logf("dut1: %v, dut2: %v", dut1, dut2)
-	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", dp1.Name(), dp2.Name())
-
 	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	plqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 
@@ -247,11 +260,24 @@ func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 }
 
 // configures DUT port1 lag1ID <-----> lagID DUT port 2 with 1 member link.
-func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port) {
+func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, speed string) {
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 	var aggID1 string
 	var aggID2 string
+
+	if speed == "400g" {
+		agg1.port1IPV4 = agg1.dutPort1IPv4
+		agg1.port2IPV4 = agg1.dutPort2IPv4
+		agg1.aggPortID1 = agg1.aggPortIDDUT1
+		agg1.aggPortID2 = agg1.aggPortIDDUT2
+	} else {
+		agg1.port1IPV4 = agg1.dutPort3IPv4
+		agg1.port2IPV4 = agg1.dutPort4IPv4
+		agg1.aggPortID1 = agg1.aggPortIDDUT3
+		agg1.aggPortID2 = agg1.aggPortIDDUT4
+	}
 
 	for _, dp := range []*ondatra.Port{dp1, dp2} {
 		b := &gnmi.SetBatch{}
@@ -277,10 +303,10 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		}
 		var a4 *oc.Interface_Subinterface_Ipv4_Address
 		if dp == dp1 {
-			a4 = s4.GetOrCreateAddress(agg1.dut1IPv4)
+			a4 = s4.GetOrCreateAddress(agg1.port1IPV4)
 			aggID1 = aggID
 		} else {
-			a4 = s4.GetOrCreateAddress(agg1.dut2IPv4)
+			a4 = s4.GetOrCreateAddress(agg1.port2IPV4)
 			aggID2 = aggID
 		}
 		a4.PrefixLength = ygot.Uint8(ipv4PLen)
@@ -291,9 +317,9 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		gnmi.BatchDelete(b, gnmi.OC().Interface(dp.Name()).Ethernet().AggregateId().Config())
 		i := d.GetOrCreateInterface(dp.Name())
 		if dp == dp1 {
-			i.Id = ygot.Uint32(agg1.aggPortIDDUT1)
+			i.Id = ygot.Uint32(agg1.aggPortID1)
 		} else {
-			i.Id = ygot.Uint32(agg1.aggPortIDDUT2)
+			i.Id = ygot.Uint32(agg1.aggPortID2)
 		}
 		i.Description = ygot.String(fmt.Sprintf("LAG - Member -%s", dp.Name()))
 		e := i.GetOrCreateEthernet()
@@ -584,48 +610,92 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 func TestLinkQualification(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
+	port1 := dut.Port(t, "port1")
+	port2 := dut.Port(t, "port2")
+	port3 := dut.Port(t, "port3")
+	port4 := dut.Port(t, "port4")
 	t.Logf("dut: %v", dut.Name())
-	t.Logf("dut dp1 name: %v, dut dp2 name : %v", dp1.Name(), dp2.Name())
+	t.Logf("PLQ will run on 400g links on dut port1 name: %v, dut port2 name : %v", port1.Name(), port2.Name())
+	t.Logf("PLQ will run on 100g links on dut port3 name: %v, dut port4 name : %v", port3.Name(), port4.Name())
 
 	d := gnmi.OC()
-	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceMTU(i1, dut))
 
-	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceMTU(i2, dut))
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
+	for _, p := range []string{"port1", "port2", "port3", "port4"} {
+		port := dut.Port(t, p)
+		i := &oc.Interface{Name: ygot.String(port.Name())}
+		gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), configInterfaceMTU(i, dut))
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, port)
+		}
 	}
+
+	// p1 := dut.Port(t, "port1")
+	// i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	// gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceMTU(i1, dut))
+
+	// p2 := dut.Port(t, "port2")
+	// i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	// gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceMTU(i2, dut))
+
+	// p3 := dut.Port(t, "port3")
+	// i3 := &oc.Interface{Name: ygot.String(p2.Name())}
+	// gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceMTU(i3, dut))
+
+	// p4 := dut.Port(t, "port4")
+	// i4 := &oc.Interface{Name: ygot.String(p4.Name())}
+	// gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), configInterfaceMTU(i4, dut))
+
+	// if deviations.ExplicitPortSpeed(dut) {
+	// 	fptest.SetPortSpeed(t, p1)
+	// 	fptest.SetPortSpeed(t, p2)
+	// }
 
 	cases := []struct {
 		desc      string
 		plqID     string
 		testFunc  func(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool)
 		aggregate bool
+		speed     string
 	}{{
-		desc:      "Singleton Interface LinkQualification",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), dp1.Name(), dut.Name(), dp2.Name()),
+		desc:      "Singleton Interface LinkQualification on 400g links",
+		plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port1.Name(), dut.Name(), port2.Name()),
 		testFunc:  testLinkQualification,
 		aggregate: false,
+		speed:     "400g",
 	}, {
-		desc:      "Member Link LinkQualification",
-		plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), dp1.Name(), dut.Name(), dp2.Name()),
+		desc:      "Member Link LinkQualification on 400g links",
+		plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port1.Name(), dut.Name(), port2.Name()),
 		testFunc:  testLinkQualification,
 		aggregate: true,
+		speed:     "400g",
+	}, {
+		desc:      "Singleton Interface LinkQualification on 100g links",
+		plqID:     fmt.Sprintf("%s:%s-%s:%s", dut.Name(), port3.Name(), dut.Name(), port4.Name()),
+		testFunc:  testLinkQualification,
+		aggregate: false,
+		speed:     "100g",
+	}, {
+		desc:      "Member Link LinkQualification on 100g links",
+		plqID:     fmt.Sprintf("%s:%s-%s:%s-aggregate", dut.Name(), port3.Name(), dut.Name(), port4.Name()),
+		testFunc:  testLinkQualification,
+		aggregate: true,
+		speed:     "100g",
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if tc.aggregate {
-				configureDUTAggregate(t, dut, dp1, dp2)
+			if tc.speed == "400g" {
+				if tc.aggregate {
+					configureDUTAggregate(t, dut, port1, port2, tc.speed)
+				}
+				tc.testFunc(t, dut, port1, port2, tc.plqID, tc.aggregate)
+			} else if tc.speed == "100g" {
+				if tc.aggregate {
+					configureDUTAggregate(t, dut, port3, port4, tc.speed)
+				}
+				tc.testFunc(t, dut, port3, port4, tc.plqID, tc.aggregate)
 			}
-			tc.testFunc(t, dut, dp1, dp2, tc.plqID, tc.aggregate)
 		})
 	}
 }
+
