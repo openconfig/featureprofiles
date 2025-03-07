@@ -11,17 +11,18 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/protobuf/v2/proto/proto"
-	"google3/third_party/golang/ygot/util/util"
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/util"
+	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
