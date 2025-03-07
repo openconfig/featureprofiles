@@ -78,7 +78,9 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 			}
 		}
 		communitySet.SetCommunityMember(cs)
-		communitySet.SetMatchSetOptions(matchSetOptions)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySet.SetMatchSetOptions(matchSetOptions)
+		}
 	}
 	var communitySetCLIConfig string
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {
@@ -278,6 +280,8 @@ func TestCommunitySet(t *testing.T) {
 
 			// Verify BGP session after its reset with OTG push config & start
 			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+			// Adding 3 seconds delay for consistency with KNE routes exchange
+			time.Sleep(3 * time.Second)
 
 			t.Logf("Starting traffic for IPv4 and v6")
 			bs.ATE.OTG().StartTraffic(t)
