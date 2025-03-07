@@ -410,7 +410,7 @@ func TestEgressp4rt(t *testing.T) {
 				}
 				fmt.Println("srcporttt")
 				fmt.Println(srcport)
-				// testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpDC", deviceSet, srcport)
+				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpDC", deviceSet, srcport)
 				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpDC", deviceSet, srcport)
 
 				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcpDC", deviceSet, srcport, &TOptions{ptcp: 4})
