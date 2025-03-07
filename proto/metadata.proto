@@ -715,6 +715,7 @@ message Metadata {
     // Juniper b/395551640
     bool oper_status_for_ic_unsupported = 256;
 
+
     // verify_expected_breakout_supported_config is used to verify on Cisco devices if optic supports a given breakout mode
     // Cisco:
     bool verify_expected_breakout_supported_config = 257;
