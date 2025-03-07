@@ -1067,3 +1067,10 @@ tests:
       - mananpat
     mustpass: true
     timeout: 4200
+  - name: RT-7.1 (BGP default policies.)
+    path: feature/bgp/policybase/otg_tests/default_policies_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
