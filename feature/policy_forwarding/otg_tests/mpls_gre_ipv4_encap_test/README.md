@@ -1,7 +1,7 @@
 # PF-1.4 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload 
 
 ## Summary
-This test verifies MPLSoGRE encapsulation of IP traffic. The traffic from WAN gets encapsulated on the DUT and forwarded towards the core with an external IPV4 tunnel header, GRE, MPLS label and the incoming IPV4/IPV6 payload.
+This test verifies MPLSoGRE encapsulation of IP traffic using policy-forwarding configuration. Traffic on ingress to the DUT is encapsulated and forwarded towards the egress with an IPV4 tunnel header, GRE, MPLS label and the incoming IPV4/IPV6 payload.
 
 ## Testbed type
 * [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
@@ -17,14 +17,15 @@ DUT has an ingress and 2 egress EtherChannels.
                          |         | --eBGP-- | ATE Port 5,6  |
 ```
 
+Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 * Ingress Port: Traffic is generated from Port-Channel1 (ATE Ports 1,2).
 
 * Egress Ports: Port-Channel2 (ATE Ports 3,4) and Port-Channel3 (ATE Ports 5,6) are used as the destination ports for encapsulated traffic.
 
-## Configuration
+#### Configuration
 
-### Port-Channel1 is the ingress ports having following configuration:
+#### Port-Channel1 is the ingress ports having following configuration:
 
 #### Ten or more subinterfaces (customer) with different VLAN-IDs
 
@@ -217,6 +218,190 @@ Verify:
 
 
 ## OpenConfig Path Coverage
+TODO: Finalize and update the below paths after the review and testing on atlease one vendor device.
+
+### JSON Format
+```
+       "name": "default",
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "apply-forwarding-policy": "pbr_cloud_id_270225037587",
+                  "interface-id": "Port-Channel2.1101"
+                },
+                "interface-id": "Port-Channel2.1101"
+              },
+            ]
+          },
+          "policies": {
+            "policy": [                                 
+              {
+                "config": {
+                  "policy-id": "pbr_cloud_id_270225037587"
+                },
+                "entry-groups": {
+                  "entry-group": [
+                    {
+                      "config": {
+                        "address-family": "ACL_IPV4",
+                        "group-id": 1
+                      },
+                      "group-id": 1,
+                      "matches": {
+                        "match": [
+                          {
+                            "config": {
+                              "sequence-id": 1
+                            },
+                            "ipv4": {
+                              "config": {
+                                "destination-address": "169.254.125.155/32",
+                                "protocol": "IP_ICMP"
+                              },
+                              "icmpv4": {
+                                "config": {
+                                  "type": "ECHO_REPLY"
+                                }
+                              }
+                            },
+                            "sequence-id": 1
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "action": {
+                        "encapsulate-gre": {
+                          "config": {
+                            "target-type": "SHARING"
+                          },
+                          "targets": {
+                            "target": [
+                              {
+                                "config": {
+                                  "id": "5005-917505"
+                                },
+                                "id": "5005-917505"
+                              },
+                              {
+                                "config": {
+                                  "id": "5006-917505"
+                                },
+                                "id": "5006-917505"
+                              },
+                              {
+                                "config": {
+                                  "id": "5007-917505"
+                                },
+                                "id": "5007-917505"
+                              },
+                              {
+                                "config": {
+                                  "id": "5008-917505"
+                                },
+                                "id": "5008-917505"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "arista": {
+                        "config": {
+                          "class-map-name": "match_all_ip_class",
+                          "class-map-type": "SHARING"
+                        }
+                      },
+                      "config": {
+                        "address-family": "ACL_IPV4",
+                        "group-id": 10
+                      },
+                      "group-id": 10,
+                      "matches": {
+                        "match": [
+                          {
+                            "config": {
+                              "sequence-id": 10
+                            },
+                            "sequence-id": 10
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "ip-ttl": 1
+                        },
+                        "encapsulate-gre": {
+                          "config": {
+                            "target-type": "SHARING"
+                          },
+                          "targets": {
+                            "target": [
+                              {
+                                "config": {
+                                  "id": "5005-917505"
+                                },
+                                "id": "5005-917505"
+                              },
+                              {
+                                "config": {
+                                  "id": "5006-917505"
+                                },
+                                "id": "5006-917505"
+                              },
+                              {
+                                "config": {
+                                  "id": "5007-917505"
+                                },
+                                "id": "5007-917505"
+                              },
+                              {
+                                "config": {
+                                  "id": "5008-917505"
+                                },
+                                "id": "5008-917505"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "arista": {
+                        "config": {
+                          "class-map-name": "match_all_ip_class",
+                          "class-map-type": "SHARING"
+                        }
+                      },
+                      "config": {
+                        "address-family": "ACL_IPV4",
+                        "group-id": 8
+                      },
+                      "group-id": 8,
+                      "matches": {
+                        "match": [
+                          {
+                            "config": {
+                              "sequence-id": 8
+                            },
+                            "ipv4": {
+                              "config": {
+                                "hop-limit": 1
+                              }
+                            },
+                            "sequence-id": 8
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "policy-id": "pbr_cloud_id_270225037587"
+              },
+            }
+          }
+```
 
 ### Interfaces Config
 
