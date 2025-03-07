@@ -617,7 +617,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
 
         if is_otg:
             try:
-                c |= BringupIxiaController.s(keng_controller=keng_controller,keng_layer23_hw_server=keng_layer23_hw_server,otg_gnmi_server=otg_gnmi_server)
+                c |= BringupIxiaController.s()
             except Exception as e:
                 _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
                 raise e
