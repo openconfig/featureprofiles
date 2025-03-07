@@ -720,14 +720,19 @@ func configureDUTWithTunnelInterface(t *testing.T, dut *ondatra.DUTDevice, tunne
 	i := &oc.Interface{Name: ygot.String(tunnelInterfaceName)}
 	i.Type = oc.IETFInterfaces_InterfaceType_tunnel
 	subInterface := i.GetOrCreateSubinterface(subInterfaceIndex)
-	v4Address := subInterface.GetOrCreateIpv4().GetOrCreateAddress(greTunnelInterface.IPv4)
+	v4 :=subInterface.GetOrCreateIpv4()
+	v4.SetMtu(mtu)
+	v4Address := v4.GetOrCreateAddress(greTunnelInterface.IPv4)
 	v4Address.PrefixLength = ygot.Uint8(greTunnelInterface.IPv4Len)
-	v6Address := subInterface.GetOrCreateIpv6().GetOrCreateAddress(greTunnelInterface.IPv6)
+	v6 := subInterface.GetOrCreateIpv6()
+	v6.SetMtu(mtu)
+	v6Address := v6.GetOrCreateAddress(greTunnelInterface.IPv6)
 	v6Address.PrefixLength = ygot.Uint8(greTunnelInterface.IPv6Len)
 	gnmi.Update(t, dut, gnmi.OC().Interface(tunnelInterfaceName).Config(), i)
 	if deviations.GreGueTunnelInterfaceOcUnsupported(dut) {
 		configureTunnelInterface(t, tunnelInterfaceName, subInterfaceIndex, loopBackInterface.IPv4, tunnelInterfaceDst.IPv4, dut, tunnelType, ttl)
 	}
+	verifyDUTPort(t, dut, tunnelInterfaceName)
 }
 
 func configureTunnelRouting(t *testing.T, dut *ondatra.DUTDevice) {
