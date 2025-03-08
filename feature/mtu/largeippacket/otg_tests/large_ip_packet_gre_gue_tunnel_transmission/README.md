@@ -58,6 +58,7 @@ IPv4 and IPv6 packet sizes are sent over them via GRE/GUE tunnel.
     * 4000 Bytes
     * 9202 Bytes
     * 9202 Bytes
+    * 9500 bytes (traffic flow should fail)
   * Assert ATE reports packets sent and received count are the same, indicating no fragmentation, and 
     successful transit.
 
