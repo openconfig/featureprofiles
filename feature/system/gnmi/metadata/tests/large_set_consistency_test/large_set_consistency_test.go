@@ -2,8 +2,10 @@ package large_set_consistency_test
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -208,6 +210,34 @@ func checkMetadata2(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDev
 	}
 }
 
+func checkLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, largeMetadata string, done *atomic.Int64) {
+	t.Helper()
+	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
+	want := largeMetadata
+	if got != want && getRespTimeStamp < done.Load() {
+		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
+	}
+}
+
+func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, baselineConfig *oc.Root, size int, done *atomic.Int64) {
+	randomBytes := make([]byte, size)
+	_, err := io.ReadFull(rand.Reader, randomBytes)
+	if err != nil {
+		t.Fatalf("failed to generate random bytes: %v", err)
+	}
+	// Encode the bytes to a base64 string.
+	largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
+	largeMetadata = largeMetadata[:size]
+	// send large metadata update request in one goroutine
+	gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig)
+	t.Log("gnmiClient Set large metadataconfig request")
+	_, err = gnmiClient.Set(context.Background(), gpbSetRequest)
+	if err != nil {
+		t.Fatalf("gnmi.Set unexpected error , got: %v", err)
+	}
+	checkLargeMetadata(t, gnmiClient, dut, largeMetadata, done)
+}
+
 func TestLargeSetConsistency(t *testing.T) {
 	done := &atomic.Int64{}
 	dut := ondatra.DUT(t, "dut")
@@ -234,7 +264,9 @@ func TestLargeSetConsistency(t *testing.T) {
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
 	}
-	checkMetadata1(t, gnmiClient, dut, done)
+	t.Run("check Metadata1", func(t *testing.T) {
+		checkMetadata1(t, gnmiClient, dut, done)
+	})
 
 	var wg sync.WaitGroup
 	ch := make(chan struct{}, 1)
@@ -274,5 +306,31 @@ func TestLargeSetConsistency(t *testing.T) {
 
 	wg.Wait()
 	time.Sleep(5 * time.Second)
-	checkMetadata2(t, gnmiClient, dut)
+	t.Run("check Metadata2", func(t *testing.T) {
+		checkMetadata2(t, gnmiClient, dut)
+	})
+
+	// Large metadata Test cases.
+	type testCase struct {
+		name string
+		size int
+	}
+	testCases := []testCase{
+		{
+			name: "Metadata with Size 100KiB",
+			size: 100 * 1024,
+		},
+		{
+			name: "Metadata with Size 1MiB",
+			size: 1 * 1024 * 1024,
+		},
+	}
+
+	// Run the test cases.
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("Description: %s", tc.name)
+			testLargeMetadata(t, gnmiClient, dut, baselineConfig, tc.size, done)
+		})
+	}
 }
