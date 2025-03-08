@@ -7,7 +7,7 @@ between 2 DUTs.
 
 ## Topology
 
-*   dut1:port1 <--> port1:dut2
+*   dut1:port1 <--> port1:dut2 (port1 as singleton and memberlink)
 
 ## Procedure
 

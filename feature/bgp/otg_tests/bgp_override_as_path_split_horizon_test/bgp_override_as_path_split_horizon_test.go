@@ -37,19 +37,21 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesv4CIDR   = "203.0.113.1/32"
-	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv4Prefix = 32
-	peerGrpName1             = "BGP-PEER-GROUP1"
-	peerGrpName2             = "BGP-PEER-GROUP2"
-	dutGlobalAS              = 64512
-	dutLocalAS1              = 65501
-	dutLocalAS2              = 64513
-	ateAS1                   = 65502
-	ateAS2                   = 65503
-	plenIPv4                 = 30
-	plenIPv6                 = 126
-	policyName               = "ALLOW"
+	advertisedRoutesv4CIDR      = "203.0.113.1/32"
+	advertisedRoutesv4Net       = "203.0.113.1"
+	advertisedRoutesv4Prefix    = 32
+	advertisedRoutesv4PrefixLen = "32..32"
+	peerGrpName1                = "BGP-PEER-GROUP1"
+	peerGrpName2                = "BGP-PEER-GROUP2"
+	dutGlobalAS                 = 64512
+	dutLocalAS1                 = 65501
+	dutLocalAS2                 = 64513
+	ateAS1                      = 65502
+	ateAS2                      = 65503
+	plenIPv4                    = 30
+	plenIPv6                    = 126
+	policyName                  = "ALLOW"
+	prefixSetName               = "prefSet"
 )
 
 var (
@@ -176,12 +178,10 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.Devi
 
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(otgPort1V4Peer)
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(otgPort2V4Peer)
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	t.Logf("Pushing config to OTG and starting protocols...")
@@ -236,15 +236,17 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
+
+	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
+	prefixSet.GetOrCreatePrefix(advertisedRoutesv4CIDR, advertisedRoutesv4PrefixLen)
 	pdef := rp.GetOrCreatePolicyDefinition(name)
 	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	stmt.GetOrCreateActions().PolicyResult = pr
-	// stmt.GetOrCreateConditions().InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-
 }
 
 // verifyOTGPrefixTelemetry is to Validate prefix received on OTG por2.
@@ -263,7 +265,7 @@ func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 					gotASPath := prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()
 					t.Logf("Received prefix %v on otg as expected with AS-PATH %v", prefix.GetAddress(), gotASPath)
 				} else {
-					t.Errorf("Prefix %v is not received on otg", prefix.GetAddress())
+					t.Errorf("Prefix %v is received on otg when it is not expected", prefix.GetAddress())
 				}
 			}
 		}
