@@ -108,20 +108,20 @@ var (
 	flowConfigs = []flowConfig{
 		{
 			name:          "flowS",
-			packetsToSend: 1000000,
-			ppsRate:       100000,
+			packetsToSend: 10000000,
+			ppsRate:       300000,
 			frameSize:     64,
 		},
 		{
 			name:          "flowM",
-			packetsToSend: 1000000,
-			ppsRate:       100000,
+			packetsToSend: 10000000,
+			ppsRate:       300000,
 			frameSize:     512,
 		},
 		{
 			name:          "flowL",
-			packetsToSend: 1000000,
-			ppsRate:       100000,
+			packetsToSend: 10000000,
+			ppsRate:       300000,
 			frameSize:     1500,
 		},
 	}
@@ -206,9 +206,42 @@ func TestSFlowTraffic(t *testing.T) {
 	cfgplugins.NewStaticRouteCfg(srBatch, staticRouteV6, dut)
 	srBatch.Set(t, dut)
 
+	/* TODO: implement this when a suitable ygot.diffBatch function exists
+		// Validate DUT sampling config matches what we set it to
+		diff, err := ygot.Diff(gotSamplingConfig, sfBatch)
+		if err != nil {
+			t.Errorf("Error attempting to compare sflow config: %v", err.Error())
+		}
+		if diff.String() != "" {
+			t.Errorf("Want empty string, got: %v", helpers.GNMINotifString(diff))
+		}
+	})
+	*/
+
+	t.Run("SFLOW-1.2_TestFlowFixed", func(t *testing.T) {
+		t.Run("SFLOW-1.2.1_IPv4", func(t *testing.T) {
+			configSflow(t, dut, loopbackIntfName, IPv4)
+			enableCapture(t, ate, config, IPv4)
+			testFlowFixed(t, ate, config, IPv4)
+		})
+		t.Run("SFLOW-1.2.2_IPv6", func(t *testing.T) {
+			configSflow(t, dut, loopbackIntfName, IPv6)
+			enableCapture(t, ate, config, IPv6)
+			testFlowFixed(t, ate, config, IPv6)
+		})
+	})
+}
+
+func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, ip IPType) {
+
 	t.Run("SFLOW-1.1_ReplaceDUTConfigSFlow", func(t *testing.T) {
 		sfBatch := &gnmi.SetBatch{}
-		cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6)
+		switch ip {
+		case IPv4:
+			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6, IPv4)
+		case IPv6:
+			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6, IPv6)
+		}
 		sfBatch.Set(t, dut)
 
 		gotSamplingConfig := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().Config())
@@ -225,28 +258,6 @@ func TestSFlowTraffic(t *testing.T) {
 		t.Logf("Got sampling config: %v", json)
 	})
 
-	/* TODO: implement this when a suitable ygot.diffBatch function exists
-		// Validate DUT sampling config matches what we set it to
-		diff, err := ygot.Diff(gotSamplingConfig, sfBatch)
-		if err != nil {
-			t.Errorf("Error attempting to compare sflow config: %v", err.Error())
-		}
-		if diff.String() != "" {
-			t.Errorf("Want empty string, got: %v", helpers.GNMINotifString(diff))
-		}
-	})
-	*/
-
-	t.Run("SFLOW-1.2_TestFlowFixed", func(t *testing.T) {
-		t.Run("SFLOW-1.2.1_IPv4", func(t *testing.T) {
-			enableCapture(t, ate, config, IPv4)
-			testFlowFixed(t, ate, config, IPv4)
-		})
-		t.Run("SFLOW-1.2.2_IPv6", func(t *testing.T) {
-			enableCapture(t, ate, config, IPv6)
-			testFlowFixed(t, ate, config, IPv6)
-		})
-	})
 }
 
 func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType) {
@@ -374,7 +385,6 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(fc.frameSize)
 	flow.Rate().SetPps(fc.ppsRate)
-	flow.Duration().FixedPackets().SetPackets(fc.packetsToSend)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValues([]string{ateSrc.MAC})
 
@@ -414,6 +424,7 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 
 	found := false
 	packetCount := 0
+	sampleCount := 0
 	sflowSamples := uint32(0)
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
@@ -422,7 +433,7 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv4.TOS, len(ipv4.Payload), len(ipv4.Contents), ipv4.Length)
 				if ipv4.TOS == 32 {
 					found = true
-					break
+					sampleCount++
 				}
 			}
 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
@@ -431,16 +442,22 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv6.TrafficClass, len(ipv6.Payload), len(ipv6.Contents), ipv6.Length)
 				if ipv6.TrafficClass == 32 {
 					found = true
-					break
+					sampleCount++
 				}
 			}
 		}
 
 	}
-	if !found {
-		t.Error("sflow packets not found")
+
+	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
+	minAllowedSamples := expectedSampleCount * sampleTolerance
+	t.Logf("SFlow samples captured: %v", sampleCount)
+	if !found || sampleCount < int(minAllowedSamples) {
+		t.Errorf("sflow packets not found: got %v, want >= %v", sampleCount, minAllowedSamples)
 	}
 
+	handle, _ = pcap.OpenOffline(filename)
+	packetSource = gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
 		if sflowLayer := packet.Layer(layers.LayerTypeSFlow); sflowLayer != nil {
 			sflow := sflowLayer.(*layers.SFlowDatagram)
@@ -450,8 +467,6 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 		}
 	}
 
-	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
-	minAllowedSamples := expectedSampleCount * sampleTolerance
 	if sflowSamples < uint32(minAllowedSamples) {
 		t.Errorf("SFlow sample count %v, want > %v", sflowSamples, expectedSampleCount)
 	}

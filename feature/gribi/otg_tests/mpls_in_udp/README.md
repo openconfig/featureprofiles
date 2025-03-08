@@ -1,11 +1,7 @@
-# TE-18.1 gRIBI MPLS in UDP Encapsulation and Decapsulation
+# TE-18.1: gRIBI MPLS in UDP Encapsulation
 
 Create AFT entries using gRIBI to match on next hop group in a
-network-instance and encapsulate the matching packets in MPLS in UDP.
-
-Create a policy routing configuration using gNMI to decapsulate MPLS
-in UDP packets which are sent to a loopback address and apply to
-the DUT.
+network-instance and encapsulate the matching packets in MPLS in UDP with outer header as IPv6 Header.
 
 The MPLS in UDP encapsulation is expected to follow
 [rfc7510](https://datatracker.ietf.org/doc/html/rfc7510#section-3),
@@ -186,78 +182,59 @@ encapsulate in GRE.
 * Generate traffic from ATE port 1 to ATE port 2
 * Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
 
-### TE-18.1.3 - MPLS in GRE decapsulation set by gNMI
+### TE-18.1.5 Rewrite the ingress innner packet TTL = 1, if the incoming TTL = 1.
+**[TODO]** Test code needs to be implemented.
 
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate in GRE. # TODO: Move to dedicated README
+Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
+set inner packet TTL = 1.
 
-```yaml
-openconfig-network-instance:
-  network-instances:
-    - network-instance: "DEFAULT"
-      afts:
-        policy-forwarding:
-          policies:
-            policy: "default decap rule"
-              config:
-                policy-id: "default decap rule"
-                type: PBR_POLICY
-              rules:
-                rule: 1
-                  config:
-                    sequence-id: 1
-                  ipv6:
-                    config:
-                      destination-address: "decap_loopback_ipv6"
-                  action:
-                    decapsulate-mpls-in-gre: TRUE             # TODO: add to OC model/PR in progress
+```json
+{
+  "openconfig-network-instance": {
+    "network-instances": [
+      {
+        "afts": {
+          "policy-forwarding": {
+            "policies": [
+              {
+                "config": {
+                  "policy-id": "retain ttl",
+                  "type": "PBR_POLICY"
+                },
+                "policy": "retain ttl",
+                "rules": [
+                  {
+                    "config": {
+                      "sequence-id": 1,
+                    },
+                    "ipv6": {
+                      "config": {
+                        "destination-address": "router_ip"
+                        "hop-limit": 1
+                      }
+                    },
+                    "action": {
+                      "set-ip-ttl": 1  #TODO: Add set-ip-ttl [https://github.com/openconfig/public/pull/1263/files]
+                     }
+                  }
+                ]
+              }
+            ]  
+          }
+        }
+      }
+    ]
+  }
+}
 ```
-
 * Push the gNMI the policy forwarding configuration
 * Push the configuration to DUT using gnmi.Set with REPLACE option
-* Configure ATE port 1 with traffic flow which matches the decap loopback IP address
-* Generate traffic from ATE port 1
-* Validate ATE port 2 receives packets with correct VLAN and the inner inner_decap_ipv6
-
-### TE-18.1.4 - MPLS in UDP decapsulation set by gNMI
-
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate MPLS in UDP.  # TODO: Move to dedicated README
-
-```yaml
-openconfig-network-instance:
-  network-instances:
-    - network-instance: "DEFAULT"
-      afts:
-        policy-forwarding:
-          policies:
-            policy: "default decap rule"
-              config:
-                policy-id: "default decap rule"
-                type: PBR_POLICY
-              rules:
-                rule: 1
-                  config:
-                    sequence-id: 1
-                  ipv6:
-                    config:
-                      destination-address: "decap_loopback_ipv6"
-                  action:
-                    decapsulate-mpls-in-udp: TRUE 
-```
-
-* Push the gNMI the policy forwarding configuration
-* Push the configuration to DUT using gnmi.Set with REPLACE option
-* Configure ATE port 1 with traffic flow
-  * Flow should have a packet encap format : outer_decap_udp_ipv6 <- MPLS label <- inner_decap_ipv6
-* Generate traffic from ATE port 1
-* Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
-
-### TE-18.1.5 - Policy forwarding to encap and forward for BGP packets
-
-TODO: Specify a solution for ensuring BGP packets are matched, encapsulated
-and forwarding to a specified  destination using OC policy-forwarding terms.
-
+* Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 1.
+* Using OTG, validate ATE port 2 receives MPLS-IN-GRE packets
+  * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
+  * Validate MPLS label is set
+  * Validate inner packet ttl as 1.
+  * Validate outer packet ttl to be "outer_ip-ttl"
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -299,12 +276,6 @@ paths:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/ip-ttl:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/source-ip:
 
-  # Paths added for TE-18.1.3 - MPLS in GRE decapsulation set by gNMI
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
-  # TODO: /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-gre:
-
-  # Paths added for TE-18.1.4 - MPLS in UDP decapsulation set by gNMI
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
 rpcs:
   gnmi:
