@@ -1320,3 +1320,8 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
+
+// BgpAspathsetUnsupported returns true if as-path-set for bgp-defined-sets is unsupported
+func BgpAspathsetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAspathsetUnsupported()
+}
