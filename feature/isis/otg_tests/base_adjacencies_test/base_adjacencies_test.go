@@ -286,7 +286,7 @@ func TestBasic(t *testing.T) {
 		// There are about 3 RPCs executed in quick succession in this block.
 		// Increasing the wait-time value to accommodate this.
 
-		deadline = time.Now().Add(time.Second * 30)
+		deadline = time.Now().Add(time.Second * 60)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
@@ -454,6 +454,13 @@ func TestAuthentication(t *testing.T) {
 				auth.AuthMode = tc.mode
 				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 				auth.AuthPassword = ygot.String(password)
+
+				if deviations.ISISExplicitLevelAuthenticationConfig(ts.DUT) {
+					auth.DisableCsnp = ygot.Bool(false)
+					auth.DisableLsp = ygot.Bool(false)
+					auth.DisablePsnp = ygot.Bool(false)
+				}
+
 				for _, intf := range isis.Interface {
 					intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
 					if tc.enabled {
@@ -584,7 +591,7 @@ func TestTraffic(t *testing.T) {
 	ts.MustAdjacency(t)
 
 	gnmi.Watch(t, otg, gnmi.OTG().IsisRouter("devIsis").Counters().Level2().InLsp().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		val, present := v.Val()
 		return present && val >= 1
 	}).Await(t)
