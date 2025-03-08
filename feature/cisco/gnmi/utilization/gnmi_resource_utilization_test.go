@@ -68,7 +68,7 @@ func stressTestComponent(t testing.TB, dut *ondatra.DUTDevice, location string, 
 
 func stressCPU(t testing.TB, dut *ondatra.DUTDevice, location string) {
 	t.Helper()
-	cmd := "run /var/xr/scratch/stress --cpu 300 --timeout 40s"
+	cmd := "run /var/xr/scratch/stress --cpu 200 --timeout 40s"
 	if location != "" {
 		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
 	}
@@ -78,7 +78,7 @@ func stressCPU(t testing.TB, dut *ondatra.DUTDevice, location string) {
 func stressMem(t testing.TB, dut *ondatra.DUTDevice, location string) {
 	t.Helper()
 	// spawn 100 workers spinning on malloc()/free()
-	cmd := "run /var/xr/scratch/stress --vm 200 --timeout 40s"
+	cmd := "run /var/xr/scratch/stress --vm 300 --timeout 40s"
 	if location != "" {
 		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
 	}
@@ -1083,15 +1083,15 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 		{
 			name:           "CPU",
 			resource:       "cpu",
-			threshold:      25,
-			thresholdClear: 25,
+			threshold:      30,
+			thresholdClear: 30,
 			err:            "",
 		},
 		{
 			name:           "Memory",
 			resource:       "memory",
-			threshold:      30,
-			thresholdClear: 30,
+			threshold:      40,
+			thresholdClear: 40,
 			err:            "",
 		},
 		{
