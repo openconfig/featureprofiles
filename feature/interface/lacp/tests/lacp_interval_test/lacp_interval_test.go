@@ -77,7 +77,6 @@ type testCase struct {
 	lagType      oc.E_IfAggregate_AggregationType
 	dut1         *ondatra.DUTDevice
 	dut2         *ondatra.DUTDevice
-	desc         string
 	lacpInterval oc.E_Lacp_LacpPeriodType
 
 	// dutPorts is the set of ports the DUT -- the first (i.e., dutPorts[0])
