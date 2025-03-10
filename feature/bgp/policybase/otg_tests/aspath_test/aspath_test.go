@@ -280,9 +280,9 @@ func TestAsPathSet(t *testing.T) {
 			if deviations.CommunityMemberRegexUnsupported(bs.DUT) {
 				for i, entry := range tc.aspathMatch {
 					switch entry {
-					case "^100":
+					case "100":
 						tc.aspathMatch[i] = "65511 100"
-					case "(^100)(.*)+(300$)":
+					case "(100)(.*)+(300$)":
 						tc.aspathMatch[i] = "^65511_100_.*_300$"
 					}
 				}
