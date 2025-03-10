@@ -64,6 +64,18 @@ type aggPortData struct {
 	aggPortID2    uint32
 }
 
+type LinkQualificationDuration struct {
+	generatorsetupDuration    time.Duration
+	reflectorsetupDuration    time.Duration
+	generatorpreSyncDuration  time.Duration
+	reflectorpreSyncDuration  time.Duration
+	testDuration              time.Duration
+	generatorPostSyncDuration time.Duration
+	reflectorPostSyncDuration time.Duration
+	generatorTeardownDuration time.Duration
+	reflectorTeardownDuration time.Duration
+}
+
 const (
 	ipv4PLen = 30
 )
@@ -259,6 +271,26 @@ func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 	return i
 }
 
+func calculatePLQDurations(t *testing.T, generatorPlqResp *plqpb.CapabilitiesResponse, reflectorPlqResp *plqpb.CapabilitiesResponse, dut *ondatra.DUTDevice) *LinkQualificationDuration {
+
+	genPblqMinSetup := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
+	refPblqMinSetup := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
+	genPblqMinTearDown := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
+	refPblqMinTearDown := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
+
+	return &LinkQualificationDuration{
+		generatorpreSyncDuration:  30 * time.Second,
+		reflectorpreSyncDuration:  0 * time.Second,
+		generatorsetupDuration:    time.Duration(math.Max(30, genPblqMinSetup)) * time.Second,
+		reflectorsetupDuration:    time.Duration(math.Max(60, refPblqMinSetup)) * time.Second,
+		testDuration:              120 * time.Second,
+		generatorPostSyncDuration: 5 * time.Second,
+		reflectorPostSyncDuration: 10 * time.Second,
+		generatorTeardownDuration: time.Duration(math.Max(30, genPblqMinTearDown)) * time.Second,
+		reflectorTeardownDuration: time.Duration(math.Max(30, refPblqMinTearDown)) * time.Second,
+	}
+}
+
 // configures DUT port1 lag1ID <-----> lagID DUT port 2 with 1 member link.
 func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, speed string) {
 	t.Helper()
@@ -337,57 +369,22 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
-	// ondatra.Debug().Breakpoint(t)
+
 	// Wait for LAG interfaces to be UP
 	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 }
 
 func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {
-	// var minRequiredGeneratorMTU uint64
 	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut) != 0 {
 		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut))
 	}
 
-	type LinkQualificationDuration struct {
-		// time needed to complete preparation
-		generatorsetupDuration time.Duration
-		reflectorsetupDuration time.Duration
-		// time duration to wait before starting link qual preparation
-		generatorpreSyncDuration time.Duration
-		reflectorpreSyncDuration time.Duration
-		// packet linkqual duration
-		testDuration time.Duration
-		// time to wait post link-qual before starting teardown
-		generatorPostSyncDuration time.Duration
-		reflectorPostSyncDuration time.Duration
-		// time required to bring the interface back to pre-test state
-		// tearDownDuration          time.Duration
-		generatorTeardownDuration time.Duration
-		reflectorTeardownDuration time.Duration
-	}
-
-	// var reflectorSetupDuration time.Duration
-	// var reflectorTeardownDuration time.Duration
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	capabilities, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 	if err != nil {
 		t.Logf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
 	}
-	ref := capabilities.GetReflector()
-	if pmdLB := ref.GetPmdLoopback(); pmdLB.GetMinSetupDuration().GetSeconds() >= 1 && pmdLB.GetMinTeardownDuration().GetSeconds() >= 1 {
-		// reflectorSetupDuration = capabilities.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration()
-		// reflectorTeardownDuration = capabilities.GetReflector().GetPmdLoopback().GetMinTeardownDuration().AsDuration()
-	} else if asicLB := ref.GetAsicLoopback(); asicLB.GetMinSetupDuration().GetSeconds() >= 1 && asicLB.GetMinTeardownDuration().GetSeconds() >= 1 {
-		t.Logf("Device supports ASIC loopback reflector mode")
-		// reflectorSetupDuration = capabilities.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration()
-		// reflectorTeardownDuration = capabilities.GetReflector().GetAsicLoopback().GetMinTeardownDuration().AsDuration()
-	} else {
-		t.Errorf("Reflector MinSetupDuration or MinTeardownDuration is not >=1 for supported mode. Device reflector capabilities")
-	}
-
-	// generatorSetupDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinSetupDuration().AsDuration()
-	// generatorTeardownDuration := capabilities.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().AsDuration()
 
 	generatorPlqResp, err := gnoiClient.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 	t.Logf("LinkQualification().Capabilities(): %v, err: %v", generatorPlqResp, err)
@@ -401,22 +398,8 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
 	}
 
-	genPblqMinSetup := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
-	refPblqMinSetup := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
-	genPblqMinTearDown := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
-	refPblqMinTearDown := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
-
-	plqDuration := &LinkQualificationDuration{
-		generatorpreSyncDuration:  30 * time.Second,
-		reflectorpreSyncDuration:  0 * time.Second,
-		generatorsetupDuration:    time.Duration(math.Max(30, genPblqMinSetup)) * time.Second,
-		reflectorsetupDuration:    time.Duration(math.Max(60, refPblqMinSetup)) * time.Second,
-		testDuration:              120 * time.Second,
-		generatorPostSyncDuration: 5 * time.Second,
-		reflectorPostSyncDuration: 10 * time.Second,
-		generatorTeardownDuration: time.Duration(math.Max(30, genPblqMinTearDown)) * time.Second,
-		reflectorTeardownDuration: time.Duration(math.Max(30, refPblqMinTearDown)) * time.Second,
-	}
+	// Create calculatePLQDuration function to get the duration of the PLQ test.
+	plqDuration := calculatePLQDurations(t, generatorPlqResp, reflectorPlqResp, dut)
 
 	// Create unique IDs for generator and reflector.
 	generatorPLQID := plqID + "-generator"
@@ -628,27 +611,6 @@ func TestLinkQualification(t *testing.T) {
 			fptest.SetPortSpeed(t, port)
 		}
 	}
-
-	// p1 := dut.Port(t, "port1")
-	// i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	// gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceMTU(i1, dut))
-
-	// p2 := dut.Port(t, "port2")
-	// i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	// gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceMTU(i2, dut))
-
-	// p3 := dut.Port(t, "port3")
-	// i3 := &oc.Interface{Name: ygot.String(p2.Name())}
-	// gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceMTU(i3, dut))
-
-	// p4 := dut.Port(t, "port4")
-	// i4 := &oc.Interface{Name: ygot.String(p4.Name())}
-	// gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), configInterfaceMTU(i4, dut))
-
-	// if deviations.ExplicitPortSpeed(dut) {
-	// 	fptest.SetPortSpeed(t, p1)
-	// 	fptest.SetPortSpeed(t, p2)
-	// }
 
 	cases := []struct {
 		desc      string
