@@ -77,7 +77,8 @@ message OCPath {
 // fields for each type of constraint
 message OCPathConstraint {
   oneof constraint {
-    string platform_type = 1;
+    string platform_type = 1;  // derived from OC module oc-platform-types
+    string grpc_service = 2;   // derived from OC module oc-sys-grpc
   }
 }
 
