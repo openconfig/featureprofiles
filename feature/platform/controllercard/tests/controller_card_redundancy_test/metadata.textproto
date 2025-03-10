@@ -1,7 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: ""
+uuid: "00677f4f-a6f9-4669-8ae8-7aa2d1ea75d5"
 plan_id: "gNMI-1.17"
-description: "Controller Card redundancy test"
+description: "Controller card redundancy test"
 testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    gnoi_subcomponent_path: true
+    gnoi_subcomponent_reboot_status_unsupported: true
+  }
+}

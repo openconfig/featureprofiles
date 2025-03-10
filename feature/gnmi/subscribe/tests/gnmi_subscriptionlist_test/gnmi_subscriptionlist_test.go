@@ -36,6 +36,10 @@ var (
 	telemetryPaths = map[gpb.SubscriptionMode][]ygnmi.PathStruct{
 		gpb.SubscriptionMode_ON_CHANGE: {
 			gnmi.OC().InterfaceAny().AdminStatus().State().PathStruct(),
+			gnmi.OC().InterfaceAny().OperStatus().State().PathStruct(),
+			gnmi.OC().InterfaceAny().LastChange().State().PathStruct(),
+			gnmi.OC().InterfaceAny().PhysicalChannel().State().PathStruct(),
+			gnmi.OC().InterfaceAny().Transceiver().State().PathStruct(),
 			gnmi.OC().Lacp().InterfaceAny().MemberAny().Interface().State().PathStruct(),
 			gnmi.OC().InterfaceAny().Ethernet().MacAddress().State().PathStruct(),
 			gnmi.OC().InterfaceAny().HardwarePort().State().PathStruct(),
