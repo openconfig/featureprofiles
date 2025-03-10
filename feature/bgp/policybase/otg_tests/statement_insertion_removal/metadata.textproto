@@ -1,0 +1,9 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "6AF949D5-9A5F-4AED-88F2-076143857E9B"
+plan_id: "RT-7.10"
+description: "Routing policy statement insertion and removal"
+testbed: TESTBED_DUT_ATE_2LINKS
+tags: [TAGS_DATACENTER_EDGE]
+

@@ -53,9 +53,11 @@ const (
 	v6Flow          = "v6Flow"
 	trafficDuration = 30 * time.Second
 	prefixMatch     = "exact"
+	v4tagSet        = "tag-set-v4"
 	v4RoutePolicy   = "route-policy-v4"
 	v4Statement     = "statement-v4"
 	v4PrefixSet     = "prefix-set-v4"
+	v6tagSet        = "tag-set-v6"
 	v6RoutePolicy   = "route-policy-v6"
 	v6Statement     = "statement-v6"
 	v6PrefixSet     = "prefix-set-v6"
@@ -173,8 +175,7 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 		tableConn.SetDisableMetricPropagation(metricPropagation)
 	}
 	if deviations.EnableTableConnections(dut) {
-		state := "enable"
-		configEnableTbNative(t, dut, state)
+		fptest.ConfigEnableTbNative(t, dut)
 	}
 	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
@@ -235,7 +236,6 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		if err != nil {
 			return nil, err
 		}
-		v4tagSet := getTagSetName(dut, rplName, v4Statement, "v4")
 		tagSet1 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v4tagSet)
 		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V4tagValue)})
 		stmt1.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v4tagSet)
@@ -245,7 +245,6 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		if err != nil {
 			return nil, err
 		}
-		v6tagSet := getTagSetName(dut, rplName, v6Statement, "v6")
 		tagSet2 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v6tagSet)
 		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V6tagValue)})
 		stmt2.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v6tagSet)
@@ -365,53 +364,6 @@ func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string, ta
 		t.Errorf("Failed to get tag-set name got %s wanted %s", tagNameState, tagSetName)
 	} else {
 		t.Logf("Passed Found tag-set name got %s wanted %s", tagNameState, tagSetName)
-	}
-}
-
-func getTagSetName(dut *ondatra.DUTDevice, policyName, stmtName, afStr string) string {
-	if deviations.RoutingPolicyTagSetEmbedded(dut) {
-		return fmt.Sprintf("%s %s", policyName, stmtName)
-	}
-	return fmt.Sprintf("tag-set-%s", afStr)
-}
-
-func configEnableTbNative(t testing.TB, d *ondatra.DUTDevice, state string) {
-	t.Helper()
-	switch d.Vendor() {
-	case ondatra.NOKIA:
-		adminEnable, err := json.Marshal(state)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Update: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "table-connections"},
-							{Name: "admin-state"},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: adminEnable,
-						},
-					},
-				},
-			},
-		}
-
-		gnmiClient := d.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'EnableTableConnections'", d.Vendor())
 	}
 }
 
@@ -547,8 +499,8 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 			if tc.TagSetCondition {
 				t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
-					verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v4Statement, "v4"), oc.UnionUint32(V4tagValue))
-					verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v6Statement, "v6"), oc.UnionUint32(V6tagValue))
+					verifyRplConfig(t, ts.DUT, v4tagSet, oc.UnionUint32(V4tagValue))
+					verifyRplConfig(t, ts.DUT, v6tagSet, oc.UnionUint32(V6tagValue))
 				})
 			}
 

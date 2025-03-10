@@ -219,8 +219,8 @@ test: {
 }
 test: {
   id: "DP-1.14"
-  description: "DSCP transperency with ECN"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/DSCP-transparency/README.md"
+  description: "QoS basic test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/qos_basic_test/README.md"
   exec: " "
 }
 test: {
@@ -233,6 +233,12 @@ test: {
   id: "DP-1.16"
   description: "Ingress traffic classification and rewrite"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test/README.md"
+  exec: " "
+}
+test: {
+  id: "DP-1.17"
+  description: "DSCP transparency with ECN"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/dscp_transparency_test/README.md"
   exec: " "
 }
 test: {
@@ -331,6 +337,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "MTU-1.4"
+  description: "Large IP Packet through GRE/GUE tunnel Transmission"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/largeippacket/otg_tests/large_ip_packet_gre_gue_tunnel_transmission"
+  exec: " "
+}
+test: {
   id: "MTU-1.5"
   description: "Path MTU handling"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/otg_tests/pmtu_handing"
@@ -387,6 +399,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetout_test/README.md"
 }
 test: {
+  id: "P4RT-5.3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_with_vrf_selection_test/README.md"
+}
+test: {
   id: "P4RT-6.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/performance_test/README.md"
 }
@@ -432,6 +448,29 @@ test: {
   id: "PF-1.6"
   description: "IPv4 & IPV6 based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "PF-1.7"
+  description: "Decapsulate MPLS in GRE and UDP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_decap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.8"
+  description: "Ingress handling of the TTL, for all ingress packets decrement TTL , and for TTL=1 generate ICMP time exceeded message"
+  readme: " "
+  exec: " "
+}test: {
+  id: "PF-1.9"
+  description: "Egress handling of the TTL, all egress packets should have their TTL decremented,egress packets with TTL=1 should generate ICMP time exceeded to source"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.10"
+  description: "DSCP Egress handling, all egress packets IP, IPoGRE, IPoMPLSoGRE and IPoGUE, IPoMPLSoGUE should have their DSCP values re-written to 0x0 via egress QOS policy (or equivalent)"
+  readme: " "
   exec: " "
 }
 test: {
@@ -539,8 +578,14 @@ test: {
 }
 test: {
   id: "RT-1.19"
-  description: "BGP 2-Byte and 4-Byte ASN support"
+  description: "RT-1.19: BGP 2-Byte and 4-Byte ASN support"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.2"
+  description: "BGP Policy & Route Installation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
   exec: " "
 }
 test: {
@@ -739,9 +784,15 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-2.15"
+  id: "RT-2.16"
   description: "IS-IS Graceful Restart Helper"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.17"
+  description: "Graceful Restart Restarting"
+    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
   exec: " "
 }
 test: {
@@ -861,7 +912,7 @@ test: {
 test: {
   id: "RT-5.4"
   description: "Aggregate Forwarding Viable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/ate_tests/aggregate_forwarding_viable_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test/README.md"
   exec: " "
 }
 test: {
@@ -878,7 +929,7 @@ test: {
 test: {
   id: "RT-5.7"
   description: "Aggregate Not Viable All"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/ate_tests/aggregate_all_not_viable_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test/README.md"
   exec: " "
 }
 test: {
@@ -963,6 +1014,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-7.10"
+  description: "Routing policy statement insertion and removal"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/statement_insertion_removal/README.md"
+  exec: " "
+}
+test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
@@ -1035,9 +1092,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-14.1"
-  description: "gRIBI Scaling"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/gribi_scaling/README.md"
+  id: "TE-14.2"
+  description: "gRIBI encap and decap scale"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_decap_scale/README.md"
   exec: " "
 }
 test: {
@@ -1645,6 +1702,11 @@ test: {
   id: "gNMI-1.22"
   description: "Controller card port attributes"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/port/README.md"
+}
+test: {
+  id: "gNMI-1.23"
+  description: "Telemetry: Aggregate Interface Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/aggregate_interface_counters_test/README.md"
 }
 test: {
   id: "gNMI-1.4"
