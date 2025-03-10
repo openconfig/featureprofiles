@@ -1321,7 +1321,7 @@ func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
 
-// BannerEmptyDelimiterUnsupported returns true if the device does not support empty delimiter in banner
-func BannerEmptyDelimiterUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBannerEmptyDelimiterUnsupported()
+// ExplicitDcoConfig returns true if a user-configured value is required in module-functional-type for the transceiver
+func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
 }
