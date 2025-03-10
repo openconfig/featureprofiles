@@ -327,6 +327,8 @@ tests:
       - arvbaska
     mustpass: true
     priority: 39
+    pr: 1380
+    internal: true
     groups: [Common]    
   - name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection)
     path: feature/policy_forwarding/policy_vrf_selection/otg_tests/protocol_dscp_rules_for_vrf_selection_test
@@ -441,6 +443,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 3756
     priority: 46
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
@@ -736,14 +739,71 @@ tests:
     timeout: 21000
     priority: 65
     owners:
-      - harikri4   
+      - harikri4
+  - name: ACCTZ-2.1 (Record Subscribe Partial)
+      path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+      mustpass: false
+      timeout: 21000
+      priority: 65
+      owners:
+        - harikri4
+  - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-4.1 (Record History Truncation)
+    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-4.2 (Record Payload Truncation)
+    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
   - name: Credentialz-1 (Password console login)
     path: feature/security/gnsi/credentialz/tests/password_console_login
     mustpass: false
     timeout: 21000
     priority: 65
     owners:
-      - harikri4         
+      - harikri4
+  - name: Credentialz-2 (SSH Password Login Disallowed)
+    path: feature/security/gnsi/credentialz/tests/ssh_password_login_disallowed
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-3 (Host Certificates)
+    path: feature/security/gnsi/credentialz/tests/host_certificates
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-4 (SSH Public Key Authentication)
+    path: feature/security/gnsi/credentialz/tests/ssh_public_key_authentication
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-5 (Hiba Authentication)
+    path: feature/security/gnsi/credentialz/tests/hiba_authentication
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+           
   #?
   - name: Health-1.1 (Generic Health Check)
     path: feature/system/health/tests/system_generic_health_check
@@ -852,7 +912,9 @@ tests:
     path: feature/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
-    timeout: 3600  
+    timeout: 3600
+    pr: 1428
+    internal: true
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7    
@@ -1005,6 +1067,10 @@ tests:
       - mananpat
     mustpass: true
     timeout: 4200
-    
-    
-
+  - name: RT-7.1 (BGP default policies.)
+    path: feature/bgp/policybase/otg_tests/default_policies_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
