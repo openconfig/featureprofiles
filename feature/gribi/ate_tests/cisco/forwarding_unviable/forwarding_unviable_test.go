@@ -1244,7 +1244,7 @@ func TestBundleForwardUnViable(t *testing.T) {
 		configForwardingViable(t, args.dut, be3, []bool{unviable, unviable})
 		checkIntfstatus(t, args, "Bundle-Ether3", "UP")
 		checkForwardingClistatus(t, args, "Bundle-Ether3", unviable)
-		checkViablestatus(t, args, be3, []bool{unviable, unviable}, true)
+		checkViablestatus(t, args, be3, []bool{unviable, unviable}, false)
 
 		t.Logf("Configure Forwarding Viable and unViable on Bundle-Ether2")
 		configForwardingViable(t, args.dut, be2, []bool{viable, unviable})
