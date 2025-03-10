@@ -201,7 +201,7 @@ duts {
 
   options {
     insecure: false 
-    skip_verify: false
+    skip_verify: true
     username: "cafyauto"
     password: "cisco123"
   }
