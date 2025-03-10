@@ -44,7 +44,7 @@ B --EBGP--> C[Port2:ATE];
 
 ### Tests
 
-### BMP-1.1.1: Verify BMP session establishment
+### BMP-1.1.1: Verify BMP session establishment [TODO: https://github.com/openconfig/featureprofiles/issues/3961]
 
 1)  Configure BMP station on ATE port-2 with address 10.23.15.58 and port 7039
 2)  Verify that the DUT initiates a BMP session to the station (connection-mode: active)
@@ -57,14 +57,14 @@ B --EBGP--> C[Port2:ATE];
     * /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/session-state
 
 
-### BMP-1.1.2: Verify statistics reporting
+### BMP-1.1.2: Verify statistics reporting [TODO: https://github.com/openconfig/featureprofiles/issues/3963]
 
 1)  Verify that the DUT sends statistics reports at the configured interval (60 seconds), using path:
     *   /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/state/statistics-timeout
 2)  Confirm that multiple consecutive reports are sent at the expected intervals, using path:
     *   /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/statistics-messages-sent
 
-### BMP-1.1.3: Verify route monitoring with post-policy and exclude-noneligible
+### BMP-1.1.3: Verify route monitoring with post-policy and exclude-noneligible [TODO: https://github.com/openconfig/featureprofiles/issues/3962]
 
 1)  Configure an import policy on the DUT to reject prefixes matching 172.16.0.0/16
 2)  Have ATE port-1 advertise prefixes 192.0.2.0/24 and 172.16.0.0/16 to the DUT
