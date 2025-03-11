@@ -1,7 +1,7 @@
 # gNMI-1.14: OpenConfig metadata consistency during large config push
 
 ## Summary
-This test verify if OpenConfig metadata leaf at root is updated according to
+This test verifies if OpenConfig metadata leaf at the root is updated according to
 pushed config and not reverted or otherway modified, Even if many rapid,
 concurrent non-write requests are served while setRequest is in
 process (and SetResponse is not send yet).
