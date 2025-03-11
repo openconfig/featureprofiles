@@ -3,7 +3,7 @@
 ## Summary
 This test verifies if OpenConfig metadata leaf at the root is updated according to
 the pushed config and not reverted or otherwise modified, Even if many rapid,
-concurrent non-write requests are served while setRequest is in
+concurrent non-write requests are served while the `Set` request is in
 process (and SetResponse is not send yet).
 In case metadata leaf at root value changes, test fails.
 
