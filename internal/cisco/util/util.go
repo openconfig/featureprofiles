@@ -163,7 +163,7 @@ func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // GNMIWithText applies the cisco text config using gnmi
-func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, config string) {
+func GNMIWithText(ctx context.Context, t testing.TB, dut *ondatra.DUTDevice, config string) {
 	r := &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{
 			{
@@ -174,7 +174,7 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 	}
 	_, err := dut.RawAPIs().GNMI(t).Set(ctx, r)
 	if err != nil {
-		t.Errorf("There is error when applying the config")
+		t.Fatalf("error applying config: %v", err)
 	}
 }
 
