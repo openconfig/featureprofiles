@@ -213,8 +213,7 @@ func checkMetadata2(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDev
 func checkLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, largeMetadata string, done *atomic.Int64) {
 	t.Helper()
 	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
-	want := largeMetadata
-	if got != want && getRespTimeStamp < done.Load() {
+	if want := largeMetadata; got != want && getRespTimeStamp < done.Load() {
 		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
 	}
 }
