@@ -16,11 +16,11 @@ This test requires a DUT with the following setup
 ### RT-8.1 - Baseline test:
 * Push interface configuration to the DUT including breakout configuration for all the PMDs stated in the Testbed section above.
 * Get an inventory of all the singleton interfaces on the DUT used for this test using `GET /interfaces/interface/` subscription.
-* For every interface, verify `interfaces/interface/state/hardware-port` is populated with a reference to `/components/component/name`
+* For configured interface, verify `interfaces/interface/state/hardware-port` is populated with a reference to `/components/component/name`
 
 ### RT-8.2 - Reboot test:
 * Reboot DUT
-* Repeat the test in RT-6.1 above.
+* Repeat the test in RT-8.1 above.
 
 ## Config Parameter coverage
 *   /components/component/port/breakout-mode/groups/group/index
@@ -34,3 +34,25 @@ This test requires a DUT with the following setup
 ## Telemetry Parameter Coverage
 *   /interfaces/interface/
 *   /interfaces/interface/state/hardware-port
+
+## OpenConfig Path and RPC Coverage
+```yaml
+openconfig_paths:
+  /components/component/port/breakout-mode/groups/group/index:
+  /components/component/port/breakout-mode/groups/group/config:
+  /components/component/port/breakout-mode/groups/group/config/index:
+  /components/component/port/breakout-mode/groups/group/config/num-breakouts:
+  /components/component/port/breakout-mode/groups/group/config/breakout-speed:
+  /components/component/port/breakout-mode/groups/group/config/num-physical-channels:
+
+  /interfaces/interface/:
+  /interfaces/interface/state/hardware-port:
+
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+      /components/component/port/breakout-mode/groups/group/index:
+    gNMI.Subscribe:
+```
+
