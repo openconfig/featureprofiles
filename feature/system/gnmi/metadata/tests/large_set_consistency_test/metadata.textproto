@@ -4,7 +4,7 @@
 uuid: "e9cdd09c-14b9-4e3c-b38c-584ef9611c3f"
 plan_id: "gNMI-1.14"
 description: "OpenConfig metadata consistency during large config push"
-testbed: TESTBED_DUT
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
