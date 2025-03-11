@@ -463,7 +463,7 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 	// 	if th.InputPowerLower == nil {
 	// 		t.Errorf("Transceiver %s: threshold input-power-lower is nil", transceiver)
 	// 	} else {
-	// 		table.Append([]string{transceiver, "N/A", "TxLaser", strconv.FormatFloat(*th.InputPowerLower, 'f', 2, 64)})
+	// 		table.Append([]string{transceiver, "N/A", "InputPowerLower", strconv.FormatFloat(*th.InputPowerLower, 'f', 2, 64)})
 	// 		t.Logf("Transceiver %s threshold input-power-lower: %v", transceiver, th.GetInputPowerLower())
 	// 	}
 	// }
@@ -494,7 +494,7 @@ func TestZRProcessRestart(t *testing.T) {
 		success := checkleaves(t, dut, transceiver, before_state)
 		if !success {
 			t.Logf("Not all leaves are verified")
-			// t.Fatal()
+			t.Fatal()
 		}
 	}
 
@@ -519,7 +519,7 @@ func TestZRProcessRestart(t *testing.T) {
 		success := checkleaves(t, dut, transceiver, after_state)
 		if !success {
 			t.Logf("Not all leaves are verified")
-			// t.Fatal()
+			t.Fatal()
 		}
 	}
 
@@ -762,6 +762,6 @@ func TestZRRPFO(t *testing.T) {
 		}
 	}
 
-	t.Logf("All leaves received successfully after process invmgr restart")
+	t.Logf("All leaves received successfully after RPFO")
 
 }
