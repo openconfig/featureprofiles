@@ -591,8 +591,10 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 }
 
 func configureTunnelEndPoints(intf string, unit int, tunnelSrc string, tunnelDest string, tunnelType string, ttl uint8) string {
-	if tunnelType == "gue" {
-		return fmt.Sprintf(`
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		if tunnelType == "gue" {
+			return fmt.Sprintf(`
 		forwarding-options{
 			tunnels{
 				udp{
@@ -622,8 +624,8 @@ func configureTunnelEndPoints(intf string, unit int, tunnelSrc string, tunnelDes
 			}
 		}
 		}`, intf, unit, tunnelSrc, tunnelDest, ttl)
-	} else {
-		return fmt.Sprintf(`
+		} else {
+			return fmt.Sprintf(`
 			interfaces {
 			%s {
 				unit %d {
@@ -641,6 +643,9 @@ func configureTunnelEndPoints(intf string, unit int, tunnelSrc string, tunnelDes
 				}
 			}
 			}`, intf, unit, tunnelType, tunnelSrc, tunnelDest, ttl)
+		}
+	default:
+		return fmt.Sprintf("Tunnel endpoint configuration not supported for vendor %s", dut.Vendor())
 	}
 }
 
@@ -682,9 +687,9 @@ func cleanTunnelConfigs(t *testing.T, dut *ondatra.DUTDevice, tunnelInterfaceNam
 func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, dut *ondatra.DUTDevice, tunnelType string, ttl uint8) {
 	t.Logf("Push tunnel endpoint config:\n%s", dut.Vendor())
 	var config string
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelType, ttl)
+	config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelType, ttl)
+	configNotSupported := "Tunnel endpoint configuration not supported for vendor"
+	if !strings.Contains(config, configNotSupported) {
 		t.Logf("Push the CLI config:\n%s", config)
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		gpbSetRequest := buildCliConfigRequest(config)
@@ -692,8 +697,8 @@ func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc str
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
-	default:
-		t.Errorf("Tunnel endpoint configuration not supported for vendor %s", dut.Vendor())
+	} else {
+		t.Fatalf("Tunnel endpoint configuration not supported for vendor %s", dut.Vendor())
 	}
 }
 
