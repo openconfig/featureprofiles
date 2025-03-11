@@ -488,6 +488,28 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	}
 }
 
+func verifyInitialPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantRx uint32, isV4 bool) {
+	t.Helper()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	t.Logf("Prefix telemetry on DUT for peer %v", nbr)
+
+	var prefixPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
+	if isV4 {
+		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+	} else {
+		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
+	}
+
+	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
+		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+			gotRx, ok := val.Val()
+			return ok && gotRx == wantRx
+		}).Await(t); !ok {
+			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
+		}
+	}
+}
+
 type bgpNeighbor struct {
 	as           uint32
 	neighborip   string
@@ -962,17 +984,11 @@ func TestBGPDefaultPolicies(t *testing.T) {
 	})
 
 	t.Run("Verify prefix telemetry on DUT for all iBGP and eBGP peers", func(t *testing.T) {
-		if deviations.DefaultImportExportPolicyUnsupported(dut) {
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 3, 3, 3, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 3, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 3, 3, 3, !v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 3, !v4Prefixes)
-		} else {
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 0, 3, 0, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 0, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 0, 3, 0, !v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 0, !v4Prefixes)
-		}
+		// Validate only if the routes being sent by OTG are received by DUT and advertised to ISIS neighbor.
+		verifyInitialPrefixesTelemetry(t, dut, atePort1.IPv4, 3, v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, atePort1.IPv6, 3, !v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, !v4Prefixes)
 	})
 
 	t.Run("Add static routes for ip prefixes IPv4/v6-prefix7 and IPv4/v6-prefix8", func(t *testing.T) {
