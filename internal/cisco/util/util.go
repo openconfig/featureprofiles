@@ -1230,8 +1230,8 @@ func splitVersionString(t *testing.T, versionString string) (majorVersion, minor
 	return majorVersion, minorVersion, runningVersion, labelVersion, nil
 }
 
+// SupervisorSwitchover does a SSO on the dut device and also checkes the interfaces are up after SSO
 func SupervisorSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
-	// dut := ondatra.DUT(t, "dut")
 
 	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found controller card list: %v", controllerCards)
@@ -1359,6 +1359,7 @@ func SshRunCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
 	}
 }
 
+// IsPlatformVXR checks if the platform is a VXR (true) or a HW (false)
 func IsPlatformVXR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) bool {
 	resp := config.CMDViaGNMI(ctx, t, dut, "show version")
 	t.Logf("Response: %s", resp)
