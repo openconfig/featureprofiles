@@ -16,6 +16,11 @@ import (
 	"github.com/openconfig/ondatra/binding"
 )
 
+// cleanCommandOutput processes a command's output to extract the last non-empty line.
+// It trims any leading and trailing whitespace and returns the relevant output line.
+// Parameters:
+// - output: The raw output string from a command.
+// Returns: The cleaned output string containing the actual command result.
 func cleanCommandOutput(output string) string {
 	// Remove any leading and trailing whitespace
 	output = strings.TrimSpace(output)
@@ -34,6 +39,12 @@ func cleanCommandOutput(output string) string {
 	return ""
 }
 
+// cleanupDiskSpace removes a specific file to free up disk space on the device.
+// It uses an SSH client to execute the cleanup command on the device.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the command execution.
+// - sshClient: The CLI client used to execute commands on the device.
+// Returns: An error if the cleanup command fails, otherwise nil.
 func cleanupDiskSpace(ctx context.Context, sshClient binding.CLIClient) error {
 	cleanupCmd := "run rm /misc/disk1/disk_fill_file"
 	if _, err := sshClient.RunCommand(ctx, cleanupCmd); err != nil {
@@ -42,6 +53,13 @@ func cleanupDiskSpace(ctx context.Context, sshClient binding.CLIClient) error {
 	return nil
 }
 
+// retrieveAndFillDiskSpace checks available disk space and fills it if above a threshold.
+// It calculates the available space, compares it against the threshold, and optionally fills the disk.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the command execution.
+// - sshClient: The CLI client used to execute commands on the device.
+// - thresholdGB: The disk space threshold in gigabytes.
+// Returns: A boolean indicating if the disk fill was skipped, and an error if any operation fails.
 func retrieveAndFillDiskSpace(ctx context.Context, sshClient binding.CLIClient, thresholdGB float64) (bool, error) {
 	// Retrieve available disk space
 	spaceCmd := "run df -h /harddisk:/ | awk 'NR==2 {print $4}'"
