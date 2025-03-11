@@ -220,8 +220,7 @@ func checkLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DU
 
 func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, baselineConfig *oc.Root, size int, done *atomic.Int64) {
 	randomBytes := make([]byte, size)
-	_, err := io.ReadFull(rand.Reader, randomBytes)
-	if err != nil {
+	if _, err := io.ReadFull(rand.Reader, randomBytes); err != nil {
 		t.Fatalf("failed to generate random bytes: %v", err)
 	}
 	// Encode the bytes to a base64 string.
