@@ -62,6 +62,16 @@ var packageReader func(context.Context, string) (io.ReadCloser, error) = func(ct
 	return f, nil
 }
 
+// activateOS sends a request to activate the specified OS version on the device.
+// It logs the progress and verifies if the activation succeeds or fails as expected.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the activate operation.
+// - t: The testing object for logging and handling test failures.
+// - standby: Indicates if the operation targets a standby supervisor.
+// - noReboot: Specifies whether the device should reboot after activation.
+// - version: The OS version to activate.
+// - expectFail: A flag indicating if the activation is expected to fail.
+// - expectedError: The error message expected if the activation fails.
 func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReboot bool, version string, expectFail bool, expectedError string) {
 	t.Helper()
 	if standby {
@@ -144,8 +154,11 @@ func (tc *testCase) fetchStandbySupervisorStatus(t *testing.T) {
 	}
 }
 
+// fetchOsFileDetails retrieves and stores the OS file version details.
+// Parameters:
+// - t: The testing object for logging and handling test failures.
+// - os_file: The OS file to extract version information from.
 func (tc *testCase) fetchOsFileDetails(t *testing.T, os_file string) {
-
 	os_version, err := getIsoVersionInfo(os_file)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -156,11 +169,17 @@ func (tc *testCase) fetchOsFileDetails(t *testing.T, os_file string) {
 
 }
 
+// setTimeout sets a timeout duration for the test case.
+// Parameters:
+// - t: The testing object for logging.
+// - timeout_minute: The duration for the timeout.
 func (tc *testCase) setTimeout(t *testing.T, timeout_minute time.Duration) {
 	t.Logf("testcase %v : setting timout to %v", tc, timeout_minute)
 	tc.timeout = timeout_minute
 }
 
+// updatePackageReader initializes the package reader for the OS file.
+// It creates a reader for the OS package and logs any errors encountered.
 func (tc *testCase) updatePackageReader(t *testing.T) {
 	// ctx := context.Background()
 	reader, err := packageReader(tc.ctx, tc.osFile)
@@ -171,6 +190,8 @@ func (tc *testCase) updatePackageReader(t *testing.T) {
 	tc.reader = reader
 }
 
+// updateForceDownloadSupport checks if the force download is supported based on the DUT's software version.
+// It updates the testCase field accordingly.
 func (tc *testCase) updateForceDownloadSupport(t *testing.T) {
 	majVer, _, _, _, err := util.GetVersion(t, tc.dut)
 	if err != nil {
@@ -200,6 +221,14 @@ func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
 	}
 }
 
+// transferOS initiates the transfer of the OS image file to the DUT.
+// It sends the OS install request and handles the response, including expected errors.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the transfer operation.
+// - t: The testing object for logging and handling test failures.
+// - standby: Indicates if the operation targets a standby supervisor.
+// - version: The OS version to transfer.
+// - ErrorString: The expected error string, if any, during the transfer.
 func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, version string, ErrorString string) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -300,6 +329,9 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 
 // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
 // newly requested software version.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the verification operation.
+// - t: The testing object for logging and handling test failures.
 func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 	rebootWait := time.Minute
 	deadline := time.Now().Add(tc.timeout)
@@ -362,6 +394,8 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 	t.Fatal("OS.Verify did not return the correct version before deadline.")
 }
 
+// pollRpc periodically checks if the DUT has booted up by polling telemetry output.
+// It ensures the DUT is responsive within a specified time frame.
 func (tc *testCase) pollRpc(t *testing.T) {
 	startReboot := time.Now()
 	const maxRebootTime = 5
@@ -440,6 +474,12 @@ func (tc *testCase) pollRpc(t *testing.T) {
 
 }
 
+// transferContent sends the OS image to the DUT in chunks.
+// It reads from the provided reader and sends the content via the install client.
+// Parameters:
+// - ic: The OS install client for sending the content.
+// - reader: The reader for the OS package file.
+// - testCase: The current test case context.
 func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser, testCase testCase) error {
 	// The gNOI SetPackage operation sets the maximum chunk size at 64K,
 	// so assuming the install operation allows for up to the same size.
@@ -473,6 +513,14 @@ func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser, testCase te
 	return ic.Send(te)
 }
 
+// watchStatus monitors the status of the installation process on the DUT.
+// It logs progress and detects any installation errors or mismatches.
+// Parameters:
+// - t: The testing object for logging and handling test failures.
+// - ic: The OS install client for receiving status updates.
+// - standby: Indicates if the operation targets a standby supervisor.
+// - version: The expected OS version.
+// - tc: The current test case context.
 func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool, version string, tc testCase) error {
 	var gotProgress bool
 
