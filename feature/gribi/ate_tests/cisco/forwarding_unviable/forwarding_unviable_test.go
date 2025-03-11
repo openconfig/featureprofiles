@@ -84,11 +84,6 @@ var (
 		IPv4:    "100.123.2.3",
 		IPv4Len: ipv4PrefixLen,
 	}
-	// atePort3 = attrs.Attributes{
-	// 	Name:    "atePort3",
-	// 	IPv4:    "100.123.2.4",
-	// 	IPv4Len: ipv4PrefixLen,
-	// }
 )
 
 // testArgs holds the objects needed by a test case.
@@ -283,7 +278,6 @@ func testRPFO(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("gRIBI Connection could not be established: %v", err)
 		}
 	}
-	// ctx := context.Background()
 
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
@@ -562,8 +556,6 @@ func TestBundleForwardUnViable(t *testing.T) {
 		top: top,
 	}
 	top.Push(t).StartProtocols(t)
-
-	// gnmi.Update(t, ate, gnmi.OC().Interface("port1").Enabled().Config(), false)
 
 	t.Run("Validate traffic", func(t *testing.T) {
 		lossPckt := testtrafficFlow(t, ate, top)
