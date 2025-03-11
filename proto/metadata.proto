@@ -675,10 +675,8 @@ message Metadata {
     // Cisco: b/388983709
     // default bgp instance name is used to set bgp instance name value other than DEFAULT
     string default_bgp_instance_name = 246;
-
     // Arista does not support ETHChannel rate-class
     bool channel_assignment_rate_class_parameters_unsupported = 247;
-    
     // Arista: b/346557012  
     // Devices that do not support qos scheduler ingress policer.
     bool qos_scheduler_ingress_policer_unsupported = 248;
@@ -714,10 +712,12 @@ message Metadata {
     // Devices that do not support oper-status for Integrated Circuits telemetry path
     // Juniper b/395551640
     bool oper_status_for_ic_unsupported = 256;
-
+    // Nokia: b/383075189
+    // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
+    bool explicit_dco_config = 257;
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
-    bool gre_gue_tunnel_interface_oc_unsupported = 257;
+    bool gre_gue_tunnel_interface_oc_unsupported = 258;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
