@@ -1330,4 +1330,3 @@ func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
 }
-
