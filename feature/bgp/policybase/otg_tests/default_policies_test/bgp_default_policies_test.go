@@ -454,40 +454,6 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantRx, wantSent uint32, isV4 bool) {
-	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	t.Logf("Prefix telemetry on DUT for peer %v", nbr)
-
-	var prefixPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
-	if isV4 {
-		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	} else {
-		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
-	}
-	if gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		gotInstalled, ok := val.Val()
-		return ok && gotInstalled == wantInstalled
-	}).Await(t); !ok {
-		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
-	}
-
-	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-			gotRx, ok := val.Val()
-			return ok && gotRx == wantRx
-		}).Await(t); !ok {
-			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
-		}
-	}
-	if gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		gotSent, ok := val.Val()
-		return ok && gotSent == wantSent
-	}).Await(t); !ok {
-		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
-	}
-}
-
 func verifyInitialPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantRx uint32, isV4 bool) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
