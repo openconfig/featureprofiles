@@ -1,4 +1,3 @@
-// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,10 +43,10 @@ const (
 	v6IP        = "2001:db8::203:0:113:1"
 	v4Route     = "203.0.113.0"
 	v6Route     = "2001:db8::203:0:113:0"
-	dutV4Metric = 100
-	dutV6Metric = 100
-	ateV4Metric = 200
-	ateV6Metric = 200
+	dutV4Metric = 63
+	dutV6Metric = 63
+	ateV4Metric = 100
+	ateV6Metric = 100
 	dutV4Route  = "192.0.2.0/30"
 	dutV6Route  = "2001:db8::/126"
 	v4NetName   = "isisv4Net"
@@ -55,6 +54,34 @@ const (
 	v4FlowName  = "v4Flow"
 	v6FlowName  = "v6Flow"
 )
+
+// DisableIGPLDPSync on DUT.
+func DisableIGPLDPSync(t *testing.T, ts *isissession.TestSession) {
+	t.Helper()
+	d := ts.DUTConf
+	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
+	prot.Enabled = ygot.Bool(true)
+
+	// Global level - disable IGP LDP sync
+	isis := prot.GetOrCreateIsis()
+	t.Logf("Disable IGP LDP sync on global")
+	isismpls := prot.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateMpls()
+	isismplsldpsync := isismpls.GetOrCreateIgpLdpSync()
+	isismplsldpsync.Enabled = ygot.Bool(false)
+	t.Logf("isismplsldpsync status after disabling at global level: %v", isismplsldpsync.GetEnabled())
+
+	// Interface level - disable IGP LDP sync
+	intfName := ts.DUTPort1.Name()
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+		intfName += ".0"
+	}
+	intf := isis.GetOrCreateInterface(intfName)
+	t.Logf("Disable IGP LDP sync on interface %s", intfName)
+	isisintfmplsldpsync := intf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
+	isisintfmplsldpsync.Enabled = ygot.Bool(false)
+	t.Logf("isisintfmplsldpsync status after disabling at interface level: %v", isisintfmplsldpsync.GetEnabled())
+}
 
 // configureISIS configures isis on DUT.
 func configureISIS(t *testing.T, ts *isissession.TestSession) {
@@ -103,6 +130,8 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	// Interface level configs.
 	isisIntfLevel := intf.GetOrCreateLevel(2)
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
+	isisIntfLevel.SetEnabled(true)
+	isisIntfLevel.Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
 	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
 	isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
@@ -191,7 +220,6 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 		intfName += ".0"
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
-
 		// Checking adjacency
 		ateSysID, err := ts.AwaitAdjacency()
 		if err != nil {
@@ -199,7 +227,6 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 		}
 		ateLspID := ateSysID + ".00-00"
 		dutLspID := isissession.DUTSysID + ".00-00"
-
 		t.Run("Afi-Safi checks", func(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).AfiName().State()); got != oc.IsisTypes_AFI_TYPE_IPV4 {
 				t.Errorf("FAIL- Expected afi name not found, got %d, want %d", got, oc.IsisTypes_AFI_TYPE_IPV4)
@@ -230,8 +257,10 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
-				t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+			if !deviations.IsisDisSysidUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
+					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.LocalExtendedCircuitId().State()); got == 0 {
 				t.Errorf("FAIL- Expected local extended circuit id not found,expected non-zero value, got %d", got)
@@ -284,8 +313,10 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
+			if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting pre isis config database_overloads value to change, got %d, want %d", got, 0)
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
@@ -315,7 +346,7 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 				t.Errorf("FAIL- Not expecting spf runs counter to be 0, got %d, want non zero", got)
 			}
 		})
-		t.Run("Wide metric checks", func(t *testing.T) {
+		t.Run("Narrow metric checks", func(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).MetricStyle().State()); got != oc.E_Isis_MetricStyle(1) {
 				t.Errorf("FAIL- Expected metric style not found, got %s, want %s", got, oc.E_Isis_MetricStyle(1))
 			}
@@ -351,6 +382,68 @@ func TestISISWideMetricNotEnabled(t *testing.T) {
 			}
 		})
 		t.Run("Traffic checks", func(t *testing.T) {
+			t.Logf("Starting traffic")
+			otg.StartTraffic(t)
+			time.Sleep(time.Second * 15)
+			t.Logf("Stop traffic")
+			otg.StopTraffic(t)
+
+			otgutils.LogFlowMetrics(t, otg, ts.ATETop)
+			otgutils.LogPortMetrics(t, otg, ts.ATETop)
+
+			for _, flow := range []string{v4FlowName, v6FlowName} {
+				t.Log("Checking flow telemetry...")
+				recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow).State())
+				txPackets := recvMetric.GetCounters().GetOutPkts()
+				rxPackets := recvMetric.GetCounters().GetInPkts()
+				lostPackets := txPackets - rxPackets
+				lossPct := lostPackets * 100 / txPackets
+
+				if lossPct > 1 {
+					t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flow)
+				}
+			}
+		})
+		t.Run("IGP LDP Sync Disable Global & Interface", func(t *testing.T) {
+			t.Logf("Starting traffic")
+			DisableIGPLDPSync(t, ts)
+		})
+		t.Run("Narrow metric checks after LDP sync disable", func(t *testing.T) {
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).MetricStyle().State()); got != oc.E_Isis_MetricStyle(1) {
+				t.Errorf("FAIL- Expected metric style not found, got %s, want %s", got, oc.E_Isis_MetricStyle(1))
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Prefix().State()); got != ateV4Route {
+				t.Errorf("FAIL- Expected ate v4 route not found, got %v, want %v", got, ateV4Route)
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Metric().State()); got != ateV4Metric {
+				t.Errorf("FAIL- Expected metric for ate v4 route not found, got %v, want %v", got, ateV4Metric)
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(ateV6Route).Prefix().State()); got != ateV6Route {
+				t.Errorf("FAIL- Expected ate v6 route not found, got %v, want %v", got, ateV6Route)
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(ateV6Route).Metric().State()); got != ateV6Metric {
+				t.Errorf("FAIL- Expected metric for ate v6 route not found, got %v, want %v", got, ateV6Metric)
+			}
+			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(ateV4Route).State()).GetPrefix(); got != ateV4Route {
+				t.Errorf("FAIL- Expected ate v4 route not found in aft, got %v, want %v", got, ateV4Route)
+			}
+			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(ateV6Route).State()).GetPrefix(); got != ateV6Route {
+				t.Errorf("FAIL- Expected ate v6 route not found in aft, got %v, want %v", got, ateV6Route)
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV4_INTERNAL_REACHABILITY).Ipv4InternalReachability().Prefix(dutV4Route).Prefix().State()); got != dutV4Route {
+				t.Errorf("FAIL- Expected dut v4 route not found, got %v, want %v", got, dutV4Route)
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV4_INTERNAL_REACHABILITY).Ipv4InternalReachability().Prefix(dutV4Route).DefaultMetric().Metric().State()); got != 63 {
+				t.Errorf("FAIL- Expected metric for dut v4 route not found, got %v, want %v", got, 63)
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Prefix().State()); got != dutV6Route {
+				t.Errorf("FAIL- Expected dut v6 route not found, got %v, want %v", got, dutV6Route)
+			}
+			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Metric().State()); got != 63 {
+				t.Errorf("FAIL- Expected metric for dut v6 route not found, got %v, want %v", got, 63)
+			}
+		})
+		t.Run("Traffic checks after LDP sync disable", func(t *testing.T) {
 			t.Logf("Starting traffic")
 			otg.StartTraffic(t)
 			time.Sleep(time.Second * 15)

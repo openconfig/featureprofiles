@@ -325,8 +325,6 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
-    // Devices do not support forwarding for fib failed routes.
-    bool skip_fib_failed_traffic_forwarding_check = 113;
     // QOS requires buffer-allocation-profile configuration
     bool qos_buffer_allocation_config_required = 114;
     // Devices do not support configuring ExtendedNextHopEncoding at the BGP
@@ -403,9 +401,6 @@ message Metadata {
     // Skip setting allow-multiple-as while configuring eBGP
     // Arista: partnerissuetracker.corp.google.com/issues/317422300
     bool skip_setting_allow_multiple_as = 140;
-    // Skip tests with decap encap vrf as PBF action
-    //  Nokia: partnerissuetracker.corp.google.com/issues/323251581
-    bool skip_pbf_with_decap_encap_vrf = 141;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
     bool gribi_decap_mixed_plen_unsupported = 143;
@@ -698,12 +693,32 @@ message Metadata {
     // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 251;
 
+    // Device does not support packet processing aggregate drops.
+    // Cisco: b/395567844
+    bool packet_processing_aggregate_drops_unsupported = 252;
+
+    // Device does not support fragment total drops.
+    // Nokia: b/395553772
+    bool fragment_total_drops_unsupported = 253;
+
+    // Devices that do no support static lsp config
+    // Juniper b/356635233
+    bool static_lsp_unsupported = 254;
+
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 255;
+
+    // Devices that do not support oper-status for Integrated Circuits telemetry path
+    // Juniper b/395551640
+    bool oper_status_for_ic_unsupported = 256;
+
     // Nokia: b/383075189
     // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
-    bool explicit_dco_config = 252;
-    
+    bool explicit_dco_config = 257;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
   }
 
   message PlatformExceptions {
