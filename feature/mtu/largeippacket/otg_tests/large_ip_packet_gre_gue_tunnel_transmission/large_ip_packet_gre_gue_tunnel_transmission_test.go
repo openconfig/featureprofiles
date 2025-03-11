@@ -687,8 +687,7 @@ func cleanTunnelConfigs(t *testing.T, dut *ondatra.DUTDevice, tunnelInterfaceNam
 
 func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, dut *ondatra.DUTDevice, tunnelType string, ttl uint8) {
 	t.Logf("Push tunnel endpoint config:\n%s", dut.Vendor())
-	var config string
-	config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelType, ttl, dut)
+	config := configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelType, ttl, dut)
 	configNotSupported := "Tunnel endpoint configuration not supported for vendor"
 	if !strings.Contains(config, configNotSupported) {
 		t.Logf("Push the CLI config:\n%s", config)
