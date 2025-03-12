@@ -36,7 +36,8 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	if newcfg == nil {
 		c.Enabled = ygot.Bool(true)
 		c.SampleSize = ygot.Uint16(256)
-		c.IngressSamplingRate = ygot.Uint32(1000000)
+		// override ingress sampling rate if default value of 1000000 is not supported
+		c.SetIngressSamplingRate(deviations.SflowIngressMinSamplingRate(d))
 		// c.EgressSamplingRate = ygot.Uint32(1000000),  TODO: verify if EgressSamplingRate is a required DUT feature
 		c.Dscp = ygot.Uint8(8)
 		c.GetOrCreateInterface(d.Port(t, "port1").Name()).Enabled = ygot.Bool(true)
