@@ -316,7 +316,9 @@ func TestCopyFile(t *testing.T) {
 
 		cli := dut.RawAPIs().CLI(t)
 
-		result, _ := cli.RunCommand(context.Background(), "run ls -la ~/stress")
+		cli.RunCommand(context.Background(), "chmod +x /var/xr/scratch/stress")
+
+		result, _ := cli.RunCommand(context.Background(), "run ls -la /var/xr/scratch/stress")
 		t.Logf("output: %s", result.Output())
 
 		if !strings.Contains(result.Output(), "stress") {
