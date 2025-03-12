@@ -1321,7 +1321,17 @@ func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
 }
 
+// BgpAspathsetUnsupported returns true if as-path-set for bgp-defined-sets is unsupported
+func BgpAspathsetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAspathsetUnsupported()
+}
+
 // ExplicitDcoConfig returns true if a user-configured value is required in module-functional-type for the transceiver
 func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
+}
+
+// VerifyExpectedBreakoutSupportedConfig is to skip checking for breakout config mode.
+func VerifyExpectedBreakoutSupportedConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVerifyExpectedBreakoutSupportedConfig()
 }
