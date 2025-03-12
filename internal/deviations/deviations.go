@@ -1311,7 +1311,7 @@ func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticLspUnsupported()
 }
 
-// Devices needs route policy reference to stream prefix set info.
+// BgpPrefixsetReqRoutepolRef returns true if devices needs route policy reference to stream prefix set info.
 func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
 }
@@ -1324,4 +1324,9 @@ func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 // ExplicitDcoConfig returns true if a user-configured value is required in module-functional-type for the transceiver
 func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
+}
+
+// GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
+func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
 }
