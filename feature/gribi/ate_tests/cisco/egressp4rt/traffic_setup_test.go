@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -435,7 +436,27 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	// outDst = "198.51.100.71"
 	// inSrc = "153.153.173.133"
 	// inDst = "197.51.48.243"
+	cliHandle := dut.RawAPIs().CLI(t)
+
 	ethHeader := ondatra.NewEthernetHeader().WithSrcAddress(tracerouteSrcMAC)
+	if intfName == atePort3.Name && !sourceport {
+		cmd := fmt.Sprintf("show interface %s", "Bundle-Ether120")
+		output, _ := cliHandle.RunCommand(context.Background(), cmd)
+		re := regexp.MustCompile(`address is (\w+.\w+.\w+)\s`)
+		match := re.FindStringSubmatch(output.Output())
+		fmt.Println("matchhhhhh")
+		s := match[1]
+		b1 := s[:4]
+		b2 := s[5:9]
+		b3 := s[10:]
+		bb := b1 + b2 + b3
+		fmt.Println(match[1])
+		fmt.Println(bb)
+		re = regexp.MustCompile(`.{2}`)
+		parts := re.FindAllString(bb, -1)
+		dstddress := strings.Join(parts, ":")
+		ethHeader = ondatra.NewEthernetHeader().WithSrcAddress(tracerouteSrcMAC).WithDstAddress(dstddress)
+	}
 	ipv4Header := ondatra.NewIPv4Header()
 	ipv4Header.WithSrcAddress(outSrc)
 	ipv4Header.WithDSCP(dscpEncapA1)
@@ -551,7 +572,7 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	dportsf := make(map[string]uint64)
 	dportsfin := make(map[string]uint64)
 
-	cliHandle := dut.RawAPIs().CLI(t)
+	//cliHandle := dut.RawAPIs().CLI(t)
 
 	if portval {
 		if len(opts) != 0 {
@@ -600,8 +621,6 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	if ttl == 1 {
 		fmt.Println("ttttttlllll")
 		time.Sleep(10 * time.Second)
-		//time.Sleep(20 * time.Minute)
-
 	} else {
 		time.Sleep(2 * time.Minute)
 	}
