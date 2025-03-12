@@ -316,11 +316,7 @@ func TestCopyFile(t *testing.T) {
 
 		cli := dut.RawAPIs().CLI(t)
 
-		chmodResult, err := cli.RunCommand(context.Background(), "chmod +x /var/xr/scratch/stress")
-		t.Logf("attempting to change permission: out: %s, err: %s", chmodResult.Output(), err)
-
-		chmodResults2 := dut.CLI().RunResult(t, "chmod +x /var/xr/scratch/stress")
-		t.Logf("attempting to change permissions using alternate command: out: %s, err: %s", chmodResults2.Output(), chmodResults2.Error())
+		cli.RunCommand(context.Background(), "run chmod +x /var/xr/scratch/stress")
 
 		result, _ := cli.RunCommand(context.Background(), "run ls -la /var/xr/scratch/stress")
 		t.Logf("output: %s", result.Output())
