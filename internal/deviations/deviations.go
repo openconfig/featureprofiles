@@ -553,12 +553,6 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
-// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
-// support fib forwarding for fib failed routes.
-func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
-}
-
 // SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
@@ -1325,4 +1319,9 @@ func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 // OperStatusForIcUnsupported return true if oper-status leaf is unsupported for Integration Circuit
 func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOperStatusForIcUnsupported()
+}
+
+// ExplicitDcoConfig returns true if a user-configured value is required in module-functional-type for the transceiver
+func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
 }

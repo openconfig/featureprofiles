@@ -945,6 +945,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.11"
+  description: "Interface LACP Intervals"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_interval_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/tests/core_lldp_tlv_population_test/README.md"
@@ -1011,6 +1017,12 @@ test: {
   id: "RT-7.9"
   description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
   readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.10"
+  description: "Routing policy statement insertion and removal"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/statement_insertion_removal/README.md"
   exec: " "
 }
 test: {
