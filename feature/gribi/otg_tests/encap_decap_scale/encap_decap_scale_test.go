@@ -107,7 +107,7 @@ const (
 	teVrf111TunnelCount     = 1600
 	teVrf222TunnelCount     = 1600
 	encapNhCount            = 1600
-	encapNhgcount           = 800
+	encapNhgcount           = 200
 	encapIPv4Count          = 5000
 	encapIPv6Count          = 5000
 	decapIPv4Count          = 48
