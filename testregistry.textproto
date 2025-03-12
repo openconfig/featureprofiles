@@ -474,6 +474,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.11"
+  description: "Rewrite the ingress innner packet TTL"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
