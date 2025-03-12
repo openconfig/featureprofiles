@@ -15,6 +15,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -47,7 +48,12 @@ func init() {
 // Initialize assigns OpMode with value received through operationalMode flag.
 func Initialize(operationalMode uint16) {
 	once.Do(func() {
-		opmode = operationalMode
+		if operationalMode != 0 {
+			opmode = operationalMode
+		} else {
+			fmt.Sprintln("Please specify the vendor-specific operational-mode flag")
+			return
+		}
 	})
 }
 
