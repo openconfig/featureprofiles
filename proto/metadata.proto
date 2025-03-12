@@ -717,6 +717,10 @@ message Metadata {
     // Nokia: b/383075189
     // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
     bool explicit_dco_config = 257;
+    // verify_expected_breakout_supported_config is used to verify on Cisco devices if optic supports a given breakout mode
+    // Cisco:
+    bool verify_expected_breakout_supported_config = 258;
+
 
     // Device does not support banner empty delimiter.
     // Cisco: b/393684636
