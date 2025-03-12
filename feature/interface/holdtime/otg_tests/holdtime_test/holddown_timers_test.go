@@ -590,7 +590,15 @@ func TestTC5ShortDOWN(t *testing.T) {
 		verifyPortsStatus(t, dut, "UP", 10)
 		// shutting down OTG interface to emulate the RF
 		t.Log("Shutdown OTG Interface")
-		change1 = gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
+		//change1 = gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
+		res := gnmi.Await(t, dut,
+			gnmi.OC().Interface(aggID).State(),
+			time.Second*45, change1)
+		change1, ok := res.Val()
+		if !ok {
+			t.Fatalf("Failed to get interface state: %v", gnmi.OC().Interface(aggID).State())
+		}
+
 		t.Logf("change1 last change is %v and status is %v", &change1.LastChange, change1.AdminStatus)
 
 		time1 = OTGInterfaceDOWN(t, ate, dut)
