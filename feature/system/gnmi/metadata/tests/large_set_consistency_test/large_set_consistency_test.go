@@ -306,6 +306,28 @@ func TestLargeSetConsistency(t *testing.T) {
 	t.Run("check Metadata2", func(t *testing.T) {
 		checkMetadata2(t, gnmiClient, dut)
 	})
+}
+
+// Large Metadata Config Push
+func TestLargeMetadataConfigPush(t *testing.T) {
+	done := &atomic.Int64{}
+	dut := ondatra.DUT(t, "dut")
+
+	// configuring basic interface and network instance as some devices only populate OC after configuration
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	// Configuring basic interface and network instance as some devices only populate OC after configuration.
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Type().Config(),
+		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	baselineConfig := fptest.GetDeviceConfig(t, dut)
+	setEthernetFromBase(t, baselineConfig)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	// Large metadata Test cases.
 	type testCase struct {
@@ -314,12 +336,12 @@ func TestLargeSetConsistency(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name: "Metadata with Size 100KiB",
+			name: "Metadata with Size 100KB",
 			size: 100 * 1024,
 		},
 		{
-			name: "Metadata with Size 1MiB",
-			size: 1 * 1024 * 1024,
+			name: "Metadata with Size 1MB",
+			size: 1 * 1000 * 1024,
 		},
 	}
 
@@ -331,3 +353,4 @@ func TestLargeSetConsistency(t *testing.T) {
 		})
 	}
 }
+		
