@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "4f04fb5b-5bc0-4214-a74d-2a30c0433078"
-plan_id: "TE-9.3"
-description: "FIB FAILURE DUE TO HARDWARE RESOURCE EXHAUST"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid: "ecfa2a8d-4a06-4aec-beba-2e3aae20afa8"
+plan_id: "RT-5.11"
+description: "LACP Intervals"
+testbed: TESTBED_DUT_DUT_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -20,6 +20,7 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    aggregate_atomic_update: true
     interface_enabled: true
   }
 }
@@ -28,10 +29,9 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    omit_l2_mtu: true
+    aggregate_atomic_update: true
     interface_enabled: true
     default_network_instance: "default"
-    bgp_missing_oc_max_prefixes_configuration: true
   }
 }
-tags: TAGS_TRANSIT
+
