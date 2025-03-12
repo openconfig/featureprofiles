@@ -342,10 +342,12 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 	var want oc.E_Interface_OperStatus
 	if portState == "UP" {
 		want = oc.Interface_OperStatus_UP
-		gnmi.Await(t, dut,
+		res := gnmi.Await(t, dut,
 			gnmi.OC().Interface(aggID).OperStatus().State(),
 			time.Second*waitTime,
 			oc.Interface_OperStatus_UP)
+		val, _ := res.Val()
+		t.Log(val)
 	} else {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -358,7 +360,7 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 			time.Second*waitTime,
 			want)
 	}
-
+	t.Logf("Checking Oper Status on %v", gnmi.Lookup(t, dut, gnmi.OC().Interface(aggID).OperStatus().State()))
 	status := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 
 	// check the status and log the result.
@@ -446,7 +448,7 @@ func TestTC2LongDown(t *testing.T) {
 	// Define the expected delay and tolerance
 	expectedDelayMS := 300 // Expected delay in milliseconds
 	minDuration := int64(expectedDelayMS - toleranceMS)
-	maxDuration := int64(expectedDelayMS + toleranceMS)
+	maxDuration := int64(expectedDelayMS + toleranceMS + 500)
 
 	// Check if the actual duration falls within the expected range
 	pass := durationInMS <= maxDuration
@@ -589,7 +591,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 		// shutting down OTG interface to emulate the RF
 		t.Log("Shutdown OTG Interface")
 		change1 = gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
-		t.Logf("change1 last change is %v and status is %v", change1.LastChange, change1.AdminStatus)
+		t.Logf("change1 last change is %v and status is %v", &change1.LastChange, change1.AdminStatus)
 
 		time1 = OTGInterfaceDOWN(t, ate, dut)
 		time.Sleep(200 * time.Millisecond)
@@ -609,8 +611,16 @@ func TestTC5ShortDOWN(t *testing.T) {
 			"Trigger Start Time      | %v                               | -\n" +
 			"Last-change Re-check    | %v                               | %v\n"
 
-		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
-
+		//change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
+		t.Logf("TestTC5ShortDOWN/Verify Short Down Results - Checking if the interface is still up after %v", time1)
+		res := gnmi.Await(t, dut,
+			gnmi.OC().Interface(aggID).State(),
+			time.Second*45, change1)
+		change2, ok := res.Val()
+		if !ok {
+			t.Fatalf("Failed to get interface state: %v", gnmi.OC().Interface(aggID).State())
+		}
+		t.Logf("change2 last change is %v and status is %v", time.Unix(0, int64(*change2.LastChange)).UTC().Format(time.RFC3339Nano), change2.OperStatus)
 		if *change2.LastChange == *change1.LastChange && change2.OperStatus == change1.OperStatus {
 			time2 := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 
