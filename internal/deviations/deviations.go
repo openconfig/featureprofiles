@@ -1325,3 +1325,8 @@ func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
 }
+
+// IsisAuthenticationInterfaceLevelUnsupported returns true if Isis Authentication is not supported under OC ISIS interface/levels but supported under IS-IS Interface/Authentication.
+func IsisAuthenticationInterfaceLevelUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisAuthenticationInterfaceLevelUnsupported()
+}
