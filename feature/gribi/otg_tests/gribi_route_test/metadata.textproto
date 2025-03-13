@@ -15,7 +15,6 @@ platform_exceptions:  {
     interface_ref_interface_id_format: true
     pf_require_match_default_rule: true
     pf_require_sequential_order_pbr_rules: true   
-    ttl_copy_unsupported:  true
     isis_single_topology_required: true
   }
 }
@@ -45,7 +44,6 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     missing_isis_interface_afi_safi_enable: true
     isis_require_same_l1_metric_with_l2_metric: true
-    route_policy_under_afi_unsupported: true
     static_protocol_name: "STATIC"
     aggregate_atomic_update: true
     missing_value_for_defaults: true

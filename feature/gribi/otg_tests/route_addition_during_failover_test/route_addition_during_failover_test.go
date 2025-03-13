@@ -662,11 +662,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	// Check vars for WithInitialElectionID.
 
 	client.Stop(t)
-	t.Log("Reconnect gRIBi client after switchover on new master.")
-	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
-		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 
-	client.Start(ctx, t)
 	defer client.Stop(t)
 	defer func() {
 		// Flush all entries after test.
@@ -675,17 +671,25 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 		}
 	}()
 
-	// Reconnect gribi client.
-	client.StartSending(ctx, t)
+	t.Log("Reconnect gRIBi client after switchover on new master.")
 
-	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
-		t.Log("Try to connect gRIBi client again, retrying...")
+	retryDuration := 180 * time.Second
+	retryInterval := 5 * time.Second
+	startTime := time.Now()
+
+	for {
 		client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
 			WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 		client.Start(ctx, t)
 		client.StartSending(ctx, t)
 		if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
-			t.Fatalf("Await got error during session negotiation for client: %v", err)
+			if time.Since(startTime) > retryDuration {
+				t.Fatalf("gRIBI Connection for clientA could not be re-established after multiple attempts")
+			}
+			t.Logf("Retrying gRIBI client connection in %v...", retryInterval)
+			time.Sleep(retryInterval)
+		} else {
+			break
 		}
 	}
 

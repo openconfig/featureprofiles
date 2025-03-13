@@ -1,4 +1,4 @@
-# TRANSCEIVER-11: Telemetry: 400ZR_PLUS Optics logical channels provisioning and related telemetry.
+# TRANSCEIVER-11 (400ZR_PLUS): Telemetry: 400ZR_PLUS Optics logical channels provisioning and related telemetry.
 
 ## Summary
 

@@ -22,7 +22,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    missing_isis_interface_afi_safi_enable: true
+    interface_ref_config_unsupported: true
   }
 }
 platform_exceptions: {

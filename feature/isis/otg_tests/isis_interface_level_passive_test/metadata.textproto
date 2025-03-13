@@ -41,7 +41,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     isis_interface_afi_unsupported: true
-    isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
     isis_timers_csnp_interval_unsupported: true
     isis_counter_manual_address_drop_from_areas_unsupported: true
     isis_counter_part_changes_unsupported: true

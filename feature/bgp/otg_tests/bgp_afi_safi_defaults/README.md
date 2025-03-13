@@ -30,7 +30,7 @@ BGP AFI SAFI OC DEFAULTS TEST
             "IPv6-unicast enabled" boolean is left to OC default for the IPv4 peer".
         *   Ensure that only IPv6-Unicast enabled boolean is made "true" for IPv6 neighbor. 
             "IPv4-unicast enabled" boolean is left to OC default for the IPv6 peer".
-        *   Ensure that there are no AFI-SAFI configurations at the global and peer-group levels. 
+        *   Ensure that there are no AFI-SAFI configurations at peer-group levels. 
         *   On the ATE side ensure that IPv4-unicast and IPv6-unicast AFI-SAFI are enabled==true for 
             IPv4 and IPv6 neighbors.
         *   Ensure that there is extended-next-hop encoding feature is configured via OC path and the
@@ -46,7 +46,7 @@ BGP AFI SAFI OC DEFAULTS TEST
     
     *   Configuration at the neighbor level is same as in [Test case-1] except for IPv4-unicast and 
         IPv6-unicast being enabled at the peer-group level
-    *   No configuration should be made at the global AFI-SAFI level
+    *   No configuration should be made at the neighbor AFI-SAFI level
     
     *   Verification:
         *   For IPv4 neighbor, ensure that the IPv4 neighborship is up and both IPv4-unicast and 
@@ -77,7 +77,6 @@ BGP AFI SAFI OC DEFAULTS TEST
             IPv4-unicast capabilities are set to FALSE.
         *   For IPv6 neighbor ensure that the IPv6 neighborship is not ESTABLISHED and
             IPv6-unicast capabilities are set to FALSE.
-
 
 ## OpenConfig Path and RPC Coverage
 

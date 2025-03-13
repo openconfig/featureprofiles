@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "AE08977F-4907-4D23-8CC4-6C2D8B0CFE05"
+plan_id: "TR-6.2"
+description: "Configuration of logging consumers - console, vty, local files"
+testbed: TESTBED_DUT

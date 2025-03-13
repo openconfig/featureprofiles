@@ -321,9 +321,6 @@ func TestBackupNHGAction(t *testing.T) {
 
 // TE11.3 - case 1: next-hop viability triggers decap in backup NHG.
 func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -378,9 +375,6 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 // TE11.3 - case 2: new tunnel viability triggers decap in the backup NHG.
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP1 %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -496,9 +490,6 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 
 // TE11.3 - case 3: tunnel viability triggers decap.
 func testDecap(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP1 %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -591,9 +582,6 @@ func testDecap(ctx context.Context, t *testing.T, args *testArgs) {
 
 // TE11.3 - case 4: resolution failure on new tunnels triggers decap in the backup NHG.
 func testDecapBackupNHG(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
-	}
 
 	t.Logf("Adding VIP1 %v/32 with NHG %d NH %d and  atePort2 via gRIBI", vip1, nhg1ID, nh1ID)
 	nh, nhOpResult := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)

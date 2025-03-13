@@ -247,24 +247,20 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
-		if strings.Contains(policyValue, "+") {
-			if deviations.BgpSetMedV7Unsupported(dut) {
-				t.Logf("Push the CLI config:%s", dut.Vendor())
-				metric, _ := strconv.Atoi(policyValue)
-				switch dut.Vendor() {
-				case ondatra.JUNIPER:
-					config := juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
-					helpers.GnmiCLIConfig(t, dut, config)
-				default:
-					t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
-				}
-			} else {
-				actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
-				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		if strings.Contains(policyValue, "+") && deviations.BgpSetMedV7Unsupported(dut) {
+			t.Logf("Push the CLI config:%s", dut.Vendor())
+			metric, _ := strconv.Atoi(policyValue)
+			switch dut.Vendor() {
+			case ondatra.JUNIPER:
+				config := juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
+				helpers.GnmiCLIConfig(t, dut, config)
+			default:
+				t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
 			}
 		} else {
 			metric, _ := strconv.Atoi(policyValue)
 			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+			actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 			actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		}
 	case setPrependPolicy:
