@@ -322,10 +322,17 @@ TODO: Finalize and update the below paths after the review and testing on any ve
         },
 ```
 
-## Telemetry Path Coverage
-####
+## OpenConfig Path and RPC Coverage
 
-```
+```yaml
+paths:
+    # Telemetry for GRE decap rule    
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+    
+    # Config paths for GRE decap
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
+
 interfaces/interface/state/counters/in-discards
 interfaces/interface/state/counters/in-errors
 interfaces/interface/state/counters/in-multicast-pkts
