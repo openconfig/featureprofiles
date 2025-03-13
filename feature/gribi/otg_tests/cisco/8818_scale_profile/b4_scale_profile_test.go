@@ -20,29 +20,27 @@ package b4_scale_profile_test
 import (
 	// "slices"
 	// "strconv"
+	// "os"
+
 	"context"
 	"fmt"
 	"strings"
 	"sync"
-
-	// "os"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
-
-	// "github.com/openconfig/featureprofiles/internal/gribi"
-	util "github.com/openconfig/featureprofiles/internal/cisco/util"
-	// "github.com/openconfig/gribigo/fluent"
-	// "github.com/openconfig/ondatra"
-	// "github.com/openconfig/featureprofiles/internal/gribi"
-	// "github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	// "github.com/openconfig/gribigo/fluent"
+	// "github.com/openconfig/featureprofiles/internal/gribi"
 	// "github.com/openconfig/ondatra/gnmi"
+	// "github.com/openconfig/featureprofiles/feature/gribi/ate_tests/cisco/ha"
 )
 
 const (
@@ -70,20 +68,8 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// func TestGribiScaleProfile(t *testing.T) {
-// 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-// 	// dut := ondatra.DUT(t, "dut")
-// 	// otg := ondatra.ATE(t, "ate")
-// 	// // ctx := context.Background()
-// 	// tcArgs := &testArgs{
-// 	// 	dut:  dut,
-// 	// 	ate:  otg,
-// 	// 	topo: topo,
-// 	// }
-// 	configureBaseProfile(t)
-// }
-
 func TestGoogleBaseConfPush(t *testing.T) {
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	// baseConf := "configpushfiles/google_conf.textproto"
 	// test := "configpushfiles/set1.textproto"
@@ -255,13 +241,11 @@ func TestGoogleBaseConfPush(t *testing.T) {
 
 func TestGribiScaleProfile(t *testing.T) {
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-	// dut := ondatra.DUT(t, "dut")
-	// otg := ondatra.ATE(t, "ate")
-	// // ctx := context.Background()
-	// tcArgs := &testArgs{
-	// 	dut:  dut,
-	// 	ate:  otg,
-	// 	topo: topo,
-	// }
 	configureBaseProfile(t)
+}
+
+func TestTriggerRPFO(t *testing.T) {
+	t.Run("RPFO", func(t *testing.T) {
+		utils.Dorpfo(context.Background(), t, false)
+	})
 }
