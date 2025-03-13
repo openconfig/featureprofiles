@@ -603,6 +603,9 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
+
+	t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
+
 	telemetrySystemValue, ok := telemetrySystem["openconfig-telemetry:telemetry-system"]
 	if !ok {
 		t.Errorf("Key 'openconfig-telemetry:telemetry-system' not found in the JSON. Err: %v", ok)
@@ -797,6 +800,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(gpbReplaceReq))
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setRes))
 		var jsonietfVal []byte
+		t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
 		occliConfig, err := os.ReadFile("testdata/vrf.txt")
 		if err != nil {
 			panic(fmt.Sprintf("Cannot load base config: %v", err))
@@ -835,6 +839,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		startIndex := strings.Index(cliJson, "{")
 		jsonString := cliJson[startIndex:]
 		jsonString = strings.Replace(jsonString, "[null]", "null", -1)
+		jsonString = jsonString[:strings.LastIndex(jsonString, "}")+1]
 
 		var data map[string]interface{}
 		err = json.Unmarshal([]byte(jsonString), &data)
