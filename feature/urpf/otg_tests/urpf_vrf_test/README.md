@@ -1,4 +1,4 @@
-# UT-1.1: uRPF validation from non-default network-instance
+# URPF-1.1: uRPF validation from non-default network-instance
 ## Summary
 This test verifies that uRPF validation occurs in a non-default network-instance while the forwarding lookup takes place in the default network-instance.
 
