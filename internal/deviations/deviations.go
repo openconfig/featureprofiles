@@ -1335,3 +1335,8 @@ func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 func VerifyExpectedBreakoutSupportedConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVerifyExpectedBreakoutSupportedConfig()
 }
+
+// SrIgpConfigUnsupported return true if SR IGP config is not supported
+func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSrIgpConfigUnsupported()
+}
