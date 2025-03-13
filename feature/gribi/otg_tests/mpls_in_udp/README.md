@@ -182,7 +182,6 @@ encapsulate in GRE.
 * Generate traffic from ATE port 1 to ATE port 2
 * Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
 
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
