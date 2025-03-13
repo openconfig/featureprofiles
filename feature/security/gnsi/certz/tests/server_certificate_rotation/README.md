@@ -1,4 +1,4 @@
-# Server Certificate Rotation
+## CERTZ-3: gNSI Server Certificate Rotation
 
 ## Summary
 
@@ -105,6 +105,8 @@ TODO(OCRPC): Record may not be correct or complete
 ```yaml
 rpcs:
   gnsi:
+    certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
     certz.v1.Certz.Rotate:
 ```
 
