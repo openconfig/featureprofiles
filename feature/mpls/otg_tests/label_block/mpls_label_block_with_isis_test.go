@@ -15,7 +15,6 @@
 package mpls_label_block_with_isis_test
 
 import (
-	"github.com/openconfig/ondatra"
 	"net"
 	"testing"
 	"time"
@@ -26,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
