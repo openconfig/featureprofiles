@@ -56,32 +56,6 @@ var (
 	dutStartTimes = make(map[string]int64)
 	// Mutex to ensure thread-safe access to the start times map
 	dutStartTimesMutex sync.Mutex
-
-	// Map to store commands and their corresponding error patterns
-	// TODO : for errorPatterns : plan to use regex pattern instead of string
-	// commandPatterns = map[string]map[string]interface{}{
-	// 	"show logging": {
-	// 		"type":          "logging",
-	// 		"errorPatterns": []string{"HW_PROG_ERROR", "Traceback", "HA-HA_WD-4-MEMORY_LIMIT_EXCEEDED", "SSHD"},
-	// 	},
-	// "show grpc trace all": {
-	// 	"type":          "logging",
-	// 	"errorPatterns": []string{"HW_PROG_ERROR", "Traceback", "EMS-SYSTEM"},
-	// },
-	// "show rib hw-ack object route": {
-	// 	"type":          "command",
-	// 	"errorPatterns": []string{"RIB ACK", "Invalid"},
-	// },
-	// "show rib hw-ack object nhg": {
-	// 	"type":          "command",
-	// 	"errorPatterns": []string{"RIB ACK", "Invalid"},
-	// },
-	// "show rib hw-ack object nh": {
-	// 	"type":          "command",
-	// 	"errorPatterns": []string{"RIB ACK", "Invalid"},
-	// },
-	// Add more commands and their patterns here
-	// }
 )
 
 // ParseYAML parses the YAML file and returns the command patterns as a map
@@ -223,7 +197,6 @@ func CollectRouterLogs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		} else {
 			fmt.Println("Error: 'errorPatterns' is not a list of interfaces.")
 		}
-		// matched := CheckForErrorPatterns(details["errorPatterns"].([]string), string(logContent))
 
 	}
 
@@ -324,19 +297,6 @@ func cleanLogDirectory(ctx context.Context, client binding.CLIClient, dir string
 	return commandOuptut, err
 }
 
-// CheckForErrorPatterns checks the logs for the presence of error patterns.
-//
-//	func CheckForErrorPatterns(patterns []string, logContent string) []string {
-//		var matchedPatterns []string
-//		for _, pattern := range patterns {
-//			matched, _ := regexp.MatchString(pattern, logContent)
-//			if matched {
-//				matchedPatterns = append(matchedPatterns, pattern)
-//			}
-//		}
-//		return matchedPatterns
-//	}
-//
 // CheckForErrorPatterns checks the logs for the presence of error patterns.
 func CheckForErrorPatterns(patterns []interface{}, logContent string) []string {
 	var matchedPatterns []string

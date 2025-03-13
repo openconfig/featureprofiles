@@ -123,8 +123,8 @@ func TestOSInstall(t *testing.T) {
 			commandPatterns: command,
 		}
 		tc1.negActivateTestCases = []activateNegativeTestCases{
-			//version,noReboot,standby,expectFail,expectedError
-			// version : flase = wrong version, true = correct version
+			// version,noReboot,standby,expectFail,expectedError
+			// version : false = wrong version, true = correct version
 			{false, true, true, true, activateOnStandbyFixed, activateOnStandbyNotSupported},
 			{false, true, false, true, activateNoRebootNotSupported, activateNoRebootNotSupported},
 			{false, false, true, true, activateOnStandbyFixed, activateOnStandbyNotSupported},
