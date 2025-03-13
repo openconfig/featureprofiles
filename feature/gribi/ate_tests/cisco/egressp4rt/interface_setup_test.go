@@ -86,7 +86,6 @@ var (
 			Name:    "port3",
 			IPv4:    dutPort3IPv4(0),
 			IPv4Len: ipv4PrefixLen,
-			// IPv6:    "192:0:2::1",
 		},
 		numSubIntf: 0,
 		ip:         dutPort3IPv4,
@@ -95,12 +94,8 @@ var (
 	atePort3 = attributes{
 		Attributes: attrs.Attributes{
 			Name: "port3",
-			// IPv4:    atePort3IPv4(0),
-			// IPv4Len: ipv4PrefixLen,
 		},
 		numSubIntf: 0,
-		// ip:         atePort3IPv4,
-		// gateway:    dutPort3IPv4,
 	}
 
 	dutPort4 = attributes{
@@ -117,12 +112,8 @@ var (
 	atePort4 = attributes{
 		Attributes: attrs.Attributes{
 			Name: "port4",
-			// IPv4:    atePort4IPv4(0),
-			// IPv4Len: ipv4PrefixLen,
 		},
 		numSubIntf: 0,
-		// ip:         atePort4IPv4,
-		// gateway:    dutPort4IPv4,
 	}
 	dutPort5 = attributes{
 		Attributes: attrs.Attributes{
@@ -210,13 +201,8 @@ var (
 	atePort8 = attributes{
 		Attributes: attrs.Attributes{
 			Name: "port8",
-			//IPv4:    atePort8IPv4(0),
-			//IPv4Len: ipv4PrefixLen,
-			//IPv6:    "192:0:4::1A",
 		},
 		numSubIntf: 0,
-		// ip:         atePort8IPv4,
-		// gateway:    dutPort8IPv4,
 	}
 )
 

@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"flag"
 
@@ -29,15 +28,11 @@ import (
 	//"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 
 	"github.com/cisco-open/go-p4/utils"
-	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
-	gnps "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
@@ -70,111 +65,6 @@ var (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
-// configInterfaceDUT configures the interface with the Addrs.
-// func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
-// 	i.Description = ygot.String(a.Desc)
-// 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-// 	if deviations.InterfaceEnabled(dut) {
-// 		i.Enabled = ygot.Bool(true)
-// 	}
-
-// 	s := i.GetOrCreateSubinterface(0)
-// 	s4 := s.GetOrCreateIpv4()
-// 	if deviations.InterfaceEnabled(dut) {
-// 		s4.Enabled = ygot.Bool(true)
-// 	}
-// 	s4a := s4.GetOrCreateAddress(a.IPv4)
-// 	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
-
-// 	s6 := s.GetOrCreateIpv6()
-// 	if deviations.InterfaceEnabled(dut) {
-// 		s6.Enabled = ygot.Bool(true)
-// 	}
-// 	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(ipv6PrefixLen)
-
-// 	return i
-// }
-
-// // configureDUT configures port1 and port2 on the DUT.
-// func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-// 	d := gnmi.OC()
-
-// 	p1 := dut.Port(t, "port1")
-// 	i1 := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(portId)}
-// 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
-
-// 	p2 := dut.Port(t, "port2")
-// 	i2 := &oc.Interface{Name: ygot.String(p2.Name()), Id: ygot.Uint32(portId + 1)}
-// 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
-
-// 	if deviations.ExplicitPortSpeed(dut) {
-// 		fptest.SetPortSpeed(t, p1)
-// 		fptest.SetPortSpeed(t, p2)
-// 	}
-// 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-// 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-// 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-// 	}
-// 	gnmi.Replace(t, dut, gnmi.OC().Lldp().Enabled().Config(), false)
-// }
-
-// // configureATE configures port1 and port2 on the ATE.
-// func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-// 	top := ate.Topology().New()
-
-// 	p1 := ate.Port(t, "port1")
-// 	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-// 	i1.IPv4().
-// 		WithAddress(atePort1.IPv4CIDR()).
-// 		WithDefaultGateway(dutPort1.IPv4)
-// 	i1.IPv6().
-// 		WithAddress(atePort1.IPv6CIDR()).
-// 		WithDefaultGateway(dutPort1.IPv6)
-
-// 	p2 := ate.Port(t, "port2")
-// 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-// 	i2.IPv4().
-// 		WithAddress(atePort2.IPv4CIDR()).
-// 		WithDefaultGateway(dutPort2.IPv4)
-// 	i2.IPv6().
-// 		WithAddress(atePort2.IPv6CIDR()).
-// 		WithDefaultGateway(dutPort2.IPv6)
-
-// 	return top
-// }
-
-// configureDeviceIDs configures p4rt device-id on the DUT.
-// func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
-// 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
-// 	P4rtNode, ok := nodes["port1"]
-// 	if !ok {
-// 		t.Fatal("Couldn't find P4RT Node for port: port1")
-// 	}
-// 	t.Logf("Configuring P4RT Node: %s", P4rtNode)
-// 	c := oc.Component{}
-// 	c.Name = ygot.String(P4rtNode)
-// 	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-// 	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
-// 	gnmi.Replace(t, dut, gnmi.OC().Component(P4rtNode).Config(), &c)
-
-// 	///deviceid2
-// 	P4rtNode2, ok := nodes["port3"]
-// 	fmt.Println("P4rt nodes")
-// 	fmt.Println(P4rtNode)
-// 	fmt.Println(P4rtNode2)
-// 	if !ok {
-// 		t.Fatal("Couldn't find P4RT Node for port: port3")
-// 	}
-// 	if P4rtNode != P4rtNode2 {
-// 		t.Logf("Configuring P4RT Node: %s", P4rtNode2)
-// 		c2 := oc.Component{}
-// 		c2.Name = ygot.String(P4rtNode2)
-// 		c2.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
-// 		c2.IntegratedCircuit.NodeId = ygot.Uint64(deviceId2)
-// 		gnmi.Replace(t, dut, gnmi.OC().Component(P4rtNode2).Config(), &c2)
-// 	}
-// }
 
 // setupP4RTClient sends client arbitration message for both leader and follower clients,
 // then sends setforwordingpipelineconfig with leader client.
@@ -254,11 +144,7 @@ func TestEgressp4rt(t *testing.T) {
 	ctx := context.Background()
 
 	// Configure the DUT
-	//configureDUT(t, dut)
 	baseconfig(t)
-
-	// Configure P4RT device-id
-	//configureDeviceID(ctx, t, dut)
 
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	P4rtNode, ok := nodes["port1"]
@@ -304,26 +190,6 @@ func TestEgressp4rt(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
-	// args := &testArgs{
-	// 	ctx:      ctx,
-	// 	leader:   leader,
-	// 	follower: follower,
-	// 	dut:      dut,
-	// 	ate:      ate,
-	// 	top:      top,
-	// }
-
-	// type testArgs struct {
-	// 	ctx      context.Context
-	// 	leader   *p4rt_client.P4RTClient
-	// 	follower *p4rt_client.P4RTClient
-	// 	dut      *ondatra.DUTDevice
-	// 	ate      *ondatra.ATEDevice
-	// 	packetIO PacketIO
-	// 	clientg  *gribi.Client
-	// 	top      *ondatra.ATETopology
-	// }
-
 	args := &testArgs{
 		ctx:      ctx,
 		leader:   leader,
@@ -338,8 +204,6 @@ func TestEgressp4rt(t *testing.T) {
 	}
 	var deviceSet bool
 	if P4rtNode != P4rtNode2 {
-		fmt.Println(P4rtNode)
-		fmt.Println("2nd deviceid setup")
 		if err := setupP4RTClient(ctx, args, deviceId2, stream2); err != nil {
 			t.Fatalf("Could not setup p4rt client: %v", err)
 		}
@@ -349,10 +213,8 @@ func TestEgressp4rt(t *testing.T) {
 	}
 
 	args.packetIO = getTracerouteParameter(t)
-	fmt.Println("ooooo")
-	fmt.Println(args.packetIO)
 	var srcport string
-	for j := 2; j <= 2; j++ {
+	for j := 1; j <= 2; j++ {
 		if j == 1 || (j == 2 && deviceSet) {
 			if j == 1 {
 				srcport = "port1"
@@ -361,8 +223,6 @@ func TestEgressp4rt(t *testing.T) {
 				srcport = "port3"
 
 			}
-			fmt.Println("srcporttt")
-			fmt.Println(srcport)
 			testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpDC", deviceSet, srcport)
 			testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpDC", deviceSet, srcport)
 
@@ -372,7 +232,6 @@ func TestEgressp4rt(t *testing.T) {
 			testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDPDC", deviceSet, srcport, &TOptions{ptcp: 4})
 			testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDPDC", deviceSet, srcport, &TOptions{pudp: 8})
 
-			//flap
 			testWithDCUnoptimized(ctx, t, args, true, false, "flap1", "IpinIpDCprimarychange", deviceSet, srcport)
 			args.interfaceaction(t, "port2", true)
 
@@ -390,8 +249,6 @@ func TestEgressp4rt(t *testing.T) {
 
 			testWithDCUnoptimized(ctx, t, args, false, false, "flap1", "Ipv6inIpUDPprimarychange", deviceSet, srcport, &TOptions{pudp: 8})
 			args.interfaceaction(t, "port2", true)
-
-			// //flap1
 
 			testWithDCUnoptimized(ctx, t, args, true, false, "flap", "IpinIpDCfrr", deviceSet, srcport)
 			args.interfaceaction(t, "port2", true)
@@ -425,7 +282,6 @@ func TestEgressp4rt(t *testing.T) {
 			args.interfaceaction(t, "port6", true)
 			args.interfaceaction(t, "port8", true)
 
-			t.Logf("frrrss sone")
 			//Encap
 			testWithDCUnoptimized(ctx, t, args, true, true, "", "Ip", deviceSet, srcport)
 
@@ -436,7 +292,6 @@ func TestEgressp4rt(t *testing.T) {
 
 			testWithDCUnoptimized(ctx, t, args, false, true, "", "Ipv6tcp", deviceSet, srcport, &TOptions{ptcp: 4})
 			testWithDCUnoptimized(ctx, t, args, false, true, "", "Ipv6udp", deviceSet, srcport, &TOptions{pudp: 8})
-			//flap1
 			testWithDCUnoptimized(ctx, t, args, true, true, "flap1", "IpPrimaryChange", deviceSet, srcport)
 			args.interfaceaction(t, "port2", true)
 
@@ -455,7 +310,6 @@ func TestEgressp4rt(t *testing.T) {
 			testWithDCUnoptimized(ctx, t, args, false, true, "flap1", "Ipv6udpPrimaryChange", deviceSet, srcport, &TOptions{pudp: 8})
 			args.interfaceaction(t, "port2", true)
 
-			//flap2
 			testWithDCUnoptimized(ctx, t, args, true, true, "flap", "Ipfrr", deviceSet, srcport)
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
@@ -638,100 +492,4 @@ func (traceroute *TraceroutePacketIO) GetEgressPort() string {
 // GetIngressPort return expected ingress port info in Packetin.
 func (traceroute *TraceroutePacketIO) GetIngressPort() string {
 	return traceroute.IngressPort
-}
-
-func performrpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
-	t.Helper()
-	dut := ondatra.DUT(t, "dut")
-	// supervisor info
-	var supervisors []string
-	active_state := gnmi.OC().Component(active_rp).Name().State()
-	active := gnmi.Get(t, dut, active_state)
-	standby_state := gnmi.OC().Component(standby_rp).Name().State()
-	standby := gnmi.Get(t, dut, standby_state)
-	supervisors = append(supervisors, active, standby)
-
-	// find active and standby RP
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, supervisors)
-	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
-
-	// make sure standby RP is reach
-	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
-	}
-	// gnoiClient := dut.RawAPIs().GNOI(t)
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
-	}
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &gnps.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
-	want := rpStandbyBeforeSwitch
-	got := ""
-	if useNameOnly {
-		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-	} else {
-		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
-	}
-	if got != want {
-		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
-	}
-
-	startSwitchover := time.Now()
-	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-		}
-	}
-	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
-
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, supervisors)
-	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
-
-	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
-		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
-	}
-	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
-		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
-	}
-
-	t.Log("Validate OC Switchover time/reason.")
-	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
-	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
-	}
-
-	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
-		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
-		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
 }

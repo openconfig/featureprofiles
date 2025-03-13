@@ -51,13 +51,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	t.Helper()
 
 	top := ate.Topology().New()
-	//atePort1.ConfigureSubATE(t, top, ate)
-	//atePort2.ConfigureSubATE(t, top, ate)
-	//atePort3.ConfigureSubATE(t, top, ate)
-	//atePort4.ConfigureSubATE(t, top, ate)
-	//atePort5.ConfigureSubATE(t, top, ate)
-	//atePort6.ConfigureSubATE(t, top, ate)
-	//atePort8.ConfigureSubATE(t, top, ate)
 
 	p1 := ate.Port(t, "port1")
 	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
@@ -210,190 +203,11 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	top.Push(t).StartProtocols(t)
 }
 
-func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap bool, inDst, inSrc, outDst, outSrc string, case4, case5, portval bool, opts ...*Countoptions) (string, int) {
-
-	allIntf := top.Interfaces()
-	dut := ondatra.DUT(t, "dut")
-
-	// ATE source endpoint.
-	srcEndPoint := allIntf[atePort1.IPv4]
-
-	// ATE destination endpoints.
-	dstEndPoints := []ondatra.Endpoint{}
-	if case4 && case5 {
-		for i := uint32(1); i <= 2; i++ {
-			dstIP := atePort3.ip(uint8(i))
-			dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-		}
-		args.interfaceaction(t, "port2", false)
-		args.interfaceaction(t, "port4", false)
-	} else if case4 {
-		for i := uint32(1); i <= 2; i++ {
-			dstIP := atePort5.ip(uint8(i))
-			dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-		}
-		args.interfaceaction(t, "port2", false)
-		args.interfaceaction(t, "port4", false)
-
-	} else if case5 {
-		if count == 2 {
-			dstIP := atePort7.ip(0)
-			dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-
-		} else {
-			for i := uint32(1); i < 2; i++ {
-				dstIP := atePort3.ip(uint8(i))
-				dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-			}
-		}
-		args.interfaceaction(t, "port5", false)
-
-	} else {
-		for i := uint32(1); i <= 15; i++ {
-			dstIP := atePort2.ip(uint8(i))
-			dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-		}
-		for i := uint32(1); i <= 15; i++ {
-			dstIP := atePort4.ip(uint8(i))
-			dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-		}
-	}
-	var innerdst string
-	if !encap {
-		innerdst = innerdstPfxMin_bgp
-	} else {
-		innerdst = "197.51.100.1"
-	}
-	var ttl, ttl2 int
-	if count == 5 || count == 6 {
-		ttl = 1
-		ttl2 = 1
-	} else if count == 4 || count == 7 {
-		ttl = 1
-		ttl2 = 50
-	} else {
-		ttl = 64
-	}
-	// Configure Ethernet+IPv4 headers.
-	ethHeader := ondatra.NewEthernetHeader().WithSrcAddress(tracerouteSrcMAC)
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(ipv4FlowIP)
-	ipv4Header.WithDSCP(dscpEncapA1)
-	ipv4Header.WithDstAddress(dstPfx)
-	ipv4Header.WithTTL(uint8(ttl))
-
-	innerIpv4Header := ondatra.NewIPv4Header()
-	innerIpv6Header := ondatra.NewIPv6Header()
-	if count != 2 {
-		if count == 5 || count == 4 {
-			innerIpv4Header.SrcAddressRange().WithMin(innersrcPfx).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
-			innerIpv4Header.DstAddressRange().WithMin(innerdst).WithCount(uint32(count)).WithStep("0.0.0.1")
-			innerIpv4Header.WithTTL(uint8(ttl2))
-		} else {
-			innerIpv4Header.SrcAddressRange().WithMin(innersrcPfx).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
-			innerIpv4Header.DstAddressRange().WithMin(innerdst).WithCount(uint32(500)).WithStep("0.0.0.1")
-			innerIpv4Header.WithTTL(uint8(ttl2))
-		}
-	} else if count == 2 || count == 6 || count == 7 {
-		innerIpv6Header.SrcAddressRange().WithMin("1::1").WithCount(uint32(60000)).WithStep("::1")
-		innerIpv6Header.DstAddressRange().WithMin(ipv6EntryPrefix).WithCount(uint32(1)).WithStep("::1")
-		innerIpv6Header.WithHopLimit(uint8(ttl2))
-	}
-
-	flow := ate.Traffic().NewFlow("flow").
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoints...)
-
-	if count == 2 {
-		flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv6Header).WithFrameRateFPS(10).WithFrameSize(300)
-	} else {
-		flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv4Header).WithFrameRateFPS(10).WithFrameSize(300)
-	}
-	dports := make(map[string]uint64)
-
-	//dportsf := make(map[string][]string)
-	dportsf := make(map[string]uint64)
-
-	cliHandle := dut.RawAPIs().CLI(t)
-
-	if !(count >= 4 && count <= 7) {
-		if len(opts) != 0 {
-			for _, opt := range opts {
-				for _, p := range opt.portin {
-					cmd := fmt.Sprintf("show interface %s", p)
-					output, _ := cliHandle.RunCommand(context.Background(), cmd)
-					re := regexp.MustCompile(`(\d+)\spackets output`)
-					match := re.FindStringSubmatch(output.Output())
-					val, _ := strconv.Atoi(match[1])
-					dports[p] = uint64(val)
-					fmt.Println("portt&val")
-					fmt.Println(p)
-					fmt.Println(val)
-				}
-
-			}
-		}
-	}
-	ate.Traffic().Start(t, flow)
-	time.Sleep(20000 * time.Minute)
-	ate.Traffic().Stop(t)
-	flowPath := gnmi.OC().Flow(flow.Name())
-	got := gnmi.Get(t, args.ate, flowPath.LossPct().State())
-	if count == 4 || count == 5 || count == 6 || count == 7 {
-		if got != 100 {
-			t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", flow.Name(), got)
-		}
-	} else {
-		if got > 0 {
-			t.Errorf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
-		}
-	}
-	var portid string
-	if !(count >= 4 && count <= 7) {
-
-		if len(opts) != 0 {
-			for _, opt := range opts {
-				for _, p := range opt.portin {
-					cmd := fmt.Sprintf("show interface %s", p)
-					fmt.Println("in loop222")
-
-					output, _ := cliHandle.RunCommand(context.Background(), cmd)
-					re := regexp.MustCompile(`(\d+)\spackets output`)
-					match := re.FindStringSubmatch(output.Output())
-					val, _ := strconv.Atoi(match[1])
-					dportsf[p] = uint64(val)
-					fmt.Println("dstportt&val")
-					fmt.Println(p)
-					fmt.Println(val)
-
-					if dportsf[p]-dports[p] == 36000 {
-						portid = p
-						fmt.Println("in looop2")
-						fmt.Println(portid)
-					}
-				}
-			}
-		}
-	}
-	//outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
-	outPkts := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
-
-	total := 0
-
-	for _, count := range outPkts {
-		total += int(count)
-	}
-
-	return portid, total
-}
-
 func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap, portval, sourceport bool, ttl, ttl2 int, inDst, inSrc, outDst, outSrc string, opts ...*Countoptions) (string, string, int) {
 
-	//allIntf := top.Interfaces()
 	dut := ondatra.DUT(t, "dut")
 	var intfName, intfs string
 	// ATE source endpoint.
-	//srcEndPoint := allIntf[atePort1.IPv4]
 	if sourceport {
 		intfName = atePort1.Name
 		intfs = "atePort1"
@@ -402,12 +216,7 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 		intfs = "atePort3"
 	}
 	srcEndPoint := top.Interfaces()[intfName]
-
-	// ATE destination endpoints.
 	dstEndPoints := []ondatra.Endpoint{}
-	// dstEndPoints = append(dstEndPoints, allIntf[atePort6.IPv4])
-	// dstEndPoints = append(dstEndPoints, allIntf[atePort8.IPv4])
-	//dstEndPoints := a.top.Interfaces()[atePort1.Name]
 
 	for intf, intf_data := range top.Interfaces() {
 		if intf != intfs {
@@ -421,21 +230,13 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 		innerdst = inDst
 	}
 	var fps int
-	// if count == 6 || count == 22 {
-	// 	fps = 5
-	// } else {
-	// 	fps = 300
-	// }
+	ct := 30000
 	if ttl == 1 {
 		fps = 5
 	} else {
 		fps = 300
 	}
 	// Configure Ethernet+IPv4 headers.
-	// outSrc = "150.150.238.42"
-	// outDst = "198.51.100.71"
-	// inSrc = "153.153.173.133"
-	// inDst = "197.51.48.243"
 	cliHandle := dut.RawAPIs().CLI(t)
 
 	ethHeader := ondatra.NewEthernetHeader().WithSrcAddress(tracerouteSrcMAC)
@@ -444,14 +245,11 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 		output, _ := cliHandle.RunCommand(context.Background(), cmd)
 		re := regexp.MustCompile(`address is (\w+.\w+.\w+)\s`)
 		match := re.FindStringSubmatch(output.Output())
-		fmt.Println("matchhhhhh")
 		s := match[1]
 		b1 := s[:4]
 		b2 := s[5:9]
 		b3 := s[10:]
 		bb := b1 + b2 + b3
-		fmt.Println(match[1])
-		fmt.Println(bb)
 		re = regexp.MustCompile(`.{2}`)
 		parts := re.FindAllString(bb, -1)
 		dstddress := strings.Join(parts, ":")
@@ -478,8 +276,6 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	} else if count == 2 || count == 22 {
 		innerIpv6Header.SrcAddressRange().WithMin(inSrc).WithCount(1).WithStep("::1")
 		innerIpv6Header.DstAddressRange().WithMin(inDst).WithCount(uint32(1)).WithStep("::1")
-		//innerIpv6Header.DstAddressRange().WithMin("2555:1::").WithCount(uint32(1)).WithStep("::1")
-
 		innerIpv6Header.WithHopLimit(uint8(ttl2))
 		innerIpv6Header.WithDSCP(8)
 	}
@@ -568,32 +364,20 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	dports := make(map[string]uint64)
 	dportsinp := make(map[string]uint64)
 
-	//dportsf := make(map[string][]string)
 	dportsf := make(map[string]uint64)
 	dportsfin := make(map[string]uint64)
-
-	//cliHandle := dut.RawAPIs().CLI(t)
 
 	if portval {
 		if len(opts) != 0 {
 			for _, opt := range opts {
 				for _, p := range opt.portin {
-					fmt.Println("poorttt")
-					fmt.Println(p)
-
 					cmd := fmt.Sprintf("show interface %s", p)
 					output, _ := cliHandle.RunCommand(context.Background(), cmd)
 					re := regexp.MustCompile(`(\d+)\spackets output`)
 					match := re.FindStringSubmatch(output.Output())
-					fmt.Println("matchhhhhh")
-					fmt.Println(match)
 					val, _ := strconv.Atoi(match[1])
 					dports[p] = uint64(val)
-					fmt.Println("sssportt&val")
-					fmt.Println(p)
-					fmt.Println(val)
 				}
-
 			}
 		}
 
@@ -606,20 +390,14 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 				output, _ := cliHandle.RunCommand(context.Background(), cmd)
 				re := regexp.MustCompile(`(\d+)\spackets input`)
 				match := re.FindStringSubmatch(output.Output())
-				fmt.Println("matchhhhhh")
-				fmt.Println(match)
 				val, _ := strconv.Atoi(match[1])
 				dportsinp[pi] = uint64(val)
-				fmt.Println("sssportt&val")
-				fmt.Println(pi)
-				fmt.Println(val)
 			}
 		}
 	}
 
 	ate.Traffic().Start(t, flow)
 	if ttl == 1 {
-		fmt.Println("ttttttlllll")
 		time.Sleep(10 * time.Second)
 	} else {
 		time.Sleep(2 * time.Minute)
@@ -627,11 +405,7 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 	ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
 	got := gnmi.Get(t, args.ate, flowPath.LossPct().State())
-	fmt.Println("gooott")
-	fmt.Println(got)
-	//if count == 6 || count == 22 {
 	if ttl == 1 {
-
 		if got != 100 {
 			t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", flow.Name(), got)
 		}
@@ -647,8 +421,6 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 			for _, opt := range opts {
 				for _, p := range opt.portin {
 					cmd := fmt.Sprintf("show interface %s", p)
-					fmt.Println("in loop222")
-
 					output, _ := cliHandle.RunCommand(context.Background(), cmd)
 					re := regexp.MustCompile(`(\d+)\spackets output`)
 					match := re.FindStringSubmatch(output.Output())
@@ -657,25 +429,15 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 						val = 10
 					}
 					dportsf[p] = uint64(val)
-					fmt.Println("dstportt&val")
-					fmt.Println(p)
-					fmt.Println(val)
 
-					if dportsf[p]-dports[p] >= 30000 {
+					if dportsf[p]-dports[p] >= uint64(ct) {
 						portid = p
-						fmt.Println("in looop2")
-						fmt.Println(portid)
-						fmt.Println(dportsf[p])
-						fmt.Println("before traffic")
-						fmt.Println(dports[p])
 					}
 				}
 			}
 			for _, opt := range opts {
 				for _, pi := range opt.portinp {
 					cmd := fmt.Sprintf("show interface %s", pi)
-					fmt.Println("in loop222src")
-
 					output, _ := cliHandle.RunCommand(context.Background(), cmd)
 					re := regexp.MustCompile(`(\d+)\spackets input`)
 					match := re.FindStringSubmatch(output.Output())
@@ -684,20 +446,14 @@ func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology
 						val = 10
 					}
 					dportsfin[pi] = uint64(val)
-					fmt.Println("dstportt&val")
-					fmt.Println(pi)
-					fmt.Println(val)
 
-					if dportsfin[pi]-dportsinp[pi] >= 30000 {
+					if dportsfin[pi]-dportsinp[pi] >= uint64(ct) {
 						portidin = pi
-						fmt.Println("in looop2")
-						fmt.Println(portidin)
 					}
 				}
 			}
 		}
 	}
-	//outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
 	outPkts := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
 
 	total := 0
