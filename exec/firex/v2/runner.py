@@ -1609,9 +1609,9 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_version={
-    "controller": "1.3.0-2",
-    "hw": "1.3.0-4",
-    "gnmi": "1.13.15",
+    "controller": "1.24.0-4",
+    "hw": "1.24.0-1",
+    "gnmi": "1.24.2",
 }):
     # TODO: delete this line
     logger.print(f"reserved_testbed [{reserved_testbed}]")

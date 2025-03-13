@@ -19,6 +19,7 @@ package b4_scale_profile_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"strings"
 	"sync"
@@ -54,6 +55,11 @@ const (
 	IPinIPpSrcDstIPWidth      = 12
 	IPinIPpDscpOffset         = 120
 	IPinIPpDscpWidth          = 8
+)
+
+var (
+	logDir           = flag.String("logDir", "", "Firex path to copy the logs after each test case")
+	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
 )
 
 func TestMain(m *testing.M) {
@@ -232,8 +238,11 @@ func TestGoogleBaseConfPush(t *testing.T) {
 }
 
 func TestGribiScaleProfile(t *testing.T) {
+	// log_collector.Start(context.Background(), t, dut)
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 	configureBaseProfile(t)
+	// log_collector.CollectRouterLogs(tc.ctx, t, dut, *logDir, "beforeUpgradeAfterSSO", tc.commandPatterns)
+
 }
 
 func TestTriggerRPFO(t *testing.T) {
