@@ -206,7 +206,7 @@ Verify:
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
 
 ### JSON Format
-```
+```json
        "name": "default",
         "policy-forwarding": {
               {
