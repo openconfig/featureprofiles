@@ -18,10 +18,6 @@
 package b4_scale_profile_test
 
 import (
-	// "slices"
-	// "strconv"
-	// "os"
-
 	"context"
 	"fmt"
 	"strings"
@@ -37,10 +33,6 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
-	// "github.com/openconfig/gribigo/fluent"
-	// "github.com/openconfig/featureprofiles/internal/gribi"
-	// "github.com/openconfig/ondatra/gnmi"
-	// "github.com/openconfig/featureprofiles/feature/gribi/ate_tests/cisco/ha"
 )
 
 const (
