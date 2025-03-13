@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "043dc110-04d9-4327-be04-91cd261a4d9a"
-plan_id: "RT-5.11"
+plan_id: "RT-5.12"
 description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {

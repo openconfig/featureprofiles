@@ -1,4 +1,4 @@
-# RT-5.11: Suppress IPv6 ND Router Advertisement [Depreciated]
+# RT-5.12: Suppress IPv6 ND Router Advertisement [Depreciated]
 
 ## Summary
 

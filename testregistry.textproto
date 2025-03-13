@@ -963,6 +963,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.12"
+  description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/tests/core_lldp_tlv_population_test/README.md"
