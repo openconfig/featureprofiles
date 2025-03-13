@@ -80,33 +80,12 @@ var (
 		ip:         atePort2IPv4,
 		gateway:    dutPort2IPv4,
 	}
-	dutPort3 = attributes{
-		Attributes: attrs.Attributes{
-			Desc:    "dutPort3",
-			Name:    "port3",
-			IPv4:    dutPort3IPv4(0),
-			IPv4Len: ipv4PrefixLen,
-		},
-		numSubIntf: 0,
-		ip:         dutPort3IPv4,
-	}
 
 	atePort3 = attributes{
 		Attributes: attrs.Attributes{
 			Name: "port3",
 		},
 		numSubIntf: 0,
-	}
-
-	dutPort4 = attributes{
-		Attributes: attrs.Attributes{
-			Desc:    "dutPort4",
-			Name:    "port4",
-			IPv4:    dutPort4IPv4(0),
-			IPv4Len: ipv4PrefixLen,
-		},
-		numSubIntf: 0,
-		ip:         dutPort4IPv4,
 	}
 
 	atePort4 = attributes{
@@ -186,18 +165,6 @@ var (
 		gateway:    dutPort7IPv4,
 	}
 
-	dutPort8 = attributes{
-		Attributes: attrs.Attributes{
-			Desc:    "dutPort8",
-			Name:    "port8",
-			IPv4:    dutPort8IPv4(0),
-			IPv4Len: ipv4PrefixLen,
-			IPv6:    "192:0:2::55",
-		},
-		numSubIntf: 0,
-		ip:         dutPort8IPv4,
-	}
-
 	atePort8 = attributes{
 		Attributes: attrs.Attributes{
 			Name: "port8",
@@ -228,22 +195,6 @@ func atePort2IPv4(vlan uint8) string {
 	return fmt.Sprintf("192.0.2.%d", vlan*4+6)
 }
 
-func dutPort3IPv4(vlan uint8) string {
-	return "192.0.3.1"
-}
-
-func atePort3IPv4(vlan uint8) string {
-	return "192.0.3.2"
-}
-
-func dutPort4IPv4(vlan uint8) string {
-	return fmt.Sprintf("192.0.3.%d", vlan*4+5)
-}
-
-func atePort4IPv4(vlan uint8) string {
-	return fmt.Sprintf("192.0.3.%d", vlan*4+6)
-}
-
 func dutPort5IPv4(vlan uint8) string {
 	return fmt.Sprintf("192.0.6.%d", vlan*4+5)
 }
@@ -267,56 +218,6 @@ func dutPort7IPv4(vlan uint8) string {
 
 func atePort7IPv4(vlan uint8) string {
 	return "192.0.5.2"
-}
-
-func dutPort8IPv4(vlan uint8) string {
-	// return fmt.Sprintf("192.0.5.%d", vlan*4+5)
-	return "192.0.4.5"
-
-}
-
-func atePort8IPv4(vlan uint8) string {
-	// return fmt.Sprintf("192.0.5.%d", vlan*4+6)
-	return "192.0.4.6"
-
-}
-
-func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice, port uint32) {
-	t.Helper()
-	p := d.Port(t, a.Name)
-	i := &oc.Interface{Name: ygot.String(p.Name()), Id: ygot.Uint32(port)}
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
-	if a.numSubIntf > 0 {
-		i.Description = ygot.String(a.Desc)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
-	} else {
-		i = a.NewOCInterface(p.Name(), d)
-		i.Id = ygot.Uint32(port)
-	}
-
-	a.configSubInterfaceDUT(i)
-	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Replace(t, d, intfPath.Config(), i)
-
-}
-
-// configInterfaceDUT configures the interface with the Addrs.
-func (a *attributes) configSubInterfaceDUT(i *oc.Interface) *oc.Interface {
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
-	for j := uint32(1); j <= a.numSubIntf; j++ {
-		ip := a.ip(uint8(j))
-
-		s := i.GetOrCreateSubinterface(j)
-		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(j))
-		s4 := s.GetOrCreateIpv4()
-		s4a := s4.GetOrCreateAddress(ip)
-		s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
-	}
-	return i
 }
 
 func configBunInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {

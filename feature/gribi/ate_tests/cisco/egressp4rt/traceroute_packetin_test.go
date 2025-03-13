@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 
 // setupP4RTClient sends client arbitration message for both leader and follower clients,
 // then sends setforwordingpipelineconfig with leader client.
-func setupP4RTClient(ctx context.Context, args *testArgs, deviceID uint64, streamName string) error {
+func setupP4RTClient(args *testArgs, deviceID uint64, streamName string) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
@@ -128,7 +128,7 @@ func setupP4RTClient(ctx context.Context, args *testArgs, deviceID uint64, strea
 }
 
 // getTracerouteParameter returns Traceroute related parameters for testPacketIn testcase.
-func getTracerouteParameter(t *testing.T) PacketIO {
+func getTracerouteParameter() PacketIO {
 	return &TraceroutePacketIO{
 		PacketIOPacket: PacketIOPacket{
 			TTL:      &TTL1,
@@ -199,12 +199,12 @@ func TestEgressp4rt(t *testing.T) {
 		top:      top,
 	}
 
-	if err := setupP4RTClient(ctx, args, deviceId, stream); err != nil {
+	if err := setupP4RTClient(args, deviceId, stream); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
 	var deviceSet bool
 	if P4rtNode != P4rtNode2 {
-		if err := setupP4RTClient(ctx, args, deviceId2, stream2); err != nil {
+		if err := setupP4RTClient(args, deviceId2, stream2); err != nil {
 			t.Fatalf("Could not setup p4rt client: %v", err)
 		}
 		deviceSet = true
@@ -212,7 +212,7 @@ func TestEgressp4rt(t *testing.T) {
 		deviceSet = false
 	}
 
-	args.packetIO = getTracerouteParameter(t)
+	args.packetIO = getTracerouteParameter()
 	var srcport string
 	for j := 1; j <= 2; j++ {
 		if j == 1 || (j == 2 && deviceSet) {
