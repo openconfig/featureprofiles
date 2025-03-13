@@ -135,7 +135,7 @@ def _gnmi_set_file_template(conf):
     """
 
 def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
-    return f"""
+    dockerFile = f"""
 version: "2.1"
 services:
   controller:
@@ -194,6 +194,8 @@ services:
         max-file: "10"
         mode: "non-blocking"
 """
+    logger.info(f"dockerFile: {dockerFile}")
+    return dockerFile
 
 def _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
     if not 'otg' in reserved_testbed:
