@@ -198,11 +198,13 @@ services:
     return dockerFile
 
 def _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
+    logger.info(f"_write_otg_docker_compose_file")
     if not 'otg' in reserved_testbed:
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], keng_controller,keng_layer23_hw_server,otg_gnmi_server))
+        res = fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], keng_controller,keng_layer23_hw_server,otg_gnmi_server))
+    logger.info(f"docker-compose file written: {res}")
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
@@ -1636,7 +1638,7 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_
     logger.print(f"BringupIxiaController, reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
-    logger.print(f'the controller images are keng_controller: {keng_controller}, keng_layer23: {keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}')
+    logger.print(f'the controller images are keng_controller: {keng_controller}, keng_layer23: {keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}, docker_file: {docker_file}')
     _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server)
 
     conn_args = {}
