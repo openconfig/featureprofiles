@@ -131,7 +131,7 @@ def _gnmi_set_file_template(conf):
     """
 
 def _otg_docker_compose_template(control_port, gnmi_port, rest_port, version):
-    res=  f"""
+    return  f"""
 version: "2.1"
 services:
   controller:
@@ -190,8 +190,6 @@ services:
         max-file: "10"
         mode: "non-blocking"
 """
-    print(res)
-    return res
 
 def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version):
     if not 'otg' in reserved_testbed:
