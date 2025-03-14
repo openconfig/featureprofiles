@@ -21,11 +21,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -238,10 +241,30 @@ func TestGoogleBaseConfPush(t *testing.T) {
 }
 
 func TestGribiScaleProfile(t *testing.T) {
-	// log_collector.Start(context.Background(), t, dut)
+	dut := ondatra.DUT(t, "dut")
+	log_collector.Start(context.Background(), t, dut)
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 	configureBaseProfile(t)
-	// log_collector.CollectRouterLogs(tc.ctx, t, dut, *logDir, "beforeUpgradeAfterSSO", tc.commandPatterns)
+
+	if *debugCommandYaml == "" {
+		// Get the current working directory
+		currentDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current working directory: %v", err)
+		}
+
+		// Get the absolute path of the test file
+		absPath, err := filepath.Abs(currentDir)
+		if err != nil {
+			t.Fatalf("Failed to get absolute path: %v", err)
+		}
+		*debugCommandYaml = absPath + "/debug.yaml"
+	}
+	commandPatterns, err := log_collector.ParseYAML(*debugCommandYaml)
+	if err != nil {
+		t.Logf("Debug yaml parsing failed: Error : %v", err)
+	}
+	log_collector.CollectRouterLogs(context.Background(), t, dut, *logDir, "beforeUpgradeAfterSSO", commandPatterns)
 
 }
 
