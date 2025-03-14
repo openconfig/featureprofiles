@@ -50,18 +50,21 @@ func TestMain(m *testing.M) {
 // consistent with IPv4.
 
 const (
-	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv4Prefix = 32
-	peerGrpName1             = "BGP-PEER-GROUP1"
-	peerGrpName2             = "BGP-PEER-GROUP2"
-	routeCount               = 254
-	dutAS                    = 500
-	ateAS1                   = 100
-	ateAS2                   = 200
-	plenIPv4                 = 30
-	plenIPv6                 = 126
-	removeASPath             = true
-	policyName               = "ALLOW"
+	advertisedRoutesv4Net       = "203.0.113.1"
+	advertisedRoutesv4Prefix    = 32
+	peerGrpName1                = "BGP-PEER-GROUP1"
+	peerGrpName2                = "BGP-PEER-GROUP2"
+	routeCount                  = 254
+	dutAS                       = 500
+	ateAS1                      = 100
+	ateAS2                      = 200
+	plenIPv4                    = 30
+	plenIPv6                    = 126
+	removeASPath                = true
+	policyName                  = "ALLOW"
+	prefixSetName               = "prefSet"
+	advertisedRoutesv4PrefixLen = "24..32"
+	advertisedRoutesv4CIDR      = "203.0.113.1/24"
 )
 
 var (
@@ -102,10 +105,13 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(name)
+	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
+	prefixSet.GetOrCreatePrefix(advertisedRoutesv4CIDR, advertisedRoutesv4PrefixLen)
 	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	stmt.GetOrCreateActions().PolicyResult = pr
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
