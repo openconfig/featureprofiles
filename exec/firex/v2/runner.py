@@ -60,6 +60,9 @@ whitelist_arguments([
     'collect_dut_info',
     'cflow_over_ssh',
     'testbed_checks'
+    'keng_controller'
+    'keng_layer23_hw_server'
+    'otg_gnmi_server'
 ])
 
 def _get_user_nobackup_path(ws=None):
