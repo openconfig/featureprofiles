@@ -45,10 +45,6 @@ MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.p
 MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
 MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
 
-DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller:'
-DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server:'
-DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server:'
-
 whitelist_arguments([
     'test_html_report',
     'release_ixia_ports',
@@ -64,9 +60,6 @@ whitelist_arguments([
     'collect_dut_info',
     'cflow_over_ssh',
     'testbed_checks'
-    'keng_controller'
-    'keng_layer23_hw_server'
-    'otg_gnmi_server'
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -134,16 +127,16 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
-    dockerFile = f"""
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port, version):
+    res=  f"""
 version: "2.1"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:1.3.0-2
+    image: ghcr.io/open-traffic-generator/keng-controller:{version["controller"]}
     restart: always
     ports:
-      - "40057:40051"
-      - "30057:8443"
+      - "{control_port}:40051"
+      - "{rest_port}:8443"
     depends_on:
       layer23-hw-server:
         condition: service_started
@@ -161,7 +154,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:1.3.0-4
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:{version["hw"]}
     restart: always
     command:
       - "dotnet"
@@ -176,10 +169,10 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.15
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:{version["gnmi"]}
     restart: always
     ports:
-      - "50057:50051"
+      - "{gnmi_port}:50051"
     depends_on:
       controller:
         condition: service_started
@@ -194,17 +187,15 @@ services:
         max-file: "10"
         mode: "non-blocking"
 """
-    logger.info(f"dockerFile: {dockerFile}")
-    return dockerFile
+    print(res)
+    return res
 
-def _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
-    logger.info(f"_write_otg_docker_compose_file")
+def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version):
     if not 'otg' in reserved_testbed:
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        res = fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], keng_controller,keng_layer23_hw_server,otg_gnmi_server))
-    logger.info(f"docker-compose file written: {res}")
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], otg_version))
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
@@ -548,9 +539,6 @@ def _aggregate_ondatra_log_files(log_files, out_file):
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
-                        keng_controller,
-                        keng_layer23_hw_server,
-                        otg_gnmi_server,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
@@ -562,9 +550,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         force_reboot=False,
                         sim_use_mtls=False,
                         testbed_checks=False,
-                        smus=None,
-                        ):
-    print(f'Bringing up testbed..., with keng_controller {keng_controller}, keng_layer23_hw_server {keng_layer23_hw_server}, otg_gnmi_server {otg_gnmi_server}')
+                        smus=None):
+    
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
@@ -581,8 +568,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         testbeds.remove(reserved_testbed["id"])
 
         c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed,
-                    **self.abog)
+                    reserved_testbed=reserved_testbed, **self.abog)
 
         using_sim = reserved_testbed.get('sim', False) 
         if using_sim:
@@ -617,11 +603,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
             c |= ReleaseIxiaPorts.s()
 
         if is_otg:
-            try:
-                c |= BringupIxiaController.s(keng_controller=keng_controller, keng_layer23_hw_server=keng_layer23_hw_server, otg_gnmi_server=otg_gnmi_server)
-            except Exception as e:
-                _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
-                raise e
+            c |= BringupIxiaController.s()
+
         if not using_sim:
             if testbed_checks:
                 c |= CheckTestbed.s(tgen=is_tgen, otg=is_otg)
@@ -671,9 +654,6 @@ def b4_chain_provider(ws, testsuite_id,
                         reserved_testbed,
                         test_name,
                         test_path,
-                        keng_controller,
-                        keng_layer23_hw_server,
-                        otg_gnmi_server,
                         test_repo_url=PUBLIC_FP_REPO_URL,
                         test_branch='main',
                         test_revision=None,
@@ -717,9 +697,6 @@ def b4_chain_provider(ws, testsuite_id,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
                     test_enable_grpc_logs=test_enable_grpc_logs,
-                    keng_controller=keng_controller,
-                    keng_layer23_hw_server=keng_layer23_hw_server,
-                    otg_gnmi_server=otg_gnmi_server,
                     collect_debug_files=collect_debug_files,
                     override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
@@ -1633,14 +1610,16 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
+def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_version={
+    "controller": "1.3.0-2",
+    "hw": "1.3.0-4",
+    "gnmi": "1.13.15",
+}):
     # TODO: delete this line
-    logger.print(f"BringupIxiaController, reserved_testbed [{reserved_testbed}]")
+    logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
-    remote_exec(f'ls -la {test_log_directory_path}')
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
-    logger.print(f'the controller images are keng_controller: {keng_controller}, keng_layer23: {keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}, docker_file: {docker_file}')
-    _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server)
+    _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version)
 
     conn_args = {}
     if 'username' in reserved_testbed['otg']:
@@ -1656,7 +1635,6 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_
         docker_file = docker_file_on_remote
 
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
-    remote_exec(f'cat {docker_file}', reserved_testbed['otg']['host'], shell=True, **conn_args)
     remote_exec(cmd, reserved_testbed['otg']['host'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
