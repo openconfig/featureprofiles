@@ -4,7 +4,7 @@
 uuid: "c4f6b3eb-697e-4792-93c0-785c3fc61f67"
 plan_id: "P4RT-2.2"
 description: "P4RT Metadata Validation"
-testbed: TESTBED_DUT_ATE_2LINKS 
+testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
