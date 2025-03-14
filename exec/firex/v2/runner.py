@@ -1637,6 +1637,7 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_
     # TODO: delete this line
     logger.print(f"BringupIxiaController, reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
+    remote_exec('ls -la {test_log_directory_path}', reserved_testbed['otg']['host'], shell=True, **conn_args)
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
     logger.print(f'the controller images are keng_controller: {keng_controller}, keng_layer23: {keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}, docker_file: {docker_file}')
     _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server)
@@ -1655,6 +1656,7 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_
         docker_file = docker_file_on_remote
 
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
+    remote_exec('cat {docker_file}', reserved_testbed['otg']['host'], shell=True, **conn_args)
     remote_exec(cmd, reserved_testbed['otg']['host'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
