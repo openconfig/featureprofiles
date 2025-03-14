@@ -1,8 +1,9 @@
-# RT-5.11: Suppress IPv6 ND Router Advertisement
+# RT-5.12: Suppress IPv6 ND Router Advertisement [Depreciated]
 
 ## Summary
 
-Validate IPv6 ND Router Advertisement (RA) is suppresed. No periodic RA are sent.
+NOTE: `router-advertisement/config/suppress` is depreciated and will not pass on vendors that do not support this leaf
+Validate IPv6 ND Router Advertisement (RA) is suppressed. No periodic RA are sent.
 
 ## Procedure
 *   Connect DUT port-1 to OTG port-1
