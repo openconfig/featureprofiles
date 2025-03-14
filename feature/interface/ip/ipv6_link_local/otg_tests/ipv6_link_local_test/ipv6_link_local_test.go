@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -254,14 +255,25 @@ func otgSrcToDstFlow(t *testing.T, top gosnappi.Config, srcIPv6, dstIPv6, flowNa
 
 func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, flowName string) {
 	p1 := dut.Port(t, "port1")
-	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
+	var beforeInPkts uint64
+	beforeInPktsStream := samplestream.New(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), 10*time.Second)
+	defer beforeInPktsStream.Close()
 	ate.OTG().StartTraffic(t)
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Second*30, func(v *ygnmi.Value[uint64]) bool {
-		gotPkts, present := v.Val()
-		return present && (gotPkts-beforeInPkts) >= 100
-	}).Await(t)
-	if !ok {
-		t.Fatal("did not get expected number of packets after starting traffic. want > 100")
+	// within 60 seconds, check if num of packets > 100
+	timeout := 60 * time.Second
+	startTime := time.Now()
+	for {
+		if v := beforeInPktsStream.Next(); v != nil {
+			if val, ok := v.Val(); ok {
+				beforeInPkts = val
+			}
+		}
+		if beforeInPkts > uint64(100) {
+			break
+		}
+		if time.Since(startTime) > timeout {
+			t.Fatal("did not get expected number of packets on DUT interface after starting traffic. want > 100")
+		}
 	}
 
 	ate.OTG().StopTraffic(t)
@@ -276,8 +288,26 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	if got, want := 100*float32(otgTxPkts-otgRxPkts)/float32(otgTxPkts), float32(99); got < want {
 		t.Errorf("LossPct for flow %s got %f, want 100", flowName, got)
 	}
-	afterInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
-	recvDUTPkts := afterInPkts - beforeInPkts
+
+	var inPktsV uint64
+	afterInPktsStream := samplestream.New(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), 10*time.Second)
+	defer afterInPktsStream.Close()
+	startTime = time.Now()
+	for {
+		if v := afterInPktsStream.Next(); v != nil {
+			if val, ok := v.Val(); ok {
+				inPktsV = val
+			}
+		}
+		if inPktsV >= (beforeInPkts + otgTxPkts) {
+			break // Stop checking the sample stream
+		}
+		if time.Since(startTime) > timeout {
+			// Exit the loop and continue to the next section
+			break
+		}
+	}
+	recvDUTPkts := inPktsV - beforeInPkts
 	if got, want := lossPct(otgTxPkts, recvDUTPkts), 1.0; got > want {
 		t.Errorf("LossPct for flow %s got %f, want less than %f%%", flowName, got, want)
 	}
