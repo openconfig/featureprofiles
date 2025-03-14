@@ -363,11 +363,17 @@ func configureDUTPort(
 ) {
 	gnmiOCRoot := gnmi.OC()
 
+	intf := portAttrs.NewOCInterface(port.Name(), dut)
+	s := intf.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s.Enabled = ygot.Bool(true)
+	}
+
 	gnmi.Replace(
 		t,
 		dut,
 		gnmiOCRoot.Interface(port.Name()).Config(),
-		portAttrs.NewOCInterface(port.Name(), dut),
+		intf,
 	)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
