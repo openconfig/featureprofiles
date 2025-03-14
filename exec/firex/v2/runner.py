@@ -139,11 +139,11 @@ def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_contro
 version: "2.1"
 services:
   controller:
-    image: {DOCKER_KENG_CONTROLLER+keng_controller}
+    image: ghcr.io/open-traffic-generator/keng-controller:1.3.0-2
     restart: always
     ports:
-      - "{control_port}:40051"
-      - "{rest_port}:8443"
+      - "40057:40051"
+      - "30057:8443"
     depends_on:
       layer23-hw-server:
         condition: service_started
@@ -161,7 +161,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: {DOCKER_KENG_LAYER23+keng_layer23_hw_server}
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:1.3.0-4
     restart: always
     command:
       - "dotnet"
@@ -176,10 +176,10 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: {DOCKER_OTG_GNMI+otg_gnmi_server}
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.15
     restart: always
     ports:
-      - "{gnmi_port}:50051"
+      - "50057:50051"
     depends_on:
       controller:
         condition: service_started
