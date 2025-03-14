@@ -542,6 +542,9 @@ def _aggregate_ondatra_log_files(log_files, out_file):
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
+                        keng_controller,
+                        keng_layer23_hw_server,
+                        otg_gnmi_server,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
@@ -554,7 +557,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         sim_use_mtls=False,
                         testbed_checks=False,
                         smus=None):
-    
+    print(keng_controller, keng_layer23_hw_server, otg_gnmi_server)
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
