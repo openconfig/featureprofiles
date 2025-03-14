@@ -126,5 +126,5 @@ rpcs:
     containerz.Containerz.CreateVolume:
     containerz.Containerz.RemoveVolume:
     containerz.Containerz.ListVolume:
-    containerz.Containerz.UpgradeContainer:
+    containerz.Containerz.UpdateContainer:
 ```

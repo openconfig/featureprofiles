@@ -18,6 +18,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -119,6 +121,20 @@ func TestEthernetMacAddress(t *testing.T) {
 	t.Logf("Got %s MacAddress from telmetry: %v", dp.Name(), macAddress)
 	if len(r.FindString(macAddress)) == 0 {
 		t.Errorf("Get(DUT port1 MacAddress): got %v, want matching regexp %v", macAddress, macRegexp)
+	}
+}
+
+func TestEthernetWildcard(t *testing.T) {
+	t.Helper()
+	dut := ondatra.DUT(t, "dut")
+	portsSpeeds := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Ethernet().PortSpeed().State())
+	// Iterate over the retrieved port speeds.
+	for _, portSpeed := range portsSpeeds {
+		t.Logf("Ethernet path and speed: %v", portSpeed)
+	}
+	macAddresses := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Ethernet().MacAddress().State())
+	for _, macAddress := range macAddresses {
+		t.Logf("Ethernet path and MacAddress: %v", macAddress)
 	}
 }
 
@@ -356,6 +372,14 @@ func TestQoSCounters(t *testing.T) {
 	}
 }
 
+func TestInterfaceWildcard(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	interfaceStates := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range interfaceStates {
+		t.Logf("Interface Name: %v, Interface AdminStatus: %v, Interface OperStatus: %v, Last change: %v", intf.GetName(), intf.GetAdminStatus(), intf.GetOperStatus(), intf.GetLastChange())
+	}
+}
+
 func findComponentsListByType(t *testing.T, dut *ondatra.DUTDevice) map[string][]string {
 	t.Helper()
 	componentType := map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -398,8 +422,9 @@ func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) 
 			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
 			break
 		}
-		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-		if got == chassisType {
+		gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Type().State())
+		got, present := gotV.Val()
+		if present && got == chassisType {
 			t.Logf("Found chassis component as an ancestor of component %s", comp)
 			break
 		}
@@ -461,6 +486,19 @@ func TestComponentParent(t *testing.T) {
 				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
+	}
+}
+
+func TestComponentTransceiverWildcard(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	transceivers := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Transceiver().State())
+	for _, tcv := range transceivers {
+		if tcv.GetPresent() == oc.Transceiver_Present_PRESENT {
+			t.Logf("Serial Number: %s, Transceiver Form Factor: %v", tcv.GetSerialNo(), tcv.GetFormFactor())
+		}
+		if tcv.GetPresent() != oc.Transceiver_Present_PRESENT {
+			t.Logf("Transceiver Not Present : %v", tcv)
+		}
 	}
 }
 
@@ -765,16 +803,51 @@ func TestP4rtNodeID(t *testing.T) {
 	}
 }
 
-func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
-	if deviations.InterfaceCountersFromContainer(dut) {
-		inPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
-		outPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
-		return inPkts, outPkts
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port,
+	inTarget, outTarget uint64) (uint64, uint64) {
+	t.Helper()
+
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 10*time.Second)
+	defer inPktStream.Close()
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 10*time.Second)
+	defer outPktStream.Close()
+
+	var wg sync.WaitGroup
+	var inPktsV, outPktsV uint64
+
+	startTime := time.Now()
+	timeout := 10 * time.Second
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		timeout = 30 * time.Second
 	}
 
-	inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	return inPkts, outPkts
+	for {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if v := inPktStream.Next(); v != nil {
+				if val, ok := v.Val(); ok {
+					inPktsV = val
+				}
+			}
+		}()
+		if v := outPktStream.Next(); v != nil {
+			if val, ok := v.Val(); ok {
+				outPktsV = val
+			}
+		}
+		wg.Wait()
+
+		if inPktsV >= inTarget && outPktsV >= outTarget {
+			break
+		}
+
+		if time.Since(startTime) > timeout {
+			t.Fatalf("Did not receive a packet counters in time")
+		}
+	}
+
+	return inPktsV, outPktsV
 }
 
 func TestIntfCounterUpdate(t *testing.T) {
@@ -822,9 +895,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4.Priority().Dscp().Phb().SetValue(56)
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
-	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2, 0, 0)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
@@ -847,24 +921,25 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	otgutils.LogFlowMetrics(t, otg, config)
-	ateInPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-	ateOutPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
+	ateInPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	ateOutPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
 
 	if ateOutPkts == 0 {
 		t.Errorf("Get(out packets for flow %q: got %v, want nonzero", flowName, ateOutPkts)
 	}
-	lossPct := (ateOutPkts - ateInPkts) * 100 / ateOutPkts
+	lossPct := float64(ateOutPkts-ateInPkts) * 100 / float64(ateOutPkts)
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2,
+		dutInPktsBeforeTraffic+ateOutPkts, dutOutPktsBeforeTraffic+ateInPkts)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
-		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
+	if got, want := dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts; got < want {
+		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 	}
-	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
-		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
+	if got, want := dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateInPkts; got < want {
+		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 	}
 }
 

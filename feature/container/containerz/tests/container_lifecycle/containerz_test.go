@@ -64,7 +64,7 @@ func startContainer(ctx context.Context, t *testing.T) *client.Client {
 
 	for i := 0; i < 5; i++ {
 		ch, err := cli.ListContainer(ctx, true, 0, map[string][]string{
-			"name": []string{instanceName},
+			"name": {instanceName},
 		})
 		if err != nil {
 			t.Fatalf("unable to list container state for %s", instanceName)
@@ -205,8 +205,9 @@ func TestVolumes(t *testing.T) {
 
 	wantVolumes := []*client.VolumeInfo{
 		{
-			Name:    "my-vol",
-			Driver:  "local",
+			Name:   "my-vol",
+			Driver: "local",
+			// Options used by linux mounts. See mount(8).
 			Options: map[string]string{"device": "", "o": "", "type": "none"},
 		},
 	}

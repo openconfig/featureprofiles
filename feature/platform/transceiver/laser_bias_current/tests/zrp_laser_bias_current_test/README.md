@@ -1,4 +1,4 @@
-# TRANSCEIVER-9: Telemetry: 400ZR_PLUS TX laser bias current telemetry values streaming. 
+# TRANSCEIVER-9 (400ZR_PLUS): Telemetry: 400ZR_PLUS TX laser bias current telemetry values streaming. 
 
 ## Summary
 
@@ -33,9 +33,6 @@ specified operating temperature and voltage.
     the ZR_PLUS optics
 
     *   /components/component/optical-channel/state/laser-bias-current/instant
-    *   /components/component/optical-channel/state/laser-bias-current/avg
-    *   /components/component/optical-channel/state/laser-bias-current/min
-    *   /components/component/optical-channel/state/laser-bias-current/max
 
 
 ## TRANSCEIVER-9.2
@@ -45,11 +42,6 @@ specified operating temperature and voltage.
 
 *   Laser bias current values must always be of type decimal64.
     When laser is in off state 0 must be reported as a valid value.
-
-**Note:** For min, max, and avg values, 10 second sampling is preferred. If the
-          min, max average values or the 10 seconds sampling is not supported,
-          the sampling interval used must be specified and this must be
-          captured by adding a deviation to the test.
 
 ## TRANSCEIVER-9.3
 
@@ -98,12 +90,6 @@ paths:
     /interfaces/interface/config/enabled:
     ## State Paths ##
     /components/component/optical-channel/state/laser-bias-current/instant:
-        platform_type: [ "OPTICAL_CHANNEL" ]
-    /components/component/optical-channel/state/laser-bias-current/avg:
-        platform_type: [ "OPTICAL_CHANNEL" ]
-    /components/component/optical-channel/state/laser-bias-current/min:
-        platform_type: [ "OPTICAL_CHANNEL" ]
-    /components/component/optical-channel/state/laser-bias-current/max:
         platform_type: [ "OPTICAL_CHANNEL" ]
     
 rpcs:
