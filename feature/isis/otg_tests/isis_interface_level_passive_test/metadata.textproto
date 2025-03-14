@@ -25,6 +25,7 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     isis_interface_level1_disable_required: true
+    isis_interface_level_passive_unsupported: true
     isis_dis_sysid_unsupported: true
     isis_database_overloads_unsupported: true
   }
@@ -40,7 +41,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     isis_interface_afi_unsupported: true
-    isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
     isis_timers_csnp_interval_unsupported: true
     isis_counter_manual_address_drop_from_areas_unsupported: true
     isis_counter_part_changes_unsupported: true

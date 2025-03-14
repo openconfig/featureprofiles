@@ -63,6 +63,8 @@ const (
 	myCommunitySet                   = "my_community"
 	prefixSetName                    = "prefix-set-5"
 	myAsPathName                     = "my_aspath"
+	addComm60                        = "add_comm_60"
+	addComm70                        = "add_comm_70"
 	bgpActionMethod                  = oc.SetCommunity_Method_REFERENCE
 	bgpSetCommunityOptionType        = oc.BgpPolicy_BgpSetCommunityOptionType_ADD
 	prefixSetNameSetOptions          = oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY
@@ -128,9 +130,12 @@ func deleteBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, nbrList []*bgpNbrList
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range nbrList {
 		nbrAfiSafiPath := bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi)
+		peerAfiSafiPath := bgpPath.PeerGroup(cfgplugins.BGPPeerGroup1).AfiSafi(nbr.afiSafi)
 		b := &gnmi.SetBatch{}
 		gnmi.BatchDelete(b, nbrAfiSafiPath.ApplyPolicy().ImportPolicy().Config())
 		gnmi.BatchDelete(b, nbrAfiSafiPath.ApplyPolicy().ExportPolicy().Config())
+		gnmi.BatchDelete(b, peerAfiSafiPath.ApplyPolicy().ImportPolicy().Config())
+		gnmi.BatchDelete(b, peerAfiSafiPath.ApplyPolicy().ExportPolicy().Config())
 		b.Set(t, dut)
 	}
 }
@@ -180,6 +185,8 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	addCommunitiesRefs := []string{"40:1", "40:2"}
 	addCommunitiesSetRefsAction := []string{"add-communities"}
 	setCommunitySetRefs := []string{"add_comm_60", "add_comm_70"}
+	addComm60Refs := []string{"60:1"}
+	addComm70Refs := []string{"70:1"}
 	myCommunitySets := []string{"50:1"}
 	if deviations.BgpCommunityMemberIsAString(dut) {
 		regexCommunities = []string{"(^|\\s)30:[0-9]+($|\\s)"}
@@ -187,6 +194,20 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
+
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	stmt, err := pdef.AppendNewStatement("20")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	pdefrp := rp.GetOrCreatePolicyDefinition("routePolicy")
+	stmtrp, err := pdefrp.AppendNewStatement("routePolicyStatement")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
+	}
+	stmtrp.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// Configure the policy match_community_regex which will be called from multi_policy
 
@@ -210,7 +231,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 			}
 		}
 		communitySetRegex.SetCommunityMember(pd2cs1)
-		communitySetRegex.SetMatchSetOptions(matchAny)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySetRegex.SetMatchSetOptions(matchAny)
+		}
 	}
 
 	var communitySetCLIConfig string
@@ -228,10 +251,11 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		pd2stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(regexCommunitySet)
 	} else {
 		pd2stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(regexCommunitySet)
+		pd2stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
 	}
 
 	if !deviations.SkipSettingStatementForPolicy(dut) {
-		pd2stmt1.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+		pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 
 	// Configure the parent policy multi_policy.
@@ -254,12 +278,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		}
 	}
 	communitySetReject.SetCommunityMember(cs1)
-	communitySetReject.SetMatchSetOptions(matchAny)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		communitySetReject.SetMatchSetOptions(matchAny)
+	}
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(rejectCommunitySet)
 	} else {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(rejectCommunitySet)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
 	}
 
 	stmt1.GetOrCreateActions().SetPolicyResult(rejectResult)
@@ -286,12 +313,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		}
 	}
 	communitySetNestedReject.SetCommunityMember(cs2)
-	communitySetNestedReject.SetMatchSetOptions(matchInvert)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		communitySetNestedReject.SetMatchSetOptions(matchInvert)
+	}
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(nestedRejectCommunitySet)
 	} else {
 		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(nestedRejectCommunitySet)
+		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchInvert))
 	}
 
 	stmt2.GetOrCreateActions().SetPolicyResult(rejectResult)
@@ -307,13 +337,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	communitySetRefsAddCommunities := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(addCommunitiesSetRefs)
 
 	cs3 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch4 := range addCommunitiesRefs {
-		if commMatch4 != "" {
-			cs3 = append(cs3, oc.UnionString(commMatch4))
+	for _, commMatch3 := range addCommunitiesRefs {
+		if commMatch3 != "" {
+			cs3 = append(cs3, oc.UnionString(commMatch3))
 		}
 	}
 	communitySetRefsAddCommunities.SetCommunityMember(cs3)
-	communitySetRefsAddCommunities.SetMatchSetOptions(matchInvert)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		communitySetRefsAddCommunities.SetMatchSetOptions(matchInvert)
+	}
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt3.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(addCommunitiesSetRefs)
@@ -340,13 +372,15 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	communitySetMatchCommPrefixAddCommu := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(myCommunitySet)
 
 	cs4 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch5 := range myCommunitySets {
-		if commMatch5 != "" {
-			cs4 = append(cs4, oc.UnionString(commMatch5))
+	for _, commMatch4 := range myCommunitySets {
+		if commMatch4 != "" {
+			cs4 = append(cs4, oc.UnionString(commMatch4))
 		}
 	}
 	communitySetMatchCommPrefixAddCommu.SetCommunityMember(cs4)
-	communitySetMatchCommPrefixAddCommu.SetMatchSetOptions(matchAny)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		communitySetMatchCommPrefixAddCommu.SetMatchSetOptions(matchAny)
+	}
 
 	// Configure multi_policy:STATEMENT4: match_comm_and_prefix_add_2_community_sets statement
 
@@ -365,6 +399,8 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	} else {
 		stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(myCommunitySet)
 		stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(myCommunitySet)
+		stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
+		stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
 	}
 
 	// configure match-prefix-set: prefix-set-5 to match_comm_and_prefix_add_2_community_sets statement
@@ -391,7 +427,34 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	if deviations.BgpCommunitySetRefsUnsupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
-		// TODO: Add bgp-actions: community-set-refs to match_comm_and_prefix_add_2_community_sets statement
+		// Configure add_comm_60 [60:1] to match_comm_and_prefix_add_2_community_sets statement
+		addCommunity60 := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(addComm60)
+
+		cs5 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+		for _, commMatch5 := range addComm60Refs {
+			if commMatch5 != "" {
+				cs5 = append(cs5, oc.UnionString(commMatch5))
+			}
+		}
+		addCommunity60.SetCommunityMember(cs5)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			addCommunity60.SetMatchSetOptions(matchInvert)
+		}
+
+		// Configure add_comm_70 [70:1] to match_comm_and_prefix_add_2_community_sets statement
+		addCommunity70 := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(addComm70)
+
+		cs6 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+		for _, commMatch6 := range addComm70Refs {
+			if commMatch6 != "" {
+				cs6 = append(cs6, oc.UnionString(commMatch6))
+			}
+		}
+		addCommunity70.SetCommunityMember(cs6)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			addCommunity70.SetMatchSetOptions(matchInvert)
+		}
+		// Added bgp-actions: community-set-refs to match_comm_and_prefix_add_2_community_sets statement
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
@@ -415,10 +478,16 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Fatalf("AppendNewStatement(%s) failed: %v", matchAspathSetMedStatement, err)
 	}
 
-	// TODO create as-path-set on the DUT, match-as-path-set not support.
+	// Configure my_aspath: [ "65512" ] to match_aspath_set_med statement
+	if !deviations.BgpAspathsetUnsupported(dut) {
+		myAspath := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(myAsPathName)
+		myAspath.SetAsPathSetMember([]string{strconv.Itoa(int(cfgplugins.AteAS2))})
+
+		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
+		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
+	}
 	// Configure set-med 100
 	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
-
 	stmt5.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	if deviations.CommunityMemberRegexUnsupported(dut) {
@@ -603,7 +672,11 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
 		} else if rxPackets != 0 && !testResults[index] {
 			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else if txPackets6 != rxPackets6 && testResults[index] {
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], testResults[index], txPackets, rxPackets)
+		}
+
+		if txPackets6 != rxPackets6 && testResults[index] {
 			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
 		} else if rxPackets6 != 0 && !testResults[index] {
 			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
@@ -707,7 +780,7 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case otgMED:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric[0] {
@@ -731,7 +804,9 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
 					}
 				case otglocalPref:
-					validateLocalPreferenceV6(t, dut, ipAddr, metric[0])
+					if !deviations.BGPRibOcPathUnsupported(dut) {
+						validateLocalPreferenceV6(t, dut, ipAddr, metric[0])
+					}
 				case otgCommunity:
 					t.Logf("For Prefix %v, Community received on OTG: %v", bgpPrefix.GetAddress(), bgpPrefix.Community)
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -792,7 +867,9 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got AS Path %d want AS Path %d are equal", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
 					}
 				case otglocalPref:
-					validateLocalPreferenceV4(t, dut, ipAddr, metric[0])
+					if !deviations.BGPRibOcPathUnsupported(dut) {
+						validateLocalPreferenceV4(t, dut, ipAddr, metric[0])
+					}
 				case otgCommunity:
 					t.Logf("For Prefix %v, Community received on OTG: %v", bgpPrefix.GetAddress(), bgpPrefix.Community)
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -846,6 +923,18 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 
 	testResults := [6]bool{true, true, true, true, true, true}
 	verifyTrafficV4AndV6(t, bs, testResults)
+
+	// Delete routePolicy policy applied to neighbor
+	deleteBGPPolicy(t, dut, []*bgpNbrList{
+		{
+			nbrAddr: ipv4,
+			afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+		},
+		{
+			nbrAddr: ipv6,
+			afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+		},
+	})
 
 	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6, ipv41, ipv61)
 	time.Sleep(time.Second * 120)

@@ -17,8 +17,6 @@ platform_exceptions: {
     missing_value_for_defaults: true
     interface_enabled: true
     default_network_instance: "default"
-    skip_set_rp_match_set_options: true
-    skip_setting_disable_metric_propagation: true
   }
 }
 
@@ -32,6 +30,16 @@ platform_exceptions: {
     default_import_export_policy_unsupported: true
     community_member_regex_unsupported: true
     default_route_policy_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    static_protocol_name: "static"
+    explicit_interface_in_default_vrf: true
   }
 }
 
