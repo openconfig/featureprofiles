@@ -10,3 +10,5 @@ tests:
   mustpass: true
   internal: true
   branch: master
+  args:
+  - '-logDir ($test_log_directory_path)'
