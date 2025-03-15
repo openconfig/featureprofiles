@@ -61,7 +61,7 @@ const (
 )
 
 var (
-	logDir           = flag.String("logDir", "/nobackup/krinata2/FP/gribi/feature/gribi/otg_tests/cisco/8818_scale_profile/log", "Firex path to copy the logs after each test case")
+	logDir           = flag.String("logDir", "", "Firex path to copy the logs after each test case")
 	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
 )
 
@@ -264,7 +264,10 @@ func TestGribiScaleProfile(t *testing.T) {
 	if err != nil {
 		t.Logf("Debug yaml parsing failed: Error : %v", err)
 	}
-	log_collector.CollectRouterLogs(context.Background(), t, dut, *logDir, "afterConfigureBaseProfile", commandPatterns)
+
+	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
+		log_collector.CollectRouterLogs(context.Background(), t, dut, *logDir, "afterConfigureBaseProfile", commandPatterns)
+	})
 
 }
 
