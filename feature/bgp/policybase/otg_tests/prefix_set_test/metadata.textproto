@@ -26,6 +26,7 @@ platform_exceptions:  {
     interface_enabled: true
     default_network_instance: "default"
     missing_value_for_defaults: true
+    default_import_export_policy_unsupported: true
   }
 }
 platform_exceptions:  {
