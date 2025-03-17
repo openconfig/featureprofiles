@@ -1,7 +1,7 @@
 # PF-1.12 Decapsulate MPLS in GRE
 
 Create a policy-forwarding configuration using gNMI to decapsulate MPLS
-in UDP packets which are sent to a IP from a decap pool or loopback address and apply to
+in GRE packets which are sent to a IP from a decap pool or loopback address and apply to
 the DUT.
 
 ## Topology
