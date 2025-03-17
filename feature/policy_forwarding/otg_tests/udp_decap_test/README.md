@@ -60,7 +60,7 @@ decapsulate MPLS in UDP.
                       }
                     },
                     "action": {
-                      "decapsulate-mpls-in-udp": TRUE  [**TODO**] Arista provides vendor augmentation
+                      "decapsulate-mpls-in-udp": TRUE  #TODO: Arista needs to provide vendor augmentation.
                      }
                   }
                 ]
