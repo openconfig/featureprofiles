@@ -114,6 +114,8 @@ func getTime(ctx context.Context, client binding.CLIClient, t *testing.T) (int64
 func CollectRouterLogs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, logDir string, testName string, commandPatterns map[string]map[string]interface{}) error {
 	count := updateAndPrintCallCount(dut.Name())
 	sshClient := dut.RawAPIs().CLI(t)
+	targets := NewTargets(t)
+
 	t.Logf("Remote log directory: %v", logDir)
 	//  Folder initial clean up
 	if count == 1 {
@@ -158,11 +160,12 @@ func CollectRouterLogs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 		if commandType == "show-tech" {
 			showLoggingFile += ".tgz"
 		}
-		targets := NewTargets(t)
+
 		dutOutDir := filepath.Join(logDir, "debug_files", fmt.Sprintf("%v_%s_%s", count, dut.ID(), testName))
 
 		for dutID, target := range targets.targetInfo {
 			if dutID == dut.Name() {
+				t.Logf("copy specific file from: %s device: %s to: %s", showLoggingFile, dut.Name(), dutOutDir)
 				if err := copySpecificFile(t, target, dutOutDir, showLoggingFile); err != nil {
 					collectedErrors = append(collectedErrors, fmt.Sprintf("Error copying file for command %s: %v", command, err))
 					continue
@@ -198,7 +201,6 @@ func CollectRouterLogs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 
 	}
 
-	targets := NewTargets(t)
 	target := targets.targetInfo[dut.Name()]
 
 	// Collect core files
@@ -280,7 +282,7 @@ func storeLastLogLine(dutName, command, lastLogLine string) {
 
 // createRemoteDirectory ensures that the specified directory exists on the remote machine.
 func createRemoteDirectory(ctx context.Context, client binding.CLIClient, dir string, t *testing.T) (string, error) {
-	command := fmt.Sprintf("mkdir %s", dir)
+	command := fmt.Sprintf("mkdir %s", dir) // direct IOS XR command
 	t.Logf("Creating log directory: %v", command)
 	commandOuptut, err := executeSSHCommand(ctx, client, command, t)
 	return commandOuptut, err

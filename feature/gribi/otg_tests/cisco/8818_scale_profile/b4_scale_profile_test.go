@@ -65,6 +65,59 @@ var (
 	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
 )
 
+// TestResources holds common resources used across tests.
+type TestResources struct {
+	CommandPatterns map[string]map[string]interface{}
+	DUT             *ondatra.DUTDevice
+	Context         context.Context
+	LogDir          string
+}
+
+var (
+	testResources *TestResources
+	once          sync.Once
+)
+
+func initializeTestResources(t *testing.T) *TestResources {
+	once.Do(func() {
+		t.Helper() // Mark this function as a test helper
+		ctx := context.Background()
+		dut := ondatra.DUT(t, "dut")
+
+		var commandPatterns map[string]map[string]interface{}
+		if *debugCommandYaml == "" {
+			// Get the current working directory
+			currentDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current working directory: %v", err)
+			}
+
+			// Get the absolute path of the test file
+			absPath, err := filepath.Abs(currentDir)
+			if err != nil {
+				t.Fatalf("Failed to get absolute path: %v", err)
+			}
+			*debugCommandYaml = absPath + "/debug.yaml"
+		}
+
+		var err error
+		commandPatterns, err = log_collector.ParseYAML(*debugCommandYaml)
+		if err != nil {
+			t.Logf("Debug yaml parsing failed: Error : %v", err)
+		}
+
+		testResources = &TestResources{
+			CommandPatterns: commandPatterns,
+			DUT:             dut,
+			Context:         ctx,
+			LogDir:          *logDir,
+		}
+
+		log_collector.Start(ctx, t, dut)
+	})
+	return testResources
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -241,38 +294,53 @@ func TestGoogleBaseConfPush(t *testing.T) {
 }
 
 func TestGribiScaleProfile(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	log_collector.Start(context.Background(), t, dut)
+	resources := initializeTestResources(t)
+	log_collector.Start(context.Background(), t, resources.DUT)
+
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 	configureBaseProfile(t)
 
-	if *debugCommandYaml == "" {
-		// Get the current working directory
-		currentDir, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("Failed to get current working directory: %v", err)
-		}
-
-		// Get the absolute path of the test file
-		absPath, err := filepath.Abs(currentDir)
-		if err != nil {
-			t.Fatalf("Failed to get absolute path: %v", err)
-		}
-		*debugCommandYaml = absPath + "/debug.yaml"
-	}
-	commandPatterns, err := log_collector.ParseYAML(*debugCommandYaml)
-	if err != nil {
-		t.Logf("Debug yaml parsing failed: Error : %v", err)
-	}
-
 	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
-		log_collector.CollectRouterLogs(context.Background(), t, dut, *logDir, "afterConfigureBaseProfile", commandPatterns)
+		log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
 	})
-
 }
 
-func TestTriggerRPFO(t *testing.T) {
-	t.Run("RPFO", func(t *testing.T) {
-		utils.Dorpfo(context.Background(), t, false)
-	})
+func TestTrigger(t *testing.T) {
+	resources := initializeTestResources(t)
+
+	// Define a slice of test triggers
+	triggers := []struct {
+		name string
+		fn   func(ctx context.Context, t *testing.T)
+	}{
+		{"RPFO", func(ctx context.Context, t *testing.T) {
+			utils.Dorpfo(ctx, t, false)
+		}},
+		// {"LC-OIR", func(ctx context.Context, t *testing.T) {
+		// 	utils.DoLC_OIR(ctx, t)
+		// }},
+		// {"LCHA", func(ctx context.Context, t *testing.T) {
+		// 	utils.DoLCHA(ctx, t)
+		// }},
+	}
+
+	// Iterate over each trigger and run it as a subtest
+	for _, trigger := range triggers {
+		t.Run(trigger.name, func(t *testing.T) {
+			trigger.fn(resources.Context, t)
+
+			// Collect logs after each trigger
+			t.Run("LogCollectionAfterTrigger", func(t *testing.T) {
+				log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "LogCollectionAfterTrigger", resources.CommandPatterns)
+			})
+			t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
+				t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+				configureBaseProfile(t)
+			})
+			// Collect logs after gribi programing
+			t.Run("LogCollectionAfterGribiPrograming", func(t *testing.T) {
+				log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "LogCollectionAfterGribiPrograming", resources.CommandPatterns)
+			})
+		})
+	}
 }
