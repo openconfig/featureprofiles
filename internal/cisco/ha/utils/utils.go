@@ -126,26 +126,26 @@ func DoLcOir(t *testing.T, dut *ondatra.DUTDevice) {
 	// }
 
 	// Find line card components
-	ls := components.FindComponentsByType(t, args.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	ls := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
 
 	for _, l := range ls {
 		t.Run(l, func(t *testing.T) {
-			empty, ok := gnmi.Lookup(t, args.dut, gnmi.OC().Component(l).Empty().State()).Val()
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
 			if ok && empty {
 				t.Skipf("Linecard Component %s is empty, hence skipping", l)
 			}
-			if !gnmi.Get(t, args.dut, gnmi.OC().Component(l).Removable().State()) {
+			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
 				t.Skipf("Skip the test on non-removable linecard.")
 			}
 
-			oper := gnmi.Get(t, args.dut, gnmi.OC().Component(l).OperStatus().State())
+			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
 
 			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
 				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
 			}
 
-			gnoiClient := args.dut.RawAPIs().GNOI(t)
-			useNameOnly := deviations.GNOISubcomponentPath(args.dut)
+			gnoiClient := dut.RawAPIs().GNOI(t)
+			useNameOnly := deviations.GNOISubcomponentPath(dut)
 			lineCardPath := components.GetSubcomponentPath(l, useNameOnly)
 			rebootSubComponentRequest := &gnps.RebootRequest{
 				Method: gnps.RebootMethod_COLD,
