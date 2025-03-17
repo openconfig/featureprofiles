@@ -269,22 +269,27 @@ func TestQMWredSetReplace(t *testing.T) {
 	defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
+
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
+		wred := make(map[uint32]*oc.Qos_QueueManagementProfile_Wred)
 		wredqueumred := wredqueum.GetOrCreateWred()
 		wredqueumreduni := wredqueumred.GetOrCreateUniform()
+		wred[1] = wredqueumred
 		wredqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[i])
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), &oc.Qos_QueueManagementProfile{
+			Name: &wredprofile,
+			Wred: wredqueumred,
+		})
 		configGotQM := gnmi.Get(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
-
 }
 
 func TestQMWredUniReplace(t *testing.T) {
@@ -311,21 +316,25 @@ func TestQMWredUniReplace(t *testing.T) {
 	qos := d.GetOrCreateQos()
 	for i, wredprofile := range wredprofilelist {
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
+		wred := make(map[uint32]*oc.Qos_QueueManagementProfile_Wred)
 		wredqueumred := wredqueum.GetOrCreateWred()
 		wredqueumreduni := wredqueumred.GetOrCreateUniform()
+		wred[1] = wredqueumred
 		wredqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[i])
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		gnmi.Replace(t, dut, configqm.Config(), wredqueumreduni)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), &oc.Qos_QueueManagementProfile{
+			Name: &wredprofile,
+			Wred: wredqueumred,
+		})
 		configGotQM := gnmi.Get(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
-
 }
 
 func TestQMWredSetUpdate(t *testing.T) {
@@ -354,18 +363,22 @@ func TestQMWredSetUpdate(t *testing.T) {
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
 		wredqueumred := wredqueum.GetOrCreateWred()
 		wredqueumreduni := wredqueumred.GetOrCreateUniform()
+		wred := make(map[uint32]*oc.Qos_QueueManagementProfile_Wred)
+		wred[1] = wredqueumred
 		wredqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[i])
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
-		gnmi.Update(t, dut, configqm.Config(), wredqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Update(t, dut, configqm.Config(), &oc.Qos_QueueManagementProfile{
+			Name: &wredprofile,
+			Wred: wredqueumred,
+		})
 		configGotQM := gnmi.Get(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
-
 }
 
 func TestQMWredUniUpdate(t *testing.T) {
@@ -394,14 +407,19 @@ func TestQMWredUniUpdate(t *testing.T) {
 		wredqueum := qos.GetOrCreateQueueManagementProfile(wredprofile)
 		wredqueumred := wredqueum.GetOrCreateWred()
 		wredqueumreduni := wredqueumred.GetOrCreateUniform()
+		wred := make(map[uint32]*oc.Qos_QueueManagementProfile_Wred)
+		wred[1] = wredqueumred
 		wredqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[i])
 		wredqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[i])
 		wredqueumreduni.EnableEcn = ygot.Bool(true)
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
-		gnmi.Update(t, dut, configqm.Config(), wredqueumreduni)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+		gnmi.Update(t, dut, configqm.Config(), &oc.Qos_QueueManagementProfile{
+			Name: &wredprofile,
+			Wred: wredqueumred,
+		})
 		configGotQM := gnmi.Get(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
@@ -432,13 +450,18 @@ func TestQMRedReplace(t *testing.T) {
 		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
 		redqueumred := redqueum.GetOrCreateRed()
 		redqueumreduni := redqueumred.GetOrCreateUniform()
+		red := make(map[uint32]*oc.Qos_QueueManagementProfile_Red)
+		red[1] = redqueumred
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
+		gnmi.Replace(t, dut, configqm.Config(), &oc.Qos_QueueManagementProfile{
+			Name: &redprofile,
+			Red:  redqueumred,
+		})
 		configGotQM := gnmi.Get(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
@@ -467,13 +490,18 @@ func TestQMRedSetUpdate(t *testing.T) {
 		redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
 		redqueumred := redqueum.GetOrCreateRed()
 		redqueumreduni := redqueumred.GetOrCreateUniform()
+		red := make(map[uint32]*oc.Qos_QueueManagementProfile_Red)
+		red[1] = redqueumred
 		redqueumreduni.MinThreshold = ygot.Uint64(minthresholdlist[j])
 		redqueumreduni.MaxThreshold = ygot.Uint64(maxthresholdlist[j])
 		redqueumreduni.EnableEcn = ygot.Bool(true)
-		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
-		gnmi.Update(t, dut, configqm.Config(), redqueumred)
+		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
+		gnmi.Update(t, dut, configqm.Config(), &oc.Qos_QueueManagementProfile{
+			Name: &redprofile,
+			Red:  redqueumred,
+		})
 		configGotQM := gnmi.Get(t, dut, configqm.Config())
-		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
+		if diff := cmp.Diff(*configGotQM, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
@@ -484,28 +512,39 @@ func TestQmUpdateEcn(t *testing.T) {
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
+	wredprofile := "wredprofile11"
 	wredqueum := qos.GetOrCreateQueueManagementProfile("wredprofile11")
 	wredqueumred := wredqueum.GetOrCreateWred()
 	wredqueumreduni := wredqueumred.GetOrCreateUniform()
+	wred := make(map[uint32]*oc.Qos_QueueManagementProfile_Wred)
+	wred[1] = wredqueumred
 	wredqueumreduni.MinThreshold = ygot.Uint64(150000)
 	wredqueumreduni.MaxThreshold = ygot.Uint64(160000)
 	wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(10)
-	redqueum := qos.GetOrCreateQueueManagementProfile("redprofile8")
+	redprofile := "redprofile8"
+	redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
 	redqueumred := redqueum.GetOrCreateRed()
 	redqueumreduni := redqueumred.GetOrCreateUniform()
+	red := make(map[uint32]*oc.Qos_QueueManagementProfile_Red)
+	red[1] = redqueumred
 	redqueumreduni.MinThreshold = ygot.Uint64(120000)
 	redqueumreduni.MaxThreshold = ygot.Uint64(130000)
-	config1 := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Wred().Uniform()
-	gnmi.Update(t, dut, config1.Config(), wredqueumreduni)
-	config2 := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Red().Uniform()
-	gnmi.Update(t, dut, config2.Config(), redqueumreduni)
+	config1 := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
+	gnmi.Update(t, dut, config1.Config(), &oc.Qos_QueueManagementProfile{
+		Name: &wredprofile,
+		Wred: wredqueumred,
+	})
+	config2 := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
+	gnmi.Update(t, dut, config2.Config(), &oc.Qos_QueueManagementProfile{
+		Name: &redprofile,
+		Red:  redqueumred,
+	})
 	configsetwredecn := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Wred().Uniform().EnableEcn()
 	gnmi.Update(t, dut, configsetwredecn.Config(), true)
 	ConfigGetEcn := gnmi.Get(t, dut, gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Config())
 	if diff := cmp.Diff(*ConfigGetEcn, *redqueumred); diff == "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-
 }
 
 func TestQueueManagementDeleteAdd(t *testing.T) {
@@ -525,7 +564,8 @@ func TestQueueManagementDeleteAdd(t *testing.T) {
 	wredqueumreduni.MaxThreshold = ygot.Uint64(160000)
 	wredqueumreduni.EnableEcn = ygot.Bool(true)
 	wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(10)
-	redqueum := qos.GetOrCreateQueueManagementProfile("redprofile8")
+	redprofile := "redprofile8"
+	redqueum := qos.GetOrCreateQueueManagementProfile(redprofile)
 	redqueumred := redqueum.GetOrCreateRed()
 	redqueumreduni := redqueumred.GetOrCreateUniform()
 	redqueumreduni.MinThreshold = ygot.Uint64(120000)
@@ -561,10 +601,13 @@ func TestQueueManagementDeleteAdd(t *testing.T) {
 		}
 	})
 	t.Run("Step 4 , add back qm profile back and verify with Get", func(t *testing.T) {
-		configuni := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red().Uniform()
-		gnmi.Update(t, dut, configuni.Config(), redqueumreduni)
+		configuni := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
+		gnmi.Update(t, dut, configuni.Config(), &oc.Qos_QueueManagementProfile{
+			Name: &redprofile,
+			Red:  redqueumred,
+		})
 		configGotUni := gnmi.Get(t, dut, configuni.Config())
-		if diff := cmp.Diff(*configGotUni, *redqueumreduni); diff != "" {
+		if diff := cmp.Diff(*configGotUni, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 		ConfigGotqos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
