@@ -17,6 +17,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_value_for_defaults: true
     bgp_community_member_is_a_string: true
+    skip_bgp_send_community_type: true
   }
 }
 platform_exceptions: {
