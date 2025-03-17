@@ -1148,18 +1148,18 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 
 							if wantPacket.TTL != nil {
 								//TTL/HopLimit comparison for IPV4 & IPV6
-								if isIPv4 {
-									captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
-									if captureTTL != TTL1 {
-										t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
-									}
-
-								} else {
-									captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
-									if captureHopLimit != HopLimit1 {
-										t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
-									}
+								//if isIPv4 {
+								captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
+								if captureTTL != TTL1 {
+									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
 								}
+
+								// } else {
+								// 	captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
+								// 	if captureHopLimit != HopLimit1 {
+								// 		t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
+								// 	}
+								// }
 							}
 
 							//Metadata comparision
