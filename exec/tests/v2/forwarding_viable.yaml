@@ -10,7 +10,4 @@ tests:
   mustpass: true
   internal: true
   branch: master
-  args:
-    - '-gribi_aft_check=false'
-    - '-gribi_aft_chain_check=false'
-    
+  
