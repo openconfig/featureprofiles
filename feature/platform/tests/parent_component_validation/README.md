@@ -29,7 +29,7 @@ The below yaml defines the OC paths and RPC intended to be covered by this test.
 ```yaml
 paths:
   /components/component/state/parent:
-
+    platform_type: ["INTEGRATED_CIRCUIT"]
 rpcs:
   gnmi:
     gNMI.Get:
