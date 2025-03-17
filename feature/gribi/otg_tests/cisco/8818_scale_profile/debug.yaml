@@ -44,8 +44,6 @@
   type: "command"
   errorPatterns:
     - "SHUT DOWN"
-"show tech-support install":
-  type: "show-tech"
 "show context location all":
   type: "command"
   errorPatterns:
