@@ -84,7 +84,7 @@ decapsulate MPLS in UDP.
 
 ```yaml
 paths:
-  # Paths added for PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
+  # Paths added for PF-1.7.1 - MPLS in UDP decapsulation set by gNMI
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
 
