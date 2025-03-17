@@ -182,7 +182,7 @@ func validateFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("fileLogger1.GetSelector(%v, %v) = nil, want non-nil", oc.SystemLogging_SYSLOG_FACILITY_LOCAL6, oc.SystemLogging_SyslogSeverity_ALERT)
 	}
 
-	fileLogger2 := gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File("/var/log/syslog", "logfile_1").State())
+	fileLogger2 := gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File("/var/log/syslog", "logfile_2").State())
 	t.Logf("fileLogger2: %v", fileLogger2)
 	s3 := fileLogger2.GetSelector(oc.SystemLogging_SYSLOG_FACILITY_LOCAL5, oc.SystemLogging_SyslogSeverity_INFORMATIONAL)
 	if s3 == nil {
@@ -191,5 +191,10 @@ func validateFileLogging(t *testing.T, dut *ondatra.DUTDevice) {
 	s4 := fileLogger2.GetSelector(oc.SystemLogging_SYSLOG_FACILITY_LOCAL6, oc.SystemLogging_SyslogSeverity_WARNING)
 	if s4 == nil {
 		t.Errorf("fileLogger2.GetSelector(%v, %v) = nil, want non-nil", oc.SystemLogging_SYSLOG_FACILITY_LOCAL6, oc.SystemLogging_SyslogSeverity_WARNING)
+	}
+	time.Sleep(4 * time.Minute)
+	fileLogger2 = gnmi.Get[*oc.System_Logging_File](t, dut, gnmi.OC().System().Logging().File("/var/log/syslog", "logfile_2").State())
+	if fileLogger2.GetRotate() != 10 {
+		t.Errorf("fileLogger2.GetRotate() = %v, want 10", fileLogger2.GetRotate())
 	}
 }
