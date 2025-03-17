@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	tolerance uint64 // traffic loss tolerance percentage
+	tolerance = 2.0 // traffic loss tolerance percentage
 )
 
 const (
@@ -75,7 +75,6 @@ func TestShowDropsNputraps(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -169,7 +168,6 @@ func TestShowDropsNpudrops(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -265,7 +263,6 @@ func TestShowDropsCefipv4drops(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -350,7 +347,6 @@ func TestShowDropsCefipv6drops(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -434,7 +430,6 @@ func TestShowDropsLptsdrops(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -518,7 +513,6 @@ func TestShowDropsMulticast(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -608,7 +602,6 @@ func TestShowDropsMac(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -709,7 +702,6 @@ func TestOcPpcDropLookupBlock(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
@@ -818,7 +810,6 @@ func TestVendorLeafs(t *testing.T) {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
 				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// collecting each path, query per destination NPU
 				for _, npu := range npus {
