@@ -2,9 +2,10 @@
 
 ## Summary
 
-Validate that the parent components of an entity is correct
+Validate that the parent components of an entity is correct before and after reboot
 
-- Parent component of an interface is a Switch Chip
+- Verify parent component of an interface is a Switch Chip
+- [TODO]: Add parent component verification for other hardware entities
 
 ## Testbed type
 
@@ -16,11 +17,9 @@ Validate that the parent components of an entity is correct
 
 ### PLT-1.2.1 - Validate parent component of an interface:
 
-* Validate that the correct parent component "SwitchChip" is reported for the DUT interfaces port-1 and port-2
-
-### PLT-1.2.2 - [TODO]:
-
-* Add parent component check for other entities
+* Validate that the correct parent component "SwitchChip" is reported for DUT port1 and port2
+* Reboot the DUT and verify the DUT finished rebooting by checking the uptime
+* Re-validate that the correct parent component "SwitchChip" is reported for DUT port1 and port2
 
 ## OpenConfig Path and RPC Coverage
 
