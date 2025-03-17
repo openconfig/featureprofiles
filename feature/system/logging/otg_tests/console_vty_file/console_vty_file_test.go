@@ -16,6 +16,7 @@ package console_vty_file_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
