@@ -452,8 +452,8 @@ test: {
 }
 test: {
   id: "PF-1.7"
-  description: "Decapsulate MPLS in GRE and UDP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_decap_test/README.md"
+  description: "Decapsulate MPLS in UDP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/udp_decap_test/README.md"
   exec: " "
 }
 test: {
@@ -476,6 +476,12 @@ test: {
 test: {
   id: "PF-1.11"
   description: "Rewrite the ingress innner packet TTL"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.12"
+  description: "Decapsulate MPLS in GRE"
   readme: " "
   exec: " "
 }

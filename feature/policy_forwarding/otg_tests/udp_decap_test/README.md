@@ -1,7 +1,7 @@
-# PF-1.7 Decapsulate MPLS in GRE and UDP
+# PF-1.7 Decapsulate MPLS in UDP
 
 Create a policy-forwarding configuration using gNMI to decapsulate MPLS
-in GRE and UDP packets which are sent to a IP from a decap pool or loopback address and apply to
+in UDP packets which are sent to a IP from a decap pool or loopback address and apply to
 the DUT.
 
 ## Topology
@@ -30,57 +30,7 @@ outer_ip-ttl =        "64"
 
 ## Procedure
 
-### PF-1.7.1 - MPLS in GRE decapsulation set by gNMI
-
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate in GRE.
-
-```json
-{
-  "openconfig-network-instance": {
-    "network-instances": [
-      {
-        "afts": {
-          "policy-forwarding": {
-            "policies": [
-              {
-                "config": {
-                  "policy-id": "default decap rule",
-                  "type": "PBR_POLICY"
-                },
-                "policy": "default decap rule",
-                "rules": [
-                  {
-                    "config": {
-                      "sequence-id": 1,
-                    },
-                    "ipv6": {
-                      "config": {
-                        "destination-address": "decap_ipv6"
-                      }
-                    },
-                    "action": {
-                      "decapsulate-mpls-in-gre": TRUE  
-                     }
-                  }
-                ]
-              }
-            ]  
-          }
-        }
-      }
-    ]
-  }
-}
-```
-* Push the gNMI the policy forwarding configuration
-* Push the configuration to DUT using gnmi.Set with REPLACE option
-* Configure ATE port 1 with traffic flow
-  * Flow should have a packet encap format : outer_decap_gre_ipv6 <- MPLS label <- inner_decap_ipv6
-* Generate traffic from ATE port 1
-* Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
-
-### PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
+### PF-1.7.1 - MPLS in UDP decapsulation set by gNMI
 
 Canonical OpenConfig for policy forwarding, matching IP prefix with action
 decapsulate MPLS in UDP.
@@ -110,7 +60,7 @@ decapsulate MPLS in UDP.
                       }
                     },
                     "action": {
-                      "decapsulate-mpls-in-udp": TRUE  
+                      "decapsulate-mpls-in-udp": TRUE  [**TODO**] Arista provides vendor augmentation
                      }
                   }
                 ]
@@ -134,11 +84,6 @@ decapsulate MPLS in UDP.
 
 ```yaml
 paths:
-
-  # Paths added for PF-1.7.1 - MPLS in GRE decapsulation set by gNMI
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
-  # TODO: /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-gre:
-
   # Paths added for PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
