@@ -95,6 +95,10 @@ func validateConsoleLogging(t *testing.T, dut *ondatra.DUTDevice) {
 	if s2 == nil {
 		t.Errorf("consoleLogger.GetSelector(%v, %v) = nil, want non-nil", oc.SystemLogging_SYSLOG_FACILITY_LOCAL6, oc.SystemLogging_SyslogSeverity_ALERT)
 	}
+	s3 := consoleLogger.GetSelector(oc.SystemLogging_SYSLOG_FACILITY_LOCAL5, oc.SystemLogging_SyslogSeverity_CRITICAL)
+	if s3 == nil {
+		t.Errorf("consoleLogger.GetSelector(%v, %v) = nil, want non-nil", oc.SystemLogging_SYSLOG_FACILITY_LOCAL5, oc.SystemLogging_SyslogSeverity_CRITICAL)
+	}
 }
 
 func configureVTYLogging(t *testing.T, dut *ondatra.DUTDevice) {
