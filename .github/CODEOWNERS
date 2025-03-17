@@ -27,7 +27,7 @@
 /feature/platform/transceiver  @openconfig/featureprofiles-owner-platform-transceiver
 /feature/qos                 @openconfig/featureprofiles-owner-qos
 /feature/routing_policy/     @swetha-haridasula
-/feature/sampling/           @sudhinj
+/feature/sampling/           @masood-shah
 /feature/security            @openconfig/featureprofiles-owner-security
 /feature/staticroute/        @openconfig/featureprofiles-owner-staticroute
 /feature/stp/                @alokmtri-g
