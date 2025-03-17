@@ -741,12 +741,12 @@ tests:
     owners:
       - harikri4
   - name: ACCTZ-2.1 (Record Subscribe Partial)
-      path: feature/security/gnsi/acctz/tests/record_subscribe_partial
-      mustpass: false
-      timeout: 21000
-      priority: 65
-      owners:
-        - harikri4
+    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
   - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
     path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
     mustpass: false
