@@ -81,4 +81,3 @@ jobs:
           fi
         fi
         make validate_paths
-
