@@ -2,7 +2,7 @@
 
 ## Summary
 This is to
-1. Test implementation of Static GUE encap whereby Tunnel endopoint is resolved over EBGP while the Payload's destination is learnt over IBGP
+1. Test implementation of Static GUE encap whereby Tunnel endpoint is resolved over EBGP while the Payload's destination is learnt over IBGP
 2. Prior to being GUE encaped, the LPM lookup on the payload destination undergoes route selection between different IBGP learnt routes and selects the ones w/ higher Local preference. In the absence of which, the backup routes are selected.
 3. Encaped traffic also gets the TTL and the TOS bits copied over from the inner header to the outer header. Also, depending on the tunnel destination IP, the implementation must mark the TZ bits (bit #1 and 2 of the DSCP header) as either TZ=11 or TZ=10.
 4. The DUT is also expected to performs GUEv1 Decap of the traffic received in the reverse direction. During Decap, the outer DSCP and the TTL bits arent copied to the inner header.
