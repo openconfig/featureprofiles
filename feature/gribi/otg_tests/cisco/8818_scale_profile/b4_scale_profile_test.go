@@ -318,7 +318,7 @@ func TestTrigger(t *testing.T) {
 			utils.Dorpfo(ctx, t, false)
 		}},
 		{"LC-OIR", func(ctx context.Context, t *testing.T) {
-			utils.DoLcOir(t, resources.DUT)
+			utils.DoAllAvailableLcParallelOir(t, resources.DUT)
 		}},
 		// {"LCHA", func(ctx context.Context, t *testing.T) {
 		// 	utils.DoLCHA(ctx, t)
