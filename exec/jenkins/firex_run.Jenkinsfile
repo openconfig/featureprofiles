@@ -121,6 +121,7 @@ pipeline {
         persistentString(name: 'keng_controller', defaultValue: '1.3.0-2', description: 'Specify keng-controller version', trim: true)
         persistentString(name: 'keng_layer23_hw_server', defaultValue: '1.3.0-4', description: 'Specify keng layer23 hw server version', trim: true)
         persistentString(name: 'otg_gnmi_server', defaultValue: '1.13.15', description: 'Specify otg-gnmi-server version', trim: true)
+        persistentString(name: 'controller_command', defaultValue: '', description: 'Command line for controller e.g. --controller_command=[--grpc-max-msg-size 500]', trim: true)
 
     }
 
@@ -425,6 +426,7 @@ pipeline {
                             firex_cmd_parts.add("--keng_controller ${params['keng_controller']}")
                             firex_cmd_parts.add("--keng_layer23_hw_server ${params['keng_layer23_hw_server']}")
                             firex_cmd_parts.add("--otg_gnmi_server ${params['otg_gnmi_server']}")
+                            firex_cmd_parts.add("--controller_command ${params['controller_command']}")
                             
                             firex_cmd_parts.add("--collect_debug_files ${params['Collect Debug Files']}")
                             firex_cmd_parts.add("--collect_dut_info ${params['Collect DUT Info']}")

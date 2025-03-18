@@ -134,12 +134,28 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
-    dockerFile = f"""
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,version):
+   controller_version,layer23_version,gnmi_version = keng_controller,keng_layer23_hw_server,otg_gnmi_server
+   if version["controller"] != '1.3.0-2':
+       controllerVersion = version["controller"]
+   if version["layer23"] !=  '1.3.0-4':
+       layer23Version = version["layer23"]
+   if version["gnmi"] !=  '1.13.15':
+       gnmiVersion = version["gnmi"]
+    # check for controller_commands
+   if controller_command:
+        # Remove the enclosing brackets and split the command into a list
+        controller_command = controller_command[0].strip('[]').split()
+        controller_command_formatted = ""
+        for i in controller_command:
+            controller_command_formatted = controller_command_formatted + f"\n      - \"{i}\""
+   else:
+        controller_command_formatted = ""
+   dockerFile = f"""
 version: "2.1"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:{keng_controller}
+    image: ghcr.io/open-traffic-generator/keng-controller:{controller_version}
     restart: always
     ports:
       - "{control_port}:40051"
@@ -152,6 +168,7 @@ services:
       - "--debug"
       - "--keng-layer23-hw-server"
       - "layer23-hw-server:5001"
+      {controller_command_formatted}
     environment:
       - LICENSE_SERVERS=10.85.70.247
     logging:
@@ -161,7 +178,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:{keng_layer23_hw_server}
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:{layer23_version}
     restart: always
     command:
       - "dotnet"
@@ -176,7 +193,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:{otg_gnmi_server}
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:{gnmi_version}
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -194,16 +211,16 @@ services:
         max-file: "10"
         mode: "non-blocking"
 """
-    logger.info(f"dockerFile: {dockerFile}")
-    return dockerFile
+   logger.info(f"dockerFile: {dockerFile}")
+   return dockerFile
 
-def _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
+def _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,version):
     logger.info(f"_write_otg_docker_compose_file")
     if not 'otg' in reserved_testbed:
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        res = fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], keng_controller,keng_layer23_hw_server,otg_gnmi_server))
+        res = fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,version))
     logger.info(f"docker-compose file written: {res}")
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
@@ -1633,14 +1650,18 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server):
+def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,otg_version={
+    "controller": "1.3.0-2",
+    "hw": "1.3.0-4",
+    "gnmi": "1.13.15",
+}):
     # TODO: delete this line
     logger.print(f"BringupIxiaController, reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
     remote_exec(f'ls -la {test_log_directory_path}')
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
     logger.print(f'the controller images are keng_controller: {keng_controller}, keng_layer23: {keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}, docker_file: {docker_file}')
-    _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server)
+    _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,otg_version)
 
     conn_args = {}
     if 'username' in reserved_testbed['otg']:
