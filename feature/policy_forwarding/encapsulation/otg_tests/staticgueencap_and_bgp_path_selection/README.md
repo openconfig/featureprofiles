@@ -32,7 +32,7 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
 ### Advertisements:
 
    * ATE1 <-IBGP-> DUT:Port1 over IPv4-unicast and IPv6-Unicast
-       * ATE1:Port1 --> DUT:Port1. Following simulate Internet prefixes:
+       * ATE1:Port1 --> DUT:Port1. Following simulated Internet prefixes:
            * IPv4Prefix1/24 IPv6Prefix1/64
            * IPv4Prefix2/24 IPv6Prefix2/64
            * IPv4Prefix3/24 IPv6Prefix3/64
