@@ -482,7 +482,7 @@ test: {
 test: {
   id: "PF-1.12"
   description: "Decapsulate MPLS in GRE"
-  readme: " "
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/gre_decap_test/README.md"
   exec: " "
 }
 test: {
