@@ -486,6 +486,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PLT-1.2"
+  description: "Interface parent component Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/interface_parent_component/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.2"
   description: "BGP Policy & Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
@@ -954,6 +960,12 @@ test: {
   id: "RT-5.11"
   description: "Interface LACP Intervals"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_interval_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.12"
+  description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test/README.md"
   exec: " "
 }
 test: {
