@@ -4,8 +4,8 @@
 This is to
 1. Test implementation of Static GUE encap whereby Tunnel endopoint is resolved over EBGP while the Payload's destination is learnt over IBGP
 2. Prior to being GUE encaped, the LPM lookup on the payload destination undergoes route selection between different IBGP learnt routes and selects the ones w/ higher Local preference. In the absence of which, the backup routes are selected.
-3. Encaped traffic also gets the TTL and the TOS bits copied over from the inner header to the outer header. The same are verified at the other end.
-4. The DUT also performs GUEv1 Decap of the traffic received in the reverse direction.
+3. Encaped traffic also gets the TTL and the TOS bits copied over from the inner header to the outer header. Also, depending on the tunnel destination IP, the implementation must mark the TZ bits (bit #1 and 2 of the DSCP header) as either TZ=11 or TZ=10.
+4. The DUT is also expected to performs GUEv1 Decap of the traffic received in the reverse direction. During Decap, the outer DSCP and the TTL bits arent copied to the inner header.
 
 ## Topology
 ```mermaid
@@ -31,7 +31,7 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
 
 ### Advertisements:
 
-   * ATE1 <-EBGP-> DUT:Port1 over IPv4-unicast and IPv6-Unicast
+   * ATE1 <-IBGP-> DUT:Port1 over IPv4-unicast and IPv6-Unicast
        * ATE1:Port1 --> DUT:Port1. Following simulate Internet prefixes:
            * IPv4Prefix1/24 IPv6Prefix1/64
            * IPv4Prefix2/24 IPv6Prefix2/64
@@ -62,7 +62,7 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
 			
 
    * ATE2:Port2 <-IBGP-> DUT:Port3 over IPv4-unicast and IPv6-Unicast
-       * ATE2:Port2 -> DUT:Port3. Following prefixes for different services advertised with local-preference 200 and a Virtual Protocol Next-Hop (VPNH) of IPv4Prefix17 for IPv4 destination prefixes and a VPNH of IPv6Prefix17 for IPv6 destination prefixes. [Please note: Following advertisements are made gradually as suggested in the subtests below]:
+       * ATE2:Port2 -> DUT:Port3. Following prefixes for different services advertised with local-preference 200 and a Virtual Protocol Next-Hop (VPNH) of IPv4Prefix17-21 for IPv4 destination prefixes and a VPNH of IPv6Prefix17 for IPv6 destination prefixes. [Please note: Following advertisements are made gradually as suggested in the subtests below]:
            * IPv4Prefix6/24 IPv6Prefix6/64 <--- Advertised in PF-1.6.2 to PF-1.6.9
            *  IPv4Prefix7/24 IPv6Prefix7/64 <--- Advertised in PF-1.6.3 to PF-1.6.9
            * IPv4Prefix8/24 IPv6Prefix8/64 <--- Advertised in PF-1.6.4 to PF-1.6.9
@@ -94,7 +94,7 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
                * UDP destination address as IPv4Prefix12/28 [Reachability to this is learnt over the EBGP peering with ATE2:Port3]
                * UDP tunnel Port-group
            * Define UDP tunnel port-group
-               * For IPv4, IPv6 and MPLS payload of the UDP encap.
+               * For IPv4, IPv6 payload of the UDP encap.
            * Static routes that point "IPv4 and IPv6 Virtual Protocol Next-hops" learnt over IBGP peering with ATE2:port2 to the tunnel interface.
        * If Policy based Encap
            * Set the next-hop-group type of IPv4oUDP and IPv6oUDP with respective UDP ports [Defualt for IPv4oUDP=6080, Default for IPv6oUDP=6081]
