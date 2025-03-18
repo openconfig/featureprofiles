@@ -174,7 +174,7 @@ Openconfig-paths for the above are covered in the `OpenConfig Path and RPC Cover
 
    * Test Steps:
        * Please run all the health checks suggested above prior to starting the test as a baseline.
-       * Configure DUT as suggested above.
+       * Configure DUT as described above.
            * Make sure the IBGP peering between DUT:Port3 and ATE2:Port2 are down for this subtest.
        * Start above mentioned flows
            * Dont start the above mentioned encaped flows from ATE2:Port3<br>
