@@ -138,11 +138,11 @@ def _gnmi_set_file_template(conf):
 def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,version):
    controller_version,layer23_version,gnmi_version = keng_controller,keng_layer23_hw_server,otg_gnmi_server
    if version["controller"] != '1.3.0-2':
-       controllerVersion = version["controller"]
-   if version["layer23"] !=  '1.3.0-4':
-       layer23Version = version["layer23"]
+       controller_version = version["controller"]
+   if version["hw"] !=  '1.3.0-4':
+       layer23_version = version["layer23"]
    if version["gnmi"] !=  '1.13.15':
-       gnmiVersion = version["gnmi"]
+       layer23_version = version["gnmi"]
     # check for controller_commands
    if controller_command:
         # Remove the enclosing brackets and split the command into a list
