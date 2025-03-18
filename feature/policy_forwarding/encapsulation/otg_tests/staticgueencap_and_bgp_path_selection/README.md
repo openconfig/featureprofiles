@@ -81,7 +81,7 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
 
 ### DUT configuration:
    * EBGP peering between DUT:Port1 and ATE1:Port1
-   * IS-IS adjancency between DUT:Port2 and ATE:Port1
+   * IS-IS adjacency between DUT:Port2 and ATE:Port1
        * Loopback interface is passive.
    * IBGP peering between DUT:Por2 and ATE2:Port1
    * IBGP peering between DUT:Port3 and ATE2:Port2
