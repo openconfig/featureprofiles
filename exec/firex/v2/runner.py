@@ -140,7 +140,7 @@ def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_contro
    if version["controller"] != '1.3.0-2':
        controller_version = version["controller"]
    if version["hw"] !=  '1.3.0-4':
-       layer23_version = version["layer23"]
+       layer23_version = version["hw"]
    if version["gnmi"] !=  '1.13.15':
        layer23_version = version["gnmi"]
     # check for controller_commands
