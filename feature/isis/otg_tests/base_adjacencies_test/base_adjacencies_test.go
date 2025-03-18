@@ -455,7 +455,7 @@ func TestAuthentication(t *testing.T) {
 				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 				auth.AuthPassword = ygot.String(password)
 				for _, intf := range isis.Interface {
-					if deviations.IsisAuthenticationInterfaceLevelUnsupported(ts.DUT) {
+					if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
 						intf.GetOrCreateAuthentication().Enabled = ygot.Bool(tc.enabled)
 						if tc.enabled {
 							intf.GetAuthentication().AuthPassword = ygot.String("google")

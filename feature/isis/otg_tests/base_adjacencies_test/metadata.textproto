@@ -27,7 +27,7 @@ platform_exceptions: {
   deviations: {
     isis_interface_level1_disable_required: true
     isis_single_topology_required: true
-    isis_authentication_interface_level_unsupported: true
+    set_isis_auth_with_interface_authentication_container: true
   }
 }
 platform_exceptions: {
