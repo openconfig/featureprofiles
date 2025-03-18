@@ -97,7 +97,7 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
                * For IPv4, IPv6 payload of the UDP encap.
            * Static routes that point "IPv4 and IPv6 Virtual Protocol Next-hops" learnt over IBGP peering with ATE2:port2 to the tunnel interface.
        * If Policy based Encap
-           * Set the next-hop-group type of IPv4oUDP and IPv6oUDP with respective UDP ports [Defualt for IPv4oUDP=6080, Default for IPv6oUDP=6081]
+           * Set the next-hop-group type of IPv4oUDP and IPv6oUDP with respective UDP ports [Default for IPv4oUDP=6080, Default for IPv6oUDP=6081]
            * Define Tunnel NHG configuration with the following parameters
                * ttl = 43
                * tunnel-source = IPv4Prefix11/28 <<-- Host address in this prefix
