@@ -39,6 +39,8 @@ message Metadata {
     TESTBED_DUT_ATE_8LINKS = 7;
     TESTBED_DUT_400ZR = 8;
     TESTBED_DUT_400ZR_PLUS = 9;
+    TESTBED_DUT_400ZR_100G_4LINKS = 10;
+    TESTBED_DUT_400FR_100G_4LINKS = 11;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -325,8 +327,6 @@ message Metadata {
     bool isis_lsp_metadata_leafs_unsupported = 111;
     // QOS queue requires configuration with queue-id
     bool qos_queue_requires_id = 112;
-    // Devices do not support forwarding for fib failed routes.
-    bool skip_fib_failed_traffic_forwarding_check = 113;
     // QOS requires buffer-allocation-profile configuration
     bool qos_buffer_allocation_config_required = 114;
     // Devices do not support configuring ExtendedNextHopEncoding at the BGP
@@ -403,12 +403,6 @@ message Metadata {
     // Skip setting allow-multiple-as while configuring eBGP
     // Arista: partnerissuetracker.corp.google.com/issues/317422300
     bool skip_setting_allow_multiple_as = 140;
-    // Skip tests with decap encap vrf as PBF action
-    //  Nokia: partnerissuetracker.corp.google.com/issues/323251581
-    bool skip_pbf_with_decap_encap_vrf = 141;
-    // Devices which does not support copying TTL.
-    // Juniper: b/307258544
-    bool ttl_copy_unsupported = 142;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
     bool gribi_decap_mixed_plen_unsupported = 143;
@@ -640,7 +634,7 @@ message Metadata {
     // EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
     // CISCO: b/376241033
     // CISCO: b/340859662
-    bool enable_multipath_under_afi_safi = 230;    
+    bool enable_multipath_under_afi_safi = 230;
     // Device have different default value for allow own as.
     // Juniper : b/373559004
     bool bgp_allowownas_diff_default_value = 231;
@@ -683,15 +677,14 @@ message Metadata {
     // Cisco: b/388983709
     // default bgp instance name is used to set bgp instance name value other than DEFAULT
     string default_bgp_instance_name = 246;
-
     // Arista does not support ETHChannel rate-class
     bool channel_assignment_rate_class_parameters_unsupported = 247;
-    
+
     // Arista: b/346557012  
     // Devices that do not support qos scheduler ingress policer.
     bool qos_scheduler_ingress_policer_unsupported = 248;
 
-    // Arista: b/354689142  
+    // Arista: b/354689142
     // Devices that do not support gRIBIencap headers.
     bool gribi_encap_header_unsupported = 249;
 
@@ -703,8 +696,48 @@ message Metadata {
     // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 251;
 
+    // Device does not support packet processing aggregate drops.
+    // Cisco: b/395567844
+    bool packet_processing_aggregate_drops_unsupported = 252;
+
+    // Device does not support fragment total drops.
+    // Nokia: b/395553772
+    bool fragment_total_drops_unsupported = 253;
+
+    // Devices that do no support static lsp config
+    // Juniper b/356635233
+    bool static_lsp_unsupported = 254;
+
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 255;
+
+    // Devices that do not support oper-status for Integrated Circuits telemetry path
+    // Juniper b/395551640
+    bool oper_status_for_ic_unsupported = 256;
+
+    // Nokia: b/383075189
+    // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
+    bool explicit_dco_config = 257;
+    // verify_expected_breakout_supported_config is used to verify on Cisco devices if optic supports a given breakout mode
+    // Cisco:
+    bool verify_expected_breakout_supported_config = 258;
+
+    // bgp_aspathset_unsupported is set to true for devices that do not support as-path-set for bgp-defined-sets.
+    // Juniper: b/330173167
+    bool bgp_aspathset_unsupported = 259;
+
+    // Devices that do not support SR IGP configuration
+    // Cisco b/390502067
+    bool sr_igp_config_unsupported = 260;
+
+    // Cisco: b/404301960
+    // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
+    // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
+    bool set_isis_auth_with_interface_authentication_container = 261;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
   }
 
   message PlatformExceptions {

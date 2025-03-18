@@ -51,7 +51,7 @@ func EqualToDefault[T any](query ygnmi.SingletonQuery[T], val T, missingValueFor
 	return check.Equal(query, val)
 }
 
-// CheckPresence check for the leaf presense only when missingValueForDefaults is false.
+// CheckPresence check for the leaf presence only when missingValueForDefaults is false.
 func CheckPresence(query ygnmi.SingletonQuery[uint32], missingValueForDefaults bool) check.Validator {
 	if !missingValueForDefaults {
 		return check.Present[uint32](query)
@@ -377,7 +377,7 @@ func TestBasic(t *testing.T) {
 	})
 }
 
-// TestHelloPadding tests several different hello padding modes to confirm they all work.
+// TestHelloPadding tests different hello padding modes to confirm they all work.
 func TestHelloPadding(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -410,7 +410,9 @@ func TestHelloPadding(t *testing.T) {
 				global.HelloPadding = tc.mode
 			})
 			ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(tc.mode != oc.Isis_HelloPaddingType_DISABLE)
-			ts.PushAndStart(t)
+			if err := ts.PushAndStart(t); err != nil {
+				t.Fatalf("Unable to push initial DUT config: %v", err)
+			}
 			_, err := ts.AwaitAdjacency()
 			if err != nil {
 				t.Fatalf("No IS-IS adjacency formed: %v", err)
@@ -447,19 +449,29 @@ func TestAuthentication(t *testing.T) {
 			ts := isissession.MustNew(t).WithISIS()
 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 				level := isis.GetOrCreateLevel(2)
-				level.Enabled = ygot.Bool(true)
 				auth := level.GetOrCreateAuthentication()
 				auth.Enabled = ygot.Bool(true)
 				auth.AuthMode = tc.mode
 				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 				auth.AuthPassword = ygot.String(password)
 				for _, intf := range isis.Interface {
-					intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
-					if tc.enabled {
-						intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
-						intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
-						intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+					if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
+						intf.GetOrCreateAuthentication().Enabled = ygot.Bool(tc.enabled)
+						if tc.enabled {
+							intf.GetAuthentication().AuthPassword = ygot.String("google")
+							intf.GetAuthentication().AuthMode = tc.mode
+							intf.GetAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+						}
+
+					} else {
+						intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
+						if tc.enabled {
+							intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
+							intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
+							intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+						}
 					}
+
 				}
 			})
 			if tc.enabled {
@@ -474,7 +486,9 @@ func TestAuthentication(t *testing.T) {
 					t.Fatalf("test case has bad mode: %v", tc.mode)
 				}
 			}
-			ts.PushAndStart(t)
+			if err := ts.PushAndStart(t); err != nil {
+				t.Fatalf("Unable to push initial DUT config: %v", err)
+			}
 			ts.MustAdjacency(t)
 		})
 	}
@@ -575,7 +589,9 @@ func TestTraffic(t *testing.T) {
 	deadFlow.Metrics().SetEnable(true)
 
 	t.Log("Starting protocols on ATE...")
-	ts.PushAndStart(t)
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("Unable to push initial DUT config: %v", err)
+	}
 	ts.MustAdjacency(t)
 
 	gnmi.Watch(t, otg, gnmi.OTG().IsisRouter("devIsis").Counters().Level2().InLsp().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
@@ -611,5 +627,97 @@ func TestTraffic(t *testing.T) {
 	}
 	if deadLoss != 100 {
 		t.Errorf("Got %v%% invalid packet loss; expected 100%%", deadLoss)
+	}
+}
+
+// TestPointToPointCircuitType verifies that the circuit type is set to point-to-point for a
+// point-to-point IS-IS session.
+func TestPointToPointCircuitType(t *testing.T) {
+	ts := isissession.MustNew(t).WithISIS()
+	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
+		for _, intf := range isis.Interface {
+			intf.SetCircuitType(oc.Isis_CircuitType_POINT_TO_POINT)
+		}
+	})
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("Unable to push initial DUT config: %v", err)
+	}
+	ts.MustAdjacency(t)
+
+	intfName := ts.DUTPort1.Name()
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+		intfName = intfName + ".0"
+	}
+	circuitType := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).Isis().Interface(intfName).CircuitType().State())
+	if circuitType != oc.Isis_CircuitType_POINT_TO_POINT {
+		t.Errorf("Got circuit type %v; want %v", circuitType, oc.Isis_CircuitType_POINT_TO_POINT)
+	}
+}
+
+// TestISISHelloTimer tests several different hello timer values.
+func TestISISHelloTimer(t *testing.T) {
+	ts := isissession.MustNew(t).WithISIS()
+	if err := ts.PushAndStart(t); err != nil {
+		t.Fatalf("Unable to push initial DUT config: %v", err)
+	}
+	ts.MustAdjacency(t)
+
+	testCases := []struct {
+		name            string
+		helloInterval   uint32
+		helloMultiplier uint8
+	}{
+		{
+			name:            "hello_interval_multiplier_10_3",
+			helloInterval:   10,
+			helloMultiplier: 3,
+		},
+		{
+			name:            "hello_interval_multiplier_15_3",
+			helloInterval:   15,
+			helloMultiplier: 3,
+		},
+		{
+			name:            "hello_interval_multiplier_15_5",
+			helloInterval:   15,
+			helloMultiplier: 5,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			intfName := ts.DUTPort1.Name()
+			if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+				intfName = intfName + ".0"
+			}
+			level2 := 2
+
+			d := &oc.Root{}
+			intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
+				GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).
+				GetOrCreateIsis().GetOrCreateInterface(intfName)
+			if !deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
+				timers1 := intf.GetOrCreateLevel(uint8(1)).GetOrCreateTimers()
+				timers1.SetHelloInterval(tc.helloInterval)
+				timers1.SetHelloMultiplier(tc.helloMultiplier)
+			}
+
+			intfLeveL2 := intf.GetOrCreateLevel(uint8(level2))
+			intfLeveL2.Enabled = ygot.Bool(true)
+			intfLeveL2.GetOrCreateTimers().SetHelloInterval(tc.helloInterval)
+			intfLeveL2.GetOrCreateTimers().SetHelloMultiplier(tc.helloMultiplier)
+
+			gnmi.Update(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
+				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).Isis().Interface(intfName).Config(), intf)
+
+			got := gnmi.Get[*oc.NetworkInstance_Protocol_Isis_Interface_Level_Timers](t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
+				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).Isis().Interface(intfName).Level(uint8(level2)).Timers().State())
+			if got.GetHelloInterval() != tc.helloInterval {
+				t.Errorf("Got hello interval %v; want %v", got.GetHelloInterval(), tc.helloInterval)
+			}
+			if got.GetHelloMultiplier() != tc.helloMultiplier {
+				t.Errorf("Got hello multiplier %v; want %v", got.GetHelloMultiplier(), tc.helloMultiplier)
+			}
+		})
 	}
 }
