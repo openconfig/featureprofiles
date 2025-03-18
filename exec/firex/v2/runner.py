@@ -67,6 +67,7 @@ whitelist_arguments([
     'keng_controller'
     'keng_layer23_hw_server'
     'otg_gnmi_server'
+    'controller_command'
 ])
 
 def _get_user_nobackup_path(ws=None):
