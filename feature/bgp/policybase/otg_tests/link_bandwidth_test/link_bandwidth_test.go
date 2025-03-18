@@ -16,6 +16,7 @@ package link_bandwidth_test
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"testing"
@@ -46,6 +47,7 @@ const (
 	v43Route          = "203.0.115.0"
 	v43TrafficStart   = "203.0.115.1"
 	v4RoutePrefix     = uint32(24)
+	parseV4           = "203.0.0.0/16"
 	v61Route          = "2001:db8:128:128::0"
 	v61RouteOtg       = "2001:db8:128:128::"
 	v61RouteAdvertise = "2001:db8:128:128::/64"
@@ -174,7 +176,7 @@ func TestBGPLinkBandwidth(t *testing.T) {
 		name                     string
 		policyName               string
 		applyPolicy              func(t *testing.T, dut *ondatra.DUTDevice, policyName string)
-		validate                 func(t *testing.T, dut *ondatra.DUTDevice, policyName string)
+		validate                 func(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string)
 		routeCommunity           extCommunity
 		localPerf                bool
 		validateRouteCommunityV4 func(t *testing.T, td testData, ec extCommunity)
@@ -251,8 +253,7 @@ func TestBGPLinkBandwidth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Description: %s", tc.name)
 			tc.applyPolicy(t, dut, tc.policyName)
-			time.Sleep(20 * time.Second)
-			tc.validate(t, dut, tc.policyName)
+			tc.validate(t, dut, td, tc.policyName)
 			tc.validateRouteCommunityV4(t, td, tc.routeCommunity)
 			tc.validateRouteCommunityV6(t, td, tc.routeCommunity)
 		})
@@ -345,7 +346,7 @@ func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
 }
 
-func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	_, ok := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
@@ -362,9 +363,31 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName st
 	if !ok {
 		t.Fatalf("invalid import policy")
 	}
+	// Validating if OTG has learnt 3 prefixes with subnet 203.0.0.0/16 on which policy applied
+	found := 0
+	bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
+	for _, bgpPrefix := range bgpPrefixes {
+		_, ok := gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(), bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).State(), 10*time.Second, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			if !v.IsPresent() {
+				return false
+			}
+			prefix, _ := v.Val()
+			_, subnet, _ := net.ParseCIDR(parseV4)
+			if subnet.Contains(net.ParseIP(*prefix.Address)) {
+				found++
+				if found == 3 {
+					return true
+				}
+			}
+			return false
+		}).Await(t)
+		if !ok {
+			continue
+		}
+	}
 }
 
-func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	_, ok := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
@@ -380,6 +403,13 @@ func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName st
 	}).Await(t)
 	if !ok {
 		t.Fatalf("invalid export policy")
+	}
+	_, oks := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if !oks {
+		t.Fatalf("Prefixes not installed yet")
 	}
 }
 
@@ -405,7 +435,6 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 		}).Await(t)
 	if ok {
 		bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
-		t.Logf("bgp prefix:%v", bgpPrefixes)
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.GetAddress() == v4Prefix {
 				t.Logf("Prefix recevied on OTG is correct, got  Address %s, want prefix %v", bgpPrefix.GetAddress(), v4Prefix)
@@ -454,6 +483,7 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 			}
 		}
 	}
+
 }
 
 func validateRouteCommunityV6(t *testing.T, td testData, ec extCommunity) {
@@ -482,10 +512,6 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.GetAddress() == v6Prefix {
 				t.Logf("Prefix recevied on OTG is correct, got prefix:%v , want prefix %v", bgpPrefix.GetAddress(), v6Prefix)
-				for _, ec := range bgpPrefix.ExtendedCommunity {
-					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
-					t.Logf("LC: Bandwidth from OTG : %v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-				}
 				switch community {
 				case "none":
 					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
@@ -559,35 +585,40 @@ func configureImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice) 
 	gnmi.Replace(t, dut, path.Config(), policy)
 }
 
-func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, td testData) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().
 		Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 
 	policy := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, path.State())
 	importPolicies := policy.GetImportPolicy()
+	found := 0
 	if len(importPolicies) != 1 {
 		t.Fatalf("ImportPolicy Ipv4 = %v, want %v", importPolicies, []string{"allow-all"})
 	}
-	bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
-	locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.
-		AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
-	found := 0
-	expected := map[string]bool{
-		advertisedIPv41.address + "/" + strconv.Itoa(int(advertisedIPv41.prefix)): true,
-		advertisedIPv42.address + "/" + strconv.Itoa(int(advertisedIPv42.prefix)): true,
-		advertisedIPv43.address + "/" + strconv.Itoa(int(advertisedIPv43.prefix)): true,
-	}
-	for route, prefix := range locRib.Route {
-		if expected[prefix.GetPrefix()] {
-			found++
-			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+	_, ok := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if ok {
+		bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
+		locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.
+			AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
+		expected := map[string]bool{
+			advertisedIPv41.address + "/" + strconv.Itoa(int(advertisedIPv41.prefix)): true,
+			advertisedIPv42.address + "/" + strconv.Itoa(int(advertisedIPv42.prefix)): true,
+			advertisedIPv43.address + "/" + strconv.Itoa(int(advertisedIPv43.prefix)): true,
+		}
+		for route, prefix := range locRib.Route {
+			if expected[prefix.GetPrefix()] {
+				found++
+				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+			}
+		}
+		if found != len(expected) {
+			t.Fatalf("Not all V4 routes found. expected:%d got:%d", len(expected), found)
 		}
 	}
-	if found != len(expected) {
-		t.Fatalf("Not all V4 routes found. expected:%d got:%d", len(expected), found)
-	}
-
 	// Verify ipv6 policy.
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policyV6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, pathV6.State())
@@ -595,22 +626,28 @@ func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, a
 	if len(importPolicies) != 1 {
 		t.Errorf("ImportPolicy Ipv6 got= %v, want= %v", importPolicies, []string{"allow-all"})
 	}
-	bgpRIBPathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
-	locRibv6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPathV6.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
-	found = 0
-	expectedV6 := map[string]bool{
-		v61RouteAdvertise: true,
-		v62RouteAdvertise: true,
-		v63RouteAdvertise: true,
-	}
-	for route, prefix := range locRibv6.Route {
-		if expectedV6[prefix.GetPrefix()] {
-			found++
-			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+	_, oks := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP6.peer").UnicastIpv6PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if oks {
+		bgpRIBPathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
+		locRibv6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPathV6.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
+		found = 0
+		expectedV6 := map[string]bool{
+			v61RouteAdvertise: true,
+			v62RouteAdvertise: true,
+			v63RouteAdvertise: true,
 		}
-	}
-	if found != len(expectedV6) {
-		t.Fatalf("Not all v6 Routes found expected: %d got: %d", len(expectedV6), found)
+		for route, prefix := range locRibv6.Route {
+			if expectedV6[prefix.GetPrefix()] {
+				found++
+				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+			}
+		}
+		if found != len(expectedV6) {
+			t.Fatalf("Not all v6 Routes found expected: %d got: %d", len(expectedV6), found)
+		}
 	}
 }
 
@@ -1084,8 +1121,7 @@ func baseSetupConfigAndVerification(t *testing.T, td testData) {
 	td.verifyDUTBGPEstablished(t)
 	td.verifyOTGBGPEstablished(t)
 	configureImportRoutingPolicyAllowAll(t, td.dut)
-	time.Sleep(5 * time.Second)
-	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate)
+	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate, td)
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev1", dstIP: v41TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev2", dstIP: v42TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev3", dstIP: v43TrafficStart})
