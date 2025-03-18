@@ -69,7 +69,7 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
            * IPv4Prefix9/24 IPv6Prefix9/64 <--- Advertised in PF-1.6.5 to PF-1.6.9
            * IPv4Prefix10/24 IPv6Prefix10/64 <--- Advertised in PF-1.6.6 to PF-1.6.9
        * DUT:Port3 --> ATE2:Port2
-           * All Intternet Prefixes learnt from ATE1:Port1
+           * All simulated Internet prefixes learnt from ATE1:Port1
 			
 
 
