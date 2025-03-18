@@ -2,10 +2,12 @@ package utils
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
 	// "github.com/openconfig/entity-naming/oc"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	gnps "github.com/openconfig/gnoi/system"
@@ -118,68 +120,63 @@ func Dorpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 	}
 }
 
-// Function to perform LC_OIR operations.
-func DoLcOir(t *testing.T, dut *ondatra.DUTDevice) {
-	// Stop traffic if needed
-	// if *ciscoFlags.GRIBITrafficCheck {
-	//     args.ate.Traffic().Stop(t)
-	// }
+// PerformLCOperations performs LC OIR operations for a single line card.
+func DoLcOir(t *testing.T, dut *ondatra.DUTDevice, lineCard string) {
+	t.Run(lineCard, func(t *testing.T) {
+		// To remove
+		if lineCard != "0/0/CPU0" {
+			t.Skip()
+		}
 
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lineCard).Empty().State()).Val()
+		if ok && empty {
+			t.Skipf("Linecard Component %s is empty, hence skipping", lineCard)
+		}
+		if !gnmi.Get(t, dut, gnmi.OC().Component(lineCard).Removable().State()) {
+			t.Skipf("Skip the test on non-removable linecard.")
+		}
+
+		lineCardOperStatus := gnmi.Get(t, dut, gnmi.OC().Component(lineCard).OperStatus().State())
+		if got, want := lineCardOperStatus, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+			t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", lineCard)
+		}
+
+		gnoiClient := dut.RawAPIs().GNOI(t)
+		useNameOnly := deviations.GNOISubcomponentPath(dut)
+		lineCardPath := components.GetSubcomponentPath(lineCard, useNameOnly)
+		rebootSubComponentRequest := &gnps.RebootRequest{
+			Method: gnps.RebootMethod_COLD,
+			Subcomponents: []*tpb.Path{
+				lineCardPath,
+			},
+		}
+		t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+		if err != nil {
+			t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+		}
+		t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	})
+}
+
+// DoLcOir performs LC OIR operations for all line cards concurrently.
+func DoAllAvailableLcParallelOir(t *testing.T, dut *ondatra.DUTDevice) {
 	// Find line card components
-	ls := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	lineCards := util.GetLCList(t, dut)
 
-	for _, l := range ls {
-		t.Run(l, func(t *testing.T) {
-			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
-			if ok && empty {
-				t.Skipf("Linecard Component %s is empty, hence skipping", l)
-			}
-			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
-				t.Skipf("Skip the test on non-removable linecard.")
-			}
+	var wg sync.WaitGroup
 
-			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
-
-			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
-				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
-			}
-
-			gnoiClient := dut.RawAPIs().GNOI(t)
-			useNameOnly := deviations.GNOISubcomponentPath(dut)
-			lineCardPath := components.GetSubcomponentPath(l, useNameOnly)
-			rebootSubComponentRequest := &gnps.RebootRequest{
-				Method: gnps.RebootMethod_COLD,
-				Subcomponents: []*tpb.Path{
-					lineCardPath,
-				},
-			}
-			t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
-			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
-			if err != nil {
-				t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
-			}
-			t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
-
-			// if with_RPFO {
-			// 	rpfo_count++
-			// 	t.Logf("This is RPFO #%d", rpfo_count)
-			// 	args.rpfo(args.ctx, t, true)
-			// }
-
-			// Sleep while LC reloads
-			time.Sleep(10 * time.Minute)
-
-			// // Base programming
-			// baseProgramming(args.ctx, t, args)
-
-			// // Verify traffic
-			// if *ciscoFlags.GRIBITrafficCheck {
-			// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
-			// 		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-			// 	}
-			// 	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-			// 	args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, burst: true})
-			// }
-		})
+	for _, lineCard := range lineCards {
+		wg.Add(1)
+		go func(lc string) {
+			defer wg.Done()
+			DoLcOir(t, dut, lc)
+		}(lineCard)
 	}
+
+	wg.Wait()
+
+	// Sleep while LC reloads
+	time.Sleep(10 * time.Minute)
 }

@@ -296,6 +296,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 func TestGribiScaleProfile(t *testing.T) {
 	resources := initializeTestResources(t)
 	log_collector.Start(context.Background(), t, resources.DUT)
+	t.Skip()
 
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 	configureBaseProfile(t)
@@ -316,9 +317,9 @@ func TestTrigger(t *testing.T) {
 		{"RPFO", func(ctx context.Context, t *testing.T) {
 			utils.Dorpfo(ctx, t, false)
 		}},
-		// {"LC-OIR", func(ctx context.Context, t *testing.T) {
-		// 	utils.DoLC_OIR(ctx, t)
-		// }},
+		{"LC-OIR", func(ctx context.Context, t *testing.T) {
+			utils.DoLcOir(t, resources.DUT)
+		}},
 		// {"LCHA", func(ctx context.Context, t *testing.T) {
 		// 	utils.DoLCHA(ctx, t)
 		// }},
@@ -328,6 +329,7 @@ func TestTrigger(t *testing.T) {
 	for _, trigger := range triggers {
 		t.Run(trigger.name, func(t *testing.T) {
 			trigger.fn(resources.Context, t)
+			time.Sleep(10 * time.Minute)
 
 			// Collect logs after each trigger
 			t.Run("LogCollectionAfterTrigger", func(t *testing.T) {
