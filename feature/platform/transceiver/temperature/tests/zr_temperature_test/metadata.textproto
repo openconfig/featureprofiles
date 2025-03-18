@@ -1,0 +1,36 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "c78087a2-2586-4052-89d0-df4c621086ad"
+plan_id: "TRANSCEIVER-8"
+description: "Telemetry: 400ZR Optics module temperature streaming."
+testbed: TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    use_parent_component_for_temperature_telemetry: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+  }
+}

@@ -359,11 +359,21 @@ func TestSupFailure(t *testing.T) {
 	validateTelemetry(t, dut, primaryAfterSwitch, secondaryAfterSwitch)
 	// Assume Controller Switchover happened, ensure traffic flows without loss.
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	// Try starting the gribi client twice as switchover may reset the connection.
-	if err := clientA.Start(t); err != nil {
-		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		if err = clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection could not be established: %v", err)
+	// Retry starting the gribi client in a loop as switchover may reset the connection.
+
+	t.Log("Re-establish gRIBI client connection")
+	retryDuration := 180 * time.Second
+	retryInterval := 5 * time.Second
+	startTime := time.Now()
+	for {
+		if err := clientA.Start(t); err != nil {
+			if time.Since(startTime) > retryDuration {
+				t.Fatalf("gRIBI Connection for clientA could not be re-established after multiple attempts")
+			}
+			t.Logf("Retrying gRIBI client connection in %v...", retryInterval)
+			time.Sleep(retryInterval)
+		} else {
+			break
 		}
 	}
 
