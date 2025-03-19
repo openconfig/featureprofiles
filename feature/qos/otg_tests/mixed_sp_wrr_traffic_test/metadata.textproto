@@ -29,7 +29,6 @@ platform_exceptions: {
     dequeue_delete_not_counted_as_drops: true
     qos_octets: true
     interface_enabled: true
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     qos_queue_requires_id: true
   }

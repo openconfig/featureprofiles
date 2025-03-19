@@ -1,27 +1,27 @@
-# TR-6.2 Local logging destinations
+# TR-6.2: Local logging destinations
 
-## Sumary
+## Summary
 Verify if required OC configuration is accepted by DUT and exposed via gNMI get
 
-## Prodecure
+## Procedure
 
 ### Configuration
 
 ### TC1 - console logging configuration
 
-1. configure and enable consloe logging with:
+1. configure and enable console logging with:
     - 2 selectors:
-      - facility = "Local7", severity = "informational"
-      - facility = "Local6", severity = "alarm"
-      - facility = "Local5", severity = "critical"
+        - facility = "Local7", severity = "informational"
+        - facility = "Local6", severity = "alarm"
+        - facility = "Local5", severity = "critical"
     - remote facility rewrites:
-      - "local7" --> "local2"
-      - "local6" --> "local3"
-  Note: Facility "Local5" is not rewritten
-2. Read consloe logging configuration and compare with pushed configuration.\
+        - "local7" --> "local2"
+        - "local6" --> "local3"
+          Note: Facility "Local5" is not rewritten
+2. Read console logging configuration and compare with pushed configuration.\
    Note: two selectors must be presented.
-3. disable consloe logging while keeping 2 selectors configured:
-4. Read consloe logging configuration and compare with pushed configuration.\
+3. disable console logging while keeping 2 selectors configured:
+4. Read console logging configuration and compare with pushed configuration.\
    Note: two selectors must be presented.
 
 ### TC2 - VTY logging configuration
@@ -39,16 +39,16 @@ The vty represents here terminal session - ssh, telnet.
 ### TC3 - files logging configuration
 1. configure and enable file logging with:
     - 2 selectors:
-      - facility = "Local7", severity = "informational"
-      - facility = "Local6", severity = "alarm"
+        - facility = "Local7", severity = "informational"
+        - facility = "Local6", severity = "alarm"
     - file base name logfile_1
     - directory path
     - log file management: number 3, maximum size 1M, max age 1440min (24h)
     - remote archival to SCP destination
 2. configure and enable file logging with:
     - 2 selectors:
-      - facility = "Local5", severity = "informational"
-      - facility = "Local6", severity = "warning"
+        - facility = "Local5", severity = "informational"
+        - facility = "Local6", severity = "warning"
     - file base name logfile_2
     - directory path
     - log file management: number 10, maximum size 10M, log file max age 1min
@@ -87,5 +87,6 @@ rpcs:
     gNMI.Subscribe:
       on_change: false
 ```
+
 ## DUT
 vRX
