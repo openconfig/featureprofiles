@@ -37,8 +37,9 @@ The below yaml defines the OC paths and RPC intended to be covered by this test.
 
 ```yaml
 paths:
-/components/component/name:
-/components/component/state/name:
+   ## State paths
+   /components/component/name:
+   /components/component/state/name:
 
 rpcs:
   gnmi:
