@@ -30,7 +30,6 @@ TODO:
 
 ```yaml
 paths:
-   ## State paths
     /components/component/state/description:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/firmware-version:
