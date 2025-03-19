@@ -41,9 +41,6 @@ import (
 )
 
 const (
-	IpEncap = "197.51.100.11"
-	IpTE    = "198.51.100.1"
-
 	Loopback22            = "88.88.88.88"
 	Loopback12            = "44.44.44.44"
 	Loopback126           = "4444::44"
@@ -53,7 +50,6 @@ const (
 	innerdstPfxCount_bgp  = 10
 	innerdstPfxMin_isis   = "201.1.0.1"
 	innerdstPfxCount_isis = 10
-	bundleEther126        = "Bundle-Ether126"
 	dsip                  = "10.1.0.1"
 	vrf1                  = "TE"
 	vrf2                  = "TE2"
@@ -126,10 +122,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
 
-}
-
-type Traceptions struct {
-	Ip string
 }
 
 func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, isIPv4, encap bool, flap, te string, deviceSet bool, srcport string, opts ...*TOptions) {
