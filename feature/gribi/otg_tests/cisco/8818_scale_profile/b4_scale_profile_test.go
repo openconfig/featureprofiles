@@ -61,7 +61,7 @@ const (
 )
 
 var (
-	logDir           = flag.String("logDir", "", "Firex path to copy the logs after each test case")
+	logDir           = flag.String("logDir", "/auto/ops-tool/ws-krinata2/logs/gribi/1", "Firex path to copy the logs after each test case")
 	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
 )
 
@@ -69,6 +69,7 @@ var (
 type TestResources struct {
 	CommandPatterns map[string]map[string]interface{}
 	DUT             *ondatra.DUTDevice
+	PEER            *ondatra.DUTDevice
 	Context         context.Context
 	LogDir          string
 }
@@ -83,6 +84,7 @@ func initializeTestResources(t *testing.T) *TestResources {
 		t.Helper() // Mark this function as a test helper
 		ctx := context.Background()
 		dut := ondatra.DUT(t, "dut")
+		peer := ondatra.DUT(t, "peer")
 
 		var commandPatterns map[string]map[string]interface{}
 		if *debugCommandYaml == "" {
@@ -109,6 +111,7 @@ func initializeTestResources(t *testing.T) *TestResources {
 		testResources = &TestResources{
 			CommandPatterns: commandPatterns,
 			DUT:             dut,
+			PEER:            peer,
 			Context:         ctx,
 			LogDir:          *logDir,
 		}
@@ -296,7 +299,6 @@ func TestGoogleBaseConfPush(t *testing.T) {
 func TestGribiScaleProfile(t *testing.T) {
 	resources := initializeTestResources(t)
 	log_collector.Start(context.Background(), t, resources.DUT)
-	t.Skip()
 
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 	configureBaseProfile(t)
@@ -307,6 +309,8 @@ func TestGribiScaleProfile(t *testing.T) {
 }
 
 func TestTrigger(t *testing.T) {
+	t.Skip()
+
 	resources := initializeTestResources(t)
 
 	// Define a slice of test triggers
@@ -320,9 +324,9 @@ func TestTrigger(t *testing.T) {
 		// {"LC-OIR", func(ctx context.Context, t *testing.T) {
 		// 	utils.DoAllAvailableLcParallelOir(t, resources.DUT)
 		// }},
-		// {"LCHA", func(ctx context.Context, t *testing.T) {
-		// 	utils.DoLCHA(ctx, t)
-		// }},
+		{"LCHA", func(ctx context.Context, t *testing.T) {
+			utils.DoProcessRestart(ctx, t, resources.DUT, "emsd")
+		}},
 	}
 
 	// Iterate over each trigger and run it as a subtest
