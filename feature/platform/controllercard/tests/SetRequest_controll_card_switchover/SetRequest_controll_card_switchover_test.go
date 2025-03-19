@@ -80,6 +80,7 @@ type switchoverControllerCardsConfig struct {
 
 func fetchActiveStandbyControllerCards(t *testing.T, dut *ondatra.DUTDevice, controllerCards *[]string) activeStandByControllerCards {
 	t.Helper()
+
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, *controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 	return activeStandByControllerCards{rpActiveBeforeSwitch, rpStandbyBeforeSwitch}
@@ -271,6 +272,8 @@ func TestControllerCardLargeConfigPushAndPull(t *testing.T) {
 }
 
 func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice, config *gpb.GetResponse) {
+	t.Helper()
+
 	var root oc.Root
 	if len(config.GetNotification()) == 0 {
 		t.Fatalf("No notification received in get response")
@@ -422,6 +425,7 @@ type setRequest func(t *testing.T, dut *ondatra.DUTDevice) error
 
 func sendSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, set setRequest) error {
 	t.Helper()
+
 	ctxTimeout, cancelTimeout := context.WithTimeout(ctx, setRequestTimeout)
 	defer cancelTimeout()
 
