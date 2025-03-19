@@ -61,7 +61,7 @@ const (
 )
 
 var (
-	logDir           = flag.String("logDir", "/auto/ops-tool/ws-krinata2/logs/gribi/1", "Firex path to copy the logs after each test case")
+	logDir           = flag.String("logDir", "", "Firex path to copy the logs after each test case")
 	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
 )
 
@@ -309,8 +309,6 @@ func TestGribiScaleProfile(t *testing.T) {
 }
 
 func TestTrigger(t *testing.T) {
-	t.Skip()
-
 	resources := initializeTestResources(t)
 
 	// Define a slice of test triggers
