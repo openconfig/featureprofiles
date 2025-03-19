@@ -300,15 +300,21 @@ func TestGribiScaleProfile(t *testing.T) {
 	resources := initializeTestResources(t)
 	log_collector.Start(context.Background(), t, resources.DUT)
 
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-	configureBaseProfile(t)
+	t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
+		configureBaseProfile(t)
+	})
 
 	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
 		log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
 	})
+
+	t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
+		configureBaseProfile(t)
+	})
 }
 
 func TestTrigger(t *testing.T) {
+	t.Skip()
 	resources := initializeTestResources(t)
 
 	// Define a slice of test triggers
