@@ -72,14 +72,8 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   ## Config paths
-  /network-instance/name:
-  /network-instance/config/type:
-  /network-instance/name/protocols/protocol/identifier:
-  /network-instance/name/protocols/protocol/name:
-  /network-instance/name/protocols/protocol/identifier/static-routes/static/prefix:
   /network-instance/name/protocols/protocol/identifier/static-routes/static/prefix/config/prefix:
   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/index:
-  /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/config/index:
   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/config/next-hop:
 
   ## State paths
