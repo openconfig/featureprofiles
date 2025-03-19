@@ -255,6 +255,7 @@ replace: {
 "  !\n"
 " !\n"
 "!\n"
+"cef proactive-arp-nd enable\n"
 "lldp\n"
 "!\n"
 "ssh server session-limit 100\n"
@@ -278,3 +279,4 @@ replace: {
 "end\n"
 }
 }
+
