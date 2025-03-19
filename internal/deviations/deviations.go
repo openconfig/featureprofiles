@@ -1345,3 +1345,13 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
 }
+
+// SkipInterval returns true if devices do not support OutputPower/Interval leaf
+func SkipInterval(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipInterval()
+}
+
+// SkipDescription returns true if devices do not support SamepStream/Description leaf
+func SkipDescription(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipDescription()
+}
