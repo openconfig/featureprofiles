@@ -384,7 +384,9 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, 
 		if !ok {
 			continue
 		}
+		continue
 	}
+	t.Log("Validated policy & prefixes")
 }
 
 func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string) {
