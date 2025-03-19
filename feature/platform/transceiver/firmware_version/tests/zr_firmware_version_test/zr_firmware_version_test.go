@@ -15,6 +15,7 @@
 package zr_firmware_version_test
 
 import (
+	"flag"
 	"reflect"
 	"testing"
 	"time"
@@ -38,6 +39,11 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+var (
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
+)
+
 // Topology: dut:port1 <--> port2:dut
 
 func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, enable bool) {
@@ -48,14 +54,7 @@ func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, en
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
 	componentName := components.OpticalChannelComponentFromPort(t, dut1, dp)
 	// Set config container leaf for optical channel
-	component := gnmi.OC().Component(componentName)
-	gnmi.Replace(t, dut1, component.Config(), &oc.Component{
-		Name: ygot.String(componentName),
-	})
-	gnmi.Replace(t, dut1, component.OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		TargetOutputPower: ygot.Float64(targetOutputPower),
-		Frequency:         ygot.Uint64(frequency),
-	})
+	cfgplugins.ConfigOpticalChannel(t, dut1, componentName, frequency, targetOutputPower, operationalMode)
 }
 
 func verifyFirmwareVersionValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[string]) {
@@ -79,6 +78,9 @@ func TestZRFirmwareVersionState(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
+
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_UP)

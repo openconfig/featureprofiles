@@ -1,16 +1,17 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "c4f6b3eb-697e-4792-93c0-785c3fc61f67"
-plan_id: "P4RT-2.2"
-description: "P4RT Metadata Validation"
+uuid: "043dc110-04d9-4327-be04-91cd261a4d9a"
+plan_id: "RT-5.12"
+description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
+    vendor: NOKIA
   }
   deviations: {
-    p4rt_modify_table_entry_unsupported: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -18,6 +19,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    p4rt_modify_table_entry_unsupported: true
+    ipv4_missing_enabled: true
   }
 }

@@ -24,3 +24,13 @@ platform_exceptions: {
     use_parent_component_for_temperature_telemetry: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+  }
+}
