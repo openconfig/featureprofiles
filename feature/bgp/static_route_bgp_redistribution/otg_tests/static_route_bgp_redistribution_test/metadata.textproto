@@ -50,3 +50,14 @@ platform_exceptions:  {
     default_bgp_instance_name: "default"
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor: JUNIPER
+  }
+  deviations:  {
+    skip_bgp_send_community_type: true
+    skip_setting_disable_metric_propagation: true
+    routing_policy_tag_set_embedded: true
+    bgp_community_set_refs_unsupported: true
+  }
+}
