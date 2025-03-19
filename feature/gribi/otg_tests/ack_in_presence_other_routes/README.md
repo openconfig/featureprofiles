@@ -24,6 +24,47 @@ Ensure that ACKs are received in the presence of other routes.
 *   Send traffic from ATE port-1 to prefix `203.0.113.0/24`, and ensure traffic
     flows 100% using the static route configured at ATE port-2.
 
+## Protocol/RPC Parameter coverage
+
+*   gRIBI:
+    *   Modify()
+    *   ModifyRequest:
+        *   AFTOperation:
+        *   id
+        *   network_instance
+        *   op
+        *   Ipv4
+            *   Ipv4EntryKey: prefix
+            *   Ipv4Entry: next_hop_group
+        *   next_hop_group
+            *   NextHopGroupKey: id
+            *   NextHopGroup: next_hop
+        *   next_hop
+            *   NextHopKey: id
+            *   NextHop:
+            *   ip_address
+            *   interface_ref
+    *   ModifyResponse:
+    *   AFTResult:
+        *   id
+        *   status
+
+## Config parameter coverage
+
+*   /network-instance/name/
+*   /network-instance/config/type
+*   /network-instance/name/protocols/protocol/identifier/
+*   /network-instance/name/protocols/protocol/name/
+*   /network-instance/name/protocols/protocol/identifier/static-routes/static/prefix
+*   /network-instance/name/protocols/protocol/identifier/static-routes/static/prefix/config/prefix
+*   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/index
+*   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/config/index
+*   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/config/next-hop
+
+## Telemery parameter coverage
+
+*   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix/
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -40,6 +81,7 @@ paths:
   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/index:
   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/config/index:
   /network-instance/name/protocols/protocol/identifier/static-routes/static/next-hops/next-hop/config/next-hop:
+
   ## State paths
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
 
@@ -47,6 +89,4 @@ rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
- gribi:
-    gRIBI.Modify:  
 ```
