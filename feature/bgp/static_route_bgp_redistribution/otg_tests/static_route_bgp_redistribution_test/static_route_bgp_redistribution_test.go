@@ -186,9 +186,9 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ipv4StaticRouteNextHop := ipv4StaticRoute.GetOrCreateNextHop("0")
 	if deviations.SetMetricAsPreference(dut) {
-		ipv4StaticRouteNextHop.Preference = ygot.Uint32(104)
+		ipv4StaticRouteNextHop.Preference = ygot.Uint32(medIPv4)
 	} else {
-		ipv4StaticRouteNextHop.Metric = ygot.Uint32(104)
+		ipv4StaticRouteNextHop.Metric = ygot.Uint32(medIPv4)
 	}
 	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString(atePort2.IPv4))
 
@@ -197,9 +197,9 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ipv6StaticRouteNextHop := ipv6StaticRoute.GetOrCreateNextHop("0")
 	if deviations.SetMetricAsPreference(dut) {
-		ipv6StaticRouteNextHop.Preference = ygot.Uint32(106)
+		ipv6StaticRouteNextHop.Preference = ygot.Uint32(medIPv6)
 	} else {
-		ipv6StaticRouteNextHop.Metric = ygot.Uint32(106)
+		ipv6StaticRouteNextHop.Metric = ygot.Uint32(medIPv6)
 	}
 	ipv6StaticRouteNextHop.SetNextHop(oc.UnionString(atePort2.IPv6))
 
@@ -537,6 +537,18 @@ func validateRedistributeStatic(t *testing.T, dut *ondatra.DUTDevice, acceptRout
 			}
 		}
 	}
+
+	if !deviations.SkipSettingDisableMetricPropagation(dut) {
+		if mPropagation {
+			if tcState.GetDisableMetricPropagation() {
+				t.Fatal("Metric propagation disabled for table connection, expected enabled")
+			}
+		} else {
+			if !tcState.GetDisableMetricPropagation() {
+				t.Fatal("Metric propagation is enabled for table connection, expected disabled")
+			}
+		}
+	}
 }
 
 // Validate prefix-set routing-policy configurations
@@ -606,14 +618,18 @@ func validatePrefixSetRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, isV4 b
 }
 
 // 1.27.3 setup function
-func redistributeIPv4Static(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+func redistributeIPv4Static(t *testing.T, dut *ondatra.DUTDevice) {
 	configureTableConnection(t, dut, isV4, !metricPropagate, "", oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 }
 
 // 1.27.3 validation function
 func validateRedistributeIPv4Static(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	validateRedistributeStatic(t, dut, acceptRoute, isV4, !metricPropagate)
-	validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medZero, shouldBePresent)
+	if deviations.SkipSettingDisableMetricPropagation(dut) {
+		validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medIPv4, shouldBePresent)
+	} else {
+		validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medZero, shouldBePresent)
+	}
 }
 
 // 1.27.4 setup function
@@ -628,14 +644,18 @@ func validateRedistributeIPv4StaticWithMetricPropagation(t *testing.T, dut *onda
 }
 
 // 1.27.14 setup function
-func redistributeIPv6Static(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+func redistributeIPv6Static(t *testing.T, dut *ondatra.DUTDevice) {
 	configureTableConnection(t, dut, !isV4, !metricPropagate, "", oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 }
 
 // 1.27.14 validation function
 func validateRedistributeIPv6Static(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	validateRedistributeStatic(t, dut, acceptRoute, !isV4, !metricPropagate)
-	validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medZero, shouldBePresent)
+	if deviations.SkipSettingDisableMetricPropagation(dut) {
+		validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medIPv6, shouldBePresent)
+	} else {
+		validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medZero, shouldBePresent)
+	}
 }
 
 // 1.27.15 setup function
@@ -846,6 +866,12 @@ func redistributeStaticRoutePolicyWithLocalPreference(t *testing.T, dut *ondatra
 // 1.27.8 and 1.27.19 setup function
 func redistributeStaticRoutePolicyWithCommunitySet(t *testing.T, dut *ondatra.DUTDevice, isV4 bool) {
 
+	// Remove import policy.
+	tableConnV4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4)
+	gnmi.Delete(t, dut, tableConnV4Path.ImportPolicy().Config())
+	tableConnV6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6)
+	gnmi.Delete(t, dut, tableConnV6Path.ImportPolicy().Config())
+
 	redistributeStaticPolicyName := redistributeStaticPolicyNameV4
 	policyStatementName := policyStatementNameV4
 	communitySetName := "community-set-v4"
@@ -887,7 +913,12 @@ func redistributeStaticRoutePolicyWithCommunitySet(t *testing.T, dut *ondatra.DU
 		switch dut.Vendor() {
 		case ondatra.CISCO:
 			cfgplugins.DeviationCiscoRoutingPolicyBGPActionSetCommunity(t, dut, redistributeStaticPolicyName, policyStatementName, communitySetName)
+		case ondatra.JUNIPER:
+			cfgplugins.DeviationJuniperRoutingPolicyBGPActionSetCommunity(t, dut, redistributeStaticPolicyName, policyStatementName, communitySetName)
+		default:
+			t.Fatalf("BgpCommunitySetRefsUnsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
 		}
+
 	}
 
 	configureTableConnection(t, dut, isV4, metricPropagate, redistributeStaticPolicyName, oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
@@ -1252,19 +1283,33 @@ func validateRedistributeRouteWithTagSet(t *testing.T, dut *ondatra.DUTDevice, a
 	if foundPDef.GetName() != redistributeStaticPolicyName {
 		t.Fatal("Expected import policy is not configured")
 	}
-	if !deviations.UseVendorNativeTagSetConfig(dut) {
-		if foundPDef.GetStatement(policyStatementName).GetConditions().GetOrCreateMatchTagSet().GetTagSet() != tagSet {
+	if foundPDef.GetStatement(policyStatementName).GetConditions().GetOrCreateMatchTagSet().GetTagSet() != tagSet {
+		if deviations.RoutingPolicyTagSetEmbedded(dut) {
+			t.Log("Tag-set are embeded in the policy statement.")
+		} else {
 			t.Fatal("Expected tag-set is not configured")
 		}
-		if foundPDef.GetStatement(policyStatementName).GetConditions().GetOrCreateMatchTagSet().GetMatchSetOptions() != oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY {
+	}
+	if foundPDef.GetStatement(policyStatementName).GetConditions().GetOrCreateMatchTagSet().GetMatchSetOptions() != oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY {
+		if deviations.RoutingPolicyTagSetEmbedded(dut) {
+			t.Log("Tag-set are embeded in the policy statement.")
+		} else {
 			t.Fatal("Expected match-set-option for tag-set is not configured")
 		}
 	}
 
 	if isV4 {
-		validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medZero, shouldBePresent)
+		if deviations.SkipSettingDisableMetricPropagation(dut) {
+			validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medIPv4, shouldBePresent)
+		} else {
+			validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medZero, shouldBePresent)
+		}
 	} else {
-		validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medZero, shouldBePresent)
+		if deviations.SkipSettingDisableMetricPropagation(dut) {
+			validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medIPv6, shouldBePresent)
+		} else {
+			validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medZero, shouldBePresent)
+		}
 	}
 }
 
@@ -1449,7 +1494,7 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		// 1.27.3
 		{
 			name:     "1.27.3 redistribute-ipv4-static-routes-with-metric-propagation-disabled",
-			setup:    func() { redistributeIPv4Static(t, dut, ate) },
+			setup:    func() { redistributeIPv4Static(t, dut) },
 			validate: func() { validateRedistributeIPv4Static(t, dut, ate) },
 		},
 		// 1.27.4
@@ -1523,7 +1568,7 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		// 1.27.14
 		{
 			name:     "1.27.14 redistribute-ipv6-static-routes-with-metric-propagation-disabled",
-			setup:    func() { redistributeIPv6Static(t, dut, ate) },
+			setup:    func() { redistributeIPv6Static(t, dut) },
 			validate: func() { validateRedistributeIPv6Static(t, dut, ate) },
 		},
 		// 1.27.15
