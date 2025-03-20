@@ -10,7 +10,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 )
 
-func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -59,7 +59,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	// }
 }
-func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, tgensrc_ip string, weights ...float64) {
+func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8, tgensrc_ip string) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -99,7 +99,7 @@ func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 	}
 
 }
-func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, tgensrc_ip string, weights ...float64) {
+func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8, tgensrc_ip string) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -139,7 +139,7 @@ func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top
 	}
 
 }
-func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -268,7 +268,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra.ATETopology, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
+func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
 
 	ate.Traffic().Start(t, flow...)
 	time.Sleep(60 * time.Second)
