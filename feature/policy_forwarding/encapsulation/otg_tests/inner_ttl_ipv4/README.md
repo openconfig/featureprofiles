@@ -1,7 +1,8 @@
 # PF-1.11 Rewrite the ingress innner packet TTL
 
-Create a policy-forwarding configuration using gNMI with action set-ip-ttl.
-Create AFT entry to perform encap and set the outer TTL.
+This test uses policy-forwarding to set the IP TTL.  It contains 2 scenarios as subtests:
+1. Apply this policy alone on an ingress interface.
+2. Apply this policy in combination with a gRIBI programmed next-hop which performs encapsulation and sets the TTL on the outer, encapsulation packet.
 
 ## Topology
 
