@@ -1,6 +1,7 @@
 # PF-1.11 Rewrite the ingress innner packet TTL
 
 Create a policy-forwarding configuration using gNMI with action set-ip-ttl.
+Create AFT entry to perform encap and set the outer TTL.
 
 ## Topology
 
@@ -191,7 +192,6 @@ network_instances: {
   }
 }
 ```
-
 * Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 1.
 * Using OTG, validate ATE port 2 receives MPLS-IN-GRE packets
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
@@ -207,7 +207,6 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/hop-limit:
   # afts state paths set via gRIBI
-
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
