@@ -30,7 +30,7 @@ outer_ip-ttl =        "64"
 
 ## Procedure
 
-### TE-1.11.1 Rewrite the packet TTL = 1, if the incoming TTL = 1.
+### TE-1.11.1 Rewrite the packet TTL = 1 if matching a specified destination IP.
 **[TODO]** Test code needs to be implemented.
 
 Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
