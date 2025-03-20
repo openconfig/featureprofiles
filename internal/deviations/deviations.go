@@ -304,12 +304,6 @@ func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
 }
 
-// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
-// expect neighbours are seen when lldp is disabled globally but enabled on interface
-func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLldpInterfaceConfigOverrideGlobal()
-}
-
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
