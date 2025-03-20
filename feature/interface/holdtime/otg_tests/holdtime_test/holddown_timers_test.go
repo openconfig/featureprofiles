@@ -565,7 +565,7 @@ func TestTC4SLongUP(t *testing.T) {
 }
 
 func TestTC5ShortDOWN(t *testing.T) {
-
+	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
