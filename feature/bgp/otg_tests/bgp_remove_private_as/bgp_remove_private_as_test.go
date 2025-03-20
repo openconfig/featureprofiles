@@ -166,24 +166,32 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg1.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
+		rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 		rp2 := pg2.GetOrCreateApplyPolicy()
-		rp2.ImportPolicy = []string{policyName}
-		rp2.ExportPolicy = []string{policyName}
+		rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 	} else {
+
 		pgaf := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pgaf.Enabled = ygot.Bool(true)
 		rpl := pgaf.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
 
 		pgaf2 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pgaf2.Enabled = ygot.Bool(true)
 		rp2 := pgaf2.GetOrCreateApplyPolicy()
-		rp2.ImportPolicy = []string{policyName}
-		rp2.ExportPolicy = []string{policyName}
+		if deviations.DefaultPolicyRequiresBgpMatch(dut) {
+			rpl.ImportPolicy = []string{policyName}
+			rpl.ExportPolicy = []string{policyName}
+			rp2.ImportPolicy = []string{policyName}
+			rp2.ExportPolicy = []string{policyName}
+		} else {
+			rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		}
 	}
 
 	for _, nbr := range nbrs {
