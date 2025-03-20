@@ -1,4 +1,4 @@
-# PF-1.11 Rewrite the ingress innner packet TTL
+# PF-1.11 Policy forwarding rule to match IP and rewrite TTL
 
 This test uses policy-forwarding to set the IP TTL.  It contains 2 scenarios as subtests:
 1. Apply this policy alone on an ingress interface.
