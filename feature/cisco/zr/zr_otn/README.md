@@ -95,16 +95,5 @@ Running all tests
 go test -timeout 0 . -binding=$BINDING -testbed=$TESTBED -alsologtostderr -v 5 > /Users/gsrungav/Desktop/output.log 
 ```
 
-## Usage
-The test suite will automatically configure the OTN transceivers and validate their operational status. Each test function will log the results to the console, indicating whether the tests passed or failed.
-
-## Dependencies
-- Go (version 1.16 or later)
-- OnDatra testing framework
-- OpenConfig models
-
-## Contributing
-Contributions are welcome! Please submit a pull request or open an issue for any enhancements or bug fixes.
-
-## License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+## FEAT-ID
+https://miggbo.atlassian.net/browse/XR-45985
