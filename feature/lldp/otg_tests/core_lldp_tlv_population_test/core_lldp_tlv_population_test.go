@@ -154,9 +154,9 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	}
 
 	tsState := gnmi.Lookup(t, node, gnmi.OC().Lldp().State())
-	_, isPresent := tsState.Val()
+	lldpState, isPresent := tsState.Val()
 	if isPresent {
-		return node, gnmi.Get(t, node, gnmi.OC().Lldp().State())
+		return node, lldpState
 	}
 	return node, nil
 }
