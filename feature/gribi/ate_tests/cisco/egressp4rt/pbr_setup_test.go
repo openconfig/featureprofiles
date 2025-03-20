@@ -153,7 +153,6 @@ func configurePort(t *testing.T, dut *ondatra.DUTDevice, IntfName, ip, ipv6 stri
 
 func configvrfInt(t *testing.T, dut *ondatra.DUTDevice, vrfName, IntfName string) {
 	c := &oc.Root{}
-
 	ni := c.GetOrCreateNetworkInstance(vrfName)
 	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	niIntf := ni.GetOrCreateInterface(IntfName)
