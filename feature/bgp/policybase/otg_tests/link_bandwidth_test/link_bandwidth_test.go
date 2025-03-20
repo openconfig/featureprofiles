@@ -381,12 +381,10 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, 
 			}
 			return false
 		}).Await(t)
-		if !ok {
-			continue
+		if ok {
+			t.Log("Validated policy & prefixes installed")
 		}
-		continue
 	}
-	t.Log("Validated policy & prefixes")
 }
 
 func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string) {
