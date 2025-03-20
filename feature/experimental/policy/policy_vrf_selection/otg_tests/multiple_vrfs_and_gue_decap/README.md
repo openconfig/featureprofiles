@@ -15,7 +15,7 @@ subgraph ATE1 [ATE1]
     A2[Port2]
 end
 
-subgraph DUT1 [DUT1]
+subgraph DUT [DUT]
     B1[Port1]
     B2[Port2]
 end
@@ -46,7 +46,7 @@ A2 <-- EBGP(ASN100:ASN200) --> C2;
 		- IPv4Prefix9/24 IPv6Prefix9/64
 		- IPv4Prefix10/24 IPv6Prefix10/64
 
-	DUT:Port2 advertises following tunnel endpoint prefixe to ATE2:Port1 over EBGP. 
+	DUT:Port2 advertises following tunnel endpoint prefix to ATE2:Port1 over EBGP. 
 		- IPv4Prefix12/28
 
 	ATE1:Port2 advertises following tunnel endpoint prefix to ATE2:Port2
@@ -86,46 +86,54 @@ A2 <-- EBGP(ASN100:ASN200) --> C2;
 		- IPv4Prefix10/24 to IPv4Prefix5/24 [DSCP:AF4]
 		- IPv6Prefix10/64 to IPv6Prefix5/64 [DSCP:AF4]
 
-  - DUT has 2 VRFs, Default and Non-Default. Ensure leaking routes from the default to the non-default VRFs so prefixes learnt over IBGP and EBGP are available in the tables of bothe VRFs.
+### Implementation:
+  - DUT has 2 VRFs, Default and Non-Default.
   - DUT:PORT1 and DUT:Port2 are in the Default VRF.
-  - Ensure IPv4Prefix12/28 is configured on the Loopback0 interface of DUT which is also in the Default VRF<br><br><br>
+  - BGP sessions between ATE1:PORT1 <> DUT:PORT1 and ATE2:PORT1 <> DUT:PORT2 are in Default VRF.
+  - Ensure leaking routes from the default to the non-default VRFs so prefixes learnt over IBGP and EBGP are available in the tables of bothe VRFs.There are no other routes learned into non-Default VRF.
+  - Ensure IPv4Prefix12/28 is configured on the Loopback0 interface of DUT which is also in the Default VRF
+  - Loopback0:IPv4Prefix12/28 is used as target address for GUE decapsulation on DUT<br><br><br>
 
-**RT-3.3.1: [Baseline] Traffic flow between ATE1:Port1 and ATE2:Port1 via DUT's Default VRF**
+### RT-3.3.1: [Baseline] Traffic flow between ATE1:Port1 and ATE2:Port1 via DUT's Default VRF
   * Start above mentioned flows between ATE1:Port1 and ATE2:Port1.
-  * Ensure 100% success<br><br><br>
+  * Ensure no packet loss is observed <br><br><br>
     
 
-**RT-3.3.2: BE1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1**
-  * ATE2:Port1 sends "Prefix1 to Prefix6" IPv4 and IPv6 traffic encaped inside tunnel destination IPv4Prefix12
-  * ATE2:Port1 sends the following IPv4 and IPv6 flows as is
+### RT-3.3.2: BE1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+  * ATE1:Port1 sends flows "IPv4Prefix1/24 to IPv4Prefix6/24" and "IPv6Prefix1/64 to IPv6Prefix6/64", both IPv4 and IPv6 traffic encaped inside GUE tunnel destination IPv4Prefix12
+	* ATE1:PORT1 will performed the GUE encapsulation
+    		* IPv4-in-UDP-in-IPv4 packet
+    		* IPv6-in-UDP-in-IPv4 packet
+    	* DUT will perform the decapsulation in Default VRF 
+  * ATE2:Port1 sends the following IPv4 and IPv6 flows as is (without GUE encap)
     * Prefix6/24 to IPv4Prefix1/24 [DSCP:BE1]
     * Prefix7/24 to IPv4Prefix2/24 [DSCP:AF1]
     * Prefix8/24 to IPv4Prefix3/24 [DSCP:AF2]
     * Prefix9/24 to IPv4Prefix4/24 [DSCP:AF3]
     * Prefix10/24 to IPv4Prefix5/24 [DSCP:AF4]
-  * ATE1:Port1 continues sending the folllowing IPv4 and IPv6 traffic
+  * ATE1:Port1 continues sending the folllowing IPv4 and IPv6 traffic (without GUE encap)
     * Prefix2 to Prefix7 with DSCP:AF1
     * Prefix3 to Prefix8 with DSCP:AF2
     * Prefix4 to Prefix9 with DSCP:AF3
     * Prefix5 to Prefix10 with DSCP:AF4
-  * DUT:Port2 receives the tunneled traffic, decaps it, does a LPM lookup on the destination prefix (Prefix6) and routes it back to ATE2:Port1
-  * All the traffic flows MUST show 100% success.
-  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent.<br><br><br>
+  * DUT receives the tunneled traffic, decaps it, does a LPM lookup on the destination prefix (Prefix6) and routes it to ATE2:Port1 via DUT:Port2
+  * All the traffic flows MUST show no packet loss.
+  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for "Prefix1 to Prefix6" flows .<br><br><br>
   
    
 
-**RT-3.3.3 to RT-3.3.6: ATE2:Port1 simulates different traffic classes (BE1 to AF4) of FLOWS from ATE1:Port1 being GUE tunneled inside IPv4Prefix12 and sent to DUT:Port2**
+### RT-3.3.3 to RT-3.3.6: ATE2:Port1 simulates different traffic classes (BE1 to AF4) of FLOWS from ATE1:Port1 being GUE tunneled inside IPv4Prefix12 and sent to DUT:Port2
   * Follow each step in RT-3.3.2 for the following subtest cases
-    * RT-3.3.3: BE1 and AF1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+    #### RT-3.3.3: BE1 and AF1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
       * Since "Prefix1 to Prefix6" and "Prefix2 to Prefix7" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
     
-    * RT-3.3.3: BE1, AF1 and AF2 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+    #### RT-3.3.4: BE1, AF1 and AF2 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
       * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7" and "Prefix3 to Prefix8" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
         
-    * RT-3.3.3: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+    #### RT-3.3.5: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
       * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8" and "Prefix4 to Prefix9" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
         
-    * RT-3.3.3: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+    #### RT-3.3.6: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
       * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8", "Prefix4 to Prefix9" and "Prefix5 to Prefix10" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
         
   * Verification steps are the same as that of RT-3.3.2
