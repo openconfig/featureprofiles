@@ -257,7 +257,7 @@ func TestLargeSetConsistency(t *testing.T) {
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
-	
+
 	// send 1st update request in one goroutine
 	gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig)
 	t.Log("gnmiClient Set 1st large config")
