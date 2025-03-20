@@ -43,6 +43,25 @@ tests:
     owners:
       - arvbaska
     groups: [ancx]
+    name: System-1-Hostname
+    path: feature/system/system_base_test/tests/hostname_test
+    owners:
+      - fmolinar
+    mustpass: true
+    groups: [ancx]
+  - name: PLT-1.1 (System Configuration)
+    path: feature/interface/singleton/tests/singleton_with_breakouts
+    owners:
+      - fmolinar
+    mustpass: true
+    groups: [ancx]
+  - name: System-1-ModtBanner
+    path: feature/system/system_base_test/tests/system_banner_test
+    owners:
+      - fmolinar
+    mustpass: true
+    pr: 3756
+    groups: [ancx]
   - name: TE-15.1 (gRIBI Compliance)
     path: feature/gribi/otg_tests/gribigo_compliance_test
     priority: 2
