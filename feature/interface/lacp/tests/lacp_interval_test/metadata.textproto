@@ -1,0 +1,37 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ecfa2a8d-4a06-4aec-beba-2e3aae20afa8"
+plan_id: "RT-5.11"
+description: "LACP Intervals"
+testbed: TESTBED_DUT_DUT_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    aggregate_atomic_update: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+

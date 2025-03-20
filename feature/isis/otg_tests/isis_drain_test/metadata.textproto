@@ -11,7 +11,6 @@ platform_exceptions: {
   }
   deviations: {
     missing_isis_interface_afi_safi_enable: true
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
   }
@@ -22,7 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    missing_isis_interface_afi_safi_enable: true
+    interface_ref_config_unsupported: true
   }
 }
 platform_exceptions: {
