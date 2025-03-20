@@ -41,7 +41,6 @@ import (
 )
 
 const (
-	Loopback22            = "88.88.88.88"
 	Loopback12            = "44.44.44.44"
 	Loopback126           = "4444::44"
 	dstPfx                = "198.51.100.1"
