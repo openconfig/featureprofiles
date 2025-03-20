@@ -271,7 +271,6 @@ func configureETHandOptChannel(t *testing.T, dut *ondatra.DUTDevice, och string,
 
 var (
 	otnIndexes = make(map[string]uint32)
-	ethIndexes = make(map[string]uint32)
 )
 
 func configureOTN(t *testing.T, dut *ondatra.DUTDevice) {
@@ -280,7 +279,6 @@ func configureOTN(t *testing.T, dut *ondatra.DUTDevice) {
 		cfgplugins.ConfigOpticalChannel(t, dut, oc, frequency, targetOutputPower, operational_mode)
 		configureETHandOptChannel(t, dut, oc, otnIndexBase+uint32(i), ethernetIndexBase+uint32(i))
 		otnIndexes[p.Name()] = otnIndexBase + uint32(i)
-		ethIndexes[p.Name()] = ethernetIndexBase + uint32(i)
 	}
 }
 
