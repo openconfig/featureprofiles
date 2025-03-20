@@ -194,7 +194,7 @@ network_instances: {
 }
 ```
 * Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 1.
-* Using OTG, validate ATE port 2 receives MPLS-IN-GRE packets
+* Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
   * Validate MPLS label is set
   * Validate inner packet ttl as 1.
