@@ -17,11 +17,7 @@ import (
 )
 
 const (
-	dutAS                   = 64500
-	ateAS                   = 64501
 	bgpRoutePolicyName      = "BGP-ROUTE-POLICY-ALLOW"
-	minInnerDstPrefixBgp    = "202.1.0.1"
-	v4mask                  = "32"
 	totalBgpPfx             = 1
 	bgpAs                   = 65000
 	policyTypeBgp           = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
@@ -29,15 +25,9 @@ const (
 )
 
 var (
-	portId        = uint32(10)
 	ipv4PrefixLen = uint8(30)
 	ipv6PrefixLen = uint8(126)
 )
-
-type PBROptions struct {
-	// BackupNHG specifies the backup next-hop-group to be used when all next-hops are unavailable.
-	SrcIP string
-}
 
 type Percentage float64
 
@@ -111,7 +101,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	return i
 }
 
-// configureDUT configures port1-port8 on DUT.
+// configureDUT configures port1-port8 on DUT with the necessary interfaces and LAG configurations
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutPorts := sortPorts(dut.Ports())
 	d := gnmi.OC()
@@ -127,7 +117,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	outgoingData := configInterfaceDUT(outgoing, &dutDst)
 	g := outgoingData.GetOrCreateAggregation()
 	g.LagType = oc.IfAggregate_AggregationType_LACP
-	gnmi.Replace(t, dut, d.Interface(*outgoing.Name).Config(), configInterfaceDUT(outgoing, &dutDst))
+	gnmi.Replace(t, dut, d.Interface(*outgoing.Name).Config(), outgoingData)
 	for _, port := range dutPorts[1:] {
 		dutDest := generateBundleMemberInterfaceConfig(t, port.Name(), *outgoing.Name)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), dutDest)
@@ -181,18 +171,18 @@ func configBgp(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
 }
 
-func configureAcceptRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	d := &oc.Root{}
-	rp := d.GetOrCreateRoutingPolicy()
-	pd := rp.GetOrCreatePolicyDefinition(bgpRoutePolicyName)
-	st, err := pd.AppendNewStatement("id-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-}
+// func configureAcceptRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
+// 	t.Helper()
+// 	d := &oc.Root{}
+// 	rp := d.GetOrCreateRoutingPolicy()
+// 	pd := rp.GetOrCreatePolicyDefinition(bgpRoutePolicyName)
+// 	st, err := pd.AppendNewStatement("id-1")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+// 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+// }
 
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.DeviceIpv4, gosnappi.Config) {
 	t.Helper()
@@ -248,13 +238,13 @@ func addRoute(t *testing.T, otg *otg.OTG, bgpPeer gosnappi.BgpV4Peer, otgPort1 g
 
 }
 
-func clearBGPRoutes(t *testing.T, otg *otg.OTG, bgpPeer gosnappi.BgpV6Peer, otgConfig gosnappi.Config) {
-	bgpPeer.V6Routes().Clear()
-	otg.PushConfig(t, otgConfig)
-	time.Sleep(30 * time.Second)
-	otg.StopProtocols(t)
-	time.Sleep(time.Minute)
-}
+// func clearBGPRoutes(t *testing.T, otg *otg.OTG, bgpPeer gosnappi.BgpV6Peer, otgConfig gosnappi.Config) {
+// 	bgpPeer.V6Routes().Clear()
+// 	otg.PushConfig(t, otgConfig)
+// 	time.Sleep(30 * time.Second)
+// 	otg.StopProtocols(t)
+// 	time.Sleep(time.Minute)
+// }
 
 // configureBGPWithIncrementalNetworks configures a BGP peer with a series of incrementally defined network prefixes.
 func configureBGPWithIncrementalNetworks(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, bgpPeer gosnappi.BgpV4Peer, startAddress string, numNetworks int, step int) {
@@ -301,7 +291,8 @@ func createNextHopUnion(ipAddress string) oc.RoutingPolicy_PolicyDefinition_Stat
 		String: ipAddress,
 	}
 }
-func configureNextHopGroup(t *testing.T, dut *ondatra.DUTDevice, nhgConfig []string) {
+
+func configureNextHopGroup(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	root := &oc.Root{}
