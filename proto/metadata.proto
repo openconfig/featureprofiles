@@ -736,6 +736,12 @@ message Metadata {
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
 
+    // SkipInterval used to skip outputpower interval leaf
+    bool skip_interval = 262;
+
+    // SkipDescription used to skip sample stream description leaf
+    bool skip_description = 263;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
   }
