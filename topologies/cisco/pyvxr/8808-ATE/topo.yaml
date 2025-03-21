@@ -19,6 +19,7 @@ devices:
       - 1/6
       - 1/7
       - 1/8
+      - 1/9
     ixia_images:
       chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
       load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
@@ -64,3 +65,6 @@ connections:
     port8:
       - dut.FourHundredGigE0/0/0/8
       - ate.1/8
+    port9:
+      - dut.FourHundredGigE0/0/0/9
+      - ate.1/9
