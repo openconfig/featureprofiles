@@ -1,15 +1,18 @@
-# PF-1.4 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload 
+# PF-1.4 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload
 
 ## Summary
+
 This test verifies MPLSoGRE encapsulation of IP traffic using policy-forwarding configuration. Traffic on ingress to the DUT is encapsulated and forwarded towards the egress with an IPV4 tunnel header, GRE, MPLS label and the incoming IPV4/IPV6 payload.
 
 ## Testbed type
+
 * [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
 
 ## Procedure
+
 ### Test environment setup
 
-```
+```text
 DUT has an ingress and 2 egress EtherChannels.
 
                          |         | --eBGP-- | ATE Ports 3,4 |
@@ -25,7 +28,7 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 #### Configuration
 
-#### Port-Channel1 is the ingress ports having following configuration:
+#### Port-Channel1 is the ingress ports having following configuration
 
 #### Ten or more subinterfaces (customer) with different VLAN-IDs
 
@@ -37,8 +40,6 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 * Four or more VLANs with IPV4 and IPV6 address
 
-
-
 #### L3 Address resolution
 
 * Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Port-Channel1)
@@ -48,6 +49,7 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 * Disable Neighbor discovery router advertisement, duplicate address detection
 
 #### MTU Configuration
+
 * One or more VLANs with MTU 9080 (including L2 header)
 
 #### LLDP must be disabled
@@ -55,31 +57,29 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 #### Every VLAN has policy-forwarding configuration
 
 * Allow local processing of following packet types:
-    * IPV4 and IPV6 echo replies to the host/local address, these packets are processed locally and not forwarded as MPLSoGRE packets
+  * IPV4 and IPV6 echo replies to the host/local address, these packets are processed locally and not forwarded as MPLSoGRE packets
 
 * Policy-forwarding  enabling MPLSoGRE encapsulation of all other incoming traffic:
 
-    * Unique static MPLS label corresponding to every VLAN must be configurable on the device. If the VLAN has IPV4 and IPV6 then separate labels must be provisionable on the device for IPV4 unicast, IPV6 unicast and IPV4 multicast traffic.
+  * Unique static MPLS label corresponding to every VLAN must be configurable on the device. If the VLAN has IPV4 and IPV6 then separate labels must be provisionable on the device for IPV4 unicast, IPV6 unicast and IPV4 multicast traffic.
 
-    * The forwarding policy must allow forwarding of incoming traffic across 16 tunnels. 16 Tunnels has 16 source address and a single tunnel destination allowing loadbalancing of packets.
+  * The forwarding policy must allow forwarding of incoming traffic across 16 tunnels. 16 Tunnels has 16 source address and a single tunnel destination allowing loadbalancing of packets.
 
-    *  Source address must be configurable as:
-            * Loopback address for one or more VLANs OR
-            * 16 source addresses corresponding to a single tunnel destinations to achieve maximum entropy. 
+  * Source address must be configurable as:
+            *Loopback address for one or more VLANs OR
+            * 16 source addresses corresponding to a single tunnel destinations to achieve maximum entropy.
 
-    *  Tunnel(s) to be shared across one or more VLANs
+  * Tunnel(s) to be shared across one or more VLANs
 
+  * If TTL of the packet is 1 then the TTL must be preserved as 1 in the inner header while encapsulating the packet. If TTL greater than 1 TTL may be decremented by 1.
 
-    * If TTL of the packet is 1 then the TTL must be preserved as 1 in the inner header while encapsulating the packet. If TTL greater than 1 TTL may be decremented by 1.
+  * DSCP of the innermost IP packet header must be preserved
 
-    * DSCP of the innermost IP packet header must be preserved
+  * DSCP of the GRE/outermost IP header must be configurable (Default TOS 96)
 
-    * DSCP of the GRE/outermost IP header must be configurable (Default TOS 96)
+  * TTL of the outer GRE must be configurable (Default TTL 64)
 
-    * TTL of the outer GRE must be configurable (Default TTL 64) 
-
-    * QoS Hardware queues for all traffic must be configurable (default QoS hardaware class selected is 3)
-
+  * QoS Hardware queues for all traffic must be configurable (default QoS hardaware class selected is 3)
 
 ### Port-Channel 2 and Port-Channel 3 configuration
 
@@ -106,17 +106,17 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 * Static mapping of MPLS label for encapsulation must be configurable
 
 * MPLS label for a single VLAN interface must be unique for encapsulated traffic:
-    * IPV4 traffic
-    * IPV6 traffic
-    * Multicast traffic
+  * IPV4 traffic
+  * IPV6 traffic
+  * Multicast traffic
 
 * ECMP (Member links in Port Channel1) based on:
-    * inner IP packet header  AND/OR
-    * MPLS label, Outer IP packet header 
+  * inner IP packet header  AND/OR
+  * MPLS label, Outer IP packet header
 
 * Inner packet TTL and DSCP must be preserved
 
-### MPLS Label 
+### MPLS Label
 
 * Entire Label block must be reallocated for static MPLS
 
@@ -126,8 +126,8 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 * Multicast traffic must be encapsulated and handled in the same way as unicast traffic
 
-
 ## PF-1.4.1: Verify PF MPLSoGRE encapsulate action for IPv4 traffic
+
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses (unicast, multicast) at line rate IPV4 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
@@ -140,8 +140,8 @@ Verify:
 * Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
 * Header fields are as expected and traffic has MPLS labels from all the VLANs
 
-
 ## PF-1.4.2: Verify PF MPLSoGRE encapsulate action for IPv6 traffic
+
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses at line rate IPV6 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
@@ -157,7 +157,8 @@ Verify:
 * Remove and add IPV4 configs and verify that there is no impact on IPV6 traffic
 * Remove and add IPV6 configs and verify that there is no impact on IPV4 traffic
 
-## PF-1.4.3: Verify PF MPLSoGRE DSCP preserve operation 
+## PF-1.4.3: Verify PF MPLSoGRE DSCP preserve operation
+
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses at line rate IPV4 and IPV6 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size and DSCP value in [0, 8, 10..56].
 
 Verify:
@@ -167,6 +168,7 @@ Verify:
 * Inner packet DSCP value is preserved and not altered
 
 ## PF-1.4.4: Verify MTU handling during GRE encap
+
 Generate IPV4 traffic on ATE Ports 1,2  with frame size of 9100 with DF-bit set to random destination addresses.
 Generate IPV6 traffic on ATE Ports 1,2 with frame size of 9100 with DF-bit set to random destination addresses.
 
@@ -174,19 +176,20 @@ Verify:
 
 * DUT generates a "Fragmentation Needed" message back to ATE source.
 
+## PF-1.4.5: Verify IPV4/IPV6 nexthop resolution of encap traffic
 
-## PF-1.4.5: Verify IPV4/IPV6 nexthop resolution of encap traffic 
 Clear ARP entries and IPV6 neighbors on the device
-Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses 
+Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses
 Generate ICMP echo requests to addresses configured on the device
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to destination addresses within same subnet as the Port-Channel1 interface
 
 Verify:
 
 * Device must resolve the ARP and must forward ICMP echo requests, IPV4 and IPV6 traffic to ATE destination ports including the traffic to device’s local L3 addresses
-* Device must not forward the echo packets destined to the Port-Channel1 interface 
-	
-## PF-1.4.6: Verify IPV4/IPV6 selective local traffic processing 
+* Device must not forward the echo packets destined to the Port-Channel1 interface
+ 
+## PF-1.4.6: Verify IPV4/IPV6 selective local traffic processing
+
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses including addresses configured on the device
 Generate ICMP echo requests from the device
 Generate traceroute packets with TTL=1 and TTL>1 from ATE ports 1,2
@@ -194,18 +197,21 @@ Generate single hop BGP and BFD (TTL=1) session packets (TTL=255)
 Generate randandom customer packet with TTL = 1
 
 Verify:
+
 * Device must resolve the ARP and must forward ICMP echo requests, IPV4 and IPV6 traffic to ATE destination ports including the traffic to device’s local L3 addresses
 * Device must selectively locally process following IPV4 and IPV6 traffic:
-    * Process IPV4 and IPV6 echo replies to the local IPV4|IPV6 as local traffic
-    * Respond to traceroute packets with TTL=1
-    * Encapsulate(MPLSoGRE) and forward  traceroute packets with TTL>1
-    * BGP and BFD packets with TTL=1 must retain the TTL value (1) and must not be decremented on the device while being forwarded as MPLSoGRE traffic
+  * Process IPV4 and IPV6 echo replies to the local IPV4|IPV6 as local traffic
+  * Respond to traceroute packets with TTL=1
+  * Encapsulate(MPLSoGRE) and forward  traceroute packets with TTL>1
+  * BGP and BFD packets with TTL=1 must retain the TTL value (1) and must not be decremented on the device while being forwarded as MPLSoGRE traffic
 
-## PF-1.4.7: Verify IPV4/IPV6 traffic scale 
+## PF-1.4.7: Verify IPV4/IPV6 traffic scale
+
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2 to random destination addresses including addresses configured on the device
 Increase the number of VLANs on the device and scale traffic across all the new VLANs on Port-Channel1 (ATE Ports 1,2)
 
 Verify:
+
 * BGP multipath routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
 * There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * All traffic received on Port-Channel1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets
@@ -216,11 +222,12 @@ Verify:
 * Verify that device can achieve the maximum interface scale on the device
 * Verify that entire static label range is usable and functional by sending traffic across the entire label range
 
-
 ## OpenConfig Path Coverage
+
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
 
 ### JSON Format
+
 ```
        "name": "default",
         "policy-forwarding": {
@@ -464,7 +471,8 @@ lldp/interfaces/interface/config/name
 ```
 
 ### Policy Config
-#### 
+
+####
 
 ```
 /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy
@@ -484,7 +492,8 @@ lldp/interfaces/interface/config/name
 ```
 
 ### MPLS Config
-#### 
+
+####
 
 ```
 ​/​network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config
@@ -494,10 +503,10 @@ lldp/interfaces/interface/config/name
 /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound
 ```
 
-
-
 ### Routing Config
+
 ####
+
 ```
 /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
 /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
@@ -507,6 +516,7 @@ lldp/interfaces/interface/config/name
 ```
 
 ## Telemetry Path Coverage
+
 ####
 
 ```
