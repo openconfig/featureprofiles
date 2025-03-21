@@ -49,7 +49,7 @@ duts {
   hardware_model: "CISCO-8818"
   name: "8818_DUT"  # Change this to the device hostname.
   config:{
-    gnmi_set_file: "/auto/ops-tool/ws-krinata2/topologies/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto"
+    gnmi_set_file: "$BASE_CONF_PATH"
   }
   options {
     insecure: false 
@@ -196,7 +196,7 @@ duts {
   vendor: CISCO
   hardware_model: "CISCO-8808"
   config:{
-    gnmi_set_file: "/auto/ops-tool/ws-krinata2/topologies/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig.proto"
+    gnmi_set_file: "$BASE_CONF_PATH"
   }
 
   options {
