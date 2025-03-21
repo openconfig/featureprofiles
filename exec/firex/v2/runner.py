@@ -146,7 +146,7 @@ def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_contro
     # check for controller_commands
    if controller_command:
         # Remove the enclosing brackets and split the command into a list
-        controller_command = controller_command[0].strip('[]').split()
+        controller_command = controller_command[0].strip('[]').split(", ")
         controller_command_formatted = ""
         for i in controller_command:
             controller_command_formatted = controller_command_formatted + f"\n      - \"{i}\""
