@@ -112,9 +112,11 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 					if sensorComponent.GetType() == sensorType {
 						scomponent := gnmi.OC().Component(sensorComponent.GetName())
 						sensorComponentChecked = true
-						v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
-						if _, ok := v.Val(); !ok {
-							t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+						if !deviations.TemperatureSensorCheck(dut) || strings.Contains(sensorComponent.GetDescription(), "Temperature Sensor") {
+							v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
+							if _, ok := v.Val(); !ok {
+								t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+							}
 						}
 					}
 				}
