@@ -1,0 +1,624 @@
+# PF-1.8 - MPLSoGRE and MPLSoGUE QoS 
+
+## Summary
+This test verifies quality of service with MPLSoGRE and MPLSoGUE IP traffic on routed VLAN sub interfaces. The classification, marking and queueing of traffic while being encapsulated and decapsulated based on the outer headers and/or inner payload are the major features verified on the test device.
+
+## Testbed type
+* [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
+
+## Procedure
+### Test environment setup
+
+```
+DUT has 3 EtherChannels.
+
+                         |         | --eBGP-- | ATE Ports 3,4 |
+    [ ATE Ports 1,2 ]----|   DUT   |          |               |
+                         |         | --eBGP-- | ATE Port 5,6  |
+```
+
+Test uses aggregate 802.3ad bundled interfaces (Port Channel).
+
+* Send bidirectional traffic:
+  * IP to Encap Traffic: The IP to Encap traffic is from ATE Ports [1,2] to ATE Ports [3,4,5,6]. 
+
+  * Encap to IP Traffic: The Encap traffic to IP traffic is from ATE Ports [3,4,5,6] to ATE Ports [1,2].  
+
+Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additional information on the test traffic environment setup.
+
+#### Configuration
+
+### QoS
+
+* Classifier Configuration for Encap to IP Traffic:
+    * MPLSoGRE traffic classification to 8 traffic classes based on MPLS EXP bits
+    * MPLSoGUE traffic classification to 8 traffic classes based on MPLS EXP bits
+
+* Queueing profiles for Encap to IP Traffic:
+    * Bandwidth/assured forwarding class
+        * Class with minimum assured bandwidth(interface percentage or absolute value) during congestion
+        * Shaping must be supported and configurable to limit a bandwidth class with maximum bandwidth allocation irrespective of congestion state 
+        * Configure 5 sub-interfaces with 8 bandwidth classes each
+        * Configure 5 sub-interfaces with 8 bandwidth classes and ensure 4 or more classes have shaping configured.
+
+    * Priority/expedited forwarding class
+        * Configure Priority classes from levels 0-7. 
+            * Traffic at higher priority will always starve a lower priority class and any bandwidth class
+            * Shaping must be supported and configurable to limit a priority class with maximum bandwidth allocation irrespective of congestion state
+            * Configure 5 sub-interfaces with 8 priority classes each, level 0-7
+            * Configure 5 sub-interfaces with 8 priority classes and ensure 4 or more high priority classes have shaping configured.
+
+* Marking Configuration for IP to Encap Traffic:
+    * MPLSoGRE traffic outer header must be DSCP 32
+    * MPLSoGUE traffic outer header must be DSCP 32
+
+* Queueing profiles for IP to Encap Traffic:
+    * Priority/expedited forwarding class
+        * Configure Priority classes from levels 0-7. 
+        * Traffic at higher priority will always starve a lower priority class and any bandwidth class
+        * Configure both uplinks Aggregate [3,4] and Aggregate [5,6] with 8 priority classes each, level 0-7
+
+* Classifier Configuration for IP to Encap Traffic:
+    * Configure one or more interfaces to classify traffic into traffic class 3
+    * Configure one or more interfaces to classify traffic into traffic class 4
+
+* Policer Configuration for IP to Encap Traffic:
+    * Configure one or more interfaces with two rate 3 color policer
+
+## PF-1.8.1: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header
+Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
+    * Outer source address: random combination of 1000+ IPV4 source addresses
+    * Outer destination address: Traffic must fall within the configured IPV4 unicast prefix range for MPLSoGRE and MPLSoGUE traffic.
+    * MPLS Labels: 
+        * Various streams must map to every configured IPV4/IPV6/Multicast static MPLS labels on the device
+        * Use all combinations of traffic class bits in the MPLS label (0 to 7)
+    * Inner payload: 
+        * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
+        * Multicast traffic
+    * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+
+Verify:
+* Egress IP traffic after decapsulation gets classified into 8 queues mapped to 8 traffic classes based on MPLS label as configured on the device.
+* Inner packet DSCP is not altered by the device
+* Routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
+* All traffic received gets decapsulated and forwarded as IPV4/IPV6 unicast, IPV4 multicast on all the interfaces.
+* No packet loss when forwarding.
+* Verify that there is no recirculation of traffic
+* Traffic equally load-balanced across member links of the port channel.
+* Header fields are as expected without any bit flips. Verify the multicast L2 rewrite is correct and multicast L2 address based on multicast payload IPV4 address.
+
+## PF-1.8.2: Verify DSCP marking of encapsulated and decapsulated traffic
+Generate bidirectional traffic (MPLSoGRE and MPLSoGUE) as highlighted in the test environment setup section.
+
+Verify:
+* IP to Encapsulated traffic has a DSCP 32 set on the outer IP header while the inner IP header DSCP is preserved during the encap operation 
+* IP to Encapsulated traffic maps to traffic classes TC3 and TC4 based on ingress configuration
+* Encapsulated traffic to IP traffic forwarding and the decap operation does not result in any DSCP rewrite of the inner payload
+
+## PF-1.8.3: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic (MPLSoGRE to IP traffic - decap operation)
+This test is to verify the assured forwarding feature on interfaces (bandwidth only classes): 
+* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7) 
+* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion 
+* The egress interfaces must have 5 or more classes with minimum bandwidth configuration
+* The streams across all the classes must be greater than the configured minimum bandwidth
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
+
+Verify:
+* The total conformed bandwidth is equal to the interface bandwidth
+* Every class is getting the minimum bandwidth as configured for the class
+* Stop sending traffic corresponding to one or two classes and ensure that unused bandwidth is equally shared among other classes with traffic
+* Reduce traffic allocation on one or more classes and verify that unused bandwidth is equally shared among other classes with traffic  
+* Results are same with 64 byte stream, MTU byte stream and mix of 64..MTU byte streams
+* Every queue can transmit packets at line rate without any buffer/tail drops
+
+## PF-1.8.4: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper) 
+This test is to verify the assured forwarding feature on interfaces with bandwidth only classes and shaper (maximum bandwidth) configured on 2 or more classes: 
+* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7) 
+* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion 
+* The egress interfaces must have 5 or more classes with minimum bandwidth configuration. 3 or more classes with minimum bandwidth configuration must also have a maximum bandwidth (shaper) configuration
+* The streams across all the classes must be greater than the configured minimum  and maximum bandwidth
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
+
+
+Verify:
+* The total conformed bandwidth is equal to the interface bandwidth
+* Every class is getting the minimum bandwidth configured for the class
+* Every class having a shaper is not exceeding the shaper/maximum bandwidth 
+* Stop sending traffic corresponding to one or two classes and ensure that unused bandwidth is equally shared among other classes with traffic
+* Reduce traffic allocation on one or more classes and verify that unused bandwidth is equally shared among other classes with traffic and never exceeds the configured maximum bandwidth in any class with shaper configuration 
+* Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
+* Every queue can transmit packets at line rate without any buffer/tail drops
+
+## PF-1.8.5: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic
+This test is to verify the expedited forwarding feature on interfaces with priority only classes: 
+* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7).
+* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
+* The egress interfaces must have 6 or more classes with priority class configuration
+* The individual streams bandwidth corresponding to PriortyN class must be minimum 10 percent greater than the PriorityN-1 class
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+
+Verify:
+* The total conformed bandwidth is equal to the interface bandwidth.
+* Every class with priority level N is starving all the classes with a lower priority level (less than N).
+* Stop sending traffic corresponding to one or more highest priority classes and ensure that unused bandwidth is allocated to immediate lower priority classes
+* Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
+* Every queue can transmit packets at line rate without any buffer/tail drops
+
+## PF-1.8.6: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper)
+This test is to verify the expedited forwarding feature on interfaces with priority only classes and shaper (maximum bandwidth) configured on 2 or more classes. 
+* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7).
+* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
+* The egress interfaces must have 6 or more classes with priority class configuration with one or more classes having shaper configuration
+* The individual streams bandwidth corresponding to PriortyN class must be:
+    * minimum 10 percent greater than the PriorityN-1
+    * greater than the configured shaper bandwidth
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+
+Verify:
+* The total conformed bandwidth is equal to the interface bandwidth
+* Every class having a shaper is not exceeding the shaper/maximum bandwidth
+* Every class with priority level N is starving all the classes with a lower priority level (less than N) but traffic is not greater than the configured shaper bandwidth
+* Stop sending traffic corresponding to one or more highest priority classes and ensure that unused bandwidth is allocated to immediate lower priority classes
+* Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
+* Every queue can transmit packets at line rate without any buffer/tail drops
+
+## PF-1.8.7: Verify Expedited forwarding (Priority class) -  Queueing of encap traffic 
+This test is to verify the expedited forwarding feature on interfaces with priority only classes. 
+* Generate IP traffic on ATE Ports 1,2 with all 8 values of MPLS experimental bits (0-7).
+* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
+* The egress interfaces must have 6 or more classes with priority class configuration
+* Ingress interfaces must classify the traffic under TCO-TC7
+* All traffic classes must have encapsulated (MPLSoGRE and MPLSoGUE) egress traffic
+* The individual streams bandwidth corresponding to PriortyN class must be minimum 10 percent greater than the PriorityN-1 class
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+
+Verify:
+* The total conformed bandwidth is equal to the interface bandwidth.
+* Every class with priority level N is starving all the classes with a lower priority level (less than N).
+* Stop sending traffic corresponding to one or more highest priority classes and ensure that unused bandwidth is allocated to immediate lower priority classes
+* Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
+* Every queue can transmit packets at line rate without any buffer/tail drops
+
+## PF-1.8.8: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
+This test is to verify the two rate, three color policer
+* Generate IP traffic on ATE Ports 1,2 with all 8 values of MPLS experimental bits (0-7).
+* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the configured peak information rate (PIR) and committed information rate (CIR)
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+
+Verify:
+* The total conformed bandwidth is equal to the PIR configured on the bundle and rest of the traffic gets dropped
+* The traffic conforming to CIR and exceeding CIR can be selectively marked
+
+## PF-1.8.9: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
+This test case is to verify that results corresponding to all above test cases are the same and  irrespective of the distribution of ingress and egress links across different packet processing engines.
+
+Verify results are same corresponding to test cases PF-1.8.1 - PF-1.8.8 with:
+* Ingress aggregate links on one PPE and egress aggregate links on different PPE
+* Ingress and egress aggregate links on same PPE
+* Ingress links on multiple PPEs and egress aggregate links on multiple PPEs
+
+## OpenConfig Path Coverage
+TODO: 
+* Finalize and update the below paths after the review and testing on any vendor device
+* MPLSoGRE/MPLSoGUE packet classification OC need to be defined
+* OC for Queueing with shaper need to be defined
+
+### JSON Format
+
+```
+{
+  #
+  # The standard definition of an interface, assumed to be facing the customer.
+  # 
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "name": "Ethernet42"
+        },
+        "name": "Ethernet42",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "qos": {
+    "classifiers": {
+      #
+      # The specification for the classifier to be applied to an interface.
+      # The classifier is applied to IPv4 packets.
+      #
+      "classifier": [
+        {
+          "config": {
+            "name": "IN_CUSTOMERIF",
+            "type": "IPV4"
+          },
+          "name": "IN_CUSTOMERIF",
+          #
+          # The set of terms that are present in the classifier. A
+          # logical AND is applied to each condition within the term.
+          # If a term is not matched, then the next term is evaluated.
+          #
+          "terms": {
+            "term": [
+              {
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp": 18
+                    }
+                  }
+                },
+                "actions": {
+                  "config": {
+                    #
+                    # Packets matching this term (i.e., are DSCP AF21
+                    # as specified below) are grouped into the 'LOW'
+                    # forwarding-group.
+                    #
+                    "target-group": "LOW"
+                  }
+                },
+                "config": {
+                  "id": "DSCP_AF21"
+                },
+                "id": "DSCP_AF21"
+              },
+              {
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp": 30
+                    }
+                  }
+                },
+                "actions": {
+                  "config": {
+                    "target-group": "MEDIUM"
+                  }
+                },
+                "config": {
+                  "id": "DSCP_AF33"
+                },
+                "id": "DSCP_AF33"
+              },
+              {
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp": 36
+                    }
+                  }
+                },
+                "actions": {
+                  "config": {
+                    "target-group": "HIGH"
+                  }
+                },
+                "config": {
+                  "id": "DSCP_AF41"
+                },
+                "id": "DSCP_AF41"
+              },
+              {
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp": 38
+                    }
+                  }
+                },
+                "actions": {
+                  "config": {
+                    "target-group": "HIGH"
+                  }
+                },
+                "config": {
+                  "id": "DSCP_AF42"
+                },
+                "id": "DSCP_AF42"
+              },
+              {
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp": 46
+                    }
+                  }
+                },
+                "actions": {
+                  "config": {
+                    "target-group": "LLQ"
+                  }
+                },
+                "config": {
+                  "id": "DSCP_EF"
+                },
+                "id": "DSCP_EF"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    #
+    # The definition of the forwarding groups. Each forwarding
+    # group has a name, and an output queue. This queue is subsequently
+    # serviced based on a particular scheduler.
+    #
+    "forwarding-groups": {
+      "forwarding-group": [
+        {
+          "config": {
+            "name": "HIGH",
+            "output-queue": "GOLD"
+          },
+          "name": "HIGH"
+        },
+        {
+          "config": {
+            "name": "LLQ",
+            "output-queue": "PRIORITY"
+          },
+          "name": "LLQ"
+        },
+        {
+          "config": {
+            "name": "LOW",
+            "output-queue": "BRONZE"
+          },
+          "name": "LOW"
+        },
+        {
+          "config": {
+            "name": "MEDIUM",
+            "output-queue": "SILVER"
+          },
+          "name": "MEDIUM"
+        }
+      ]
+    },
+    #
+    # For configuration, the interfaces container specifies the
+    # binding between the specified classifiers/schedulers and
+    # an interface. 
+    #
+    "interfaces": {
+      "interface": [
+        {
+          "config": {
+            "interface-id": "Ethernet42.0"
+          },
+          #
+          # An input classifier is applied to the interface by
+          # referencing the classifier name within the /qos/interfaces
+          # list.
+          #
+          "input": {
+            "classifers": {
+              "classifier": [
+                {
+                  "config": {
+                    "name": "IN_CUSTOMERIF",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                }
+              ]
+            }
+          },
+          "interface-id": "Ethernet42.0",
+          #
+          # The scheduler policy to be used for output is referenced below.
+          # A single scheduler policy can be applied per interface. The 
+          # referencing of a scheduler policy also implies that the queues
+          # that it drains are created for the interface (or corresponding
+          # VoQs on the input interfaces) and telemetry is exported for them.
+          #
+          "output": {
+            "scheduler-policy": {
+              "config": {
+                "name": "OUT_CUSTOMERIF"
+              }
+            }
+          }
+        }
+      ]
+    },
+    #
+    # Queue specifications that will be instantiated on an interface
+    # based on the scheduler policy. The queues in this example have no specific
+    # configuration, but could have specified buffer sizes, or queue
+    # management disciplines.
+    #
+    "queues": {
+      "queue": [
+        {
+          "config": {
+            "name": "BRONZE"
+          },
+          "name": "BRONZE"
+        },
+        {
+          "config": {
+            "name": "GOLD"
+          },
+          "name": "GOLD"
+        },
+        {
+          "config": {
+            "name": "PRIORITY"
+          },
+          "name": "PRIORITY"
+        },
+        {
+          "config": {
+            "name": "SILVER"
+          },
+          "name": "SILVER"
+        }
+      ]
+    },
+    #
+    # The specification of the scheduler policy. A scheduler policy
+    # consists of a set of schedulers, which have a specified sequence.
+    # The schedulers describe a set of queueing approaches.
+    #
+    #
+    "scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "OUT_CUSTOMERIF"
+          },
+          "name": "OUT_CUSTOMERIF",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "priority": "STRICT",
+                  "sequence": 0
+                },
+                #
+                # The inputs to each scheduler determine the queue(s)
+                # that is to be drained by the scheduler term.
+                #
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "PRIORITY_CLASS",
+                        "queue": "PRIORITY"
+                      },
+                      "id": "PRIORITY_CLASS"
+                    }
+                  ]
+                },
+                #
+                # This scheduler term defines a 1r2c policer with a
+                # specified CIR which drops packets that exceed the
+                # CIR.
+                #
+                "one-rate-two-color": {
+                  "config": {
+                    "bc": 10000,
+                    "cir": "32000"
+                  },
+                  "exceed-action": {
+                    "config": {
+                      "drop": true
+                    }
+                  }
+                },
+                "sequence": 0
+              },
+              {
+                "config": {
+                  "sequence": 1
+                },
+                #
+                # In this scheduler term, a set of WRR queues are defined
+                # to be serviced.
+                #
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "BRONZE_CLASS",
+                        "queue": "BRONZE",
+                        "weight": "10"
+                      },
+                      "id": "BRONZE_CLASS"
+                    },
+                    {
+                      "config": {
+                        "id": "GOLD_CLASS",
+                        "queue": "GOLD",
+                        "weight": "50"
+                      },
+                      "id": "GOLD_CLASS"
+                    },
+                    {
+                      "config": {
+                        "id": "SILVER_CLASS",
+                        "queue": "SILVER",
+                        "weight": "40"
+                      },
+                      "id": "SILVER_CLASS"
+                    }
+                  ]
+                },
+                "sequence": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+## Telemetry Path Coverage
+```
+qos/interfaces/interface/output/queues/queue/state/transmit-pkts
+qos/interfaces/interface/output/queues/queue/state/transmit-octets
+qos/interfaces/interface/output/queues/queue/state/dropped-pkts
+qos/interfaces/interface/output/queues/queue/state/dropped-octets
+
+interfaces/interface/state/counters/in-discards
+interfaces/interface/state/counters/in-errors
+interfaces/interface/state/counters/in-multicast-pkts
+interfaces/interface/state/counters/in-pkts
+interfaces/interface/state/counters/in-unicast-pkts
+interfaces/interface/state/counters/out-discards
+interfaces/interface/state/counters/out-errors
+interfaces/interface/state/counters/out-multicast-pkts
+interfaces/interface/state/counters/out-pkts
+interfaces/interface/state/counters/out-unicast-pkts
+
+interfaces/interface/subinterfaces/subinterface/state/counters/in-discards
+interfaces/interface/subinterfaces/subinterface/state/counters/in-errors
+interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts
+interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts
+interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts
+interfaces/interface/subinterfaces/subinterface/state/counters/out-discards
+interfaces/interface/subinterfaces/subinterface/state/counters/out-errors
+interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts
+interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts
+interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts
+
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-discarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-error-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-multicast-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-discarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-error-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-multicast-pkts
+interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts
+
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-error-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-error-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts
+interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts
+
+network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts
+network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts
+network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id
+```
