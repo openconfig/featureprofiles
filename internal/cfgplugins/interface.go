@@ -140,6 +140,7 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			Index:              ygot.Uint32(otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				0: {
 					Index:          ygot.Uint32(0),
@@ -147,13 +148,6 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					Description:    ygot.String("OTN to Optical Channel"),
 					Allocation:     ygot.Float64(400),
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-				},
-				1: {
-					Index:          ygot.Uint32(1),
-					LogicalChannel: ygot.Uint32(ethIndex),
-					Description:    ygot.String("OTN to ETH"),
-					Allocation:     ygot.Float64(400),
-					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 				},
 			},
 		})
@@ -189,6 +183,7 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress:            ingress,
 		Assignment:         assignment,
+		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 	}
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
