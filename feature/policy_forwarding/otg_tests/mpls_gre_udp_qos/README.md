@@ -67,15 +67,15 @@ Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additio
 
 ## PF-1.8.1: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header
 Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
-    * Outer source address: random combination of 1000+ IPV4 source addresses
-    * Outer destination address: Traffic must fall within the configured IPV4 unicast prefix range for MPLSoGRE and MPLSoGUE traffic.
-    * MPLS Labels: 
-        * Various streams must map to every configured IPV4/IPV6/Multicast static MPLS labels on the device
-        * Use all combinations of traffic class bits in the MPLS label (0 to 7)
-    * Inner payload: 
-        * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
-        * Multicast traffic
-    * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+* Outer source address: random combination of 1000+ IPV4 source addresses
+* Outer destination address: Traffic must fall within the configured IPV4 unicast prefix range for MPLSoGRE and MPLSoGUE traffic.
+* MPLS Labels: 
+    * Various streams must map to every configured IPV4/IPV6/Multicast static MPLS labels on the device
+    * Use all combinations of traffic class bits in the MPLS label (0 to 7)
+* Inner payload: 
+    * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
+    * Multicast traffic
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
 * Egress IP traffic after decapsulation gets classified into 8 queues mapped to 8 traffic classes based on MPLS label as configured on the device.
