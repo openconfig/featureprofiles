@@ -422,7 +422,7 @@ func TestEgressp4rt(t *testing.T) {
 				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpTcpDC", deviceSet, srcport, &TOptions{ptcp: 4})
 				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpUdpDC", deviceSet, srcport, &TOptions{pudp: 8})
 
-				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDPDC", deviceSet, srcport, &TOptions{ptcp: 4})
+				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpTcpDC", deviceSet, srcport, &TOptions{ptcp: 4})
 				testWithDCUnoptimized(ctx, t, args, false, false, "", "Ipv6inIpUDPDC", deviceSet, srcport, &TOptions{pudp: 8})
 
 				testWithDCUnoptimized(ctx, t, args, true, false, "flap1", "IpinIpTcpDCprimarychange", deviceSet, srcport, &TOptions{ptcp: 4})
@@ -436,7 +436,7 @@ func TestEgressp4rt(t *testing.T) {
 				args.interfaceaction(t, "port4", true)
 				args.interfaceaction(t, "port6", true)
 				args.interfaceaction(t, "port8", true)
-				testWithDCUnoptimized(ctx, t, args, false, false, "flap", "Ipv6inIpUDPfrr", deviceSet, srcport, &TOptions{ptcp: 4})
+				testWithDCUnoptimized(ctx, t, args, false, false, "flap", "Ipv6inIpTCpfrr", deviceSet, srcport, &TOptions{ptcp: 4})
 				args.interfaceaction(t, "port2", true)
 				args.interfaceaction(t, "port4", true)
 				args.interfaceaction(t, "port6", true)
@@ -457,7 +457,7 @@ func TestEgressp4rt(t *testing.T) {
 				args.interfaceaction(t, "port6", true)
 				args.interfaceaction(t, "port8", true)
 
-				testWithPoPUnoptimized(ctx, t, args, false, 0, "flap", "Ipv6inIptcppopfrr", deviceSet, srcport, &TOptions{ptcp: 4})
+				testWithPoPUnoptimized(ctx, t, args, false, 6, "flap", "Ipv6inIptcppopfrr", deviceSet, srcport, &TOptions{ptcp: 4})
 				args.interfaceaction(t, "port2", true)
 				args.interfaceaction(t, "port4", true)
 				args.interfaceaction(t, "port6", true)
