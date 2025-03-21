@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	ateAS                   = 64501
 	bgpRoutePolicyName      = "BGP-ROUTE-POLICY-ALLOW"
 	totalBgpPfx             = 1
 	bgpAs                   = 65000
