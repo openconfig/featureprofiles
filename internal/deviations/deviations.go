@@ -1345,3 +1345,9 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
 }
+
+// TemperatureSensorCheck returns true if /components/component/transceiver subcomponent should check for the temperature sensor
+// Default value is false.
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}
