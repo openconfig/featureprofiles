@@ -26,11 +26,13 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 * Egress Ports: Port-Channel2 (ATE Ports 3,4) and Port-Channel3 (ATE Ports 5,6) are used as the destination ports for encapsulated traffic.
 
-#### Configuration
+### PF-1.4.1: Generate DUT Configuration
 
-#### Port-Channel1 is the ingress ports having following configuration
+#### Aggregate "customer interface" is the ingress port having following configuration
 
-#### Ten or more subinterfaces (customer) with different VLAN-IDs
+* Configure DUT ports 1,2 to be a member of aggregate interface named "customer interface"
+
+#### Ten subinterfaces on "customer-interface" with different VLAN-IDs
 
 * Two or more VLANs with IPV4 link local address only, /29 address
 
