@@ -16,7 +16,6 @@ package system_generic_health_check_test
 
 import (
 	"context"
-
 	"regexp"
 	"testing"
 	"time"
@@ -191,6 +190,7 @@ func TestComponentStatus(t *testing.T) {
 			componentName := map[string]string{"name": component}
 			req := &hpb.GetRequest{
 				Path: &tpb.Path{
+					Origin: "openconfig",
 					Elem: []*tpb.PathElem{
 						{Name: "components"},
 						{
