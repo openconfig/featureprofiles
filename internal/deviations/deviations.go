@@ -1345,3 +1345,8 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
 }
+
+// DefaultPolicyRequiresBgpMatch returns true device needs defined set to limit exporting direct routes into BGP.
+func DefaultPolicyRequiresBgpMatch(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPolicyRequiresBgpMatch()
+}
