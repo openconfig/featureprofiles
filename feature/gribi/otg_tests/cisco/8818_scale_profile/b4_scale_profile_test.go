@@ -29,7 +29,6 @@ import (
 	"time"
 
 	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -294,55 +293,6 @@ func TestGoogleBaseConfPush(t *testing.T) {
 }
 
 func TestGribiScaleProfile(t *testing.T) {
-	resources := initializeTestResources(t)
-	log_collector.Start(context.Background(), t, resources.DUT)
-	t.Skip()
-
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 	configureBaseProfile(t)
-
-	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
-		log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
-	})
-}
-
-func TestTrigger(t *testing.T) {
-	resources := initializeTestResources(t)
-
-	// Define a slice of test triggers
-	triggers := []struct {
-		name string
-		fn   func(ctx context.Context, t *testing.T)
-	}{
-		{"RPFO", func(ctx context.Context, t *testing.T) {
-			utils.Dorpfo(ctx, t, false)
-		}},
-		{"LC-OIR", func(ctx context.Context, t *testing.T) {
-			utils.DoLcOir(t, resources.DUT)
-		}},
-		// {"LCHA", func(ctx context.Context, t *testing.T) {
-		// 	utils.DoLCHA(ctx, t)
-		// }},
-	}
-
-	// Iterate over each trigger and run it as a subtest
-	for _, trigger := range triggers {
-		t.Run(trigger.name, func(t *testing.T) {
-			trigger.fn(resources.Context, t)
-			time.Sleep(10 * time.Minute)
-
-			// Collect logs after each trigger
-			t.Run("LogCollectionAfterTrigger", func(t *testing.T) {
-				log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "LogCollectionAfterTrigger", resources.CommandPatterns)
-			})
-			t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
-				t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-				configureBaseProfile(t)
-			})
-			// Collect logs after gribi programing
-			t.Run("LogCollectionAfterGribiPrograming", func(t *testing.T) {
-				log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "LogCollectionAfterGribiPrograming", resources.CommandPatterns)
-			})
-		})
-	}
 }

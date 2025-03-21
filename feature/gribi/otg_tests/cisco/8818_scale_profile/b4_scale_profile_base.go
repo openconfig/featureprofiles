@@ -21,13 +21,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"flag"
 	"fmt"
-	"log"
 	"net"
-	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -42,7 +38,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -50,9 +45,7 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/exp/maps"
-	"google.golang.org/protobuf/encoding/prototext"
 )
 
 const (
@@ -1154,126 +1147,4 @@ func configureBaseProfile(t *testing.T) {
 	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	t.Log("Program base gRIBI entries")
 	BaseGRIBIProgramming(t, tcArgs, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
-}
-
-func checkAndStartScript(t *testing.T, serverIP, serverPort string, target targetInfo, pathsFile string) {
-	config := &ssh.ClientConfig{
-		User: target.username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(target.password),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         5 * time.Second,
-	}
-
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", serverIP, serverPort), config)
-	if err != nil {
-		t.Fatalf("Failed to dial SSH: %v", err)
-	}
-	defer client.Close()
-
-	session, err := client.NewSession()
-	if err != nil {
-		t.Fatalf("Failed to create SSH session: %v", err)
-	}
-	defer session.Close()
-
-	var b bytes.Buffer
-	session.Stdout = &b
-	if err := session.Run("pgrep -f /auto/ops-tool/ws-krinata2/helper/telemetry_subscriptions.py"); err != nil {
-		log.Println("Script is not running, attempting to start it.")
-		startPythonScript(t, client, target, pathsFile)
-	} else {
-		log.Println("Script is already running.")
-	}
-}
-
-func startPythonScript(t *testing.T, client *ssh.Client, target targetInfo, pathsFile string) {
-	session, err := client.NewSession()
-	if err != nil {
-		t.Fatalf("Failed to create SSH session: %v", err)
-	}
-	defer session.Close()
-
-	cmd := fmt.Sprintf("nohup python3 /auto/ops-tool/ws-krinata2/helper/telemetry_subscriptions.py --hostname %s --username %s --password %s --paths_file %s --ssh_port %s &",
-		target.hostname, target.username, target.password, pathsFile, target.sshPort)
-
-	if err := session.Run(cmd); err != nil {
-		t.Fatalf("Failed to start the Python script: %v", err)
-	}
-
-	log.Println("Python script started successfully.")
-}
-
-type targetInfo struct {
-	dutID    string
-	hostname string
-	sshPort  string
-	username string
-	password string
-}
-
-type Targets struct {
-	targetInfo map[string]targetInfo
-}
-
-func (ti *Targets) getSSHInfo(t *testing.T) error {
-	t.Helper()
-	t.Log("Starting getSSHInfo")
-
-	bf := flag.Lookup("binding")
-	if bf == nil || bf.Value.String() == "" {
-		return fmt.Errorf("binding file not set correctly")
-	}
-
-	bindingFile := bf.Value.String()
-	in, err := os.ReadFile(bindingFile)
-	if err != nil {
-		return fmt.Errorf("error reading binding file: %v", err)
-	}
-
-	b := &bindpb.Binding{}
-	if err := prototext.Unmarshal(in, b); err != nil {
-		return fmt.Errorf("error unmarshalling binding file: %v", err)
-	}
-
-	ti.targetInfo = make(map[string]targetInfo)
-	for _, dut := range b.Duts {
-		sshUser := dut.Ssh.Username
-		if sshUser == "" {
-			sshUser = dut.Options.Username
-		}
-		if sshUser == "" {
-			sshUser = b.Options.Username
-		}
-
-		sshPass := dut.Ssh.Password
-		if sshPass == "" {
-			sshPass = dut.Options.Password
-		}
-		if sshPass == "" {
-			sshPass = b.Options.Password
-		}
-
-		sshTarget := strings.Split(dut.Ssh.Target, ":")
-		sshIP := sshTarget[0]
-		sshPort := "22"
-		if len(sshTarget) > 1 {
-			sshPort = sshTarget[1]
-		}
-
-		if dut.Id != "" && sshIP != "" && sshPort != "" && sshUser != "" && sshPass != "" {
-			ti.targetInfo[dut.Id] = targetInfo{
-				dutID:    dut.Id,
-				hostname: sshIP,
-				sshPort:  sshPort,
-				username: sshUser,
-				password: sshPass,
-			}
-		} else {
-			return fmt.Errorf("missing SSH info for dut: %v", dut)
-		}
-	}
-	t.Log("Completed getSSHInfo")
-	return nil
 }
