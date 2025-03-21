@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gribigo/client"
@@ -1336,7 +1337,7 @@ func GnmiProtoSetConfigPush(t *testing.T, dut *ondatra.DUTDevice, configFilePath
 		panic(err)
 	}
 
-	setReq := &gnmipb.SetRequest{}
+	setReq := &gpb.SetRequest{}
 
 	if err := prototext.Unmarshal(b, setReq); err != nil {
 		panic(err)

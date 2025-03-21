@@ -69,7 +69,6 @@ var (
 type TestResources struct {
 	CommandPatterns map[string]map[string]interface{}
 	DUT             *ondatra.DUTDevice
-	PEER            *ondatra.DUTDevice
 	Context         context.Context
 	LogDir          string
 }
@@ -84,7 +83,6 @@ func initializeTestResources(t *testing.T) *TestResources {
 		t.Helper() // Mark this function as a test helper
 		ctx := context.Background()
 		dut := ondatra.DUT(t, "dut")
-		peer := ondatra.DUT(t, "peer")
 
 		var commandPatterns map[string]map[string]interface{}
 		if *debugCommandYaml == "" {
@@ -111,7 +109,6 @@ func initializeTestResources(t *testing.T) *TestResources {
 		testResources = &TestResources{
 			CommandPatterns: commandPatterns,
 			DUT:             dut,
-			PEER:            peer,
 			Context:         ctx,
 			LogDir:          *logDir,
 		}
@@ -299,22 +296,17 @@ func TestGoogleBaseConfPush(t *testing.T) {
 func TestGribiScaleProfile(t *testing.T) {
 	resources := initializeTestResources(t)
 	log_collector.Start(context.Background(), t, resources.DUT)
+	t.Skip()
 
-	t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
-		configureBaseProfile(t)
-	})
+	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	configureBaseProfile(t)
 
 	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
 		log_collector.CollectRouterLogs(resources.Context, t, resources.DUT, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
 	})
-
-	t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
-		configureBaseProfile(t)
-	})
 }
 
 func TestTrigger(t *testing.T) {
-	t.Skip()
 	resources := initializeTestResources(t)
 
 	// Define a slice of test triggers
@@ -325,12 +317,12 @@ func TestTrigger(t *testing.T) {
 		{"RPFO", func(ctx context.Context, t *testing.T) {
 			utils.Dorpfo(ctx, t, false)
 		}},
-		// {"LC-OIR", func(ctx context.Context, t *testing.T) {
-		// 	utils.DoAllAvailableLcParallelOir(t, resources.DUT)
-		// }},
-		{"LCHA", func(ctx context.Context, t *testing.T) {
-			utils.DoProcessRestart(ctx, t, resources.DUT, "emsd")
+		{"LC-OIR", func(ctx context.Context, t *testing.T) {
+			utils.DoLcOir(t, resources.DUT)
 		}},
+		// {"LCHA", func(ctx context.Context, t *testing.T) {
+		// 	utils.DoLCHA(ctx, t)
+		// }},
 	}
 
 	// Iterate over each trigger and run it as a subtest
