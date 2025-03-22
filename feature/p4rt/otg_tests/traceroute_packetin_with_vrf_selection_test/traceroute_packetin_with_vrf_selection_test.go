@@ -110,7 +110,7 @@ const (
 )
 
 var (
-	p4InfoFile          = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile          = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName          = "p4rt"
 	tracerouteSrcMAC    = "00:01:00:02:00:03"
 	deviceID            = uint64(1)
