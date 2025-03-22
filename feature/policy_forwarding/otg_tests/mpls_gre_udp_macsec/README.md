@@ -1,7 +1,7 @@
 # PF-1.10 - MPLSoGRE and MPLSoGUE MACsec 
 
 ## Summary
-This test verifies MACSec with MPLSoGRE and MPLSoGUE IP encap and decap traffic on routed VLAN sub interfaces on the test device.
+This test verifies MACSec with MPLSoGRE and MPLSoGUE IP encap and decap traffic on the test device.
 
 ## Testbed type
 * [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
