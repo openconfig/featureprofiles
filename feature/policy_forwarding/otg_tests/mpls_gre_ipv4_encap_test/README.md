@@ -230,186 +230,71 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ### JSON Format
 
-```
+```json
+"network-instances": {
+  "network-instance": {
+    "DEFAULT": {
        "name": "default",
-        "policy-forwarding": {
-          "interfaces": {
-            "interface": [
+       "policy-forwarding": {
+         "policies": {
+           "policy": [
               {
                 "config": {
-                  "apply-forwarding-policy": "pbr_cloud_id_270225037587",
-                  "interface-id": "Port-Channel2.1101"
+                  "policy-id": "customerA"
                 },
-                "interface-id": "Port-Channel2.1101"
-              },
-            ]
-          },
-          "policies": {
-            "policy": [                                 
-              {
-                "config": {
-                  "policy-id": "pbr_cloud_id_270225037587"
-                },
-                "entry-groups": {
-                  "entry-group": [
+                "rules": {
+                  "rule": [
                     {
                       "config": {
-                        "address-family": "ACL_IPV4",
-                        "group-id": 1
+                        "sequence-id": 1
                       },
-                      "group-id": 1,
-                      "matches": {
-                        "match": [
-                          {
-                            "config": {
-                              "sequence-id": 1
-                            },
-                            "ipv4": {
-                              "config": {
-                                "destination-address": "169.254.125.155/32",
-                                "protocol": "IP_ICMP"
-                              },
-                              "icmpv4": {
-                                "config": {
-                                  "type": "ECHO_REPLY"
-                                }
-                              }
-                            },
-                            "sequence-id": 1
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "action": {
-                        "encapsulate-gre": {
-                          "config": {
-                            "target-type": "SHARING"
-                          },
-                          "targets": {
-                            "target": [
-                              {
-                                "config": {
-                                  "id": "5005-917505"
-                                },
-                                "id": "5005-917505"
-                              },
-                              {
-                                "config": {
-                                  "id": "5006-917505"
-                                },
-                                "id": "5006-917505"
-                              },
-                              {
-                                "config": {
-                                  "id": "5007-917505"
-                                },
-                                "id": "5007-917505"
-                              },
-                              {
-                                "config": {
-                                  "id": "5008-917505"
-                                },
-                                "id": "5008-917505"
-                              }
-                            ]
-                          }
-                        }
-                      },
-                      "arista": {
+                      "ipv4": {
                         "config": {
-                          "class-map-name": "match_all_ip_class",
-                          "class-map-type": "SHARING"
-                        }
-                      },
-                      "config": {
-                        "address-family": "ACL_IPV4",
-                        "group-id": 10
-                      },
-                      "group-id": 10,
-                      "matches": {
-                        "match": [
-                          {
-                            "config": {
-                              "sequence-id": 10
-                            },
-                            "sequence-id": 10
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "action": {
-                        "config": {
-                          "ip-ttl": 1
+                          "destination-address": "169.254.125.155/32",
+                          "protocol": "IP_ICMP"
                         },
-                        "encapsulate-gre": {
+                        "icmpv4": {
                           "config": {
-                            "target-type": "SHARING"
-                          },
+                            "type": "ECHO_REPLY"
+                          }
+                        }
+                      },
+                      "action": {
+                        "encapsulate-gre": {
                           "targets": {
                             "target": [
                               {
                                 "config": {
-                                  "id": "5005-917505"
+                                  "id": "mygre_dest_A"
+                                  "destination": "10.1.1.0/29"
+                                  "ip-ttl": "1"
                                 },
-                                "id": "5005-917505"
+                                "id": "mygre_dest_A"
                               },
                               {
                                 "config": {
-                                  "id": "5006-917505"
+                                  "id": "mygre_dest_B"
+                                  "destination": "10.1.1.8/29"
+                                  "ip-ttl": "1"
                                 },
-                                "id": "5006-917505"
+                                "id": "mygre_dest_B"
                               },
-                              {
-                                "config": {
-                                  "id": "5007-917505"
-                                },
-                                "id": "5007-917505"
-                              },
-                              {
-                                "config": {
-                                  "id": "5008-917505"
-                                },
-                                "id": "5008-917505"
-                              }
                             ]
                           }
                         }
                       },
-                      "arista": {
-                        "config": {
-                          "class-map-name": "match_all_ip_class",
-                          "class-map-type": "SHARING"
-                        }
-                      },
-                      "config": {
-                        "address-family": "ACL_IPV4",
-                        "group-id": 8
-                      },
-                      "group-id": 8,
-                      "matches": {
-                        "match": [
-                          {
-                            "config": {
-                              "sequence-id": 8
-                            },
-                            "ipv4": {
-                              "config": {
-                                "hop-limit": 1
-                              }
-                            },
-                            "sequence-id": 8
-                          }
-                        ]
-                      }
+                      "sequence-id": 1
                     }
                   ]
                 },
-                "policy-id": "pbr_cloud_id_270225037587"
-              },
-            }
-          }
+
+              }
+           ]
+         }
+       }
+    }
+  }
+}
 ```
 
 ### Interfaces Config
