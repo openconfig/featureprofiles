@@ -717,6 +717,9 @@ message Metadata {
     // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
     bool explicit_dco_config = 257;
 
+    // Different devices has different link-bandwidth string representations
+    string match_link_bandwidth_any_regex = 258;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
   }

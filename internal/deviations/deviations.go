@@ -1325,3 +1325,10 @@ func OperStatusForIcUnsupported(dut *ondatra.DUTDevice) bool {
 func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
 }
+
+func MatchLinkBandwidthAnyRegex(dut *ondatra.DUTDevice) string {
+	if regex := lookupDUTDeviations(dut).GetMatchLinkBandwidthAnyRegex(); regex != "" {
+		return regex
+	}
+	return "^link-bandwidth:.*:.*$"
+}
