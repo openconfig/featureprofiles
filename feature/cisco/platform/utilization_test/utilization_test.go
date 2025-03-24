@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/schemaless"
@@ -38,13 +40,18 @@ func TestResourceUtilization(t *testing.T) {
 		t.Fatalf("Error creating ygnmi client: %v", err)
 	}
 	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+	var path, postPath string
 	// Loop over the metrics to gather pre-test counters
 	pretest := make(map[string]interface{})
 	postTest := make(map[string]interface{})
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	npus := util.UniqueValues(t, nodes)
 	for _, metric := range metrics {
 		t.Run(fmt.Sprintf("Pre-test metric: %s", metric), func(t *testing.T) {
 
-			path := fmt.Sprintf("/components/component[name=0/7/CPU0-NPU0]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/%s", metric)
+			for _, npu := range npus {
+				path = fmt.Sprintf("/components/component[name=%s]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/%s", npu, metric)
+			}
 			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
 			vals, err := ygnmi.GetAll(context.Background(), gnmic, query)
 			if err != nil {
@@ -66,7 +73,9 @@ func TestResourceUtilization(t *testing.T) {
 	for _, intmetrics := range intMetrics {
 		t.Run(fmt.Sprintf("Pre-test metric: %s", intmetrics), func(t *testing.T) {
 
-			path := fmt.Sprintf("/components/component[name=0/7/CPU0-NPU0]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/cisco/%s", intmetrics)
+			for _, npu := range npus {
+				path = fmt.Sprintf("/components/component[name=%s]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/cisco/%s", npu, intmetrics)
+			}
 			if intmetrics == "resource-oor-state" {
 				query, _ := schemaless.NewWildcard[string](path, "openconfig")
 				vals, err := ygnmi.GetAll(context.Background(), gnmic, query)
@@ -97,18 +106,14 @@ func TestResourceUtilization(t *testing.T) {
 	addRoute(t, otg, otgV4Peer, otgPort1, otgConfig)
 	configureBGPWithIncrementalNetworks(t, otg, otgConfig, otgV4Peer, "100.121.1.3", 10, 1)
 
-	// Define the Next-Hop Group
-	nhgConfig := []string{
-		"100.121.1.4",
-		"100.121.1.5",
-	}
-
 	//Configure the Next-Hop Group on the DUT
-	configureNextHopGroup(t, dut, nhgConfig)
+	configureNextHopGroup(t, dut)
 
 	for _, metric := range metrics {
 		t.Run(fmt.Sprintf("Post-test metric: %s", metric), func(t *testing.T) {
-			postPath := fmt.Sprintf("/components/component[name=0/7/CPU0-NPU0]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/%s", metric)
+			for _, npu := range npus {
+				postPath = fmt.Sprintf("/components/component[name=%s]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/%s", npu, metric)
+			}
 			postQuery, _ := schemaless.NewWildcard[uint64](postPath, "openconfig")
 			postVal, err := ygnmi.GetAll(context.Background(), gnmic, postQuery)
 			if err != nil {
@@ -130,9 +135,11 @@ func TestResourceUtilization(t *testing.T) {
 	for _, intmetrics := range intMetrics {
 		t.Run(fmt.Sprintf("Post-test metric: %s", intmetrics), func(t *testing.T) {
 
-			postpath := fmt.Sprintf("/components/component[name=0/7/CPU0-NPU0]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/cisco/%s", intmetrics)
+			for _, npu := range npus {
+				postPath = fmt.Sprintf("/components/component[name=%s]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/cisco/%s", npu, intmetrics)
+			}
 			if intmetrics == "resource-oor-state" {
-				querys, _ := schemaless.NewWildcard[string](postpath, "openconfig")
+				querys, _ := schemaless.NewWildcard[string](postPath, "openconfig")
 				val, err := ygnmi.GetAll(context.Background(), gnmic, querys)
 				if err != nil {
 					t.Fatalf("Error querying metric %s: %v", intmetrics, err)
@@ -143,7 +150,7 @@ func TestResourceUtilization(t *testing.T) {
 				postTest[intmetrics] = val[0]
 				t.Logf("Post-test %s: %s", intmetrics, postTest[intmetrics])
 			} else {
-				querys, _ := schemaless.NewWildcard[uint64](postpath, "openconfig")
+				querys, _ := schemaless.NewWildcard[uint64](postPath, "openconfig")
 				val, err := ygnmi.GetAll(context.Background(), gnmic, querys)
 				if err != nil {
 					t.Fatalf("Error querying metric %s: %v", intmetrics, err)
