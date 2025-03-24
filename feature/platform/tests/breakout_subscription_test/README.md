@@ -10,13 +10,14 @@ OnChange Subscription Test for Breakout Interfaces
 
 ## Procedure
 
-* Connect ATE port-1 to DUT port-1, and ATE port-2 connected to DUT port-2.
+* Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2 and ATE port-3 to DUT port-3. 
 * Configure lacp between DUT with DUT ports 1 and 2 and ATE with ATE ports 1 and 2 as member interfaces.
-* Send a single `SubscribeRequest` message to the DUT member ports with a SubscriptionList and SubscriptionMode as ONCHANGE for the paths covered in telemetry coverage.
+* Configure DUT port 3 and ATE port 3 as singleton interfaces connected to eachother.
+* Send a single `SubscribeRequest` message to the DUT Singleton and Member ports with a SubscriptionList and SubscriptionMode as ONCHANGE for the paths covered in telemetry coverage.
 
-### Check response after a triggered interface state change
+### PLT-1.2.1 Check response after a triggered interface state change
 
-  * Change the admin status of DUT port 1 and check if subscription request detects the changes in below paths.
+  * Change the admin status of DUT port 1 and port 3 and check if subscription request detects the changes in below paths.
     /interfaces/interface/state/admin-status
     /lacp/interfaces/interface/members/member/interface
     /interfaces/interface/state/hardware-port
@@ -25,13 +26,23 @@ OnChange Subscription Test for Breakout Interfaces
     /components/component/state/oper-status
     /interfaces/interface/state/forwarding-viable
   
+  * Bring back DUT port 1 and port 3 to admin up state.
   * Record the responses of all the paths covered in telemetry coverage section. 
 
+### PLT-1.2.2 Check response after a triggered interface flap
 
-### Check response after a triggered reboot
+  * Disable/Shut DUT port 1 and 3 and verify if operational and admin state change is Down. Enable the interfaces again and verify if the states change to UP. 
+  * Repeat this step 5 times and verify if subscription detects the stable state as recorded in subtest 1.2.1
 
-  * Issue a reboot to the device and check if all the leafs are still being popuated.
-  * Compare if the responses match to the ones recorded in the previous step. 
+### PLT-1.2.3 Check response after a triggered LC reboot
+
+  * Issue a reboot to the Linecard and check if all the leafs are still being popuated and not empty.
+  * Compare if the responses match to the ones recorded in subtest 1.2.1
+    
+### PLT-1.2.4 Check response after a triggered reboot
+
+  * Issue a reboot to the device and check if all the leafs are still being popuated and not empty.
+  * Compare if the responses match to the ones recorded in subtest 1.2.1
  
 ## OpenConfig Path and RPC Coverage
 
@@ -53,12 +64,18 @@ paths:
    platform_type: [ "INTEGRATED_CIRCUIT" ]
   /components/component/state/oper-status:
    platform_type: [ "INTEGRATED_CIRCUIT" ]
-
+  /components/component/state/name:
+   platform_type: [ "LINECARD" ]
+  /components/component/state/oper-status:
+   platform_type: [ "LINECARD" ]
 
 rpcs:
   gnmi:
     gNMI.Subscribe:
       Mode: [ "ON_CHANGE" ]
+  gnoi:
+    system.System.Reboot:
+    system.System.RebootStatus:
     gNMI.Set:
 ```
 ## Required DUT platform
