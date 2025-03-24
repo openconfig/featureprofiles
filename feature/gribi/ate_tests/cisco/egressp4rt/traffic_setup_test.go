@@ -204,7 +204,7 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	top.Push(t).StartProtocols(t)
 }
 
-func testTrafficc(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap, portval, sourceport bool, ttl, ttl2 int, inDst, inSrc, outDst, outSrc string, opts ...*Countoptions) (string, string, int) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap, portval, sourceport bool, ttl, ttl2 int, inDst, inSrc, outDst, outSrc string, opts ...*Countoptions) (string, string, int) {
 
 	dut := ondatra.DUT(t, "dut")
 	var intfName, intfs string
