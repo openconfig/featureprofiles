@@ -1162,6 +1162,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp_scale/README.md"
 }
 test: {
+  id: "TE-18.4"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_flush/README.md"
+}
+test: {
   id: "TE-2.1"
   description: "gRIBI IPv4 Entry"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_test/README.md"
