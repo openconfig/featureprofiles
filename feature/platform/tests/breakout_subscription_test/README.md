@@ -72,10 +72,10 @@ rpcs:
   gnmi:
     gNMI.Subscribe:
       Mode: [ "ON_CHANGE" ]
+    gNMI.Set:
   gnoi:
     system.System.Reboot:
     system.System.RebootStatus:
-    gNMI.Set:
 ```
 ## Required DUT platform
 Single DUT
