@@ -41,7 +41,7 @@ const (
 	ipv6EntryPrefixLen   = "128"
 )
 
-// unconfigbasePBR, creates class map, policy and configures under source interface
+// unconfigbasePBR
 func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice, pbrName string, intfName []string) {
 	t.Helper()
 	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
