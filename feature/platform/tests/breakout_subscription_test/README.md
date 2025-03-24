@@ -58,16 +58,15 @@ paths:
   /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/ethernet/state/mac-address:
   /lacp/interfaces/interface/members/member/interface:
+  /components/component/state/parent:
+   platform_type: [ "INTEGRATED_CIRCUIT", "LINECARD" ]
+  /components/component/state/oper-status:
+   platform_type: [ "INTEGRATED_CIRCUIT", "LINECARD" ]
+  /components/component/state/name:
+   platform_type: [ "INTEGRATED_CIRCUIT", "LINECARD" ]
   /components/component/integrated-circuit/state/node-id:
    platform_type: [ "INTEGRATED_CIRCUIT" ]
-  /components/component/state/parent:
-   platform_type: [ "INTEGRATED_CIRCUIT" ]
-  /components/component/state/oper-status:
-   platform_type: [ "INTEGRATED_CIRCUIT" ]
-  /components/component/state/name:
-   platform_type: [ "LINECARD" ]
-  /components/component/state/oper-status:
-   platform_type: [ "LINECARD" ]
+
 
 rpcs:
   gnmi:
