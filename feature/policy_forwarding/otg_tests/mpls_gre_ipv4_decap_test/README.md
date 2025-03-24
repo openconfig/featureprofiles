@@ -10,7 +10,7 @@ This test verifies MPLSoGRE decapsulation of IP traffic using static MPLS LSP co
 ### Test environment setup
 
 ```
-DUT has an ingress and 2 egress EtherChannels.
+DUT has 2 ingress aggregate interfaces and 1 egress aggregate interface.
 
                          |         | --eBGP-- | ATE Ports 3,4 |
     [ ATE Ports 1,2 ]----|   DUT   |          |               |
@@ -25,6 +25,7 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 * Egress Ports: Port-Channel1
     * Traffic is forwarded (egress) on Port-Channel1 (ATE Ports 1,2) .
 
+### PF-1.5.1 Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
 #### Port-Channel1 is the egress port having following configuration:
@@ -95,8 +96,7 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 * Multicast traffic must be decapsulated and sent out with L2 header based on the multicast payload address.
 
-
-## PF-1.5.1: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload
+## PF-1.5.2: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -120,7 +120,7 @@ Verify:
 * Remove and add IPV6 configs and verify that there is no impact on IPV4 traffic
 
 
-## PF-1.5.2: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
+## PF-1.5.3: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -142,7 +142,7 @@ Verify:
 * Header fields are as expected without any bit flips
 * Verify that multicast L2 rewrite/egress headers are correct based on the multicast payload IPV4 destination address 
 
-## PF-1.5.3: Verify MPLSoGRE DSCP/TTL preserve operation 
+## PF-1.5.4: Verify MPLSoGRE DSCP/TTL preserve operation 
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -162,7 +162,7 @@ Verify:
 * Header fields are as expected without any bit flips
 * Inner payload DSCP and TTL values are not altered by the device
 
-## PF-1.5.4: Verify IPV4/IPV6 nexthop resolution of decap traffic
+## PF-1.5.5: Verify IPV4/IPV6 nexthop resolution of decap traffic
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -179,7 +179,7 @@ Verify:
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
 
-## PF-1.5.5: Verify IPV4/IPV6 traffic scale 
+## PF-1.5.6: Verify IPV4/IPV6 traffic scale 
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -207,48 +207,47 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ### JSON Format
 ```json
+"network-instances": {
+  "network-instance": {
+    "DEFAULT": {
        "name": "default",
-        "policy-forwarding": {
+       "policy-forwarding": {
+         "policies": {
+           "policy": [
               {
                 "config": {
-                  "policy-id": "pf-decap-range"
+                  "policy-id": "decap MPLS in GRE"
                 },
-                "entry-groups": {
-                  "entry-group": [
+                "rules": {
+                  "rule": [
                     {
-                      "action": {
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "ipv4": {
                         "config": {
-                          "decapsulate-gre": true
+                          "destination-address": "169.254.125.155/32",
+                          "protocol": "IP"
+                        },
+                        }
+                    },
+                    "action": {
+                        "decapsulate-gre": true
                         }
                       },
-                      "config": {
-                        "group-id": 0
-                      },
-                      "group-id": 0,
-                      "matches": {
-                        "match": [
-                          {
-                            "config": {
-                              "sequence-id": 0
-                            },
-                            "ipv4": {
-                              "config": {
-                                "destination-address": "10.1.157.160/28"
-                              }
-                            },
-                            "sequence-id": 0
-                          }
-                        ]
-                      }
+                      "sequence-id": 1
                     }
                   ]
                 },
-                "policy-id": "pf-decap-range"
               }
-        }
-
-          "mpls": {
-          "global": {
+           ]
+         }
+       }
+    }
+  }
+}
+"mpls": {
+  "global": {
             "interface-attributes": {
               "interface": [
                 {
@@ -273,56 +272,10 @@ TODO: Finalize and update the below paths after the review and testing on any ve
                       "incoming-label": 40571,
                       "next-hop": "169.254.1.138",
                       "payload-type": "IPV4"
-                    }
-                  },
-                  "name": "LA_POP 169.254.1.138 in:40571 out:pop"
-                },
-                {
-                  "config": {
-                    "name": "LA_POP 169.254.100.138 in:40422 out:pop"
-                  },
-                  "egress": {
-                    "config": {
-                      "incoming-label": 40422,
-                      "next-hop": "169.254.100.138",
-                      "payload-type": "IPV4"
-                    }
-                  },
-                  "name": "LA_POP 169.254.100.138 in:40422 out:pop"
-                },
-                                {
-                  "config": {
-                    "name": "LA_POP 2600:2d00:0:1:4000:15:7d:e1ba in:69128 out:pop"
-                  },
-                  "egress": {
-                    "config": {
-                      "incoming-label": 69128,
-                      "next-hop": "2600:2d00:0:1:4000:15:7d:e1ba",
-                      "payload-type": "IPV6"
-                    }
-                  },
-                  "name": "LA_POP 2600:2d00:0:1:4000:15:7d:e1ba in:69128 out:pop"
-                },
-                {
-                  "config": {
-                    "name": "LA_POP 2600:2d00:0:1:4000:15:7d:e20a in:69775 out:pop"
-                  },
-                  "egress": {
-                    "config": {
-                      "incoming-label": 69775,
-                      "next-hop": "2600:2d00:0:1:4000:15:7d:e20a",
-                      "payload-type": "IPV6"
-                    }
-                  },
-                  "name": "LA_POP 2600:2d00:0:1:4000:15:7d:e20a in:69775 out:pop"
-                },
-              ]
-            }
-          }
-        },
+}
 ```
 
-## OpenConfig Path and RPC Coverage
+## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
 
 ```yaml
 paths:
