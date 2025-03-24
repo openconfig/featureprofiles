@@ -735,6 +735,9 @@ message Metadata {
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
+    // Devices that do not support GRE/GUE tunnel interface oc.
+    // Juniper b/398171114
+    bool gre_gue_tunnel_interface_oc_unsupported = 262;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
