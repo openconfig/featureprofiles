@@ -128,6 +128,8 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 	leader := args.leader
 	follower := args.follower
 
+	t.Logf("Program gribi entries & p4rt, verify traffic and metadata values")
+
 	if isIPv4 {
 		// Insert p4rtutils acl entry on the DUT
 		if err := programmTableEntry(leader, args.packetIO, false, isIPv4, deviceId); err != nil {
@@ -723,6 +725,8 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 	leader := args.leader
 	follower := args.follower
 
+	t.Logf("Program gribi entries & p4rt, verify traffic and metadata values")
+
 	if prog == 5 {
 		if isIPv4 {
 			// Insert p4rtutils acl entry on the DUT
@@ -763,10 +767,8 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 	}
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries, verify ping, traceroute triggers & ttl")
 
 	dut := ondatra.DUT(t, "dut")
-	//ctx = context.Background()
 	baseconfig(t)
 
 	// Configure the gRIBI client
@@ -1138,19 +1140,10 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 							}
 
 							if wantPacket.TTL != nil {
-								//TTL/HopLimit comparison for IPV4 & IPV6
-								//if isIPv4 {
 								captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
 								if captureTTL != TTL1 {
 									t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
 								}
-
-								// } else {
-								// 	captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
-								// 	if captureHopLimit != HopLimit1 {
-								// 		t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")
-								// 	}
-								// }
 							}
 
 							//Metadata comparision
@@ -1205,10 +1198,11 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 
 }
 
-func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, isIPv4, encap bool, flap, te string, deviceSet bool, srcport string, opts ...*TOptions) {
+func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, isIPv4, encap bool, flap, te string, deviceSet bool, srcport string, opts ...*TOptions) {
 
 	leader := args.leader
 	follower := args.follower
+	t.Logf("Program gribi entries & p4rt, verify traffic and metadata values")
 
 	if isIPv4 {
 		programmTableEntry(leader, args.packetIO, true, isIPv4, deviceId)
@@ -1248,8 +1242,6 @@ func testWithregionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	}
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries, verify ping, traceroute triggers & ttl")
-
 	dut := ondatra.DUT(t, "dut")
 	baseconfig(t)
 
