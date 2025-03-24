@@ -25,7 +25,7 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 * Egress Ports: Port-Channel1
     * Traffic is forwarded (egress) on Port-Channel1 (ATE Ports 1,2) .
 
-### PF-1.5.1 Generate config for MPLS in GRE decap and push to DUT
+## PF-1.5.1 Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
 #### Port-Channel1 is the egress port having following configuration:
