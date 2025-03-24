@@ -1311,7 +1311,7 @@ func StaticLspConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticLspUnsupported()
 }
 
-// Devices needs route policy reference to stream prefix set info.
+// BgpPrefixsetReqRoutepolRef returns true if devices needs route policy reference to stream prefix set info.
 func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
 }
@@ -1344,4 +1344,9 @@ func SrIgpConfigUnsupported(dut *ondatra.DUTDevice) bool {
 // SetISISAuthWithInterfaceAuthenticationContainer returns true if Isis Authentication is blocked for one level specific config for P2P links, and the corresponding hello-authentication leafs can be set with ISIS Interface/Authentication container.
 func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSetIsisAuthWithInterfaceAuthenticationContainer()
+}
+
+// GreGueTunnelInterfaceOcUnsupported returns true if GRE/GUE tunnel interface oc is unsupported
+func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
 }
