@@ -289,9 +289,9 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                 }
               },
               {
-                "community-set-name": "Comm_100_6",
+                "community-set-name": "Comm_100_3",
                 "config": {
-                  "community-set-name": "Comm_100_6",
+                  "community-set-name": "Comm_100_3",
                   "community-member": [
                     "100:6"
                   ]
