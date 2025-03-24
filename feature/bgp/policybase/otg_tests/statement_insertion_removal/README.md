@@ -293,7 +293,16 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                 "config": {
                   "community-set-name": "Comm_100_3",
                   "community-member": [
-                    "100:6"
+                    "100:3"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_5",
+                "config": {
+                  "community-set-name": "Comm_100_5",
+                  "community-member": [
+                    "100:5"
                   ]
                 }
               },
@@ -307,23 +316,14 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                 }
               },
               {
-                "community-set-name": "Comm_100_8",
+                "community-set-name": "Comm_100_9",
                 "config": {
-                  "community-set-name": "Comm_100_8",
+                  "community-set-name": "Comm_100_9",
                   "community-member": [
-                    "100:8"
+                    "100:9"
                   ]
                 }
               },
-              {
-                "community-set-name": "Comm_100_10",
-                "config": {
-                  "community-set-name": "Comm_100_10",
-                  "community-member": [
-                    "100:10"
-                  ]
-                }
-              }
             ]
           }
         }
@@ -380,15 +380,36 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                   }
                 },
                 {
-                  "name": "Stmnt_6",
+                  "name": "Stmnt_3",
                   "openconfig-routing-policy:config": {
-                    "name": "Stmnt_6"
+                    "name": "Stmnt_3"
                   },
                   "openconfig-routing-policy:conditions": {
                     "openconfig-bgp-policy:bgp-conditions": {
                       "match-community-set": {
                         "config": {
-                          "community-set": "Comm_100_6",
+                          "community-set": "Comm_100_3",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_5",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_5"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_5",
                           "match-set-options": "ANY"
                         }
                       }
@@ -422,15 +443,15 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                   }
                 },
                 {
-                  "name": "Stmnt_8",
+                  "name": "Stmnt_9",
                   "openconfig-routing-policy:config": {
-                    "name": "Stmnt_8"
+                    "name": "Stmnt_9"
                   },
                   "openconfig-routing-policy:conditions": {
                     "openconfig-bgp-policy:bgp-conditions": {
                       "match-community-set": {
                         "config": {
-                          "community-set": "Comm_100_8",
+                          "community-set": "Comm_100_9",
                           "match-set-options": "ANY"
                         }
                       }
@@ -442,21 +463,6 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                     }
                   }
                 },
-                {
-                  "name": "Stmnt_10",
-                  "openconfig-routing-policy:config": {
-                    "name": "Stmnt_10"
-                  },
-                  "openconfig-routing-policy:conditions": {
-                    "openconfig-bgp-policy:bgp-conditions": {
-                      "match-community-set": {
-                        "config": {
-                          "community-set": "Comm_100_10",
-                          "match-set-options": "ANY"
-                        }
-                      }
-                    }
-                  },
                   "openconfig-routing-policy:actions": {
                     "config": {
                       "policy-result": "NEXT_STATEMENT"
@@ -513,11 +519,11 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                 }
               },
               {
-                "community-set-name": "Comm_100_6",
+                "community-set-name": "Comm_100_3",
                 "config": {
-                  "community-set-name": "Comm_100_6",
+                  "community-set-name": "Comm_100_3",
                   "community-member": [
-                    "100:6"
+                    "100:3"
                   ]
                 }
               },
@@ -531,23 +537,14 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                 }
               },
               {
-                "community-set-name": "Comm_100_8",
+                "community-set-name": "Comm_100_9",
                 "config": {
-                  "community-set-name": "Comm_100_8",
+                  "community-set-name": "Comm_100_9",
                   "community-member": [
-                    "100:8"
+                    "100:9"
                   ]
                 }
               },
-              {
-                "community-set-name": "Comm_100_10",
-                "config": {
-                  "community-set-name": "Comm_100_10",
-                  "community-member": [
-                    "100:10"
-                  ]
-                }
-              }
             ]
           }
         }
@@ -604,15 +601,15 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                   }
                 },
                 {
-                  "name": "Stmnt_6",
+                  "name": "Stmnt_3",
                   "openconfig-routing-policy:config": {
-                    "name": "Stmnt_6"
+                    "name": "Stmnt_3"
                   },
                   "openconfig-routing-policy:conditions": {
                     "openconfig-bgp-policy:bgp-conditions": {
                       "match-community-set": {
                         "config": {
-                          "community-set": "Comm_100_6",
+                          "community-set": "Comm_100_3",
                           "match-set-options": "ANY"
                         }
                       }
@@ -646,15 +643,15 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                   }
                 },
                 {
-                  "name": "Stmnt_8",
+                  "name": "Stmnt_9",
                   "openconfig-routing-policy:config": {
-                    "name": "Stmnt_8"
+                    "name": "Stmnt_9"
                   },
                   "openconfig-routing-policy:conditions": {
                     "openconfig-bgp-policy:bgp-conditions": {
                       "match-community-set": {
                         "config": {
-                          "community-set": "Comm_100_8",
+                          "community-set": "Comm_100_9",
                           "match-set-options": "ANY"
                         }
                       }
@@ -666,21 +663,6 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
                     }
                   }
                 },
-                {
-                  "name": "Stmnt_10",
-                  "openconfig-routing-policy:config": {
-                    "name": "Stmnt_10"
-                  },
-                  "openconfig-routing-policy:conditions": {
-                    "openconfig-bgp-policy:bgp-conditions": {
-                      "match-community-set": {
-                        "config": {
-                          "community-set": "Comm_100_10",
-                          "match-set-options": "ANY"
-                        }
-                      }
-                    }
-                  },
                   "openconfig-routing-policy:actions": {
                     "config": {
                       "policy-result": "NEXT_STATEMENT"
@@ -705,11 +687,10 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
       }
     }
   }
-  ```
   * Verify that DUT accepted configuration without errors.
   * Retrive  "test-policy" from device using subscribeRequest once for  `/routing-policy/policy-definitions/policy-definition[name="test-policy"]/*`. Compare with policy configured above.
 
-* RT-7.10.3 Policy statement re-insertion
+* RT-7.10.4 Policy statement re-insertion
   * Configure policy "test-policy" and apply using setRequest Replace at `openconfig/routing-policy/`
   ```
   {
