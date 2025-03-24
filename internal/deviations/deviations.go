@@ -1337,3 +1337,9 @@ func SkipOpticalChannelOutputPowerInterval(dut *ondatra.DUTDevice) bool {
 func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTransceiverDescription()
 }
+
+// MatchLinkBandwidthRegexDiffPrefix returns true if the "link-bandwidth:" is
+// not used for matching the prefix extended community.
+func MatchLinkBandwidthRegexDiffPrefix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchLinkBandwidthRegexDiffPrefix()
+}
