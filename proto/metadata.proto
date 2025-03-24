@@ -736,6 +736,10 @@ message Metadata {
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
 
+    // Juniper: b/405071175
+    // Devices which needs defined set to avoid exporting direct routes with default accept all.
+    bool default_policy_requires_bgp_match = 262;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
   }
