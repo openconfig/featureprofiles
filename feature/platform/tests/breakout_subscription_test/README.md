@@ -39,17 +39,21 @@ OnChange Subscription Test for Breakout Interfaces
 
 paths:
  ## State paths: SubscriptionMode: ON_CHANGE ##
-  /interfaces/interface/state/admin-status:
-  /lacp/interfaces/interface/members/member/interface:
-  /interfaces/interface/ethernet/state/mac-address:
-  /interfaces/interface/state/hardware-port:
   /interfaces/interface/state/id:
+  /interfaces/interface/state/hardware-port:
+  /interfaces/interface/state/admin-status:
   /interfaces/interface/state/oper-status:
-  /interfaces/interface/ethernet/state/port-speed:
-  /components/component/integrated-circuit/state/node-id:
-  /components/component/state/parent:
-  /components/component/state/oper-status:
   /interfaces/interface/state/forwarding-viable:
+  /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/ethernet/state/mac-address:
+  /lacp/interfaces/interface/members/member/interface:
+  /components/component/integrated-circuit/state/node-id:
+   platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/state/parent:
+   platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/state/oper-status:
+   platform_type: [ "INTEGRATED_CIRCUIT" ]
+
 
 rpcs:
   gnmi:
