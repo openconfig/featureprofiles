@@ -308,9 +308,9 @@ func flapOTGInterface(t *testing.T,
 	}
 
 	tsState := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Port(p1.ID()).LastChange().State())
-	_, isPresent := tsState.Val()
+	lastChange , isPresent := tsState.Val()
 	if isPresent {
-		otgStateChangeTsUint64 = gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(p1.ID()).LastChange().State())
+		otgStateChangeTsUint64 = lastChange
 	}
 
 	// convert string type change to time.time
