@@ -1,8 +1,8 @@
-# PLT-1.2: OnChange Subscribtion Test for Breakout Interfaces
+# PLT-1.2: OnChange Subscription Test for Breakout Interfaces
 
 ## Summary
 
-OnChange Subscribtion Test for Breakout Interfaces
+OnChange Subscription Test for Breakout Interfaces
 
 ## Testbed type
 
@@ -12,7 +12,7 @@ OnChange Subscribtion Test for Breakout Interfaces
 
 * Connect ATE port-1 to DUT port-1, and ATE port-2 connected to DUT port-2.
 * Configure lacp between DUT with DUT ports 1 and 2 and ATE with ATE ports 1 and 2 as member interfaces.
-* Send a single `SubscribeRequest` message to the DUT member ports with a SubcriptionList and SubscriptionMode as ONCHANGE for the paths covered in telemetry coverage.
+* Send a single `SubscribeRequest` message to the DUT member ports with a SubscriptionList and SubscriptionMode as ONCHANGE for the paths covered in telemetry coverage.
 
 ### Check response after a triggered interface state change
 
