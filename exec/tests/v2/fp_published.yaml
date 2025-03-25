@@ -467,13 +467,38 @@ tests:
     pr: 1150
     internal: true
     groups: [ancx]
-  - name: OC-1.1 (System Configuration)
-    path: feature/system/tests/system_base_test
+  - name: System-1.1 (System Banner Test)
+    path: feature/system/system_base_test/tests/system_banner_test
     owners:
-      - agvarghe
+      - fmolina
+      - hammadkh
     mustpass: true
-    pr: 3756
-    priority: 46
+    pr: 1468
+    priority: 0
+    groups: [ancx]
+  - name: System-1.2 (System g protocol test)
+    path: feature/system/system_base_test/tests/system_g_protocol_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
+    groups: [ancx]
+  - name: System-1.3 (System hostname test)
+    path: feature/system/system_base_test/tests/hostname_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
+    groups: [ancx]
+  - name: System-1.4 (System time test)
+    path: feature/system/system_base_test/tests/system_time_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
     groups: [ancx]
   - name: MTU-1.3 (Large IP Packet Transmission)
     path: feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission
