@@ -273,6 +273,8 @@ func flapOTGInterface(t *testing.T,
 	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
 	portStateAction := gosnappi.NewControlState()
 
+	var otgStateChangeTsUint64 uint64
+
 	// TC2 Step 1 Read timestamp of last oper-status change  form DUT port-1
 	preStateTSSTR := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 	DutLastChangeTS1 := time.Unix(0, int64(preStateTSSTR)).UTC().Format(time.RFC3339Nano)
@@ -305,6 +307,12 @@ func flapOTGInterface(t *testing.T,
 		t.Logf("Interface %s status got %v, want %v", aggID, DutLastChangeOper2, expectedStatus.String())
 	}
 
+	tsState := gnmi.Lookup(t, ate.OTG(), gnmi.OTG().Port(p1.ID()).LastChange().State())
+	lastChange , isPresent := tsState.Val()
+	if isPresent {
+		otgStateChangeTsUint64 = lastChange
+	}
+
 	// convert string type change to time.time
 	otgStateChangeTs, err := time.Parse(time.RFC3339Nano, otgStateChangeTsStr)
 	if err != nil {
@@ -322,6 +330,10 @@ func flapOTGInterface(t *testing.T,
 		t.Fatalf("Before Trigger Last Change was %v after trigger Last Change was %v", DutLastChangeTS1, DutLastChangeTS2STR)
 	} else {
 		t.Logf("Before Trigger Last Change was %v after trigger Last Change was %v", DutLastChangeTS1, DutLastChangeTS2STR)
+	}
+
+	if otgStateChangeTsUint64 != 0 {
+		otgStateChangeTs = time.Unix(0, int64(otgStateChangeTsUint64))
 	}
 
 	// convert to time objects
@@ -642,6 +654,9 @@ func TestTC5ShortDOWN(t *testing.T) {
 			t.Fatalf(logMessage, change1LastChangeTime, change1.OperStatus, t1, change2LastChangeTime, change2.OperStatus)
 		}
 	})
+
+	// WAIT TILL DUT INTERFACES ARE UP
+	time.Sleep(time.Second * 5)
 
 	t.Run("Verify port status UP", func(t *testing.T) {
 		t.Log("re-verify that the interface state is still up")
