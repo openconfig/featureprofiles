@@ -357,10 +357,12 @@ func verifyBGPAsPath(t *testing.T, otg *otg.OTG, config gosnappi.Config, asSeg [
 			t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 		}
 		for _, prefix := range bgpPrefixes {
+			prefixAsSegments := []uint32{}
 			for _, gotASSeg := range prefix.AsPath {
-				if ok := cmp.Diff(gotASSeg.AsNumbers, wantASSeg); ok != "" {
-					t.Errorf("Remove private AS is not working: gotAsSeg %v wantAsSeg %v for Prefix %v", gotASSeg, wantASSeg, prefix.GetAddress())
-				}
+				prefixAsSegments = append(prefixAsSegments, gotASSeg.AsNumbers...)
+			}
+			if ok := cmp.Diff(prefixAsSegments, wantASSeg); ok != "" {
+				t.Errorf("Remove private AS is not working: prefixAsSegments %v wantAsSeg %v for Prefix %v", prefixAsSegments, wantASSeg, prefix.GetAddress())
 			}
 		}
 	}
