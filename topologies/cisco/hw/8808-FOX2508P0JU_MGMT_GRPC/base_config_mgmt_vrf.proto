@@ -84,6 +84,7 @@ ascii_val:
     "!\n"
     "cef proactive-arp-nd enable\n"
     "ssh server v2\n"
+    "ssh server session-limit 150\n"
     "ssh server vrf mgmt\n"
     "ssh server netconf vrf default\n"
 "hw-module profile pbr vrf-redirect\n"
