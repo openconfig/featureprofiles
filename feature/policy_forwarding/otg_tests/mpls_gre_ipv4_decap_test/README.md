@@ -116,11 +116,14 @@ Verify:
   * Based on outer payload
   * Based on inner and outer payload
 * Header fields are as expected without any bit flips
-* Remove and add IPV4 configs and verify that there is no impact on IPV6 traffic
-* Remove and add IPV6 configs and verify that there is no impact on IPV4 traffic
+
+## PF-1.5.3: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
+Send traffic as in PF-1.5.2
+* Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
+* Remove and add IPV6 interface VLAN configs and verify that there is no IPV4 traffic loss
 
 
-## PF-1.5.3: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
+## PF-1.5.4: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -132,7 +135,6 @@ Generate traffic on ATE Ports 3,4,5,6 having:
 Verify:
 
 * Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * All traffic received on Port-Channel2 and Port-Channel3 gets decapsulated and forwarded as multicast traffic on the respective egress interfaces under Port-Channel1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 * Traffic equally load-balanced across member links of the port channel
@@ -142,9 +144,11 @@ Verify:
 * Header fields are as expected without any bit flips
 * Verify that multicast L2 rewrite/egress headers are correct based on the multicast payload IPV4 destination address 
 
-## PF-1.5.4: Verify MPLSoGRE DSCP/TTL preserve operation 
+NOTE: There must be no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
+
+## PF-1.5.5: Verify MPLSoGRE DSCP/TTL preserve operation 
 Generate traffic on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses
+* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGRE header
 * Inner payload with all possible DSCP range 0-56 : 
@@ -155,15 +159,17 @@ Generate traffic on ATE Ports 3,4,5,6 having:
 Verify:
 
 * Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * All traffic received on Port-Channel2 and Port-Channel3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Port-Channel1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 * Traffic equally load-balanced across member links of the port channel
 * Header fields are as expected without any bit flips
 * Inner payload DSCP and TTL values are not altered by the device
 
-## PF-1.5.5: Verify IPV4/IPV6 nexthop resolution of decap traffic
-Generate traffic on ATE Ports 3,4,5,6 having:
+NOTE: There must be no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
+
+
+## PF-1.5.6: Verify IPV4/IPV6 nexthop resolution of decap traffic
+Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGRE header
@@ -175,11 +181,12 @@ Generate traffic on ATE Ports 3,4,5,6 having:
 
 Verify:
 
-* Device must resolve the ARP and IPV6 neighbors upon receiving traffic
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
+NOTE: Device must resolve the ARP and IPV6 neighbors upon receiving traffic
 
-## PF-1.5.6: Verify IPV4/IPV6 traffic scale 
+
+## PF-1.5.7: Verify IPV4/IPV6 traffic scale 
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -202,10 +209,8 @@ Verify:
 * Entire static label range is usable and functional by sending traffic across the entire label range
 
 
-## OpenConfig Path Coverage
-TODO: Finalize and update the below paths after the review and testing on any vendor device.
 
-### JSON Format
+## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
 ```json
 "network-instances": {
   "network-instance": {
@@ -275,19 +280,20 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 }
 ```
 
-## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
+## OpenConfig Path Coverage
+TODO: Finalize and update the below paths after the review and testing on any vendor device.
 
 ```yaml
 paths:
-    # Telemetry for GRE decap rule    
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+  # Telemetry for GRE decap rule    
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
     
-    # Config paths for GRE decap
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
+  # Config paths for GRE decap
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
 
-interfaces/interface/state/counters/in-discards
-interfaces/interface/state/counters/in-errors
+  /interfaces/interface/state/counters/in-discards:
+  interfaces/interface/state/counters/in-errors
 interfaces/interface/state/counters/in-multicast-pkts
 interfaces/interface/state/counters/in-pkts
 interfaces/interface/state/counters/in-unicast-pkts
