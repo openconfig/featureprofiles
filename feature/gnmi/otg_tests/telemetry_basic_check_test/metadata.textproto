@@ -39,14 +39,6 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    qos_dropped_octets: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: ARISTA
     hardware_model_regex: "DCS-78.*|ceos"
   }
