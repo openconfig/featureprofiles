@@ -2351,7 +2351,7 @@ func testPacketOutEgressWithChangeMetadata(ctx context.Context, t *testing.T, ar
 func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	resp := config.CMDViaGNMI(context.Background(), t, args.dut, "show version")
-	t.Logf(resp)
+	t.Log(resp)
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -2419,9 +2419,9 @@ func testPacketOutIngressWithInterfaceFlap(ctx context.Context, t *testing.T, ar
 func testPacketOutEgressWithInterfaceFlap(ctx context.Context, t *testing.T, args *testArgs) {
 	client := args.p4rtClientA
 	resp := config.CMDViaGNMI(context.Background(), t, args.dut, "show version")
-	t.Logf(resp)
+	t.Log(resp)
 	if strings.Contains(resp, "VXR") {
-		t.Logf("Skipping since platfrom is VXR")
+		t.Log("Skipping since platfrom is VXR")
 		t.Skip()
 	}
 	// Program the entry

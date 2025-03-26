@@ -151,6 +151,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 		return
 	}
 
+	time.Sleep(15 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
