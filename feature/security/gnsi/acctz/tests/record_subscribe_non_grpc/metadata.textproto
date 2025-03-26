@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "036d3d49-00dd-46ff-abe6-afc20768db6f"
+plan_id:  "ACCTZ-3.1"
+description:  "Record Subscribe Non-gRPC"
+testbed:  TESTBED_DUT
