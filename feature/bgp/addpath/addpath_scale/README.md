@@ -13,27 +13,13 @@ BGP ADDPATH TEST WITH SCALE
 
 ## Topology
 
-### Source port for sending traffic
-
-* DUT Port1  --- IP Connectivity --- ATE Port1
-
-### 100 v4EBGP peers
-
-* DUT Port2 (AS 65001) --- eBGPv4 --- ATE Port1 (AS 65101) VLAN1
-* DUT Port2 (AS 65001) --- eBGPv4 --- ATE Port1 (AS 65102) VLAN2
-.
-.
-* DUT Port2 (AS 65001) --- eBGPv4 --- ATE Port1 (AS 65201) VLAN100
-
-### 50 v6EBGP peers
-
-* DUT Port3 (AS 65001) --- eBGPv6 --- ATE Port1 (AS 65301) VLAN201
-* DUT Port3 (AS 65001) --- eBGPv6 --- ATE Port1 (AS 65302).VLAN202
-.
-.
-* DUT Port3 (AS 65001) --- eBGPv6 --- ATE Port1 (AS 65351) VLAN250
-
-* DUT Port4 (AS 65001) --- eBGPv6 --- ATE Port1 (AS 65401)
+```mermaid
+graph LR;
+A[ATE PORT1] <-- IPv4-IPv6 --> B[DUT PORT1];
+C[ATE:PORT2] <-- 100 eBGP Peers--> D[DUT PORT2 VLAN1 to VLAN 100];
+E[ATE:PORT3] <-- 50 eBGP Peers--> F[DUT PORT2 VLAN201 to VLAN 250];
+G[ATE:PORT4] <-- eBGP --> H[PORT4:DUT];
+```
 
 ## Procedure
 
