@@ -13,7 +13,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     mismatched_hardware_resource_name_in_component: true
-    missing_hardware_resource_telemetry_before_config: true
   }
 }
 platform_exceptions: {

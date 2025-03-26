@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "4e642f03-c35e-4780-a885-2e44563eef17"
+plan_id:  "System-1.3"
+description:  "System hostname test"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    cli_takes_precedence_over_oc:  true
+  }
+}

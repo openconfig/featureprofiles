@@ -307,7 +307,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "Health-1.1"
+  id: "Health-1.2"
   description: "Healthz component status paths"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
   exec: " "
@@ -334,6 +334,12 @@ test: {
   id: "MTU-1.3"
   description: "Large IP Packet Transmission"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission"
+  exec: " "
+}
+test: {
+  id: "MTU-1.4"
+  description: "Large IP Packet through GRE/GUE tunnel Transmission"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/largeippacket/otg_tests/large_ip_packet_gre_gue_tunnel_transmission"
   exec: " "
 }
 test: {
@@ -393,6 +399,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetout_test/README.md"
 }
 test: {
+  id: "P4RT-5.3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_with_vrf_selection_test/README.md"
+}
+test: {
   id: "P4RT-6.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/performance_test/README.md"
 }
@@ -447,9 +457,38 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.8"
+  description: "Ingress handling of the TTL, for all ingress packets decrement TTL , and for TTL=1 generate ICMP time exceeded message"
+  readme: " "
+  exec: " "
+}test: {
+  id: "PF-1.9"
+  description: "Egress handling of the TTL, all egress packets should have their TTL decremented,egress packets with TTL=1 should generate ICMP time exceeded to source"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.10"
+  description: "DSCP Egress handling, all egress packets IP, IPoGRE, IPoMPLSoGRE and IPoGUE, IPoMPLSoGUE should have their DSCP values re-written to 0x0 via egress QOS policy (or equivalent)"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.11"
+  description: "Rewrite the ingress innner packet TTL"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
+  exec: " "
+}
+test: {
+  id: "PLT-1.2"
+  description: "Interface parent component Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/interface_parent_component/README.md"
   exec: " "
 }
 test: {
@@ -918,6 +957,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.11"
+  description: "Interface LACP Intervals"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_interval_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.12"
+  description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/tests/core_lldp_tlv_population_test/README.md"
@@ -984,6 +1035,12 @@ test: {
   id: "RT-7.9"
   description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
   readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.10"
+  description: "Routing policy statement insertion and removal"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/statement_insertion_removal/README.md"
   exec: " "
 }
 test: {
@@ -1059,9 +1116,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-14.1"
-  description: "gRIBI Scaling"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/gribi_scaling/README.md"
+  id: "TE-14.2"
+  description: "gRIBI encap and decap scale"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_decap_scale/README.md"
   exec: " "
 }
 test: {
@@ -1669,6 +1726,11 @@ test: {
   id: "gNMI-1.22"
   description: "Controller card port attributes"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/port/README.md"
+}
+test: {
+  id: "gNMI-1.23"
+  description: "Telemetry: Aggregate Interface Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/aggregate_interface_counters_test/README.md"
 }
 test: {
   id: "gNMI-1.4"
