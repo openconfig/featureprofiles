@@ -205,6 +205,5 @@ rpcs:
       union_replace: true
 ```
 ## Minimum DUT platform requirement
-* MFF 
 * FFF 
 
