@@ -1035,6 +1035,350 @@ This test verify correctness of gNMI setReques REPLACE operation for routing pol
   * Retrive  "test-policy" from device using subscribeRequest once for  `/routing-policy/policy-definitions/policy-definition[name="test-policy"]/*`. Compare with policy configured above.
 
 
+* RT-7.10.5 Edit Policy statement 
+  * Configure policy "test-policy" and apply using setRequest Replace at `openconfig/routing-policy/`
+  ```
+  {
+    "openconfig-routing-policy:routing-policy": {
+      "defined-sets": {
+        "openconfig-bgp-policy:bgp-defined-sets": {
+          "community-sets": {
+            "community-set": [
+              {
+                "community-set-name": "Comm_100_11",
+                "config": {
+                  "community-set-name": "Comm_100_11",
+                  "community-member": [
+                    "100:11"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_2",
+                "config": {
+                  "community-set-name": "Comm_100_2",
+                  "community-member": [
+                    "100:2"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_3",
+                "config": {
+                  "community-set-name": "Comm_100_3",
+                  "community-member": [
+                    "100:3"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_4",
+                "config": {
+                  "community-set-name": "Comm_100_4",
+                  "community-member": [
+                    "100:4"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_5",
+                "config": {
+                  "community-set-name": "Comm_100_5",
+                  "community-member": [
+                    "100:5"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_6",
+                "config": {
+                  "community-set-name": "Comm_100_6",
+                  "community-member": [
+                    "100:6"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_7",
+                "config": {
+                  "community-set-name": "Comm_100_7",
+                  "community-member": [
+                    "100:7"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_8",
+                "config": {
+                  "community-set-name": "Comm_100_8",
+                  "community-member": [
+                    "100:8"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_9",
+                "config": {
+                  "community-set-name": "Comm_100_9",
+                  "community-member": [
+                    "100:9"
+                  ]
+                }
+              },
+              {
+                "community-set-name": "Comm_100_10",
+                "config": {
+                  "community-set-name": "Comm_100_10",
+                  "community-member": [
+                    "100:10"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "policy-definitions": {
+        "policy-definition": [
+          {
+            "name": "test-policy",
+            "config": {
+              "name": "test-policy"
+            },
+            "statements": {
+              "statement": [
+                {
+                  "name": "Stmnt_1",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_1"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_11",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_2",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_2"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_2",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_3",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_3"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_3",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_4",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_4"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_4",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_5",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_5"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_5",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_6",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_6"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_6",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_7",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_7"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_7",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_8",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_8"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_8",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_9",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_9"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_9",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_10",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_10"
+                  },
+                  "openconfig-routing-policy:conditions": {
+                    "openconfig-bgp-policy:bgp-conditions": {
+                      "match-community-set": {
+                        "config": {
+                          "community-set": "Comm_100_10",
+                          "match-set-options": "ANY"
+                        }
+                      }
+                    }
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "NEXT_STATEMENT"
+                    }
+                  }
+                },
+                {
+                  "name": "Stmnt_Last",
+                  "openconfig-routing-policy:config": {
+                    "name": "Stmnt_Last"
+                  },
+                  "openconfig-routing-policy:actions": {
+                    "config": {
+                      "policy-result": "ACCEPT_ROUTE"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+  ```
+  * Verify that DUT accepted configuration without errors.
+  * Retrive  "test-policy" from device using subscribeRequest once for  `/routing-policy/policy-definitions/policy-definition[name="test-policy"]/*`. Compare with policy configured above.
+
 ## Config Parameter Coverage
 
 ### Policy definition
