@@ -54,9 +54,11 @@ const (
 	v6Flow          = "v6Flow"
 	trafficDuration = 30 * time.Second
 	prefixMatch     = "exact"
+	v4tagSet        = "tag-set-v4"
 	v4RoutePolicy   = "route-policy-v4"
 	v4Statement     = "statement-v4"
 	v4PrefixSet     = "prefix-set-v4"
+	v6tagSet        = "tag-set-v6"
 	v6RoutePolicy   = "route-policy-v6"
 	v6Statement     = "statement-v6"
 	v6PrefixSet     = "prefix-set-v6"
@@ -249,7 +251,6 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		if err != nil {
 			return nil, err
 		}
-		v4tagSet := getTagSetName(dut, rplName, v4Statement, "v4")
 		tagSet1 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v4tagSet)
 		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
 		stmt1.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v4tagSet)
@@ -259,7 +260,6 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		if err != nil {
 			return nil, err
 		}
-		v6tagSet := getTagSetName(dut, rplName, v6Statement, "v6")
 		tagSet2 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v6tagSet)
 		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
 		stmt2.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v6tagSet)
@@ -380,13 +380,6 @@ func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string, ta
 	} else {
 		t.Logf("Passed Found tag-set name got %s wanted %s", tagNameState, tagSetName)
 	}
-}
-
-func getTagSetName(dut *ondatra.DUTDevice, policyName, stmtName, afStr string) string {
-	if deviations.RoutingPolicyTagSetEmbedded(dut) {
-		return fmt.Sprintf("%s %s", policyName, stmtName)
-	}
-	return fmt.Sprintf("tag-set-%s", afStr)
 }
 
 func verifyPrefix(t *testing.T, ts *isissession.TestSession, shouldBePresent bool) {
@@ -665,13 +658,12 @@ func TestStaticToISISRedistribution(t *testing.T) {
 			})
 
 			if tc.TagSetCondition {
-				if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
-					t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
-						verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v4Statement, "v4"), oc.UnionUint32(tagValue))
-						verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v6Statement, "v6"), oc.UnionUint32(tagValue))
-					})
-				}
+				t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
+					verifyRplConfig(t, ts.DUT, v4tagSet, oc.UnionUint32(V4tagValue))
+					verifyRplConfig(t, ts.DUT, v6tagSet, oc.UnionUint32(V6tagValue))
+				})
 			}
+      
 			t.Run(fmt.Sprintf("Attach RPL %v Type %v to ISIS %v", tc.RplName, tc.policyStmtType.String(), dni), func(t *testing.T) {
 				isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
 			})

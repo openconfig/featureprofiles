@@ -1,4 +1,4 @@
-# TE-18.1 gRIBI MPLS in UDP Encapsulation
+# TE-18.1: gRIBI MPLS in UDP Encapsulation
 
 Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate the matching packets in MPLS in UDP with outer header as IPv6 Header.
@@ -181,7 +181,6 @@ encapsulate in GRE.
 * Configure ATE port 1 with traffic flow which does not match any AFT next hop route
 * Generate traffic from ATE port 1 to ATE port 2
 * Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
-
 
 ## OpenConfig Path and RPC Coverage
 
