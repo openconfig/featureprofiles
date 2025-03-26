@@ -459,7 +459,6 @@ tests:
     mustpass: true
     pr: 3756
     priority: 46
-    pr: 3756
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
     owners:
