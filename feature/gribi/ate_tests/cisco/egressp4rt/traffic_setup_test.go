@@ -142,65 +142,12 @@ func (a *attributes) ConfigureSubATE(t *testing.T, top *ondatra.ATETopology, ate
 	}
 }
 
-// // addAteISISL2 configures ISIS L2 ATE config
-// func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, count uint32) {
-// 	t.Helper()
-
-// 	intfs := topo.Interfaces()
-// 	if len(intfs) == 0 {
-// 		t.Fatal("There are no interfaces in the Topology")
-// 	}
-// 	t.Log(atePort + "xxx")
-// 	network := intfs[atePort].AddNetwork(network_name)
-// 	network.ISIS().WithIPReachabilityMetric(metric + 1)
-// 	network.IPv4().WithAddress(v4prefix).WithCount(count)
-// 	rnetwork := intfs[atePort].AddNetwork("recursive")
-// 	rnetwork.ISIS().WithIPReachabilityMetric(metric + 1)
-// 	rnetwork.IPv4().WithAddress("100.100.100.100/32")
-// 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
-// }
-
-// addAteEBGPPeer configures EBGP ATE config
-// func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
-// 	t.Helper()
-
-// 	intfs := topo.Interfaces()
-// 	if len(intfs) == 0 {
-// 		t.Fatal("There are no interfaces in the Topology")
-// 	}
-// 	//
-
-// 	network := intfs[atePort].AddNetwork(network_name)
-// 	bgpAttribute := network.BGP()
-// 	bgpAttribute.WithActive(true).WithNextHopAddress(nexthop)
-
-// 	//Add prefixes, Add network instance
-// 	if prefix != "" {
-
-// 		network.IPv4().WithAddress(prefix).WithCount(count)
-// 	}
-// 	//Create BGP instance
-// 	bgp := intfs[atePort].BGP()
-// 	bgpPeer := bgp.AddPeer().WithPeerAddress(peerAddress).WithLocalASN(localAsn).WithTypeExternal()
-// 	bgpPeer.WithOnLoopback(useLoopback)
-
-// 	//Update bgpCapabilities
-// 	bgpPeer.Capabilities().WithIPv4UnicastEnabled(true).WithIPv6UnicastEnabled(true).WithGracefulRestart(true)
-// }
-
-// addPrototoAte calls ISIS/BGP api
+// addPrototoAte
 func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	t.Helper()
 
 	intfs := top.Interfaces()
 	intfs["port7"].WithIPv4Loopback("100.100.100.100/32")
-	// if innerdstPfxCount_isis > uint32(*ciscoFlags.GRIBIScale) || innerdstPfxCount_bgp > uint32(*ciscoFlags.GRIBIScale) {
-	// 	addAteISISL2(t, top, "port7", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, innerdstPfxCount_isis)
-	// 	addAteEBGPPeer(t, top, "port7", dutPort7.IPv4, 64001, "bgp_recursive", atePort7.IPv4, innerdstPfxMin_bgp+"/"+mask, innerdstPfxCount_bgp, true)
-	// } else {
-	// 	addAteISISL2(t, top, "port7", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(*ciscoFlags.GRIBIScale))
-	// 	addAteEBGPPeer(t, top, "port7", dutPort7.IPv4, 64001, "bgp_recursive", "port7", innerdstPfxMin_bgp+"/"+mask, uint32(*ciscoFlags.GRIBIScale), true)
-	// }
 	top.Push(t).StartProtocols(t)
 }
 

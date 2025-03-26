@@ -351,12 +351,13 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 	}
 
 	dstPfxe = "197.51.1.1"
-	prefixess := []string{}
+	//Prefixes Encap vrf
+	prefixesEnc := []string{}
 	for i := 0; i < 15000; i++ {
-		prefixess = append(prefixess, util.GetIPPrefix(dstPfxe, i, mask))
+		prefixesEnc = append(prefixesEnc, util.GetIPPrefix(dstPfxe, i, mask))
 	}
 
-	for _, prefix := range prefixess {
+	for _, prefix := range prefixesEnc {
 		ipv4Entry := fluent.IPv4Entry().
 			WithNetworkInstance(vrfEncapA).
 			WithPrefix(prefix).
@@ -371,6 +372,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 	args.client.AddNH(t, uint64(nh), "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{VrfName: vrfEncapA})
 	args.client.AddNHG(t, 4000, 0, map[uint64]uint64{4000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
+	//Prefixes Decapvrf
 	prefixesd := []string{}
 	for i := 0; i < 150; i++ {
 		prefixesd = append(prefixesd, util.GetIPPrefix(dstPfx, i, mask))
@@ -1426,14 +1428,14 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		nhg.AddNextHop(j, uint64(wt))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
 	}
-
+	//Prefixes Encap vrf
 	dstPfxe = "197.51.1.1"
-	prefixess := []string{}
+	prefixesEnc := []string{}
 	for i := 0; i < 15000; i++ {
-		prefixess = append(prefixess, util.GetIPPrefix(dstPfxe, i, mask))
+		prefixesEnc = append(prefixesEnc, util.GetIPPrefix(dstPfxe, i, mask))
 	}
 
-	for _, prefix := range prefixess {
+	for _, prefix := range prefixesEnc {
 		ipv4Entry := fluent.IPv4Entry().
 			WithNetworkInstance(vrfEncapA).
 			WithPrefix(prefix).
@@ -1447,6 +1449,8 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	nh = 4000
 	args.client.AddNH(t, uint64(nh), "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{VrfName: vrfEncapA})
 	args.client.AddNHG(t, 4000, 0, map[uint64]uint64{4000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+	//Prefixes Decap vrf
 
 	prefixesd := []string{}
 	for i := 0; i < 150; i++ {
