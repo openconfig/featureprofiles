@@ -36,6 +36,13 @@ tests:
       - arvbaska
     priority: 1
     mustpass: true
+    groups: [ancx]
+  - name: PLT-1.1 (Interface breakout Test)
+    path: feature/interface/singleton/tests/singleton_with_breakouts
+    priority: 0
+    owners:
+      - arvbaska
+    groups: [ancx]
   - name: TE-15.1 (gRIBI Compliance)
     path: feature/gribi/otg_tests/gribigo_compliance_test
     priority: 2
@@ -180,12 +187,14 @@ tests:
       - '-osfile="$IMAGE_PATH"'
       - '-osver="$IMAGE_VERSION"'
     skip: true
+    groups: [ancx]
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
     owners:
       - arvbaska
     priority: 8
     mustpass: true
+    groups: [ancx]
   - name: P4RT-1.1 (Base P4RT Functionality)
     path: feature/p4rt/otg_tests/base_p4rt
     owners:
@@ -357,12 +366,14 @@ tests:
       - arvbaska
     mustpass: false
     priority: 31
+    groups: [ancx]
   - name: gNMI-1.20 (Telemetry Optics Thresholds)
     path: feature/platform/tests/optics_thresholds_test
     owners:
       - agvarghe
     mustpass: true
     priority: 32
+    groups: [ancx]
   - name: gNMI-1.5 (Telemetry Port Speed Test)
     path: feature/gnmi/otg_tests/telemetry_port_speed_test
     owners:
@@ -381,6 +392,7 @@ tests:
     pr: 3536
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    groups: [ancx]
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
     owners:
@@ -411,6 +423,7 @@ tests:
     mustpass: false
     priority: 41
     skip: false
+    groups: [ancx]
   - name: gNOI-5.2 (Traceroute Test)
     path: feature/gnoi/system/tests/traceroute_test
     owners:
@@ -418,12 +431,14 @@ tests:
     mustpass: true
     priority: 41
     skip: false
+    groups: [ancx]
   - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation)
     path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
     owners:
       - arvbaska
     mustpass: true
     priority: 42
+    groups: [ancx]
   - name: SEC-3.1 (Authentication)
     path: feature/security/aaa/kne_tests/tls_authentication_over_grpc_test
     owners:
@@ -445,13 +460,46 @@ tests:
     priority: 45
     pr: 1150
     internal: true
-  - name: OC-1.1 (System Configuration)
-    path: feature/system/tests/system_base_test
+    groups: [ancx]
+  - name: System-1.1 (System Banner Test)
+    path: feature/system/system_base_test/tests/system_banner_test
     owners:
-      - agvarghe
+      - fmolina
+      - hammadkh
     mustpass: true
-    pr: 3756
-    priority: 46
+    pr: 1468
+    priority: 0
+    groups: [ancx]
+  - name: System-1.2 (System g protocol test)
+    path: feature/system/system_base_test/tests/system_g_protocol_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
+    groups: [ancx]
+  - name: System-1.3 (System hostname test)
+    path: feature/system/system_base_test/tests/hostname_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
+    groups: [ancx]
+  - name: System-1.4 (System time test)
+    path: feature/system/system_base_test/tests/system_time_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
+    groups: [ancx]
+  - name: MTU-1.3 (Large IP Packet Transmission)
+    path: feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission
+    owners:
+      - arvbaska
+    priority: 0
+    groups: [ancx]
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
     owners:
@@ -459,6 +507,24 @@ tests:
     mustpass: true
     priority: 47
     skip: false
+    groups: [ancx]
+  - name: RT-1.54 (BGP Override AS-path split Horizon)
+    path: feature/bgp/otg_tests/bgp_override_as_path_split_horizon_test
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx]
+  - name: RT-1.52 (BGP multipath UCMP support with Link Bandwith Community)
+    path: feature/bgp/multipath/otg_tests/bgp_multipath_wecmp_lbw_community_test
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx]
+  - name: RT-1.55 (BGP session mode)
+    path: feature/bgp/bgp_session_mode/otg_tests/bgp_session_mode_configuration_test
+    owners:
+      - arvbaska
+    priority: 1
     groups: [ancx]
   - name: RT-2.2 (IS-IS LSP Updates)
     path: feature/isis/otg_tests/lsp_updates_test
@@ -485,6 +551,12 @@ tests:
     priority: 49
     pr: 3328
     skip: false
+  - name: RT-2.5 (IS IS Hello Padding at interface level)
+    path: feature/isis/otg_tests/isis_interface_hello_padding_enable_test
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx]
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
     owners:
@@ -493,6 +565,18 @@ tests:
     priority: 1002
     testbeds:
       - 2DUT-TB2
+  - name: SR-1.1 (Forwarding to Node-SID)
+    path: feature/experimental/segment_routing/node_sid_forward
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx] 
+  - name: MPLS-1.1 (MPLS Label Block Definition)
+    path: feature/experimental/mpls/label_block
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx] 
   - name: RT-1.3 (BGP Route Propagation)
     path: feature/bgp/addpath/otg_tests/route_propagation_test
     owners:
@@ -545,6 +629,7 @@ tests:
       - sprem
     mustpass: true
     priority: 52
+    groups: [ancx]
   - name: RT-1.14 (BGP Long-Lived Graceful Restart)
     path: feature/bgp/ate_tests/bgp_long_lived_graceful_restart
     owners:
@@ -552,6 +637,7 @@ tests:
     mustpass: false
     priority: 52
     timeout: 4200
+    groups: [ancx]
   - name: RT-1.19 (BGP 2-Byte and 4-Byte ASN support)
     path: feature/bgp/otg_tests/bgp_2byte_4byte_asn
     owners:
@@ -589,6 +675,7 @@ tests:
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    groups: [ancx]
   - name: gNOI-3.2 (Per-Component Reboot)
     path: feature/gnoi/system/tests/per_component_reboot_test
     owners:
@@ -599,6 +686,7 @@ tests:
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    groups: [ancx]
   - name: TE-8.2 (Supervisor Failure)
     path: feature/gribi/otg_tests/supervisor_failure_test
     owners:
@@ -709,6 +797,7 @@ tests:
     priority: 1001
     testbeds:
       - 2DUT-TB2
+    groups: [ancx]
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
@@ -716,6 +805,7 @@ tests:
     mustpass: true
     timeout: 3600
     skip: true # danger?
+    groups: [ancx]
   - name: FP-1.1 (Power admin DOWN/UP Test)
     path: feature/platform/tests/power_admin_down_up_test
     owners:
@@ -817,6 +907,7 @@ tests:
     owners:
       - wdolaast
     mustpass: false
+    groups: [ancx]
   - name: RT-2.6 (IS-IS Hello-Padding enabled at interface level)
     path: feature/isis/otg_tests/isis_interface_hello_padding_enable_test
     owners:
@@ -838,6 +929,7 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx]
   - name: RT-1.24 (BGP 2-Byte and 4-Byte ASN support with policy)
     path: feature/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test
     owners:
@@ -858,16 +950,19 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx]
   - name: RT-2.10 (IS-IS change LSP lifetime)
     path: feature/isis/otg_tests/isis_change_lsp_lifetime_test
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx]
   - name: RT-2.11 (IS-IS Passive is enabled at the area level)
     path: feature/isis/otg_tests/isis_interface_level_passive_test
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx]
   - name: RT-2.12 (Static route to IS-IS redistribution)
     path: feature/isis/otg_tests/static_route_isis_redistribution
     owners:
@@ -897,6 +992,7 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx]
   - name: RT-1.26 (Basic static route support)
     path: feature/staticroute/otg_tests/basic_static_route_support_test
     owners:
@@ -970,12 +1066,14 @@ tests:
       - sprem
     mustpass: true
     pr: 3613
+    groups: [ancx]
   - name: RT-1.33 (BGP Policy with prefix-set matching)
     path: feature/bgp/policybase/otg_tests/prefix_set_test
     priority: 2
     owners:
       - arvbaska
-    mustpass: true    
+    mustpass: true   
+    groups: [ancx] 
   - name: RT-1.51 (BGP multipath ECMP)
     path: feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test
     priority: 2
@@ -984,12 +1082,14 @@ tests:
     mustpass: true  
     testbeds:
       - 8201-32FH_FLM254206E7   
+    groups: [ancx]
   - name: RT-7.2 (BGP Policy Community Set)
     path: feature/bgp/policybase/otg_tests/community_test
     priority: 2
     owners:
       - arvbaska
     mustpass: true
+    groups: [ancx]
   - name: RT-7.3 (BGP Policy AS Path Set)
     path: feature/bgp/policybase/otg_tests/aspath_test
     priority: 2
@@ -997,6 +1097,7 @@ tests:
       - arvbaska
     mustpass: true
     timeout: 4200
+    groups: [ancx]
   - name: RT-4.10 (AFTs Route Summary)
     path: feature/aft/aft_summary/otg_tests/route_summary_counters_test
     priority: 2
