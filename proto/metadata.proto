@@ -728,7 +728,7 @@ message Metadata {
 
     // Device does not support banner empty delimiter.
     // Cisco: b/393684636
-    bool banner_empty_delimiter_unsupported = 263;
+    bool banner_empty_delimiter_unsupported = 264;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
