@@ -34,18 +34,6 @@ type Percentage float64
 
 type TimeTicks64 uint64
 
-type utilization struct {
-	used                         uint64
-	free                         uint64
-	maxLimit                     uint64
-	highWaterMark                uint64
-	lastHighWaterMark            TimeTicks64
-	oorRedThresholdPercentage    Percentage
-	oorYellowThresholdPercentage Percentage
-	resourceOrrState             string
-	lastResourceOrrChange        TimeTicks64
-}
-
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",

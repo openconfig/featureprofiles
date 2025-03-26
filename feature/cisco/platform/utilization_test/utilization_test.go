@@ -33,7 +33,7 @@ func TestResourceUtilization(t *testing.T) {
 	otgV4Peer, otgPort1, otgConfig := configureOTG(t, otg)
 
 	metrics := []string{"used", "free", "max-limit", "high-watermark", "last-high-watermark"}
-	intMetrics := []string{"oor-red-threshold-percentage", "oor-yellow-threshold-percentage", "resource-oor-state", "last-resource-oor-change"}
+	intMetrics := []string{"oor-red-threshold-percentage", "oor-yellow-threshold-percentage", "resource-oor-state", "last-resource-oor-change"} // initial metrics
 	// Set up gNMI client
 	gnmic, err := ygnmi.NewClient(dut.RawAPIs().GNMI(t))
 	if err != nil {
@@ -46,6 +46,8 @@ func TestResourceUtilization(t *testing.T) {
 	postTest := make(map[string]interface{})
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	npus := util.UniqueValues(t, nodes)
+
+	//TODO: To optimize the code, we can use a single loop for both metrics and intMetrics
 	for _, metric := range metrics {
 		t.Run(fmt.Sprintf("Pre-test metric: %s", metric), func(t *testing.T) {
 
@@ -112,6 +114,7 @@ func TestResourceUtilization(t *testing.T) {
 	for _, metric := range metrics {
 		t.Run(fmt.Sprintf("Post-test metric: %s", metric), func(t *testing.T) {
 			for _, npu := range npus {
+				//TODO: To add 10 Res names list as table
 				postPath = fmt.Sprintf("/components/component[name=%s]/integrated-circuit/utilization/resources/resource[name=service_lp_attributes_table_0]/state/%s", npu, metric)
 			}
 			postQuery, _ := schemaless.NewWildcard[uint64](postPath, "openconfig")
