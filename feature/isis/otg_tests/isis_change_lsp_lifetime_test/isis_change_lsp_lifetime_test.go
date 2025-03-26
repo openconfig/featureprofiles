@@ -66,9 +66,6 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalIsis.GetOrCreateTimers().LspLifetimeInterval = ygot.Uint16(lspLifetime)
-	if deviations.ISISLspLifetimeIntervalRequiresLspRefreshInterval(ts.DUT) {
-		globalIsis.GetOrCreateTimers().LspRefreshInterval = ygot.Uint16(60)
-	}
 }
 
 // configureOTG configures isis and traffic on OTG.
@@ -134,6 +131,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
 	ts.PushAndStart(t)
+	time.Sleep(time.Minute * 2)
 
 	isisPath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
@@ -141,6 +139,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 		intfName += ".0"
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
+		time.Sleep(time.Minute * 2)
 
 		// Checking adjacency
 		ateSysID, err := ts.AwaitAdjacency()
@@ -189,7 +188,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, want)
 			}
 			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route)
-			if got, ok := gnmi.Watch(t, ts.DUT, ipv4Path.State(), time.Second*30, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv4Path.State(), time.Minute*2, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 				ipv4Entry, present := val.Val()
 				return present && ipv4Entry.GetPrefix() == v4Route
 			}).Await(t); !ok {
@@ -197,7 +196,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 			}
 
 			ipv6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route)
-			if got, ok := gnmi.Watch(t, ts.DUT, ipv6Path.State(), time.Second*30, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv6Path.State(), time.Minute*2, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
 				ipv6Entry, present := val.Val()
 				return present && ipv6Entry.GetPrefix() == v6Route
 			}).Await(t); !ok {

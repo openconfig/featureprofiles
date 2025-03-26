@@ -40,11 +40,13 @@ var (
 		},
 		ondatra.CISCO: {
 			GRIBI:   "emsd",
+			OCAGENT: "emsd",
 			P4RT:    "emsd",
 			ROUTING: "emsd",
 		},
 		ondatra.JUNIPER: {
 			GRIBI:   "rpd",
+			OCAGENT: "mgd-api",
 			P4RT:    "p4-switch",
 			ROUTING: "rpd",
 		},
@@ -101,6 +103,8 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 		Restart: restart,
 	}
 	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+
+	time.Sleep(120 * time.Second)
 
 	if waitForRestart {
 		gnmi.WatchAll(

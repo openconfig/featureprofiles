@@ -174,7 +174,7 @@ func EmsdMemoryCheck(t *testing.T, dut *ondatra.DUTDevice) uint64 {
 
 	cliCmd := fmt.Sprintf("show processes memory %v", responseRawObj.EmsdPid)
 	resp := config.CMDViaGNMI(context.Background(), t, dut, cliCmd)
-	t.Logf(resp)
+	t.Log(resp)
 
 	var dynamicMemory uint64
 	// Split the response into lines
@@ -221,7 +221,7 @@ func CheckPlatformStatus(t *testing.T, dut *ondatra.DUTDevice) error {
 	var err error
 	for i := 0; i < maxRetries; i++ {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, cliCmd)
-		t.Logf(resp)
+		t.Log(resp)
 
 		err = checkCPU0State(resp)
 		if err == nil {
@@ -1056,7 +1056,7 @@ func ValidateGnsiPathAuthStats(t *testing.T, dut *ondatra.DUTDevice, expectedSta
 
 	cliCmd := "show gnsi path authorization statistics"
 	output := config.CMDViaGNMI(context.Background(), t, dut, cliCmd)
-	t.Logf(output)
+	t.Log(output)
 
 	stats, err := parseGnsiPathAuthStats(output)
 	t.Logf("Parsed stats: %+v", stats)
