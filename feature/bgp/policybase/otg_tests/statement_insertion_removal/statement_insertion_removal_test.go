@@ -15,19 +15,20 @@
 package statement_insertion_removal_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	otg "google3/third_party/openconfig/ondatra/otg/otg"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
+	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/ondatra"
+	otg "github.com/openconfig/ondatra/otg/otg"
+	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -39,6 +40,7 @@ const (
 	dutAS        = 65501
 	ateAS1       = 65502
 	plenIPv4     = 30
+	policyName   = "Test-Policy"
 )
 
 var (
@@ -172,6 +174,48 @@ var (
 			members: "100:10",
 		},
 	}
+	communitySetsEdit = []communitySet{
+		{
+			name:    "Comm_100_11",
+			members: "100:11",
+		},
+		{
+			name:    "Comm_100_2",
+			members: "100:2",
+		},
+		{
+			name:    "Comm_100_3",
+			members: "100:3",
+		},
+		{
+			name:    "Comm_100_4",
+			members: "100:4",
+		},
+		{
+			name:    "Comm_100_5",
+			members: "100:5",
+		},
+		{
+			name:    "Comm_100_6",
+			members: "100:6",
+		},
+		{
+			name:    "Comm_100_7",
+			members: "100:7",
+		},
+		{
+			name:    "Comm_100_8",
+			members: "100:8",
+		},
+		{
+			name:    "Comm_100_9",
+			members: "100:9",
+		},
+		{
+			name:    "Comm_100_10",
+			members: "100:10",
+		},
+	}
 )
 
 type communitySet struct {
@@ -206,7 +250,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func createRoutePolicyInitial(t *testing.T, dut *ondatra.DUTDevice) *oc.RoutingPolicy {
 	t.Helper()
 	d := &oc.Root{}
-	batchConfig := &gnmi.SetBatch{}
 	var pdef *oc.RoutingPolicy_PolicyDefinition
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef = rp.GetOrCreatePolicyDefinition("Test-Policy")
@@ -237,11 +280,15 @@ func createRoutePolicyInitial(t *testing.T, dut *ondatra.DUTDevice) *oc.RoutingP
 	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_9")
 	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	stmt9.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtLast, _ := pdef.AppendNewStatement("Stmnt_Last")
+	stmtLast.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ebgp1NbrV4.nbrAddr).AfiSafi(ebgp1NbrV4.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{"Test-Policy"})
-	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ebgp1NbrV4.nbrAddr).AfiSafi(ebgp1NbrV4.afiSafi).ApplyPolicy().ExportPolicy().Config(), []string{"Test-Policy"})
-	batchConfig.Set(t, dut)
+	pathV4 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup(peerGrpName1).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	policyV4 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreatePeerGroup(peerGrpName1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	policyV4.SetImportPolicy([]string{"Test-Policy"})
+	policyV4.SetExportPolicy([]string{"Test-Policy"})
+	gnmi.Update(t, dut, pathV4.Config(), policyV4)
+
 	return rp
 }
 
@@ -280,6 +327,8 @@ func createInsertionPolicy(t *testing.T, dut *ondatra.DUTDevice) *oc.RoutingPoli
 	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_9")
 	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	stmt9.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtLast, _ := pdef.AppendNewStatement("Stmnt_Last")
+	stmtLast.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	return rpi
 }
 
@@ -314,6 +363,8 @@ func createRemovalPolicy(t *testing.T, dut *ondatra.DUTDevice) *oc.RoutingPolicy
 	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_9")
 	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	stmt9.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtLast, _ := pdef.AppendNewStatement("Stmnt_Last")
+	stmtLast.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	return rpr
 }
 func createReInsertionPolicy(t *testing.T, dut *ondatra.DUTDevice) *oc.RoutingPolicy {
@@ -433,18 +484,6 @@ func verifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func configureCommunitySet(t *testing.T, dut *ondatra.DUTDevice, communitySet communitySet) {
-	root := &oc.Root{}
-	rp := root.GetOrCreateRoutingPolicy()
-	commSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySet.name)
-	var commMemberUnion []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union
-	for _, commMember := range communitySet.members {
-		commMemberUnion = append(commMemberUnion, oc.UnionString(commMember))
-	}
-	commSet.SetCommunityMember(commMemberUnion)
-	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-}
-
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
@@ -466,6 +505,92 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
 	return config
+}
+
+func editPolicyStatement(t *testing.T, dut *ondatra.DUTDevice, policy string) *oc.RoutingPolicy {
+	t.Helper()
+	d := &oc.Root{}
+	rpe := d.GetOrCreateRoutingPolicy()
+	pdef := rpe.GetOrCreatePolicyDefinition(policy)
+	for _, communitySet := range communitySetsEdit {
+		commSet := rpe.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySet.name)
+		var commMemberUnion []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union
+		commMemberUnion = append(commMemberUnion, oc.UnionString(communitySet.members))
+		commSet.SetCommunityMember(commMemberUnion)
+	}
+
+	stmt1, _ := pdef.AppendNewStatement("Stmnt_1")
+	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_11")
+	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt2, _ := pdef.AppendNewStatement("Stmnt_2")
+	stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_2")
+	stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt2.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt3, _ := pdef.AppendNewStatement("Stmnt_3")
+	stmt3.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_3")
+	stmt3.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt3.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt4, _ := pdef.AppendNewStatement("Stmnt_4")
+	stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_4")
+	stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt4.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt5, _ := pdef.AppendNewStatement("Stmnt_5")
+	stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_5")
+	stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt5.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt6, _ := pdef.AppendNewStatement("Stmnt_6")
+	stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_6")
+	stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt6.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt7, _ := pdef.AppendNewStatement("Stmnt_7")
+	stmt7.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_7")
+	stmt7.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt7.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt8, _ := pdef.AppendNewStatement("Stmnt_8")
+	stmt8.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_8")
+	stmt8.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt8.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt9, _ := pdef.AppendNewStatement("Stmnt_9")
+	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_9")
+	stmt9.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt9.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmt10, _ := pdef.AppendNewStatement("Stmnt_10")
+	stmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet("Comm_100_10")
+	stmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtLast, _ := pdef.AppendNewStatement("Stmnt_Last")
+	stmtLast.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	return rpe
+}
+func isRoutingPolicyEqual(t *testing.T, dut *ondatra.DUTDevice, policy1 string, policy2 *oc.RoutingPolicy) bool {
+
+	fmt.Printf("Inside isRoutingPolicyEqual")
+
+	pdef1 := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(policy1).Config())
+	pdef2 := policy2.GetPolicyDefinition("Test-Policy")
+	fmt.Printf("Iterate through the statements in the policy definition")
+	fmt.Printf("pdef2: %v, pdef1: %v", pdef2.Name, pdef1.Name)
+
+	fmt.Printf("pdef2.Statement.Keys(): %v, pdef1.Statement.Keys(): %v", pdef2.Statement.Keys(), pdef1.Statement.Keys())
+	if len(pdef2.Statement.Keys()) != len(pdef1.Statement.Keys()) {
+		return false
+	}
+	for _, stmt := range pdef2.Statement.Keys() {
+		// cross check with communitySetsInitial
+		found := false
+
+		// check if the community set name matches.
+		commSet2 := pdef2.Statement.Get(stmt).GetConditions().GetBgpConditions().GetMatchCommunitySet().GetCommunitySet()
+		commSet1 := pdef1.Statement.Get(stmt).GetConditions().GetBgpConditions().GetMatchCommunitySet().GetCommunitySet()
+		if commSet1 == commSet2 {
+			found = true
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 type testCase struct {
@@ -490,29 +615,51 @@ func TestStatementInsertionRemoval(t *testing.T) {
 
 	t.Run("Initial Policy", func(t *testing.T) {
 		rp := createRoutePolicyInitial(t, dut)
-		t.Logf("rp: %v", rp)
-		//		gnmi.BatchReplace(batchConfig, bgpPath.PeerGroup(peerGrpgName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{policyName})
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		configuredPolicy := gnmi.Get(t, dut, bgpPath.Bgp().PeerGroup(peerGrpName1).AfiSafi(ebgp1NbrV4.afiSafi).ApplyPolicy().State())
+		if len(configuredPolicy.ImportPolicy) > 0 && !isRoutingPolicyEqual(t, dut, configuredPolicy.ImportPolicy[0], rp) {
+			t.Errorf("Configured import policy does not match the expected policy. \nGot:\n%v\nWant:\n%v", configuredPolicy, rp)
+		}
 	})
-
-	//verfifyRoutingPolicy(t, dut, "test-policy-initial", ebgp1NbrV4, tc.peerGrp)
 
 	t.Run("Policy statement insertion", func(t *testing.T) {
 		rpi := createInsertionPolicy(t, dut)
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpi)
-		//verfifyRoutingPolicy(t, dut, "test-policy-insertion", ebgp1NbrV4, tc.peerGrp)
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		configuredPolicy := gnmi.Get(t, dut, bgpPath.Bgp().PeerGroup(peerGrpName1).AfiSafi(ebgp1NbrV4.afiSafi).ApplyPolicy().State())
+		if len(configuredPolicy.ImportPolicy) > 0 && !isRoutingPolicyEqual(t, dut, configuredPolicy.ImportPolicy[0], rpi) {
+			t.Errorf("Configured import policy does not match the expected policy. \nGot:\n%v\nWant:\n%v", configuredPolicy, rpi)
+		}
 	})
 	t.Run("Policy statement removal", func(t *testing.T) {
 		rpr := createRemovalPolicy(t, dut)
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpr)
-		//verfifyRoutingPolicy(t, dut, "test-policy-removal", ebgp1NbrV4, tc.peerGrp)
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		configuredPolicy := gnmi.Get(t, dut, bgpPath.Bgp().PeerGroup(peerGrpName1).AfiSafi(ebgp1NbrV4.afiSafi).ApplyPolicy().State())
+		if len(configuredPolicy.ImportPolicy) > 0 && !isRoutingPolicyEqual(t, dut, configuredPolicy.ImportPolicy[0], rpr) {
+			t.Errorf("Configured import policy does not match the expected policy. \nGot:\n%v\nWant:\n%v", configuredPolicy, rpr)
+		}
+
 	})
 	t.Run("Policy statement re-insertion ", func(t *testing.T) {
 		rpi := createReInsertionPolicy(t, dut)
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpi)
-		//verfifyRoutingPolicy(t, dut, "test-policy-insertion", ebgp1NbrV4, tc.peerGrp)
 		rpre := createRemovalPolicy(t, dut)
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpre)
-		//verfify
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		configuredPolicy := gnmi.Get(t, dut, bgpPath.Bgp().PeerGroup(peerGrpName1).AfiSafi(ebgp1NbrV4.afiSafi).ApplyPolicy().State())
+		if len(configuredPolicy.ImportPolicy) > 0 && !isRoutingPolicyEqual(t, dut, configuredPolicy.ImportPolicy[0], rpre) {
+			t.Errorf("Configured import policy does not match the expected policy. \nGot:\n%v\nWant:\n%v", configuredPolicy, rpre)
+		}
+	})
+	t.Run("Edit policy statement", func(t *testing.T) {
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		configuredPolicy := gnmi.Get(t, dut, bgpPath.Bgp().PeerGroup(peerGrpName1).AfiSafi(ebgp1NbrV4.afiSafi).ApplyPolicy().State())
+		rpe := editPolicyStatement(t, dut, configuredPolicy.ImportPolicy[0])
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpe)
+		if len(configuredPolicy.ImportPolicy) > 0 && !isRoutingPolicyEqual(t, dut, configuredPolicy.ImportPolicy[0], rpe) {
+			t.Errorf("Configured import policy does not match the expected policy. \nGot:\n%v\nWant:\n%v", configuredPolicy, rpe)
+		}
+
 	})
 }
-
