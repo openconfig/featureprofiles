@@ -168,8 +168,6 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
 
   ## State paths
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/receive:
