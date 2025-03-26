@@ -48,9 +48,6 @@ duts {
   vendor: CISCO
   hardware_model: "CISCO-8818"
   name: "8818_DUT"  # Change this to the device hostname.
-  config:{
-    gnmi_set_file: "$BASE_CONF_PATH"
-  }
   options {
     insecure: false 
     skip_verify: true
@@ -195,9 +192,6 @@ duts {
   name: "8808_PEER"  # Change this to the device hostname.
   vendor: CISCO
   hardware_model: "CISCO-8808"
-  config:{
-    gnmi_set_file: "$BASE_CONF_PATH"
-  }
 
   options {
     insecure: false 
