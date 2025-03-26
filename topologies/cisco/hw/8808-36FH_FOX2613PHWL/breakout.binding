@@ -4,7 +4,7 @@ duts {
   vendor: CISCO
   hardware_model: "CISCO-8808"
   config:{
-    gnmi_set_file: "/Users/fmolinar/Documents/repos/XR/topologies/cisco/hw/8808-36fh_fox2613phwl_bindings/breakout-basecfg.proto"
+        gnmi_set_file: "$BASE_CONF_PATH"  
   }
 
   # Options inherited by all protocols on this device unless
