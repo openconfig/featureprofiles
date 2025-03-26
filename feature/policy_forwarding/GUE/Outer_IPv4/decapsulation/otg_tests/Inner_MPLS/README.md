@@ -49,7 +49,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
    * For the inner IPGUE header:
      * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST1 respectively.
      * Source port will vary depending on the application.
-     * Destination port 6615 (default/ or configured non-default)
+     * Destination port 6635 (default/ or configured non-default)
       will remain consistent.
      * MPLS label is Label (LBL1- a valid MPLS label)
      * DSCP value should be set to 32.
@@ -58,7 +58,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
  *  Flow type 2: IP+UDP+MPLS+Payload (MPLSoGUE)
     * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST1 respectively.
     * Source port will vary depending on the application.
-    * Destination port 6615 (default/ or configured non-default)
+    * Destination port 6635 (default/ or configured non-default)
       will remain consistent.
     * MPLS label is Label (LBL1- a valid MPLS label)
     * DSCP value should be set to 32.
@@ -88,8 +88,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
       * If udp port is not configured then the default GUE UDP port 6080 should be used for IPv4 payload, port 6615 should be used for IPv6 payload and port 6635 for MPLS payload.
       * In this scenario, if udp port is not configured then the default GUE UDP port 6080 will be used.
     *  Apply the defined policy on the Ingress (DUT port1) port.
-    *  Configure static route for encapsulated traffic destinations IPV4-DST1 towards ATE Port 2.
-    *  Configure static MPLS label binding (LBL1) towards ATE Port 2. Next hop of ATE Port 2 should be indicated for MPLS pop action.
+    *  Configure static route for prefix IPV4-DST1 towards ATE Port 2.
     
 ### PF-1.5.1: MPLSoGUE Pass-Through for DUT.
 
@@ -98,8 +97,8 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 Traffic: Generate flow type 2
   
 Verification: 
-- DUT will lookup the route for IPV4-DST2 in its route table and forward towards ATE port 2.
-- ATE will receive MPLSoGUE traffic . 
+- DUT will lookup the route for IPV4-DST1 in its route table and forward towards ATE port 2.
+- ATE will receive MPLSoGUE traffic. 
 - No packet loss.
 - DSCP should be preserved.
 - TTL value should be decremented by 1 to 63.
@@ -132,7 +131,7 @@ paths:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
     # decap action
-    //network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
     # telemetry
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
