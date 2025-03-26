@@ -1,4 +1,4 @@
-# PF-1.5: Interface based MPLSoGUE Decapsulation to IPv4 tunnel
+# PF-1.5: Interface based IPGUE Decapsulation for MPLSoGUE traffic
 
 ## Summary
 
@@ -29,70 +29,78 @@ graph LR;
 A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 ```
 
-*  ATE Port 1: Generates GUE-encapsulated traffic : IP+UDP+IP+UDP+MPLS+<Payload>.
-   *   For the outer IP header;
+*  ATE Port 1: Generates GUE-encapsulated traffic :IP+UDP+MPLS+<Payload> OR IP+UDP+IP+UDP+MPLS+<Payload>.
+   *   For the IPGUE header;
        * Source IP, Source port, Destinatin IP will vary.
+       * Protocol UDP and Destination port 6080 (default/ or configured non-default)
+         will remain consistent.
+    *   For the MPLSoGUE header;
+       * Source IP, Source port, Destinatin IP, MPLS label will vary.
        * Protocol UDP and Destination port 6635 (default/ or configured non-default)
-         will remain consistent.  
+         will remain consistent.        
 *  ATE Port 2: Receives MPLSoGUE traffic.
   
 ### DUT Configuration
 
 1.  Interfaces: Configure all DUT ports as singleton IP interfaces.
  
-2.  Static Routes/LSPs:
-    *  Configure an IPv4 static route to GUE decapsulation destinations (DECAP-DST) to
-       Blackhole (Drop).
+2.  Static Routes:
+    *  Configure an IPv4 static route to GUE decapsulation destinations IPV4-DST1 (DECAP-DST)
+       to the blackhole (Drop).
+    *  Configure static routes for the encapsulated traffic destinations IPV4-DST2 towards ATE Port 2.
     *  Have the policy configuration to match the GUE destinations (Outer IPv4 Destinations)
-      and GUE UDP port for the decapsulation.
-       *  If udp port is not configured then the default GUE UDP port will be inherited/used.
+      IPV4-DST1 (DECAP-DST) and GUE UDP port for the decapsulation.
+       *  If thr udp port is not configured, then the default GUE UDP port will be inherited/used.
     *  Apply the defined policy on the Ingress (DUT port1) port.
-    *  Configure static routes for encapsulated traffic destinations IPV4-DST1 towards ATE Port 2.
-    *  Configure static MPLS label binding (LBL1) towards ATE Port 2. Next hop of ATE Port 1 should
-       be indicated for MPLS pop action.
-
+  
 3.  Policy-Based Forwarding: 
     *  Rule 1: Match GUE traffic with destination DECAP-DST using destination-address-prefix-set and
        default/non-default GUE UDP port for decapsulation.
       * If udp port is not configured, then the default GUE UDP port will be inherited/used.   
     *  Rule 2: Match all other traffic and forward (no decapsulation).
-    *  Apply the defined policy on the Ingress (DUT port1) port. 
+    *  Apply the defined policy on the Ingress (DUT port1) port, the one connected to ATE port 1. 
     
 ### PF-1.5.1: MPLSoGUE Pass-Through for DUT.
 
 -  Push DUT configuration.
 
 Traffic: 
--  Generate MPLSoGUE-encapsulated traffic from ATE Port 1 with destinations matching IPV4-DST1
+-  Generate MPLSoGUE traffic from ATE Port 1 with destinations matching IPV4-DST2
    and default GUE UDP port 6635.
--  Inner MPLS label is Label (LBL2 - a valid MPLS label)
--  Inner IPv4 destination should be IPV4-DST2.
--  Inner-packet DSCP value should be set to 32.
--  Inner-packet TTL value should be set to 64.
+-  This is a use case of (MPLSoGUE + Payload).
+-  MPLS label is Label (LBL1- a valid MPLS label)
+-  DSCP value should be set to 32.
+-  TTL value should be set to 64.
   
 Verification: 
 - DUT will lookup the route for IPV4-DST2 in its route table and forward towards ATE port 2.
 - ATE will receive MPLSoGUE traffic . 
 - No packet loss.
-- Inner-packet DSCP should be preserved.
-- Inner-packet TTL value should be decremented by 1 to 63.
-- PF counters reflect decapsulated packets.
+- DSCP should be preserved.
+- TTL value should be decremented by 1 to 63.
+- PF counters will not show any match.
 
 ### PF-1.5.2: GUE decapsulation of IPv4 carrying inner MPLSoGUE.
 
 -  Push DUT configuration.
 
 Traffic: 
--  Generate GUE-encapsulated traffic from ATE Port 1 with destinations matching DECAP-DST and default GUE UDP port 6080.
-     -  Inner frame will be MPLSoGUE-encapsulated traffic with destinations matching IPV4-DST1 and default GUE UDP port 6635.
-        -  Outer IPGUE + Inner MPLSoGUE+ Payload
+-  Generate GUE-encapsulated traffic from ATE Port 1 with destinations matching DECAP-DST and
+   default GUE UDP port 6080.
+     - This is a use case of (Outer IPGUE + Inner MPLSoGUE + Payload).
+     - The destination address in outer IP header (IPv4-DST1) will match policy DECAP-DST
+     - Source IP, Source port, Destinatin IP will vary.
+     -  Inner packet will be MPLSoGUE-encapsulated traffic with destinations matching IPV4-DST2
+        and default GUE UDP.
 -  Inner IPv4 destination should match IPV4-DST2.
 -  Inner-packet DSCP value should be set to 32.
 -  Inner-packet TTL value should be set to 64.
   
 Verification: 
-- DUT will lookup the route for IPV4-DST1 in its route table and forward towards ATE port 2.
-- ATE port 2 will decapsulate the outer header and take action on MPLS label. 
+- The destination address in the outer IP header (IPv4-DST1) will match the policy DECAP-DST on
+  DUT for the port connected to ATE port 1.
+- The DUT will perform decap and lookup the route for IPV4-DST2 in its route table and forward
+  towards ATE port 2.
 - No packet loss.
 - Inner-packet DSCP should be preserved.
 - Inner-packet TTL value should be decremented by 1 to 63.
@@ -105,7 +113,8 @@ Verification:
 
 ## OpenConfig Path and RPC Coverage
 
-This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test 
+environment setup are not required to be listed here.
 
 ```
 ```
