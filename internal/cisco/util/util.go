@@ -807,6 +807,10 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	if !enableInterfaceLldp(t, peer, peerInterfaces) {
 		t.Fatalf("Failed to enable LLDP on all interfaces for device %s", peer.Name())
 	}
+	// Fixed sleep time for the LLDP convergence
+	time.Sleep(35 * time.Second)
+	// update dut interface after enabling the interface
+	dutInterfaces = getAllInterfaces(t, dut)
 
 	// Get only enabled interfaces of DUT
 	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)

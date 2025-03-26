@@ -368,7 +368,7 @@ var (
 		srcPort:         []string{lagName1 + ".IPv4"},    // source OTG port
 		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
 		srcMac:          otgSrc1.MAC,                     // source MAC address
-		dstMac:          peerDst.MAC,                     // destination MAC address
+		dstMac:          dutSrc1.MAC,                     // destination MAC address
 		topo:            gosnappi.NewConfig(),
 	}
 )

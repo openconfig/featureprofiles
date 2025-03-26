@@ -2,19 +2,16 @@ package utils
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
 	// "github.com/openconfig/entity-naming/oc"
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
+
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	gnps "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -118,65 +115,4 @@ func Dorpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
-}
-
-// PerformLCOperations performs LC OIR operations for a single line card.
-func DoLcOir(t *testing.T, dut *ondatra.DUTDevice, lineCard string) {
-	t.Run(lineCard, func(t *testing.T) {
-		// To remove
-		if lineCard != "0/0/CPU0" {
-			t.Skip()
-		}
-
-		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lineCard).Empty().State()).Val()
-		if ok && empty {
-			t.Skipf("Linecard Component %s is empty, hence skipping", lineCard)
-		}
-		if !gnmi.Get(t, dut, gnmi.OC().Component(lineCard).Removable().State()) {
-			t.Skipf("Skip the test on non-removable linecard.")
-		}
-
-		lineCardOperStatus := gnmi.Get(t, dut, gnmi.OC().Component(lineCard).OperStatus().State())
-		if got, want := lineCardOperStatus, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
-			t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", lineCard)
-		}
-
-		gnoiClient := dut.RawAPIs().GNOI(t)
-		useNameOnly := deviations.GNOISubcomponentPath(dut)
-		lineCardPath := components.GetSubcomponentPath(lineCard, useNameOnly)
-		rebootSubComponentRequest := &gnps.RebootRequest{
-			Method: gnps.RebootMethod_COLD,
-			Subcomponents: []*tpb.Path{
-				lineCardPath,
-			},
-		}
-		t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
-		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
-		if err != nil {
-			t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
-		}
-		t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
-
-	})
-}
-
-// DoLcOir performs LC OIR operations for all line cards concurrently.
-func DoAllAvailableLcParallelOir(t *testing.T, dut *ondatra.DUTDevice) {
-	// Find line card components
-	lineCards := util.GetLCList(t, dut)
-
-	var wg sync.WaitGroup
-
-	for _, lineCard := range lineCards {
-		wg.Add(1)
-		go func(lc string) {
-			defer wg.Done()
-			DoLcOir(t, dut, lc)
-		}(lineCard)
-	}
-
-	wg.Wait()
-
-	// Sleep while LC reloads
-	time.Sleep(10 * time.Minute)
 }
