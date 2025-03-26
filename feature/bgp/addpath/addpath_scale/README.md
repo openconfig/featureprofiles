@@ -13,11 +13,11 @@ BGP ADDPATH TEST WITH SCALE
 
 ## Topology
 
-## Source port for sending traffic
+### Source port for sending traffic
 
 * DUT Port1  --- IP Connectivity --- ATE Port1
 
-## 100 v4EBGP peers
+### 100 v4EBGP peers
 
 * DUT Port2 (AS 65001) --- eBGPv4 --- ATE Port1 (AS 65101) VLAN1
 * DUT Port2 (AS 65001) --- eBGPv4 --- ATE Port1 (AS 65102) VLAN2
@@ -25,7 +25,7 @@ BGP ADDPATH TEST WITH SCALE
 .
 * DUT Port2 (AS 65001) --- eBGPv4 --- ATE Port1 (AS 65201) VLAN100
 
-## 50 v6EBGP peers
+### 50 v6EBGP peers
 
 * DUT Port3 (AS 65001) --- eBGPv6 --- ATE Port1 (AS 65301) VLAN201
 * DUT Port3 (AS 65001) --- eBGPv6 --- ATE Port1 (AS 65302).VLAN202
@@ -37,7 +37,7 @@ BGP ADDPATH TEST WITH SCALE
 
 ## Procedure
 
-## Source port for sending traffic
+### Source port for sending traffic
 
 * DUT Port1  --- IP Connectivity --- ATE Port1
 * Use this port to configure traffic with following source and destination 
@@ -46,7 +46,7 @@ BGP ADDPATH TEST WITH SCALE
   - destination (IPv4/IPv6) - All prefixes of ATE port2, port3
 
 Establish eBGP sessions ipv4 and ipv6 for ATE/DUT port2,3:
-## 100 v4EBGP peers
+### 100 v4EBGP peers
 ATE port2 <---> DUT port2
 
 * Create 100 vlans on DUT and ATE port2 and configure IP addresses as below and 
@@ -60,7 +60,7 @@ ATE port2 <---> DUT port2
     addpath routes such that the routes are distributed across /22, /24, /30 
     prefix lengths.
 
-## 50 v6EBGP peers
+### 50 v6EBGP peers
 ATE port3 <---> DUT port3
 
 * Create 50 vlans on DUT and ATE port2 and configure IP addresses as below and
@@ -75,7 +75,7 @@ ATE port3 <---> DUT port3
     addpath routes such that the routes are distributed across /48 , /64, /128
     prefix lengths
 
-## 1 v4EBGP and 1 v6EBGP peers
+### 1 v4EBGP and 1 v6EBGP peers
 ATE port4 (AS 65401) <---> DUT port4 (AS 65001)
 
 * Configure the DUT and ATE port with ipv4 and ipv6 address 200.0.0.0/24 and 
@@ -204,9 +204,7 @@ rpcs:
     gNMI.Set:
       union_replace: true
 ```
-
 ## Minimum DUT platform requirement
-
-* MFF - A modular form factor device containing LINECARD, FABRIC and redundant CONTROLLER_CARD components
-* FFF - fixed form factor
+* MFF 
+* FFF 
 
