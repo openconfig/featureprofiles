@@ -48,17 +48,17 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
     *  Configure an IPv4 static route to GUE decapsulation destinations IPV4-DST1 (DECAP-DST)
        to the blackhole (Drop).
     *  Configure static routes for the encapsulated traffic destinations IPV4-DST2 towards ATE Port 2.
-    *  Have the policy configuration to match the GUE destinations (Outer IPv4 Destinations)
-      IPV4-DST1 (DECAP-DST) and GUE UDP port for the decapsulation.
+    *  Have the policy configuration (policy (DECAP-DST) to match the GUE destinations (Outer IPv4 Destinations)
+      IPV4-DST1 and GUE UDP port for the decapsulation.
        *  If thr udp port is not configured, then the default GUE UDP port will be inherited/used.
-    *  Apply the defined policy on the Ingress (DUT port1) port.
+    *  Apply the policy (DECAP-DST) on the Ingress (DUT port1) port.
   
-3.  Policy-Based Forwarding: 
+3.  Policy-Based Forwarding (DECAP-DEST): 
     *  Rule 1: Match GUE traffic with destination DECAP-DST using destination-address-prefix-set and
        default/non-default GUE UDP port for decapsulation.
       * If udp port is not configured, then the default GUE UDP port will be inherited/used.   
     *  Rule 2: Match all other traffic and forward (no decapsulation).
-    *  Apply the defined policy on the Ingress (DUT port1) port, the one connected to ATE port 1. 
+    *  Apply the (DECAP-DEST) on the Ingress (DUT port1) port, the one connected to ATE port 1. 
     
 ### PF-1.5.1: MPLSoGUE Pass-Through for DUT.
 
