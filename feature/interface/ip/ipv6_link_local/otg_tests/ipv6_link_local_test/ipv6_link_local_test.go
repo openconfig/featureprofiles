@@ -128,10 +128,9 @@ func TestIPv6LinkLocal(t *testing.T) {
 	t.Run("Disable and Enable Port1", func(t *testing.T) {
 		p1 := dut.Port(t, "port1")
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
-		// gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
-		t.Logf("Sleeping for 30 seconds")
-		time.Sleep(30 * time.Second)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, true)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 		t.Run("Interface Telemetry", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
@@ -210,6 +209,8 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 }
 
 func configureOTGInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
@@ -244,7 +245,6 @@ func otgSrcToDstFlow(t *testing.T, top gosnappi.Config, srcIPv6, dstIPv6, flowNa
 	flow.Metrics().SetEnable(true)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
-	e1.Dst().SetValue(ateDst.MAC)
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
 	v6 := flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(srcIPv6)
@@ -255,9 +255,15 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	p1 := dut.Port(t, "port1")
 	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
 	ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Second*30, func(v *ygnmi.Value[uint64]) bool {
+		gotPkts, present := v.Val()
+		return present && (gotPkts-beforeInPkts) >= 100
+	}).Await(t)
+	if !ok {
+		t.Fatal("did not get expected number of packets after starting traffic. want > 100")
+	}
+
 	ate.OTG().StopTraffic(t)
-	time.Sleep(15 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
 	otgTxPkts := flowMetrics.GetOutPkts()

@@ -1,0 +1,27 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "f5d5c225-8900-42fd-8771-8614895ae036"
+plan_id:  "TRANSCEIVER-6"
+description:  "Telemetry: 400ZR Optics performance metrics (pm) streaming."
+testbed:  TESTBED_DUT_400ZR
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    default_network_instance:  "default"
+    channel_assignment_rate_class_parameters_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+    eth_channel_assignment_cisco_numbering: true
+    cisco_pre_fec_ber_inactive_value: true
+  }
+  }
