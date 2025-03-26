@@ -1,4 +1,4 @@
-name: slowpath 
+name: egressp4rt 
 owners: 
   - wdolaast
 testbeds:
