@@ -1322,3 +1322,8 @@ func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) boo
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
 }
+
+// BannerEmptyDelimiterUnsupported returns true if the device does not support empty delimiter in banner
+func BannerEmptyDelimiterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBannerEmptyDelimiterUnsupported()
+}
