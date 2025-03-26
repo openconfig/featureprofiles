@@ -307,7 +307,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "Health-1.1"
+  id: "Health-1.2"
   description: "Healthz component status paths"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
   exec: " "
