@@ -478,7 +478,7 @@ func findActiveRPActiveSerialNumber(t *testing.T, dut *ondatra.DUTDevice) (strin
 	standby_state := gnmi.OC().Component("0/RP1/CPU0").Name().State()
 	standby := gnmi.Get(t, dut, standby_state)
 	supervisors = append(supervisors, active, standby)
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, supervisors)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
 	t.Logf("ACTIVE RP %v", rpActiveBeforeSwitch)
 	activeSerialNumber := gnmi.Get(t, dut, gnmi.OC().Component(rpActiveBeforeSwitch).SerialNo().State())
 	t.Log(activeSerialNumber)

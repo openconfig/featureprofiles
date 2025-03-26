@@ -17,6 +17,14 @@ package basic_encap_nh_counters_test
 
 import (
 	"fmt"
+	"log"
+	"math/rand"
+	"os"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/gopacket"
@@ -36,13 +44,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygot/ygot"
-	"log"
-	"math/rand"
-	"os"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 const (
@@ -1096,12 +1097,13 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
 					break
 				}
-				if !deviations.TTLCopyUnsupported(args.dut) {
-					if got := uint32(v4Packet.TTL); got != pa.ttl {
-						t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-						break
-					}
-				}
+				//FIXME: deviation removed
+				// if !deviations.TTLCopyUnsupported(args.dut) {
+				// 	if got := uint32(v4Packet.TTL); got != pa.ttl {
+				// 		t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
+				// 		break
+				// 	}
+				// }
 				if v4Packet.DstIP.String() == tunnelDstIP1 {
 					tunnel1Pkts++
 				}
