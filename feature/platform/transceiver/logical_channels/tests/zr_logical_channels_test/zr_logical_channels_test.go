@@ -2,7 +2,6 @@ package zr_logical_channels_test
 
 import (
 	"flag"
-	"strings"
 	"testing"
 	"time"
 
@@ -225,7 +224,6 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 	var opticalChannelAssignmentIndexTestcases []testcase
 
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
-		ciscoOpticalChannelFormat := strings.ReplaceAll(opticalChannel, "/", "_") // Ex: OpticalChannel0_0_0_18
 		opticalChannelAssignmentIndexTestcases = []testcase{
 			{
 				desc: "Assignment: Index",
@@ -235,7 +233,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 			{
 				desc: "Optical Channel Assignment: Optical Channel",
 				got:  cc.GetAssignment(1).GetOpticalChannel(),
-				want: ciscoOpticalChannelFormat,
+				want: opticalChannel,
 			},
 			{
 				desc: "Optical Channel Assignment: Description",
