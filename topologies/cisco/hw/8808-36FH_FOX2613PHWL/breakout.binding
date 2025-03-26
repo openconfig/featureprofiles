@@ -1,0 +1,157 @@
+duts {
+  id: "dut"
+  name: "DUT"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  config:{
+    gnmi_set_file: "/Users/fmolinar/Documents/repos/XR/topologies/cisco/hw/8808-36fh_fox2613phwl_bindings/breakout-basecfg.proto"
+  }
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  # telnet: -  telnet 10.85.84.47 2001, 2002
+  # Mgmt : 5.18.17.20
+  # Location : 22-18-17
+
+  # Exec server:
+  # ssh ott2lab-as3
+
+  options {
+    insecure: false
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.225:60699"
+  }
+  gnmi {
+    target: "10.85.84.225:60699"
+  }
+  gribi{
+    target: "10.85.84.225:60699"
+  }
+  ssh{
+    target: "10.85.84.225:58005"
+  }
+  p4rt{
+    target: "10.85.84.225:60699"
+  }
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+
+  ports {
+    id: "port1"
+    name: "HundredGigE0/0/0/30/0"  # Change this to the actual port name.
+    speed: S_100GB
+    pmd: PMD_400GBASE_DR4
+  }
+  ports {
+    id: "port2"
+    name: "HundredGigE0/0/0/30/1"  # Change this to the actual port name.
+    speed: S_100GB
+    pmd: PMD_400GBASE_DR4
+  }
+  ports {
+    id: "port3"
+    name: "HundredGigE0/0/0/30/2"  # Change this to the actual port name.
+    speed: S_100GB
+    pmd: PMD_400GBASE_DR4
+  }
+  ports {
+    id: "port4"
+    name: "HundredGigE0/0/0/30/3"  # Change this to the actual port name.
+    speed: S_100GB
+    pmd: PMD_400GBASE_DR4
+  }
+
+   ports {
+      id: "port5"
+      name: "TenGigE0/0/0/0/0"  # Change this to the actual port name.
+       speed: S_10GB
+       pmd: PMD_40GBASE_SR4
+   }
+   ports {
+      id: "port6"
+      name: "TenGigE0/0/0/0/1"  # Change this to the actual port name.
+      speed: S_10GB
+      pmd: PMD_40GBASE_SR4
+   }
+   ports {
+      id: "port7"
+      name: "TenGigE0/0/0/0/2"  # Change this to the actual port name.
+      speed: S_10GB
+      pmd: PMD_40GBASE_SR4
+   }
+   ports {
+      id: "port8"
+      name: "TenGigE0/0/0/0/3"  # Change this to the actual port name.
+      speed: S_10GB
+      pmd: PMD_40GBASE_SR4
+   }
+}
+
+
+ates {
+  # Chassis IP to connect manually is 10.85.84.119
+  # username: admin
+  # password: Admin@123
+  id: "ate"
+  name: "10.85.17.225:40057"  # Change this to the Ixia-C-Controler hostname.
+
+  # This option specific to OTG over Ixia-HW.
+  otg {
+    target: "10.85.17.225:40057" # Change this to the Ixia-c-grpc server endpoint.
+    insecure: true
+    timeout: 30
+  }
+
+  gnmi {
+    target: "10.85.17.225:50057"  # Change this to the Ixia-c-gnmi server endpoint.
+    skip_verify: true
+    timeout: 30
+  }
+
+  options {
+    username: "admin"
+    password: "admin"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "10.85.84.155;8;1"  # Change this to the ixia-c-hw port location.
+  }
+  ports {
+    id: "port2"
+    name: "10.85.84.155;8;2"  # Change this to the ixia-c-hw port location.
+  }
+
+  ports {
+    id: "port3"
+    name: "10.85.84.155;8;3"  # Change this to the ixia-c-hw port location.
+  }
+  ports {
+    id: "port4"
+    name: "10.85.84.155;8;4"  # Change this to the ixia-c-hw port location.
+  }
+  ports {
+      id: "port5"
+      name: "10.85.84.155;10;26"  # Change this to the actual port name.
+  }
+  ports {
+      id: "port6"
+      name: "10.85.84.155;10;28"  # Change this to the actual port name.
+  }
+  ports {
+      id: "port7"
+      name: "10.85.84.155;10;25"  # Change this to the actual port name.
+  }
+  ports {
+      id: "port8"
+      name: "10.85.84.155;10;27"  # Change this to the actual port name.
+  }
+} 

@@ -169,6 +169,13 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+  - name: PLT-1.1 (Interface breakout Test)
+    path: feature/interface/singleton/tests/singleton_with_breakouts
+    priority: 0
+    testbeds: 8808-36FH_FOX2613PHWL_BREAKOUT
+    owners:
+      - arvbaska
+    groups: [ancx]
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
     owners:
