@@ -603,6 +603,9 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
+
+	t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
+
 	telemetrySystemValue, ok := telemetrySystem["openconfig-telemetry:telemetry-system"]
 	if !ok {
 		t.Errorf("Key 'openconfig-telemetry:telemetry-system' not found in the JSON. Err: %v", ok)
@@ -780,6 +783,8 @@ func TestGnmiUnionReplace(t *testing.T) {
 	t.Run("Union Replace with OC and Native Yang config", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		baseConfig := baseConfig(t, dut)
+		t.Log("Base Config:", baseConfig)
+
 		cliBaseconfig := []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "cisco_cli",
@@ -794,18 +799,24 @@ func TestGnmiUnionReplace(t *testing.T) {
 		gpbReplaceReq := &gpb.SetRequest{Replace: cliBaseconfig}
 		//Replace with base config on the box
 		setRes, _ := dut.RawAPIs().GNMI(t).Set(context.Background(), gpbReplaceReq)
+		t.Logf("SetResponse for base config:\n%s", prototext.Format(setRes))
+
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(gpbReplaceReq))
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setRes))
 		var jsonietfVal []byte
+		t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
 		occliConfig, err := os.ReadFile("testdata/vrf.txt")
 		if err != nil {
 			panic(fmt.Sprintf("Cannot load base config: %v", err))
 		}
+		t.Log("OC CLI Config File Content:\n", string(occliConfig))
+
 		req := &gpb.SetRequest{}
 		prototext.Unmarshal(occliConfig, req)
 		replaceContents := req.Replace
 		for _, path := range replaceContents {
 			jsonietfVal = path.Val.GetJsonIetfVal()
+			t.Log("JSON IETF Value from Replace Contents:", string(jsonietfVal))
 		}
 
 		ocRoot := &oc.Root{}
@@ -832,9 +843,14 @@ func TestGnmiUnionReplace(t *testing.T) {
 
 		gotRes, _ := gnmiC.Get(context.Background(), inGetRequest)
 		cliJson := gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal()
+		t.Log("CLI JSON Response:", cliJson)
+
 		startIndex := strings.Index(cliJson, "{")
 		jsonString := cliJson[startIndex:]
-		jsonString = strings.Replace(jsonString, "[null]", "null", -1)
+		t.Log("Parsed JSON String:", jsonString)
+
+		jsonString = jsonString[:strings.LastIndex(jsonString, "}")+1]
+		t.Log("JSON String after removing character after }", jsonString)
 
 		var data map[string]interface{}
 		err = json.Unmarshal([]byte(jsonString), &data)
@@ -842,20 +858,19 @@ func TestGnmiUnionReplace(t *testing.T) {
 			t.Error("Error:", err)
 			return
 		}
-
+		t.Log("Unmarshalled Data:", data)
 		dataContent, ok := data["data"]
 		if !ok {
 			t.Errorf("Key 'data' not found in the JSON")
 		}
-
+		t.Log("Data Content:", dataContent)
 		extractedJSON, err := json.Marshal(dataContent)
 		if err != nil {
 			t.Errorf("Could not marshal data from json: %v", err)
 		}
-		t.Log(string(extractedJSON))
+		t.Log("Extracted JSON:", string(extractedJSON))
 
 		///////////new code here //////////
-		t.Log(dataContent)
 
 		nyconfig := []*gpb.Update{{
 			Path: &gpb.Path{

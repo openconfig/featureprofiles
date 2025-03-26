@@ -65,7 +65,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40061
       gnmi_port: 50061
       rest_port: 30061
@@ -153,7 +153,7 @@ testbeds:
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40059
       gnmi_port: 50059
       rest_port: 30059
@@ -216,8 +216,8 @@ testbeds:
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding
     baseconf:
-      dut1: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto
-      dut2: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig.proto
+      dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto
+      peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 48818
@@ -299,6 +299,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp.conf
+  8808-1DUT-pxe-boot:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT/topo-pxe-boot.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp.conf
   8201-1DUT-vrf-mgmt:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
@@ -370,7 +374,13 @@ testbeds:
   8818-18LC:
     sim: true
     topology: topologies/cisco/pyvxr/8818-18LC/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8818-18LC/basefp.conf    
+    baseconf: topologies/cisco/pyvxr/8818-18LC/basefp.conf
+  8808-2DUT-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-2DUT-ATE/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp.conf
+      dut2: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp_peer.conf    
 
   # OTG
   8201-32FH-FLM254306M8_OTG:
