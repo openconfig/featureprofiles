@@ -2,7 +2,11 @@
 
 ## Summary
 
-This is to test the the functionality of policy-based forwarding (PF) to decapsulate Generic UDP Encapsulation (GUE) traffic. These tests verify the use case of MPLSoGUE to IPv4 GUE tunnel. The tests are meant for `Tunnel Interface` or `Policy Based` implementation of IPv4 GUE tunnel. The tests validate that the DUT performs the following action.
+This is to test the the functionality of policy-based forwarding (PF) to 
+decapsulate Generic UDP Encapsulation (GUE) traffic. These tests verify the use
+case of MPLSoGUE to IPv4 GUE tunnel. The tests are meant for `Tunnel Interface`
+or `Policy Based` implementation of IPv4 GUE tunnel. The tests validate that 
+the DUT performs the following action.
 
  - DUT is a transient node to forward MPLSoGUE traffic.
  - DUT is a target node to decapsulate IPv4GUE and forward inner MPLSoGUE to the destination. 
@@ -51,7 +55,8 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 Traffic: 
 -  Generate MPLSoGUE-encapsulated traffic from ATE Port 1 with destinations matching IPV4-DST1 and default GUE UDP port 6635.
--  Inner MPLS label is Label (LBL2 - a valid MPLS label)
+-  Inner MPLS label is Label (L
+-  BL2 - a valid MPLS label)
 -  Inner IPv4 destination should match IPV4-DST2.
 -  Inner-packet DSCP value should be set to 32.
 -  Inner-packet TTL value should be set to 64.
