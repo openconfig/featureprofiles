@@ -46,7 +46,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
      * Source port will vary depending on the application.
      * Destination port 6080 (default/ or configured non-default)
       will remain consistent.
-   * For the inner IPGUE header:
+   * For the inner MPLSoGUE header:
      * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST1 respectively.
      * Source port will vary depending on the application.
      * Destination port 6635 (default/ or configured non-default)
@@ -56,7 +56,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
      * TTL value should be set to 64.
  
  *  Flow type 2: IP+UDP+MPLS+Payload (MPLSoGUE)
-    * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST1 respectively.
+    * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST2 respectively.
     * Source port will vary depending on the application.
     * Destination port 6635 (default/ or configured non-default)
       will remain consistent.
@@ -67,14 +67,14 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 *  ATE Port 2 receives below flow/packet types:
    * Flow type 1: IP+UDP+IP+UDP+MPLS+Payload
       * Recieves the inner MPLSoGUE packet after IPGUE header gets decapsulated by DUT:
-        * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST1 respectively.
+        * Source IP and Destination IP will be IPV4-SRC2 and IPV4-DST2 respectively.
         * Source port will vary depending on the application.
         * Destination port 6635 (default/ or configured non-default)
          will remain consistent.
 
    *  Flow type 2: IP+UDP+MPLS+Payload(MPLSoGUE)
       *  Recieves the MPLSoGUE packet as is: 
-         * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST1 respectively.
+         * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST2 respectively.
          * Source port will vary depending on the application.
          * Destination port 6635 (default/ or configured non-default)
            will remain consistent.
