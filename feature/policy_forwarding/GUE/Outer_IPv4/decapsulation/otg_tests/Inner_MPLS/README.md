@@ -2,7 +2,7 @@
 
 ## Summary
 
-This is to test the the functionality of policy-based forwarding (PF) to decapsulate Generic UDP Encapsulation (GUE) traffic. These tests verify the use case of MPLSoGUE to IPv4 GUE tuennel. The tests are meant for `Tunnel Interface` or `Policy Based` implementation of IPv4 GUE tunnel. The tests validate that the DUT performs the following action.
+This is to test the the functionality of policy-based forwarding (PF) to decapsulate Generic UDP Encapsulation (GUE) traffic. These tests verify the use case of MPLSoGUE to IPv4 GUE tunnel. The tests are meant for `Tunnel Interface` or `Policy Based` implementation of IPv4 GUE tunnel. The tests validate that the DUT performs the following action.
 
  - DUT is a transient node to forward MPLSoGUE traffic.
  - DUT is a target node to decapsulate IPv4GUE and forward inner MPLSoGUE to the destination. 
