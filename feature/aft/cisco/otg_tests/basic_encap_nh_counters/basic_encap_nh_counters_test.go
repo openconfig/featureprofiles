@@ -277,7 +277,6 @@ type pbrRule struct {
 type packetAttr struct {
 	dscp     int
 	protocol int
-	ttl      uint32
 }
 
 type flowAttr struct {

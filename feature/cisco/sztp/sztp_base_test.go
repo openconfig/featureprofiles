@@ -142,7 +142,7 @@ func checkFiles(t *testing.T, dut *ondatra.DUTDevice, filesList []string, factRe
 		if err != nil {
 			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
 		}
-		t.Logf(resp.Output())
+		t.Log(resp.Output())
 		if factReset == true {
 			if strings.Contains(resp.Output(), fileExists) == true {
 				t.Fatalf("File %s not cleared by system Reset, in device %s", fP, dut.Name())

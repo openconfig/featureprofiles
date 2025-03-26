@@ -75,7 +75,7 @@ func generateKeypair(client_ssh_dir string) error {
 func TestPWLess(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(showresp)
+	t.Log(showresp)
 	if strings.Contains(showresp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -101,7 +101,7 @@ func TestPWLess(t *testing.T) {
 	}
 	cli_handle := dut.RawAPIs().CLI(t)
 	resp, err := cli_handle.RunCommand(context.Background(), "crypto key import authentication rsa harddisk:/id_rsa.bin")
-	t.Logf(resp.Output())
+	t.Log(resp.Output())
 	if err != nil {
 		t.Error(err)
 	}
@@ -117,7 +117,7 @@ func TestPWLess(t *testing.T) {
 func TestCertAuth(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(showresp)
+	t.Log(showresp)
 	if strings.Contains(showresp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -148,7 +148,7 @@ func TestCertAuth(t *testing.T) {
 func TestPwDisable(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(showresp)
+	t.Log(showresp)
 	if strings.Contains(showresp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -167,7 +167,7 @@ func TestPwDisable(t *testing.T) {
 func TestDiskEn(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(showresp)
+	t.Log(showresp)
 	if strings.Contains(showresp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -186,7 +186,7 @@ func TestDiskEn(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Logf(resp.Output())
+		t.Log(resp.Output())
 		t.Log("Waiting for the box to reload")
 		time.Sleep(8 * time.Minute)
 		t.Log("Executing disk-encryption after reload")
@@ -208,7 +208,7 @@ func TestDiskEn(t *testing.T) {
 func TestTLS(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(showresp)
+	t.Log(showresp)
 	if strings.Contains(showresp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
@@ -219,7 +219,7 @@ func TestTLS(t *testing.T) {
 	//t.Log("configuring grpc tls to generate the certificates/key")
 	cli_handle := dut.RawAPIs().CLI(t)
 	rmGrpc, errRmGrpc := cli_handle.RunCommand(context.Background(), "run rm -rf /misc/config/grpc/")
-	t.Logf(rmGrpc.Output())
+	t.Log(rmGrpc.Output())
 	if errRmGrpc != nil {
 		t.Error(errRmGrpc)
 	}
@@ -283,7 +283,7 @@ func TestSZTP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Connect to dhcp server")
 	showresp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(showresp)
+	t.Log(showresp)
 	if strings.Contains(showresp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()
