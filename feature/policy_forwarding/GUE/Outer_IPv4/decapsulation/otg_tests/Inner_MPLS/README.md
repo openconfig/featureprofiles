@@ -106,17 +106,26 @@ Verification:
 - Inner-packet TTL value should be decremented by 1 to 63.
 - PF counters reflect decapsulated packets.
 
-
-## Config Parameter Coverage
-
-## Telemetry Parameter Coverage
-
 ## OpenConfig Path and RPC Coverage
 
-This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test 
-environment setup are not required to be listed here.
 
 ```
+paths:
+    # match condition
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
+    # decap action
+    //network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
+    # telemetry
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
 ```
 
 ## Required DUT platform
