@@ -1322,3 +1322,8 @@ func SetISISAuthWithInterfaceAuthenticationContainer(dut *ondatra.DUTDevice) boo
 func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreGueTunnelInterfaceOcUnsupported()
 }
+
+// LoadIntervalNotSupported returns true if load interval is not supported on vendors
+func LoadIntervalNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLoadIntervalNotSupported()
+}
