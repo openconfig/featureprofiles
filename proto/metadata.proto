@@ -722,6 +722,9 @@ message Metadata {
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
 
+    // Devices that do not propagate IGP metric through redistribution
+    bool default_no_igp_metric_propagation = 263;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
