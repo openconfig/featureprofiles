@@ -50,9 +50,24 @@ outer_ip-ttl =        "64"
   * Update policer-policies in a batch of `sched_q` = 1,000
   * Policer-policies changes should take effect within `sched_r` / 2 time
 
-#### Scale profile A - many vlans
+#### Scale profile A - many vlans 1 NH per NHG with same MPLS label
 
 * 20 ip destinations * 1,000 vlans = 20,000 'flows'
+* 1000 VRF have 1000 policy forwarding NHG with 8 NH
+* 1 default route in each VRF pointing to policy forwarding NHG.
+* Create 20K gRIBI NHG with 1 NH per NHG with same MPLS label.
+* 100K longest exact match route entries with 5 pointing to 1 gRIBI NHG.
+* Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
+* The 20 ip destinations are split evenly between the 20 policers
+* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+
+#### Scale profile A - many vlans 1 NH per NHG with different MPLS label
+
+* 20 ip destinations * 1,000 vlans = 20,000 'flows'
+* 1000 VRF have 1000 policy forwarding NHG with 8 NH
+* 1 default route in each VRF pointing to policy forwarding NHG.
+* Create 20K gRIBI NHG with 1 NH per NHG with different MPLS label.
+* 100K longest exact match route entries with 5 pointing to 1 gRIBI NHG.
 * Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
 * The 20 ip destinations are split evenly between the 20 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
@@ -66,7 +81,7 @@ outer_ip-ttl =        "64"
 
 #### Procedure - Flow Scale
 
-* For each scale profile, create the following subsets TE-18.1.5.n
+* For each scale profile, create the following subsets TE-18.3.1.n
   * Configure ATE flows to send 100 pps per flow and wait for ARP
   * Send traffic for q flows (destination IP prefixes) for 2 seconds
   * At traffic start time, gRIBI client to send `flow_q` aft entries and their
@@ -80,10 +95,17 @@ outer_ip-ttl =        "64"
 
 #### Procedure - Policer + Flow Scale
 
-* For each scale profile, create the following subsets TE-18.1.6.n
+* For each scale profile, create the following subsets TE-18.3.1.n
   * Program all 20,000 flows
   * Every `sched_r` interval use gnmi.Set to replace `sched_q` scheduler policies
   * Verify packet loss changes for all flows within `sched_r` / 2 time
+
+
+#### Procedure - VRF Scale
+
+* For each scale profile, create the following subsets TE-18.3.1.n
+  * Generate traffic stream for policy forwarding NHG and gRIBI NHG
+  * Observe that MPLS over GRE and MPLS over UDP encapsulation are working properly.
 
 #### OpenConfig Path and RPC Coverage
 
