@@ -53,7 +53,7 @@ outer_ip-ttl =        "64"
 #### Scale profile A - many vlans 1 NH per NHG with same MPLS label
 
 * 20 ip destinations * 1,000 vlans = 20,000 'flows'
-* 1000 VRF have 1000 policy forwarding NHG with 8 NH
+* 1000 network-instances have each have 1 static route pointing a static  NHG with 8 NH.  The encap-headers for the NH should indicate MPLS in GRE encapsulation as per the canonical OC defined in test TE-18.1
 * 1 default route in each VRF pointing to policy forwarding NHG.
 * Create 20K gRIBI NHG with 1 NH per NHG with same MPLS label.
 * 100K longest exact match route entries with 5 pointing to 1 gRIBI NHG.
