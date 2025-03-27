@@ -63,15 +63,12 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
 
-  rpcs:
+rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
-      replace: true
     gNMI.Subscribe:
-      on_change: true
 ```
 
-## Required DUT platform
-  * MFF
-  * FFF
+## Minimum DUT platform requirement
+
+FFF
