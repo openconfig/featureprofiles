@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -36,18 +37,17 @@ func TestMain(m *testing.M) {
 }
 
 func TestMotdBanner(t *testing.T) {
-
+	dut := ondatra.DUT(t, "dut")
 	testCases := []struct {
 		description string
 		banner      string
 	}{
 		{"Empty String", ""},
-		{"Single Character", "x"},
-		{"Short String", "Warning Text"},
-		{"Long String", "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected."},
+		{"Single Character", deviations.BannerDelimiter(dut) + "x" + deviations.BannerDelimiter(dut)},
+		{"Short String", deviations.BannerDelimiter(dut) + "Warning Text" + deviations.BannerDelimiter(dut)},
+		{"Long String", deviations.BannerDelimiter(dut) + "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected." + deviations.BannerDelimiter(dut)},
 	}
 
-	dut := ondatra.DUT(t, "dut")
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			config := gnmi.OC().System().MotdBanner()
@@ -57,8 +57,10 @@ func TestMotdBanner(t *testing.T) {
 
 			t.Run("Get MOTD Config", func(t *testing.T) {
 				if testCase.banner == "" {
-					if v, ok := gnmi.LookupConfig(t, dut, config.Config()).Val(); ok && v != "" {
-						t.Errorf("MOTD Banner not empty")
+					if !deviations.BannerEmptyDelimiterUnsupported(dut) {
+						if v, ok := gnmi.LookupConfig(t, dut, config.Config()).Val(); ok && v != "" {
+							t.Errorf("MOTD Banner not empty")
+						}
 					}
 				} else {
 					configGot := gnmi.Get(t, dut, config.Config())
@@ -77,6 +79,7 @@ func TestMotdBanner(t *testing.T) {
 				} else {
 					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
+					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
 					}
@@ -99,17 +102,16 @@ func TestMotdBanner(t *testing.T) {
 // config_path:/system/config/login-banner
 // telemetry_path:/system/state/login-banner
 func TestLoginBanner(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	testCases := []struct {
 		description string
 		banner      string
 	}{
 		{"Empty String", ""},
-		{"Single Character", "x"},
-		{"Short String", "Warning Text"},
-		{"Long String", "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected."},
+		{"Single Character", deviations.BannerDelimiter(dut) + "x" + deviations.BannerDelimiter(dut)},
+		{"Short String", deviations.BannerDelimiter(dut) + "Warning Text" + deviations.BannerDelimiter(dut)},
+		{"Long String", deviations.BannerDelimiter(dut) + "WARNING : Unauthorized access to this system is forbidden and will be prosecuted by law. By accessing this system, you agree that your actions may be monitored if unauthorized usage is suspected." + deviations.BannerDelimiter(dut)},
 	}
-
-	dut := ondatra.DUT(t, "dut")
 
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
@@ -120,8 +122,10 @@ func TestLoginBanner(t *testing.T) {
 
 			t.Run("Get Login Banner Config", func(t *testing.T) {
 				if testCase.banner == "" {
-					if v, ok := gnmi.LookupConfig(t, dut, config.Config()).Val(); ok && v != "" {
-						t.Errorf("Config Login Banner not empty")
+					if !deviations.BannerEmptyDelimiterUnsupported(dut) {
+						if v, ok := gnmi.LookupConfig(t, dut, config.Config()).Val(); ok && v != "" {
+							t.Errorf("Config Login Banner not empty")
+						}
 					}
 				} else {
 					configGot := gnmi.Get(t, dut, config.Config())
@@ -134,12 +138,15 @@ func TestLoginBanner(t *testing.T) {
 
 			t.Run("Get Login Banner Telemetry", func(t *testing.T) {
 				if testCase.banner == "" {
-					if v, ok := gnmi.Lookup(t, dut, state.State()).Val(); ok && v != "" {
-						t.Errorf("Telemetry Login Banner not empty")
+					if !deviations.BannerEmptyDelimiterUnsupported(dut) {
+						if v, ok := gnmi.Lookup(t, dut, state.State()).Val(); ok && v != "" {
+							t.Errorf("Telemetry Login Banner not empty")
+						}
 					}
 				} else {
 					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
+					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
 					}
