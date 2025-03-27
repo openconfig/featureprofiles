@@ -1,14 +1,17 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "E2B5D167-5536-475B-BA26-8939A15FFB0E"
+uuid: "e2b5d167-5536-475b-ba26-8939a15ffb0e"
 plan_id: "gNMI-1.19"
-description: "ConfigPush after Control Card switchover"
+description: "ConfigPush and ConfigPull after Control Card switchover"
 testbed: TESTBED_DUT
-#platform_exceptions: {
-#  platform: {
-#    vendor: NOKIA
-#  }
-#  deviations: {
-#  }
-#}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    gnoi_subcomponent_path: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
