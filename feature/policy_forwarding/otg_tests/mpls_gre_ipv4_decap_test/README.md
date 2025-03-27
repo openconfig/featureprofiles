@@ -96,7 +96,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Multicast traffic must be decapsulated and sent out with L2 header based on the multicast payload address.
 
-## NOTE: All test cases expected to meet following requirements and need not be a test pass criteria
+## NOTE: All test cases expected to meet following requirements even though they are not explicitly validated in the test.
 * Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
 * There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * Header fields are as expected without any bit flips
