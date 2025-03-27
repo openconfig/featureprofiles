@@ -400,7 +400,6 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	}
 	if deviations.SkipSettingStatementForPolicy(dut) {
 		gnmi.Update(t, dut, path.Config(), policy)
-		gnmi.Update(t, dut, importPolPath.Config(), eBGPPeerPolicy)
 	} else {
 		if operation == "set" {
 			gnmi.BatchReplace(batch, path.Config(), policy)
@@ -620,7 +619,6 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	}
 	if deviations.SkipSettingStatementForPolicy(dut) {
 		gnmi.Update(t, dut, path.Config(), policy)
-		gnmi.Update(t, dut, importPolPath.Config(), eBGPPeerPolicy)
 	} else {
 		if operation == "set" {
 			gnmi.BatchReplace(batch, path.Config(), policy)

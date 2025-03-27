@@ -72,7 +72,8 @@ func SetupUser(t *testing.T, dut *ondatra.DUTDevice, username string) {
 // - Must use 4 of the 5 character classes ([a-z], [A-Z], [0-9], [!@#$%^&*(){}[]\|:;'"], [ ]).
 func GeneratePassword() string {
 	// Create random length between 24-32 characters long.
-	length := minPasswordLength + rand.Intn(maxPasswordLength-minPasswordLength+1)
+	delta := maxPasswordLength - minPasswordLength + 1
+	length := minPasswordLength + rand.Intn(delta)
 
 	// Randomly select 4 out of 5 character classes by shuffling the list.
 	rand.Shuffle(len(charClasses), func(i, j int) {
@@ -597,7 +598,7 @@ func SSHWithPassword(target, username, password string) (*ssh.Client, error) {
 			Auth: []ssh.AuthMethod{
 				ssh.Password(password),
 			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
 		},
 	)
 }
@@ -628,13 +629,7 @@ func SSHWithCertificate(t *testing.T, target, username, dir string) (*ssh.Client
 	return ssh.Dial(
 		"tcp",
 		target,
-		&ssh.ClientConfig{
-			User: username,
-			Auth: []ssh.AuthMethod{
-				ssh.PublicKeys(certificateSigner),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		},
+		sshClientConfigWithPublicKeys(username, certificateSigner),
 	)
 }
 
@@ -652,12 +647,16 @@ func SSHWithKey(t *testing.T, target, username, dir string) (*ssh.Client, error)
 	return ssh.Dial(
 		"tcp",
 		target,
-		&ssh.ClientConfig{
-			User: username,
-			Auth: []ssh.AuthMethod{
-				ssh.PublicKeys(signer),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		},
+		sshClientConfigWithPublicKeys(username, signer),
 	)
+}
+
+func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
+	return &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
+	}
 }
