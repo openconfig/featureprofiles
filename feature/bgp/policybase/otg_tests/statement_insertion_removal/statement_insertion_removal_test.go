@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/openconfig/ygot/ygot"
-	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/open_traffic_generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
