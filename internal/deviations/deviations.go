@@ -1327,3 +1327,8 @@ func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 func LoadIntervalNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadIntervalNotSupported()
 }
+
+// IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
+func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
+}
