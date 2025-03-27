@@ -78,3 +78,20 @@ func DeviationJuniperRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondat
 	}`, policyName, statement, community)
 	helpers.GnmiCLIConfig(t, dut, config)
 }
+
+// DeviationAristaRoutingPolicyBGPActionSetMedPropagate is used as an alternative to
+// /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med.
+// This deviation implements CLI to perform the equivalent function.
+func DeviationAristaRoutingPolicyBGPActionSetMedPropagate(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	// route-map route-policy-v4 statement propagate-metric permit 5
+	//   set metric igp-metric
+	//   continue
+	// exit
+
+	cliConfig := fmt.Sprintf("route-map %s statement propagate-metric permit 5\n", policyName)
+	cliConfig += "  set metric igp-metric\n"
+	cliConfig += "  continue\n"
+	cliConfig += "exit"
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+}
