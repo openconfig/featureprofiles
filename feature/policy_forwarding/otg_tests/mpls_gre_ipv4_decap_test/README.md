@@ -1,4 +1,4 @@
-# PF-1.5 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload 
+# PF-1.12 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload 
 
 ## Summary
 This test verifies MPLSoGRE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGRE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
@@ -25,7 +25,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Egress Ports: Aggregate1
     * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
 
-## PF-1.5.1 Generate config for MPLS in GRE decap and push to DUT
+## PF-1.12.1 Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
 #### Aggregate1 is the egress port having following configuration:
@@ -96,7 +96,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Device must be able to resolve the ARP and IPV6 neighbors upon receiving traffic from ATE ports
 
 
-## PF-1.5.2: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload
+## PF-1.12.2: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -113,14 +113,14 @@ Verify:
   * Based on outer payload
   * Based on inner and outer payload
 
-## PF-1.5.3: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
-Send traffic as in PF-1.5.2
+## PF-1.12.3: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
+Send traffic as in PF-1.12.2
 * Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 interface VLAN configs and verify that there is no IPV4 traffic loss
 * Remove and add IPV4 MPLSoGRE decap configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 MPLSoGRE decap configs and verify that there is no IPV4 traffic loss
 
-## PF-1.5.4: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
+## PF-1.12.4: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -137,7 +137,7 @@ Verify:
   * Based on outer payload
   * Based on inner and outer payload
 
-## PF-1.5.5: Verify MPLSoGRE DSCP/TTL preserve operation 
+## PF-1.12.5: Verify MPLSoGRE DSCP/TTL preserve operation 
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -154,7 +154,7 @@ Verify:
 * Header fields are as expected without any bit flips
 * Inner payload DSCP and TTL values are not altered by the device
 
-## PF-1.5.6: Verify IPV4/IPV6 nexthop resolution of decap traffic
+## PF-1.12.6: Verify IPV4/IPV6 nexthop resolution of decap traffic
 Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -268,7 +268,7 @@ Verify:
     }
 ```
 
-## OpenConfig Path Coverage
+## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
 network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/next-hops/next-hop/config/access-list-bypass
 

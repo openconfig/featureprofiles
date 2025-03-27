@@ -1,4 +1,4 @@
-# PF-1.6 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload 
+# PF-1.13 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload scale test 
 
 ## Summary
 This test verifies scaling of MPLSoGRE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGRE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
@@ -25,10 +25,10 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Egress Ports: Aggregate1
     * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
 
-## PF-1.6.1: Generate config for MPLS in GRE decap and push to DUT 
+## PF-1.13.1: Generate config for MPLS in GRE decap and push to DUT 
 Please generate config using PF-1.5.1
 
-## PF-1.6.2: Verify IPV4/IPV6 traffic scale 
+## PF-1.13.2: Verify IPV4/IPV6 traffic scale 
 Generate traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
@@ -48,7 +48,7 @@ Verify:
 * Entire static label range is usable and functional by sending traffic across the entire label range
 
 
-## OpenConfig Path Coverage
+## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
 network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/next-hops/next-hop/config/access-list-bypass
 
