@@ -262,7 +262,7 @@ Verify:
                       "next-hop": "169.254.1.138",
                       "payload-type": "IPV4"
 }
-```
+``` 
 
 ## OpenConfig Path Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
