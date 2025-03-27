@@ -30,15 +30,15 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 ```
 
 * ATE Port 1 hosted prefixes:
-  *ATE-Port1 IPV4 address = ATE-P1-Address
-  * IPV4-SRC1 
+  * ATE-Port1 IPV4 address = ATE-P1-Address
+  * Additional Source Address = IPV4-SRC1 
 
 * ATE Port 2 hosted prefixes:
-  *ATE-Port2 IPV4 address = ATE-P2-Address
-  * IPV4-DST1
+  * ATE-Port2 IPV4 address = ATE-P2-Address
+  * Additional destination address = IPV4-DST1
 
 * DUT hosted IPv4 prefixes:
-  * DECAP-DST 
+  * Decapsuation Addresse/Addresses = DECAP-DST 
 
 *  ATE Port 1 generates below flow types:
  
