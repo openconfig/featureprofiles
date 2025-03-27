@@ -55,7 +55,8 @@ func updatePolicy(statement *oc.RoutingPolicy_PolicyDefinition_Statement, policy
 			statement.Actions.BgpActions.SetAsPathPrepend.Asn = ygot.Uint32(uint32(policy.Bgpaction.Aspathprepend.Repeatn))
 		}
 		if policy.Bgpaction.Medtype != "" {
-			statement.Actions.BgpActions.SetMed = oc.UnionString(policy.Bgpaction.Medtype)
+			// FIXME SetMed changed to either uint32 or enum value
+			// statement.Actions.BgpActions.SetMed = oc.UnionString(policy.Bgpaction.Medtype)
 
 		}
 	}

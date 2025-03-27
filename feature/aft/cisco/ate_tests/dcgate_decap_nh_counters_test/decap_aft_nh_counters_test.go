@@ -3,6 +3,11 @@ package dcgate_decap_aft_nh_counters
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strconv"
+	"testing"
+	"time"
+
 	aftUtil "github.com/openconfig/featureprofiles/feature/aft/cisco/aftUtils"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -10,10 +15,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"slices"
-	"strconv"
-	"testing"
-	"time"
 )
 
 const (
@@ -1000,7 +1001,7 @@ func (args *testArgs) validateTrafficFlows(
 			t.Logf("Checking if flow %q has 100%% loss ...", flow.Name())
 			if lossPct < 100 {
 				msg := fmt.Sprintf("FAIL: Flow %q LossPct got %g, want 100", flow.Name(), lossPct)
-				t.Errorf(msg)
+				t.Error(msg)
 				result.Result = "FAIL"
 			} else {
 				t.Logf("PASS: Flow %q is at 100%% loss as expected.", flow.Name())
@@ -1009,8 +1010,7 @@ func (args *testArgs) validateTrafficFlows(
 		} else {
 			t.Logf("Checking if flow %q has 0%% loss ...", flow.Name())
 			if lossPct > 0 {
-				msg := fmt.Sprintf("WARNING: Flow %q LossPct got %g, want 0", flow.Name(), lossPct)
-				t.Errorf(msg)
+				t.Errorf("WARNING: Flow %q LossPct got %g, want 0", flow.Name(), lossPct)
 				result.Result = "FAIL"
 			} else {
 				t.Logf("PASS: Flow %q has 0%% loss as expected.", flow.Name())
