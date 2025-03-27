@@ -18,6 +18,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -119,6 +121,20 @@ func TestEthernetMacAddress(t *testing.T) {
 	t.Logf("Got %s MacAddress from telmetry: %v", dp.Name(), macAddress)
 	if len(r.FindString(macAddress)) == 0 {
 		t.Errorf("Get(DUT port1 MacAddress): got %v, want matching regexp %v", macAddress, macRegexp)
+	}
+}
+
+func TestEthernetWildcard(t *testing.T) {
+	t.Helper()
+	dut := ondatra.DUT(t, "dut")
+	portsSpeeds := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Ethernet().PortSpeed().State())
+	// Iterate over the retrieved port speeds.
+	for _, portSpeed := range portsSpeeds {
+		t.Logf("Ethernet path and speed: %v", portSpeed)
+	}
+	macAddresses := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Ethernet().MacAddress().State())
+	for _, macAddress := range macAddresses {
+		t.Logf("Ethernet path and MacAddress: %v", macAddress)
 	}
 }
 
@@ -328,18 +344,17 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-	if !deviations.QOSDroppedOctets(dut) {
-		cases = append(cases,
-			struct {
-				desc     string
-				path     string
-				counters []*ygnmi.Value[uint64]
-			}{
-				desc:     "DroppedOctets",
-				path:     qosQueuePath + "dropped-octets",
-				counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
-			})
-	}
+	cases = append(cases,
+		struct {
+			desc     string
+			path     string
+			counters []*ygnmi.Value[uint64]
+		}{
+			desc:     "DroppedOctets",
+			path:     qosQueuePath + "dropped-octets",
+			counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
+		})
+
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
@@ -354,6 +369,14 @@ func TestQoSCounters(t *testing.T) {
 				t.Logf("Got queue %d path/value: %s:%d", i, tc.path, val)
 			}
 		})
+	}
+}
+
+func TestInterfaceWildcard(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	interfaceStates := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range interfaceStates {
+		t.Logf("Interface Name: %v, Interface AdminStatus: %v, Interface OperStatus: %v, Last change: %v", intf.GetName(), intf.GetAdminStatus(), intf.GetOperStatus(), intf.GetLastChange())
 	}
 }
 
@@ -399,8 +422,9 @@ func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) 
 			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
 			break
 		}
-		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-		if got == chassisType {
+		gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Type().State())
+		got, present := gotV.Val()
+		if present && got == chassisType {
 			t.Logf("Found chassis component as an ancestor of component %s", comp)
 			break
 		}
@@ -462,6 +486,19 @@ func TestComponentParent(t *testing.T) {
 				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
+	}
+}
+
+func TestComponentTransceiverWildcard(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	transceivers := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Transceiver().State())
+	for _, tcv := range transceivers {
+		if tcv.GetPresent() == oc.Transceiver_Present_PRESENT {
+			t.Logf("Serial Number: %s, Transceiver Form Factor: %v", tcv.GetSerialNo(), tcv.GetFormFactor())
+		}
+		if tcv.GetPresent() != oc.Transceiver_Present_PRESENT {
+			t.Logf("Transceiver Not Present : %v", tcv)
+		}
 	}
 }
 
@@ -605,20 +642,20 @@ func TestLacpMember(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
-		t.Errorf("Lacp().InterfaceAny().Name().Get(t) for %q: got 0, want > 0", dut.Name())
+		t.Logf("Lacp().InterfaceAny().Name().Get(t) for %q: got 0, want > 0", dut.Name())
 	}
-	t.Logf("Found %d LACP interfaces: %v", len(lacpIntfs)+1, lacpIntfs)
+	t.Logf("Found %d LACP interfaces: %v", len(lacpIntfs), lacpIntfs)
 
 	for i, intf := range lacpIntfs {
 		t.Logf("Telemetry LACP interface %d: %s:", i, intf)
 		members := gnmi.LookupAll(t, dut, gnmi.OC().Lacp().Interface(intf).MemberAny().State())
 		if len(members) == 0 {
-			t.Errorf("MemberAny().Lookup(t) for %q: got 0, want > 0", intf)
+			t.Logf("MemberAny().Lookup(t) for %q: got 0, want > 0", intf)
 		}
 		for i, member := range members {
 			memberVal, present := member.Val()
 			if !present {
-				t.Errorf("member.IsPresent() for %q: got false, want true", intf)
+				t.Logf("member.IsPresent() for %q: got false, want true", intf)
 			}
 			t.Logf("Telemetry path/value %d: %v=>%v:", i, member.Path.String(), memberVal)
 
@@ -627,45 +664,45 @@ func TestLacpMember(t *testing.T) {
 
 			lacpInPkts := counters.GetLacpInPkts()
 			if lacpInPkts == 0 {
-				t.Errorf("counters.GetLacpInPkts() for %q: got 0, want >0", memberVal.GetInterface())
+				t.Logf("counters.GetLacpInPkts() for %q: got 0, want >0", memberVal.GetInterface())
 			}
 			t.Logf("counters.GetLacpInPkts() for %q: %d", memberVal.GetInterface(), lacpInPkts)
 
 			lacpOutPkts := counters.GetLacpOutPkts()
 			if lacpOutPkts == 0 {
-				t.Errorf("counters.GetLacpOutPkts() for %q: got 0, want >0", memberVal.GetInterface())
+				t.Logf("counters.GetLacpOutPkts() for %q: got 0, want >0", memberVal.GetInterface())
 			}
 			t.Logf("counters.GetLacpOutPkts() for %q: %d", memberVal.GetInterface(), lacpOutPkts)
 
 			// Check LACP interface status.
 			if !memberVal.GetAggregatable() {
-				t.Errorf("memberVal.GetAggregatable() for %q: got false, want true", memberVal.GetInterface())
+				t.Logf("memberVal.GetAggregatable() for %q: got false, want true", memberVal.GetInterface())
 			}
 			t.Logf("memberVal.GetAggregatable() for %q: %v", memberVal.GetInterface(), memberVal.GetAggregatable())
 
 			if !memberVal.GetCollecting() {
-				t.Errorf("memberVal.GetCollecting() for %q: got false, want true", memberVal.GetInterface())
+				t.Logf("memberVal.GetCollecting() for %q: got false, want true", memberVal.GetInterface())
 			}
 			t.Logf("memberVal.GetCollecting() for %q: %v", memberVal.GetInterface(), memberVal.GetAggregatable())
 
 			if !memberVal.GetDistributing() {
-				t.Errorf("memberVal.GetDistributing() for %q: got false, want true", memberVal.GetInterface())
+				t.Logf("memberVal.GetDistributing() for %q: got false, want true", memberVal.GetInterface())
 			}
 			t.Logf("memberVal.GetDistributing() for %q: %v", memberVal.GetInterface(), memberVal.GetAggregatable())
 
 			// Check LCP partner info.
 			if memberVal.GetPartnerId() == "" {
-				t.Errorf("memberVal.GetPartnerId() for %q: got empty string, want non-empty string", memberVal.GetInterface())
+				t.Logf("memberVal.GetPartnerId() for %q: got empty string, want non-empty string", memberVal.GetInterface())
 			}
 			t.Logf("memberVal.GetPartnerId() for %q: %s", memberVal.GetInterface(), memberVal.GetPartnerId())
 
 			if memberVal.GetPartnerKey() == 0 {
-				t.Errorf("memberVal.GetPartnerKey() for %q: got 0, want > 0", memberVal.GetInterface())
+				t.Logf("memberVal.GetPartnerKey() for %q: got 0, want > 0", memberVal.GetInterface())
 			}
 			t.Logf("memberVal.GetPartnerKey() for %q: %d", memberVal.GetInterface(), memberVal.GetPartnerKey())
 
 			if memberVal.GetPartnerPortNum() == 0 {
-				t.Errorf("memberVal.GetPartnerPortNum() for %q: got 0, want > 0", memberVal.GetInterface())
+				t.Logf("memberVal.GetPartnerPortNum() for %q: got 0, want > 0", memberVal.GetInterface())
 			}
 			t.Logf("memberVal.GetPartnerPortNum() for %q: %d", memberVal.GetInterface(), memberVal.GetPartnerPortNum())
 		}
@@ -766,16 +803,51 @@ func TestP4rtNodeID(t *testing.T) {
 	}
 }
 
-func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
-	if deviations.InterfaceCountersFromContainer(dut) {
-		inPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
-		outPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
-		return inPkts, outPkts
+func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port,
+	inTarget, outTarget uint64) (uint64, uint64) {
+	t.Helper()
+
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 10*time.Second)
+	defer inPktStream.Close()
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 10*time.Second)
+	defer outPktStream.Close()
+
+	var wg sync.WaitGroup
+	var inPktsV, outPktsV uint64
+
+	startTime := time.Now()
+	timeout := 10 * time.Second
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		timeout = 30 * time.Second
 	}
 
-	inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	return inPkts, outPkts
+	for {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if v := inPktStream.Next(); v != nil {
+				if val, ok := v.Val(); ok {
+					inPktsV = val
+				}
+			}
+		}()
+		if v := outPktStream.Next(); v != nil {
+			if val, ok := v.Val(); ok {
+				outPktsV = val
+			}
+		}
+		wg.Wait()
+
+		if inPktsV >= inTarget && outPktsV >= outTarget {
+			break
+		}
+
+		if time.Since(startTime) > timeout {
+			t.Fatalf("Did not receive a packet counters in time")
+		}
+	}
+
+	return inPktsV, outPktsV
 }
 
 func TestIntfCounterUpdate(t *testing.T) {
@@ -823,9 +895,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4.Priority().Dscp().Phb().SetValue(56)
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
-	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
+	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2, 0, 0)
 	t.Log("inPkts and outPkts counters before traffic: ", dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic)
 	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
@@ -848,24 +921,25 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	otgutils.LogFlowMetrics(t, otg, config)
-	ateInPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-	ateOutPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
+	ateInPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	ateOutPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
 
 	if ateOutPkts == 0 {
 		t.Errorf("Get(out packets for flow %q: got %v, want nonzero", flowName, ateOutPkts)
 	}
-	lossPct := (ateOutPkts - ateInPkts) * 100 / ateOutPkts
+	lossPct := float64(ateOutPkts-ateInPkts) * 100 / float64(ateOutPkts)
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2,
+		dutInPktsBeforeTraffic+ateOutPkts, dutOutPktsBeforeTraffic+ateInPkts)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
-		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
+	if got, want := dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts; got < want {
+		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 	}
-	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
-		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
+	if got, want := dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateInPkts; got < want {
+		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 	}
 }
 

@@ -80,7 +80,7 @@ func TestCertGen(t *testing.T) {
 		}
 		dir, err := getCACertPath()
 		if err != nil {
-			t.Fatalf(fmt.Sprintf("Could not find a path for ca key/cert: %v", err))
+			t.Fatalf("Could not find a path for ca key/cert: %v", err)
 		}
 		caKey, caCert, err := certUtil.LoadKeyPair(path.Join(dir, caKeyFileName), path.Join(dir, caCertFileName))
 		if err != nil {
