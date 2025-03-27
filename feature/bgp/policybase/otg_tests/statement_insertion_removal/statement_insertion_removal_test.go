@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc/oc"
 	"github.com/openconfig/ondatra/ondatra"
