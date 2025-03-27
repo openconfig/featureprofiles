@@ -257,16 +257,16 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 				t.Errorf("Forwarding-Viable state for port %s is %v, want %v", port.Name(), got, false)
 			}
 			if got := gnmi.Get(t, dut, lacpPath.Aggregatable().State()); got != true {
-				t.Errorf("Aggregatable state for port %s is %v, want %v", port.Name(), got, false)
+				t.Errorf("Aggregatable state for port %s is %v, want %v", port.Name(), got, true)
 			}
 			if got := gnmi.Get(t, dut, lacpPath.Collecting().State()); got != true {
-				t.Errorf("Collecting state for port %s is %v, want %v", port.Name(), got, false)
+				t.Errorf("Collecting state for port %s is %v, want %v", port.Name(), got, true)
 			}
 			if got := gnmi.Get(t, dut, lacpPath.Distributing().State()); got != true {
-				t.Errorf("Distributing state for port %s is %v, want %v", port.Name(), got, false)
+				t.Errorf("Distributing state for port %s is %v, want %v", port.Name(), got, true)
 			}
 			if got := gnmi.Get(t, dut, lacpPath.Synchronization().State()); got != oc.Lacp_LacpSynchronizationType_IN_SYNC {
-				t.Errorf("Sync state for port %s is %v, want %v", port.Name(), got, false)
+				t.Errorf("Sync state for port %s is not %v", port.Name(), got)
 			}
 		}
 	})
