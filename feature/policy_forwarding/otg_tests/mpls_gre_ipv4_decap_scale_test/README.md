@@ -50,7 +50,6 @@ Verify:
 
 ## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
-network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/next-hops/next-hop/config/access-list-bypass
 
 ```yaml
 paths:
