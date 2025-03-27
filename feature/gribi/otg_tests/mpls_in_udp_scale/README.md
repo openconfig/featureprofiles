@@ -58,7 +58,7 @@ outer_ip-ttl =        "64"
 * Create 20K gRIBI NHG with 1 NH per NHG with same MPLS label.
 * 100K longest exact match route entries with 5 pointing to 1 gRIBI NHG.
 * Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
-* The 20 ip destinations are split evenly between the 20 policers
+* The QoS classifier should contain rules to match each unique IP destination to a unique scheduler with a 2 color, 1 rate policer as per the configuration in TE-18.1.  The result should be 20,000 policers.
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
 #### Scale profile A - many vlans 1 NH per NHG with different MPLS label
