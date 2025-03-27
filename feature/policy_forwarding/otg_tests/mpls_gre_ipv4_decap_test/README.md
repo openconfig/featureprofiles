@@ -40,14 +40,6 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Four VLANs with IPV4 and IPV6 address
 
-#### L3 Address resolution
-
-* Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Aggregate1)
-
-* Local proxy for IPV6 or support Secondary address for IPV6 allowing resolution of same subnet IPV6 addresses corresponding to remote Cloud endpoints
-
-* Disable Neighbor discovery router advertisement, duplicate address detection
-
 #### MTU Configuration
 * One VLAN with MTU 9080 (including L2 header)
 
@@ -125,6 +117,8 @@ Verify:
 Send traffic as in PF-1.5.2
 * Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 interface VLAN configs and verify that there is no IPV4 traffic loss
+* Remove and add IPV4 MPLSoGRE decap configs and verify that there is no IPV6 traffic loss
+* Remove and add IPV6 MPLSoGRE decap configs and verify that there is no IPV4 traffic loss
 
 ## PF-1.5.4: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
 Generate traffic on ATE Ports 3,4,5,6 having:
@@ -174,26 +168,6 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 Verify:
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
-## PF-1.5.7: Verify IPV4/IPV6 traffic scale 
-Generate traffic on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
-* Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
-* MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGRE header
-* Inner payload with all possible DSCP range 0-56 : 
-  * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
-  * Multicast traffic with random source address, TCP/UDP header with random source and destination ports
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
-* Increase the number of VLANs under Aggregate1 with traffic running until the maximum possible VLANs available on the device
-
-Verify:
-* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Aggregate1
-* No packet loss when forwarding with counters incrementing corresponding to traffic
-* Traffic equally load-balanced across member links of the aggregate interfaces
-* Inner payload DSCP and TTL values are not altered by the device
-* Device can achieve the maximum interface scale on the device
-* Entire static label range is usable and functional by sending traffic across the entire label range
-
-
 ## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
 ```json
 "network-instances": {
@@ -215,7 +189,7 @@ Verify:
                       },
                       "ipv4": {
                         "config": {
-                          "destination-address": "169.254.125.155/32",
+                          "destination-address": "169.254.125.155/28",
                           "protocol": "IP"
                         },
                         }
@@ -254,16 +228,40 @@ Verify:
               "static-lsp": [
                 {
                   "config": {
-                    "name": "LA_POP 169.254.1.138 in:40571 out:pop"
+                    "name": "Customer IPV4 in:40571 out:pop"
                   },
                   "egress": {
                     "config": {
                       "incoming-label": 40571,
                       "next-hop": "169.254.1.138",
-                      "payload-type": "IPV4"
+                      "pipe-mode":true, # TODO: Add to OC data models, following https://datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
                     }
                   }
-                }
+                },
+                {
+                  "config": {
+                    "name": "Customer IPV6 in:40572 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40572,
+                      "next-hop": "2600:2d00:0:1:4000:15:69:2072",
+                      "pipe-mode":true, # TODO: Add to OC data models, following https://datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                    }
+                  }
+                },
+                {
+                  "config": {
+                    "name": "Customer multicast in:40573 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40573,
+                      "next-hop": "239.0.1.1", # Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
+                      "pipe-mode":true, # TODO: Add to OC data models, following https://datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                    }
+                  }
+                },
               ]
             }
           }
@@ -272,6 +270,7 @@ Verify:
 
 ## OpenConfig Path Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
+network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/next-hops/next-hop/config/access-list-bypass
 
 ```yaml
 paths:
