@@ -225,10 +225,10 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
-		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
+		t.Errorf("Installed prefixes mismatch on %v: got %v, want %v", nbr, gotInstalled, wantInstalled)
 	}
 	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
-		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
+		t.Errorf("Sent prefixes mismatch on %v: got %v, want %v", nbr, gotSent, wantSent)
 	}
 }
 
@@ -450,9 +450,12 @@ func TestRemovePrivateAS(t *testing.T) {
 			t.Log("Verifying port status.")
 			verifyPortsUp(t, dut.Device)
 
+			t.Logf("Verify OTG BGP sessions up")
+			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+
 			t.Log("Check BGP parameters.")
 			verifyBGPTelemetry(t, dut)
-			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+
 			t.Log("Verify BGP prefix telemetry.")
 			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, 0, routeCount)
 			verifyPrefixesTelemetry(t, dut, ateDst.IPv4, routeCount, 0)
