@@ -17,43 +17,43 @@ DUT has 2 ingress aggregate interfaces and 1 egress aggregate interface.
                          |         | --eBGP-- | ATE Port 5,6  |
 ```
 
-Test uses aggregate 802.3ad bundled interfaces (Port Channel).
+Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
-* Ingress Ports: Port-Channel2 and Port-Channel3
-    * Port-Channel2 (ATE Ports 3,4) and Port-Channel3 (ATE Ports 5,6) are used as the source ports for encapsulated traffic.
+* Ingress Ports: Aggregate2 and Aggregate3
+    * Aggregate2 (ATE Ports 3,4) and Aggregate3 (ATE Ports 5,6) are used as the source ports for encapsulated traffic.
 
-* Egress Ports: Port-Channel1
-    * Traffic is forwarded (egress) on Port-Channel1 (ATE Ports 1,2) .
+* Egress Ports: Aggregate1
+    * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
 
 ## PF-1.5.1 Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
-#### Port-Channel1 is the egress port having following configuration:
+#### Aggregate1 is the egress port having following configuration:
 
-#### Ten or more subinterfaces (customer) with different VLAN-IDs
+#### Ten subinterfaces (customer) with different VLAN-IDs
 
-* Two or more VLANs with IPV4 link local address only, /29 address
+* Two VLANs with IPV4 link local address only, /29 address
 
-* Two or more VLANs with IPV4 global /30 address
+* Two VLANs with IPV4 global /30 address
 
-* Two or more VLANs with IPV6 address /125 only
+* Two VLANs with IPV6 address /125 only
 
-* Four or more VLANs with IPV4 and IPV6 address
+* Four VLANs with IPV4 and IPV6 address
 
 #### L3 Address resolution
 
-* Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Port-Channel1)
+* Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Aggregate1)
 
 * Local proxy for IPV6 or support Secondary address for IPV6 allowing resolution of same subnet IPV6 addresses corresponding to remote Cloud endpoints
 
 * Disable Neighbor discovery router advertisement, duplicate address detection
 
 #### MTU Configuration
-* One or more VLANs with MTU 9080 (including L2 header)
+* One VLAN with MTU 9080 (including L2 header)
 
 #### LLDP must be disabled
 
-### Port-Channel 2 and Port-Channel 3 configuration
+### Aggregate 2 and Aggregate 3 configuration
 
 * IPV4 and IPV6 addresses
 
@@ -71,7 +71,7 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 ### Routing
 
-* MPLSoGRE decapsulation prefix range must be configurable on the device.  MPLSoGRE traffic within one or more prefix ranges must be processed by the device.
+* MPLSoGRE decapsulation prefix range must be configurable on the device.  MPLSoGRE traffic within prefix ranges must be processed by the device.
 
 * Static mapping of MPLS label to an egress nexthop must be configurable. Egress nexthop is based on the MPLS label/ static LSP.
 
@@ -80,7 +80,7 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
     * IPV6 traffic
     * Multicast traffic
 
-* ECMP (Member links in Port Channel1) based on:
+* ECMP (Member links in Aggregate1) based on:
     * inner IP packet header  AND/OR
     * MPLS label, Outer IP packet header 
 
@@ -96,9 +96,17 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 * Multicast traffic must be decapsulated and sent out with L2 header based on the multicast payload address.
 
+## NOTE: All test cases expected to meet following requirements and need not be a test pass criteria
+* Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
+* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
+* Header fields are as expected without any bit flips
+* Multicast L2 rewrite/egress headers are correct based on the multicast payload IPV4 destination address
+* Device must be able to resolve the ARP and IPV6 neighbors upon receiving traffic from ATE ports
+
+
 ## PF-1.5.2: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload
 Generate traffic on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses
+* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGRE header
 * Inner payload: 
@@ -106,26 +114,21 @@ Generate traffic on ATE Ports 3,4,5,6 having:
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
 Verify:
-
-* Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
-* All traffic received on Port-Channel2 and Port-Channel3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Port-Channel1
+* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Aggregate1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
-* Traffic equally load-balanced across member links of the port channel
+* Traffic equally load-balanced across member links of the aggregate interfaces
   * Based on inner payload
   * Based on outer payload
   * Based on inner and outer payload
-* Header fields are as expected without any bit flips
 
 ## PF-1.5.3: Verify MPLSoGRE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
 Send traffic as in PF-1.5.2
 * Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 interface VLAN configs and verify that there is no IPV4 traffic loss
 
-
 ## PF-1.5.4: Verify MPLSoGRE decapsulate action for IPv4 multicast payload
 Generate traffic on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses
+* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGRE header
 * Inner payload: 
@@ -133,18 +136,12 @@ Generate traffic on ATE Ports 3,4,5,6 having:
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
 Verify:
-
-* Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* All traffic received on Port-Channel2 and Port-Channel3 gets decapsulated and forwarded as multicast traffic on the respective egress interfaces under Port-Channel1
+* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as multicast traffic on the respective egress interfaces under Aggregate1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
-* Traffic equally load-balanced across member links of the port channel
+* Traffic equally load-balanced across member links of the aggregate interfaces
   * Based on inner payload
   * Based on outer payload
   * Based on inner and outer payload
-* Header fields are as expected without any bit flips
-* Verify that multicast L2 rewrite/egress headers are correct based on the multicast payload IPV4 destination address 
-
-NOTE: There must be no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 
 ## PF-1.5.5: Verify MPLSoGRE DSCP/TTL preserve operation 
 Generate traffic on ATE Ports 3,4,5,6 having:
@@ -157,20 +154,15 @@ Generate traffic on ATE Ports 3,4,5,6 having:
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
 Verify:
-
-* Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* All traffic received on Port-Channel2 and Port-Channel3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Port-Channel1
+* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Aggregate1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
-* Traffic equally load-balanced across member links of the port channel
+* Traffic equally load-balanced across member links of the aggregate interfaces
 * Header fields are as expected without any bit flips
 * Inner payload DSCP and TTL values are not altered by the device
 
-NOTE: There must be no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
-
-
 ## PF-1.5.6: Verify IPV4/IPV6 nexthop resolution of decap traffic
 Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses
+* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGRE header
 * Inner payload with all possible DSCP range 0-56 : 
@@ -180,34 +172,26 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 * Clear ARP entries and IPV6 neighbors on the device
 
 Verify:
-
 * No packet loss when forwarding with counters incrementing corresponding to traffic
-
-NOTE: Device must resolve the ARP and IPV6 neighbors upon receiving traffic
-
 
 ## PF-1.5.7: Verify IPV4/IPV6 traffic scale 
 Generate traffic on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses
+* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGRE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGRE header
 * Inner payload with all possible DSCP range 0-56 : 
   * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
   * Multicast traffic with random source address, TCP/UDP header with random source and destination ports
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
-* Increase the number of VLANs under PortChannel1 with traffic running until the maximum possible VLANs available on the device
+* Increase the number of VLANs under Aggregate1 with traffic running until the maximum possible VLANs available on the device
 
 Verify:
-* Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
-* All traffic received on Port-Channel2 and Port-Channel3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Port-Channel1
+* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Aggregate1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
-* Traffic equally load-balanced across member links of the port channel
-* Header fields are as expected without any bit flips
+* Traffic equally load-balanced across member links of the aggregate interfaces
 * Inner payload DSCP and TTL values are not altered by the device
 * Device can achieve the maximum interface scale on the device
 * Entire static label range is usable and functional by sending traffic across the entire label range
-
 
 
 ## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
@@ -257,10 +241,10 @@ Verify:
               "interface": [
                 {
                   "config": {
-                    "interface-id": "Port-Channel4",
+                    "interface-id": "Aggregate4",
                     "mpls-enabled": false
                   },
-                  "interface-id": "Port-Channel4"
+                  "interface-id": "Aggregate4"
                 }
               ]
             }
@@ -293,50 +277,50 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
 
   /interfaces/interface/state/counters/in-discards:
-  interfaces/interface/state/counters/in-errors
-interfaces/interface/state/counters/in-multicast-pkts
-interfaces/interface/state/counters/in-pkts
-interfaces/interface/state/counters/in-unicast-pkts
-interfaces/interface/state/counters/out-discards
-interfaces/interface/state/counters/out-errors
-interfaces/interface/state/counters/out-multicast-pkts
-interfaces/interface/state/counters/out-pkts
-interfaces/interface/state/counters/out-unicast-pkts
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-multicast-pkts:
+  /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /interfaces/interface/state/counters/out-multicast-pkts:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
 
-interfaces/interface/subinterfaces/subinterface/state/counters/in-discards
-interfaces/interface/subinterfaces/subinterface/state/counters/in-errors
-interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/out-discards
-interfaces/interface/subinterfaces/subinterface/state/counters/out-errors
-interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts:
 
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-error-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-multicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-error-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-multicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-error-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-error-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
 
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts
-
-network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts
-network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts
-network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id
+  /network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
 ```
