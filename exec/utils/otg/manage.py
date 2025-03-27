@@ -128,20 +128,23 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed,controller,laye
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'],controller,layer23,gnmi,controller_command))
 
-def _replace_binding_placeholders(fp_repo_dir, baseconf_file, binding_file):
+def _replace_binding_placeholders(fp_repo_dir, baseconf_files, binding_file):
     tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
     key_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
     cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
     with open(binding_file, 'r') as fp:
         data = fp.read()
-    data = data.replace('$BASE_CONF_PATH', baseconf_file)
     data = data.replace('$TRUST_BUNDLE_FILE', tb_file)
     data = data.replace('$CERT_FILE', cert_file)
     data = data.replace('$KEY_FILE', key_file)
+    
     with open(binding_file, 'w') as fp:
         fp.write(data)
     
-def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file):
+    for dut, baseconf_file in baseconf_files.items():
+        check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + baseconf_file + "\"\\n  }|g' " + binding_file)
+
+def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_binding_file):
     otg_info = reserved_testbed['otg']
 
     # convert binding to json
@@ -198,22 +201,21 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
             f'-out {otg_binding_file}'
             
         check_output(cmd, cwd=fp_repo_dir)        
-        _replace_binding_placeholders(fp_repo_dir, baseconf_file, otg_binding_file)
+        _replace_binding_placeholders(fp_repo_dir, baseconf_files, otg_binding_file)
 
 def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
-    _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file)
+    _replace_binding_placeholders(fp_repo_dir, baseconf_files, ate_binding_file)
         
 def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["testbed"]), testbed_file)
     
-def _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file):
-    shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["baseconf"]), baseconf_file)
+def _write_baseconf_file(fp_repo_dir, conf, baseconf_file):
+    shutil.copy(_resolve_path_if_needed(fp_repo_dir, conf), baseconf_file)
 
-def _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
+def _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, setup_file):
     setup_script = f"""
 export TESTBED_ID={testbed_id}
-export BASECONF={baseconf_file}
 export TESTBED={testbed_file}
 export ATE_BINDING={ate_binding_file}
 export OTG_BINDING={otg_binding_file}
@@ -266,6 +268,11 @@ fp_repo_dir = os.getenv('FP_REPO_DIR', os.getcwd())
 reserved_testbed = _get_testbed_by_id(fp_repo_dir, testbed_id)
 pname = reserved_testbed['id'].lower()
 
+if not type(reserved_testbed['baseconf']) is dict:
+    reserved_testbed['baseconf'] = {
+        'dut': reserved_testbed['baseconf']
+    }
+
 if command in ["bindings", "logs"]:
     if args.out_dir:
         out_dir = _resolve_path_if_needed(os.getcwd(), args.out_dir)
@@ -278,14 +285,19 @@ if command in ["bindings", "logs"]:
         otg_binding_file = os.path.join(out_dir, 'otg.binding')
         ate_binding_file = os.path.join(out_dir, 'ate.binding')
         testbed_file = os.path.join(out_dir, 'dut.testbed')
-        baseconf_file = os.path.join(out_dir, 'dut.baseconf')
         setup_file = os.path.join(out_dir, 'setup.sh')
         
-        _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file)
+        baseconf_files = {}
+        for dut, conf in reserved_testbed['baseconf'].items():
+            baseconf_file = os.path.join(out_dir, f'{dut}.baseconf')
+            _write_baseconf_file(fp_repo_dir, conf, baseconf_file)
+            baseconf_files[dut] = baseconf_file
+
+
         _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
-        _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file)
-        _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file)
-        _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
+        _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_files, ate_binding_file)
+        _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_binding_file)
+        _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, setup_file)
         print('You can run the following command to setup your enviroment:')
         print(f'source {setup_file}')
         

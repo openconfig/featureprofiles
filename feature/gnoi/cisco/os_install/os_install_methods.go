@@ -1,0 +1,562 @@
+package os_install_test
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	// dbg "github.com/openconfig/featureprofiles/exec/utils/debug"
+
+	"github.com/openconfig/featureprofiles/internal/cisco/cliparser"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ondatra"
+
+	ospb "github.com/openconfig/gnoi/os"
+	spb "github.com/openconfig/gnoi/system"
+	closer "github.com/openconfig/gocloser"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/testt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+type activateNegativeTestCases struct {
+	version              bool
+	noReboot             bool
+	standby              bool
+	expectFail           bool
+	fixedExpectedError   string
+	modularExpectedError string
+}
+type testCase struct {
+	dut *ondatra.DUTDevice
+	// dualSup indicates if the DUT has a standby supervisor available.
+	dualSup bool
+	reader  io.ReadCloser
+
+	osc                    ospb.OSClient
+	sc                     spb.SystemClient
+	ctx                    context.Context
+	noReboot               bool
+	forceDownloadSupported bool
+	oss                    cliparser.OSPProtoStats
+
+	osFile               string
+	osVersion            string
+	timeout              time.Duration
+	negActivateTestCases []activateNegativeTestCases
+	commandPatterns      map[string]map[string]interface{}
+}
+
+var packageReader func(context.Context, string) (io.ReadCloser, error) = func(ctx context.Context, os_file string) (io.ReadCloser, error) {
+	f, err := os.Open(os_file)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+// activateOS sends a request to activate the specified OS version on the device.
+// It logs the progress and verifies if the activation succeeds or fails as expected.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the activate operation.
+// - t: The testing object for logging and handling test failures.
+// - standby: Indicates if the operation targets a standby supervisor.
+// - noReboot: Specifies whether the device should reboot after activation.
+// - version: The OS version to activate.
+// - expectFail: A flag indicating if the activation is expected to fail.
+// - expectedError: The error message expected if the activation fails.
+func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReboot bool, version string, expectFail bool, expectedError string) {
+	t.Helper()
+	if standby {
+		t.Log("OS.Activate is started for standby RP.")
+	} else {
+		t.Log("OS.Activate is started for active RP.")
+	}
+
+	act, err := tc.osc.Activate(ctx, &ospb.ActivateRequest{
+		StandbySupervisor: standby,
+		// Version:           *osVersion,
+		Version:  version,
+		NoReboot: noReboot,
+	})
+	if err != nil {
+		t.Fatalf("OS.Activate request failed: %s", err)
+	}
+
+	switch resp := act.Response.(type) {
+	case *ospb.ActivateResponse_ActivateOk:
+		if standby {
+			t.Log("OS.Activate standby supervisor complete.")
+		} else {
+			t.Log("OS.Activate complete.")
+		}
+		tc.oss.ActivateOKActivated += 1
+	case *ospb.ActivateResponse_ActivateError:
+		actErr := resp.ActivateError
+		v := fmt.Sprintf("%v", resp)
+		// tc.oss.Activate
+		switch actErr.Type {
+		case ospb.ActivateError_NON_EXISTENT_VERSION:
+			tc.oss.ActivateErrorNoImage += 1
+		case ospb.ActivateError_NOT_SUPPORTED_ON_BACKUP:
+			tc.oss.ActivateErrorStandbyActivation += 1
+		default:
+			tc.oss.ActivateErrorActivationFailed += 1
+		}
+		// failure expected and expected error got
+		if expectFail && strings.Contains(v, expectedError) {
+			t.Logf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
+		} else {
+			t.Fatalf("OS.Activate error want = %s, got = %s: %s", expectedError, actErr.Type, actErr.Detail)
+		}
+
+	default:
+		v := fmt.Sprintf("%v", resp)
+		tc.oss.ActivateErrorActivationFailed += 1
+		// failure expected and expected error got
+		if expectFail && strings.Contains(v, expectedError) {
+			t.Logf("OS.Activate error want: %v , got: %v (%T)", expectedError, v, v)
+		} else {
+			t.Fatalf("OS.Activate error want: %v , got: %v (%T)", expectedError, v, v)
+		}
+	}
+}
+
+// fetchStandbySupervisorStatus checks if the DUT has a standby supervisor available in a working state.
+func (tc *testCase) fetchStandbySupervisorStatus(t *testing.T) {
+	r, err := tc.osc.Verify(tc.ctx, &ospb.VerifyRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tc.oss.VerifyRequests += 1
+
+	switch v := r.GetVerifyStandby().GetState().(type) {
+	case *ospb.VerifyStandby_StandbyState:
+		if v.StandbyState.GetState() == ospb.StandbyState_UNAVAILABLE {
+			t.Fatal("OS.Verify RPC reports standby supervisor in UNAVAILABLE state.")
+		}
+		// All other supervisor states indicate this device does not support or have dual supervisors available.
+		t.Log("DUT is detected as single supervisor.")
+		tc.dualSup = false
+	case *ospb.VerifyStandby_VerifyResponse:
+		t.Log("DUT is detected as dual supervisor.")
+		tc.oss.VerifyResponses += 1
+		tc.dualSup = true
+	default:
+		t.Fatalf("Unexpected OS.Verify Standby State RPC Response: got %v (%T)", v, v)
+	}
+}
+
+// fetchOsFileDetails retrieves and stores the OS file version details.
+// Parameters:
+// - t: The testing object for logging and handling test failures.
+// - os_file: The OS file to extract version information from.
+func (tc *testCase) fetchOsFileDetails(t *testing.T, os_file string) {
+	os_version, err := getIsoVersionInfo(os_file)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		t.Fatalf("Error: %v\n", err)
+	}
+	tc.osFile = os_file
+	tc.osVersion = os_version
+
+}
+
+// setTimeout sets a timeout duration for the test case.
+// Parameters:
+// - t: The testing object for logging.
+// - timeout_minute: The duration for the timeout.
+func (tc *testCase) setTimeout(t *testing.T, timeout_minute time.Duration) {
+	t.Logf("testcase %v : setting timout to %v", tc, timeout_minute)
+	tc.timeout = timeout_minute
+}
+
+// updatePackageReader initializes the package reader for the OS file.
+// It creates a reader for the OS package and logs any errors encountered.
+func (tc *testCase) updatePackageReader(t *testing.T) {
+	// ctx := context.Background()
+	reader, err := packageReader(tc.ctx, tc.osFile)
+	if err != nil {
+		t.Fatalf("Error creating package reader: %s", err)
+	}
+	t.Logf("setting reader for testcase %v", tc)
+	tc.reader = reader
+}
+
+// updateForceDownloadSupport checks if the force download is supported based on the DUT's software version.
+// It updates the testCase field accordingly.
+func (tc *testCase) updateForceDownloadSupport(t *testing.T) {
+	majVer, _, _, _, err := util.GetVersion(t, tc.dut)
+	if err != nil {
+		t.Fatal("wrong version format")
+	}
+	majorVersion, err := strconv.Atoi(majVer)
+	if err != nil {
+		t.Error("major version is not a number")
+		majorVersion = 25
+	}
+	if majorVersion >= 25 {
+		tc.forceDownloadSupported = true
+	} else {
+		tc.forceDownloadSupported = false
+	}
+}
+
+func (tc *testCase) rebootDUT(ctx context.Context, t *testing.T) {
+	t.Log("Send DUT Reboot Request")
+	_, err := tc.sc.Reboot(ctx, &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Force:   true,
+		Message: "Apply GNOI OS Software Install",
+	})
+	if err != nil && status.Code(err) != codes.Unavailable {
+		t.Fatalf("System.Reboot request failed: %s", err)
+	}
+}
+
+// transferOS initiates the transfer of the OS image file to the DUT.
+// It sends the OS install request and handles the response, including expected errors.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the transfer operation.
+// - t: The testing object for logging and handling test failures.
+// - standby: Indicates if the operation targets a standby supervisor.
+// - version: The OS version to transfer.
+// - ErrorString: The expected error string, if any, during the transfer.
+func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, version string, ErrorString string) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	tc.updatePackageReader(t)
+	ic, err := tc.osc.Install(ctx)
+	if err != nil {
+		t.Fatalf("OS.Install client request failed: %s", err)
+	}
+
+	ireq := &ospb.InstallRequest{
+		Request: &ospb.InstallRequest_TransferRequest{
+			TransferRequest: &ospb.TransferRequest{
+				Version:           version,
+				StandbySupervisor: standby,
+			},
+		},
+	}
+	if err = ic.Send(ireq); err != nil {
+		t.Fatalf("OS.Install error sending install request: %s", err)
+	}
+	tc.oss.InstallRequests += 1
+	tc.oss.InstallTransferRequestMessages += 1
+	if standby {
+		tc.oss.InstallSupervisorTransferRequestMessages += 1
+	}
+
+	// if version == "" {
+	// 	tc.oss.InstallForcedTransferRequestMessages += 1
+	// }
+
+	iresp, err := ic.Recv()
+	if err != nil {
+		t.Fatalf("OS.Install error receiving: %s", err)
+		tc.oss.FailedPrecondition += 1
+	}
+	Message := ""
+	switch v := iresp.GetResponse().(type) {
+	case *ospb.InstallResponse_TransferReady:
+		tc.oss.InstallTransferReadyMessagesSent += 1
+	case *ospb.InstallResponse_Validated:
+		if standby {
+			t.Log("DUT standby supervisor has valid preexisting image; skipping transfer.")
+		} else {
+			t.Log("DUT supervisor has valid preexisting image; skipping transfer.")
+		}
+		tc.oss.InstallValidatedMessagesSentUponTransfer += 1
+		osVersionReceived := iresp.GetValidated().GetVersion()
+		t.Logf("Version :: got: %v ,want: %v", osVersionReceived, tc.osVersion)
+		if osVersionReceived != tc.osVersion {
+			t.Fatalf("OS.Install wrong version received, osVersionActual : %s osVersion %s, ", osVersionReceived, tc.osVersion)
+		}
+		return
+	case *ospb.InstallResponse_SyncProgress:
+		if !tc.dualSup {
+			t.Fatalf("Unexpected SyncProgress on single supervisor: got %v (%T)", v, v)
+		}
+		t.Logf("Sync progress: %v%% synced from supervisor", v.SyncProgress.GetPercentageTransferred())
+	default:
+		Message = fmt.Sprintf("Expected TransferReady following TransferRequest: got %v (%T)", v, v)
+		// t.Fatalf("Expected TransferReady following TransferRequest: got %v (%T)", v, v)
+		t.Logf("Expected TransferReady following TransferRequest: got %v (%T)", v, v)
+		// COUNTER: disk fill error not counted
+	}
+
+	awaitChan := make(chan error)
+	go func() {
+		err := watchStatus(t, ic, standby, tc.osVersion, *tc)
+		awaitChan <- err
+	}()
+
+	if ErrorString != "" {
+		if !strings.Contains(Message, ErrorString) {
+			t.Fatalf("want error: %v , got: %v", ErrorString, Message)
+		} else {
+			t.Logf("want error: %v , got: %v", ErrorString, Message)
+			return
+		}
+	}
+
+	if !standby {
+		err = transferContent(ic, tc.reader, *tc)
+		if err != nil {
+			t.Fatalf("Error transferring content: %s", err)
+		}
+		tc.oss.InstallTransferEndMessages += 1
+	}
+
+	if err = <-awaitChan; err != nil {
+		t.Fatalf("Transfer receive error: %s", err)
+	}
+
+	if standby {
+		t.Log("OS.Install standby supervisor image transfer complete.")
+	} else {
+		t.Log("OS.Install supervisor image transfer complete.")
+	}
+}
+
+// verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
+// newly requested software version.
+// Parameters:
+// - ctx: The context for controlling the lifecycle of the verification operation.
+// - t: The testing object for logging and handling test failures.
+func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
+	rebootWait := time.Minute
+	deadline := time.Now().Add(tc.timeout)
+	for time.Now().Before(deadline) {
+		r, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
+		switch status.Code(err) {
+		case codes.OK:
+		case codes.Unavailable:
+			t.Logf("Time: %v, Verify Respone: %v, VerifyError message: %v \nReboot in progress.", time.Now(), r.GetActivationFailMessage(), err.Error())
+			time.Sleep(rebootWait)
+			continue
+		default:
+			t.Fatalf("OS.Verify request failed: %v", err)
+		}
+		// when noreboot is set to false, the device returns "in-progress" before initiating the reboot
+		if r.GetActivationFailMessage() == "in-progress" {
+			t.Logf("Waiting for reboot to initiate.")
+			time.Sleep(rebootWait)
+			continue
+		}
+		if got, want := r.GetActivationFailMessage(), ""; got != want {
+			t.Fatalf("OS.Verify ActivationFailMessage: got %q, want %q", got, want)
+		}
+		if got, want := r.GetVersion(), tc.osVersion; got != want {
+			t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
+			time.Sleep(rebootWait)
+			continue
+		}
+
+		if !deviations.SwVersionUnsupported(tc.dut) {
+			ver, ok := gnmi.Lookup(t, tc.dut, gnmi.OC().System().SoftwareVersion().State()).Val()
+			if !ok {
+				t.Log("Reboot has not finished with the right version: couldn't get system/state/software-version")
+				time.Sleep(rebootWait)
+				continue
+			}
+			if got, want := ver, tc.osVersion; !strings.HasPrefix(got, want) {
+				t.Logf("Reboot has not finished with the right version: got %s , want: %s.", got, want)
+				time.Sleep(rebootWait)
+				continue
+			}
+		}
+
+		if tc.dualSup {
+			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetActivationFailMessage(), ""; got != want {
+				t.Fatalf("OS.Verify Standby ActivationFailMessage: got %q, want %q", got, want)
+			}
+
+			if got, want := r.GetVerifyStandby().GetVerifyResponse().GetVersion(), tc.osVersion; got != want {
+				t.Log("Standby not ready.")
+				time.Sleep(rebootWait)
+				continue
+			}
+		}
+
+		t.Log("OS.Verify complete")
+		return
+	}
+
+	t.Fatal("OS.Verify did not return the correct version before deadline.")
+}
+
+// pollRpc periodically checks if the DUT has booted up by polling telemetry output.
+// It ensures the DUT is responsive within a specified time frame.
+func (tc *testCase) pollRpc(t *testing.T) {
+	startReboot := time.Now()
+	const maxRebootTime = 5
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(3 * time.Minute)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, tc.dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+	// same variable name, gnoiClient, is used for the gNOI connection during the second reboot.
+	// This causes the cache to reuse the old connection for the second reboot, which is no longer active due to a timeout from the previous reboot.
+	// The retry mechanism clears the previous cache connection and re-establishes new connection.
+	for {
+		// gnoiClient := dut.RawAPIs().GNOI(t)
+		ctx := context.Background()
+		response, err := tc.sc.Time(ctx, &spb.TimeRequest{})
+
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching device time: %v", err)
+		}
+
+		// Check if the error code indicates that the service is unavailable
+		if status.Code(err) == codes.Unavailable {
+			// If the service is unavailable, wait for 30 seconds before retrying
+			t.Logf("Service unavailable, retrying in 30 seconds...")
+			time.Sleep(30 * time.Second)
+		} else {
+			// If the device time is fetched successfully, log the success message
+			t.Logf("Device Time fetched successfully: %v", response)
+			break
+		}
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device gnoi System client ready time: %.2f minutes", time.Since(startReboot).Minutes())
+	for {
+		// gnoiClient := dut.RawAPIs().GNOI(t)
+		ctx := context.Background()
+		response, err := tc.osc.Verify(ctx, &ospb.VerifyRequest{})
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching device time: %v", err)
+		}
+
+		// Check if the error code indicates that the service is unavailable
+		if status.Code(err) != codes.OK {
+			// If the service is unavailable, wait for 30 seconds before retrying
+			t.Logf("Service unavailable, retrying in 30 seconds...")
+			time.Sleep(30 * time.Second)
+		} else {
+			// If the device time is fetched successfully, log the success message
+			t.Logf("OS client Verify fetched successfully: %v", response)
+			break
+		}
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device gnoi OS client ready time: %.2f minutes", time.Since(startReboot).Minutes())
+
+}
+
+// transferContent sends the OS image to the DUT in chunks.
+// It reads from the provided reader and sends the content via the install client.
+// Parameters:
+// - ic: The OS install client for sending the content.
+// - reader: The reader for the OS package file.
+// - testCase: The current test case context.
+func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser, testCase testCase) error {
+	// The gNOI SetPackage operation sets the maximum chunk size at 64K,
+	// so assuming the install operation allows for up to the same size.
+	buf := make([]byte, 64*1024)
+	defer closer.CloseAndLog(reader.Close, "error closing package file")
+	for {
+		n, err := reader.Read(buf)
+		if n > 0 {
+			tc := &ospb.InstallRequest{
+				Request: &ospb.InstallRequest_TransferContent{
+					TransferContent: buf[0:n],
+				},
+			}
+			if err := ic.Send(tc); err != nil {
+				return err
+			}
+			testCase.oss.InstallTransferContentMessages += 1
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+	}
+	te := &ospb.InstallRequest{
+		Request: &ospb.InstallRequest_TransferEnd{
+			TransferEnd: &ospb.TransferEnd{},
+		},
+	}
+	return ic.Send(te)
+}
+
+// watchStatus monitors the status of the installation process on the DUT.
+// It logs progress and detects any installation errors or mismatches.
+// Parameters:
+// - t: The testing object for logging and handling test failures.
+// - ic: The OS install client for receiving status updates.
+// - standby: Indicates if the operation targets a standby supervisor.
+// - version: The expected OS version.
+// - tc: The current test case context.
+func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool, version string, tc testCase) error {
+	var gotProgress bool
+
+	for {
+		iresp, err := ic.Recv()
+		if err != nil {
+			return err
+		}
+
+		switch v := iresp.GetResponse().(type) {
+		case *ospb.InstallResponse_InstallError:
+			errName := ospb.InstallError_Type_name[int32(v.InstallError.Type)]
+			return fmt.Errorf("installation error %q: %s", errName, v.InstallError.GetDetail())
+		case *ospb.InstallResponse_TransferProgress:
+			if standby {
+				return fmt.Errorf("unexpected TransferProgress: got %v, want SyncProgress", v)
+			}
+			t.Logf("Transfer progress: %v bytes received by DUT", v.TransferProgress.GetBytesReceived())
+			gotProgress = true
+			tc.oss.InstallTransferProgressMessagesSent += 1
+		case *ospb.InstallResponse_SyncProgress:
+			if !standby {
+				return fmt.Errorf("unexpected SyncProgress: got %v, want TransferProgress", v)
+			}
+			t.Logf("Transfer progress: %v%% synced from supervisor", v.SyncProgress.GetPercentageTransferred())
+			gotProgress = true
+		case *ospb.InstallResponse_Validated:
+			if !gotProgress {
+				return fmt.Errorf("transfer completed without progress status")
+			}
+			if got, want := v.Validated.GetVersion(), version; got != want {
+				return fmt.Errorf("mismatched validation software versions: got %s, want %s", got, want)
+			}
+			return nil
+		default:
+			return fmt.Errorf("unexpected client install response: got %v (%T)", v, v)
+		}
+	}
+}

@@ -177,7 +177,7 @@ pipeline {
 
                     
                     if(test_revision_params.count {params[it]} > 1) {
-                        error "Ony one of 'Test branch', 'Test PR', or 'Test revision' can be specified"
+                        error "Ony one of 'Test branch', 'Test PR', or 'Test commit hash' can be specified"
                     }
 
                     if((ts_internal + ts_absolute + ts_firex).size() != 1) {
@@ -298,8 +298,8 @@ pipeline {
                     }
 
                     def test_rev_spec = ""
-                    if(params['Test revision']) {
-                        test_rev_spec += "REV#" + params['Test revision']
+                    if(params['Test commit hash']) {
+                        test_rev_spec += "REV#" + params['Test commit hash']
                     }
                     else if(params['Test branch']) {
                         test_rev_spec += "BR#" + params['Test branch']
@@ -370,7 +370,7 @@ pipeline {
                                 "${env.WORKSPACE}/exec/firex/v2/runner.py"
                             ]
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
-                                firex_plugins.add("${env.WORKSPACE}/feature_coverage.py")
+                                firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
                             } else if(firex_chain != 'CulpritFinder') {
                                 firex_plugins.add("webdt_cit.py")
                             }
@@ -466,8 +466,8 @@ pipeline {
                                 if(params['Test repository']) {
                                     firex_cmd_parts.add("--internal_test ${params['Test repository'] == 'Internal'}")
                                 }
-                                if(params['Test revision']) {
-                                    firex_cmd_parts.add("--test_revision ${params['Test revision']}")
+                                if(params['Test commit hash']) {
+                                    firex_cmd_parts.add("--test_revision ${params['Test commit hash']}")
                                 }
                                 else if(params['Test branch']) {
                                     firex_cmd_parts.add("--test_branch ${params['Test branch']}")
