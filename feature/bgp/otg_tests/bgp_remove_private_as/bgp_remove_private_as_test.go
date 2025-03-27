@@ -457,8 +457,8 @@ func TestRemovePrivateAS(t *testing.T) {
 			verifyBGPTelemetry(t, dut)
 
 			t.Log("Verify BGP prefix telemetry.")
-			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, 0, routeCount)
-			verifyPrefixesTelemetry(t, dut, ateDst.IPv4, routeCount, 0)
+			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, routeCount, routeCount)
+			verifyPrefixesTelemetry(t, dut, ateDst.IPv4, 0, routeCount)
 
 			t.Log("Verify AS Path list received at ate Port2 including private AS number.")
 			verifyBGPAsPath(t, otg, tc.asSeg, !removeASPath)
