@@ -1,4 +1,4 @@
-# gNMI-1.19 ConfigPush, ConfigPull after Control Card switchover
+# gNMI-1.19: ConfigPush and ConfigPull after Control Card switchover
 
 ## Summary
 This test verifies if a large config can be pushed and/or pulled via gNMI SetRequest/GetRequest within 2 minutes after Control Card switchover.
@@ -27,8 +27,7 @@ This test verifies if a large config can be pushed and/or pulled via gNMI SetReq
   * The gNMI `setResponce` has been received within 120s after `setRequest` by comparing with "SwitchControlProcessorResponse_time", and
   * The gNOI `SwitchControlProcessorResponce` has been received and switchover was executed by DUT (compare "previous_ACRIVE" with DUT state), and
   * The configuration retrieved from DUT is the same as one prepared^1
-
-^1 some small deviations are expected. This is OK to verify that the retrieve configuration configuration is not smaller in size than the prepared one, and has the same number of interfaces, BGP neighbors.
+^1 some small deviations are expected. This is OK to verify that the retrieve configuration is not smaller in size than the prepared one, and has the same number of interfaces, BGP neighbors. 
 
 ### sub-Test 2: GetRequest
 [TODO: [issue #2451](https://github.com/openconfig/featureprofiles/issues/2451) ]
@@ -64,5 +63,7 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
-##
+
+## DUT
+
 MFF
