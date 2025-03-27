@@ -722,6 +722,9 @@ message Metadata {
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
+    
+    // Devices that do not support load-interval configuration
+    bool load_interval_not_supported = 263;
 
     // Device does not support banner empty delimiter.
     // Cisco: b/393684636
