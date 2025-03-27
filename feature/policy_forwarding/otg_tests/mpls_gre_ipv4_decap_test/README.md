@@ -326,6 +326,5 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
 
   /network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
 ```
