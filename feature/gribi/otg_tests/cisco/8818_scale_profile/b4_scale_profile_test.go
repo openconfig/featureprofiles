@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
