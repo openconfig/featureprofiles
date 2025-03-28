@@ -140,3 +140,10 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
 ```
+
+## Required DUT platform
+
+* Specify the minimum DUT-type:
+  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+  * FFF - fixed form factor
+  * vRX - virtual router device
