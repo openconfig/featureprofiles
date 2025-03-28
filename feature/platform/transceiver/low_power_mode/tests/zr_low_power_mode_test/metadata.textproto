@@ -22,7 +22,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     explicit_dco_config: true
-    skip_interval: true
-    skip_description: true
+    skip_optical_channel_output_power_interval: true
+    skip_transceiver_description: true
   }
 }

@@ -124,7 +124,7 @@ func TestLowPowerMode(t *testing.T) {
 				"firmwareVersion": streamFirmwareVersion,
 			}
 
-			if !deviations.SkipDescription(dut) {
+			if !deviations.SkipTransceiverDescription(dut) {
 				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
 				defer streamDescription.Close()
 				allStream["description"] = streamDescription
@@ -144,7 +144,7 @@ func TestLowPowerMode(t *testing.T) {
 
 			validateStreamOutput(t, allStream)
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
-			if !deviations.SkipInterval(dut) {
+			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
 				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
