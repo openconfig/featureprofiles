@@ -80,6 +80,12 @@ ipv6-prefix1 = prefixes of length /48 - Communities `[100:1, 200:1]`
 ipv6-prefix2 = prefixes of length /64 - Communities `[101:1, 201:1]`
 ipv6-prefix3 = prefixes of length /126 - Communities `[104:1, 109:3]`
 
+#### Canonical OC for DUT configuration
+
+TODO: This section should contain a JSON formatted stanza representing the 
+canonical OC to configure BGP add-paths.  (See the
+[README Template](https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md#procedure))
+
 ### RT-1.15.1: Add-Path (Initial State with add-path send & receive disabled):
 
 *   Verification (Telemetry):
