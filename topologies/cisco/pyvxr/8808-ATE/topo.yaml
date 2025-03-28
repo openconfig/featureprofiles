@@ -29,8 +29,10 @@ devices:
     cvac: $BASE_CONF_PATH
     dual_rp: true
     num_linecards: 1
+    lcc_type: '8808'
+    fabcard_type: 8808-FC0
     linecard_types:
-      - 8800-LC-36FH-2
+      - 88-LC0-36FH-M
     platform: spitfire_d
     xr_hostname: dut
     xr_password: cisco123
