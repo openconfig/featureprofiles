@@ -1,4 +1,4 @@
-# PF-1.13 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload
+# PF-1.14 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload
 
 ## Summary
 
@@ -26,7 +26,13 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Egress Ports: Aggregate2 (ATE Ports 3,4) and Aggregate3 (ATE Ports 5,6) are used as the destination ports for encapsulated traffic.
 
-### PF-1.13.1: Generate DUT Configuration
+## NOTE: All test cases expected to meet following requirements even though they are not explicitly validated in the test.
+* BGP multipath routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
+* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
+* Header fields are as expected without any bit flips
+* Device must be able to resolve the ARP and IPV6 neighbors upon receiving traffic from ATE ports
+
+### PF-1.14.1: Generate DUT Configuration
 
 #### Aggregate "customer interface" is the ingress port having following configuration
 
@@ -128,39 +134,32 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Multicast traffic must be encapsulated and handled in the same way as unicast traffic
 
-## PF-1.13.2: Verify PF MPLSoGRE encapsulate action for IPv4 traffic
-
+## PF-1.14.2: Verify PF MPLSoGRE encapsulate action for IPv4 traffic
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses (unicast, multicast) at line rate IPV4 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
-
-* BGP multipath routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * All traffic received on Aggregate1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets
-* IPV4 unicast are preserved during encapsulation.
 * No packet loss when forwarding with counters incrementing corresponding to traffic.
 * Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
-* Header fields are as expected and traffic has MPLS labels from all the VLANs
 
-## PF-1.13.3: Verify PF MPLSoGRE encapsulate action for IPv6 traffic
-
+## PF-1.14.3: Verify PF MPLSoGRE encapsulate action for IPv6 traffic
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses at line rate IPV6 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
-
 * All traffic received on Aggregate1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets with IPV6 payload.
-* BGP multipath routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * No packet loss when forwarding with counters incrementing corresponding to traffic.
-* IPV6 payloads are preserved during encapsulation.
 * Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
-* Header fields are as expected and traffic has MPLS labels from all the VLANs
 * There is no impact on existing IPV4 traffic
-* Remove and add IPV4 configs and verify that there is no impact on IPV6 traffic
-* Remove and add IPV6 configs and verify that there is no impact on IPV4 traffic
 
-## PF-1.13.4: Verify PF MPLSoGRE DSCP preserve operation
+## PF-1.14.4: Verify PF MPLSoGRE encapsulate action for IPv6 traffic
+Send both IPV4 and IPV6 traffic as in PF-1.14.2 and PF-1.14.3
 
+* Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
+* Remove and add IPV6 interface VLAN configs and verify that there is no IPV4 traffic loss
+* Remove and add IPV4 MPLSoGRE encap configs and verify that there is no IPV6 traffic loss
+* Remove and add IPV6 MPLSoGRE encap configs and verify that there is no IPV4 traffic loss
+
+## PF-1.14.5: Verify PF MPLSoGRE DSCP preserve operation
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses at line rate IPV4 and IPV6 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size and DSCP value in [0, 8, 10..56].
 
 Verify:
@@ -169,8 +168,7 @@ Verify:
 * Outer GRE IPv4 header has marking as per the config/TOS byte 96.
 * Inner packet DSCP value is preserved and not altered
 
-## PF-1.13.5: Verify MTU handling during GRE encap
-
+## PF-1.14.6: Verify MTU handling during GRE encap
 Generate IPV4 traffic on ATE Ports 1,2  with frame size of 9100 with DF-bit set to random destination addresses.
 Generate IPV6 traffic on ATE Ports 1,2 with frame size of 9100 with DF-bit set to random destination addresses.
 
@@ -178,20 +176,17 @@ Verify:
 
 * DUT generates a "Fragmentation Needed" message back to ATE source.
 
-## PF-1.13.6: Verify IPV4/IPV6 nexthop resolution of encap traffic
-
+## PF-1.14.7: Verify IPV4/IPV6 nexthop resolution of encap traffic
 Clear ARP entries and IPV6 neighbors on the device
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses
 Generate ICMP echo requests to addresses configured on the device
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to destination addresses within same subnet as the Aggregate1 interface
 
 Verify:
-
 * Device must resolve the ARP and must forward ICMP echo requests, IPV4 and IPV6 traffic to ATE destination ports including the traffic to device’s local L3 addresses
 * Device must not forward the echo packets destined to the Aggregate1 interface
  
-## PF-1.13.7: Verify IPV4/IPV6 selective local traffic processing
-
+## PF-1.14.8: Verify IPV4/IPV6 selective local traffic processing
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses including addresses configured on the device
 Generate ICMP echo requests from the device
 Generate traceroute packets with TTL=1 and TTL>1 from ATE ports 1,2
@@ -206,24 +201,6 @@ Verify:
   * Respond to traceroute packets with TTL=1
   * Encapsulate(MPLSoGRE) and forward  traceroute packets with TTL>1
   * BGP and BFD packets with TTL=1 must retain the TTL value (1) and must not be decremented on the device while being forwarded as MPLSoGRE traffic
-
-## PF-1.13.8: Verify IPV4/IPV6 traffic scale
-
-Generate IPV4 and IPV6 traffic on ATE Ports 1,2 to random destination addresses including addresses configured on the device
-Increase the number of VLANs on the device and scale traffic across all the new VLANs on Aggregate1 (ATE Ports 1,2)
-
-Verify:
-
-* BGP multipath routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
-* There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
-* All traffic received on Aggregate1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets
-* IPV4 unicast are preserved during encapsulation.
-* No packet loss when forwarding with counters incrementing corresponding to traffic.
-* Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
-* Header fields are as expected and traffic has MPLS labels from all the VLANs
-* Verify that device can achieve the maximum interface scale on the device
-* Verify that entire static label range is usable and functional by sending traffic across the entire label range
-
 
 ## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
