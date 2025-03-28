@@ -5,3 +5,12 @@ uuid:  "ec59d852-0828-4607-bea5-fbe2340c5414"
 plan_id:  "System-1.1"
 description:  "System banner test"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    banner_empty_delimiter_unsupported: true
+    banner_delimiter: "c"
+  }
+}
