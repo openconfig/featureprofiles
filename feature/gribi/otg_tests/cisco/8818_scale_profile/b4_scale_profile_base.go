@@ -27,8 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -212,12 +210,12 @@ type trafficflowAttr struct {
 	innerV6SrcStart string   // Inner v6 source IP address
 	innerV6DstStart string   // Inner v6 destination IP address
 	innerFlowCount  uint32
-	outerDscp       uint32   // DSCP value
-	innerDscp       uint32   // Inner DSCP value
-	srcPort         []string // source OTG port
-	dstPorts        []string // destination OTG ports
-	srcMac          string   // source MAC address
-	dstMac          string   // destination MAC address
+	// outerDscp       uint32   // DSCP value
+	innerDscp uint32   // Inner DSCP value
+	srcPort   []string // source OTG port
+	dstPorts  []string // destination OTG ports
+	srcMac    string   // source MAC address
+	dstMac    string   // destination MAC address
 	// dscp     uint32
 	topo gosnappi.Config
 }
@@ -752,52 +750,52 @@ func getEncapFlows() []gosnappi.Flow {
 }
 
 // validateAftTelmetry verifies aft telemetry entries.
-func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix string, nhEntryGot int) {
-	aftPfxPath := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix)
-	aftPfxVal, found := gnmi.Watch(t, a.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		value, present := val.Val()
-		return present && value.GetNextHopGroup() != 0
-	}).Await(t)
-	if !found {
-		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix)
-	}
-	aftPfx, _ := aftPfxVal.Val()
+// func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix string, nhEntryGot int) {
+// 	aftPfxPath := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix)
+// 	aftPfxVal, found := gnmi.Watch(t, a.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+// 		value, present := val.Val()
+// 		return present && value.GetNextHopGroup() != 0
+// 	}).Await(t)
+// 	if !found {
+// 		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix)
+// 	}
+// 	aftPfx, _ := aftPfxVal.Val()
 
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
-	if got := len(aftNHG.NextHop); got != nhEntryGot {
-		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix, nhEntryGot)
-	}
-}
+// 	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
+// 	if got := len(aftNHG.NextHop); got != nhEntryGot {
+// 		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix, nhEntryGot)
+// 	}
+// }
 
 // normalize normalizes the input values so that the output values sum
 // to 1.0 but reflect the proportions of the input.  For example,
 // input [1, 2, 3, 4] is normalized to [0.1, 0.2, 0.3, 0.4].
-func normalize(xs []uint64) (ys []float64, sum uint64) {
-	for _, x := range xs {
-		sum += x
-	}
-	ys = make([]float64, len(xs))
-	for i, x := range xs {
-		ys[i] = float64(x) / float64(sum)
-	}
-	return ys, sum
-}
+// func normalize(xs []uint64) (ys []float64, sum uint64) {
+// 	for _, x := range xs {
+// 		sum += x
+// 	}
+// 	ys = make([]float64, len(xs))
+// 	for i, x := range xs {
+// 		ys[i] = float64(x) / float64(sum)
+// 	}
+// 	return ys, sum
+// }
 
 // validateTrafficDistribution checks if the packets received on receiving ports are within specificied weight ratios
-func validateTrafficDistribution(t *testing.T, otg *ondatra.ATEDevice, wantWeights []float64, dstPorts []string) {
-	dstPortInPktList := []uint64{}
-	for _, dstPort := range dstPorts {
-		otgP := otg.Port(t, dstPort)
-		dstPortInPktList = append(dstPortInPktList, gnmi.Get(t, otg, gnmi.OC().Interface(otgP.Name()).Counters().InPkts().State()))
-	}
-	gotWeights, _ := normalize(dstPortInPktList)
+// func validateTrafficDistribution(t *testing.T, otg *ondatra.ATEDevice, wantWeights []float64, dstPorts []string) {
+// 	dstPortInPktList := []uint64{}
+// 	for _, dstPort := range dstPorts {
+// 		otgP := otg.Port(t, dstPort)
+// 		dstPortInPktList = append(dstPortInPktList, gnmi.Get(t, otg, gnmi.OC().Interface(otgP.Name()).Counters().InPkts().State()))
+// 	}
+// 	gotWeights, _ := normalize(dstPortInPktList)
 
-	t.Log("got ratio:", gotWeights)
-	t.Log("want ratio:", wantWeights)
-	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, trfDistTolerance)); diff != "" {
-		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
-	}
-}
+// 	t.Log("got ratio:", gotWeights)
+// 	t.Log("want ratio:", wantWeights)
+// 	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, trfDistTolerance)); diff != "" {
+// 		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
+// 	}
+// }
 
 // sendTraffic starts traffic flows and send traffic for a fixed duration
 func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) {

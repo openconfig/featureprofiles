@@ -63,10 +63,10 @@ type TestResources struct {
 	LogDir          string
 }
 
-var (
-	testResources *TestResources
-	once          sync.Once
-)
+// var (
+// 	testResources *TestResources
+// 	once          sync.Once
+// )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
