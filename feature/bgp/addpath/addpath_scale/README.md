@@ -1,8 +1,8 @@
-# RT-1.15: BGP ADDPATH SCALE
+# RT-1.15: BGP ADDPATH SCALE && RT-1.16: BGP ADDPATH SCALE with POLICY
 
 ## Summary
 
-BGP ADDPATH TEST WITH SCALE
+BGP ADDPATH TEST WITH SCALE and POLICY DEFINED
 
 ## Testbed type
 
@@ -68,6 +68,17 @@ ATE port4 (AS 65401) <---> DUT port4 (AS 65001)
   1000::200.0.0.0/126 respectively
 * This eBGP neighbor is used to verify the routes advertised by the DUT and then
   making sure if addpath send and send-max is enabled.
+
+### Prefix definition and communities definition
+ipv4-prefix1 = prefixes of length /22 - Communities `[100:1, 200:1]`
+ipv4-prefix2 = prefixes of length /24 - Communities `[101:1, 201:1]`
+ipv4-prefix3 = prefixes of length /30 - Communities `[104:1, 109:3]`
+
+ipv6-prefix1 = prefixes of length /48 - Communities `[100:1, 200:1]`
+ipv6-prefix2 = prefixes of length /64 - Communities `[101:1, 201:1]`
+ipv6-prefix3 = prefixes of length /126 - Communities `[104:1, 109:3]`
+
+## TESTCASES RT-1.15
 
 ### RT-1.15.1: Add-Path (Initial State with add-path send & receive disabled):
 
@@ -145,6 +156,49 @@ ATE port4 (AS 65401) <---> DUT port4 (AS 65001)
 *   Verification: Telemetry
     *   Repeat verification steps in RT-1.15.3
 
+
+## TESTCASES RT-1.16
+
+
+### RT-1.16.1
+
+* Re-advertise the routes with communities which is defined in the 
+  section prefix-definition and communities
+* Configure the following community sets on the DUT.
+    * Create a community-set named `any_my_3_comms` with members as follows:
+      * `{ community-member = [ "100:1", "200:1", "201:1" ] }`
+    * Create a community-set named `all_3_comms` with members and match options as follows:
+      * `{ community-member = [ "100:1", "104:1", "201:1" ] }`
+    * Create a community-set named `any_my_regex_comms` with members and match options as follows:
+      * `{ community-member = [ "10[0-9]:1" ] }`
+* Create a `policy-definition` named 'community-match' with the following `statements`
+    * statement[name='accept_any_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'any_my_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_all_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_any_my_regex_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+
+*   Verification (Telemetry):
+  * Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes.
+
+### RT-1.16.2
+
+* Re-advertise the routes with RT-1.15.3 and RT-1.16.1 combination 
+
+* Verification (Telemetry):
+    * Same as RT-1.15.3
+
+
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -166,6 +220,15 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send-max:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/minimum-advertisement-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
 
   ## State paths
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/receive:
@@ -183,6 +246,15 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/minimum-advertisement-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/state/extended-next-hop-encoding:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+
 
 rpcs:
   gnmi:
@@ -192,4 +264,3 @@ rpcs:
 ```
 ## Minimum DUT platform requirement
 * FFF 
-
