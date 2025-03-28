@@ -60,7 +60,7 @@ paths:
   # Config paths for GRE decap
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
 
-  /network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/packets-forwarded:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
 
 rpcs:
