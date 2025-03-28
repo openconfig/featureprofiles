@@ -1,4 +1,4 @@
-# RT-7.10 Routing policy statement insertion and removal
+# RT-7.10: Routing policy statement insertion and removal
 
 > WARNING: WORK IN PROGRESS
 
