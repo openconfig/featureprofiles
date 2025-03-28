@@ -2,7 +2,7 @@
 
 ## Summary
 
-BGP ADDPATH TEST WITH SCALE and POLICY DEFINED
+BGP add-paths teset with scale and routing-policy
 
 ## Testbed type
 
@@ -23,7 +23,9 @@ G[ATE:PORT4] <-- eBGP --> H[PORT4:DUT];
 
 ## Procedure
 
-### Source port for sending traffic
+### Testbed setup - Generate configuration for ATE and DUT
+
+#### Source port for sending traffic
 
 * DUT Port1  --- IP Connectivity --- ATE Port1
 * Use this port to configure traffic with following source and destination 
@@ -32,7 +34,7 @@ G[ATE:PORT4] <-- eBGP --> H[PORT4:DUT];
   - destination (IPv4/IPv6) - All prefixes of ATE port2, port3
 
 Establish eBGP sessions ipv4 and ipv6 for ATE/DUT port2,3:
-### 100 v4EBGP peers
+#### 100 v4EBGP peers
 ATE port2 <---> DUT port2
 
 * Create 100 vlans on DUT and ATE port2 and configure IP addresses as below and 
@@ -46,7 +48,7 @@ ATE port2 <---> DUT port2
     addpath routes such that the routes are distributed across /22, /24, /30 
     prefix lengths.
 
-### 50 v6EBGP peers
+#### 50 v6EBGP peers
 ATE port3 <---> DUT port3
 
 * Create 50 vlans on DUT and ATE port2 and configure IP addresses as below and
@@ -61,7 +63,7 @@ ATE port3 <---> DUT port3
     addpath routes such that the routes are distributed across /48 , /64, /128
     prefix lengths
 
-### 1 v4EBGP and 1 v6EBGP peers
+#### 1 v4EBGP and 1 v6EBGP peers
 ATE port4 (AS 65401) <---> DUT port4 (AS 65001)
 
 * Configure the DUT and ATE port with ipv4 and ipv6 address 200.0.0.0/24 and 
@@ -69,7 +71,7 @@ ATE port4 (AS 65401) <---> DUT port4 (AS 65001)
 * This eBGP neighbor is used to verify the routes advertised by the DUT and then
   making sure if addpath send and send-max is enabled.
 
-### Prefix definition and communities definition
+#### Prefix definition and communities definition
 ipv4-prefix1 = prefixes of length /22 - Communities `[100:1, 200:1]`
 ipv4-prefix2 = prefixes of length /24 - Communities `[101:1, 201:1]`
 ipv4-prefix3 = prefixes of length /30 - Communities `[104:1, 109:3]`
@@ -77,8 +79,6 @@ ipv4-prefix3 = prefixes of length /30 - Communities `[104:1, 109:3]`
 ipv6-prefix1 = prefixes of length /48 - Communities `[100:1, 200:1]`
 ipv6-prefix2 = prefixes of length /64 - Communities `[101:1, 201:1]`
 ipv6-prefix3 = prefixes of length /126 - Communities `[104:1, 109:3]`
-
-## TESTCASES RT-1.15
 
 ### RT-1.15.1: Add-Path (Initial State with add-path send & receive disabled):
 
@@ -156,11 +156,7 @@ ipv6-prefix3 = prefixes of length /126 - Communities `[104:1, 109:3]`
 *   Verification: Telemetry
     *   Repeat verification steps in RT-1.15.3
 
-
-## TESTCASES RT-1.16
-
-
-### RT-1.16.1
+### RT-1.15.5 BGP add-paths scale with routing-policy
 
 * Re-advertise the routes with communities which is defined in the 
   section prefix-definition and communities
