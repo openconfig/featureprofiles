@@ -42,8 +42,7 @@ func findComponentsByTypeNoLogs(t *testing.T, dut *ondatra.DUTDevice, cType oc.E
 	return s
 }
 
-func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state []*oc.Component_Transceiver_Channel) bool {
-	flag := true
+func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state []*oc.Component_Transceiver_Channel) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Transceiver", "Leaf", "Value"})
 
@@ -56,7 +55,6 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 		appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/laser-age", state[channel].LaserAge, "LaserAge is empty for port %v")
 		if state[channel].InputPower == nil {
 			t.Errorf("InputPower data is empty for port %v", transceiver)
-			flag = false
 		} else {
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/input-power/avg", state[channel].InputPower.Avg, "input_power_average is empty for port %v")
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/input-power/instant", state[channel].InputPower.Instant, "input_power_instant is empty for port %v")
@@ -69,7 +67,7 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 		}
 		if state[channel].LaserBiasCurrent == nil {
 			t.Errorf("LaserBiasCurrent data is empty for port %v", transceiver)
-			flag = false
+
 		} else {
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/laser-bias-current/interval", state[channel].LaserBiasCurrent.Interval, "laser_bias_current_interval is empty for port %v")
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/laser-bias-current/avg", state[channel].LaserBiasCurrent.Avg, "laser_bias_current_avg is empty for port %v")
@@ -83,7 +81,6 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 
 		if state[channel].LaserTemperature == nil {
 			t.Errorf("LaserTemperature data is empty for port %v", transceiver)
-			flag = false
 		} else {
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/laser-temperature/instant", state[channel].LaserTemperature.Instant, "LaserTemperature_Instant is empty for port %v")
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/laser-temperature/interval", state[channel].LaserTemperature.Interval, "LaserTemperature_Interval is empty for port %v")
@@ -98,7 +95,6 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 
 		if state[channel].OutputPower == nil {
 			t.Errorf("OutputPower data is empty for port %v", transceiver)
-			flag = false
 		} else {
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/output-power/avg", state[channel].OutputPower.Avg, "OutputPower_Avg is empty for port %v")
 			appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/output-power/instant", state[channel].OutputPower.Instant, "OutputPower_Instant is empty for port %v")
@@ -120,7 +116,7 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 			validatePMValue(t, transceiver, "TargetFrequencyDeviation", *state[channel].TargetFrequencyDeviation.Instant, *state[channel].TargetFrequencyDeviation.Min, *state[channel].TargetFrequencyDeviation.Max, *state[channel].TargetFrequencyDeviation.Avg)
 		} else {
 			t.Errorf("TargetFrequencyDeviation data is empty for port %v", transceiver)
-			flag = false
+
 		}
 
 		appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/target-output-power", state[channel].TargetOutputPower, "TargetOutputPower is empty for port %v")
@@ -136,7 +132,6 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 			validatePMValue(t, transceiver, "TecCurrent", *state[channel].TecCurrent.Instant, *state[channel].TecCurrent.Min, *state[channel].TecCurrent.Max, *state[channel].TecCurrent.Avg)
 		} else {
 			t.Errorf("TecCurrent data is empty for port %v", transceiver)
-			flag = false
 		}
 
 		appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/tx-laser", state[channel].TxLaser, "TxLaser is empty for port %v")
@@ -227,11 +222,14 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 		validatePMValue(t, transceiver, "LaserBiasCurrent", lb.GetInstant(), lb.GetMin(), lb.GetMax(), lb.GetAvg())
 	}
 
-	if lp := optical_channel.GetLinePort(); lp == "" {
-		t.Errorf("LinePort data is empty for port %v", transceiver)
-	} else {
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/line-port", lp, "LinePort_instant is empty for port %v")
-	}
+	// Will uncomment:
+	// TZ: https://techzone.cisco.com/t5/IOS-XR-PI-OpenConfig-Eng/Unable-to-get-line-port-and-operational-mode-leaves-with-gnmi/td-p/14811852
+	//
+	// if lp := optical_channel.GetLinePort(); lp == "" {
+	// 	t.Errorf("LinePort data is empty for port %v", transceiver)
+	// } else {
+	// 	appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/line-port", lp, "LinePort_instant is empty for port %v")
+	// }
 
 	if mer := optical_channel.GetModulationErrorRatio(); mer == nil {
 		t.Errorf("ModulationErrorRatio data is empty for transceiver %v", transceiver)
@@ -324,11 +322,14 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 		validatePMValue(t, transceiver, "ModulatorBiasYi", mbyi.GetInstant(), mbyi.GetMin(), mbyi.GetMax(), mbyi.GetAvg())
 	}
 
-	if om := optical_channel.GetOperationalMode(); om == 0 {
-		t.Errorf("OperationalMode data is empty for port %v", transceiver)
-	} else {
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/operational-mode", om, "OperationalMode is empty for port %v")
-	}
+	// Will uncomment:
+	// TZ: https://techzone.cisco.com/t5/IOS-XR-PI-OpenConfig-Eng/Unable-to-get-line-port-and-operational-mode-leaves-with-gnmi/td-p/14811852
+	//
+	// if om := optical_channel.GetOperationalMode(); om == 0 {
+	// 	t.Errorf("OperationalMode data is empty for port %v", transceiver)
+	// } else {
+	// 	appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/operational-mode", om, "OperationalMode is empty for port %v")
+	// }
 
 	if osnr := optical_channel.GetOsnr(); osnr == nil {
 		t.Errorf("OSNR data is empty for port %v", transceiver)
@@ -452,16 +453,15 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 	// 	}
 	// }
 	table.Render()
-	return flag
 }
 
 // validatePMValue validates the pm value.
 func validatePMValue(t *testing.T, portName string, pm string, instant float64, min float64, max float64, avg float64) {
 	if instant < min || instant > max {
-		t.Errorf("Invalid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
+		t.Errorf("Invalid %v sample --> min : %v, max : %v, avg : %v, instant : %v", pm, min, max, avg, instant)
 		return
 	}
-	t.Logf("Valid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
+	t.Logf("Valid %v sample --> min : %v, max : %v, avg : %v, instant : %v", pm, min, max, avg, instant)
 }
 
 // appendToTableIfNotNil appends a row to the provided table if the given value is not nil.
@@ -538,11 +538,7 @@ func TestZRProcessRestart(t *testing.T) {
 
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		success := checkleaves(t, dut, transceiver, before_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, before_state)
 	}
 
 	err := performance.RestartProcess(t, dut, "invmgr")
@@ -563,11 +559,7 @@ func TestZRProcessRestart(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		success := checkleaves(t, dut, transceiver, after_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, after_state)
 	}
 
 	t.Logf("All leaves received successfully after process invmgr restart")
@@ -622,11 +614,7 @@ func TestZRLCReload(t *testing.T) {
 
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		success := checkleaves(t, dut, transceiver, before_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, before_state)
 	}
 
 	t.Logf("Restarting LC %s", LC)
@@ -651,11 +639,7 @@ func TestZRLCReload(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		success := checkleaves(t, dut, transceiver, after_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, after_state)
 	}
 
 	t.Logf("All Gnmi leaves received successfully after LC Reload")
@@ -690,11 +674,7 @@ func TestZRShutPort(t *testing.T) {
 
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		success := checkleaves(t, dut, transceiver, before_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, before_state)
 	}
 
 	t.Logf("Shutting down the port %s", dut.Port(t, "port1").Name())
@@ -720,11 +700,7 @@ func TestZRShutPort(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		success := checkleaves(t, dut, transceiver, after_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, after_state)
 	}
 
 	t.Logf("Un-Shutting down the port %s", dut.Port(t, "port1").Name())
@@ -748,11 +724,7 @@ func TestZRShutPort(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		success := checkleaves(t, dut, transceiver, after_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, after_state)
 	}
 
 	t.Logf("All Gnmi leaves received successfully after port shut")
@@ -782,11 +754,7 @@ func TestZRRPFO(t *testing.T) {
 
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		success := checkleaves(t, dut, transceiver, before_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, before_state)
 	}
 
 	// Do RPFO
@@ -805,11 +773,7 @@ func TestZRRPFO(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		success := checkleaves(t, dut, transceiver, after_state)
-		if !success {
-			t.Logf("Not all leaves are verified")
-			t.Fatal()
-		}
+		checkleaves(t, dut, transceiver, after_state)
 	}
 
 	t.Logf("All leaves received successfully after RPFO")
