@@ -2,8 +2,10 @@ package large_set_consistency_test
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -23,8 +25,8 @@ import (
 )
 
 const (
-	metadata1 = "1st_LARGE_CONFIGURATION"
-	metadata2 = "2nd_LARGE_CONFIGURATION"
+	shortStringMetadata1 = "1st_LARGE_CONFIGURATION"
+	shortStringMetadata2 = "2nd_LARGE_CONFIGURATION"
 )
 
 var (
@@ -189,23 +191,51 @@ func getNotificationsUsingGNMIGet(t *testing.T, gnmiClient gpb.GNMIClient, dut *
 	return getResponse.GetNotification()
 }
 
-func checkMetadata1(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
+func checkshortStringMetadata1(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
 	t.Helper()
 	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
-	want := metadata1
+	want := shortStringMetadata1
 	if got != want && getRespTimeStamp < done.Load() {
 		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
 	}
 }
 
-func checkMetadata2(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice) {
+func checkshortStringMetadata2(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice) {
 	t.Helper()
 	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
-	want := metadata2
+	want := shortStringMetadata2
 	t.Logf("getResp: %v ", getRespTimeStamp)
 	if got != want {
 		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
 	}
+}
+
+func checkLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, largeMetadata string, done *atomic.Int64) {
+	t.Helper()
+	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
+	want := largeMetadata
+	if got != want && getRespTimeStamp < done.Load() {
+		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
+	}
+}
+
+func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, baselineConfig *oc.Root, size int, done *atomic.Int64) {
+	randomBytes := make([]byte, size)
+	_, err := io.ReadFull(rand.Reader, randomBytes)
+	if err != nil {
+		t.Fatalf("failed to generate random bytes: %v", err)
+	}
+	// Encode the bytes to a base64 string.
+	largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
+	largeMetadata = largeMetadata[:size]
+	// send large metadata update request in one goroutine
+	gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig)
+	t.Log("gnmiClient Set large metadataconfig request")
+	_, err = gnmiClient.Set(context.Background(), gpbSetRequest)
+	if err != nil {
+		t.Fatalf("gnmi.Set unexpected error , got: %v", err)
+	}
+	checkLargeMetadata(t, gnmiClient, dut, largeMetadata, done)
 }
 
 func TestLargeSetConsistency(t *testing.T) {
@@ -229,18 +259,20 @@ func TestLargeSetConsistency(t *testing.T) {
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	// send 1st update request in one goroutine
-	gpbSetRequest := buildGNMISetRequest(t, metadata1, baselineConfig)
+	gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig)
 	t.Log("gnmiClient Set 1st large config")
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
 	}
-	checkMetadata1(t, gnmiClient, dut, done)
+	t.Run("check shortStringMetadata1", func(t *testing.T) {
+		checkshortStringMetadata1(t, gnmiClient, dut, done)
+	})
 
 	var wg sync.WaitGroup
 	ch := make(chan struct{}, 1)
 
 	// sending 2nd update request in one goroutine
-	gpbSetRequest = buildGNMISetRequest(t, metadata2, baselineConfig)
+	gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -266,7 +298,7 @@ func TestLargeSetConsistency(t *testing.T) {
 				default:
 					t.Logf("[%d - running] checking config protobuf-metadata", i)
 					time.Sleep(5 * time.Millisecond)
-					checkMetadata1(t, gnmiClient, dut, done)
+					checkshortStringMetadata1(t, gnmiClient, dut, done)
 				}
 			}
 		}(i)
@@ -274,5 +306,52 @@ func TestLargeSetConsistency(t *testing.T) {
 
 	wg.Wait()
 	time.Sleep(5 * time.Second)
-	checkMetadata2(t, gnmiClient, dut)
+	t.Run("check shortStringMetadata2", func(t *testing.T) {
+		checkshortStringMetadata2(t, gnmiClient, dut)
+	})
+}
+
+func TestLargeMetadataConfigPush(t *testing.T) {
+	done := &atomic.Int64{}
+	dut := ondatra.DUT(t, "dut")
+
+	// configuring basic interface and network instance as some devices only populate OC after configuration
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	// Configuring basic interface and network instance as some devices only populate OC after configuration.
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Type().Config(),
+		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	baselineConfig := fptest.GetDeviceConfig(t, dut)
+	setEthernetFromBase(t, baselineConfig)
+	gnmiClient := dut.RawAPIs().GNMI(t)
+
+	// Large metadata Test cases.
+	type testCase struct {
+		name string
+		size int
+	}
+	testCases := []testCase{
+		{
+			name: "Metadata with Size 100KB",
+			size: 100 * 1024,
+		},
+		{
+			name: "Metadata with Size 1MB",
+			size: 1 * 1000 * 1024,
+		},
+	}
+
+	// Run the test cases.
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("Description: %s", tc.name)
+			testLargeMetadata(t, gnmiClient, dut, baselineConfig, tc.size, done)
+		})
+	}
 }
