@@ -19,7 +19,6 @@ package b4_scale_profile_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
