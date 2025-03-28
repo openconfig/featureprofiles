@@ -6,4 +6,24 @@ plan_id: "RT-7.10"
 description: "Routing policy statement insertion and removal"
 testbed: TESTBED_DUT_ATE_2LINKS
 tags: [TAGS_DATACENTER_EDGE]
-
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_interface_in_default_vrf:  true
+    interface_enabled:  true
+    bgp_actions_set_community_method_unsupported:  true
+    skip_bgp_send_community_type: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor: ARISTA
+  }
+  deviations:  {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
