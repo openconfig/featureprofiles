@@ -72,46 +72,6 @@ var (
 	once          sync.Once
 )
 
-func initializeTestResources(t *testing.T) *TestResources {
-	once.Do(func() {
-		t.Helper() // Mark this function as a test helper
-		ctx := context.Background()
-		dut := ondatra.DUT(t, "dut")
-
-		var commandPatterns map[string]map[string]interface{}
-		if *debugCommandYaml == "" {
-			// Get the current working directory
-			currentDir, err := os.Getwd()
-			if err != nil {
-				t.Fatalf("Failed to get current working directory: %v", err)
-			}
-
-			// Get the absolute path of the test file
-			absPath, err := filepath.Abs(currentDir)
-			if err != nil {
-				t.Fatalf("Failed to get absolute path: %v", err)
-			}
-			*debugCommandYaml = absPath + "/debug.yaml"
-		}
-
-		var err error
-		commandPatterns, err = log_collector.ParseYAML(*debugCommandYaml)
-		if err != nil {
-			t.Logf("Debug yaml parsing failed: Error : %v", err)
-		}
-
-		testResources = &TestResources{
-			CommandPatterns: commandPatterns,
-			DUT:             dut,
-			Context:         ctx,
-			LogDir:          *logDir,
-		}
-
-		log_collector.Start(ctx, t, dut)
-	})
-	return testResources
-}
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
