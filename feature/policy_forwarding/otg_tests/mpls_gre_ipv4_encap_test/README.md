@@ -35,11 +35,9 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 ### PF-1.14.1: Generate DUT Configuration
 
 #### Aggregate "customer interface" is the ingress port having following configuration
-
 * Configure DUT ports 1,2 to be a member of aggregate interface named "customer interface"
 
 #### Ten subinterfaces on "customer-interface" with different VLAN-IDs
-
 * Two VLANs with IPV4 link local address only, /29 address
 
 * Two VLANs with IPV4 global /30 address
@@ -49,7 +47,6 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Four VLANs with IPV4 and IPV6 address
 
 #### L3 Address resolution
-
 * Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Aggregate1)
 
 * Local proxy for IPV6 or support Secondary address for IPV6 allowing resolution of same subnet IPV6 addresses corresponding to remote Cloud endpoints
@@ -57,7 +54,6 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Disable Neighbor discovery router advertisement, duplicate address detection
 
 #### MTU Configuration
-
 * One VLAN with MTU 9080 (including L2 header)
 
 #### LLDP must be disabled
@@ -90,7 +86,6 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
   * QoS Hardware queues for all traffic must be configurable (default QoS hardaware class selected is 3)
 
 ### Aggregate 2 and Aggregate 3 configuration
-
 * IPV4 and IPV6 addresses
 
 * MTU (default 9216)
@@ -106,7 +101,6 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Statistics load interval (default:30 seconds)
 
 ### Routing
-
 * Advertise default routes from EBGP sessions
 
 * ECMP (Nexthops: Aggregate2 and Aggregate3)
