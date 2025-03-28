@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	// "github.com/openconfig/entity-naming/oc"
+
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	gnps "github.com/openconfig/gnoi/system"

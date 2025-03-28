@@ -1,0 +1,12 @@
+name: 8818_tests
+owners: 
+  - arvbaska
+testbeds:
+  - 8818-FOX2714PNYN
+tests:
+- name: 8818_config_test 
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 35000
+  mustpass: true
+  internal: true
+  branch: master
