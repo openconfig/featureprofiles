@@ -2,7 +2,7 @@ name: 8818_tests
 owners: 
   - arvbaska
 testbeds:
-  - 8818-FOX2714PNYN
+  - 8818-DUT-PEER
 tests:
 - name: 8818_config_test 
   path: feature/gribi/otg_tests/cisco/8818_scale_profile
@@ -10,3 +10,7 @@ tests:
   mustpass: true
   internal: true
   branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
