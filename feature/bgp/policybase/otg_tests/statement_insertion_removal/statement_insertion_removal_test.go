@@ -226,7 +226,6 @@ type communitySet struct {
 type bgpNeighbor struct {
 	as      uint32
 	nbrAddr string
-	isV4    bool
 	afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE
 	peerGrp string
 }
@@ -591,12 +590,6 @@ func isRoutingPolicyEqual(t *testing.T, dut *ondatra.DUTDevice, policy1 string, 
 		}
 	}
 	return true
-}
-
-type testCase struct {
-	desc    string
-	nbr     *bgpNeighbor
-	peerGrp string
 }
 
 // statement_insertion_removal_test tests the statement insertion and removal.
