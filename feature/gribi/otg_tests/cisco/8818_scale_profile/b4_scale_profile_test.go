@@ -20,8 +20,6 @@ package b4_scale_profile_test
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
