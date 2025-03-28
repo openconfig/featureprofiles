@@ -426,6 +426,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 	dc := gnmi.OC()
 	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name(), dut)
+	port1 := dut.Port(t, "port1")
+
+	if port1.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
+		e := i1.GetEthernet()
+		e.AutoNegotiate = ygot.Bool(false)
+		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+	}
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
 	var aggIDs []string
