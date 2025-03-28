@@ -74,12 +74,12 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
   * The forwarding policy must allow forwarding of incoming traffic across 16 tunnels. 16 Tunnels has 16 source address and a single tunnel destination allowing loadbalancing of packets.
 
   * Source address must be configurable as:
-            * Loopback address OR
-            * 16 source addresses corresponding to a single tunnel destinations to achieve maximum entropy.
+    * Loopback address OR
+    * 16 source addresses corresponding to a single tunnel destinations to achieve maximum entropy.
 
   * Tunnel(s) to be shared across multiple VLANs
 
-  * If TTL of the incoming packet is 1 then the TTL must be preserved as 1 in the inner header while encapsulating the packet. If TTL greater than 1 TTL may be decremented by 1.
+  * If TTL of the incoming packet is 1 then the TTL must be preserved as 1 in the inner header while encapsulating the packet. If TTL is greater than 1 TTL may be decremented by 1.
 
   * DSCP of the innermost IP packet header must be preserved during encapsulation
 
@@ -125,13 +125,10 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Inner packet TTL and DSCP must be preserved
 
 ### MPLS Label
-
 * Entire Label block must be reallocated for static MPLS
-
 * Labels from start/end/mid ranges must be usable and configured corresponding to MPLSoGRE encapsulation
 
 ### Multicast
-
 * Multicast traffic must be encapsulated and handled in the same way as unicast traffic
 
 ## PF-1.14.2: Verify PF MPLSoGRE encapsulate action for IPv4 traffic
@@ -163,7 +160,6 @@ Send both IPV4 and IPV6 traffic as in PF-1.14.2 and PF-1.14.3
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses at line rate IPV4 and IPV6 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size and DSCP value in [0, 8, 10..56].
 
 Verify:
-
 * All traffic received on Aggregate1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets
 * Outer GRE IPv4 header has marking as per the config/TOS byte 96.
 * Inner packet DSCP value is preserved and not altered
@@ -173,7 +169,6 @@ Generate IPV4 traffic on ATE Ports 1,2  with frame size of 9100 with DF-bit set 
 Generate IPV6 traffic on ATE Ports 1,2 with frame size of 9100 with DF-bit set to random destination addresses.
 
 Verify:
-
 * DUT generates a "Fragmentation Needed" message back to ATE source.
 
 ## PF-1.14.7: Verify IPV4/IPV6 nexthop resolution of encap traffic
@@ -194,7 +189,6 @@ Generate single hop BGP and BFD (TTL=1) session packets (TTL=255)
 Generate randandom customer packet with TTL = 1
 
 Verify:
-
 * Device must resolve the ARP and must forward ICMP echo requests, IPV4 and IPV6 traffic to ATE destination ports including the traffic to device’s local L3 addresses
 * Device must selectively locally process following IPV4 and IPV6 traffic:
   * Process IPV4 and IPV6 echo replies to the local IPV4|IPV6 as local traffic
