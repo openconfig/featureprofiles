@@ -59,11 +59,6 @@ const (
 	IPinIPpDscpWidth          = 8
 )
 
-var (
-	logDir           = flag.String("logDir", "", "Firex path to copy the logs after each test case")
-	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
-)
-
 // TestResources holds common resources used across tests.
 type TestResources struct {
 	CommandPatterns map[string]map[string]interface{}
