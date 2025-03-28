@@ -310,7 +310,8 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
 
-  /network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts:
+  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/packets-forwarded:
+  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/octets-forwarded:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
 
 rpcs:
