@@ -26,7 +26,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Egress Ports: Aggregate2 (ATE Ports 3,4) and Aggregate3 (ATE Ports 5,6) are used as the destination ports for encapsulated traffic.
 
-## NOTE: All test cases expected to meet following requirements even though they are not explicitly validated in the test.
+### NOTE: All test cases expected to meet following requirements even though they are not explicitly validated in the test.
 * BGP multipath routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
 * There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * Header fields are as expected without any bit flips
