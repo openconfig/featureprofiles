@@ -94,21 +94,28 @@ func TestCoreLLDPTLVPopulation(t *testing.T) {
 func configureNode(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevice, *oc.Lldp) {
 	node := ondatra.DUT(t, name)
 	p := node.Port(t, portName)
-	d := &oc.Root{}
-	lldp := d.GetOrCreateLldp()
-	llint := lldp.GetOrCreateInterface(p.Name())
+	lldp := gnmi.OC().Lldp()
 
-	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
+	gnmi.Update(t, node, gnmi.OC().Interface(p.Name()).Config(), &oc.Interface{
+		Name:    ygot.String(p.Name()),
+		Enabled: ygot.Bool(true),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+	})
+
+	gnmi.Replace(t, node, lldp.Enabled().Config(), lldpEnabled)
 
 	if lldpEnabled {
-		gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
+		gnmi.Update(t, node, lldp.Interface(p.Name()).Config(), &oc.Lldp_Interface{
+			Name:    ygot.String(p.Name()),
+			Enabled: ygot.Bool(lldpEnabled),
+		})
 	}
 
 	if deviations.InterfaceEnabled(node) {
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
 
-	return node, gnmi.Get(t, node, gnmi.OC().Lldp().Config())
+	return node, gnmi.Get(t, node, lldp.Config())
 }
 
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.

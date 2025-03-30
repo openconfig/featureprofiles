@@ -34,6 +34,7 @@ var (
 	backupNHGRequiresVrfWithDecap            = flag.Bool("deviation_backup_nhg_requires_vrf_with_decap", false, "Set to true for devices that require IPOverIP Decapsulation for Backup NHG without interfaces.")
 	atePortLinkStateOperationsUnsupported    = flag.Bool("deviation_ate_port_link_state_operations_unsupported", false, "Set to true for ATEs that do not support setting link state on their own ports.")
 	ateIPv6FlowLabelUnsupported              = flag.Bool("deviation_ate_ipv6_flow_label_unsupported", false, "Set to true for ATEs that do not support IPv6 flow labels")
+	lldpInterfaceConfigOverrideGlobal        = flag.Bool("deviation_lldp_interface_config_override_global", false, "Set to true for devices whose LLDP interface config overrides LLDP global config.")
 )
 
 func isFlagSet(name string) bool {
@@ -123,4 +124,13 @@ func ATEIPv6FlowLabelUnsupported(ate *ondatra.ATEDevice) bool {
 		return *ateIPv6FlowLabelUnsupported
 	}
 	return lookupATEDeviations(ate).GetAteIpv6FlowLabelUnsupported()
+}
+
+// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
+// expect neighbours are seen when lldp is disabled globally but enabled on interface
+func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
+	if isFlagSet("deviation_lldp_interface_config_override_global") {
+		return *lldpInterfaceConfigOverrideGlobal
+	}
+	return lookupDUTDeviations(dut).GetLldpInterfaceConfigOverrideGlobal()
 }
