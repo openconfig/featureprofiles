@@ -26,7 +26,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Egress Ports: Aggregate2 (ATE Ports 3,4) and Aggregate3 (ATE Ports 5,6) are used as the destination ports for encapsulated traffic.
 
-### PF-1.15.1: Generate DUT Configuration
+## PF-1.15.1: Generate DUT Configuration
 Please generate config using PF-1.14.1
 
 ## PF-1.15.2: Verify IPV4/IPV6 traffic scale

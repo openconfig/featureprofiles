@@ -32,7 +32,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Header fields are as expected without any bit flips
 * Device must be able to resolve the ARP and IPV6 neighbors upon receiving traffic from ATE ports
 
-### PF-1.14.1: Generate DUT Configuration
+## PF-1.14.1: Generate DUT Configuration
 
 #### Aggregate "customer interface" is the ingress port having following configuration
 * Configure DUT ports 1,2 to be a member of aggregate interface named "customer interface"
