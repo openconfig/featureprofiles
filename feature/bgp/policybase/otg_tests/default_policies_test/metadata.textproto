@@ -34,7 +34,6 @@ platform_exceptions:  {
   }
   deviations:  {
     explicit_interface_in_default_vrf: true
-    explicit_port_speed: true
     interface_enabled:  true
     static_protocol_name: "static"
     skip_non_bgp_route_export_check:  true
