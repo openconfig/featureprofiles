@@ -1,24 +1,23 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f90374b1-0d16-44e8-9cc3-e919fed53a08"
-plan_id: "SR-1.1"
-description: "isis node sid forward"
-testbed: TESTBED_DUT_ATE_2LINKS
-
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
+uuid:  "f90374b1-0d16-44e8-9cc3-e919fed53a08"
+plan_id:  "SR-1.1"
+description:  "Transit forwarding to Node-SID via ISIS"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
   }
-  deviations: {
-    interface_enabled: true
-    default_network_instance: "default"
-    isis_counter_manual_address_drop_from_areas_unsupported: true
-    isis_counter_part_changes_unsupported: true
-    isis_instance_enabled_required: true
-    isis_interface_afi_unsupported: true
-    isis_metric_style_telemetry_unsupported: true
-    isis_timers_csnp_interval_unsupported: true
-    missing_isis_interface_afi_safi_enable: true
+  deviations:  {
+    isis_instance_enabled_required:  true
+    missing_isis_interface_afi_safi_enable:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+    isis_interface_afi_unsupported:  true
+    isis_timers_csnp_interval_unsupported:  true
+    isis_counter_manual_address_drop_from_areas_unsupported:  true
+    isis_counter_part_changes_unsupported:  true
+    isis_metric_style_telemetry_unsupported:  true
   }
 }
