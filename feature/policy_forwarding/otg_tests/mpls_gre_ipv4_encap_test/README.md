@@ -47,7 +47,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Four VLANs with IPV4 and IPV6 address
 
 #### L3 Address resolution
-* Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Aggregate1)
+* Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Aggregate1). Please refer README PF-1.16 local-proxy-arp for the configuration.
 
 * Local proxy for IPV6 or support Secondary address for IPV6 allowing resolution of same subnet IPV6 addresses corresponding to remote Cloud endpoints
 
@@ -164,16 +164,6 @@ Generate IPV6 traffic on ATE Ports 1,2 with frame size of 9100 with DF-bit set t
 
 Verify:
 * DUT generates a "Fragmentation Needed" message back to ATE source.
-
-## PF-1.14.7: Verify IPV4/IPV6 nexthop resolution of encap traffic
-Clear ARP entries and IPV6 neighbors on the device
-Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses
-Generate ICMP echo requests to addresses configured on the device
-Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to destination addresses within same subnet as the Aggregate1 interface
-
-Verify:
-* Device must resolve the ARP and must forward ICMP echo requests, IPV4 and IPV6 traffic to ATE destination ports including the traffic to device’s local L3 addresses
-* Device must not forward the echo packets destined to the Aggregate1 interface
  
 ## PF-1.14.8: Verify IPV4/IPV6 selective local traffic processing
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses including addresses configured on the device
@@ -192,6 +182,7 @@ Verify:
 
 ## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
+ 
 
 ```json
 "network-instances": {
