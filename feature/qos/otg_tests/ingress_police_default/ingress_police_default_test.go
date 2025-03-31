@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -113,12 +114,14 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 
 	var tolerance float32 = 3.0
 
+	queues := netutil.CommonTrafficQueues(t, dut)
+
 	// Validate that flow experiences 0 packet loss at 0.7Gbps.
 	TrafficFlows10 := map[string]*trafficData{
 		"intf1-be0": {
 			gbpsRate:              1,
 			expectedThroughputPct: 100.0,
-			queue:                 "DEFAULT",
+			queue:                 queues.BE1,
 			inputIntf:             intf1,
 		},
 	}
@@ -128,7 +131,7 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 		"intf1-be0": {
 			gbpsRate:              2,
 			expectedThroughputPct: 100.0,
-			queue:                 "DEFAULT",
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 	}
