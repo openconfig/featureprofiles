@@ -477,6 +477,17 @@ test: {
   id: "PF-1.11"
   description: "Rewrite the ingress innner packet TTL"
   readme: " "
+}
+test: {
+  id: "PF-1.12"
+  description: "PF-1.12 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.13"
+  description: "PF-1.13 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload scale test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_scale_test/README.md"
   exec: " "
 }
 test: {
