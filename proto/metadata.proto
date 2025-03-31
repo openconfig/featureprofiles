@@ -41,6 +41,7 @@ message Metadata {
     TESTBED_DUT_400ZR_PLUS = 9;
     TESTBED_DUT_400ZR_100G_4LINKS = 10;
     TESTBED_DUT_400FR_100G_4LINKS = 11;
+    TESTBED_DUT_ATE_5LINKS = 12;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -152,10 +153,6 @@ message Metadata {
     // requirements in gNMI-1.10.
     // Juniper: partnerissuetracker.corp.google.com/278764547
     bool sw_version_unsupported = 37;
-    // Device requires explicit interface ref configuration when applying
-    // features to interface.
-    // Juniper: partnerissuetracker.corp.google.com/267691571
-    bool explicit_interface_ref_definition = 38;
     // Device does not support telemetry path /components/component/storage.
     // Juniper: partnerissuetracker.corp.google.com/284239001
     bool storage_component_unsupported = 39;
@@ -166,9 +163,6 @@ message Metadata {
     // the default network instance.
     // Nokia: partnerissuetracker.corp.google.com/260928639
     bool explicit_interface_in_default_vrf = 42;
-    // Skip checking QOS Dropped octets stats for interface.
-    // Juniper: partnerissuetracker.corp.google.com/282686094
-    bool qos_dropped_octets = 43;
     // Device is missing subinterface packet counters for IPv4/IPv6.
     bool subinterface_packet_counters_missing = 44;
     // Connect-retry is not supported
@@ -376,9 +370,6 @@ message Metadata {
     // Devices that have separate naming conventions for hardware resource name
     // in /system/ tree and /components/ tree.
     bool mismatched_hardware_resource_name_in_component = 130;
-    // Devices that don't support telemetry for hardware resources before
-    // used-threshold-upper configuration.
-    bool missing_hardware_resource_telemetry_before_config = 131;
     // Device does not support reboot status check on subcomponents.
     bool gnoi_subcomponent_reboot_status_unsupported = 132;
     // Devices exports routes from all protocols to BGP if the export-policy is
@@ -642,9 +633,6 @@ message Metadata {
     bool otn_channel_assignment_cisco_numbering = 232;
     // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
     bool cisco_pre_fec_ber_inactive_value = 233;
-    // Device does not support bgp extended next hop encoding leaf.
-    // Cisco: b/377433951
-    bool bgp_extended_next_hop_encoding_leaf_unsupported = 234;
     // Device does not support bgp afi safi wildcard.
     // Cisco: b/379863985
     bool bgp_afi_safi_wildcard_not_supported = 235;
@@ -704,10 +692,6 @@ message Metadata {
     // Nokia: b/395553772
     bool fragment_total_drops_unsupported = 253;
 
-    // Devices that do no support static lsp config
-    // Juniper b/356635233
-    bool static_lsp_unsupported = 254;
-
     // Juniper: b/383145521
     // Device needs route policy reference to stream prefix set info.
     bool bgp_prefixset_req_routepol_ref = 255;
@@ -738,9 +722,12 @@ message Metadata {
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
+    
+    // Devices that do not support load-interval configuration
+    bool load_interval_not_supported = 263;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 141, 113;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
 
   message PlatformExceptions {
