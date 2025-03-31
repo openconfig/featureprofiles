@@ -431,35 +431,30 @@ func TestSetSystemThreshold(t *testing.T) {
 			resource:       "cpu",
 			threshold:      60,
 			thresholdClear: 50,
-			err:            "",
 		},
 		{
 			name:           "Memory",
 			resource:       "memory",
 			threshold:      60,
 			thresholdClear: 50,
-			err:            "",
 		},
 		{
 			name:           "Disk0",
 			resource:       "disk0",
 			threshold:      60,
 			thresholdClear: 50,
-			err:            "",
 		},
 		{
 			name:           "HardDisk",
 			resource:       "harddisk",
 			threshold:      60,
 			thresholdClear: 50,
-			err:            "",
 		},
 		{
 			name:           "Power",
 			resource:       "power",
 			threshold:      60,
 			thresholdClear: 50,
-			err:            "",
 		},
 	}
 
@@ -532,8 +527,6 @@ func TestSetSystemThreshold(t *testing.T) {
 			})
 
 			t.Run("UnconfigCLI", func(t *testing.T) {
-				// // unconfig CLI
-				// dut.CLI().RunResult(t, "config")
 				unCfgCmd := fmt.Sprintf("no watchdog resource-utilization %s", tt.resource)
 				unCfgPowerCmd := "no power-mgmt used-threshold-upper"
 				unCfgPowerCmdClear := "no power-mgmt used-threshold-upper-clear"
@@ -628,9 +621,15 @@ func TestSetSystemThreshold(t *testing.T) {
 				t.Logf("Configured %s via CLI", tt.resource)
 
 				if tt.resource == "power" {
-					rollbackLastPowerConfigCLI(t, dut)
+					err := rollbackLastPowerConfigCLI(t, dut)
+					if err != nil {
+						t.Errorf("config rollback failed: %s", err)
+					}
 				} else {
-					rollbackLastConfig(t, dut)
+					err := rollbackLastConfig(t, dut)
+					if err != nil {
+						t.Errorf("config rollback failed: %s", err)
+					}
 				}
 
 				t.Run("VerifyCLI", func(t *testing.T) {
@@ -848,7 +847,10 @@ func TestSetSystemThreshold(t *testing.T) {
 
 				t.Logf("response: %+v", resp)
 
-				rollbackLastConfig(t, dut)
+				err := rollbackLastConfig(t, dut)
+				if err != nil {
+					t.Errorf("config rollback failed: %s", err)
+				}
 
 				t.Run("VerifyCLI", func(t *testing.T) {
 
@@ -1087,28 +1089,24 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 			resource:       "cpu",
 			threshold:      30,
 			thresholdClear: 30,
-			err:            "",
 		},
 		{
 			name:           "Memory",
 			resource:       "memory",
 			threshold:      40,
 			thresholdClear: 40,
-			err:            "",
 		},
 		{
 			name:           "Disk0",
 			resource:       "disk0",
 			threshold:      15,
 			thresholdClear: 15,
-			err:            "",
 		},
 		{
 			name:           "HardDisk",
 			resource:       "harddisk",
 			threshold:      15,
 			thresholdClear: 15,
-			err:            "",
 		},
 	}
 
@@ -1285,7 +1283,6 @@ func TestSetComponentThreshold(t *testing.T) {
 		location       string
 		threshold      uint8
 		thresholdClear uint8
-		err            string
 	}{
 		{
 			name:           "CPU",
@@ -1293,7 +1290,6 @@ func TestSetComponentThreshold(t *testing.T) {
 			location:       "0/0/CPU0",
 			threshold:      30,
 			thresholdClear: 25,
-			err:            "",
 		},
 		{
 			name:           "Memory",
@@ -1301,7 +1297,6 @@ func TestSetComponentThreshold(t *testing.T) {
 			location:       "0/0/CPU0",
 			threshold:      30,
 			thresholdClear: 25,
-			err:            "",
 		},
 		{
 			name:           "Disk0",
@@ -1309,7 +1304,6 @@ func TestSetComponentThreshold(t *testing.T) {
 			location:       "0/0/CPU0",
 			threshold:      30,
 			thresholdClear: 25,
-			err:            "",
 		},
 		{
 			name:           "Power",
@@ -1317,7 +1311,6 @@ func TestSetComponentThreshold(t *testing.T) {
 			location:       "Rack 0",
 			threshold:      30,
 			thresholdClear: 25,
-			err:            "",
 		},
 	}
 
@@ -1334,7 +1327,10 @@ func TestSetComponentThreshold(t *testing.T) {
 
 			setResourceUtilizationGNMI(t, dut, tt.threshold, tt.thresholdClear, tt.resource, tt.location)
 
-			rollbackLastConfig(t, dut)
+			err := rollbackLastConfig(t, dut)
+			if err != nil {
+				t.Errorf("config rollback failed: %s", err)
+			}
 
 		})
 
@@ -1350,7 +1346,10 @@ func TestSetComponentThreshold(t *testing.T) {
 
 			setResourceUtilizationGNMI(t, dut, tt.threshold, tt.thresholdClear, tt.resource, tt.location)
 
-			rollbackLastConfig(t, dut)
+			err := rollbackLastConfig(t, dut)
+			if err != nil {
+				t.Errorf("config rollback failed: %s", err)
+			}
 
 		})
 	}
