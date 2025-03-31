@@ -57,24 +57,22 @@ outer_ip-ttl =        "64"
 * Configure static LSP's for the MPLS label to VLAN mapping.
 * 1 default route in each VRF pointing to policy forwarding NHG.
 * Create 20K gRIBI NHG with 1 NH per NHG with same MPLS label.
-* Create 5 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 100K total prefixes, pointing to 20k NHG.
+* Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
 * Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
-* The QoS classifier should contain rules to match each unique IP destination to a unique scheduler with a 2 color, 1 rate policer as per the configuration in TE-18.1.  The result should be 20,000 policers.
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
-#### Scale profile A - many vlans 1 NH per NHG with different MPLS label
+#### Scale profile B - many vlans 1 NH per NHG with different MPLS label
 
 * 20 ip destinations * 1,000 vlans = 20,000 'flows'
 * 1000 network-instances have each have 1 static route pointing a static  NHG with 8 NH. The encap-headers for the NH should indicate MPLS in GRE encapsulation as per the canonical OC defined in test TE-18.1
 * Configure static LSP's for the MPLS label to VLAN mapping.
 * 1 default route in each VRF pointing to policy forwarding NHG.
 * Create 20K gRIBI NHG with 1 NH per NHG with different MPLS label.
-* Create 5 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 100K total prefixes, pointing to 20k NHG.
+* Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
 * Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
-* The QoS classifier should contain rules to match each unique IP destination to a unique scheduler with a 2 color, 1 rate policer as per the configuration in TE-18.1.  The result should be 20,000 policers.
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
-#### Scale profile B - many destinations, few vlans
+#### Scale profile C - many destinations, few vlans
 
 * 200 ip destinations * 100 vlans = 20,000 'flows'
 * Each ingress vlan has 4 policer-policies = 4,000 'token buckets'
