@@ -41,6 +41,7 @@ message Metadata {
     TESTBED_DUT_400ZR_PLUS = 9;
     TESTBED_DUT_400ZR_100G_4LINKS = 10;
     TESTBED_DUT_400FR_100G_4LINKS = 11;
+    TESTBED_DUT_ATE_5LINKS = 12;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -721,6 +722,9 @@ message Metadata {
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
+    
+    // Devices that do not support load-interval configuration
+    bool load_interval_not_supported = 263;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
