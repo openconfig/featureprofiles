@@ -86,7 +86,7 @@ func TestCredentialz(t *testing.T) {
 				break
 			}
 			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
-				t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
+				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh succeeded, but we expected to fail.")
 			}
 			t.Logf("Dialing ssh succeeded but expected to fail, retrying ...")
 			time.Sleep(5 * time.Second)
@@ -126,7 +126,7 @@ func TestCredentialz(t *testing.T) {
 				break
 			}
 			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
-				t.Fatalf("Dialing ssh failed, but we expected to succeed, error: %s", err)
+				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh failed, but we expected to succeed, error: %s", err)
 			}
 			t.Logf("Dialing ssh failed, retrying ...")
 			time.Sleep(5 * time.Second)
