@@ -47,13 +47,8 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ```yaml
 paths:
-  # Telemetry for GRE decap rule    
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
-    
-  # Config paths for GRE decap
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
-
   /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/packets-forwarded:
   /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/octets-forwarded:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
