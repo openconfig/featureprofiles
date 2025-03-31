@@ -1,4 +1,4 @@
-# PF-1.8: Ingress handling of the TTL
+# PF-1.8: Ingress handling of TTL
 
 ## Summary
 
