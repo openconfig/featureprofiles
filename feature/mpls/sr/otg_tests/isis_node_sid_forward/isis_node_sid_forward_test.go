@@ -16,7 +16,6 @@
 package isis_node_sid_forward_test
 
 import (
-	"net"
 	"testing"
 	"time"
 
