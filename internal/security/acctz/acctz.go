@@ -263,7 +263,7 @@ func dialSSH(t *testing.T, username, password, target string) (*ssh.Client, io.W
 					},
 				),
 			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
 		})
 	if err != nil {
 		t.Fatalf("Got unexpected error dialing ssh target %s, error: %v", target, err)
@@ -308,7 +308,7 @@ func getHostPortInfo(t *testing.T, address string) (string, uint32) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	portNumber, err := strconv.Atoi(port)
+	portNumber, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		t.Fatal(err)
 	}
