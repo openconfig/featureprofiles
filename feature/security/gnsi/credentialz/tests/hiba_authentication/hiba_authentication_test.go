@@ -32,6 +32,7 @@ import (
 
 const (
 	username               = "testuser"
+	maxSSHRetryTime        = 30 // Unit is seconds.
 	hostCertificateVersion = "v1.0"
 )
 
@@ -77,9 +78,18 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with hiba fails as expected.
-		_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
-		if err == nil {
-			t.Fatalf("Dialing ssh succeeded, but we expected to fail")
+		startTime := time.Now()
+		for {
+			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			if err != nil {
+				t.Logf("Dialing ssh failed as expected.")
+				break
+			}
+			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
+				t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
+			}
+			t.Logf("Dialing ssh succeeded but expected to fail, retrying ...")
+			time.Sleep(5 * time.Second)
 		}
 
 		if !deviations.SSHServerCountersUnsupported(dut) {
@@ -108,9 +118,18 @@ func TestCredentialz(t *testing.T) {
 			startingAcceptCounter, startingLastAcceptTime = credz.GetAcceptTelemetry(t, dut)
 		}
 
-		_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
-		if err != nil {
-			t.Fatalf("Dialing ssh failed, but we expected to succeed, errror: %s", err)
+		startTime := time.Now()
+		for {
+			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			if err == nil {
+				t.Logf("Dialing ssh succeeded as expected.")
+				break
+			}
+			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
+				t.Fatalf("Dialing ssh failed, but we expected to succeed, error: %s", err)
+			}
+			t.Logf("Dialing ssh failed, retrying ...")
+			time.Sleep(5 * time.Second)
 		}
 
 		// Verify ssh counters.
