@@ -1,4 +1,4 @@
-# PF-1.10 - MPLSoGRE and MPLSoGUE MACsec 
+# PF-1.17 - MPLSoGRE and MPLSoGUE MACsec 
 
 ## Summary
 This test verifies MACSec with MPLSoGRE and MPLSoGUE IP encap and decap traffic on the test device.
@@ -10,14 +10,14 @@ This test verifies MACSec with MPLSoGRE and MPLSoGUE IP encap and decap traffic 
 ### Test environment setup
 
 ```
-DUT has 3 EtherChannels.
+DUT has 3 aggregate interfaces.
 
                          |         | --eBGP-- | ATE Ports 3,4 |
     [ ATE Ports 1,2 ]----|   DUT   |          |               |
                          |         | --eBGP-- | ATE Port 5,6  |
 ```
 
-Test uses aggregate 802.3ad bundled interfaces (Port Channel).
+Test uses aggregate 802.3ad bundled interfaces (Aggregate).
 
 * Send bidirectional traffic:
   * IP to Encap Traffic: The IP to Encap traffic is from ATE Ports [1,2] to ATE Ports [3,4,5,6]. 
@@ -26,10 +26,8 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
 Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additional information on the test traffic environment setup.
 
-#### Configuration
-
+## PF-1.17.1: Generate DUT Configuration
 ### MACsec
-
 * Configure MACsec on both ends of the aggregate bundle links connecting ATE ports 1,2 and DUT
     * Set Static Connectivity Association Key (CAK) Mode if the default is dynamic mode on the interface
     * Define first Policy(1) to cover must-secure scenario  
@@ -47,7 +45,7 @@ Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additio
     * Set Out of sequence protection window size:64
     * Set maximum value of Association Number: 3
 
-## PF-1.10.1: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
+## PF-1.17.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
     * MPLSoGRE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
@@ -63,7 +61,7 @@ Verify:
 * Traffic is dropped (100 percent) when the must-secure MACSec sessions are down by disabling MACsec on ATE ports
 
 
-## PF-1.10.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec should-secure policy
+## PF-1.17.3: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec should-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
     * MPLSoGRE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
@@ -94,13 +92,10 @@ Verify:
 * No packet loss when keys one through five expires as configured
 * 100 percent packet loss after all the keys configured expires
 
-## OpenConfig Path Coverage
-TODO: 
-* Finalize and update the below paths after the review and testing on any vendor device
-
-### JSON Format
-
-```
+## Canonical OpenConfig for MACsec configuration
+TODO: Finalize and update the below paths after the review and testing on any vendor device.
+ 
+```json
  "macsec": {
     "interfaces": {
       "interface": [
@@ -156,48 +151,58 @@ TODO:
   },
   ```
 
+## OpenConfig Path and RPC Coverage
+TODO: Finalize and update the below paths after the review and testing on any vendor device.
 
-## Telemetry Path Coverage
+```yaml
+paths:
+  /macsec/interfaces/interface/[Physical Interface]/state/status:
+  /macsec/interfaces/interface/[Physical Interface]/state/ckn:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-ctrl:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-data:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-dropped:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-err-in:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-ctrl:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-data:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-dropped:
+  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-err-in:
+  /macsec/interfaces/interface/state/counters/rx-badtag-pkts:
+  /macsec/interfaces/interface/state/counters/rx-late-pkts:
+  /macsec/interfaces/interface/state/counters/rx-nosci-pkts:
+  /macsec/interfaces/interface/state/counters/rx-unknownsci-pkts:
+  /macsec/interfaces/interface/state/counters/rx-untagged-pkts:
+  /macsec/interfaces/interface/state/counters/tx-untagged-pkts:
+  /macsec/interfaces/interface/mka/state/counters/in-cak-mkpdu:
+  /macsec/interfaces/interface/mka/state/counters/in-mkpdu:
+  /macsec/interfaces/interface/mka/state/counters/in-sak-mkpdu:
+  /macsec/interfaces/interface/mka/state/counters/out-cak-mkpdu:
+  /macsec/interfaces/interface/mka/state/counters/out-mkpdu:
+  /macsec/interfaces/interface/mka/state/counters/out-sak-mkpdu:
+  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sa-invalid:
+  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sa-valid:
+  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sc-invalid:
+  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sc-valid:
+  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sa-auth-only:
+  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sa-encrypted:
+  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-auth-only:
+  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-encrypted:
+  /macsec/mka/state/counters/in-mkpdu-bad-peer-errors:
+  /macsec/mka/state/counters/in-mkpdu-icv-verification-errors:
+  /macsec/mka/state/counters/in-mkpdu-peer-list-errors:
+  /macsec/mka/state/counters/in-mkpdu-validation-errors:
+  /macsec/mka/state/counters/out-mkpdu-errors:
+  /macsec/mka/state/counters/sak-cipher-mismatch-errors:
+  /macsec/mka/state/counters/sak-decryption-errors:
+  /macsec/mka/state/counters/sak-encryption-errors:
+  /macsec/mka/state/counters/sak-generation-errors:
+  /macsec/mka/state/counters/sak-hash-errors:
 
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
 ```
-macsec/interfaces/interface/[Physical Interface]/state/status
-macsec/interfaces/interface/[Physical Interface]/state/ckn
-macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-ctrl
-macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-data
-macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-dropped
-macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-err-in
-macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-ctrl
-macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-data
-macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-dropped
-macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-err-in
-macsec/interfaces/interface/state/counters/rx-badtag-pkts
-macsec/interfaces/interface/state/counters/rx-late-pkts
-macsec/interfaces/interface/state/counters/rx-nosci-pkts
-macsec/interfaces/interface/state/counters/rx-unknownsci-pkts
-macsec/interfaces/interface/state/counters/rx-untagged-pkts
-macsec/interfaces/interface/state/counters/tx-untagged-pkts
-macsec/interfaces/interface/mka/state/counters/in-cak-mkpdu
-macsec/interfaces/interface/mka/state/counters/in-mkpdu
-macsec/interfaces/interface/mka/state/counters/in-sak-mkpdu
-macsec/interfaces/interface/mka/state/counters/out-cak-mkpdu
-macsec/interfaces/interface/mka/state/counters/out-mkpdu
-macsec/interfaces/interface/mka/state/counters/out-sak-mkpdu
-macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sa-invalid
-macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sa-valid
-macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sc-invalid
-macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sc-valid
-macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sa-auth-only
-macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sa-encrypted
-macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-auth-only
-macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-encrypted
-macsec/mka/state/counters/in-mkpdu-bad-peer-errors
-macsec/mka/state/counters/in-mkpdu-icv-verification-errors
-macsec/mka/state/counters/in-mkpdu-peer-list-errors
-macsec/mka/state/counters/in-mkpdu-validation-errors
-macsec/mka/state/counters/out-mkpdu-errors
-macsec/mka/state/counters/sak-cipher-mismatch-errors
-macsec/mka/state/counters/sak-decryption-errors
-macsec/mka/state/counters/sak-encryption-errors
-macsec/mka/state/counters/sak-generation-errors
-macsec/mka/state/counters/sak-hash-errors
-```
+
+## Minimum DUT platform requirement
+
+FFF
