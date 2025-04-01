@@ -491,6 +491,25 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.14"
+  description: "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.15"
+  description: "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_scale_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.16"
+  description: "MPLSoGRE IPV4 encapsulation IPV4/IPV6 local proxy test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test/README.md"
+  exec: " "
+}
+
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
