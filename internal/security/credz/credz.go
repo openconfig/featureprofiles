@@ -177,7 +177,7 @@ func RotateUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password
 }
 
 // RotateAuthorizedPrincipal apply authorized principal for the specified username on the dut.
-func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal string) {
+func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal string, version string, createdOn uint64) {
 	request := &cpb.RotateAccountCredentialsRequest{
 		Request: &cpb.RotateAccountCredentialsRequest_User{
 			User: &cpb.AuthorizedUsersRequest{
@@ -191,8 +191,8 @@ func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, u
 								},
 							},
 						},
-						Version:   "v1.0",
-						CreatedOn: uint64(time.Now().Unix()),
+						Version:   version,
+						CreatedOn: createdOn,
 					},
 				},
 			},
@@ -235,7 +235,7 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 }
 
 // RotateTrustedUserCA read CA key contents from the specified directory & apply it on the dut.
-func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
+func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string, version string, createdOn uint64) {
 	var keyContents []*cpb.PublicKey
 
 	if dir != "" {
@@ -252,8 +252,8 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		Request: &cpb.RotateHostParametersRequest_SshCaPublicKey{
 			SshCaPublicKey: &cpb.CaPublicKeyRequest{
 				SshCaPublicKeys: keyContents,
-				Version:         "v1.0",
-				CreatedOn:       uint64(time.Now().Unix()),
+				Version:   version,
+				CreatedOn: createdOn,
 			},
 		},
 	}
