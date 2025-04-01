@@ -46,17 +46,29 @@ From ATE1:Port1 to DUT:Port1, send 10kbps Send ARP traffic i.e. ARP requests fro
 
 ```yaml
 paths:
-  # interface configuration
+  # interface configuration to apply ACL as ingress
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
-  # ACL configuration and state
+
+ # ACL configuration and state
   /acl/config
   /acl/state
   /acl/interfaces
   /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface
   /acl/acl-sets
   /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config
-  
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/policer-action
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/policer-action/police-rate
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/policer-action/burst-size
+
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/state/ethertype
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/state/policer-action
+
 rpcs:
   gnmi:
     gNMI.Set:
