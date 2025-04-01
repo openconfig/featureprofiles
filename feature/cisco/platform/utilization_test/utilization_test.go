@@ -47,7 +47,12 @@ func TestResourceUtilization(t *testing.T) {
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	npus := util.UniqueValues(t, nodes)
 
-	//TODO: To optimize the code, we can use a single loop for both metrics and intMetrics
+	// TODO: We should test for these leafs if they are incremented as well.
+	// Google will use these OC resource leafs to track the usage of resources,
+	// and if there is an increase/decrease in usage, they will act accordingly.
+
+	// Example: In public tests which check for increase/decrease in IPv6 route/LPM/CEM resources,
+
 	for _, metric := range metrics {
 		t.Run(fmt.Sprintf("Pre-test metric: %s", metric), func(t *testing.T) {
 
