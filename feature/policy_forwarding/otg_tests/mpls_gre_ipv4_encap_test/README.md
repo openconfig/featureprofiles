@@ -482,7 +482,8 @@ TODO: new OC paths to be proposed are present in below JSON
             }
         ]
     }
-}```
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
