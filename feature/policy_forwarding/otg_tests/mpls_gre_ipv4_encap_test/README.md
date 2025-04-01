@@ -491,50 +491,6 @@ TODO: new OC paths to be proposed are present in below JSON
 paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
-  /interfaces/interface/state/counters/in-discards:
-  /interfaces/interface/state/counters/in-errors:
-  /interfaces/interface/state/counters/in-multicast-pkts:
-  /interfaces/interface/state/counters/in-pkts:
-  /interfaces/interface/state/counters/in-unicast-pkts:
-  /interfaces/interface/state/counters/out-discards:
-  /interfaces/interface/state/counters/out-errors:
-  /interfaces/interface/state/counters/out-multicast-pkts:
-  /interfaces/interface/state/counters/out-pkts:
-  /interfaces/interface/state/counters/out-unicast-pkts:
-
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
-  /interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts:
-
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-discarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-error-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-multicast-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-discarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-error-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-multicast-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
-  
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-error-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-error-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
-
   /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/packets-forwarded:
   /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/octets-forwarded:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
