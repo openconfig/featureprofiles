@@ -283,8 +283,7 @@ func createAccountCredentialsHelper(filePath string, accountName string) credz.A
 func returnCredzData() *bpb.Credentials {
 	var credentials bpb.Credentials
 	var akreq credz.AuthorizedKeysRequest
-	// credentialsData := createAccountCredentialsHelper("credz", "gfallback")
-	credentialsData := createAccountCredentialsHelper("credz", "CREDZ")
+	credentialsData := createAccountCredentialsHelper("credz", "gfallback")
 	akreq.Credentials = append(akreq.Credentials, &credentialsData)
 	credentials.Credentials = append(credentials.Credentials, &akreq)
 
@@ -701,47 +700,5 @@ func ztpInitiateMgmtDhcp4(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	default:
 		t.Fatalf("The ztp initiate commands of vendor %s is missing", dut.Vendor().String())
-	}
-}
-
-func ztpInitiateMgmtDhcp6(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Logf("Executing ztp initiate on the box")
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		cli_handle := dut.RawAPIs().CLI(t)
-		ztp_resp, err := cli_handle.RunCommand(context.Background(), "ztp clean noprompt")
-		if err != nil {
-			t.Error(err)
-		}
-		t.Log(ztp_resp.Output())
-		time.Sleep(30 * time.Second)
-		ztp_resp, err = cli_handle.RunCommand(context.Background(), "run rm -rf /var/log/ztp.log \n ztp initiate management dhcp6 noprompt")
-		if err != nil {
-			t.Error(err)
-		}
-		out := ztp_resp.Output()
-		t.Logf("%v\n", out)
-		if strings.Contains(strings.ToLower(out), "error") {
-			t.Fatalf("Error initiating ZTP")
-		}
-	default:
-		t.Fatalf("The ztp initiate commands of vendor %s is missing", dut.Vendor().String())
-	}
-}
-
-func ztpTerminate(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Logf("Executing ztp terminate on the box")
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		cli_handle := dut.RawAPIs().CLI(t)
-		ztp_resp, err := cli_handle.RunCommand(context.Background(), "ztp terminate noprompt")
-		if err != nil {
-			t.Error(err)
-		}
-		t.Log(ztp_resp.Output())
-		time.Sleep(30 * time.Second)
-
-	default:
-		t.Fatalf("The ztp terminate commands of vendor %s is missing", dut.Vendor().String())
 	}
 }
