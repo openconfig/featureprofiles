@@ -699,7 +699,7 @@ func TestISISState(t *testing.T) {
 			ExtendedIpv4Reachability().Prefix(peerIsis.V4Prefix).Subtlv(oc.IsisLsdbTypes_ISIS_SUBTLV_TYPE_IP_REACHABILITY_PREFIX_FLAGS).Flags()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
-		t.Logf(val.Type.String())
+		t.Log(val.Type.String())
 	})
 
 }

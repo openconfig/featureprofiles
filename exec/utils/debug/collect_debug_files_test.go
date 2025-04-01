@@ -312,21 +312,21 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 	var bindingFile string
 
 	if bf == nil {
-		t.Logf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
-		return fmt.Errorf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
+		t.Logf("binding file not set correctly : [%s]", bf.Value.String())
+		return fmt.Errorf("binding file not set correctly : [%s]", bf.Value.String())
 	}
 
 	bindingFile = bf.Value.String()
 
 	in, err := os.ReadFile(bindingFile)
 	if err != nil {
-		t.Logf(fmt.Sprintf("Error reading binding file: [%v]", err))
-		return fmt.Errorf(fmt.Sprintf("Error reading binding file: [%v]", err))
+		t.Logf("Error reading binding file: [%v]", err)
+		return fmt.Errorf("Error reading binding file: [%v]", err)
 	}
 
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
-		return fmt.Errorf(fmt.Sprintf("Error unmarshalling binding file: [%v]", err))
+		return fmt.Errorf("Error unmarshalling binding file: [%v]", err)
 	}
 
 	for _, dut := range b.Duts {

@@ -95,7 +95,7 @@ func testGNMISet(t *testing.T, event *monitor.CachedConsumer, args ...interface{
 	generatedConf := confgen.GenerateConfig(bundles, *configFilePath)
 	configRoot := &oc.Root{}
 	if err := oc.Unmarshal([]byte(generatedConf), configRoot); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Config(), configRoot)
 }
@@ -254,7 +254,7 @@ func configVRFS(t *testing.T, dut *ondatra.DUTDevice) {
 func TestLoad(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(resp)
+	t.Log(resp)
 	if strings.Contains(resp, "VXR") {
 		t.Logf("Skipping since platfrom is VXR")
 		t.Skip()

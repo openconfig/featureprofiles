@@ -47,6 +47,18 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
             *   NextHopGroup
                 *   backup_nexthop_group
 
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
+
 ## Minimum DUT platform requirement
 
 vRX
