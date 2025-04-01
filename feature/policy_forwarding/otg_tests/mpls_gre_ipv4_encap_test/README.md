@@ -165,7 +165,7 @@ Generate IPV6 traffic on ATE Ports 1,2 with frame size of 9100 with DF-bit set t
 Verify:
 * DUT generates a "Fragmentation Needed" message back to ATE source.
  
-## PF-1.14.8: Verify IPV4/IPV6 selective local traffic processing
+## PF-1.14.7: Verify IPV4/IPV6 selective local traffic processing
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses including addresses configured on the device
 Generate ICMP echo requests from the device
 Generate traceroute packets with TTL=1 and TTL>1 from ATE ports 1,2
