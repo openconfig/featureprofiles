@@ -57,19 +57,15 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/icmpv6/type:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/count:     #TODO: Add new OC
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/icmp/config/type:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/icmp/config/code:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/hop-limit:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:   #TODO: Add new OC
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-ttl:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-hop-limit:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/packet-type:    #TODO: Add new OC
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
-  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
-  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
-  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/index:
+ 
   #TODO: Add new OC for GRE encap headers
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/type:          
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dst-ip:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/src-ip:
@@ -77,6 +73,13 @@ paths:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/ip-ttl:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/index:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/mpls-label-stack:
+
+  #TODO: Add new OC for policy forwarding actions
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:   
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-ttl:   
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-hop-limit:  
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/packet-type:    
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/count:     
 
 rpcs:
   gnmi:
