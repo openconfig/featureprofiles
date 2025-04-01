@@ -26,7 +26,8 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Egress Ports: Aggregate2 (ATE Ports 3,4) and Aggregate3 (ATE Ports 5,6) are used as the destination ports for encapsulated traffic.
 
-### NOTE: All test cases expected to meet following requirements even though they are not explicitly validated in the test.
+### NOTE: All test cases expected to meet following requirements even though they are not explicitly validated in the test
+
 * BGP multipath routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
 * There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * Header fields are as expected without any bit flips
@@ -35,9 +36,11 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 ## PF-1.14.1: Generate DUT Configuration
 
 #### Aggregate "customer interface" is the ingress port having following configuration
+
 * Configure DUT ports 1,2 to be a member of aggregate interface named "customer interface"
 
 #### Ten subinterfaces on "customer-interface" with different VLAN-IDs
+
 * Two VLANs with IPV4 link local address only, /29 address
 
 * Two VLANs with IPV4 global /30 address
@@ -47,6 +50,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Four VLANs with IPV4 and IPV6 address
 
 #### L3 Address resolution
+
 * Local proxy ARP for IPV4 (Required for traffic forwarding by DUT to any destinations within same subnet shared between DUT and Aggregate1). Please refer README PF-1.16 local-proxy-arp for the configuration.
 
 * Local proxy for IPV6 or support Secondary address for IPV6 allowing resolution of same subnet IPV6 addresses corresponding to remote Cloud endpoints
@@ -54,6 +58,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Disable Neighbor discovery router advertisement, duplicate address detection
 
 #### MTU Configuration
+
 * One VLAN with MTU 9080 (including L2 header)
 
 #### LLDP must be disabled
@@ -86,6 +91,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
   * QoS Hardware queues for all traffic must be configurable (default QoS hardaware class selected is 3)
 
 ### Aggregate 2 and Aggregate 3 configuration
+
 * IPV4 and IPV6 addresses
 
 * MTU (default 9216)
@@ -101,6 +107,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Statistics load interval (default:30 seconds)
 
 ### Routing
+
 * Advertise default routes from EBGP sessions
 
 * ECMP (Nexthops: Aggregate2 and Aggregate3)
@@ -119,30 +126,37 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Inner packet TTL and DSCP must be preserved
 
 ### MPLS Label
+
 * Entire Label block must be reallocated for static MPLS
 * Labels from start/end/mid ranges must be usable and configured corresponding to MPLSoGRE encapsulation
 
 ### Multicast
+
 * Multicast traffic must be encapsulated and handled in the same way as unicast traffic
 
 ## PF-1.14.2: Verify PF MPLSoGRE encapsulate action for IPv4 traffic
+
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses (unicast, multicast) at line rate IPV4 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
+
 * All traffic received on Aggregate1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets
 * No packet loss when forwarding with counters incrementing corresponding to traffic.
 * Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
 
 ## PF-1.14.3: Verify PF MPLSoGRE encapsulate action for IPv6 traffic
+
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses at line rate IPV6 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
+
 * All traffic received on Aggregate1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets with IPV6 payload.
 * No packet loss when forwarding with counters incrementing corresponding to traffic.
 * Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
 * There is no impact on existing IPV4 traffic
 
 ## PF-1.14.4: Verify PF MPLSoGRE encapsulate action for IPv6 traffic
+
 Send both IPV4 and IPV6 traffic as in PF-1.14.2 and PF-1.14.3
 
 * Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
@@ -151,21 +165,26 @@ Send both IPV4 and IPV6 traffic as in PF-1.14.2 and PF-1.14.3
 * Remove and add IPV6 MPLSoGRE encap configs and verify that there is no IPV4 traffic loss
 
 ## PF-1.14.5: Verify PF MPLSoGRE DSCP preserve operation
+
 Generate traffic on ATE Ports 1,2 having a random combination of 1000 source addresses to random destination addresses at line rate IPV4 and IPV6 traffic. Use 64, 128, 256, 512, 1024.. MTU bytes frame size and DSCP value in [0, 8, 10..56].
 
 Verify:
+
 * All traffic received on Aggregate1 other than local traffic gets forwarded as MPLSoGRE-encapsulated packets
 * Outer GRE IPv4 header has marking as per the config/TOS byte 96.
 * Inner packet DSCP value is preserved and not altered
 
 ## PF-1.14.6: Verify MTU handling during GRE encap
+
 Generate IPV4 traffic on ATE Ports 1,2  with frame size of 9100 with DF-bit set to random destination addresses.
 Generate IPV6 traffic on ATE Ports 1,2 with frame size of 9100 with DF-bit set to random destination addresses.
 
 Verify:
+
 * DUT generates a "Fragmentation Needed" message back to ATE source.
- 
+
 ## PF-1.14.7: Verify IPV4/IPV6 selective local traffic processing
+
 Generate IPV4 and IPV6 traffic on ATE Ports 1,2  to random destination addresses including addresses configured on the device
 Generate ICMP echo requests from the device
 Generate traceroute packets with TTL=1 and TTL>1 from ATE ports 1,2
@@ -173,6 +192,7 @@ Generate single hop BGP and BFD (TTL=1) session packets (TTL=255)
 Generate randandom customer packet with TTL = 1
 
 Verify:
+
 * Device must resolve the ARP and must forward ICMP echo requests, IPV4 and IPV6 traffic to ATE destination ports including the traffic to device’s local L3 addresses
 * Device must selectively locally process following IPV4 and IPV6 traffic:
   * Process IPV4 and IPV6 echo replies to the local IPV4|IPV6 as local traffic
@@ -181,12 +201,12 @@ Verify:
   * BGP and BFD packets with TTL=1 must retain the TTL value (1) and must not be decremented on the device while being forwarded as MPLSoGRE traffic
 
 ## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
-TODO: new OC paths to be proposed are present in below JSON 
-- config/rules/rule/ipv4/packet-type  # New OC needed for packet-type MULTICAST
-- config/rules/rule/action/count: true
-- config/rules/rule/action/next-hop-group
-- encap-headers/encap-header/type: "GRE", "MPLS"  and associated parameters
 
+TODO: new OC paths to be proposed are present in below JSON
+* config/rules/rule/ipv4/packet-type  # New OC needed for packet-type MULTICAST
+* config/rules/rule/action/count: true
+* config/rules/rule/action/next-hop-group
+* encap-headers/encap-header/type: "GRE", "MPLS"  and associated parameters
 
 ```json
 {
@@ -195,7 +215,6 @@ TODO: new OC paths to be proposed are present in below JSON
             {
                 "name": "DEFAULT",
                 "policy-forwarding": {
-                    "policy-forwarding": {
                         "interfaces": {
                             "interface": [
                                 {
@@ -477,7 +496,6 @@ TODO: new OC paths to be proposed are present in below JSON
                                 }
                             }
                         ]
-                    }
                 }
             }
         ]
