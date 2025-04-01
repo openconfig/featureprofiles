@@ -555,10 +555,12 @@ paths:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/icmpv6/type:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/icmp/config/type:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/icmp/config/code:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/icmpv4/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/icmpv6/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/icmpv4/config/code:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/icmpv6/config/code:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/hop-limit:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/hop-limit:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
  
   #TODO: Add new OC for GRE encap headers
