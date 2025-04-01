@@ -52,7 +52,31 @@ paths:
   /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/packets-forwarded:
   /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/octets-forwarded:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
-
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/ipv4/destination-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/icmpv6/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/count:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/icmp/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/icmp/code:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/ipv4/hop-limit:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/next-hop-group:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/set-ttl:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/set-hop-limit:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/ipv4/packet-type:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/index:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/type:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/dst-ip:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/src-ip:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/dscp:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/ip-ttl:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/index:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/mpls-label-stack:
+  
 rpcs:
   gnmi:
     gNMI.Set:
