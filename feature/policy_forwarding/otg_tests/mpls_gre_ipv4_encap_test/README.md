@@ -515,21 +515,21 @@ paths:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/ipv4/destination-address:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/icmpv6/type:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/count:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/icmp/type:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/icmp/code:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/ipv4/hop-limit:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/next-hop-group:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/set-ttl:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/action/set-hop-limit:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/rules/rule/ipv4/packet-type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/icmpv6/type:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/count:     #TODO: Add new OC
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/icmp/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/icmp/config/code:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/hop-limit:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:   #TODO: Add new OC
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-ttl:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-hop-limit:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/packet-type:    #TODO: Add new OC
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/index:
-  /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/type:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/type:    #TODO: Add new OC
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/dst-ip:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/src-ip:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/encap-headers/encap-header/config/dscp:
