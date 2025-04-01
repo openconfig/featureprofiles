@@ -214,6 +214,9 @@ TODO: new OC paths to be proposed are present in below JSON
         "network-instance": [
             {
                 "name": "DEFAULT",
+                "config": {
+                    "name": "DEFAULT"
+                },
                 "policy-forwarding": {
                     "interfaces": {
                         "interface": [
@@ -230,152 +233,269 @@ TODO: new OC paths to be proposed are present in below JSON
                         "policy": [
                             {
                                 "config": {
-                                    "policy-id": "customer1_prefixv6_and_icmpv6_ns",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "ipv4": {
+                                    "policy-id": "customer1_prefixv6_and_icmpv6_ns"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv4": {
+                                                "config": {
                                                     "destination-address": "inner_dst_ipv6"
-                                                },
-                                                "icmpv6": {
+                                                }
+                                            },
+                                            "icmpv6": {
+                                                "config": {
                                                     "type": "NEIGHBOR_SOLICITATION"
-                                                },
-                                                "action": {
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
                                                     "count": true
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "config": {
-                                    "policy-id": "customer1_prefixv6_and_icmpv6_na",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "ipv4": {
+                                    "policy-id": "customer1_prefixv6_and_icmpv6_na"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv4": {
+                                                "config": {
                                                     "destination-address": "inner_dst_ipv6"
-                                                },
-                                                "icmpv6": {
+                                                }
+                                            },
+                                            "icmpv6": {
+                                                "config": {
                                                     "type": "NEIGHBOR_ADVERTISEMENT"
-                                                },
-                                                "action": {
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
                                                     "count": true
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "config": {
-                                    "policy-id": "customer1_prefixv4_and_icmp",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "ipv4": {
+                                    "policy-id": "customer1_prefixv4_and_icmp"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv4": {
+                                                "config": {
                                                     "destination-address": "inner_dst_ipv4"
-                                                },
-                                                "icmp": {
-                                                    "config": {
-                                                        "type": "ECHO_REPLY",
-                                                        "code": "ALL"
-                                                    }
-                                                },
-                                                "action": {
+                                                }
+                                            },
+                                            "icmp": {
+                                                "config": {
+                                                    "type": "ECHO_REPLY",
+                                                    "code": "ALL"
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
                                                     "count": true
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "config": {
-                                    "policy-id": "customer1_prefixv6_and_icmp",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "ipv4": {
+                                    "policy-id": "customer1_prefixv6_and_icmp"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv4": {
+                                                "config": {
                                                     "destination-address": "inner_dst_ipv6"
-                                                },
-                                                "icmpv6": {
-                                                    "config": {
-                                                        "type": "ECHO_REPLY",
-                                                        "code": "ALL"
-                                                    }
-                                                },
-                                                "action": {
+                                                }
+                                            },
+                                            "icmpv6": {
+                                                "config": {
+                                                    "type": "ECHO_REPLY",
+                                                    "code": "ALL"
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
                                                     "count": true
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "config": {
-                                    "policy-id": "customer1_ttl_v4",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "ipv4": {
+                                    "policy-id": "customer1_ttl_v4"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv4": {
+                                                "config": {
                                                     "hop-limit": 1
-                                                },
-                                                "action": {
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
                                                     "count": true,
                                                     "next-hop-group": "cloud_v4_nhg",
                                                     "set-ttl": 1
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "config": {
-                                    "policy-id": "customer1_ttl_v6",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "ipv6": {
+                                    "policy-id": "customer1_ttl_v6"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv6": {
+                                                "config": {
                                                     "hop-limit": 1
-                                                },
-                                                "action": {
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
                                                     "count": true,
                                                     "next-hop-group": "cloud_v6_nhg",
                                                     "set-hop-limit": 1
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "config": {
-                                    "policy-id": "customer1_default_v4",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "action": {
+                                    "policy-id": "customer1_default_v4"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "action": {
+                                                "config": {
                                                     "count": true,
                                                     "next-hop-group": "cloud_v4_nhg"
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             },
                             {
                                 "config": {
-                                    "policy-id": "customer1_default_v6",
-                                    "rules": {
-                                        "rule": [
-                                            {
-                                                "action": {
+                                    "policy-id": "customer1_default_v6"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "action": {
+                                                "config": {
                                                     "count": true,
                                                     "next-hop-group": "cloud_v6_nhg"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "config": {
+                                    "policy-id": "customer1_multicast"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv4": {
+                                                "config": {
+                                                    "packet-type": "MULTICAST"
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
+                                                    "count": true,
+                                                    "next-hop-group": "cloud_v6_nhg"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "static": {
+                    "next-hop-groups": {
+                        "net-hop-group": [
+                            {
+                                "config": {
+                                    "name": "MPLS_in_GRE_Encap"
+                                },
+                                "name": "MPLS_in_GRE_Encap",
+                                "next-hops": {
+                                    "next-hop": [
+                                        {
+                                            "index": 1,
+                                            "config": {
+                                                "index": 1
+                                            }
+                                        },
+                                        {
+                                            "index": 2,
+                                            "config": {
+                                                "index": 2
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "next-hops": {
+                        "next-hop": [
+                            {
+                                "index": 1,
+                                "config": {
+                                    "index": 1,
+                                    "next-hop": "nh_ip_addr_1",
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "index": 1,
+                                                "type": "GRE",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst_def",
+                                                    "src-ip": "outer_ipv4_src1",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip-ttl"
+                                                }
+                                            },
+                                            {
+                                                "index": 2,
+                                                "type": "MPLS",
+                                                "config": {
+                                                    "index": 2,
+                                                    "mpls-label-stack": [
+                                                        100
+                                                    ]
                                                 }
                                             }
                                         ]
@@ -383,17 +503,30 @@ TODO: new OC paths to be proposed are present in below JSON
                                 }
                             },
                             {
+                                "index": 2,
                                 "config": {
-                                    "policy-id": "customer1_multicast",
-                                    "rules": {
-                                        "rule": [
+                                    "index": 2,
+                                    "next-hop": "nh_ip_addr_2",
+                                    "encap-headers": {
+                                        "encap-header": [
                                             {
-                                                "ipv4": {
-                                                    "packet-type": "MULTICAST"
-                                                },
-                                                "action": {
-                                                    "count": true,
-                                                    "next-hop-group": "cloud_v6_nhg"
+                                                "index": 1,
+                                                "type": "GRE",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst_def",
+                                                    "src-ip": "outer_ipv4_src2",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip-ttl"
+                                                }
+                                            },
+                                            {
+                                                "index": 2,
+                                                "type": "MPLS",
+                                                "config": {
+                                                    "index": 2,
+                                                    "mpls-label-stack": [
+                                                        100
+                                                    ]
                                                 }
                                             }
                                         ]
@@ -402,100 +535,6 @@ TODO: new OC paths to be proposed are present in below JSON
                             }
                         ]
                     }
-                }
-            },
-            "static": {
-                "next-hop-groups": {
-                    "net-hop-group": [
-                        {
-                            "config": {
-                                "name": "MPLS_in_GRE_Encap"
-                            },
-                            "name": "MPLS_in_GRE_Encap",
-                            "next-hops": {
-                                "next-hop": [
-                                    {
-                                        "index": 1,
-                                        "config": {
-                                            "index": 1
-                                        }
-                                    },
-                                    {
-                                        "index": 2,
-                                        "config": {
-                                            "index": 2
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                },
-                "next-hops": {
-                    "next-hop": [
-                        {
-                            "index": 1,
-                            "config": {
-                                "index": 1,
-                                "next-hop": "nh_ip_addr_1",
-                                "encap-headers": {
-                                    "encap-header": [
-                                        {
-                                            "index": 1,
-                                            "type": "GRE",
-                                            "config": {
-                                                "dst-ip": "outer_ipv4_dst_def",
-                                                "src-ip": "outer_ipv4_src1",
-                                                "dscp": "outer_dscp",
-                                                "ip-ttl": "outer_ip-ttl"
-                                            }
-                                        },
-                                        {
-                                            "index": 2,
-                                            "type": "MPLS",
-                                            "config": {
-                                                "index": 2,
-                                                "mpls-label-stack": [
-                                                    100
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            "index": 2,
-                            "config": {
-                                "index": 2,
-                                "next-hop": "nh_ip_addr_2",
-                                "encap-headers": {
-                                    "encap-header": [
-                                        {
-                                            "index": 1,
-                                            "type": "GRE",
-                                            "config": {
-                                                "dst-ip": "outer_ipv4_dst_def",
-                                                "src-ip": "outer_ipv4_src2",
-                                                "dscp": "outer_dscp",
-                                                "ip-ttl": "outer_ip-ttl"
-                                            }
-                                        },
-                                        {
-                                            "index": 2,
-                                            "type": "MPLS",
-                                            "config": {
-                                                "index": 2,
-                                                "mpls-label-stack": [
-                                                    100
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    ]
                 }
             }
         ]
