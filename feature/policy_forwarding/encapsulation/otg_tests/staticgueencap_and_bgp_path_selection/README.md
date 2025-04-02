@@ -471,102 +471,121 @@ Inflight**
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-  # Policy for route leaking between VRFs
-  /network-instances/network-instance/inter-instance-policies/apply-policy
-  # Following applied in Default VRF
-  /network-instances/network-instance/inter-instance-policies/apply-policy/config/export-policy
-  # Following applied in Non-default VRF
-  /network-instances/network-instance/inter-instance-policies/apply-policy/config/import-policy
+  # define next-hop-groups calling the next-hop index to map
+/network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name
+/network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index
 
-  # Config for VRF selection
-  # Create different VRFs: "Default or Non-default"
-  /network-instances/network-instance/config/name:
-  # Create VRF seletion policy with different rules that match on desination-prefix-set as first rule and then few other rules to match different Traffic-classes that determine BE1 to AF4 traffic
-  /network-instances/network-instance/policy-forwarding/policies/policy-id: 
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
+# define next-hop by index mathing the one specified under Next-hop-group
+/network-instances/network-instance/static/next-hops/next-hop/config/index
 
-  # Action that sets the VRF for matching conditions.
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+# define the encap type as UDP for the the Next-Hop
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/index
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type
 
-  # Creating the Prefix-Set required for the above VRF selection policy
-  /routing-policy/defined-sets/prefix-sets/prefix-set/name:
-  /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
-  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
-  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+# define Encap details to be used for the UDP header part of the Next-hop config for the Next-hop-group
+# Todo: Define a templatized approach for capturing src and dst udp ports, dscp and ttl. NOS is expected to dynamically determine the payload protocol type and attach the destination udp port. 
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dscp
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/ip-ttl
 
-  # Apply VRF selection policy as per the Test procedure above
-  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+# Define static route for the Pseudo protocol next-hops mapping them to the Next-hop-group
+/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
+/network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name
 
-  # BGP configuration at the neighbor and peer-group levels
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as
 
-  # BGP Policy definition for sharing of routes between IBGP and EBGP
-  /routing-policy/policy-definitions/policy-definition/config/name
-  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
+# BGP configuration
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group
 
-  # Static route for VPNH for routes learnt via BGP. Routes MUST be in Default VRF and Protocol is Static
-  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/ipv4/route/next-hops/next-hop/config/index
-  /network-instances/network-instance/protocols/protocol/static-routes/ipv4/route/next-hops/next-hop/config/next-hop
+# BGP Policy configuration
+/routing-policy/policy-definitions/policy-definition/config/name
+/routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
+/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
+/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
+/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/REJECT_ROUTE
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy
 
-  # Next-hop defined in the Static route above must lead to a IPv4oUDP encap to a destination learnt via EBGP
-  <!-- Configuration for the NH above is dependent on the proposal in https://github.com/openconfig/public/pull/1153 -->
+# IS-IS config
+  /network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check
+  /network-instances/network-instance/protocols/protocol/isis/global/config/net
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability
+  /network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled
 
-  # Config for policy-based Decap of IPv4oUDP packets
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue
+State Paths:
+# UDP encap
+/network-instances/network-instance/static/next-hop-groups/next-hop-group/state/name
+/network-instances/network-instance/static/next-hops/next-hop/state/index
+/network-instances/network-instance/static/next-hops/next-hop/state/recurse
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/state/index
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/state/type
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-udp-port
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port
+/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl
 
-  # State Paths:
-  # Folliwing for normal health check pre and post each test
-  /system/processes/process/state/cpu-utilization
-  /system/processes/process/state/memory-utilization
-  /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
-  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-  /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts
-  /interfaces/interface/state/counters/in-discards
-  /interfaces/interface/state/counters/in-errors
-  /interfaces/interface/state/counters/in-multicast-pkts
-  /interfaces/interface/state/counters/in-unknown-protos
-  /interfaces/interface/state/counters/out-discards
-  /interfaces/interface/state/counters/out-errors
-  /interfaces/interface/state/oper-status
-  /interfaces/interface/state/admin-status
-  /interfaces/interface/state/counters/out-octets
-  /interfaces/interface/state/description
-  /interfaces/interface/state/type
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors
-  /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos
-  /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards
-  /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors
-  /interfaces/interface/ethernet/state/counters/in-mac-pause-frames
-  /interfaces/interface/ethernet/state/counters/out-mac-pause-frames
-  /interfaces/interface/ethernet/state/counters/in-crc-errors
-  /interfaces/interface/ethernet/state/counters/in-block-errors
+# static route
+/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix
+/network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/state/name
 
-  # IPv4oUDP Decap state
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decapsulate-gue
+# BGP
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/total-prefixes
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast/state
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
 
-  # BGP state paths
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/received-prefixes
-  /network-instances/network-instance/protocols/protocol[identifier='BGP']/bgp/neighbors/neighbor/state/advertised-prefixes
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as
-
-  # Packet counters matching forwarding rules for IPv4oUDP Decap
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/counters/forwarded-packets
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/counters/dropped-packets
-  /network-instances/network-instance[name='<instance-name>']/policy-forwarding/state/active-policy
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/next-hop
-
+# IS-IS
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/area-address
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/dis-system-id
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-circuit-type
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-snpa
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/nlpid
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/priority
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-status
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-support
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-suppress
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/topology
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-timestamp
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name
+/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/flags
+/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
+/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/s-bit
+/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/up-down
 
 
 rpcs:
@@ -580,5 +599,4 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
-  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
   * FFF - fixed form factor
