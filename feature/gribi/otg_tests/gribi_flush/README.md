@@ -100,7 +100,7 @@ NH#201 -> {
 }
 ```
 
-* Generate the policy forwarding configuration as a backup prefix match rule for MPLS in GRE encap.
+* Configure static-routes with next-hops using encap-headers as a backup prefix match rule for MPLS in GRE encap.
 * Push the configuration to DUT using gnmi.Set with REPLACE option
 * Configure ATE port 1 with traffic flow which matches AFT next hop route
 * Generate traffic from ATE port 1 to ATE port 2
