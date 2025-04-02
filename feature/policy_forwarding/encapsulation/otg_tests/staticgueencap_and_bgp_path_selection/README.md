@@ -492,8 +492,12 @@ paths:
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/index
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type
 
-# define Encap details to be used for the UDP header part of the Next-hop config for the Next-hop-group
-# Todo: Define a templatized approach for capturing src and dst udp ports, dscp and ttl. NOS is expected to dynamically determine the payload protocol type and attach the destination udp port. 
+# define Encap details to be used for the UDP header part of the Next-hop config
+# for the Next-hop-group
+# Todo: Define a templatized approach for capturing src and dst udp ports, dscp
+# and ttl. NOS is expected to dynamically determine the payload protocol type and
+# attach the destination udp port.
+ 
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip
@@ -501,7 +505,8 @@ paths:
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/ip-ttl
 
-# Define static route for the Pseudo protocol next-hops mapping them to the Next-hop-group
+# Define static route for the Pseudo protocol next-hops mapping them to the
+# Next-hop-group
 /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
 /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name
 
