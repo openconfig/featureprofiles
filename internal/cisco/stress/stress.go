@@ -156,7 +156,7 @@ func StressCPU(t testing.TB, dut *ondatra.DUTDevice, numWorkers int, duration ti
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	cmd := fmt.Sprintf("run /var/xr/scratch/stress --cpu %d --timeout %ds", numWorkers, duration.Round(time.Second).Seconds())
+	cmd := fmt.Sprintf("run /var/xr/scratch/stress --cpu %d --timeout %ds", numWorkers, duration.Round(time.Second)/1000000000)
 	dut.CLI().RunResult(t, cmd)
 }
 
@@ -171,7 +171,7 @@ func StressMem(t testing.TB, dut *ondatra.DUTDevice, numWorkers int, duration ti
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	cmd := fmt.Sprintf("run /var/xr/scratch/stress --vm %d --timeout %ds", numWorkers, duration.Round(time.Second).Seconds())
+	cmd := fmt.Sprintf("run /var/xr/scratch/stress --vm %d --timeout %ds", numWorkers, duration.Round(time.Second)/1000000000)
 	dut.CLI().RunResult(t, cmd)
 }
 
@@ -183,7 +183,7 @@ func StressDisk0(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duration t
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	cmd := fmt.Sprintf("run fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, duration.Round(time.Second).Seconds())
+	cmd := fmt.Sprintf("run fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, duration.Round(time.Second)/1000000000)
 	dut.CLI().RunResult(t, cmd)
 }
 
@@ -196,7 +196,7 @@ func StressHardDisk(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duratio
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	cmd := fmt.Sprintf("run cd /harddisk:; fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, duration.Round(time.Second).Seconds())
+	cmd := fmt.Sprintf("run cd /harddisk:; fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, duration.Round(time.Second)/1000000000)
 	dut.CLI().RunResult(t, cmd)
 }
 
@@ -208,6 +208,6 @@ func StressPower(t testing.TB, dut *ondatra.DUTDevice, watts int, duration time.
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	cmd := fmt.Sprintf("./spi_envmon_test -x %dW %d", watts, duration.Round(time.Second).Seconds())
+	cmd := fmt.Sprintf("./spi_envmon_test -x %dW %d", watts, duration.Round(time.Second)/1000000000)
 	dut.CLI().RunResult(t, cmd)
 }
