@@ -1,8 +1,8 @@
-# RT-1.15: BGP ADDPATH SCALE
+# RT-1.15: BGP ADDPATH SCALE && RT-1.16: BGP ADDPATH SCALE with POLICY
 
 ## Summary
 
-BGP ADDPATH TEST WITH SCALE
+BGP add-paths teset with scale and routing-policy
 
 ## Testbed type
 
@@ -23,7 +23,9 @@ G[ATE:PORT4] <-- eBGP --> H[PORT4:DUT];
 
 ## Procedure
 
-### Source port for sending traffic
+### Testbed setup - Generate configuration for ATE and DUT
+
+#### Source port for sending traffic
 
 * DUT Port1  --- IP Connectivity --- ATE Port1
 * Use this port to configure traffic with following source and destination 
@@ -32,7 +34,7 @@ G[ATE:PORT4] <-- eBGP --> H[PORT4:DUT];
   - destination (IPv4/IPv6) - All prefixes of ATE port2, port3
 
 Establish eBGP sessions ipv4 and ipv6 for ATE/DUT port2,3:
-### 100 v4EBGP peers
+#### 100 v4EBGP peers
 ATE port2 <---> DUT port2
 
 * Create 100 vlans on DUT and ATE port2 and configure IP addresses as below and 
@@ -46,7 +48,7 @@ ATE port2 <---> DUT port2
     addpath routes such that the routes are distributed across /22, /24, /30 
     prefix lengths.
 
-### 50 v6EBGP peers
+#### 50 v6EBGP peers
 ATE port3 <---> DUT port3
 
 * Create 50 vlans on DUT and ATE port2 and configure IP addresses as below and
@@ -61,13 +63,271 @@ ATE port3 <---> DUT port3
     addpath routes such that the routes are distributed across /48 , /64, /128
     prefix lengths
 
-### 1 v4EBGP and 1 v6EBGP peers
+#### 1 v4EBGP and 1 v6EBGP peers
 ATE port4 (AS 65401) <---> DUT port4 (AS 65001)
 
 * Configure the DUT and ATE port with ipv4 and ipv6 address 200.0.0.0/24 and 
   1000::200.0.0.0/126 respectively
 * This eBGP neighbor is used to verify the routes advertised by the DUT and then
   making sure if addpath send and send-max is enabled.
+
+#### Prefix definition and communities definition
+ipv4-prefix1 = prefixes of length /22 - Communities `[100:1, 200:1]`
+ipv4-prefix2 = prefixes of length /24 - Communities `[101:1, 201:1]`
+ipv4-prefix3 = prefixes of length /30 - Communities `[104:1, 109:3]`
+
+ipv6-prefix1 = prefixes of length /48 - Communities `[100:1, 200:1]`
+ipv6-prefix2 = prefixes of length /64 - Communities `[101:1, 201:1]`
+ipv6-prefix3 = prefixes of length /126 - Communities `[104:1, 109:3]`
+
+#### Canonical OC for DUT configuration
+
+This section should contain a JSON formatted stanza representing the 
+canonical OC to configure BGP add-paths.  (See the
+[README Template](https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md#procedure))
+
+```json
+/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=BGP][name=BGP]/bgp:
+  {
+          "openconfig-network-instance:global": {
+            "afi-safis": {
+              "afi-safi": [
+                {
+                  "add-paths": {
+                    "config": {
+                      "receive": false,
+                      "send": false
+                    }
+                  },
+                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "config": {
+                    "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                    "enabled": true
+                  },
+                },
+                {
+                  "add-paths": {
+                    "config": {
+                      "receive": false,
+                      "send": false
+                    }
+                  },
+                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "config": {
+                    "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                    "enabled": true
+                  },
+                }
+              ]
+            },
+            "config": {
+              "as": 65001,
+              "router-id": "192.1.1.1"
+            },
+            "route-selection-options": {
+              "config": {
+                "always-compare-med": false,
+                "external-compare-router-id": true,
+                "ignore-as-path-length": false,
+                "ignore-next-hop-igp-metric": false
+              }
+            },
+            "use-multiple-paths": {
+              "ebgp": {
+                "config": {
+                  "allow-multiple-as": false
+                }
+              }
+            }
+          },
+          "openconfig-network-instance:neighbors": {
+            "neighbor": [
+              {
+                "afi-safis": {
+                  "afi-safi": [
+                      "add-paths": {
+                        "config": {
+                          "receive": true,
+                          "send": true
+                        }
+                      },
+                      "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                      "config": {
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "enabled": true
+                      },
+                      "ipv6-unicast": {
+                        "config": {
+                          "send-default-route": false
+                        },
+                        "prefix-limit": {
+                          "config": {
+                            "prevent-teardown": false
+                          }
+                        }
+                      },
+                  ]
+                },
+                "apply-policy": {
+                  "config": {
+                    "default-export-policy": "REJECT_ROUTE",
+                    "default-import-policy": "REJECT_ROUTE"
+                  }
+                },
+                "config": {
+                  "enabled": true,
+                  "neighbor-address": "1000::50.1.1.2",
+                  "peer-as": 64502,
+                  "peer-group": "BGP-PEER-GROUP-V6",
+                  "route-flap-damping": false,
+                  "send-community": "NONE"
+                },
+              },
+              {
+                "afi-safis": {
+                  "afi-safi": [
+                      "add-paths": {
+                        "config": {
+                          "receive": false,
+                          "send": false
+                        }
+                      },
+                      "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                      "config": {
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "enabled": true
+                      },
+                      "ipv4-unicast": {
+                        "config": {
+                          "send-default-route": false
+                        },
+                        "prefix-limit": {
+                          "config": {
+                            "prevent-teardown": false
+                          }
+                        }
+                      },
+                  ]
+                },
+                "apply-policy": {
+                  "config": {
+                    "default-export-policy": "REJECT_ROUTE",
+                    "default-import-policy": "REJECT_ROUTE"
+                  }
+                },
+                "config": {
+                  "enabled": true,
+                  "neighbor-address": "1000::50.1.1.2",
+                  "peer-group": "BGP-PEER-GROUP-V6",
+                  "route-flap-damping": false,
+                  "send-community": "NONE"
+                },
+              },
+            ]
+          }
+          "openconfig-network-instance:peer-groups": {
+            "peer-group": [
+              {
+                "afi-safis": {
+                  "afi-safi": [
+                    {
+                      "add-paths": {
+                        "config": {
+                          "receive": false,
+                          "send": false
+                        }
+                      },
+                      "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                      "apply-policy": {
+                        "config": {
+                          "import-policy": [
+                            "PERMIT-ALL"
+                          ]
+                        }
+                      },
+                      "config": {
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "enabled": true
+                      },
+                      "ipv4-unicast": {
+                        "config": {
+                          "send-default-route": false
+                        },
+                        "prefix-limit": {
+                          "config": {
+                            "prevent-teardown": false
+                          }
+                        }
+                      },
+                    }
+                  ]
+                },
+                "apply-policy": {
+                  "config": {
+                    "default-export-policy": "REJECT_ROUTE",
+                    "default-import-policy": "REJECT_ROUTE"
+                  }
+                },
+                "config": {
+                  "peer-group-name": "BGP-PEER-GROUP-V4",
+                  "route-flap-damping": false,
+                  "send-community": "NONE"
+                },
+                "peer-group-name": "BGP-PEER-GROUP-V4",
+              },
+              {
+                "afi-safis": {
+                  "afi-safi": [
+                    {
+                      "add-paths": {
+                        "config": {
+                          "receive": false,
+                          "send": false
+                        }
+                      },
+                      "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                      "apply-policy": {
+                        "config": {
+                          "import-policy": [
+                            "PERMIT-ALL"
+                          ]
+                        }
+                      },
+                      "config": {
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "enabled": true
+                      },
+                      "ipv6-unicast": {
+                        "config": {
+                          "send-default-route": false
+                        },
+                        "prefix-limit": {
+                          "config": {
+                            "prevent-teardown": false
+                          }
+                        }
+                      },
+                    }
+                  ]
+                },
+                "apply-policy": {
+                  "config": {
+                    "default-export-policy": "REJECT_ROUTE",
+                    "default-import-policy": "REJECT_ROUTE"
+                  }
+                },
+                "config": {
+                  "peer-group-name": "BGP-PEER-GROUP-V6",
+                  "route-flap-damping": false,
+                  "send-community": "NONE"
+                },
+                "peer-group-name": "BGP-PEER-GROUP-V6",
+
+              }
+            ]
+          }
+  }
+```
 
 ### RT-1.15.1: Add-Path (Initial State with add-path send & receive disabled):
 
@@ -145,6 +405,45 @@ ATE port4 (AS 65401) <---> DUT port4 (AS 65001)
 *   Verification: Telemetry
     *   Repeat verification steps in RT-1.15.3
 
+### RT-1.15.5 BGP add-paths scale with routing-policy
+
+* Re-advertise the routes with communities which is defined in the 
+  section prefix-definition and communities
+* Configure the following community sets on the DUT.
+    * Create a community-set named `any_my_3_comms` with members as follows:
+      * `{ community-member = [ "100:1", "200:1", "201:1" ] }`
+    * Create a community-set named `all_3_comms` with members and match options as follows:
+      * `{ community-member = [ "100:1", "104:1", "201:1" ] }`
+    * Create a community-set named `any_my_regex_comms` with members and match options as follows:
+      * `{ community-member = [ "10[0-9]:1" ] }`
+* Create a `policy-definition` named 'community-match' with the following `statements`
+    * statement[name='accept_any_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'any_my_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_all_3_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='accept_any_my_regex_comms']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+
+*   Verification (Telemetry):
+  * Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes.
+
+### RT-1.16.2
+
+* Re-advertise the routes with RT-1.15.3 and RT-1.16.1 combination 
+
+* Verification (Telemetry):
+    * Same as RT-1.15.3
+
+
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
@@ -166,6 +465,15 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send-max:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/minimum-advertisement-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
 
   ## State paths
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/receive:
@@ -183,6 +491,15 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/minimum-advertisement-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/state/extended-next-hop-encoding:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+
 
 rpcs:
   gnmi:
@@ -192,4 +509,3 @@ rpcs:
 ```
 ## Minimum DUT platform requirement
 * FFF 
-
