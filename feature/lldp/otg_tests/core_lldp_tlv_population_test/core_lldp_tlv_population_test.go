@@ -33,6 +33,7 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 type lldpTestParameters struct {
@@ -141,7 +142,10 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	p := node.Port(t, portName)
 	d := &oc.Root{}
 	lldp := d.GetOrCreateLldp()
+	lldp.SystemDescription = ygot.String("DUT")
+
 	llint := lldp.GetOrCreateInterface(p.Name())
+	llint.SetName(portName)
 
 	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
 
@@ -211,6 +215,9 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 		t.Logf("LLDP SystemName got: %s", state.GetSystemName())
 	} else {
 		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
+	}
+	if state.GetSystemDescription() != "DUT" {
+		t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
 	}
 
 	got := state.GetInterface(port.Name()).GetName()

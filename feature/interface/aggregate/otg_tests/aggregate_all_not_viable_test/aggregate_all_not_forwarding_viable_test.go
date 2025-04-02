@@ -246,6 +246,29 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
 			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
 		}
+		// Ensure LAG_2 is UP when all members are in forwarding unviable state
+		if got := gnmi.Get(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State()); got != oc.Interface_OperStatus_UP {
+			t.Errorf("OperStatus for LAG_2 is %v, want %v", got, oc.Interface_OperStatus_UP)
+		}
+		// Ensure aggregatable, collecting, distributing and sync state is true for all the ports of LAG_2
+		for _, port := range dutPortList[1 : agg2.ateLagCount+1] {
+			lacpPath := gnmi.OC().Lacp().Interface(aggIDs[1]).Member(port.Name())
+			if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
+				t.Errorf("Forwarding-Viable state for port %s is %v, want %v", port.Name(), got, false)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Aggregatable().State()); got != true {
+				t.Errorf("Aggregatable state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Collecting().State()); got != true {
+				t.Errorf("Collecting state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Distributing().State()); got != true {
+				t.Errorf("Distributing state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Synchronization().State()); got != oc.Lacp_LacpSynchronizationType_IN_SYNC {
+				t.Errorf("Sync state for port %s is not %v", port.Name(), got)
+			}
+		}
 	})
 
 	t.Run("RT-5.7.1.3: Setting Forwarding-Viable to True for Lag2 one of the port", func(t *testing.T) {

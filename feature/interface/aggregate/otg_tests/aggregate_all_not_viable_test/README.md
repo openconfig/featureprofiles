@@ -76,6 +76,7 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
 -   Ensure there is no traffic received on DUT LAG_3
 -   Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT LAG3
 -   Ensure that traffic from ATE port1 to pfx4 are transmitted out through backup NHG pointing to NH LAG3
+-   Ensure that the aggregatable, collecting, distributing states are true and Synchronization is IN_SYNC for all member ports that are set to forwarding unviable. 
 
 #### RT-5.7.1.3: Make the forwarding-viable transitions from FALSE --> TRUE on a ports 6 within the LAG_2 on the DUT
 -   Ensure that only DUT port 6 of LAG ports has bidirectional traffic.
