@@ -613,7 +613,7 @@ func (tc *testCase) configInterfaceDUTUnnumbered(i *oc.Interface, a *attrs.Attri
 	refInterface.SetInterface(lb)
 }
 
-func (tc *testCase) testUnnumberedInterfaceEnabled(t *testing.T) {
+func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
 	d := gnmi.OC()
 
 	p1 := tc.dut.Port(t, "port1")
@@ -629,15 +629,15 @@ func (tc *testCase) testUnnumberedInterfaceEnabled(t *testing.T) {
 	di := gnmi.Get(t, tc.dut, dip.State())
 	fptest.LogQuery(t, p1.String(), dip.State(), di)
 	if got := di.GetSubinterface(0).GetIpv4().GetUnnumbered().GetEnabled(); got != true {
-		t.Errorf("Unnumbered interface enabled got %v, want true", got)
+		t.Errorf("Unnumbered subinterface enabled got %v, want true", got)
 	}
 }
 
-// TestUnnumberedInterfaceEnabled tests that an interface can be configured with an unnumbered address.
-func TestUnnumberedInterfaceEnabled(t *testing.T) {
+// TestUnnumberedSubInterfaceEnabled tests that an subinterface can be configured with an unnumbered address.
+func TestUnnumberedSubInterfaceEnabled(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	tc := &testCase{
 		dut: dut,
 	}
-	t.Run("unnumbered_interface_enable", tc.testUnnumberedInterfaceEnabled)
+	t.Run("unnumbered_subinterface_enable", tc.testUnnumberedSubInterfaceEnabled)
 }

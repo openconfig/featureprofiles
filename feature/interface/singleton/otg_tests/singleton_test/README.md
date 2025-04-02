@@ -140,6 +140,12 @@ Verify that interface packet counters are properly incremented in every streamin
     *   /interfaces/interface/ethernet/state/
     *   /components/component/port/breakout-mode/groups/group/state
 
+### RT-5.1.7
+#### Enable unnumbered subinterface and check the state
+* Enable a IPv4 unnumbered subinterface with a loopback interface as the interface reference
+* Check that the state of the unnumbered subinterface is enabled
+  * /interfaces/interface/subinterfaces/subinterface/ipv4/unnumbered/state/enabled
+
 ## Config Parameter Coverage
 
 * /interfaces/interface/config/name
