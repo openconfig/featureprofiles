@@ -202,6 +202,9 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
 	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != 500000 {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, 500000)
+		}
 		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
@@ -209,6 +212,9 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		}
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:agg2.ateLagCount+1], dutPortList[2:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
+		}
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != 100000 {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, 100000)
 		}
 		// Ensure there is no traffic received/transmiited on DUT LAG_3
 		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == true {
