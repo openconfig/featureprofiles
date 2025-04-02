@@ -196,8 +196,7 @@ func StressHardDisk(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duratio
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	seconds := duration.Round(time.Second).Seconds()
-	cmd := fmt.Sprintf("run cd /harddisk:; fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, seconds)
+	cmd := fmt.Sprintf("run cd /harddisk:; fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, duration.Round(time.Second).Seconds())
 	dut.CLI().RunResult(t, cmd)
 }
 
