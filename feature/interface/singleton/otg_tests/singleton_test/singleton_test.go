@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
@@ -97,6 +98,16 @@ var (
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
+
+	dutLoopback = attrs.Attributes{
+		Desc:    "Loopback ip",
+		IPv4:    "192.0.2.21",
+		IPv6:    "2001:db8::21",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
+
+	lb string
 )
 
 type testCase struct {
@@ -565,4 +576,68 @@ func TestMTUs(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("MTU=%d", mtu), tc.testMTU)
 	}
+}
+
+func (tc *testCase) configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	lb = netutil.LoopbackInterface(t, dut, 0)
+	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
+	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+	foundV4 := false
+	for _, ip := range ipv4Addrs {
+		if v, ok := ip.Val(); ok {
+			foundV4 = true
+			dutLoopback.IPv4 = v.GetIp()
+			break
+		}
+	}
+	if !foundV4 {
+		lo1 := dutLoopback.NewOCInterface(lb, dut)
+		lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
+	}
+}
+
+func (tc *testCase) configureInterface(t *testing.T, i *oc.Interface, a *attrs.Attributes) {
+	a.ConfigOCInterface(i, tc.dut)
+	i.Description = ygot.String(*i.Description)
+	_ = i.GetOrCreateSubinterface(0)
+}
+
+func (tc *testCase) configInterfaceDUTUnnumbered(i *oc.Interface, a *attrs.Attributes) {
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	unnumebered := s4.GetOrCreateUnnumbered()
+	unnumebered.SetEnabled(true)
+	refInterface := unnumebered.GetOrCreateInterfaceRef()
+	refInterface.SetInterface(lb)
+}
+
+func (tc *testCase) testUnnumberedInterfaceEnabled(t *testing.T) {
+	d := gnmi.OC()
+
+	p1 := tc.dut.Port(t, "port1")
+	tc.duti1 = &oc.Interface{Name: ygot.String(p1.Name())}
+	tc.configureInterface(t, tc.duti1, &dutSrc)
+	tc.configureDUTLoopback(t, tc.dut)
+	tc.configInterfaceDUTUnnumbered(tc.duti1, &dutSrc)
+	di1 := d.Interface(p1.Name())
+	fptest.LogQuery(t, p1.String(), di1.Config(), tc.duti1)
+	gnmi.Replace(t, tc.dut, di1.Config(), tc.duti1)
+
+	dip := gnmi.OC().Interface(p1.Name())
+	di := gnmi.Get(t, tc.dut, dip.State())
+	fptest.LogQuery(t, p1.String(), dip.State(), di)
+	if got := di.GetSubinterface(0).GetIpv4().GetUnnumbered().GetEnabled(); got != true {
+		t.Errorf("Unnumbered interface enabled got %v, want true", got)
+	}
+}
+
+// TestUnnumberedInterfaceEnabled tests that an interface can be configured with an unnumbered address.
+func TestUnnumberedInterfaceEnabled(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	tc := &testCase{
+		dut: dut,
+	}
+	t.Run("unnumbered_interface_enable", tc.testUnnumberedInterfaceEnabled)
 }
