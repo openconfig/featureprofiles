@@ -13,7 +13,7 @@ interface.  Send traffic to validate the policer.
 
 ## Test setup
 
-Use DP-2.1 test environment setup.
+Use TE-18.1 test environment setup.
 
 ## Procedure
 

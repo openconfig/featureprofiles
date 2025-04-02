@@ -207,7 +207,7 @@ func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 		SetPrefix(uint32(advertisedRoutesv4Prefix)).
 		SetCount(1)
 
-	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
 	bgpNeti1AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
 
 	t.Logf("Pushing config to OTG and starting protocols...")

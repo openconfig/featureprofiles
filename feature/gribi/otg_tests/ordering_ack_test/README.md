@@ -46,3 +46,14 @@ N/A
     *   ModifyRequest:
         *   SessionParameters:
             *   ack_type
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
