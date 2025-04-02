@@ -499,7 +499,7 @@ func TestTC3ShortUP(t *testing.T) {
 
 		// shutting down OTG interface to emulate the RF
 		OTGInterfaceDOWN(t, ate, dut)
-		verifyPortsStatus(t, dut, "DOWN", 6)
+		verifyPortsStatus(t, dut, "DOWN", 2)
 		oper1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 		change1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 		t.Log(oper1)
@@ -507,6 +507,8 @@ func TestTC3ShortUP(t *testing.T) {
 
 		// bring port back up for 4 seconds below the 5000 ms hold up timer
 		OTGInterfaceUP(t, ate)
+		// Wait for 4000 ms less than hold up timer < 5000ms
+		time.Sleep(4000 * time.Millisecond)
 		// shut the OTG interface back to down state
 		OTGInterfaceDOWN(t, ate, dut)
 		oper2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
