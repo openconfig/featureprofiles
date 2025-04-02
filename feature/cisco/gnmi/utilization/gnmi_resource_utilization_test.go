@@ -3,25 +3,22 @@ package gnmi_resource_utilization_test
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/openconfig/featureprofiles/internal/cisco/stress"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/povsister/scp"
-	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/openconfig/ondatra"
 )
@@ -40,76 +37,44 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// TODO: fix excessive logging of components.FindComponentsByType()
+func findComponentsByTypeNoLogs(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	var s []string
+	for _, c := range components {
+		if c.GetType() == nil {
+			continue
+		}
+		switch v := c.GetType().(type) {
+		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+			if v == cType {
+				s = append(s, c.GetName())
+			}
+		}
+	}
+	return s
+}
+
 func prettyPrintObj(obj interface{}) string {
 	return spew.Sprintf("%#v", obj)
 }
 
 func stressTestSystem(t testing.TB, dut *ondatra.DUTDevice, resource string) {
-	stressTestComponent(t, dut, "", resource)
-}
-
-func stressTestComponent(t testing.TB, dut *ondatra.DUTDevice, location string, resource string) {
 	t.Helper()
 	switch resource {
 	case "cpu":
-		stressCPU(t, dut, location)
+		stress.StressCPU(t, dut, 200, time.Second*40)
 	case "memory":
-		stressMem(t, dut, location)
+		stress.StressMem(t, dut, 100, time.Second*40)
 	case "disk0":
-		stressDisk0(t, dut, location)
+		stress.StressDisk0(t, dut, 100, time.Second*60)
 	case "harddisk":
-		stressHardDisk(t, dut, location)
+		stress.StressHardDisk(t, dut, 100, time.Second*60)
 	case "power":
-		stressPower(t, dut, location)
+		stress.StressPower(t, dut, 6000, time.Second*15)
 	default:
 		t.Errorf("unknown resource: %s", resource)
 	}
-}
-
-func stressCPU(t testing.TB, dut *ondatra.DUTDevice, location string) {
-	t.Helper()
-	cmd := "run /var/xr/scratch/stress --cpu 200 --timeout 40s"
-	if location != "" {
-		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
-	}
-	dut.CLI().RunResult(t, cmd)
-}
-
-func stressMem(t testing.TB, dut *ondatra.DUTDevice, location string) {
-	t.Helper()
-	// spawn 100 workers spinning on malloc()/free()
-	cmd := "run /var/xr/scratch/stress --vm 100 --timeout 40s"
-	if location != "" {
-		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
-	}
-	dut.CLI().RunResult(t, cmd)
-}
-
-func stressDisk0(t testing.TB, dut *ondatra.DUTDevice, location string) {
-	t.Helper()
-	// spawn 100 workers spinning on write()/unlink()
-	cmd := "run fallocate -l 100G big_file.iso; sleep 60s; rm big_file.iso"
-	if location != "" {
-		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
-	}
-	dut.CLI().RunResult(t, cmd)
-}
-
-func stressHardDisk(t testing.TB, dut *ondatra.DUTDevice, location string) {
-	t.Helper()
-	// allocate very large file
-	cmd := "run cd /harddisk:; fallocate -l 100G big_file.iso; sleep 60s; rm big_file.iso"
-	if location != "" {
-		cmd = fmt.Sprintf("attach location %s \n ", location) + cmd
-	}
-	dut.CLI().RunResult(t, cmd)
-}
-
-func stressPower(t testing.TB, dut *ondatra.DUTDevice, location string) {
-	t.Helper()
-	cmd := "./spi_envmon_test -x 6000W 15"
-	// set current power consumption to 6000W for 15s
-	dut.CLI().RunResult(t, cmd)
 }
 
 func rollbackLastConfig(t testing.TB, dut *ondatra.DUTDevice) error {
@@ -298,122 +263,6 @@ func setResourceUtilizationCLI(t testing.TB, dut *ondatra.DUTDevice, threshold u
 	}
 
 	return nil
-}
-
-type targetInfo struct {
-	dut     string
-	sshIp   string
-	sshPort string
-	sshUser string
-	sshPass string
-}
-
-func TestCopyFile(t *testing.T) {
-	for _, d := range parseBindingFile(t) {
-		dut := ondatra.DUT(t, d.dut)
-		copyFileSCP(t, &d, binPath)
-		t.Logf("Installing file to %s", dut.ID())
-
-		cli := dut.RawAPIs().CLI(t)
-
-		cli.RunCommand(context.Background(), "run chmod +x /var/xr/scratch/stress")
-
-		result, _ := cli.RunCommand(context.Background(), "run ls -la /var/xr/scratch/stress")
-		t.Logf("output: %s", result.Output())
-
-		if !strings.Contains(result.Output(), "stress") {
-			t.Error("error verifying file copy: not found")
-		}
-	}
-}
-
-func parseBindingFile(t *testing.T) []targetInfo {
-	t.Helper()
-
-	bindingFile := flag.Lookup("binding").Value.String()
-	in, err := os.ReadFile(bindingFile)
-	if err != nil {
-		t.Fatalf("unable to read binding file")
-	}
-
-	b := &bindpb.Binding{}
-	if err := prototext.Unmarshal(in, b); err != nil {
-		t.Fatalf("unable to parse binding file")
-	}
-
-	targets := []targetInfo{}
-	for _, dut := range b.Duts {
-
-		sshUser := dut.Ssh.Username
-		if sshUser == "" {
-			sshUser = dut.Options.Username
-		}
-		if sshUser == "" {
-			sshUser = b.Options.Username
-		}
-
-		sshPass := dut.Ssh.Password
-		if sshPass == "" {
-			sshPass = dut.Options.Password
-		}
-		if sshPass == "" {
-			sshPass = b.Options.Password
-		}
-
-		sshTarget := strings.Split(dut.Ssh.Target, ":")
-		sshIp := sshTarget[0]
-		sshPort := "22"
-		if len(sshTarget) > 1 {
-			sshPort = sshTarget[1]
-		}
-
-		targets = append(targets, targetInfo{
-			dut:     dut.Id,
-			sshIp:   sshIp,
-			sshPort: sshPort,
-			sshUser: sshUser,
-			sshPass: sshPass,
-		})
-	}
-
-	return targets
-}
-
-func copyFileSCP(t testing.TB, d *targetInfo, imagePath string) {
-	t.Helper()
-	target := fmt.Sprintf("%s:%s", d.sshIp, d.sshPort)
-	t.Logf("Copying file to %s (%s) over scp", d.dut, target)
-	sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
-	scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
-	if err != nil {
-		t.Fatalf("Error initializing scp client: %v", err)
-	}
-	defer scpClient.Close()
-
-	ticker := time.NewTicker(1 * time.Minute)
-	tickerQuit := make(chan bool)
-
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				t.Logf("Copying file...")
-			case <-tickerQuit:
-				return
-			}
-		}
-	}()
-
-	defer func() {
-		ticker.Stop()
-		tickerQuit <- true
-	}()
-
-	if err := scpClient.CopyFileToRemote(imagePath, binDestination, &scp.FileTransferOption{
-		Timeout: binCopyTimeout,
-	}); err != nil {
-		t.Fatalf("Error copying image to target %s (%s:%s): %v", d.dut, d.sshIp, d.sshPort, err)
-	}
 }
 
 func TestSetSystemThreshold(t *testing.T) {
@@ -1110,6 +959,9 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 		},
 	}
 
+	rps := findComponentsByTypeNoLogs(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	_, rpActive := components.FindStandbyRP(t, dut, rps)
+
 	for _, tt := range tests {
 		t.Run("GNMI/"+tt.name, func(t *testing.T) {
 			d := &oc.Root{}
@@ -1130,7 +982,7 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 
 			watcher := gnmi.Watch(t,
 				dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-				gnmi.OC().Component("0/RP0/CPU0").Linecard().Utilization().Resource(config.GetName()).State(), time.Minute*2, func(v *ygnmi.Value[*oc.Component_Linecard_Utilization_Resource]) bool {
+				gnmi.OC().Component(rpActive).Linecard().Utilization().Resource(config.GetName()).State(), time.Minute*2, func(v *ygnmi.Value[*oc.Component_Linecard_Utilization_Resource]) bool {
 					val, _ := v.Val()
 					t.Logf("Received notification:\n%s\n", util.PrettyPrintJson(val))
 					return val.GetUsedThresholdUpperExceeded()
@@ -1152,7 +1004,7 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 
 			watcher2 := gnmi.Watch(t,
 				dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-				gnmi.OC().Component("0/RP0/CPU0").Linecard().Utilization().Resource(config.GetName()).State(), time.Minute*2, func(v *ygnmi.Value[*oc.Component_Linecard_Utilization_Resource]) bool {
+				gnmi.OC().Component(rpActive).Linecard().Utilization().Resource(config.GetName()).State(), time.Minute*2, func(v *ygnmi.Value[*oc.Component_Linecard_Utilization_Resource]) bool {
 					val, _ := v.Val()
 					t.Logf("Received notification:\n%s\n", util.PrettyPrintJson(val))
 					return !val.GetUsedThresholdUpperExceeded()

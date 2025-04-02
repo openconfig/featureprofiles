@@ -14,9 +14,6 @@ This automation tests the implementation of the utilization thresholds for five 
 
 ## Tests
 
-* TestCopyFile
-Copies the `stress` binary to the router
-
 * TestSetSystemThreshold
 Test which configures and unconfigures thresholds of each system resource using both gnmi and CLI
 
