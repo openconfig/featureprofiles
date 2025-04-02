@@ -497,7 +497,6 @@ paths:
 # Todo: Define a templatized approach for capturing src and dst udp ports, dscp
 # and ttl. NOS is expected to dynamically determine the payload protocol type and
 # attach the destination udp port.
- 
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip
 /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip
