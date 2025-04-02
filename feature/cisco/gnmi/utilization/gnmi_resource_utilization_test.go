@@ -265,6 +265,7 @@ func setResourceUtilizationCLI(t testing.TB, dut *ondatra.DUTDevice, threshold u
 	return nil
 }
 
+// TODO: reduce duplicate code in this function
 func TestSetSystemThreshold(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
