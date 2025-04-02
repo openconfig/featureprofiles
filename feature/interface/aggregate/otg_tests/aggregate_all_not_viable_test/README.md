@@ -157,7 +157,7 @@ The below yaml defines the OC paths and RPC intended to be covered by this test.
 ```yaml
 paths:
   /interfaces/interface/ethernet/config/aggregate-id:
-  /interfaces/interface/aggregation/state/lag-speed/state:
+  /interfaces/interface/aggregation/state/lag-speed:
   ## Config forwarding Viable to True/false
   /interfaces/interface/config/forwarding-viable:
   ## Define Lag type
