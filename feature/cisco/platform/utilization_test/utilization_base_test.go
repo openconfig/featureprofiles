@@ -140,7 +140,7 @@ func configRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-func configBgp(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
+func configBgp(neighbor string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(policyTypeBgp, *ciscoFlags.DefaultNetworkInstance)
@@ -164,19 +164,6 @@ func configBgp(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
 	peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
 }
-
-// func configureAcceptRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
-// 	t.Helper()
-// 	d := &oc.Root{}
-// 	rp := d.GetOrCreateRoutingPolicy()
-// 	pd := rp.GetOrCreatePolicyDefinition(bgpRoutePolicyName)
-// 	st, err := pd.AppendNewStatement("id-1")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-// 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-// }
 
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.DeviceIpv4, gosnappi.Config) {
 	t.Helper()

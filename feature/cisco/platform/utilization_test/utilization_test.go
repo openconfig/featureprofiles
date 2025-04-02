@@ -26,7 +26,7 @@ func TestResourceUtilization(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 	configRoutePolicy(t, dut)
-	configBgp(t, dut, "100.100.100.100")
+	configBgp("100.100.100.100")
 
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
