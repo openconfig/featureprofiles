@@ -120,26 +120,145 @@ Verify:
 
 *   Repeat `PF-1.8.7` using IPv6 packets for ATE action.
 
+
+## Canonical OpenConfig for policy-forwarding matching IPv4 and encapsulate GRE
+
+TODO: new OC paths to be proposed are present in below JSON
+* config/rules/rule/action/count: true
+* config/rules/rule/action/next-hop-group
+* encap-headers/encap-header/type: "GRE" and associated parameters
+
+```json
+{
+    "network-instances": {
+        "network-instance": [
+            {
+                "name": "DEFAULT",
+                "config": {
+                    "name": "DEFAULT"
+                },
+                "policy-forwarding": {
+                    "interfaces": {
+                        "interface": [
+                            {
+                                "config": {
+                                    "apply-forwarding-policy": "customer1_gre_encap",
+                                    "interface-id": "intf1"
+                                },
+                                "interface-id": "intf1"
+                            }
+                        ]
+                    },
+                    "policies": {
+                        "policy": [
+                            {
+                                "config": {
+                                    "policy-id": "customer1_gre_encap"
+                                },
+                                "rules": {
+                                    "rule": [
+                                        {
+                                            "ipv4": {
+                                                "config": {
+                                                    "destination-address": "inner_dst_ipv4"
+                                                }
+                                            },
+                                            "action": {
+                                                "config": {
+                                                    "count": true
+                                                    "next-hop-group": "customer1_gre_encap_v4_nhg",
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                        ]
+                    }
+                },
+                "static": {
+                    "next-hop-groups": {
+                        "net-hop-group": [
+                            {
+                                "config": {
+                                    "name": "customer1_gre_encap_v4_nhg"
+                                },
+                                "name": "customer1_gre_encap_v4_nhg",
+                                "next-hops": {
+                                    "next-hop": [
+                                        {
+                                            "index": 1,
+                                            "config": {
+                                                "index": 1
+                                            }
+                                        },
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "next-hops": {
+                        "next-hop": [
+                            {
+                                "index": 1,
+                                "config": {
+                                    "index": 1,
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "index": 1,
+                                                "type": "GRE",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst",
+                                                    "src-ip": "outer_ipv4_src",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip-ttl"
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}
+```
+
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
-    # match condition
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
-    # encap action
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/id:
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/source:
-    # either destination or identifying-prefix can be specified based on specific vendor implementation.
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination:
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/config/identifying-prefix:
-    # application to the interface
-    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/packets-forwarded:
+  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/octets-forwarded:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
+  /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
 
-    # telemetry
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
-    /interfaces/interface/state/counters/in-unicast-pkts:
-    /interfaces/interface/state/counters/out-unicast-pkts:
+  #TODO: Add new OC for GRE encap headers
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/type:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dst-ip:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/src-ip:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dscp:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/ip-ttl:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/index:
+
+  #TODO: Add new OC for policy forwarding actions
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/packet-type:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/count:
 
 rpcs:
   gnmi:
