@@ -234,17 +234,17 @@ paths:
  /keychains/keychain/keys/key/receive-lifetime/config/end-time:
 
 #TODO: Add following OC paths
-#/macsec/interfaces/interface/[Physical Interface]/state/status:
-#/macsec/interfaces/interface/[Physical Interface]/state/ckn:
+#/macsec/interfaces/interface/state/status:
+#/macsec/interfaces/interface/state/ckn:
 #/macsec/mka/policies/policy/config/security-policy:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-ctrl:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-data:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-dropped:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-err-in:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-ctrl:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-data:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-dropped:
-#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-err-in:
+#/macsec/interfaces/interface/state/counters/rx-pkts-ctrl:
+#/macsec/interfaces/interface/state/counters/rx-pkts-data:
+#/macsec/interfaces/interface/state/counters/rx-pkts-dropped:
+#/macsec/interfaces/interface/state/counters/rx-pkts-err-in:
+#/macsec/interfaces/interface/state/counters/tx-pkts-ctrl:
+#/macsec/interfaces/interface/state/counters/tx-pkts-data:
+#/macsec/interfaces/interface/state/counters/tx-pkts-dropped:
+#/macsec/interfaces/interface/state/counters/tx-pkts-err-in:
 
 rpcs:
   gnmi:
