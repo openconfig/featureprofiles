@@ -31,7 +31,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
 * Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the aggregate bundle links connecting ATE ports 1,2 and DUT:
     * Define first Policy(1) to cover must-secure scenario  
     * Define second Policy(2) to cover should-secure scenario
-    * Define 5 pre-shared keys (with overlapping time of 15 minutes) each for both Policy(1) and Policy(2)
+    * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for both Policy(1) and Policy(2)
     * Each pre-shared key mush have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
     * Set CKN as encrypted/hidden in the running configuration
     * Use 256 bit cipher GCM-AES-256-XPN and an associated 64 char CAK-CKN pair
@@ -50,7 +50,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * IPV4 and IPV6 traffic from ATE ports 1,2
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Generate config to attach must secure policy (Policy(1)) on both interfaces
+* Generate config to attach must secure policy (Policy(1)) on both interfaces ATE ports 1,2 and DUT
 
 Verify:
 * Verify that MACsec sessions are up 
@@ -59,14 +59,13 @@ Verify:
 * Header fields are as expected in both directions
 * Traffic is dropped (100 percent) when the must-secure MACSec sessions are down by disabling MACsec on ATE ports
 
-
 ## PF-1.17.3: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec should-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
     * MPLSoGRE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * IPV4 and IPV6 traffic from ATE ports 1,2
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Generate config to attach should secure policy (Policy(2)) on both interfaces
+* Generate config to attach should secure policy (Policy(2)) on both interfaces ATE ports 1,2 and DUT
 
 Verify:
 * Verify that MACsec sessions are up 
@@ -75,13 +74,13 @@ Verify:
 * Header fields are as expected in both directions
 * Traffic is not dropped when the should-secure MACSec sessions are down by disabling MACsec on ATE ports
 
-## PF-1.10.3: Verify MACSec key rotation
+## PF-1.17.4: Verify MACSec key rotation
 * Generate bidirectional traffic as highlighted in the test environment setup section:
     * MPLSoGRE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * IPV4 and IPV6 traffic from ATE ports 1,2
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Enable must secure policy (Policy(1)) on both interfaces
+* Enable must secure policy (Policy(1)) on both interfaces ATE ports 1,2 and DUT
 
 Verify:
 * Verify that MACsec sessions are up 
