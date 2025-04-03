@@ -738,10 +738,10 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 		}
 	} else {
 		for i := 0; i < MAX_LC_COUNT/2; i++ {
-			// configInterfaceIPv6PhyScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
-			// configInterfaceIPv6PhySubScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
+			configInterfaceIPv6PhyScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
+			configInterfaceIPv6PhySubScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
 			configInterfaceIPv6BundleScale(t, FourHundredGigEList[i], i, baseIPAddr[i], dut)
-			// configInterfaceIPv6BundleSubScale(t, FourHundredGigEList[i], i, baseIPAddr[i], dut)
+			configInterfaceIPv6BundleSubScale(t, FourHundredGigEList[i], i, baseIPAddr[i], dut)
 		}
 	}
 }
