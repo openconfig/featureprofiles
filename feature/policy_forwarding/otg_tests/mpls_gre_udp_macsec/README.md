@@ -24,12 +24,11 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate).
 
   * Encap to IP Traffic: The Encap traffic to IP traffic is from ATE Ports [3,4,5,6] to ATE Ports [1,2].  
 
-Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additional information on the test traffic environment setup.
+Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md) and [decapsulation PF-1.12](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md) READMEs for additional information on the test traffic environment setup.
 
 ## PF-1.17.1: Generate DUT Configuration
 ### MACsec
-* Configure MACsec on both ends of the aggregate bundle links connecting ATE ports 1,2 and DUT
-    * Set Static Connectivity Association Key (CAK) Mode if the default is dynamic mode on the interface
+* Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the aggregate bundle links connecting ATE ports 1,2 and DUT:
     * Define first Policy(1) to cover must-secure scenario  
     * Define second Policy(2) to cover should-secure scenario
     * Define 5 pre-shared keys (with overlapping time of 15 minutes) each for both Policy(1) and Policy(2)
@@ -43,7 +42,7 @@ Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additio
     * Set ICV enabled:True
     * Set SCI enabled:True
     * Set Out of sequence protection window size:64
-    * Set maximum value of Association Number: 3
+    * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable)
 
 ## PF-1.17.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
@@ -96,13 +95,15 @@ Verify:
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
  
 ```json
+{
  "macsec": {
     "interfaces": {
       "interface": [
         {
           "config": {
             "enable": true,
-            "name": "Ethernet12/1"
+            "name": "Ethernet12/1",
+            "replay-protection": 64
           },
           "mka": {
             "config": {
@@ -121,6 +122,7 @@ TODO: Finalize and update the below paths after the review and testing on any ve
             "config": {
               "confidentiality-offset": "0_BYTES",
               "include-icv-indicator": true,
+              "include-sci": true,
               "key-server-priority": 15,
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
@@ -135,6 +137,7 @@ TODO: Finalize and update the below paths after the review and testing on any ve
             "config": {
               "confidentiality-offset": "0_BYTES",
               "include-icv-indicator": true,
+              "include-sci": true,
               "key-server-priority": 15,
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
@@ -149,6 +152,32 @@ TODO: Finalize and update the below paths after the review and testing on any ve
       }
     }
   },
+  "keychains": {
+    "keychain": {
+      "key": [
+        {
+          "config": {
+            "secret-key": "sercret password/CAK",
+            "key-id": "key-id/CKN",
+            "crypto-algorithm": "AES_256_CMAC"
+            "send-lifetime": {
+              "config": {
+                "start-time": "my_start_time",
+                "end-time": "my_end_time"
+              }
+            },
+            "receive-lifetime: {
+              "config": {
+                "start-time": "my_start_time",
+                "end-time": "my_end_time"
+              },
+            }
+          }
+        }
+      ]
+    }
+   }
+} 
   ```
 
 ## OpenConfig Path and RPC Coverage
@@ -191,6 +220,15 @@ paths:
  /macsec/mka/policies/policy/config/sak-rekey-on-live-peer-loss:
  /macsec/mka/policies/policy/config/use-updated-eth-header:
  /macsec/mka/policies/policy/config/macsec-cipher-suite:
+ /keychains/keychain/config/name:
+ /keychains/keychain/keys/key/config/key-id:
+ /keychains/keychain/keys/key/config/secret-key:
+ /keychains/keychain/keys/key/config/crypto-algorithm:
+ /keychains/keychain/keys/key/send-lifetime/config/start-time:
+ /keychains/keychain/keys/key/send-lifetime/config/end-time:
+ /keychains/keychain/keys/key/send-lifetime/config/send-and-receive:
+ /keychains/keychain/keys/key/receive-lifetime/config/start-time:
+ /keychains/keychain/keys/key/receive-lifetime/config/end-time:
 
 #TODO: Add following OC paths
 #/macsec/interfaces/interface/[Physical Interface]/state/status:
