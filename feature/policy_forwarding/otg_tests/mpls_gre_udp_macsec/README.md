@@ -165,7 +165,6 @@ paths:
  /macsec/interfaces/interface/state/counters/rx-unknownsci-pkts:
  /macsec/interfaces/interface/state/counters/rx-nosci-pkts:
  /macsec/interfaces/interface/state/counters/rx-late-pkts:
- /macsec/interfaces/interface/scsa-tx/scsa-tx/state:
  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/sci-tx:
  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-auth-only:
  /macsec/mka/state/counters/out-mkpdu-errors:
