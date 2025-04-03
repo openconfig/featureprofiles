@@ -214,7 +214,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		expectedbundleBW, _ = checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
 		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != expectedbundleBW {
 			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, expectedbundleBW)
-		}	
+		}
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:agg2.ateLagCount+1], dutPortList[2:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
 		}
