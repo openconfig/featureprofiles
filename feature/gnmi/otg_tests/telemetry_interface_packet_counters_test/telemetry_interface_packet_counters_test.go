@@ -439,6 +439,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv4PrefixLen uint8
 		ipv6Addr      string
 		ipv6PrefixLen uint8
+		loadInterval  uint16
 	}{{
 		desc:          "Input interface port1",
 		intfName:      dp1.Name(),
@@ -446,6 +447,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv4PrefixLen: 31,
 		ipv6Addr:      "2001:DB8::1",
 		ipv6PrefixLen: 126,
+		loadInterval:  30,
 	}, {
 		desc:          "Output interface port2",
 		intfName:      dp2.Name(),
@@ -453,6 +455,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv4PrefixLen: 31,
 		ipv6Addr:      "2001:DB8::5",
 		ipv6PrefixLen: 126,
+		loadInterval:  30,
 	}}
 
 	// Configure IPv4 and IPv6 addresses under subinterface.
@@ -462,6 +465,9 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
 			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		}
+		li := &oc.Interface_Rates{
+			LoadInterval: ygot.Uint16(intf.loadInterval),
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0)
@@ -483,16 +489,35 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 
+		// Setting the load interval for the interface.
+		if !deviations.LoadIntervalNotSupported(dut) {
+			t.Logf("Setting load interval for Interface %s: %v", intf.intfName, intf.loadInterval)
+			li.SetLoadInterval(intf.loadInterval)
+			gnmi.Update(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+		}
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
 
 		if !deviations.IPv4MissingEnabled(dut) {
 			if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 				t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
+			} else {
+				t.Logf("Ipv4().Enabled().Get(t) for interface %v: got true, want true", intf.intfName)
 			}
 		}
 		if !gnmi.Get(t, dut, subint.Ipv6().Enabled().State()) {
 			t.Errorf("Ipv6().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
+		} else {
+			t.Logf("Ipv6().Enabled().Get(t) for interface %v: got true, want true", intf.intfName)
+		}
+
+		// Validate that Load Interval are enabled.
+		if !deviations.LoadIntervalNotSupported(dut) {
+			t.Logf("Validate that Load Interval are enabled: %s", intf.intfName)
+			intload := gnmi.Get(t, dut, gnmi.OC().Interface(intf.intfName).Rates().LoadInterval().State())
+			if intload != intf.loadInterval {
+				t.Errorf("Get(DUT port1 load interval): got %v, want %v", intload, intf.loadInterval)
+			}
 		}
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
