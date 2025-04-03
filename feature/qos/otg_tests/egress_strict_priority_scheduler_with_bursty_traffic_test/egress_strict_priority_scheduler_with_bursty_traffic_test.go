@@ -28,30 +28,21 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 var (
-	dutIngressPort1AteP1 = attrs.Attributes{IPv4: "198.51.100.1", IPv4Len: 30, IPv6: "2001::1", IPv6Len: 126}
-	dutIngressPort2AteP2 = attrs.Attributes{IPv4: "198.51.100.5", IPv4Len: 30, IPv6: "2001::5", IPv6Len: 126}
-	dutEgressPort3AteP3  = attrs.Attributes{IPv4: "198.51.100.9", IPv4Len: 30, IPv6: "2001::9", IPv6Len: 126}
+	dutIngressPort1AteP1 = attrs.Attributes{IPv4: "198.51.100.1", IPv4Len: 30, IPv6: "2001:db8::1", IPv6Len: 126}
+	dutIngressPort2AteP2 = attrs.Attributes{IPv4: "198.51.100.5", IPv4Len: 30, IPv6: "2001:db8::5", IPv6Len: 126}
+	dutEgressPort3AteP3  = attrs.Attributes{IPv4: "198.51.100.9", IPv4Len: 30, IPv6: "2001:db8::9", IPv6Len: 126}
 
-	ateTxP1 = attrs.Attributes{Name: "ate1", MAC: "0f:99:f6:9c:81:01", IPv4: "198.51.100.2", IPv4Len: 30, IPv6: "2001::2", IPv6Len: 126}
-	ateTxP2 = attrs.Attributes{Name: "ate2", MAC: "0f:99:f6:9c:81:02", IPv4: "198.51.100.6", IPv4Len: 30, IPv6: "2001::6", IPv6Len: 126}
-	ateRxP3 = attrs.Attributes{Name: "ate3", MAC: "0f:99:f6:9c:81:03", IPv4: "198.51.100.10", IPv4Len: 30, IPv6: "2001::10", IPv6Len: 126}
+	ateTxP1 = attrs.Attributes{Name: "ate1", MAC: "00:01:01:01:01:01", IPv4: "198.51.100.2", IPv4Len: 30, IPv6: "2001:db8::2", IPv6Len: 126}
+	ateTxP2 = attrs.Attributes{Name: "ate2", MAC: "00:01:01:01:01:02", IPv4: "198.51.100.6", IPv4Len: 30, IPv6: "2001:db8::6", IPv6Len: 126}
+	ateRxP3 = attrs.Attributes{Name: "ate3", MAC: "00:01:01:01:01:03", IPv4: "198.51.100.10", IPv4Len: 30, IPv6: "2001:db8::a", IPv6Len: 126}
+
+	tolerance float32 = 4.0
 )
-
-type trafficData struct {
-	trafficRate           float64
-	expectedThroughputPct float32
-	frameSize             uint32
-	dscp                  uint8
-	queue                 string
-	inputIntf             attrs.Attributes
-	burstPackets          uint32
-	burstMinGap           uint32
-	burstGap              uint32
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -66,18 +57,14 @@ func TestEgressStrictPrioritySchedulerBurstTrafficIPv4(t *testing.T) {
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntfIPv4(t, dut)
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		ConfigureCiscoQoSIPv4(t, dut)
-	default:
-		ConfigureDUTQoSIPv4(t, dut)
-	}
+	ConfigureDUTQoSIPv4(t, dut)
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
+
 	top := gosnappi.NewConfig()
 
 	ateTxP1.AddToOTG(top, ap1, &dutIngressPort1AteP1)
@@ -85,38 +72,226 @@ func TestEgressStrictPrioritySchedulerBurstTrafficIPv4(t *testing.T) {
 	ateRxP3.AddToOTG(top, ap3, &dutEgressPort3AteP3)
 	ate.OTG().PushConfig(t, top)
 
-	createTrafficFlows(t, ate, top, dut)
+	createTrafficFlowsIPv4(t, ate, top, dut)
 	t.Run("Running test", func(t *testing.T) {
 
 		ate.OTG().StartProtocols(t)
+		//time.Sleep(5 * time.Second)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
-		t.Logf("Running traffic 1 on DUT interfaces: %s => %s \n", dp1.Name(), dp3.Name())
-		t.Logf("Running traffic 2 on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
+		queues := netutil.CommonTrafficQueues(t, dut)
+
+		type trafficData struct {
+			trafficRate           float64
+			expectedThroughputPct float32
+			frameSize             uint32
+			dscp                  uint8
+			queue                 string
+			inputIntf             attrs.Attributes
+			burstPackets          uint32
+			burstMinGap           uint32
+			burstGap              uint32
+		}
+
+		trafficFlows := map[string]*trafficData{
+			"ateTxP1-regular-nc1": {
+				frameSize:             512,
+				trafficRate:           1,
+				expectedThroughputPct: 100.0,
+				dscp:                  6,
+				queue:                 queues.NC1,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-nc1": {
+				frameSize:             256,
+				trafficRate:           10,
+				dscp:                  7,
+				expectedThroughputPct: 100.0,
+				queue:                 queues.NC1,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af4": {
+				frameSize:             512,
+				trafficRate:           30,
+				expectedThroughputPct: 100.0,
+				dscp:                  4,
+				queue:                 queues.AF4,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af4": {
+				frameSize:             256,
+				trafficRate:           20,
+				dscp:                  5,
+				expectedThroughputPct: 100.0,
+				queue:                 queues.AF4,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af3": {
+				frameSize:             512,
+				trafficRate:           12,
+				expectedThroughputPct: 100.0,
+				dscp:                  3,
+				queue:                 queues.AF3,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af3": {
+				frameSize:             256,
+				trafficRate:           10,
+				dscp:                  3,
+				expectedThroughputPct: 100.0,
+				queue:                 queues.AF3,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af2": {
+				frameSize:             512,
+				trafficRate:           15,
+				expectedThroughputPct: 50.0,
+				dscp:                  2,
+				queue:                 queues.AF2,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af2": {
+				frameSize:             256,
+				trafficRate:           17,
+				dscp:                  2,
+				expectedThroughputPct: 50.0,
+				queue:                 queues.AF2,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af1": {
+				frameSize:             512,
+				trafficRate:           12,
+				expectedThroughputPct: 0.0,
+				dscp:                  1,
+				queue:                 queues.AF1,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af1": {
+				frameSize:             256,
+				trafficRate:           13,
+				dscp:                  1,
+				expectedThroughputPct: 0.0,
+				queue:                 queues.AF1,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-be1": {
+				frameSize:             512,
+				trafficRate:           12,
+				expectedThroughputPct: 0.0,
+				dscp:                  0,
+				queue:                 queues.BE1,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-be1": {
+				frameSize:             512,
+				trafficRate:           20,
+				expectedThroughputPct: 0.0,
+				dscp:                  0,
+				queue:                 queues.BE1,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+		}
+
+		ateOutPkts := make(map[string]uint64)
+		ateInPkts := make(map[string]uint64)
+		dutQosPktsBeforeTraffic := make(map[string]uint64)
+		dutQosPktsAfterTraffic := make(map[string]uint64)
+		dutQosDroppedPktsBeforeTraffic := make(map[string]uint64)
+		dutQosDroppedPktsAfterTraffic := make(map[string]uint64)
+
+		// Set the initial counters to 0.
+		for _, data := range trafficFlows {
+			ateOutPkts[data.queue] = 0
+			ateInPkts[data.queue] = 0
+			dutQosPktsBeforeTraffic[data.queue] = 0
+			dutQosPktsAfterTraffic[data.queue] = 0
+			dutQosDroppedPktsBeforeTraffic[data.queue] = 0
+			dutQosDroppedPktsAfterTraffic[data.queue] = 0
+		}
+
+		// Get QoS egress packet counters before the traffic.
+		const timeout = 10 * time.Second
+		isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+		for _, data := range trafficFlows {
+			count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
+			}
+			dutQosPktsBeforeTraffic[data.queue], _ = count.Val()
+
+			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+			}
+			dutQosDroppedPktsBeforeTraffic[data.queue], _ = count.Val()
+		}
+
+		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp1.Name(), dp3.Name())
+		t.Logf("Running bursty traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
 		t.Logf("Sending traffic flows:\n")
-		time.Sleep(10 * time.Second)
 		ate.OTG().StartTraffic(t)
+
 		time.Sleep(30 * time.Second)
+
 		ate.OTG().StopTraffic(t)
-		time.Sleep(10 * time.Second)
 
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
-		otgutils.LogPortMetrics(t, ate.OTG(), top)
 
-		queues := netutil.CommonTrafficQueues(t, dut)
-		nc1drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.NC1).DroppedPkts().State())
-		af4drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF4).DroppedPkts().State())
-		af3drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF3).DroppedPkts().State())
-		af2drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF2).DroppedPkts().State())
-		af1drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF1).DroppedPkts().State())
-		be1drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.BE1).DroppedPkts().State())
+		for trafficID, data := range trafficFlows {
+			ateOutPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
+			ateInPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
 
-		t.Logf("Dropped pkts on NC1: %d ", nc1drops)
-		t.Logf("Dropped pkts on AF4: %d ", af4drops)
-		t.Logf("Dropped pkts on AF3: %d ", af3drops)
-		t.Logf("Dropped pkts on AF2: %d ", af2drops)
-		t.Logf("Dropped pkts on AF1: %d ", af1drops)
-		t.Logf("Dropped pkts on BE1: %d ", be1drops)
+			dutQosPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
+			dutQosDroppedPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+			t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
+
+			ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
+			ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
+			if ateTxPkts == 0 {
+				t.Fatalf("TxPkts == 0, want >0.")
+			}
+			lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
+			t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
+			if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
+				t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
+			}
+		}
+
+		// Check QoS egress packet counters are updated correctly.
+		t.Logf("QoS dutQosPktsBeforeTraffic: %v", dutQosPktsBeforeTraffic)
+		t.Logf("QoS dutQosPktsAfterTraffic: %v", dutQosPktsAfterTraffic)
+		t.Logf("QoS dutQosDroppedPktsBeforeTraffic: %v", dutQosDroppedPktsBeforeTraffic)
+		t.Logf("QoS dutQosDroppedPktsAfterTraffic: %v", dutQosDroppedPktsAfterTraffic)
+		t.Logf("QoS ateOutPkts: %v", ateOutPkts)
+		t.Logf("QoS ateInPkts: %v", ateInPkts)
+		for _, data := range trafficFlows {
+			qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
+			ateCounterDiff := ateInPkts[data.queue]
+			ateDropCounterDiff := ateOutPkts[data.queue] - ateInPkts[data.queue]
+			dutDropCounterDiff := dutQosDroppedPktsAfterTraffic[data.queue] - dutQosDroppedPktsBeforeTraffic[data.queue]
+			t.Logf("QoS queue %q: ateDropCounterDiff: %v dutDropCounterDiff: %v", data.queue, ateDropCounterDiff, dutDropCounterDiff)
+			if qosCounterDiff < ateCounterDiff {
+				t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", data.queue, qosCounterDiff, ateCounterDiff)
+			}
+		}
 
 	})
 
@@ -130,19 +305,15 @@ func TestEgressStrictPrioritySchedulerBurstTrafficIPv6(t *testing.T) {
 	dp3 := dut.Port(t, "port3")
 
 	// Configure DUT interfaces and QoS.
-	ConfigureDUTIntfIPv4(t, dut)
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		ConfigureCiscoQoSIPv6(t, dut)
-	default:
-		ConfigureDUTQoSIPv6(t, dut)
-	}
+	ConfigureDUTIntfIPv6(t, dut)
+	ConfigureDUTQoSIPv6(t, dut)
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
+
 	top := gosnappi.NewConfig()
 
 	ateTxP1.AddToOTG(top, ap1, &dutIngressPort1AteP1)
@@ -150,67 +321,265 @@ func TestEgressStrictPrioritySchedulerBurstTrafficIPv6(t *testing.T) {
 	ateRxP3.AddToOTG(top, ap3, &dutEgressPort3AteP3)
 	ate.OTG().PushConfig(t, top)
 
-	createTrafficFlows(t, ate, top, dut)
+	createTrafficFlowsIPv6(t, ate, top, dut)
 	t.Run("Running test", func(t *testing.T) {
 
 		ate.OTG().StartProtocols(t)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-		t.Logf("Running traffic 1 on DUT interfaces: %s => %s \n", dp1.Name(), dp3.Name())
-		t.Logf("Running traffic 2 on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
+		queues := netutil.CommonTrafficQueues(t, dut)
+
+		type trafficData struct {
+			trafficRate           float64
+			expectedThroughputPct float32
+			frameSize             uint32
+			dscp                  []uint32
+			queue                 string
+			inputIntf             attrs.Attributes
+			burstPackets          uint32
+			burstMinGap           uint32
+			burstGap              uint32
+		}
+
+		trafficFlows := map[string]*trafficData{
+			"ateTxP1-regular-nc1": {
+				frameSize:             512,
+				trafficRate:           1,
+				expectedThroughputPct: 100.0,
+				dscp:                  []uint32{48, 49, 50, 51, 52, 53, 54, 55},
+				queue:                 queues.NC1,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-nc1": {
+				frameSize:             256,
+				trafficRate:           10,
+				dscp:                  []uint32{56, 57, 58, 59, 60, 61, 62, 63},
+				expectedThroughputPct: 100.0,
+				queue:                 queues.NC1,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af4": {
+				frameSize:             512,
+				trafficRate:           30,
+				expectedThroughputPct: 100.0,
+				dscp:                  []uint32{32, 33, 34, 35, 36, 37, 38, 39},
+				queue:                 queues.AF4,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af4": {
+				frameSize:             256,
+				trafficRate:           20,
+				dscp:                  []uint32{40, 41, 42, 43, 44, 45, 46, 47},
+				expectedThroughputPct: 100.0,
+				queue:                 queues.AF4,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af3": {
+				frameSize:             512,
+				trafficRate:           12,
+				expectedThroughputPct: 100.0,
+				dscp:                  []uint32{24, 25, 26, 27},
+				queue:                 queues.AF3,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af3": {
+				frameSize:             256,
+				trafficRate:           10,
+				dscp:                  []uint32{28, 29, 30, 31},
+				expectedThroughputPct: 100.0,
+				queue:                 queues.AF3,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af2": {
+				frameSize:             512,
+				trafficRate:           15,
+				expectedThroughputPct: 50.0,
+				dscp:                  []uint32{16, 17, 18, 19},
+				queue:                 queues.AF2,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af2": {
+				frameSize:             256,
+				trafficRate:           17,
+				dscp:                  []uint32{20, 21, 22, 23},
+				expectedThroughputPct: 50.0,
+				queue:                 queues.AF2,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-af1": {
+				frameSize:             512,
+				trafficRate:           12,
+				expectedThroughputPct: 0.0,
+				dscp:                  []uint32{8, 9, 10, 11},
+				queue:                 queues.AF1,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-af1": {
+				frameSize:             256,
+				trafficRate:           13,
+				dscp:                  []uint32{12, 13, 14, 15},
+				expectedThroughputPct: 0.0,
+				queue:                 queues.AF1,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+			"ateTxP1-regular-be1": {
+				frameSize:             512,
+				trafficRate:           12,
+				expectedThroughputPct: 0.0,
+				dscp:                  []uint32{0, 1, 2, 3},
+				queue:                 queues.BE1,
+				inputIntf:             ateTxP1,
+			},
+			"ateTxP2-burst-be1": {
+				frameSize:             512,
+				trafficRate:           20,
+				expectedThroughputPct: 0.0,
+				dscp:                  []uint32{4, 5, 6, 7},
+				queue:                 queues.BE1,
+				inputIntf:             ateTxP2,
+				burstPackets:          50000,
+				burstMinGap:           12,
+				burstGap:              100,
+			},
+		}
+
+		ateOutPkts := make(map[string]uint64)
+		ateInPkts := make(map[string]uint64)
+		dutQosPktsBeforeTraffic := make(map[string]uint64)
+		dutQosPktsAfterTraffic := make(map[string]uint64)
+		dutQosDroppedPktsBeforeTraffic := make(map[string]uint64)
+		dutQosDroppedPktsAfterTraffic := make(map[string]uint64)
+
+		// Set the initial counters to 0.
+		for _, data := range trafficFlows {
+			ateOutPkts[data.queue] = 0
+			ateInPkts[data.queue] = 0
+			dutQosPktsBeforeTraffic[data.queue] = 0
+			dutQosPktsAfterTraffic[data.queue] = 0
+			dutQosDroppedPktsBeforeTraffic[data.queue] = 0
+			dutQosDroppedPktsAfterTraffic[data.queue] = 0
+		}
+
+		// Get QoS egress packet counters before the traffic.
+		const timeout = 10 * time.Second
+		isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+		for _, data := range trafficFlows {
+			count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
+			}
+			dutQosPktsBeforeTraffic[data.queue], _ = count.Val()
+
+			count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+			if !ok {
+				t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+			}
+			dutQosDroppedPktsBeforeTraffic[data.queue], _ = count.Val()
+		}
+
+		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp1.Name(), dp3.Name())
+		t.Logf("Running burst traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
 		t.Logf("Sending traffic flows:\n")
-		time.Sleep(10 * time.Second)
 		ate.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
 		ate.OTG().StopTraffic(t)
-		time.Sleep(10 * time.Second)
 
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
 		otgutils.LogPortMetrics(t, ate.OTG(), top)
 
-		queues := netutil.CommonTrafficQueues(t, dut)
-		nc1drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.NC1).DroppedPkts().State())
-		af4drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF4).DroppedPkts().State())
-		af3drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF3).DroppedPkts().State())
-		af2drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF2).DroppedPkts().State())
-		af1drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.AF1).DroppedPkts().State())
-		be1drops := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(queues.BE1).DroppedPkts().State())
+		for trafficID, data := range trafficFlows {
+			ateOutPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
+			ateInPkts[data.queue] += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
 
-		t.Logf("Dropped pkts on NC1: %d ", nc1drops)
-		t.Logf("Dropped pkts on AF4: %d ", af4drops)
-		t.Logf("Dropped pkts on AF3: %d ", af3drops)
-		t.Logf("Dropped pkts on AF2: %d ", af2drops)
-		t.Logf("Dropped pkts on AF1: %d ", af1drops)
-		t.Logf("Dropped pkts on BE1: %d ", be1drops)
+			dutQosPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
+			dutQosDroppedPktsAfterTraffic[data.queue] += gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+			t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue], data.queue)
+
+			ateTxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().OutPkts().State())
+			ateRxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(trafficID).Counters().InPkts().State())
+			if ateTxPkts == 0 {
+				t.Fatalf("TxPkts == 0, want >0.")
+			}
+			lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
+			t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
+			if got, want := 100.0-lossPct, data.expectedThroughputPct; got < want-tolerance || got > want+tolerance {
+				t.Errorf("Get(throughput for queue %q): got %.2f%%, want within [%.2f%%, %.2f%%]", data.queue, got, want-tolerance, want+tolerance)
+			}
+		}
+
+		// Check QoS egress packet counters are updated correctly.
+		t.Logf("QoS dutQosPktsBeforeTraffic: %v", dutQosPktsBeforeTraffic)
+		t.Logf("QoS dutQosPktsAfterTraffic: %v", dutQosPktsAfterTraffic)
+		t.Logf("QoS dutQosDroppedPktsBeforeTraffic: %v", dutQosDroppedPktsBeforeTraffic)
+		t.Logf("QoS dutQosDroppedPktsAfterTraffic: %v", dutQosDroppedPktsAfterTraffic)
+		t.Logf("QoS ateOutPkts: %v", ateOutPkts)
+		t.Logf("QoS ateInPkts: %v", ateInPkts)
+		for _, data := range trafficFlows {
+			qosCounterDiff := dutQosPktsAfterTraffic[data.queue] - dutQosPktsBeforeTraffic[data.queue]
+			ateCounterDiff := ateInPkts[data.queue]
+			ateDropCounterDiff := ateOutPkts[data.queue] - ateInPkts[data.queue]
+			dutDropCounterDiff := dutQosDroppedPktsAfterTraffic[data.queue] - dutQosDroppedPktsBeforeTraffic[data.queue]
+			t.Logf("QoS queue %q: ateDropCounterDiff: %v dutDropCounterDiff: %v", data.queue, ateDropCounterDiff, dutDropCounterDiff)
+			if qosCounterDiff < ateCounterDiff {
+				t.Errorf("Get telemetry packet update for queue %q: got %v, want >= %v", data.queue, qosCounterDiff, ateCounterDiff)
+			}
+		}
 
 	})
 
 }
 
-func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dut *ondatra.DUTDevice) {
+func createTrafficFlowsIPv4(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// configuration of regular and burst flows on the ATE
-	/*
-		Non-burst flows on ateTxP1:
+	// 	// configuration of regular and burst flows on the ATE
+	// 	/*
+	// 		Non-burst flows on ateTxP1:
 
-		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
-		be1					12						512			100
-		af1					12						512			100
-		af2					15						512			50
-		af3					12						512			0
-		af4					30						512			0
-		nc1					1						512			0
+	// 		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
+	// 		be1					12						512			100
+	// 		af1					12						512			100
+	// 		af2					15						512			50
+	// 		af3					12						512			0
+	// 		af4					30						512			0
+	// 		nc1					1						512			0
 
-		Burst flows on ateTxP2:
+	// 		Burst flows on ateTxP2:
 
-		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
-		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
-		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
-		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
-		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
-		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
-		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
-	*/
+	// 		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
+	// 		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
+	// 		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
+	// 		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
+	// 		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
+	// 		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
+	// 		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
+	// 	*/
+
+	type trafficData struct {
+		trafficRate           float64
+		expectedThroughputPct float32
+		frameSize             uint32
+		dscp                  uint8
+		queue                 string
+		inputIntf             attrs.Attributes
+		burstPackets          uint32
+		burstMinGap           uint32
+		burstGap              uint32
+	}
 
 	queues := netutil.CommonTrafficQueues(t, dut)
 	trafficFlows := map[string]*trafficData{
@@ -332,12 +701,383 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Confi
 	top.Flows().Clear()
 
 	for trafficID, data := range trafficFlows {
-		t.Logf("Configuring flow %s", trafficID)
+		t.Logf("Configuring flow %s\n", trafficID)
 		flow := top.Flows().Add().SetName(trafficID)
 		flow.Metrics().SetEnable(true)
 		flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{ateRxP3.Name + ".IPv4"})
 		ethHeader := flow.Packet().Add().Ethernet()
 		ethHeader.Src().SetValue(data.inputIntf.MAC)
+
+		ipHeader := flow.Packet().Add().Ipv4()
+		ipHeader.Src().SetValue(data.inputIntf.IPv4)
+		ipHeader.Dst().SetValue(ateRxP3.IPv4)
+		ipHeader.Priority().Dscp().Phb().SetValue(uint32(data.dscp))
+
+		flow.Size().SetFixed(uint32(data.frameSize))
+		flow.Rate().SetPercentage(float32(data.trafficRate))
+		if data.burstMinGap > 0 {
+			flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
+		}
+		if data.burstGap > 0 {
+			flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
+		}
+
+	}
+	ate.OTG().PushConfig(t, top)
+}
+
+func createTrafficFlowsIPv6(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// 	// configuration of regular and burst flows on the ATE
+	// 	/*
+	// 		Non-burst flows on ateTxP1:
+
+	// 		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
+	// 		be1					12						512			100
+	// 		af1					12						512			100
+	// 		af2					15						512			50
+	// 		af3					12						512			0
+	// 		af4					30						512			0
+	// 		nc1					1						512			0
+
+	// 		Burst flows on ateTxP2:
+
+	// 		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
+	// 		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
+	// 		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
+	// 		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
+	// 		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
+	// 		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
+	// 		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
+	// 	*/
+
+	type trafficData struct {
+		trafficRate           float64
+		expectedThroughputPct float32
+		frameSize             uint32
+		dscp                  []uint32
+		queue                 string
+		inputIntf             attrs.Attributes
+		burstPackets          uint32
+		burstMinGap           uint32
+		burstGap              uint32
+	}
+
+	queues := netutil.CommonTrafficQueues(t, dut)
+	trafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-nc1": {
+			frameSize:             512,
+			trafficRate:           1,
+			expectedThroughputPct: 100.0,
+			dscp:                  []uint32{48, 49, 50, 51, 52, 53, 54, 55},
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-nc1": {
+			frameSize:             256,
+			trafficRate:           10,
+			dscp:                  []uint32{56, 57, 58, 59, 60, 61, 62, 63},
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af4": {
+			frameSize:             512,
+			trafficRate:           30,
+			expectedThroughputPct: 100.0,
+			dscp:                  []uint32{32, 33, 34, 35, 36, 37, 38, 39},
+			queue:                 queues.AF4,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af4": {
+			frameSize:             256,
+			trafficRate:           20,
+			dscp:                  []uint32{40, 41, 42, 43, 44, 45, 46, 47},
+			expectedThroughputPct: 100.0,
+			queue:                 queues.AF4,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af3": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 100.0,
+			dscp:                  []uint32{24, 25, 26, 27},
+			queue:                 queues.AF3,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af3": {
+			frameSize:             256,
+			trafficRate:           10,
+			dscp:                  []uint32{28, 29, 30, 31},
+			expectedThroughputPct: 100.0,
+			queue:                 queues.AF3,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af2": {
+			frameSize:             512,
+			trafficRate:           15,
+			expectedThroughputPct: 50.0,
+			dscp:                  []uint32{16, 17, 18, 19},
+			queue:                 queues.AF2,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af2": {
+			frameSize:             256,
+			trafficRate:           17,
+			dscp:                  []uint32{20, 21, 22, 23},
+			expectedThroughputPct: 50.0,
+			queue:                 queues.AF2,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af1": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 0.0,
+			dscp:                  []uint32{8, 9, 10, 11},
+			queue:                 queues.AF1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af1": {
+			frameSize:             256,
+			trafficRate:           13,
+			dscp:                  []uint32{12, 13, 14, 15},
+			expectedThroughputPct: 0.0,
+			queue:                 queues.AF1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-be1": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 0.0,
+			dscp:                  []uint32{0, 1, 2, 3},
+			queue:                 queues.BE1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-be1": {
+			frameSize:             512,
+			trafficRate:           20,
+			expectedThroughputPct: 0.0,
+			dscp:                  []uint32{4, 5, 6, 7},
+			queue:                 queues.BE1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+	top.Flows().Clear()
+
+	for trafficID, data := range trafficFlows {
+		t.Logf("Configuring flow %s\n", trafficID)
+		flow := top.Flows().Add().SetName(trafficID)
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv6"}).SetRxNames([]string{ateRxP3.Name + ".IPv6"})
+		ethHeader := flow.Packet().Add().Ethernet()
+		ethHeader.Src().SetValue(data.inputIntf.MAC)
+
+		ipHeader := flow.Packet().Add().Ipv6()
+		ipHeader.Src().SetValue(data.inputIntf.IPv6)
+		ipHeader.Dst().SetValue(ateRxP3.IPv6)
+		ipHeader.TrafficClass().SetValues([]uint32(data.dscp))
+
+		flow.Size().SetFixed(uint32(data.frameSize))
+		flow.Rate().SetPercentage(float32(data.trafficRate))
+		if data.burstMinGap > 0 {
+			flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
+		}
+		if data.burstGap > 0 {
+			flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
+		}
+
+	}
+	ate.OTG().PushConfig(t, top)
+}
+
+func createTrafficFlowsMPLS(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// 	// configuration of regular and burst flows on the ATE
+	// 	/*
+	// 		Non-burst flows on ateTxP1:
+
+	// 		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
+	// 		be1					12						512			100
+	// 		af1					12						512			100
+	// 		af2					15						512			50
+	// 		af3					12						512			0
+	// 		af4					30						512			0
+	// 		nc1					1						512			0
+
+	// 		Burst flows on ateTxP2:
+
+	// 		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
+	// 		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
+	// 		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
+	// 		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
+	// 		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
+	// 		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
+	// 		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
+	// 	*/
+
+	type trafficData struct {
+		trafficRate           float64
+		expectedThroughputPct float32
+		frameSize             uint32
+		dscp                  uint8
+		queue                 string
+		inputIntf             attrs.Attributes
+		burstPackets          uint32
+		burstMinGap           uint32
+		burstGap              uint32
+	}
+
+	queues := netutil.CommonTrafficQueues(t, dut)
+	trafficFlows := map[string]*trafficData{
+		"ateTxP1-regular-nc1": {
+			frameSize:             512,
+			trafficRate:           1,
+			expectedThroughputPct: 100.0,
+			dscp:                  6,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-nc1": {
+			frameSize:             256,
+			trafficRate:           10,
+			dscp:                  7,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.NC1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af4": {
+			frameSize:             512,
+			trafficRate:           30,
+			expectedThroughputPct: 100.0,
+			dscp:                  4,
+			queue:                 queues.AF4,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af4": {
+			frameSize:             256,
+			trafficRate:           20,
+			dscp:                  5,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.AF4,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af3": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 100.0,
+			dscp:                  3,
+			queue:                 queues.AF3,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af3": {
+			frameSize:             256,
+			trafficRate:           10,
+			dscp:                  3,
+			expectedThroughputPct: 100.0,
+			queue:                 queues.AF3,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af2": {
+			frameSize:             512,
+			trafficRate:           15,
+			expectedThroughputPct: 50.0,
+			dscp:                  2,
+			queue:                 queues.AF2,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af2": {
+			frameSize:             256,
+			trafficRate:           17,
+			dscp:                  2,
+			expectedThroughputPct: 50.0,
+			queue:                 queues.AF2,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-af1": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 0.0,
+			dscp:                  1,
+			queue:                 queues.AF1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-af1": {
+			frameSize:             256,
+			trafficRate:           13,
+			dscp:                  1,
+			expectedThroughputPct: 0.0,
+			queue:                 queues.AF1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+		"ateTxP1-regular-be1": {
+			frameSize:             512,
+			trafficRate:           12,
+			expectedThroughputPct: 0.0,
+			dscp:                  0,
+			queue:                 queues.BE1,
+			inputIntf:             ateTxP1,
+		},
+		"ateTxP2-burst-be1": {
+			frameSize:             512,
+			trafficRate:           20,
+			expectedThroughputPct: 0.0,
+			dscp:                  0,
+			queue:                 queues.BE1,
+			inputIntf:             ateTxP2,
+			burstPackets:          50000,
+			burstMinGap:           12,
+			burstGap:              100,
+		},
+	}
+	top.Flows().Clear()
+
+	for trafficID, data := range trafficFlows {
+		// get dut mac interface for traffic mpls flow
+		dutDstInterface := dut.Port(t, "port3").Name()
+		dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
+		t.Logf("Configuring flow %s\n", trafficID)
+		flow := top.Flows().Add().SetName(trafficID)
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name}).SetRxNames([]string{ateRxP3.Name})
+		ethHeader := flow.Packet().Add().Ethernet()
+		ethHeader.Src().SetValue(data.inputIntf.MAC)
+		ethHeader.Dst().SetValue(dstMac)
+
+		mplsHeader := flow.Packet().Add().Mpls()
+		mplsHeader.TrafficClass().SetValue(uint32(data.dscp))
 
 		ipHeader := flow.Packet().Add().Ipv4()
 		ipHeader.Src().SetValue(data.inputIntf.IPv4)
@@ -496,7 +1236,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 			queueid := len(queueNames) - i
 			q1.QueueId = ygot.Uint8(uint8(queueid))
 		}
-		t.Logf("DUT %s %s %s requires QoS queue requires ID deviation ", dut.Vendor(), dut.Model(), dut.Version())
+		t.Logf("\nDUT %s %s %s requires QoS queue requires ID deviation \n\n", dut.Vendor(), dut.Model(), dut.Version())
 	}
 
 	t.Logf("Create QoS forwarding groups and queue names configuration")
@@ -504,35 +1244,50 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		desc        string
 		queueName   string
 		targetGroup string
+		priority    uint8
 	}{{
 		desc:        "forwarding-group-BE1",
 		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
+		priority:    0,
 	}, {
 		desc:        "forwarding-group-AF1",
 		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
+		priority:    1,
 	}, {
 		desc:        "forwarding-group-AF2",
 		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
+		priority:    2,
 	}, {
 		desc:        "forwarding-group-AF3",
 		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
+		priority:    3,
 	}, {
 		desc:        "forwarding-group-AF4",
 		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
+		priority:    4,
 	}, {
 		desc:        "forwarding-group-NC1",
 		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
+		priority:    5,
 	}}
 
 	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+		setForwardingGroupWithFabricPriority(t, dut, q, tc.targetGroup, tc.queueName, tc.priority)
+		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
+		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGroup)
+		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGroup; got != want {
+			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, forwardingGroup.OutputQueue().State()), tc.queueName; got != want {
+			t.Errorf("forwardingGroup.OutputQueue().State(): got %v, want %v", got, want)
+		}
 	}
 
 	t.Logf("Create QoS Classifiers config")
@@ -547,42 +1302,42 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		desc:        "classifier_ipv4_be1",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "DSCP_BE1",
+		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0},
 	}, {
 		desc:        "classifier_ipv4_af1",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "DSCP_AF1",
+		termID:      "1",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{1},
 	}, {
 		desc:        "classifier_ipv4_af2",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "DSCP_AF2",
+		termID:      "2",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{2},
 	}, {
 		desc:        "classifier_ipv4_af3",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "DSCP_AF3",
+		termID:      "3",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{3},
 	}, {
 		desc:        "classifier_ipv4_af4",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "DSCP_AF4",
+		termID:      "4",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{4, 5},
 	}, {
 		desc:        "classifier_ipv4_nc1",
 		name:        "dscp_based_classifier_ipv4",
 		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "DSCP_NC1",
+		termID:      "5",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{6, 7},
 	}}
@@ -592,6 +1347,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		classifier := q.GetOrCreateClassifier(tc.name)
 		classifier.SetName(tc.name)
 		classifier.SetType(tc.classType)
+
 		term, err := classifier.NewTerm(tc.termID)
 		if err != nil {
 			t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
@@ -782,7 +1538,7 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 			queueid := len(queueNames) - i
 			q1.QueueId = ygot.Uint8(uint8(queueid))
 		}
-		t.Logf("DUT %s %s %s requires QoS queue requires ID deviation ", dut.Vendor(), dut.Model(), dut.Version())
+		t.Logf("\nDUT %s %s %s requires QoS queue requires ID deviation \n\n", dut.Vendor(), dut.Model(), dut.Version())
 	}
 
 	t.Logf("Create QoS forwarding groups and queue names configuration")
@@ -790,35 +1546,50 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 		desc        string
 		queueName   string
 		targetGroup string
+		priority    uint8
 	}{{
 		desc:        "forwarding-group-BE1",
 		queueName:   queues.BE1,
 		targetGroup: "target-group-BE1",
+		priority:    0,
 	}, {
 		desc:        "forwarding-group-AF1",
 		queueName:   queues.AF1,
 		targetGroup: "target-group-AF1",
+		priority:    1,
 	}, {
 		desc:        "forwarding-group-AF2",
 		queueName:   queues.AF2,
 		targetGroup: "target-group-AF2",
+		priority:    2,
 	}, {
 		desc:        "forwarding-group-AF3",
 		queueName:   queues.AF3,
 		targetGroup: "target-group-AF3",
+		priority:    3,
 	}, {
 		desc:        "forwarding-group-AF4",
 		queueName:   queues.AF4,
 		targetGroup: "target-group-AF4",
+		priority:    4,
 	}, {
 		desc:        "forwarding-group-NC1",
 		queueName:   queues.NC1,
 		targetGroup: "target-group-NC1",
+		priority:    5,
 	}}
 
 	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
-		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+		setForwardingGroupWithFabricPriority(t, dut, q, tc.targetGroup, tc.queueName, tc.priority)
+		// Verify the ForwardingGroup is applied by checking the telemetry path state values.
+		forwardingGroup := gnmi.OC().Qos().ForwardingGroup(tc.targetGroup)
+		if got, want := gnmi.Get(t, dut, forwardingGroup.Name().State()), tc.targetGroup; got != want {
+			t.Errorf("forwardingGroup.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, forwardingGroup.OutputQueue().State()), tc.queueName; got != want {
+			t.Errorf("forwardingGroup.OutputQueue().State(): got %v, want %v", got, want)
+		}
 	}
 
 	t.Logf("Create QoS Classifiers config")
@@ -833,42 +1604,42 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 		desc:        "classifier_ipv6_be1",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "DSCP_BE1",
+		termID:      "0",
 		targetGroup: "target-group-BE1",
 		dscpSet:     []uint8{0, 1, 2, 3, 4, 5, 6, 7},
 	}, {
 		desc:        "classifier_ipv6_af1",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "DSCP_AF1",
+		termID:      "1",
 		targetGroup: "target-group-AF1",
 		dscpSet:     []uint8{8, 9, 10, 11, 12, 13, 14, 15},
 	}, {
 		desc:        "classifier_ipv6_af2",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "DSCP_AF2",
+		termID:      "2",
 		targetGroup: "target-group-AF2",
 		dscpSet:     []uint8{16, 17, 18, 19, 20, 21, 22, 23},
 	}, {
 		desc:        "classifier_ipv6_af3",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "DSCP_AF3",
+		termID:      "3",
 		targetGroup: "target-group-AF3",
 		dscpSet:     []uint8{24, 25, 26, 27, 28, 29, 30, 31},
 	}, {
 		desc:        "classifier_ipv6_af4",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "DSCP_AF4",
+		termID:      "4",
 		targetGroup: "target-group-AF4",
 		dscpSet:     []uint8{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
 	}, {
 		desc:        "classifier_ipv6_nc1",
 		name:        "dscp_based_classifier_ipv6",
 		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "DSCP_NC1",
+		termID:      "5",
 		targetGroup: "target-group-NC1",
 		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
 	}}
@@ -1000,18 +1771,14 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 		input.SetId(tc.inputID)
 		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
-		//if tc.setWeight {
-		//	input.SetWeight(tc.weight)
-		//}
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos output interface config")
 	schedulerIntfs := []struct {
-		desc       string
-		queueName  string
-		scheduler  string
-		ecnProfile string
+		desc      string
+		queueName string
+		scheduler string
 	}{{
 		desc:      "output-interface-BE1",
 		queueName: queues.BE1,
@@ -1038,7 +1805,6 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 		scheduler: "scheduler",
 	}}
 
-	maxBurstSize := uint32(268435456)
 	t.Logf("qos output interface config: %v", schedulerIntfs)
 	for _, tc := range schedulerIntfs {
 		i := q.GetOrCreateInterface(dp3.Name())
@@ -1052,13 +1818,6 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		queue.SetQueueManagementProfile(tc.ecnProfile)
-		if dut.Vendor() == ondatra.NOKIA {
-			bufferAllocation := q.GetOrCreateBufferAllocationProfile("ballocprofile")
-			bq := bufferAllocation.GetOrCreateQueue(tc.queueName)
-			bq.SetStaticSharedBufferLimit(maxBurstSize)
-			output.SetBufferAllocationProfile("ballocprofile")
-		}
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
@@ -1092,4 +1851,13 @@ func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, in
 	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
 	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+}
+
+func setForwardingGroupWithFabricPriority(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, groupName, queueName string, priority uint8) {
+	t.Helper()
+	group := qos.GetOrCreateForwardingGroup(groupName)
+	group.SetOutputQueue(queueName)
+	//group.SetFabricPriority(priority)
+	qos.GetOrCreateQueue(queueName)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 }
