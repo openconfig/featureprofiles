@@ -2,8 +2,7 @@
 
 ## Summary
 
-This test verifies TTL handling for ingress flows. The ingress flow could be
-encapsulated or not encapsulated by DUT.
+This test verifies TTL handling for ingress flows.
 
 ## Testbed Type
 
