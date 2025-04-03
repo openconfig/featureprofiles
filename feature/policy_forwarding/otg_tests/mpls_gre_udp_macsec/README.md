@@ -156,26 +156,18 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ```yaml
 paths:
- /macsec/interfaces/interface/state:
  /macsec/interfaces/interface/state/name:
  /macsec/interfaces/interface/state/enable:
  /macsec/interfaces/interface/state/replay-protection:
- /macsec/interfaces/interface/state/counters:
  /macsec/interfaces/interface/state/counters/tx-untagged-pkts:
  /macsec/interfaces/interface/state/counters/rx-untagged-pkts:
  /macsec/interfaces/interface/state/counters/rx-badtag-pkts:
  /macsec/interfaces/interface/state/counters/rx-unknownsci-pkts:
  /macsec/interfaces/interface/state/counters/rx-nosci-pkts:
  /macsec/interfaces/interface/state/counters/rx-late-pkts:
- /macsec/interfaces/interface/scsa-tx:
- /macsec/interfaces/interface/scsa-tx/scsa-tx:
- /macsec/interfaces/interface/scsa-tx/scsa-tx/sci-tx:
  /macsec/interfaces/interface/scsa-tx/scsa-tx/state:
  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/sci-tx:
- /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters:
  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-auth-only:
- /macsec/mka/state:
- /macsec/mka/state/counters:
  /macsec/mka/state/counters/out-mkpdu-errors:
  /macsec/mka/state/counters/in-mkpdu-icv-verification-errors:
  /macsec/mka/state/counters/in-mkpdu-validation-errors:
@@ -186,9 +178,7 @@ paths:
  /macsec/mka/state/counters/sak-encryption-errors:
  /macsec/mka/state/counters/sak-decryption-errors:
  /macsec/mka/state/counters/sak-cipher-mismatch-errors:
- /macsec/interfaces/interface:
  /macsec/interfaces/interface/name:
- /macsec/interfaces/interface/config:
  /macsec/interfaces/interface/config/name:
  /macsec/interfaces/interface/config/enable:
  /macsec/interfaces/interface/config/replay-protection:
