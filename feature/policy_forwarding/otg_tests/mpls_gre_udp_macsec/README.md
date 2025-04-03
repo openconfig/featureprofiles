@@ -197,6 +197,16 @@ paths:
 #/macsec/interfaces/interface/[Physical Interface]/state/ckn:
 #/macsec/mka/policies/policy/config/security-policy:
 
+#TODO: Optional counters
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-ctrl:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-data:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-dropped:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-err-in:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-ctrl:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-data:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-dropped:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-err-in:
+
 rpcs:
   gnmi:
     gNMI.Set:
