@@ -107,8 +107,8 @@ TODO: Finalize and update the below paths after the review and testing on any ve
           },
           "mka": {
             "config": {
-              "key-chain": "ci_2114275276238",
-              "mka-policy": "ci_aesxpn256"
+              "key-chain": "my_macsec_keychain",
+              "mka-policy": "must_secure_policy"
             }
           },
           "name": "Ethernet12/1"
@@ -127,11 +127,11 @@ TODO: Finalize and update the below paths after the review and testing on any ve
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
               ],
-              "name": "ci_aesxpn256",
+              "name": "must_secure_policy",
               "sak-rekey-interval": 28800,
               "security-policy": "MUST_SECURE"
             },
-            "name": "ci_aesxpn256"
+            "name": "must_secure_policy"
           },
           {
             "config": {
@@ -142,11 +142,11 @@ TODO: Finalize and update the below paths after the review and testing on any ve
               "macsec-cipher-suite": [
                 "GCM_AES_XPN_256"
               ],
-              "name": "ci_aesxpn256_fo",
+              "name": "should_secure_policy",
               "sak-rekey-interval": 28800,
               "security-policy": "SHOULD_SECURE"
             },
-            "name": "ci_aesxpn256_fo"
+            "name": "should_secure_policy"
           }
         ]
       }
@@ -155,7 +155,7 @@ TODO: Finalize and update the below paths after the review and testing on any ve
   "keychains": {
     "keychain": {
       "config": {
-        "name": "ci_2114275276238"
+        "name": "my_macsec_keychain"
       }
       "key": [
         {
