@@ -202,18 +202,18 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
 	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
-		bundleBW := checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
-		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != bundleBW {
-			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, bundleBW)
+		expectedbundleBW, _ := checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != expectedbundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, expectedbundleBW)
 		}
 		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
 		}
-		bundleBW = checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
-		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != bundleBW {
-			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, bundleBW)
+		expectedbundleBW, _ = checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != expectedbundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, expectedbundleBW)
 		}	
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:agg2.ateLagCount+1], dutPortList[2:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -947,15 +947,24 @@ func configForwardingViable(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*on
 	}
 }
 
+// Translates an openconfig ETHERNET_SPEED into Mbps which can be used to verify a LAG's speed.
+func ethernetPortSpeedToMbps(speed oc.E_IfEthernet_ETHERNET_SPEED) uint32 {
+	// Returns bits/sec.
+	bps := fptest.EthernetSpeedToUint64(speed)
+	return uint32(bps / 1_000_000)
+}
+
 // Check number of forwading viable links in the bundle and return total cumulative BW of these links
-func checkBundleViableLinksBW(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port) uint32 {
-	activeMemberCount = 0
+func checkBundleViableLinksBW(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port) (uint32, error) {
+	lagSpeed := uint32(0)
 	for _, port := range dutPorts {
 		if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
-			activeMemberCount++
+			portSpeed := ethernetPortSpeedToMbps(gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().PortSpeed().State()))
+			lagSpeed += portSpeed
+			t.Logf("Lag speed is %v", lagSpeed)
 		}
 	}
-	return uint32(activeMemberCount * 100000) // Number of forwarding viable links * 100g speed
+	return lagSpeed, nil
 }
 
 // incrementMAC uses a mac string and increments it by the given i
