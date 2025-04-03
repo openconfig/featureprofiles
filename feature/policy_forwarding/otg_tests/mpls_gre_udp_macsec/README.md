@@ -154,6 +154,9 @@ TODO: Finalize and update the below paths after the review and testing on any ve
   },
   "keychains": {
     "keychain": {
+      "config": {
+        "name": "ci_2114275276238"
+      }
       "key": [
         {
           "config": {
