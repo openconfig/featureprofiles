@@ -202,19 +202,21 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
 	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
-		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != 500000 {
-			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, 500000)
+		bundleBW := checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != bundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, bundleBW)
 		}
 		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
 		}
+		bundleBW = checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != bundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, bundleBW)
+		}	
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:agg2.ateLagCount+1], dutPortList[2:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
-		}
-		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != 100000 {
-			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, 100000)
 		}
 		// Ensure there is no traffic received/transmiited on DUT LAG_3
 		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == true {
@@ -943,6 +945,17 @@ func configForwardingViable(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*on
 			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
 		}
 	}
+}
+
+// Check number of forwading viable links in the bundle and return total cumulative BW of these links
+func checkBundleViableLinksBW(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port) uint32 {
+	activeMemberCount = 0
+	for _, port := range dutPorts {
+		if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
+			activeMemberCount++
+		}
+	}
+	return uint32(activeMemberCount * 100000) // Number of forwarding viable links * 100g speed
 }
 
 // incrementMAC uses a mac string and increments it by the given i
