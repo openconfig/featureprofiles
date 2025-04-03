@@ -9,10 +9,12 @@ The goal of this test is to:
 1.  Test the implementation of Static GUE encap where the Tunnel endpoint is
     resolved over EBGP, while the Payload's destination is learned over IBGP.
 
-2.  Verify that before GUE encapsulation, the LPM lookup on the payload
-    destination performs route selection between different IBGP-learned routes
-    and chooses those with a higher Local Preference, falling back to backup
-    routes if necessary.
+2.  Confirm that before GUE encapsulation, the device correctly selects the path
+    for the payload destination from multiple available IBGP routes. Path
+    selection needs to follow the BGP best path algorithm rules, like giving
+    preference to routes with a higher BGP Local Preference. Furthermore, it
+    must successfully switch over to backup/alternative IBGP paths when the
+    preferred path fails.
 
 3.  Validate that encapsulated traffic has its TOS bits copied from the inner
     header to the outer header, and that depending on the tunnel destination IP,
