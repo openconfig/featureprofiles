@@ -63,8 +63,8 @@ test: {
 }
 test: {
   id: "ACL-1.1"
-  description: "Layer 3 filtering"
-  exec: " "
+  description: "ACL match based on L3/L4 fields and DSCP value"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/acl/otg_tests/acl_dscp_match/README.md"
 }
 test: {
   id: "ACL-1.2"
