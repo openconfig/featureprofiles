@@ -961,7 +961,7 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 	}
 
 	rps := findComponentsByTypeNoLogs(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-	_, rpActive := components.FindStandbyRP(t, dut, rps)
+	_, rpActive := components.FindStandbyControllerCard(t, dut, rps)
 
 	for _, tt := range tests {
 		t.Run("GNMI/"+tt.name, func(t *testing.T) {
