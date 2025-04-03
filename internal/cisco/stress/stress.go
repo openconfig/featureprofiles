@@ -145,9 +145,8 @@ func parseBindingFile(t testing.TB) []targetInfo {
 	return targets
 }
 
-// NOTE: May slow down system operation
-//
 // spawns n workers to loop on sqrt()
+// NOTE: May slow down system operation
 func StressCPU(t testing.TB, dut *ondatra.DUTDevice, numWorkers int, duration time.Duration) {
 	t.Helper()
 	if !binaryInstalled {
@@ -160,9 +159,8 @@ func StressCPU(t testing.TB, dut *ondatra.DUTDevice, numWorkers int, duration ti
 	dut.CLI().RunResult(t, cmd)
 }
 
-// NOTE: May slow down system operation
-//
 // spawns n workers to loop on malloc()/free()
+// NOTE: May slow down system operation
 func StressMem(t testing.TB, dut *ondatra.DUTDevice, numWorkers int, duration time.Duration) {
 	t.Helper()
 	if !binaryInstalled {
@@ -175,9 +173,8 @@ func StressMem(t testing.TB, dut *ondatra.DUTDevice, numWorkers int, duration ti
 	dut.CLI().RunResult(t, cmd)
 }
 
-// WARNING: Recommended use on sim only, as it can fill hard drive and bring system to a halt.
-//
 // allocates dummy file to disk0 for stress testing purposes
+// WARNING: Recommended use on sim only, as it can fill hard drive and bring system to a halt.
 func StressDisk0(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duration time.Duration) {
 	t.Helper()
 	if duration < time.Second {
@@ -187,9 +184,8 @@ func StressDisk0(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duration t
 	dut.CLI().RunResult(t, cmd)
 }
 
-// WARNING: Recommended use on sim only, as it can fill hard drive and bring system to a halt.
-//
 // allocates dummy file to harddisk for stress testing purposes
+// WARNING: Recommended use on sim only, as it can fill hard drive and bring system to a halt.
 func StressHardDisk(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duration time.Duration) {
 	t.Helper()
 	// allocate very large file
@@ -200,9 +196,8 @@ func StressHardDisk(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duratio
 	dut.CLI().RunResult(t, cmd)
 }
 
-// NOTE: requires a dev image which includes the spi_envmon_test library
-//
 // simulates sensor reading of power usage of supplied measure of watts
+// NOTE: requires a dev image which includes the spi_envmon_test library
 func StressPower(t testing.TB, dut *ondatra.DUTDevice, watts int, duration time.Duration) {
 	t.Helper()
 	if duration < time.Second {

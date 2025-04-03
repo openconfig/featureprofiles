@@ -67,9 +67,9 @@ func stressTestSystem(t testing.TB, dut *ondatra.DUTDevice, resource string) {
 	case "memory":
 		stress.StressMem(t, dut, 100, time.Second*40)
 	case "disk0":
-		stress.StressDisk0(t, dut, 100, time.Second*60)
+		stress.StressDisk0(t, dut, 100, time.Second*80)
 	case "harddisk":
-		stress.StressHardDisk(t, dut, 100, time.Second*60)
+		stress.StressHardDisk(t, dut, 100, time.Second*80)
 	case "power":
 		stress.StressPower(t, dut, 6000, time.Second*15)
 	default:
