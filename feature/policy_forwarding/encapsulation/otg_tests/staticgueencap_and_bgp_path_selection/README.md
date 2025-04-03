@@ -143,12 +143,14 @@ tables above, the DUT requires the following configurations:
 
     *   Define import and export route policies to match the advertisements for
         each BGP peering.
-
+        
 *   **Static GUE Encapsulation:**
 
     *   Configure static GUE encapsulation as follows:
+
         *   Define UDP ports to be used for IPv4oUDP and IPv6oUDP which is 6080.
         *   Define the Tunnel NHG configuration with these parameters:
+
             *   `ttl = 128`
             *   `tunnel-source = $DUT_lo0.v4`
             *   `tunnel-destination1 = $ATE2_INTERNAL_TE11.v4/32`. For traffic
@@ -159,10 +161,17 @@ tables above, the DUT requires the following configurations:
                 towards this tunnel destination, the most significant 4 DSCP
                 bits must match the inner header's DSCP bits, while the least
                 significant 2 DSCP bits (TE bits) must be set to 10
-            *   The DUT must have a static route pointing `"$ATE2_PPNH1.v6/128"`
-                to the NHG created above. The IBGP peer $ATE2_C.IBGP.v6/128 is
-                expected to advertise both IPv4 and IPv6 prefixes with the
-                Next-Hop as `"$ATE2_PPNH1.v6/128"`
+            *   The DUT must have a static route pointing
+                `"$ATE2_PPNH1.v6/128"` and `$ATE2_PPNH2.v6/128` to the NHG
+                created above (example of the static route below). The IBGP peer
+                $ATE2_C.IBGP.v6/128 is expected to advertise both IPv4 and IPv6
+                prefixes with the Next-Hop as `"$ATE2_PPNH1.v6/128"` or
+                `"$ATE2_PPNH2.v6/128"`
+                ```
+                static dst: ATE2_PPNH1.v6/128 nhop: $ATE2_INTERNAL_TE11.v4/32
+                static dst: ATE2_PPNH2.v6/128 nhop: $ATE2_INTERNAL_TE10.v4/32
+                ```
+                
 
 *   **GUE Decapsulation:**
 
