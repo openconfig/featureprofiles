@@ -961,7 +961,6 @@ func checkBundleViableLinksBW(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*
 		if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
 			portSpeed := ethernetPortSpeedToMbps(gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().PortSpeed().State()))
 			lagSpeed += portSpeed
-			t.Logf("Lag speed is %v", lagSpeed)
 		}
 	}
 	return lagSpeed, nil
