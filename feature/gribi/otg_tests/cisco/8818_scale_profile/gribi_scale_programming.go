@@ -146,6 +146,71 @@ type VRFConfig struct {
 	NHs       []fluent.GRIBIEntry
 	NHGs      []fluent.GRIBIEntry
 	V4Entries []fluent.GRIBIEntry
+	Pairs     []PairedEntries
+}
+
+// PairedEntries holds NHs, NHGs and IPv4 entries for the VRF.
+type PairedEntries struct {
+	NHs        []fluent.GRIBIEntry
+	NHGs       []fluent.GRIBIEntry
+	V4Entries  []fluent.GRIBIEntry
+	V6Entries  []fluent.GRIBIEntry
+	V4Prefixes []string
+	V6Prefixes []string
+}
+
+// IPPool for IPs
+type PEntriesIndex struct {
+	index int
+	rw    sync.RWMutex
+}
+
+// NewIPPool creates a new IPPool
+func NewPEntriesIndex() *PEntriesIndex {
+	return &PEntriesIndex{
+		index: -1,
+	}
+}
+
+func (p *PEntriesIndex) NextIndex() int {
+	p.rw.Lock()
+	defer p.rw.Unlock()
+
+	p.index++
+	return p.index
+}
+
+func NewPairedEntry() *PairedEntries {
+	return &PairedEntries{}
+}
+
+// FetchNonEmptyPairedEntries fetches all GRIBI entries from PairedEntries if their elements have a length greater than 0.
+func FetchNonEmptyPairedEntries(pairedEntries []PairedEntries) []fluent.GRIBIEntry {
+	var nonEmptyEntries []fluent.GRIBIEntry
+
+	for _, entry := range pairedEntries {
+		// Check and append non-empty NHs
+		if len(entry.NHs) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, entry.NHs...)
+		}
+
+		// Check and append non-empty NHGs
+		if len(entry.NHGs) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, entry.NHGs...)
+		}
+
+		// Check and append non-empty V4Entries
+		if len(entry.V4Entries) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, entry.V4Entries...)
+		}
+
+		// Check and append non-empty V6Entries
+		if len(entry.V6Entries) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, entry.V6Entries...)
+		}
+	}
+
+	return nonEmptyEntries
 }
 
 // Param TE holds scale parameters.
@@ -162,16 +227,18 @@ type ScaleParam struct {
 type routesParam struct {
 	ipEntries     []string
 	ipv6Entries   []string
+	prefixVRF     string
 	numUniqueNHs  int
-	nextHops      []string
+	nextHops      []string //set of next hop prefixes
 	nextHopVRF    string
+	nextHopType   string // default, encap, decap, decapEncap
 	startNHIndex  int
 	numUniqueNHGs int
 	numNHPerNHG   int
 	startNHGIndex int
 	nextHopWeight []int
 	backupNHG     int
-	tunnelSrcIP   string
+	tunnelSrcIP   string //
 }
 
 // BuildVRFConfig creates scale new scale VRF configurations.
@@ -206,10 +273,10 @@ func buildGRIBIProgramming(dut *ondatra.DUTDevice, egressIPs []string, param Sca
 	// * Each NHG has the same backup to Repair VRF.
 	tunnelNHGRatio := param.V4TunnelCount / param.V4TunnelNHGCount
 	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
+		pe := NewPairedEntry()
 		if idx%tunnelNHGRatio == 0 {
 			nhgID = idPool.NextNHGID()
 			nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
-
 			// Build NHs and link NHs to NHG.
 			for i := 0; i < param.V4TunnelNHGSplitCount; i++ {
 				vip := v4VIPAddrs.NextIP()
@@ -217,6 +284,7 @@ func buildGRIBIProgramming(dut *ondatra.DUTDevice, egressIPs []string, param Sca
 				vrfDefault.NHs = append(vrfDefault.NHs,
 					fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(defaultVRF).WithIPAddress(vip),
 				)
+				pe.NHs = append(pe.NHs, fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(defaultVRF).WithIPAddress(vip))
 				var weight uint64
 				if i == 0 {
 					weight = 1
@@ -226,12 +294,15 @@ func buildGRIBIProgramming(dut *ondatra.DUTDevice, egressIPs []string, param Sca
 				nhgEntry = nhgEntry.AddNextHop(nhID, weight)
 			}
 			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
+			pe.NHGs = append(pe.NHGs, nhgEntry)
 		}
 
 		// Build IPv4 entry
 		vrfTConf.V4Entries = append(vrfTConf.V4Entries,
 			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFT).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
+		pe.V4Entries = append(pe.V4Entries, fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFT).WithNextHopGroupNetworkInstance(defaultVRF))
+		vrfTConf.Pairs = append(vrfTConf.Pairs, *pe)
 	}
 
 	// Default VRF:
@@ -490,6 +561,301 @@ func installEncapEntries(t *testing.T, vrf string, routeParams *routesParam, arg
 		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 	t.Logf("Installed entries VRF %s - IPv6 entry count: %d, next-hop-group count: %d (index %d - %d), next-hop count: %d (index %d - %d)", vrf, len(routeParams.ipv6Entries), len(nextHopGroupIndices), nextHopGroupIndices[0], nextHopGroupIndices[len(nextHopGroupIndices)-1], len(nextHopIndices), nextHopIndices[0], nextHopIndices[len(nextHopIndices)-1])
+}
+
+// FetchEntriesForRouteParams retrieves all IPv4Entry, NextHopGroupEntry, and NextHopEntry for a given routesParam.
+func FetchEntriesForRouteParams(routeParams *routesParam, dut *ondatra.DUTDevice) ([]fluent.GRIBIEntry, []fluent.GRIBIEntry, []fluent.GRIBIEntry) {
+	var ipv4Entries []fluent.GRIBIEntry
+	var nhgEntries []fluent.GRIBIEntry
+	var nhEntries []fluent.GRIBIEntry
+
+	// Generate NextHop entries
+	for i := 0; i < routeParams.numUniqueNHs; i++ {
+		index := uint64(routeParams.startNHIndex + i)
+		nhEntry := fluent.NextHopEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(index).
+			WithIPinIP(routeParams.tunnelSrcIP, routeParams.nextHops[i%len(routeParams.nextHops)]).
+			WithEncapsulateHeader(fluent.IPinIP).
+			WithNextHopNetworkInstance(routeParams.nextHopVRF)
+		nhEntries = append(nhEntries, nhEntry)
+	}
+
+	// Generate NextHopGroup entries
+	for i := 0; i < routeParams.numUniqueNHGs; i++ {
+		index := uint64(routeParams.startNHGIndex + i)
+		nhgEntry := fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(index)
+		if routeParams.backupNHG != 0 {
+			nhgEntry.WithBackupNHG(uint64(routeParams.backupNHG))
+		}
+		for j := 0; j < routeParams.numNHPerNHG; j++ {
+			nhgEntry.AddNextHop(uint64(routeParams.startNHIndex+(i*routeParams.numNHPerNHG+j)%routeParams.numUniqueNHs), uint64(routeParams.nextHopWeight[j]))
+		}
+		nhgEntries = append(nhgEntries, nhgEntry)
+	}
+
+	// Generate IPv4 entries
+	for i, ip := range routeParams.ipEntries {
+		ipv4Entry := fluent.IPv4Entry().
+			WithPrefix(ip + "/32").
+			WithNetworkInstance(routeParams.nextHopVRF).
+			WithNextHopGroup(uint64(routeParams.startNHGIndex + i%routeParams.numUniqueNHGs)).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ipv4Entries = append(ipv4Entries, ipv4Entry)
+	}
+
+	return ipv4Entries, nhgEntries, nhEntries
+}
+
+// FetchEntriesForRouteParamsInBatches retrieves IPv4Entry, NextHopGroupEntry, and NextHopEntry for a given routesParam
+// and divides them into batches based on the specified batch count.
+func FetchEntriesForRouteParamsInBatches(routeParams *routesParam, dut *ondatra.DUTDevice, batchCount int) []PairedEntries {
+	var pairedEntries []PairedEntries
+
+	// Calculate the batch size dynamically based on the total number of ipEntries and batchCount
+	totalEntries := len(routeParams.ipEntries)
+	batchSize := (totalEntries + batchCount - 1) / batchCount // Round up to ensure all entries are included
+
+	for batch := 0; batch < batchCount; batch++ {
+		startIndex := batch * batchSize
+		endIndex := startIndex + batchSize
+		if endIndex > totalEntries {
+			endIndex = totalEntries
+		}
+
+		// Create a new PairedEntries for this batch
+		pe := PairedEntries{}
+
+		// Generate NextHop entries for this batch
+		for i := 0; i < routeParams.numUniqueNHs; i++ {
+			index := uint64(routeParams.startNHIndex + i)
+			nhEntry := fluent.NextHopEntry().
+				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(index).
+				WithIPinIP(routeParams.tunnelSrcIP, routeParams.nextHops[i%len(routeParams.nextHops)]).
+				WithEncapsulateHeader(fluent.IPinIP).
+				WithNextHopNetworkInstance(routeParams.nextHopVRF)
+			pe.NHs = append(pe.NHs, nhEntry)
+		}
+
+		// Generate NextHopGroup entries for this batch
+		for i := 0; i < routeParams.numUniqueNHGs; i++ {
+			index := uint64(routeParams.startNHGIndex + i)
+			nhgEntry := fluent.NextHopGroupEntry().
+				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(index)
+			if routeParams.backupNHG != 0 {
+				nhgEntry.WithBackupNHG(uint64(routeParams.backupNHG))
+			}
+			for j := 0; j < routeParams.numNHPerNHG; j++ {
+				nhgEntry.AddNextHop(uint64(routeParams.startNHIndex+(i*routeParams.numNHPerNHG+j)%routeParams.numUniqueNHs), uint64(routeParams.nextHopWeight[j]))
+			}
+			pe.NHGs = append(pe.NHGs, nhgEntry)
+		}
+
+		// Generate IPv4 entries for this batch
+		for _, ip := range routeParams.ipEntries[startIndex:endIndex] {
+			ipv4Entry := fluent.IPv4Entry().
+				WithPrefix(ip + "/32").
+				WithNetworkInstance(routeParams.nextHopVRF).
+				WithNextHopGroup(uint64(routeParams.startNHGIndex + startIndex%routeParams.numUniqueNHGs)).
+				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+			pe.V4Entries = append(pe.V4Entries, ipv4Entry)
+			pe.V4Prefixes = append(pe.V4Prefixes, ip)
+		}
+
+		// Generate IPv6 entries for this batch
+		if len(routeParams.ipv6Entries) > 0 {
+			for _, ip := range routeParams.ipv6Entries[startIndex:endIndex] {
+				ipv6Entry := fluent.IPv6Entry().
+					WithPrefix(ip + "/128").
+					WithNetworkInstance(routeParams.nextHopVRF).
+					WithNextHopGroup(uint64(routeParams.startNHGIndex + startIndex%routeParams.numUniqueNHGs)).
+					WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+				pe.V6Entries = append(pe.V6Entries, ipv6Entry)
+				pe.V6Prefixes = append(pe.V6Prefixes, ip)
+			}
+		}
+
+		// Add the PairedEntries for this batch to the result
+		pairedEntries = append(pairedEntries, pe)
+	}
+
+	return pairedEntries
+}
+
+func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice, batchCount int) []PairedEntries {
+	var pairedEntries []PairedEntries
+
+	// Calculate the batch size dynamically based on the total number of ipEntries and batchCount
+	totalEntries := len(routeParams.ipEntries)
+	batchSize := (totalEntries + batchCount - 1) / batchCount // Round up to ensure all entries are included
+
+	// Calculate the batch-specific ranges for nhIndex and nhgIndex
+	nhsPerBatch := routeParams.numUniqueNHs / batchCount
+	nhgsPerBatch := routeParams.numUniqueNHGs / batchCount
+	nextHopsPerBatch := len(routeParams.nextHops) / batchCount
+
+	// If nextHops are fewer than the batch size, allow all batches to reuse the same nextHops
+	if len(routeParams.nextHops) < batchSize {
+		nextHopsPerBatch = len(routeParams.nextHops)
+	}
+
+	prefixToNHGRatio := len(routeParams.ipEntries) / routeParams.numUniqueNHGs
+
+	for batch := 0; batch < batchCount; batch++ {
+		startIndex := batch * batchSize
+		endIndex := startIndex + batchSize
+		if endIndex > totalEntries {
+			endIndex = totalEntries
+		}
+
+		// Create a new PairedEntries for this batch
+		pe := PairedEntries{}
+
+		// Calculate the batch-specific base indices for nhIndex and nhgIndex
+		baseNHIndex := uint64(routeParams.startNHIndex + batch*nhsPerBatch)
+		baseNHGIndex := uint64(routeParams.startNHGIndex + batch*nhgsPerBatch)
+
+		// Calculate the batch-specific nextHops
+		var batchNextHops []string
+		if len(routeParams.nextHops) < batchSize {
+			batchNextHops = routeParams.nextHops // Reuse the same nextHops for all batches
+		} else {
+			batchNextHops = routeParams.nextHops[batch*nextHopsPerBatch : (batch+1)*nextHopsPerBatch]
+		}
+
+		currentNHGIndex := baseNHGIndex
+		// Generate IPv4 entries, NextHopGroup entries, and NextHop entries in the same loop
+		for i, ip := range routeParams.ipEntries[startIndex:endIndex] {
+			// Generate NextHopGroup entry
+			// currentNHGIndex := baseNHGIndex + uint64(i%nhgsPerBatch)
+			if i > 0 && i%prefixToNHGRatio == 0 {
+				currentNHGIndex++
+			}
+			nhgEntry := fluent.NextHopGroupEntry().
+				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(currentNHGIndex)
+			if routeParams.backupNHG != 0 {
+				nhgEntry.WithBackupNHG(uint64(routeParams.backupNHG))
+			}
+
+			// Generate NextHop entries and add them to the NextHopGroup
+			for j := 0; j < routeParams.numNHPerNHG; j++ {
+				currentNHIndex := baseNHIndex + uint64((i*routeParams.numNHPerNHG+j)%nhsPerBatch)
+				nhEntry := fluent.NextHopEntry().
+					WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					WithIndex(currentNHIndex).
+					WithNextHopNetworkInstance(routeParams.nextHopVRF)
+				if routeParams.nextHopType == "encap" {
+					nhEntry.WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)]).
+						WithEncapsulateHeader(fluent.IPinIP)
+				} else if routeParams.nextHopType == "decap" {
+					nhEntry.WithDecapsulateHeader(fluent.IPinIP)
+				} else if routeParams.nextHopType == "decapEncap" {
+					nhEntry.WithDecapsulateHeader(fluent.IPinIP).
+						WithEncapsulateHeader(fluent.IPinIP).
+						WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)])
+				} else if routeParams.nextHopType == "default" {
+					nhEntry.WithIPAddress(batchNextHops[j%len(batchNextHops)])
+				}
+				pe.NHs = append(pe.NHs, nhEntry)
+
+				// Add the NextHop to the NextHopGroup
+				nhgEntry.AddNextHop(currentNHIndex, uint64(routeParams.nextHopWeight[j]))
+			}
+			pe.NHGs = append(pe.NHGs, nhgEntry)
+
+			// Generate IPv4 entry
+			ipv4Entry := fluent.IPv4Entry().
+				WithPrefix(ip + "/32").
+				WithNetworkInstance(routeParams.prefixVRF).
+				WithNextHopGroup(currentNHGIndex).
+				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+			pe.V4Entries = append(pe.V4Entries, ipv4Entry)
+			pe.V4Prefixes = append(pe.V4Prefixes, ip)
+
+			// Generate IPv6 entries for this batch
+			if len(routeParams.ipv6Entries) > 0 {
+				ip = routeParams.ipv6Entries[startIndex:endIndex][i]
+				ipv6Entry := fluent.IPv6Entry().
+					WithPrefix(ip + "/128").
+					WithNetworkInstance(routeParams.prefixVRF).
+					WithNextHopGroup(currentNHGIndex).
+					WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+				pe.V6Entries = append(pe.V6Entries, ipv6Entry)
+				pe.V6Prefixes = append(pe.V6Prefixes, ip)
+			}
+
+		}
+
+		// Add the PairedEntries for this batch to the result
+		pairedEntries = append(pairedEntries, pe)
+	}
+
+	return pairedEntries
+}
+
+func TestChains(t *testing.T) {
+	// type routesParam struct {
+	// 	ipEntries     []string
+	// 	ipv6Entries   []string
+	// 	prefixVRF     string
+	// 	numUniqueNHs  int
+	// 	nextHops      []string //set of next hop prefixes
+	// 	nextHopVRF    string
+	// 	nextHopType   string // default, encap, decap, decapEncap
+	// 	startNHIndex  int
+	// 	numUniqueNHGs int
+	// 	numNHPerNHG   int
+	// 	startNHGIndex int
+	// 	nextHopWeight []int
+	// 	backupNHG     int
+	// 	tunnelSrcIP   string //
+	// }
+	encapSegmentA := routesParam{
+		ipEntries:     encapVrfAIPv4Enries[:80],
+		ipv6Entries:   encapVrfAIPv6Enries[:80],
+		prefixVRF:     vrfEncapA,
+		numUniqueNHs:  320, //encapNhgcount * encapNhSize,
+		nextHops:      encapVrfAIPv4Enries[400:500],
+		nextHopVRF:    vrfTransit,
+		nextHopType:   "encap",
+		startNHIndex:  lastNhIndex + 1,
+		numUniqueNHGs: 40, //encapNhgcount,
+		numNHPerNHG:   8,
+		nextHopWeight: generateNextHopWeights(16, 8),
+		startNHGIndex: lastNhgIndex + 1,
+		tunnelSrcIP:   ipv4OuterSrc111,
+	}
+	dut := ondatra.DUT(t, "dut")
+	gribiInfo := GetFibSegmentGribiEntries(&encapSegmentA, dut, 8)
+	for i, pe := range gribiInfo {
+		t.Logf("Batch %d: IPv4 entries: %d, IPv6 entries: %d, NH entries: %d, NHG entries: %d", i, len(pe.V4Entries), len(pe.V6Entries), len(pe.NHs), len(pe.NHGs))
+		// t.Logf("Batch %d\n: IPv4 entries: %v\n, IPv6 entries: %v\n, NH entries: %v\n, NHG entries: %v\n", i, pe.V4Entries, pe.V6Entries, pe.NHs, pe.NHGs)
+		for j, nhg := range pe.NHGs {
+			t.Logf("Batch %d, NHG %d: %v", i, j, nhg)
+		}
+		for j, nh := range pe.NHs {
+			t.Logf("Batch %d, NH %d: %v", i, j, nh)
+		}
+		for j, ipv4 := range pe.V4Entries {
+			t.Logf("Batch %d, IPv4 %d: %v", i, j, ipv4)
+		}
+		for j, ipv6 := range pe.V6Entries {
+			t.Logf("Batch %d, IPv6 %d: %v", i, j, ipv6)
+		}
+		for j, ipv4 := range pe.V4Prefixes {
+			t.Logf("Batch %d, IPv4 %d: %v", i, j, ipv4)
+		}
+		for j, ipv6 := range pe.V6Prefixes {
+			t.Logf("Batch %d, IPv6 %d: %v", i, j, ipv6)
+		}
+	}
+	// t.Logf("IPv4 entries: %d, IPv6 entries: %d, NH entries: %d, NHG entries: %d", len(gribiInfo.V4Entries), len(gribiInfo.V6Entries), len(gribiInfo.NHs), len(gribiInfo.NHGs))
+
 }
 
 // createIPv6Entries creates IPv6 Entries given the totalCount and starting prefix

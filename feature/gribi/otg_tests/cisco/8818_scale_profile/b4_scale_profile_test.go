@@ -265,3 +265,7 @@ func TestGribiScaleProfile(t *testing.T) {
 	// }
 	configureBaseProfile(t)
 }
+
+func TestTest(t *testing.T) {
+	TestChains(t)
+}
