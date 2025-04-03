@@ -50,7 +50,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * IPV4 and IPV6 traffic from ATE ports 1,2
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Enable must secure policy (Policy(1)) on both interfaces
+* Generate config to attach must secure policy (Policy(1)) on both interfaces
 
 Verify:
 * Verify that MACsec sessions are up 
@@ -66,7 +66,7 @@ Verify:
     * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
     * IPV4 and IPV6 traffic from ATE ports 1,2
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Enable should secure policy (Policy(2)) on both interfaces
+* Generate config to attach should secure policy (Policy(2)) on both interfaces
 
 Verify:
 * Verify that MACsec sessions are up 
@@ -112,6 +112,20 @@ TODO: Finalize and update the below paths after the review and testing on any ve
             }
           },
           "name": "Ethernet12/1"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "Ethernet11/1",
+            "replay-protection": 64
+          },
+          "mka": {
+            "config": {
+              "key-chain": "my_macsec_keychain",
+              "mka-policy": "must_secure_policy"
+            }
+          },
+          "name": "Ethernet11/1"
         }
       ]
     },
