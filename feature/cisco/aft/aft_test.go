@@ -556,9 +556,9 @@ func TestOCAFT(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-	t.Logf(resp)
+	t.Log(resp)
 	if strings.Contains(resp, "VXR") {
-		t.Logf("Skipping since platfrom is VXR")
+		t.Log("Skipping since platfrom is VXR")
 		t.Skip()
 	}
 

@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "c90d0ef3-72ef-477a-8381-591930f1ecbe"
+plan_id:  "PLT-1.2"
+description:  "Parent component validation test"
+testbed:  TESTBED_DUT_ATE_2LINKS

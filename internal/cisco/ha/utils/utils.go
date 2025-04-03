@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	// "github.com/openconfig/entity-naming/oc"
+
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	gnps "github.com/openconfig/gnoi/system"
@@ -31,7 +33,7 @@ func Dorpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 	supervisors = append(supervisors, active, standby)
 
 	// find active and standby RP
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, supervisors)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
 	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
 
 	// make sure standby RP is reach
@@ -88,7 +90,7 @@ func Dorpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, supervisors)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
