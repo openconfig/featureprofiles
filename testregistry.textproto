@@ -508,7 +508,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test/README.md"
   exec: " "
 }
-
+test: {
+  id: "PF-1.17"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_macsec/README.md"
+  exec: " "
+}
 test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
