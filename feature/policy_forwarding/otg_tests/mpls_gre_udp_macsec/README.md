@@ -156,46 +156,65 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ```yaml
 paths:
-  /macsec/interfaces/interface/[Physical Interface]/state/status:
-  /macsec/interfaces/interface/[Physical Interface]/state/ckn:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-ctrl:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-data:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-dropped:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-err-in:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-ctrl:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-data:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-dropped:
-  /macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-err-in:
-  /macsec/interfaces/interface/state/counters/rx-badtag-pkts:
-  /macsec/interfaces/interface/state/counters/rx-late-pkts:
-  /macsec/interfaces/interface/state/counters/rx-nosci-pkts:
-  /macsec/interfaces/interface/state/counters/rx-unknownsci-pkts:
-  /macsec/interfaces/interface/state/counters/rx-untagged-pkts:
-  /macsec/interfaces/interface/state/counters/tx-untagged-pkts:
-  /macsec/interfaces/interface/mka/state/counters/in-cak-mkpdu:
-  /macsec/interfaces/interface/mka/state/counters/in-mkpdu:
-  /macsec/interfaces/interface/mka/state/counters/in-sak-mkpdu:
-  /macsec/interfaces/interface/mka/state/counters/out-cak-mkpdu:
-  /macsec/interfaces/interface/mka/state/counters/out-mkpdu:
-  /macsec/interfaces/interface/mka/state/counters/out-sak-mkpdu:
-  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sa-invalid:
-  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sa-valid:
-  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sc-invalid:
-  /macsec/interfaces/interface/scsa-rx/scsa-rx/state/counters/sc-valid:
-  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sa-auth-only:
-  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sa-encrypted:
-  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-auth-only:
-  /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-encrypted:
-  /macsec/mka/state/counters/in-mkpdu-bad-peer-errors:
-  /macsec/mka/state/counters/in-mkpdu-icv-verification-errors:
-  /macsec/mka/state/counters/in-mkpdu-peer-list-errors:
-  /macsec/mka/state/counters/in-mkpdu-validation-errors:
-  /macsec/mka/state/counters/out-mkpdu-errors:
-  /macsec/mka/state/counters/sak-cipher-mismatch-errors:
-  /macsec/mka/state/counters/sak-decryption-errors:
-  /macsec/mka/state/counters/sak-encryption-errors:
-  /macsec/mka/state/counters/sak-generation-errors:
-  /macsec/mka/state/counters/sak-hash-errors:
+ /macsec/interfaces/interface/state:
+ /macsec/interfaces/interface/state/name:
+ /macsec/interfaces/interface/state/enable:
+ /macsec/interfaces/interface/state/replay-protection:
+ /macsec/interfaces/interface/state/counters:
+ /macsec/interfaces/interface/state/counters/tx-untagged-pkts:
+ /macsec/interfaces/interface/state/counters/rx-untagged-pkts:
+ /macsec/interfaces/interface/state/counters/rx-badtag-pkts:
+ /macsec/interfaces/interface/state/counters/rx-unknownsci-pkts:
+ /macsec/interfaces/interface/state/counters/rx-nosci-pkts:
+ /macsec/interfaces/interface/state/counters/rx-late-pkts:
+ /macsec/interfaces/interface/scsa-tx:
+ /macsec/interfaces/interface/scsa-tx/scsa-tx:
+ /macsec/interfaces/interface/scsa-tx/scsa-tx/sci-tx:
+ /macsec/interfaces/interface/scsa-tx/scsa-tx/state:
+ /macsec/interfaces/interface/scsa-tx/scsa-tx/state/sci-tx:
+ /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters:
+ /macsec/interfaces/interface/scsa-tx/scsa-tx/state/counters/sc-auth-only:
+ /macsec/mka/state:
+ /macsec/mka/state/counters:
+ /macsec/mka/state/counters/out-mkpdu-errors:
+ /macsec/mka/state/counters/in-mkpdu-icv-verification-errors:
+ /macsec/mka/state/counters/in-mkpdu-validation-errors:
+ /macsec/mka/state/counters/in-mkpdu-bad-peer-errors:
+ /macsec/mka/state/counters/in-mkpdu-peer-list-errors:
+ /macsec/mka/state/counters/sak-generation-errors:
+ /macsec/mka/state/counters/sak-hash-errors:
+ /macsec/mka/state/counters/sak-encryption-errors:
+ /macsec/mka/state/counters/sak-decryption-errors:
+ /macsec/mka/state/counters/sak-cipher-mismatch-errors:
+ /macsec/interfaces/interface:
+ /macsec/interfaces/interface/name:
+ /macsec/interfaces/interface/config:
+ /macsec/interfaces/interface/config/name:
+ /macsec/interfaces/interface/config/enable:
+ /macsec/interfaces/interface/config/replay-protection:
+ /macsec/mka/policies/policy/config/name:
+ /macsec/mka/policies/policy/config/key-server-priority:
+ /macsec/mka/policies/policy/config/confidentiality-offset:
+ /macsec/mka/policies/policy/config/delay-protection:
+ /macsec/mka/policies/policy/config/include-icv-indicator:
+ /macsec/mka/policies/policy/config/include-sci:
+ /macsec/mka/policies/policy/config/sak-rekey-interval:
+ /macsec/mka/policies/policy/config/sak-rekey-on-live-peer-loss:
+ /macsec/mka/policies/policy/config/use-updated-eth-header:
+ /macsec/mka/policies/policy/config/macsec-cipher-suite:
+
+#TODO: Add following OC paths
+#/macsec/interfaces/interface/[Physical Interface]/state/status:
+#/macsec/interfaces/interface/[Physical Interface]/state/ckn:
+#/macsec/mka/policies/policy/config/security-policy:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-ctrl:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-data:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-dropped:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/rx-pkts-err-in:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-ctrl:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-data:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-dropped:
+#/macsec/interfaces/interface/[Physical Interface]/state/counters/tx-pkts-err-in:
 
 rpcs:
   gnmi:
