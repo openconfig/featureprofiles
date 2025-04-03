@@ -20,6 +20,7 @@ paths used for test setup are not listed here.
 
 ```yaml
 paths:
+## Config paths
   /components/component/port/breakout-mode/groups/group/index:
     platform_type: [ "PORT" ]
   /components/component/port/breakout-mode/groups/group/config/index:

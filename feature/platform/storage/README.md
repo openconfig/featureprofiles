@@ -30,7 +30,7 @@ Storage File System Check
 ```yaml
 
 paths:
-
+## State paths
   /components/component/storage/state/counters/soft-read-error-rate:
    platform_type: [ "STORAGE" ]
   /components/component/storage/state/counters/reallocated-sectors:

@@ -22,11 +22,11 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-// DeviationCiscoRoutingPolicyBGPActionSetCommunity is used as an alternative to
+// DeviationCiscoRoutingPolicyBGPActionSetMed is used as an alternative to
 // /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med.
 // This deviation implements CLI to perform the equivalent function.
 func DeviationCiscoRoutingPolicyBGPActionSetMed(t *testing.T, dut *ondatra.DUTDevice, policyName string, statement string, prefixSetName string, setMed int, origin string) {
-	//route-policy route-policy-v4
+	// route-policy route-policy-v4
 	//   #statement-name statement-v4
 	//   if destination in prefix-set-v4 then
 	//     set med 104
@@ -60,4 +60,21 @@ func DeviationCiscoRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondatra
 	}
 	cliConfig += " done\nend-policy\n"
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+// DeviationJuniperRoutingPolicyBGPActionSetCommunity is used as an alternative to
+// /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community
+// This deviation implements CLI to perform the equivalent function.
+func DeviationJuniperRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondatra.DUTDevice, policyName string, statement string, community string) {
+	config := fmt.Sprintf(`
+	policy-options {
+		policy-statement %s {
+			term %s {
+				then {
+					community add %s;
+				}
+			}
+		}
+	}`, policyName, statement, community)
+	helpers.GnmiCLIConfig(t, dut, config)
 }
