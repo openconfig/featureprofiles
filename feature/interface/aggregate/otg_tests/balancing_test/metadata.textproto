@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    interface_counters_update_delayed: true
   }
 }
 platform_exceptions: {
@@ -18,7 +19,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     aggregate_atomic_update: true
     interface_enabled: true
