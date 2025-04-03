@@ -14,6 +14,7 @@ platform_exceptions: {
     interface_counters_from_container: true
     subinterface_packet_counters_missing: true
     interface_counters_update_delayed: true
+    load_interval_not_supported: true
   }
 }
 platform_exceptions: {
@@ -22,6 +23,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv6_discarded_pkts_unsupported: true
+    load_interval_not_supported: true
   }
 }
 platform_exceptions: {
@@ -29,8 +31,8 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    load_interval_not_supported: true
   }
 }
 platform_exceptions: {
@@ -40,5 +42,8 @@ platform_exceptions: {
   deviations: {
     ipv6_discarded_pkts_unsupported: true
     default_network_instance: "default"
+    load_interval_not_supported: true
+
   }
 }
+
