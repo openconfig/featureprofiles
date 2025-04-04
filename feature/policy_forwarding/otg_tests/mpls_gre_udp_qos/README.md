@@ -27,6 +27,30 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md) and [decapsulation PF-1.12](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md) READMEs for additional information on the test traffic environment setup.
 
+#### Flow A:
+Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
+* Outer source address: random combination of 1000+ IPV4 source addresses
+* Outer destination address: Traffic must fall within the configured IPV4 unicast prefix range for MPLSoGRE and MPLSoGUE traffic.
+* MPLS Labels: 
+    * Various streams must map to every configured IPV4/IPV6/Multicast static MPLS labels on the device
+    * Use all combinations of traffic class bits in the MPLS label (0 to 7)
+* Inner payload: 
+    * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
+    * Multicast traffic
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+* Ingress aggregate links on one core and egress aggregate links on different core
+
+
+#### Flow B:
+* Generate IP traffic on ATE Ports 1,2 with all possible DSCP values.
+* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
+* The egress interfaces must have 6 or more classes with priority class configuration
+* Ingress interfaces must classify the traffic under TCO-TC7
+* All traffic classes must have encapsulated (MPLSoGRE and MPLSoGUE) egress traffic
+* The individual streams bandwidth corresponding to PriortyN class must be minimum 10 percent greater than the PriorityN-1 class
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+* Ingress aggregate links on one core and egress aggregate links on different core
+
 ## PF-1.18.1: Generate DUT Configuration
 #### Configuration
 
@@ -67,16 +91,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * Configure one or more interfaces with two rate 3 color policer
 
 ## PF-1.18.2: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header
-Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses
-* Outer destination address: Traffic must fall within the configured IPV4 unicast prefix range for MPLSoGRE and MPLSoGUE traffic.
-* MPLS Labels: 
-    * Various streams must map to every configured IPV4/IPV6/Multicast static MPLS labels on the device
-    * Use all combinations of traffic class bits in the MPLS label (0 to 7)
-* Inner payload: 
-    * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
-    * Multicast traffic
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+Generate Flow-A.
 
 Verify:
 * Egress IP traffic after decapsulation gets classified into 8 queues mapped to 8 traffic classes based on MPLS label as configured on the device.
@@ -94,11 +109,10 @@ Verify:
 
 ## PF-1.18.4: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic (MPLSoGRE to IP traffic - decap operation)
 This test is to verify the assured forwarding feature on interfaces (bandwidth only classes): 
-* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7) 
+* Generate Flow-A 
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion 
 * The egress interfaces must have 5 or more classes with minimum bandwidth configuration
 * The streams across all the classes must be greater than the configured minimum bandwidth
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
 Verify:
 * The total conformed bandwidth is equal to the interface bandwidth
@@ -110,11 +124,10 @@ Verify:
 
 ## PF-1.18.5: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper) 
 This test is to verify the assured forwarding feature on interfaces with bandwidth only classes and shaper (maximum bandwidth) configured on 2 or more classes: 
-* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7) 
+* Generate Flow-A 
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion 
 * The egress interfaces must have 5 or more classes with minimum bandwidth configuration. 3 or more classes with minimum bandwidth configuration must also have a maximum bandwidth (shaper) configuration
 * The streams across all the classes must be greater than the configured minimum  and maximum bandwidth
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
 Verify:
 * The total conformed bandwidth is equal to the interface bandwidth
@@ -127,11 +140,10 @@ Verify:
 
 ## PF-1.18.6: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic
 This test is to verify the expedited forwarding feature on interfaces with priority only classes: 
-* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7).
+* Generate Flow-A
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
 * The egress interfaces must have 6 or more classes with priority class configuration
 * The individual streams bandwidth corresponding to PriortyN class must be minimum 10 percent greater than the PriorityN-1 class
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
 * The total conformed bandwidth is equal to the interface bandwidth.
@@ -142,13 +154,12 @@ Verify:
 
 ## PF-1.18.7: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper)
 This test is to verify the expedited forwarding feature on interfaces with priority only classes and shaper (maximum bandwidth) configured on 2 or more classes. 
-* Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7).
+* Generate Flow-A
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
 * The egress interfaces must have 6 or more classes with priority class configuration with one or more classes having shaper configuration
 * The individual streams bandwidth corresponding to PriortyN class must be:
     * minimum 10 percent greater than the PriorityN-1
     * greater than the configured shaper bandwidth
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
 * The total conformed bandwidth is equal to the interface bandwidth
@@ -160,13 +171,7 @@ Verify:
 
 ## PF-1.18.8: Verify Expedited forwarding (Priority class) -  Queueing of encap traffic 
 This test is to verify the expedited forwarding feature on interfaces with priority only classes. 
-* Generate IP traffic on ATE Ports 1,2 with all 8 values of MPLS experimental bits (0-7).
-* The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
-* The egress interfaces must have 6 or more classes with priority class configuration
-* Ingress interfaces must classify the traffic under TCO-TC7
-* All traffic classes must have encapsulated (MPLSoGRE and MPLSoGUE) egress traffic
-* The individual streams bandwidth corresponding to PriortyN class must be minimum 10 percent greater than the PriorityN-1 class
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+* Generate Flow-B
 
 Verify:
 * The total conformed bandwidth is equal to the interface bandwidth.
@@ -177,18 +182,17 @@ Verify:
 
 ## PF-1.18.9: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
 This test is to verify the two rate, three color policer
-* Generate IP traffic on ATE Ports 1,2 with all 8 values of MPLS experimental bits (0-7).
+* Generate Flow-B
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the configured peak information rate (PIR) and committed information rate (CIR)
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
 
 Verify:
 * The total conformed bandwidth is equal to the PIR configured on the bundle and rest of the traffic gets dropped
 * The traffic conforming to CIR and exceeding CIR can be selectively marked
 
-## PF-1.18.10: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
-This test case is to verify that results corresponding to all above test cases are the same and  irrespective of the distribution of ingress and egress links across different packet processing engines.
+## PF-1.18.10: Verify port/hardware dependency
+This test case is to verify that results corresponding to all above test cases are the same and irrespective of the distribution of ingress and egress links across different packet processing engines.
 
-Verify results are same corresponding to test cases PF-1.18.1 - PF-1.18.8 with:
+Verify results are same corresponding to test cases PF-1.18.1 - PF-1.18.9 with:
 * Ingress aggregate links on one PPE and egress aggregate links on different PPE
 * Ingress and egress aggregate links on same PPE
 * Ingress links on multiple PPEs and egress aggregate links on multiple PPEs
