@@ -1,4 +1,4 @@
-# PF-1.8 - MPLSoGRE and MPLSoGUE QoS 
+# PF-1.18 - MPLSoGRE and MPLSoGUE QoS 
 
 ## Summary
 This test verifies quality of service with MPLSoGRE and MPLSoGUE IP traffic on routed VLAN sub interfaces. The classification, marking and queueing of traffic while being encapsulated and decapsulated based on the outer headers and/or inner payload are the major features verified on the test device.
@@ -24,8 +24,9 @@ Test uses aggregate 802.3ad bundled interfaces (Port Channel).
 
   * Encap to IP Traffic: The Encap traffic to IP traffic is from ATE Ports [3,4,5,6] to ATE Ports [1,2].  
 
-Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additional information on the test traffic environment setup.
+Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md) and [decapsulation PF-1.12](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md) READMEs for additional information on the test traffic environment setup.
 
+## PF-1.18.1: Generate DUT Configuration
 #### Configuration
 
 ### QoS
@@ -38,7 +39,6 @@ Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additio
     * Bandwidth/assured forwarding class
         * Class with minimum assured bandwidth(interface percentage or absolute value) during congestion
         * Shaping must be supported and configurable to limit a bandwidth class with maximum bandwidth allocation irrespective of congestion state 
-        * Configure 5 sub-interfaces with 8 bandwidth classes each
         * Configure 5 sub-interfaces with 8 bandwidth classes and ensure 4 or more classes have shaping configured.
 
     * Priority/expedited forwarding class
@@ -65,7 +65,7 @@ Please refer to the MPLSoGRE encapsulation and decapsulation READMEs for additio
 * Policer Configuration for IP to Encap Traffic:
     * Configure one or more interfaces with two rate 3 color policer
 
-## PF-1.8.1: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header
+## PF-1.18.2: Verify Classification of MPLSoGRE and MPLSoGUE traffic based on traffic class bits in MPLS header
 Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses
 * Outer destination address: Traffic must fall within the configured IPV4 unicast prefix range for MPLSoGRE and MPLSoGUE traffic.
@@ -87,7 +87,7 @@ Verify:
 * Traffic equally load-balanced across member links of the port channel.
 * Header fields are as expected without any bit flips. Verify the multicast L2 rewrite is correct and multicast L2 address based on multicast payload IPV4 address.
 
-## PF-1.8.2: Verify DSCP marking of encapsulated and decapsulated traffic
+## PF-1.18.3: Verify DSCP marking of encapsulated and decapsulated traffic
 Generate bidirectional traffic (MPLSoGRE and MPLSoGUE) as highlighted in the test environment setup section.
 
 Verify:
@@ -95,7 +95,7 @@ Verify:
 * IP to Encapsulated traffic maps to traffic classes TC3 and TC4 based on ingress configuration
 * Encapsulated traffic to IP traffic forwarding and the decap operation does not result in any DSCP rewrite of the inner payload
 
-## PF-1.8.3: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic (MPLSoGRE to IP traffic - decap operation)
+## PF-1.18.4: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic (MPLSoGRE to IP traffic - decap operation)
 This test is to verify the assured forwarding feature on interfaces (bandwidth only classes): 
 * Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7) 
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion 
@@ -111,7 +111,7 @@ Verify:
 * Results are same with 64 byte stream, MTU byte stream and mix of 64..MTU byte streams
 * Every queue can transmit packets at line rate without any buffer/tail drops
 
-## PF-1.8.4: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper) 
+## PF-1.18.5: Verify Assured forwarding (bandwidth class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper) 
 This test is to verify the assured forwarding feature on interfaces with bandwidth only classes and shaper (maximum bandwidth) configured on 2 or more classes: 
 * Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7) 
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion 
@@ -129,7 +129,7 @@ Verify:
 * Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
 * Every queue can transmit packets at line rate without any buffer/tail drops
 
-## PF-1.8.5: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic
+## PF-1.18.6: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic
 This test is to verify the expedited forwarding feature on interfaces with priority only classes: 
 * Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7).
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
@@ -144,7 +144,7 @@ Verify:
 * Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
 * Every queue can transmit packets at line rate without any buffer/tail drops
 
-## PF-1.8.6: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper)
+## PF-1.18.7: Verify Expedited forwarding (Priority class) -  Queueing of decap traffic with minimum and maximum bandwidth (shaper)
 This test is to verify the expedited forwarding feature on interfaces with priority only classes and shaper (maximum bandwidth) configured on 2 or more classes. 
 * Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 with all 8 values of MPLS experimental bits (0-7).
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
@@ -162,7 +162,7 @@ Verify:
 * Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
 * Every queue can transmit packets at line rate without any buffer/tail drops
 
-## PF-1.8.7: Verify Expedited forwarding (Priority class) -  Queueing of encap traffic 
+## PF-1.18.8: Verify Expedited forwarding (Priority class) -  Queueing of encap traffic 
 This test is to verify the expedited forwarding feature on interfaces with priority only classes. 
 * Generate IP traffic on ATE Ports 1,2 with all 8 values of MPLS experimental bits (0-7).
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the total interface bandwidth ensuring congestion. 
@@ -179,7 +179,7 @@ Verify:
 * Results are same with 64 byte stream, MTU byte stream and mix of 64-MTU byte streams
 * Every queue can transmit packets at line rate without any buffer/tail drops
 
-## PF-1.8.8: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
+## PF-1.18.9: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
 This test is to verify the two rate, three color policer
 * Generate IP traffic on ATE Ports 1,2 with all 8 values of MPLS experimental bits (0-7).
 * The sum of 8 streams of traffic bandwidth must be minimum 10 percent greater than the configured peak information rate (PIR) and committed information rate (CIR)
@@ -189,15 +189,16 @@ Verify:
 * The total conformed bandwidth is equal to the PIR configured on the bundle and rest of the traffic gets dropped
 * The traffic conforming to CIR and exceeding CIR can be selectively marked
 
-## PF-1.8.9: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
+## PF-1.18.10: Verify two rate three color policer -  Ingress rate limiting of encap traffic 
 This test case is to verify that results corresponding to all above test cases are the same and  irrespective of the distribution of ingress and egress links across different packet processing engines.
 
-Verify results are same corresponding to test cases PF-1.8.1 - PF-1.8.8 with:
+Verify results are same corresponding to test cases PF-1.18.1 - PF-1.18.8 with:
 * Ingress aggregate links on one PPE and egress aggregate links on different PPE
 * Ingress and egress aggregate links on same PPE
 * Ingress links on multiple PPEs and egress aggregate links on multiple PPEs
 
-## OpenConfig Path Coverage
+## Canonical OpenConfig for MACsec configuration
+
 TODO: 
 * Finalize and update the below paths after the review and testing on any vendor device
 * MPLSoGRE/MPLSoGUE packet classification OC need to be defined
@@ -567,58 +568,15 @@ TODO:
   }
 }
 ```
-## Telemetry Path Coverage
-```
-qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-qos/interfaces/interface/output/queues/queue/state/transmit-octets
-qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-qos/interfaces/interface/output/queues/queue/state/dropped-octets
 
-interfaces/interface/state/counters/in-discards
-interfaces/interface/state/counters/in-errors
-interfaces/interface/state/counters/in-multicast-pkts
-interfaces/interface/state/counters/in-pkts
-interfaces/interface/state/counters/in-unicast-pkts
-interfaces/interface/state/counters/out-discards
-interfaces/interface/state/counters/out-errors
-interfaces/interface/state/counters/out-multicast-pkts
-interfaces/interface/state/counters/out-pkts
-interfaces/interface/state/counters/out-unicast-pkts
+## OpenConfig Path and RPC Coverage
 
-interfaces/interface/subinterfaces/subinterface/state/counters/in-discards
-interfaces/interface/subinterfaces/subinterface/state/counters/in-errors
-interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/out-discards
-interfaces/interface/subinterfaces/subinterface/state/counters/out-errors
-interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts
-interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts
+```yaml
+paths:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
 
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts
 
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-error-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-multicast-pkts
-interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts
-
-network-instances/network-instance/policy-forwarding/policies/policy/policy-counters/state/out-pkts
-network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts
-network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id
 ```
