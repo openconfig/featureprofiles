@@ -37,6 +37,38 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+type testCase struct {
+	lagType oc.E_IfAggregate_AggregationType
+
+	dut *ondatra.DUTDevice
+	ate *ondatra.ATEDevice
+	top gosnappi.Config
+
+	// dutPorts is the set of ports the DUT -- the first (i.e., dutPorts[0])
+	// is not configured in the aggregate interface.
+	dutPorts []*ondatra.Port
+	// atePorts is the set of ports on the ATE -- the first, as with the DUT
+	// is not configured in the aggregate interface.
+	// is not configured in the aggregate interface.
+	atePorts []*ondatra.Port
+	aggID    string
+}
+
+const (
+	lagTypeLACP   = oc.IfAggregate_AggregationType_LACP
+	lagTypeSTATIC = oc.IfAggregate_AggregationType_STATIC
+)
+
+const (
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	adminUp        = oc.Interface_AdminStatus_UP
+	opUp           = oc.Interface_OperStatus_UP
+	opDown         = oc.Interface_OperStatus_DOWN
+	full           = oc.Ethernet_DuplexMode_FULL
+	dynamic        = oc.IfIp_NeighborOrigin_DYNAMIC
+)
+
 func TestEthernetCounters(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port2")
@@ -118,9 +150,17 @@ func TestInterfaceCounters(t *testing.T) {
 		path:    intfCounterPath + "in-unicast-pkts",
 		counter: intfCounters.InUnicastPkts().State(),
 	}, {
-		desc:    "InUnicastPkts",
-		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().State(),
+		desc:    "OutUnicastPkts",
+		path:    intfCounterPath + "out-unicast-pkts",
+		counter: intfCounters.OutUnicastPkts().State(),
+	}, {
+		desc:    "InMulticastPkts",
+		path:    intfCounterPath + "in-multicast-pkts",
+		counter: intfCounters.InMulticastPkts().State(),
+	}, {
+		desc:    "OutMulticastPkts",
+		path:    intfCounterPath + "out-multicast-pkts",
+		counter: intfCounters.OutMulticastPkts().State(),
 	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
@@ -130,25 +170,41 @@ func TestInterfaceCounters(t *testing.T) {
 		path:    intfCounterPath + "out-pkts",
 		counter: intfCounters.OutPkts().State(),
 	}, {
+		desc:    "InDiscards",
+		path:    intfCounterPath + "in-discards",
+		counter: intfCounters.InDiscards().State(),
+	}, {
+		desc:    "OutDiscards",
+		path:    intfCounterPath + "out-discards",
+		counter: intfCounters.OutDiscards().State(),
+	}, {
+		desc:    "InErrors",
+		path:    intfCounterPath + "in-errors",
+		counter: intfCounters.InErrors().State(),
+	}, {
+		desc:    "OutErrors",
+		path:    intfCounterPath + "out-errors",
+		counter: intfCounters.OutErrors().State(),
+	}, {
+		desc:    "InFcsErrors",
+		path:    intfCounterPath + "in-fcs-errors",
+		counter: intfCounters.InFcsErrors().State(),
+	}, {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
 		counter: ipv4Counters.InPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
 		counter: ipv4Counters.OutPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
 		counter: ipv6Counters.InPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
 		counter: ipv6Counters.OutPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
@@ -160,7 +216,6 @@ func TestInterfaceCounters(t *testing.T) {
 		counter: ipv6Counters.OutDiscardedPkts().State(),
 		skip:    skipIpv6DiscardedPkts,
 	}}
-
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.skip {
