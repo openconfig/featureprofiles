@@ -80,12 +80,8 @@ Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
 Verify:
 * Egress IP traffic after decapsulation gets classified into 8 queues mapped to 8 traffic classes based on MPLS label as configured on the device.
 * Inner packet DSCP is not altered by the device
-* Routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
 * All traffic received gets decapsulated and forwarded as IPV4/IPV6 unicast, IPV4 multicast on all the interfaces.
-* No packet loss when forwarding.
-* Verify that there is no recirculation of traffic
-* Traffic equally load-balanced across member links of the port channel.
-* Header fields are as expected without any bit flips. Verify the multicast L2 rewrite is correct and multicast L2 address based on multicast payload IPV4 address.
+* Verify the inner packets are received by the ATE by validating the inner source and dest IP addresses.
 
 ## PF-1.18.3: Verify DSCP marking of encapsulated and decapsulated traffic
 Generate bidirectional traffic (MPLSoGRE and MPLSoGUE) as highlighted in the test environment setup section.
@@ -118,7 +114,6 @@ This test is to verify the assured forwarding feature on interfaces with bandwid
 * The egress interfaces must have 5 or more classes with minimum bandwidth configuration. 3 or more classes with minimum bandwidth configuration must also have a maximum bandwidth (shaper) configuration
 * The streams across all the classes must be greater than the configured minimum  and maximum bandwidth
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
-
 
 Verify:
 * The total conformed bandwidth is equal to the interface bandwidth
@@ -206,377 +201,91 @@ TODO:
 
 ### JSON Format
 
-```
-{
-  #
-  # The standard definition of an interface, assumed to be facing the customer.
-  # 
-  "interfaces": {
-    "interface": [
-      {
-        "config": {
-          "name": "Ethernet42"
-        },
-        "name": "Ethernet42",
-        "subinterfaces": {
-          "subinterface": [
-            {
-              "config": {
-                "index": 0
-              },
-              "index": 0
-            }
-          ]
-        }
-      }
-    ]
-  },
-  "qos": {
-    "classifiers": {
-      #
-      # The specification for the classifier to be applied to an interface.
-      # The classifier is applied to IPv4 packets.
-      #
-      "classifier": [
-        {
-          "config": {
-            "name": "IN_CUSTOMERIF",
-            "type": "IPV4"
-          },
-          "name": "IN_CUSTOMERIF",
-          #
-          # The set of terms that are present in the classifier. A
-          # logical AND is applied to each condition within the term.
-          # If a term is not matched, then the next term is evaluated.
-          #
-          "terms": {
-            "term": [
-              {
-                "conditions": {
-                  "ipv4": {
-                    "config": {
-                      "dscp": 18
-                    }
-                  }
-                },
-                "actions": {
-                  "config": {
-                    #
-                    # Packets matching this term (i.e., are DSCP AF21
-                    # as specified below) are grouped into the 'LOW'
-                    # forwarding-group.
-                    #
-                    "target-group": "LOW"
-                  }
-                },
-                "config": {
-                  "id": "DSCP_AF21"
-                },
-                "id": "DSCP_AF21"
-              },
-              {
-                "conditions": {
-                  "ipv4": {
-                    "config": {
-                      "dscp": 30
-                    }
-                  }
-                },
-                "actions": {
-                  "config": {
-                    "target-group": "MEDIUM"
-                  }
-                },
-                "config": {
-                  "id": "DSCP_AF33"
-                },
-                "id": "DSCP_AF33"
-              },
-              {
-                "conditions": {
-                  "ipv4": {
-                    "config": {
-                      "dscp": 36
-                    }
-                  }
-                },
-                "actions": {
-                  "config": {
-                    "target-group": "HIGH"
-                  }
-                },
-                "config": {
-                  "id": "DSCP_AF41"
-                },
-                "id": "DSCP_AF41"
-              },
-              {
-                "conditions": {
-                  "ipv4": {
-                    "config": {
-                      "dscp": 38
-                    }
-                  }
-                },
-                "actions": {
-                  "config": {
-                    "target-group": "HIGH"
-                  }
-                },
-                "config": {
-                  "id": "DSCP_AF42"
-                },
-                "id": "DSCP_AF42"
-              },
-              {
-                "conditions": {
-                  "ipv4": {
-                    "config": {
-                      "dscp": 46
-                    }
-                  }
-                },
-                "actions": {
-                  "config": {
-                    "target-group": "LLQ"
-                  }
-                },
-                "config": {
-                  "id": "DSCP_EF"
-                },
-                "id": "DSCP_EF"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    #
-    # The definition of the forwarding groups. Each forwarding
-    # group has a name, and an output queue. This queue is subsequently
-    # serviced based on a particular scheduler.
-    #
-    "forwarding-groups": {
-      "forwarding-group": [
-        {
-          "config": {
-            "name": "HIGH",
-            "output-queue": "GOLD"
-          },
-          "name": "HIGH"
-        },
-        {
-          "config": {
-            "name": "LLQ",
-            "output-queue": "PRIORITY"
-          },
-          "name": "LLQ"
-        },
-        {
-          "config": {
-            "name": "LOW",
-            "output-queue": "BRONZE"
-          },
-          "name": "LOW"
-        },
-        {
-          "config": {
-            "name": "MEDIUM",
-            "output-queue": "SILVER"
-          },
-          "name": "MEDIUM"
-        }
-      ]
-    },
-    #
-    # For configuration, the interfaces container specifies the
-    # binding between the specified classifiers/schedulers and
-    # an interface. 
-    #
-    "interfaces": {
-      "interface": [
-        {
-          "config": {
-            "interface-id": "Ethernet42.0"
-          },
-          #
-          # An input classifier is applied to the interface by
-          # referencing the classifier name within the /qos/interfaces
-          # list.
-          #
-          "input": {
-            "classifers": {
-              "classifier": [
-                {
-                  "config": {
-                    "name": "IN_CUSTOMERIF",
-                    "type": "IPV4"
-                  },
-                  "type": "IPV4"
-                }
-              ]
-            }
-          },
-          "interface-id": "Ethernet42.0",
-          #
-          # The scheduler policy to be used for output is referenced below.
-          # A single scheduler policy can be applied per interface. The 
-          # referencing of a scheduler policy also implies that the queues
-          # that it drains are created for the interface (or corresponding
-          # VoQs on the input interfaces) and telemetry is exported for them.
-          #
-          "output": {
-            "scheduler-policy": {
-              "config": {
-                "name": "OUT_CUSTOMERIF"
-              }
-            }
-          }
-        }
-      ]
-    },
-    #
-    # Queue specifications that will be instantiated on an interface
-    # based on the scheduler policy. The queues in this example have no specific
-    # configuration, but could have specified buffer sizes, or queue
-    # management disciplines.
-    #
-    "queues": {
-      "queue": [
-        {
-          "config": {
-            "name": "BRONZE"
-          },
-          "name": "BRONZE"
-        },
-        {
-          "config": {
-            "name": "GOLD"
-          },
-          "name": "GOLD"
-        },
-        {
-          "config": {
-            "name": "PRIORITY"
-          },
-          "name": "PRIORITY"
-        },
-        {
-          "config": {
-            "name": "SILVER"
-          },
-          "name": "SILVER"
-        }
-      ]
-    },
-    #
-    # The specification of the scheduler policy. A scheduler policy
-    # consists of a set of schedulers, which have a specified sequence.
-    # The schedulers describe a set of queueing approaches.
-    #
-    #
-    "scheduler-policies": {
-      "scheduler-policy": [
-        {
-          "config": {
-            "name": "OUT_CUSTOMERIF"
-          },
-          "name": "OUT_CUSTOMERIF",
-          "schedulers": {
-            "scheduler": [
+```json
+"network-instances": {
+  "network-instance": {
+    "DEFAULT": {
+       "name": "default",
+       "policy-forwarding": {
+         "policies": {
+           "policy": [
               {
                 "config": {
-                  "priority": "STRICT",
-                  "sequence": 0
+                  "policy-id": "decap MPLS in GRE"
                 },
-                #
-                # The inputs to each scheduler determine the queue(s)
-                # that is to be drained by the scheduler term.
-                #
-                "inputs": {
-                  "input": [
+                "rules": {
+                  "rule": [
                     {
                       "config": {
-                        "id": "PRIORITY_CLASS",
-                        "queue": "PRIORITY"
+                        "sequence-id": 1
                       },
-                      "id": "PRIORITY_CLASS"
+                      "ipv4": {
+                        "config": {
+                          "destination-address": "169.254.125.155/28",
+                          "protocol": "IP"
+                        },
+                        }
+                    },
+                    "action": {
+                        "decapsulate-gre": true,
+                        "mpls-classifier": true
+                        }
+                      },
+                      "sequence-id": 1
                     }
                   ]
                 },
-                #
-                # This scheduler term defines a 1r2c policer with a
-                # specified CIR which drops packets that exceed the
-                # CIR.
-                #
-                "one-rate-two-color": {
-                  "config": {
-                    "bc": 10000,
-                    "cir": "32000"
-                  },
-                  "exceed-action": {
-                    "config": {
-                      "drop": true
-                    }
-                  }
-                },
-                "sequence": 0
-              },
-              {
-                "config": {
-                  "sequence": 1
-                },
-                #
-                # In this scheduler term, a set of WRR queues are defined
-                # to be serviced.
-                #
-                "inputs": {
-                  "input": [
-                    {
-                      "config": {
-                        "id": "BRONZE_CLASS",
-                        "queue": "BRONZE",
-                        "weight": "10"
-                      },
-                      "id": "BRONZE_CLASS"
-                    },
-                    {
-                      "config": {
-                        "id": "GOLD_CLASS",
-                        "queue": "GOLD",
-                        "weight": "50"
-                      },
-                      "id": "GOLD_CLASS"
-                    },
-                    {
-                      "config": {
-                        "id": "SILVER_CLASS",
-                        "queue": "SILVER",
-                        "weight": "40"
-                      },
-                      "id": "SILVER_CLASS"
-                    }
-                  ]
-                },
-                "sequence": 1
               }
-            ]
-          }
-        }
-      ]
+           ]
+         }
+       }
     }
   }
 }
+
 ```
 
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
+  ### Telemetry 
   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
   /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
   /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
 
+   ### Scheduler policy - Strict priority
+  /qos/scheduler-policies/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
+
+   ### Scheduler policy - WRR
+  /qos/scheduler-policies/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight:
+
+   ### Scheduler - Policer
+  /qos/scheduler-policies/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/cir:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
+
+  ###Classifier  
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/mpls-classifier: TODO: Add OC path
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class:
 
 ```
