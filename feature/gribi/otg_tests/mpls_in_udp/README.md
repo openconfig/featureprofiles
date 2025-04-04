@@ -109,79 +109,6 @@ NH#201 -> {
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
   * Validate MPLS label is set
 
-### TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route
-
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-encapsulate in GRE.
-
-```json
-{
-  "openconfig-network-instance": {
-    "network-instances": [
-      {
-        "afts": {
-          "policy-forwarding": {
-            "policies": [
-              {
-                "config": {
-                  "policy-id": "default encap rule",
-                  "type": "PBR_POLICY"
-                },
-                "policy": "default encap rule",
-                "rules": [
-                  {
-                    "action": {
-                      "encapsulate-headers": [
-                        {
-                          "encapsulate-header": null,
-                          "gre": {
-                            "config": {
-                              "destination-ip": "outer_ipv6_dst_def",
-                              "dscp": "outer_dscp",
-                              "id": "default_dst_1",
-                              "ip-ttl": "outer_ip-ttl",
-                              "source-ip": "outer_ipv6_src"
-                            }
-                          },
-                          "mpls": {
-                            "mpls-label-stack": [
-                              100
-                            ]
-                          }
-                        }
-                      ],
-                      "config": {
-                        "network-instance": "DEFAULT"
-                      }
-                    },
-                    "config": {
-                      "sequence-id": 1,
-                    },
-                    "ipv6": {
-                      "config": {
-                        "destination-address": "inner_ipv6_default"
-                      }
-                    },
-                    "rule": 1
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        "network-instance": "group_A"
-      }
-    ]
-  }
-}
-```
-
-* Generate the policy forwarding configuration
-* Push the configuration to DUT using gnmi.Set with REPLACE option
-* Configure ATE port 1 with traffic flow which does not match any AFT next hop route
-* Generate traffic from ATE port 1 to ATE port 2
-* Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -213,24 +140,7 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp:
 
-  # Paths added for TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/mpls/config/mpls-label-stack:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/destination-ip:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/dscp:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/id:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/ip-ttl:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/source-ip:
-
-
 rpcs:
-  gnmi:
-    gNMI.Set:
-      union_replace: true
-      replace: true
-    gNMI.Subscribe:
-      on_change: true
   gribi:
     gRIBI.Modify:
       afts:next-hops:next-hop:encap-headers:encap-header:udp_v6:

@@ -22,3 +22,12 @@ platform_exceptions: {
     operational_mode_unsupported:true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+  }
+}
