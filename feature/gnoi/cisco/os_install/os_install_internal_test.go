@@ -233,7 +233,7 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 	}
 
 	t.Run("test Supervisor Switchover", func(t *testing.T) {
-		t.Skip("workaround CSCwn79877")
+		// t.Skip("workaround CSCwn79877")
 		util.SupervisorSwitchover(t, tc.dut)
 		tc.pollRpc(t)
 		if tc.dualSup {
