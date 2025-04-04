@@ -95,8 +95,8 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					}
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
-					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
 					validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
 				})
 			}
@@ -154,8 +154,8 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
-				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
 				validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, tc.frequency, top)
 			})
 		}
@@ -195,8 +195,8 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
 	t.Run("Telemetry before flap", func(t *testing.T) {
 		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower)
 	})
@@ -213,8 +213,8 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	// Re-enable the interfaces on the DUT.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), true)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
 	// Verify the ZR optics tune back to the correct frequency and TX output
 	// power as per the configuration and related telemetry values are updated
 	// to the value in the normal range again.
