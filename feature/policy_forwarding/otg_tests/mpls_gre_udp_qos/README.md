@@ -271,7 +271,6 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight:
 
    ### Policer
-  /qos/scheduler-policies/scheduler-policy/config/name:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/cir:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
