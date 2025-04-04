@@ -15,6 +15,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -47,7 +48,12 @@ func init() {
 // Initialize assigns OpMode with value received through operationalMode flag.
 func Initialize(operationalMode uint16) {
 	once.Do(func() {
-		opmode = operationalMode
+		if operationalMode != 0 {
+			opmode = operationalMode
+		} else {
+			fmt.Sprintln("Please specify the vendor-specific operational-mode flag")
+			return
+		}
 	})
 }
 
@@ -129,6 +135,13 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			},
 		})
 	} else {
+		t.Logf(" otnIndex:%v, ethIndex: %v", otnIndex, ethIndex)
+		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
+			Description:        ygot.String("ETH Logical Channel"),
+			Index:              ygot.Uint32(ethIndex),
+			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
+			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		})
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),

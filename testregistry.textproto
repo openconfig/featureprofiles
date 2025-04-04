@@ -307,7 +307,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "Health-1.1"
+  id: "Health-1.2"
   description: "Healthz component status paths"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
   exec: " "
@@ -474,9 +474,56 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.11"
+  description: "Rewrite the ingress innner packet TTL"
+  readme: " "
+}
+test: {
+  id: "PF-1.12"
+  description: "PF-1.12 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.13"
+  description: "PF-1.13 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload scale test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_scale_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.14"
+  description: "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.15"
+  description: "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_scale_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.16"
+  description: "MPLSoGRE IPV4 encapsulation IPV4/IPV6 local proxy test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.17"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_macsec/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
+  exec: " "
+}
+test: {
+  id: "PLT-1.2"
+  description: "Interface parent component Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/interface_parent_component/README.md"
   exec: " "
 }
 test: {
@@ -942,6 +989,18 @@ test: {
   id: "RT-5.9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.11"
+  description: "Interface LACP Intervals"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_interval_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.12"
+  description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test/README.md"
   exec: " "
 }
 test: {

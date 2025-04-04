@@ -28,10 +28,10 @@ require (
 	github.com/openconfig/gribigo v0.0.0-20240829231637-69cf06726cc3
 	github.com/openconfig/kne v0.1.18
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
-	github.com/openconfig/ondatra v0.7.1
+	github.com/openconfig/ondatra v0.8.0
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.11.1
+	github.com/openconfig/ygnmi v0.12.0
 	github.com/openconfig/ygot v0.29.20
 	github.com/p4lang/p4runtime v1.4.1
 	github.com/pborman/uuid v1.2.1
@@ -41,9 +41,9 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
-	golang.org/x/text v0.21.0
+	golang.org/x/text v0.22.0
 	google.golang.org/api v0.171.0
 	google.golang.org/grpc v1.69.4
 	google.golang.org/protobuf v1.36.3
@@ -100,6 +100,7 @@ require (
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -155,10 +156,10 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/term v0.28.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/tools v0.28.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
