@@ -204,6 +204,7 @@ TODO:
 * Add json queueing configs in this file - b/408493684
 
 ### JSON Format
+NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
 
 ```json
 {
@@ -235,7 +236,7 @@ TODO:
                                         "config": {
                                             "incoming-label": 40571,
                                             "next-hop": "169.254.1.138",
-                                            "pipe-mode": true # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
                                         }
                                     }
                                 },
@@ -247,7 +248,7 @@ TODO:
                                         "config": {
                                             "incoming-label": 40572,
                                             "next-hop": "2600:2d00:0:1:4000:15:69:2072",
-                                            "pipe-mode": true # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
                                         }
                                     }
                                 },
@@ -258,8 +259,8 @@ TODO:
                                     "egress": {
                                         "config": {
                                             "incoming-label": 40573,
-                                            "next-hop": "239.0.1.1" # Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
-                        "pipe-mode": true, # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                                            "next-hop": "239.0.1.1",
+                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
                                         }
                                     }
                                 }
