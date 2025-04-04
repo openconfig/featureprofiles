@@ -1327,3 +1327,8 @@ func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 func LoadIntervalNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadIntervalNotSupported()
 }
+
+// BannerEmptyDelimiterUnsupported returns true if the device does not support empty delimiter in banner
+func BannerEmptyDelimiterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBannerEmptyDelimiterUnsupported()
+}
