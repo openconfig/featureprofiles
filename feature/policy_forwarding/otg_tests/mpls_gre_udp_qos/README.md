@@ -256,16 +256,7 @@ paths:
   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
   /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
 
-   ### Scheduler policy - Strict priority
-  /qos/scheduler-policies/scheduler-policy/config/name:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
-
-   ### Scheduler policy - WRR
+   ### Scheduler policy - Strict priority and WRR
   /qos/scheduler-policies/scheduler-policy/config/name:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
@@ -275,9 +266,8 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight:
 
-   ### Scheduler - Policer
+   ### Policer
   /qos/scheduler-policies/scheduler-policy/config/name:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/cir:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
