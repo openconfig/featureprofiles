@@ -18,7 +18,8 @@ DUT has 3 aggregate interfaces.
                          |         | --eBGP-- | ATE Port 5,6  |
 ```
 
-Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
+Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces). Ingress aggregate links on one packet processing engine (PPE) and egress aggregate links on all PPEs.
+
 
 * Send bidirectional traffic:
   * IP to Encap Traffic: The IP to Encap traffic is from ATE Ports [1,2] to ATE Ports [3,4,5,6]. 
@@ -38,8 +39,6 @@ Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
     * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
     * Multicast traffic
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Ingress aggregate links on one core and egress aggregate links on all cores
-
 
 #### Flow B:
 * Generate IP traffic on ATE Ports 1,2 with all possible DSCP values.
@@ -49,7 +48,6 @@ Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
 * All traffic classes must have encapsulated (MPLSoGRE and MPLSoGUE) egress traffic
 * The individual streams bandwidth corresponding to PriortyN class must be minimum 10 percent greater than the PriorityN-1 class
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Ingress aggregate links on one core and egress aggregate links on all cores
 
 ## PF-1.18.1: Generate DUT Configuration
 #### Configuration
