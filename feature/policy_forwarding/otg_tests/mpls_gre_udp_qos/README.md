@@ -201,6 +201,7 @@ TODO:
 * Finalize and update the below paths after the review and testing on any vendor device
 * MPLSoGRE/MPLSoGUE packet classification OC need to be defined
 * OC for Queueing with shaper need to be defined
+* Add json queueing configs in this file - b/408493684
 
 ### JSON Format
 
