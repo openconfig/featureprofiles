@@ -515,6 +515,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.18"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_qos/README.md"
+  exec: " "
+}
+test: {
   id: "PF-1.19"
   description: "MPLSoGRE and MPLSoGUE MACsec"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_test/README.md"
