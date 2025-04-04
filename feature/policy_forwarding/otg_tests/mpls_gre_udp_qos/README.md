@@ -228,7 +228,7 @@ TODO:
                     },
                     "action": {
                         "decapsulate-gre": true,
-                        "mpls-classifier": true
+                        "mpls-classifier": true  #TODO: Add to OC data models
                         }
                       },
                       "sequence-id": 1
