@@ -101,6 +101,138 @@ flowchart TB
 *   Generate traffic from ATE port-1 source ```ap1-v6 = 2001:DB8::2/126, port: 49256``` and destined to ATE port-2 ```ap2-v6 = 2001:DB8::6/126, port: 49512``` with DSCP value set to ```AF11```
 *   Validate that the traffic is not received at ATE port-2
 
+## Canonical OC Configuration
+
+### IPv4 ACL
+
+```json
+/acl/acl-sets/acl-set[name=ipv4-dscp-match][type=ACL_IPV4]:
+{
+  "openconfig-acl:acl-entries": {
+    "acl-entry": [
+      {
+        "actions": {
+          "config": {
+            "forwarding-action": "ACCEPT"
+          },
+          "state": {
+            "forwarding-action": "ACCEPT"
+          }
+        },
+        "config": {
+          "sequence-id": 10
+        },
+        "ipv4": {
+          "config": {
+            "destination-address": "192.168.1.6/32",
+            "dscp": 18,
+            "protocol": 6,
+            "source-address": "192.168.1.2/32"
+          },
+          "state": {
+            "destination-address": "192.168.1.6/32",
+            "dscp": 18,
+            "protocol": 6,
+            "source-address": "192.168.1.2/32"
+          }
+        },
+        "sequence-id": 10,
+        "state": {
+          "matched-octets": "0",
+          "matched-packets": "0",
+          "sequence-id": 10
+        },
+        "transport": {
+          "config": {
+            "destination-port": 49512,
+            "source-port": 49256
+          },
+          "state": {
+            "destination-port": 49512,
+            "source-port": 49256
+          }
+        }
+      }
+    ]
+  },
+  "openconfig-acl:config": {
+    "name": "ipv4-dscp-match",
+    "type": "ACL_IPV4"
+  },
+  "openconfig-acl:name": "ipv4-dscp-match",
+  "openconfig-acl:state": {
+    "name": "ipv4-dscp-match",
+    "type": "ACL_IPV4"
+  },
+  "openconfig-acl:type": "ACL_IPV4"
+}
+```
+
+### IPv6 ACL
+
+```json
+/acl/acl-sets/acl-set[name=ipv6-dscp-match][type=ACL_IPV6]:
+{
+  "openconfig-acl:acl-entries": {
+    "acl-entry": [
+      {
+        "actions": {
+          "config": {
+            "forwarding-action": "ACCEPT"
+          },
+          "state": {
+            "forwarding-action": "ACCEPT"
+          }
+        },
+        "config": {
+          "sequence-id": 10
+        },
+        "ipv6": {
+          "config": {
+            "destination-address": "2001:db8::6/128",
+            "dscp": 34,
+            "protocol": 6,
+            "source-address": "2001:db8::2/128"
+          },
+          "state": {
+            "destination-address": "2001:db8::6/128",
+            "dscp": 34,
+            "protocol": 6,
+            "source-address": "2001:db8::2/128"
+          }
+        },
+        "sequence-id": 10,
+        "state": {
+          "matched-octets": "0",
+          "matched-packets": "0",
+          "sequence-id": 10
+        },
+        "transport": {
+          "config": {
+            "destination-port": 49512,
+            "source-port": 49256
+          },
+          "state": {
+            "destination-port": 49512,
+            "source-port": 49256
+          }
+        }
+      }
+    ]
+  },
+  "openconfig-acl:config": {
+    "name": "ipv6-dscp-match",
+    "type": "ACL_IPV6"
+  },
+  "openconfig-acl:name": "ipv6-dscp-match",
+  "openconfig-acl:state": {
+    "name": "ipv6-dscp-match",
+    "type": "ACL_IPV6"
+  },
+  "openconfig-acl:type": "ACL_IPV6"
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
