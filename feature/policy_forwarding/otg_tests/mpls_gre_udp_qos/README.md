@@ -250,7 +250,6 @@ TODO:
 ```
 
 ## OpenConfig Path and RPC Coverage
-
 ```yaml
 
 paths:
