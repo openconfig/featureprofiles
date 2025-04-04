@@ -10,14 +10,15 @@ This test verifies quality of service with MPLSoGRE and MPLSoGUE IP traffic on r
 ### Test environment setup
 
 ```
-DUT has 3 EtherChannels.
+DUT has 3 aggregate interfaces.
+
 
                          |         | --eBGP-- | ATE Ports 3,4 |
     [ ATE Ports 1,2 ]----|   DUT   |          |               |
                          |         | --eBGP-- | ATE Port 5,6  |
 ```
 
-Test uses aggregate 802.3ad bundled interfaces (Port Channel).
+Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Send bidirectional traffic:
   * IP to Encap Traffic: The IP to Encap traffic is from ATE Ports [1,2] to ATE Ports [3,4,5,6]. 
