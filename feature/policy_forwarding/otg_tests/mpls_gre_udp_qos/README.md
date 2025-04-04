@@ -284,7 +284,6 @@ paths:
   /qos/forwarding-groups/forwarding-group/config/name:
   /qos/forwarding-groups/forwarding-group/config/output-queue:
 
-```
 rpcs:
   gnmi:
     gNMI.Set:
