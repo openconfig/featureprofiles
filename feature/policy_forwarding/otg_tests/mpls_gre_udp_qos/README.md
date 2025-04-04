@@ -38,7 +38,7 @@ Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
     * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
     * Multicast traffic
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Ingress aggregate links on one core and egress aggregate links on different core
+* Ingress aggregate links on one core and egress aggregate links on all cores
 
 
 #### Flow B:
@@ -49,7 +49,7 @@ Generate MPLSoGRE and MPLSoGUE traffic on ATE Ports 3,4,5,6 having:
 * All traffic classes must have encapsulated (MPLSoGRE and MPLSoGUE) egress traffic
 * The individual streams bandwidth corresponding to PriortyN class must be minimum 10 percent greater than the PriorityN-1 class
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
-* Ingress aggregate links on one core and egress aggregate links on different core
+* Ingress aggregate links on one core and egress aggregate links on all cores
 
 ## PF-1.18.1: Generate DUT Configuration
 #### Configuration
