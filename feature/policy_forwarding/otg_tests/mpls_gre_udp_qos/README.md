@@ -288,5 +288,7 @@ paths:
   /qos/interfaces/interface/input/classifiers/classifier/config/name:
   /qos/interfaces/interface/input/classifiers/classifier/config/type:
   /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class:
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
 
 ```
