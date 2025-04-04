@@ -285,3 +285,12 @@ paths:
   /qos/forwarding-groups/forwarding-group/config/output-queue:
 
 ```
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
+
+## Minimum DUT platform requirement
+
+FFF
