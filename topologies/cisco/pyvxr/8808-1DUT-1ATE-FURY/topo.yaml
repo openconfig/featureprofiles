@@ -30,8 +30,8 @@ devices:
     num_fabcards: 1
     pre_cli: reload location 0/0/CPU0 noprompt
     pre_config: hw-module profile npu-compatibility Q200
+
     platform: spitfire_d
-    cli_commands: reload location all noprompt
     xr_hostname: dut
     xr_password: cisco123
     xr_port_redir:
