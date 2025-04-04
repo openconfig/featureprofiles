@@ -27,7 +27,7 @@ const (
 	lagName       = "LAGRx" // OTG LAG NAME
 	upTimer       = 5000
 	downTimer     = 300
-	toleranceMS   = 200 // Define the tolerance in milliseconds
+	toleranceMS   = 700 // Define the tolerance in milliseconds
 
 )
 
