@@ -249,7 +249,9 @@ TODO:
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+
 paths:
+
   ### Telemetry 
   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
   /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
@@ -274,7 +276,7 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
 
   ###Classifier  
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/mpls-classifier: TODO: Add OC path
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/mpls-classifier:  #TODO: Add OC path
   /qos/interfaces/interface/input/classifiers/classifier/config/name:
   /qos/interfaces/interface/input/classifiers/classifier/config/type:
   /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class:
