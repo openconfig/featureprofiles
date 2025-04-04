@@ -515,6 +515,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.19"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.20"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_scale_test/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
