@@ -16,8 +16,10 @@
 package b4_scale_profile_test
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"strings"
@@ -25,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/iputil"
@@ -830,7 +833,8 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 		routeParams.numUniqueNHs = routeParams.numUniqueNHGs * routeParams.numNHPerNHG
 	}
 
-	prefixToNHGRatio := len(routeParams.ipEntries) / routeParams.numUniqueNHGs
+	// prefixToNHGRatio := len(routeParams.ipEntries) / routeParams.numUniqueNHGs
+	// prefixToNHGRatio := int(math.Ceil(float64(len(routeParams.ipEntries)) / float64(routeParams.numUniqueNHGs)))
 
 	for batch := 0; batch < batchCount; batch++ {
 		startIndex := batch * batchSize
@@ -850,49 +854,71 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 			batchNextHops = routeParams.nextHops[batch*nextHopsPerBatch : (batch+1)*nextHopsPerBatch]
 		}
 
-		// Initialize the current NHG ID using the global IDPool
-		nhgID := GlobalIDPool.NextNHGID()
+		numNHGsPerBatch := routeParams.numUniqueNHGs / batchCount
 
-		// Generate IPv4 entries, NextHopGroup entries, and NextHop entries in the same loop
+		// Calculate how many prefixes each NHG should get
+		batchEntries := endIndex - startIndex
+		ceilingRatio := int(math.Ceil(float64(batchEntries) / float64(numNHGsPerBatch)))
+		floorRatio := int(math.Floor(float64(batchEntries) / float64(numNHGsPerBatch)))
+
+		// Compute how many NHGs use ceiling and floor ratios
+		useCeilingCount := batchEntries - (floorRatio * numNHGsPerBatch)
+		// useFloorCount := numNHGsPerBatch - useCeilingCount
+
+		// Generate NHG IDs for this batch
+		nhgIDs := make([]uint64, numNHGsPerBatch)
+		for i := range nhgIDs {
+			nhgIDs[i] = GlobalIDPool.NextNHGID()
+		}
+		var nhgID uint64
+		// Assign prefixes to NHGs based on ceiling & floor ratios
+		nhgIndex := 0
+		// nhgID := nhgIDs[nhgIndex]
+		prefixLimit := ceilingRatio // Start with ceiling ratio for first NHGs
 		for i, ip := range routeParams.ipEntries[startIndex:endIndex] {
-			// Change NHG ID after every ratio
-			if i > 0 && i%prefixToNHGRatio == 0 {
-				nhgID = GlobalIDPool.NextNHGID()
-			}
+			if i%prefixLimit == 0 {
 
-			// Generate NextHopGroup entry
-			nhgEntry := fluent.NextHopGroupEntry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithID(nhgID)
-			if routeParams.backupNHG != 0 {
-				nhgEntry.WithBackupNHG(uint64(routeParams.backupNHG))
-			}
-
-			// Generate NextHop entries and add them to the NextHopGroup
-			for j := 0; j < routeParams.numNHPerNHG; j++ {
-				nhID := GlobalIDPool.NextNHID()
-				nhEntry := fluent.NextHopEntry().
-					WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-					WithIndex(nhID).
-					WithNextHopNetworkInstance(routeParams.nextHopVRF)
-				if routeParams.nextHopType == "encap" {
-					nhEntry.WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)]).
-						WithEncapsulateHeader(fluent.IPinIP)
-				} else if routeParams.nextHopType == "decap" {
-					nhEntry.WithDecapsulateHeader(fluent.IPinIP)
-				} else if routeParams.nextHopType == "decapEncap" {
-					nhEntry.WithDecapsulateHeader(fluent.IPinIP).
-						WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)])
-				} else if routeParams.nextHopType == "default" {
-					nhEntry.WithIPAddress(batchNextHops[j%len(batchNextHops)])
+				if nhgIndex >= useCeilingCount {
+					prefixLimit = floorRatio // Switch to floor ratio for remaining NHGs
 				}
-				pe.NHs = append(pe.NHs, nhEntry)
 
-				// Add the NextHop to the NextHopGroup
-				nhgEntry.AddNextHop(nhID, uint64(routeParams.nextHopWeight[j]))
+				nhgID := nhgIDs[nhgIndex%numNHGsPerBatch]
+				nhgIndex++
+				// Generate NextHopGroup entry
+				nhgEntry := fluent.NextHopGroupEntry().
+					WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					WithID(nhgID)
+				if routeParams.backupNHG != 0 {
+					nhgEntry.WithBackupNHG(uint64(routeParams.backupNHG))
+				}
+
+				// Generate NextHop entries and add them to the NextHopGroup
+				for j := 0; j < routeParams.numNHPerNHG; j++ {
+					nhID := GlobalIDPool.NextNHID()
+					nhEntry := fluent.NextHopEntry().
+						WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithIndex(nhID).
+						WithNextHopNetworkInstance(routeParams.nextHopVRF)
+					if routeParams.nextHopType == "encap" {
+						nhEntry.WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)]).
+							WithEncapsulateHeader(fluent.IPinIP)
+					} else if routeParams.nextHopType == "decap" {
+						nhEntry.WithDecapsulateHeader(fluent.IPinIP)
+					} else if routeParams.nextHopType == "decapEncap" {
+						nhEntry.WithDecapsulateHeader(fluent.IPinIP).
+							WithEncapsulateHeader(fluent.IPinIP).
+							WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)])
+					} else if routeParams.nextHopType == "default" {
+						nhEntry.WithIPAddress(batchNextHops[j%len(batchNextHops)])
+					}
+					pe.NHs = append(pe.NHs, nhEntry)
+
+					// Add the NextHop to the NextHopGroup
+					nhgEntry.AddNextHop(nhID, uint64(routeParams.nextHopWeight[j]))
+				}
+
+				pe.NHGs = append(pe.NHGs, nhgEntry)
 			}
-			pe.NHGs = append(pe.NHGs, nhgEntry)
 
 			// Generate IPv4 entry
 			ipCIDR := EnsureCIDR(ip, 32) // Ensure that the IPv4 address has a mask length of 32
@@ -935,10 +961,10 @@ func EnsureCIDR(ipStr string, mask int) string {
 	}
 }
 
-func LogGribiInfo(t *testing.T, gribiInfo []PairedEntries) {
+func LogGribiInfo(t *testing.T, segment string, gribiInfo []PairedEntries) {
 	for i, pe := range gribiInfo {
-		t.Logf("Batch %d: IPv4 entries: %d, IPv6 entries: %d, NH entries: %d, NHG entries: %d",
-			i, len(pe.V4Entries), len(pe.V6Entries), len(pe.NHs), len(pe.NHGs))
+		t.Logf("Segment %s, Batch %d: IPv4 entries: %d, IPv6 entries: %d, NH entries: %d, NHG entries: %d",
+			segment, i, len(pe.V4Entries), len(pe.V6Entries), len(pe.NHs), len(pe.NHGs))
 
 		for j, nhg := range pe.NHGs {
 			t.Logf("Batch %d, NHG %d: %v", i, j, nhg)
@@ -962,9 +988,56 @@ func LogGribiInfo(t *testing.T, gribiInfo []PairedEntries) {
 }
 
 func TestChains(t *testing.T) {
-
-	batches := 2
+	// initial setting
 	dut := ondatra.DUT(t, "dut")
+	peer := ondatra.DUT(t, "peer")
+	otg := ondatra.ATE(t, "ate")
+
+	ctx := context.Background()
+	gribic := dut.RawAPIs().GRIBI(t)
+	client := fluent.NewClient()
+	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
+		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+
+	client.Start(ctx, t)
+	// cleanup all existing gRIBI entries at the end of the test
+	// defer gribi.FlushAll(client)
+	// // cleanup all existing gRIBI entries in the begining of the test
+	if err := gribi.FlushAll(client); err != nil {
+		t.Error(err)
+	}
+	// Wait for the gribi entries get flushed
+	time.Sleep(300 * time.Second)
+	defer client.Stop(t)
+
+	// configureNetworkInstance(t, dut)
+	// t.Log("Configure DUT & PEER devices")
+	configureDevices(t, dut, peer)
+	// t.Log("Configure TGEN OTG")
+	topo := configureOTG(t, otg)
+	t.Log("OTG CONFIG: ", topo)
+	tcArgs := &testArgs{
+		dut:    dut,
+		peer:   peer,
+		ate:    otg,
+		topo:   topo,
+		client: client,
+		ctx:    ctx,
+	}
+	t.Run("Verify default BGP traffic", func(t *testing.T) {
+		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
+		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
+	})
+	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
+	peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
+
+	// add static route on peer for the tunnel destination for encap, decap+encap traffic
+	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
+	t.Log("Program base gRIBI entries")
+
+	//modular configuration begins below
+
+	batches := 4
 
 	// prepare backup NHG fluent Entries
 	// backup used in FRR2 case
@@ -992,7 +1065,7 @@ func TestChains(t *testing.T) {
 	level1Primary := routesParam{
 		ipEntries:     vipIPs, // 512 VIP prefixes
 		prefixVRF:     deviations.DefaultNetworkInstance(dut),
-		nextHops:      encapVrfAIPv4Enries[400:500], // peer or otg prefixes //peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
+		nextHops:      peerNHIP, // peer or otg prefixes //peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
 		nextHopVRF:    deviations.DefaultNetworkInstance(dut),
 		nextHopType:   "default",
 		numUniqueNHGs: L1Nhg,      // 512
@@ -1001,7 +1074,7 @@ func TestChains(t *testing.T) {
 	}
 
 	gribiInfo := GetFibSegmentGribiEntries(&level1Primary, dut, batches)
-	LogGribiInfo(t, gribiInfo)
+	LogGribiInfo(t, "level1Primary", gribiInfo)
 
 	level2Primary := routesParam{
 		ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6800 in final
@@ -1016,13 +1089,12 @@ func TestChains(t *testing.T) {
 	}
 
 	gribiInfo = GetFibSegmentGribiEntries(&level2Primary, dut, batches)
-	LogGribiInfo(t, gribiInfo)
+	LogGribiInfo(t, "level2Primary", gribiInfo)
 
 	level3PrimaryA := routesParam{
-		ipEntries:   encapVrfAIPv4Enries,
-		ipv6Entries: encapVrfAIPv6Enries,
-		prefixVRF:   vrfEncapA,
-		// numUniqueNHs:  320, //encapNhgcount * encapNhSize,
+		ipEntries:     encapVrfAIPv4Enries,
+		ipv6Entries:   encapVrfAIPv6Enries,
+		prefixVRF:     vrfEncapA,
 		nextHops:      tunnelDestIPs,
 		nextHopVRF:    vrfTransit,
 		nextHopType:   "encap",
@@ -1034,12 +1106,12 @@ func TestChains(t *testing.T) {
 	}
 
 	gribiInfo = GetFibSegmentGribiEntries(&level3PrimaryA, dut, batches)
-	LogGribiInfo(t, gribiInfo)
+	LogGribiInfo(t, "level3PrimaryA", gribiInfo)
 
 	level1Frr1 := routesParam{
 		ipEntries:     vipFrr1IPs, // 512 VIP prefixes
 		prefixVRF:     deviations.DefaultNetworkInstance(dut),
-		nextHops:      encapVrfAIPv4Enries[400:500], // peer or otg prefixes
+		nextHops:      peerNHIP, // peer or otg prefixes
 		nextHopVRF:    deviations.DefaultNetworkInstance(dut),
 		nextHopType:   "default",
 		numUniqueNHGs: L1Nhg,      // 512
@@ -1048,7 +1120,7 @@ func TestChains(t *testing.T) {
 	}
 
 	gribiInfo = GetFibSegmentGribiEntries(&level1Frr1, dut, batches)
-	LogGribiInfo(t, gribiInfo)
+	LogGribiInfo(t, "level1Frr1", gribiInfo)
 
 	level2Frr1 := routesParam{
 		ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6800 in final
@@ -1064,8 +1136,121 @@ func TestChains(t *testing.T) {
 	}
 
 	gribiInfo = GetFibSegmentGribiEntries(&level2Frr1, dut, batches)
-	LogGribiInfo(t, gribiInfo)
+	LogGribiInfo(t, "level2Frr1", gribiInfo)
 
+	decapWan := routesParam{
+		ipEntries:     iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount),
+		prefixVRF:     niDecapTeVrf,
+		nextHops:      []string{}, // not used for decap
+		nextHopVRF:    deviations.DefaultNetworkInstance(dut),
+		nextHopType:   "decap",
+		numUniqueNHGs: 1000, //encapNhgcount,
+		numNHPerNHG:   1,
+		nextHopWeight: generateNextHopWeights(1, 1),
+	}
+
+	decapWanPE := GetFibSegmentGribiEntries(&decapWan, dut, batches)
+	LogGribiInfo(t, "decapWan", decapWanPE)
+
+	configBatches := CombinePairedEntries(dut, batches, &level1Primary, &level2Primary, &level3PrimaryA, &level1Frr1, &level2Frr1, &decapWan)
+
+	client.StartSending(ctx, t)
+	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
+		t.Fatalf("Await got error during session negotiation for client: %v", err)
+	}
+	electionID := gribi.BecomeLeader(t, client)
+	t.Logf("Election ID: %v", electionID)
+
+	// only program the first batch
+	entries := configBatches[0]
+
+	// dont forget to add backup entries
+	entries = append(entries, backUpFluentEntries...)
+
+	// Program the entries
+	client.Modify().AddEntry(t, entries...)
+	if err := awaitTimeout(ctx, client, t, aftProgTimeout); err != nil {
+		t.Fatalf("Could not program entries, got err: %v", err)
+	}
+
+	// // Inject 5000 IPv4Entry-ies and 5000 IPv6Entry-ies to each of the 4 encap VRFs.
+	// pushEncapEntries(t, defaultIpv4Entries, args)
+	// validateTrafficFlows(t, args, getEncapFlows(), false, true)
+
+	// // Inject mixed length prefixes (48 entries) in the DECAP_TE_VRF.
+	// decapEntries := pushDecapEntries(t, args)
+	// validateTrafficFlows(t, args, getDecapFlows(decapEntries), false, true)
+
+	// // Install decapIPv4ScaleCount entries with fixed prefix length of /32 in DECAP_TE_VRF.
+	// decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
+	// pushDecapScaleEntries(t, args, decapScaleEntries)
+	// // Send traffic and verify packets are decapped then encapsulated and then forwarded to peer.
+
+	//test traffic for a particular batch
+	validateTrafficFlows(t, tcArgs, getDecapFlows(decapWanPE[0].V4Prefixes), false, true)
+
+}
+
+func CombinePairedEntries(dut *ondatra.DUTDevice, batchCount int, routeParams ...*routesParam) [][]fluent.GRIBIEntry {
+	// Determine the maximum number of batches across all routeParams
+	maxBatches := batchCount
+
+	// Create a result slice with the same number of batches as the maximum
+	result := make([][]fluent.GRIBIEntry, maxBatches)
+
+	// Iterate over each routeParam
+	for _, params := range routeParams {
+		// Get the PairedEntries for the current routeParam
+		pairedEntries := GetFibSegmentGribiEntries(params, dut, batchCount)
+
+		// Combine the entries into the result batches
+		for i := 0; i < maxBatches; i++ {
+			// If the current input has fewer batches, distribute its entries evenly
+			if i < len(pairedEntries) {
+				// Combine all entries (NHs, NHGs, V4Entries, V6Entries) into a single slice for this batch
+				combinedEntries := append([]fluent.GRIBIEntry{}, pairedEntries[i].NHs...)
+				combinedEntries = append(combinedEntries, pairedEntries[i].NHGs...)
+				combinedEntries = append(combinedEntries, pairedEntries[i].V4Entries...)
+				combinedEntries = append(combinedEntries, pairedEntries[i].V6Entries...)
+
+				// Add the combined entries to the result
+				result[i] = append(result[i], combinedEntries...)
+			}
+		}
+	}
+
+	return result
+}
+func CombinePairedEntries2(multiplePairedEntries ...[]PairedEntries) [][]fluent.GRIBIEntry {
+	// Determine the maximum number of batches across all inputs
+	maxBatches := 0
+	for _, pairedEntries := range multiplePairedEntries {
+		if len(pairedEntries) > maxBatches {
+			maxBatches = len(pairedEntries)
+		}
+	}
+
+	// Create a result slice with the same number of batches as the maximum
+	result := make([][]fluent.GRIBIEntry, maxBatches)
+
+	// Iterate over each input PairedEntries slice
+	for _, pairedEntries := range multiplePairedEntries {
+		for i := 0; i < maxBatches; i++ {
+			// If the current input has fewer batches, distribute its entries evenly
+			if i < len(pairedEntries) {
+				// Combine all entries (NHs, NHGs, V4Entries, V6Entries) into a single slice for this batch
+				combinedEntries := append([]fluent.GRIBIEntry{}, pairedEntries[i].NHs...)
+				combinedEntries = append(combinedEntries, pairedEntries[i].NHGs...)
+				combinedEntries = append(combinedEntries, pairedEntries[i].V4Entries...)
+				combinedEntries = append(combinedEntries, pairedEntries[i].V6Entries...)
+
+				// Add the combined entries to the result
+				result[i] = append(result[i], combinedEntries...)
+			}
+		}
+	}
+
+	return result
 }
 
 // createIPv6Entries creates IPv6 Entries given the totalCount and starting prefix
