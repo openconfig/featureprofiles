@@ -920,6 +920,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-3.52"
+  description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking based on tunnel destination."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
+  exec: " "
+}
+test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
