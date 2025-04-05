@@ -45,8 +45,7 @@ This test verifies TTL handling for ingress flows.
 
 ATE action:
 
-*   Generate 5 **IPv4 packets** from ATE:Port1 to the IP address in
-    IPv4-DST-NET.
+*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET/32.
     *   Set TTL of all packets to *10*.
 
 Verify:
@@ -59,70 +58,69 @@ Verify:
     packets generated from ATE:Port1.
 *   The packet count of traffic received on ATE:Port2 should be equal to the
     packets generated from ATE:Port1.
-*   TTL for all packets received on ATE:Port2 should be **9**:
+*   TTL for all packets received on ATE:Port2 should be *9*.
 
 ### PF-1.8.2: IPv6 traffic with no encapsulation on DUT and TTL != 1.
 
-*   Repeat `PF-1.8.1` using IPv6 packets for ATE action.
+*   Repeat `PF-1.8.1` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
 ### PF-1.8.3: IPv4 traffic with no encapsulation on DUT and TTL = 1.
 
 ATE action:
 
-*   Generate 5 **IPv4 packets** from ATE:Port1 to the IP address in
-    IPv4-DST-NET.
+*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET/32.
     *   Set TTL of all packets to *1*.
 
 Verify:
 
+*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
+*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
-*   ATE:Port1 received ICMP TTL exceeded packets for all packets sent.
+*   ATE:Port1 received ICMP Time Exceeded packets for all packets sent.
 
 ### PF-1.8.4: IPv6 traffic with no encapsulation on DUT and TTL = 1.
 
-*   Repeat `PF-1.8.3` using IPv6 packets for ATE action.
+*   Repeat `PF-1.8.3` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
 ### PF-1.8.5: IPv4 traffic with GRE encapsulation on DUT and TTL != 1.
 
 ATE action:
 
-*   Generate 5 **IPv4 packets** from ATE:Port1 to the IP address in
-    IPv4-DST-NET.
+*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET/32.
     *   Set TTL of all packets to *10*.
 
 Verify:
 
 *   Perform same verifications in `PF-1.8.1`.
-    *   In addition, verify that encapsulation rules match number of packets
-    from ATE:Port1.
+    *   In addition, verify that encapsulation rules counter match number of
+    packets from ATE:Port1.
 
 ### PF-1.8.6: IPv6 traffic with GRE encapsulation on DUT and TTL != 1.
 
-*   Repeat `PF-1.8.5` using IPv6 packets for ATE action.
+*   Repeat `PF-1.8.5` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
 ### PF-1.8.7: IPv4 traffic with GRE encapsulation on DUT and TTL = 1.
 
 ATE action:
 
-*   Generate 5 **IPv4 packets** from ATE:Port1 to the IP address in
-    IPv4-DST-NET.
+*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET/32.
     *   Set TTL of all packets to *1*.
 
 Verify:
 
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
-*   ATE:Port1 received ICMP TTL exceeded packets for all packets sent.
+*   ATE:Port1 received ICMP Time Exceeded packets for all packets sent.
 
 ### PF-1.8.8: IPv6 traffic with GRE encapsulation on DUT and TTL = 1.
 
-*   Repeat `PF-1.8.7` using IPv6 packets for ATE action.
+*   Repeat `PF-1.8.7` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
 
 ## Canonical OpenConfig for policy-forwarding matching IPv4 and encapsulate GRE
 
-TODO: new OC paths to be proposed are present in below JSON
+TODO: New OC paths to be proposed are present in below JSON
 * config/rules/rule/action/count: true
 * config/rules/rule/action/next-hop-group
 * encap-headers/encap-header/type: "GRE" and associated parameters
@@ -157,6 +155,10 @@ TODO: new OC paths to be proposed are present in below JSON
                                 "rules": {
                                     "rule": [
                                         {
+                                            "sequence-id": 0
+                                            "config": {
+                                                "sequence-id": 0
+                                            }
                                             "ipv4": {
                                                 "config": {
                                                     "destination-address": "inner_dst_ipv4"
@@ -232,18 +234,21 @@ TODO: new OC paths to be proposed are present in below JSON
 
 ```yaml
 paths:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
-  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/packets-forwarded:
-  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/octets-forwarded:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
+  # Config
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
 
-  #TODO: Add new OC for GRE encap headers
+  # Telemetry
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/packets-forwarded:
+  /network-instances/network-instance/afts/policy-forwarding/policy-forwarding-entry/state/counters/octets-forwarded:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/sequence-id:
+
+  # TODO: Add new OC for GRE encap headers
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
@@ -254,7 +259,7 @@ paths:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/ip-ttl:
   #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/index:
 
-  #TODO: Add new OC for policy forwarding actions
+  # TODO: Add new OC for policy forwarding actions
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/packet-type:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/count:
