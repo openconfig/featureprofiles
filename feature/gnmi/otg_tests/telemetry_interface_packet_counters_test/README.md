@@ -95,6 +95,13 @@ paths:
   /interfaces/interface/state/counters/in-pkts:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/rates/state/load-interval:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-broadcast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/carrier-transitions:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/last-clear:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
@@ -119,10 +126,10 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type
-  * FFF - fixed form factor is enough for this test. However it can run also
-  on a MFF testbed.
-    gNMI.Set:
+    * FFF - fixed form factor is enough for this test. However it can run also
+      on a MFF testbed.
+      gNMI.Set:
 
 ## Minimum DUT platform requirement
-  * FFF - fixed form factor
+* FFF - fixed form factor
 
