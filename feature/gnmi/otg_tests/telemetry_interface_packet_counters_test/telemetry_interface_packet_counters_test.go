@@ -18,19 +18,19 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/interfaces"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	otgtelemetry "google3/third_party/openconfig/ondatra/gnmi/otg/otg"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/interfaces"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 
-	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -102,7 +102,6 @@ func TestInterfaceCounters(t *testing.T) {
 	subinterfaceCounters := subint.Counters()
 	ipv4Counters := subint.Ipv4().Counters()
 	ipv6Counters := subint.Ipv6().Counters()
-	ondatra.Debug().Breakpoint(t)
 	intfCounterPath := "/interfaces/interface/state/counters/"
 	subinterfaceCounterPath := "/interfaces/interface/subinterfaces/subinterface/state/counters/"
 	ipv4CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/"
