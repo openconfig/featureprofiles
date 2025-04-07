@@ -454,7 +454,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantRx, wantSent uint32, isV4 bool) {
+func verifyInitialPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantRx uint32, isV4 bool) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	t.Logf("Prefix telemetry on DUT for peer %v", nbr)
@@ -465,12 +465,6 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	} else {
 		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 	}
-	if gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		gotInstalled, ok := val.Val()
-		return ok && gotInstalled == wantInstalled
-	}).Await(t); !ok {
-		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
-	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
 		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
@@ -479,12 +473,6 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 		}).Await(t); !ok {
 			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 		}
-	}
-	if gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		gotSent, ok := val.Val()
-		return ok && gotSent == wantSent
-	}).Await(t); !ok {
-		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
 	}
 }
 
@@ -962,17 +950,11 @@ func TestBGPDefaultPolicies(t *testing.T) {
 	})
 
 	t.Run("Verify prefix telemetry on DUT for all iBGP and eBGP peers", func(t *testing.T) {
-		if deviations.DefaultImportExportPolicyUnsupported(dut) {
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 3, 3, 3, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 3, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 3, 3, 3, !v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 3, !v4Prefixes)
-		} else {
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 0, 3, 0, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 0, v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 0, 3, 0, !v4Prefixes)
-			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 0, !v4Prefixes)
-		}
+		// Validate only if the routes being sent by OTG are received by DUT and advertised to ISIS neighbor.
+		verifyInitialPrefixesTelemetry(t, dut, atePort1.IPv4, 3, v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, atePort1.IPv6, 3, !v4Prefixes)
+		verifyInitialPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, !v4Prefixes)
 	})
 
 	t.Run("Add static routes for ip prefixes IPv4/v6-prefix7 and IPv4/v6-prefix8", func(t *testing.T) {

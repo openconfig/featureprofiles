@@ -33,5 +33,16 @@ platform_exceptions:  {
     bgp_explicit_extended_community_enable: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    bgp_extended_community_index_unsupported: true
+    skip_bgp_send_community_type: true
+  }
+}
 tags:  TAGS_AGGREGATION
 tags:  TAGS_DATACENTER_EDGE

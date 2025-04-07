@@ -26,3 +26,13 @@ platform_exceptions: {
     eth_channel_assignment_cisco_numbering: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    eth_channel_ingress_parameters_unsupported: true
+  }
+}

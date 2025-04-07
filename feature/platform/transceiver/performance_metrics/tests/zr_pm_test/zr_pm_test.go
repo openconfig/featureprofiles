@@ -44,12 +44,13 @@ func TestMain(m *testing.M) {
 
 func TestPM(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
+
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	var (
 		trs        = make(map[string]string)
@@ -76,6 +77,7 @@ func TestPM(t *testing.T) {
 	for _, frequency := range frequencies {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
+			t.Logf("Test PM with Optical Frequency: %v, Target Power: %v", frequency, targetOpticalPower)
 			for _, p := range dut.Ports() {
 				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, operationalMode)
 				cfgplugins.ConfigOTNChannel(t, dut, ochs[p.Name()], otnIndexes[p.Name()], ethIndexes[p.Name()])
@@ -101,7 +103,7 @@ func TestPM(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
 
@@ -111,10 +113,11 @@ func TestPM(t *testing.T) {
 			}
 
 			// Wait for streaming telemetry to report the channels as down.
+			t.Log("Bringing DOWN both 400G interfaces")
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			}
-			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSamples(t, dut, false, interfaceStreams, otnStreams)
 
@@ -124,10 +127,11 @@ func TestPM(t *testing.T) {
 			}
 
 			// Wait for streaming telemetry to report the channels as up.
+			t.Log("Bringing UP both 400G interfaces")
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
 		}
