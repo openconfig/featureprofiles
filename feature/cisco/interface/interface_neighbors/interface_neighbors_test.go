@@ -962,8 +962,7 @@ func testIPv4ScaleNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 			if ip[:2] == "10" || ip[:2] == "11" || ip[:2] == "12" || ip[:2] == "13" ||
 				ip[:2] == "20" || ip[:2] == "21" || ip[:2] == "22" || ip[:2] == "23" {
 				IntfIPv4Addr[ip] = InterfaceIPv4Address{ipAddress, neighbor, proxyARP}
-			}
-			// }
+			}	
 		}
 	}
 	if len(IntfIPv4Addr) < wantLen {
@@ -1023,8 +1022,8 @@ func TestFlapInterfaceIPv6Scale(t *testing.T) {
 		}
 	}
 	FlapBulkInterfaces(t, dut1, intfList)
-	pingScaleNeighbors(t, dut1, dut2, IPv4)
 	time.Sleep(30 * time.Second)
+	pingScaleNeighbors(t, dut1, dut2, IPv4)	
 	testIPv6ScaleNeighbors(t, dut1)
 }
 
@@ -1105,8 +1104,7 @@ func TestRPFOIPv6Scale(t *testing.T) {
 
 func testIPv6ScaleNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 
-	path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6()
-	fmt.Printf("Debug: Calling CollectAll for IPv6\n")
+	path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6()	
 	got := gnmi.CollectAll(t, dut, path.State(), 30*time.Second).Await(t)
 	IntfIPv6Addr = make(map[string]InterfaceIPv6Address)
 	var dad uint32
