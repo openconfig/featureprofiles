@@ -540,23 +540,31 @@ paths:
 /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy
 
 # IS-IS config
-  /network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check
-  /network-instances/network-instance/protocols/protocol/isis/global/config/net
-  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability
-  /network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding
-  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled
+  /network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/net:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-mode:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-password:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-password:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled:
 
 State Paths:
 # UDP encap
