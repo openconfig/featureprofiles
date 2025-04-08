@@ -421,19 +421,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 	if resp.GetAction() != expectedRes {
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", spiffe.ID, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
-	// To remove
-	// // If HardVerify is enabled, execute the RPC and verify the result
-	// if hardVerify {
-	// 	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
-	// 	// Retry for 10 minutes. Each retry takes 30 sec. Total retry time = 30 * 20(maxRetries) = 600 sec
-	// 	const maxRetries = 20
-	// 	const retryInterval = 30 * time.Second
-	// 	// Prepare a list of codes for which retry has to be attempted
-	// 	// we get an "server not ready" Unavailable code after reboot
-	// 	// incase, in future we have to retry for some other error codes , we can add that code to the list
-	// 	retryCodeList := []codes.Code{codes.Unavailable}
-	// 	rpcExecuteWithRetry(t, dut, spiffe, rpc, opts, maxRetries, retryInterval, expectedExecErr, retryCodeList)
-	// }
+
 	if hardVerify {
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
 		err := rpc.Exec(context.Background(), dut, opts)
@@ -485,38 +473,6 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 		}
 	}
 }
-
-// To remove
-// // Retries the execution of an RPC until it succeeds or the maximum number of retries is reached.
-// // To handel this expected error "server not ready" after reboot case, retry with timeout is implemented
-// func rpcExecuteWithRetry(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts []grpc.DialOption, maxRetries int, retryInterval time.Duration, expectedExecErr codes.Code, retryCodes []codes.Code) {
-// 	retryCount := 0
-// 	ctx := context.Background()
-// 	err := rpc.Exec(ctx, dut, opts)
-// 	// Retry the RPC execution if the error code is in the retryCodes list untill maxRetries reached
-// 	// loop breaks if we get another code other than retryCodes list or reach maxRetries
-// 	for containsCode(status.Code(err), retryCodes) && retryCount < maxRetries {
-// 		t.Logf("The execution of rpc %s failed for %d retries due to not ready: %v", rpc.Path, retryCount+1, err)
-// 		time.Sleep(retryInterval)
-// 		err = rpc.Exec(ctx, dut, opts)
-// 		retryCount++
-// 	}
-// 	// If the maximum number of retries is reached and the error code is still not the expected one, fail the test
-// 	if status.Code(err) != expectedExecErr {
-// 		t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
-// 	} else {
-// 		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
-// 	}
-// }
-// // Checks if a given code is in the list of retry codes.
-// func containsCode(code codes.Code, retryCodes []codes.Code) bool {
-// 	for _, c := range retryCodes {
-// 		if c == code {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
 
 // LoadPolicyFromJSONFile Loads Policy from a JSON File.
 func LoadPolicyFromJSONFile(t *testing.T, filePath string) map[string]AuthorizationPolicy {
