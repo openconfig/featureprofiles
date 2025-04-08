@@ -377,13 +377,16 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 	}
 
 	// Parse json file into struct.
-	type PcrValuesData struct {
-		Pcr   int32  `json:"pcr"`
+	type Values struct {
 		Value string `json:"value"`
 	}
+	type PcrValuesData struct {
+		Pcr              int32    `json:"pcr"`
+		AcceptableValues []Values `json:"acceptable_values"`
+	}
 	type PcrBankData struct {
-		Bank   string          `json:"bank"`
-		Values []PcrValuesData `json:"values"`
+		Bank      string          `json:"bank"`
+		PcrValues []PcrValuesData `json:"values"`
 	}
 	type CardData struct {
 		Card string        `json:"card"`
@@ -421,7 +424,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 		return fmt.Errorf("could not find pcr bank %v in reference data", hashAlgoMap[hashAlgo])
 	}
 
-	wantPcrValues := pcrBankData[idx].Values
+	wantPcrValues := pcrBankData[idx].PcrValues
 	for _, pcrIndex := range pcrIndices {
 		idx = slices.IndexFunc(wantPcrValues, func(p PcrValuesData) bool {
 			return p.Pcr == pcrIndex
@@ -429,8 +432,14 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 		if idx == -1 {
 			return fmt.Errorf("could not find pcr index %v in reference data", pcrIndex)
 		}
-		if got, want := hex.EncodeToString(gotPcrValues[pcrIndex]), wantPcrValues[idx].Value; got != want {
-			t.Errorf("%v pcr %v value does not match expectations, got: %v want: %v", hashAlgoMap[hashAlgo], pcrIndex, got, want)
+
+		got := hex.EncodeToString(gotPcrValues[pcrIndex])
+		want := wantPcrValues[idx].AcceptableValues
+		idx = slices.IndexFunc(want, func(v Values) bool {
+			return got == v.Value
+		})
+		if idx == -1 {
+			t.Errorf("%v pcr %v value does not match expectations, got: %v want acceptable values: %v", hashAlgoMap[hashAlgo], pcrIndex, got, want)
 		}
 	}
 	return nil
