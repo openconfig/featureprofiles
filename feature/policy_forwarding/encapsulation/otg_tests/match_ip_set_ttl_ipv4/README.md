@@ -21,6 +21,8 @@ ipv4_inner_dst_B = "10.5.1.2/32"
 ipv4_inner_default = "0.0.0.0/0"
 
 outer_ipv6_src =      "2001:f:a:1::0"
+outer_ipv4_dst =      "10.6.1.1/32"
+outer_ipv4_src =      "10.6.1.2/32"
 outer_ipv6_dst_A =    "2001:f:c:e::1"
 outer_ipv6_dst_B =    "2001:f:c:e::2"
 outer_ipv6_dst_def =  "2001:1:1:1::0"
@@ -30,7 +32,7 @@ outer_ip-ttl =        "64"
 
 ## Procedure
 
-### TE-1.11.1 Rewrite the packet TTL = 1 if matching a specified destination IP.
+### PF-1.11.1 Rewrite the packet TTL = 1 if matching a specified destination IP, perform encap and set the outer TTL..
 **[TODO]** Test code needs to be implemented.
 
 Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
@@ -108,8 +110,8 @@ set packet TTL = 1.
                                                 "index": 1,
                                                 "type": "GRE",
                                                 "config": {
-                                                    "dst-ip": "outer_ipv4_dst_def",
-                                                    "src-ip": "outer_ipv4_src1",
+                                                    "dst-ip": "outer_ipv4_dst_A",
+                                                    "src-ip": "outer_ipv6_src",
                                                     "dscp": "outer_dscp",
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
@@ -139,8 +141,8 @@ set packet TTL = 1.
                                                 "index": 1,
                                                 "type": "GRE",
                                                 "config": {
-                                                    "dst-ip": "outer_ipv4_dst_def",
-                                                    "src-ip": "outer_ipv4_src2",
+                                                    "dst-ip": "outer_ipv6_dst",
+                                                    "src-ip": "outer_ipv6_src",
                                                     "dscp": "outer_dscp",
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
@@ -162,8 +164,6 @@ set packet TTL = 1.
                         ]
                     }
                 }
-            }
-       }
     ]
   }
 }
@@ -171,81 +171,8 @@ set packet TTL = 1.
 * Push the gNMI the policy forwarding configuration
 * Push the configuration to DUT using gnmi.Set with REPLACE option
 * Send traffic from ATE port 1 to DUT port 1 with TTL as 1.
-* Using OTG, validate ATE port 2 receives packets
-  * Validate packet ttl as 1.
-
-### TE-1.11.2 Rewrite the ingress innner packet TTL = 1, perform encap and set the outer TTL.
-**[TODO]** Test code needs to be implemented.
-
-Building on TE-1.11.1, gRIBI client should send this proto message to the DUT to create AFT
-entries.
-
-```proto
-#
-# aft entries used for network instance "NI_A"
-IPv6Entry {2001:DB8:2::2/128 (NI_A)} -> NHG#100 (DEFAULT VRF)
-IPv4Entry {203.0.113.2/32 (NI_A)} -> NHG#100 (DEFAULT VRF) -> {
-  {NH#101, DEFAULT VRF}
-}
-
-# this nexthop specifies a MPLS in UDP encapsulation
-NH#101 -> {
-  encap_-_headers {
-    encap_header {
-      index: 1
-      mpls {
-        pushed_mpls_label_stack: [101,]
-      }
-    }
-    encap_header {
-      index: 2
-      udp_v6 {
-        src_ip: "outer_ipv6_src"
-        dst_ip: "outer_ipv6_dst_A"
-        dst_udp_port: "outer_dst_udp_port"
-        ip_ttl: "outer_ip-ttl"
-        dscp: "outer_dscp"
-      }
-    }
-  }
-  next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
-  network_instance: "DEFAULT"
-}
-
-#
-# entries used for network-instance "NI_B"
-IPv6Entry {2001:DB8:2::2/128 (NI_B)} -> NHG#200 (DEFAULT VRF)
-IPv4Entry {203.0.113.2/32 (NI_B)} -> NHG#200 (DEFAULT VRF) -> {
-  {NH#201, DEFAULT VRF}
-}
-
-NH#201 -> {
-  encap_headers {
-    encap_header {
-      index: 1
-      mpls {
-        pushed_mpls_label_stack: [201,]
-      }
-    }
-    encap_header {
-      index: 2
-      udp_v6 {
-        src_ip: "outer_ipv6_src"
-        dst_ip: "outer_ipv6_dst_B"
-        dst_udp_port: "outer_dst_udp_port"
-        ip_ttl: "outer_ip-ttl"
-        dscp: "outer_dscp"
-      }
-    }
-  }
-  next_hop_group_id: "nhg_B"  
-  # network_instance: "DEFAULT"  TODO: requires new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance
-}
-```
-
-* Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 1.
-* Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
-  * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
+* Using OTG, validate ATE port 2 receives MPLS-IN-GRE packets
+  * Validate destination IPs are outer_ipv6_dst_A and outer_ipv4_dst
   * Validate MPLS label is set
   * Validate inner packet ttl as 1.
   * Validate outer packet ttl to be "outer_ip-ttl"
