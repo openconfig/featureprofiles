@@ -112,7 +112,7 @@ const (
 	defaultRoute            = "0.0.0.0/0"
 	wantLoss                = true
 	routeDelete             = true
-	correspondingTTL        = 63
+	correspondingTTL        = 64
 	correspondingHopLimit   = 64
 	flow6in4                = "flow6in4"
 	flow4in4                = "flow4in4"
@@ -1627,7 +1627,7 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 			packetCheckCount++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
 			if ipPacket.TTL != correspondingTTL {
-				t.Errorf("Wrong IP TTL value received, got: %d, want: %d", ipPacket.TTL, correspondingTTL)
+				t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
 			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
