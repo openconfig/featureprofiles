@@ -1,1 +1,168 @@
+# DP-1.17: Egress traffic DSCP rewrite
 
+## Summary
+
+This test aims to validate the functionality of  egress traffic scheduling and subsequent packet remarking (rewrite) on a Device Under Test (DUT).
+IP payload encapsulated as IPoGRE, IPoMPLSoGRE,IPoGUE or IPoMPLSoGUE would be decapsulated by DUT as per tunnel termination configureation and forwarded as an IP payload via the egress interface.
+IP payload should be scheduled for transmission via egress interface according to the DSCP markins prior to the rewrite action.
+DSCP values of the IP payload encapusalted as IPoGRE, IPoMPLSoGRE,IPoGUE or IPoMPLSoGUE should have their payload DSCP values re-written according to the egress QOS re-write policy applied to the egress interface.
+Egress QOS policy should support match conditions matching on payload IP header fields specifically DSCP values. Based on the match condition DSCP must be set it to specific new value .
+The DUT's configuration will be evaluated against the OpenConfig QOS model, and traffic flows will be analyzed to ensure proper scheduling, re-marking, and forwarding.
+
+## Testbed type
+
+*  [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+
+## Procedure
+
+### Test environment setup
+
+*   DUT has an ingress port and 1 egress port.
+
+    ```
+                             |         |
+        [ ATE Port 1 ] ----  |   DUT   | ---- [ ATE Port 2 ]
+                             |         |
+    ```
+
+* Configure the DUT's ingress and egress interfaces.
+
+
+#### Configuration
+1.  DUT:Port1 is configured as Singleton IP interface towards ATE:Port1.
+2.  DUT:Port2 is configured as Singleton IP interface towards ATE:Port2.
+3.  DUT is configured to form one IPv4 and one IPV6 eBGP session
+    with ATE:Port1 using the directly connected Singleton interface IPs.
+4.  DUT is configured to form one IPv4 and one IPV6 eBGP session
+    with ATE:Port2 using the directly connected Singleton interface IPs.
+5.  DUT is configured with an IPv4-DST-DECAP/32 and IPv6-DST-DECAP/128 and this IP advertised to
+    ATE:Port1 via the IPv4 BGP session. This IP is used for decapsulation.
+6.  ATE:Port2 is configured to advertise destination networks
+    IPv4-DST-NET/32 and IPv6-DST-NET/128 to DUT.
+7. DUT is configured to decapusalate IPoGRE, IPoMPLSoGRE,IPoGUE or IPoMPLSoGUE payload with destination
+   of IPv4-DST-DECAP/32 and IPv6-DST-DECAP/128
+8. DUT is configured with MPLS static forwrarding rule for the LabelEntry matching outer label 100 
+   pointing to a NHG resolved via ATE:Port2.
+9. DUT is configured to match packets based on DSCP/TC values and set new DSCP values based  remarking rules.
+
+ *   Re-marking table
+
+        Forwarding Group | IPv4 TOS     |       IPv6 TC                  
+     --------------------|------------- | -----------------------  
+             be1         |   0          |      0                                
+             af1         |   0          |      0                              
+             af2         |   0          |      0                              
+             af3         |   0          |      0                             
+             af4         |   0          |      0                             
+             nc1         |   6          |      48                                         
+
+### DP-1.17.1 Egress Classification and rewrite of IPv4 packets with various DSCP values
+
+*   Traffic:
+    *   Generate IPv4 traffic from ATE Port 1 with various DSCP values.  
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet re-marking according to the re-marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.2 Egress Classification and rewrite of IPv6 packets with various TC values
+
+*   Traffic:
+    *   Generate IPv6 traffic from ATE Port 1 with various TC values
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+
+### DP-1.17.3 Egress Classification and rewrite of IPoMPLSoGUE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32
+*   Traffic:
+    *   Generate IPoMPLSoGUE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.4 Egress Classification and rewrite of IPv6oMPLSoGUE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32 and IPv6-DST-DECAP/12 
+*   Traffic:
+    *   Generate IPv6oMPLSoGUE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.5 Egress Classification and rewrite of IPoMPLSoGRE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32
+*   Traffic:
+    *   Generate IPoMPLSoGRE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.7 Egress Classification and rewrite of IPv6oMPLSoGRE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32 and IPv6-DST-DECAP/12 
+*   Traffic:
+    *   Generate IPv6oMPLSoGRE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.8 Egress Classification and rewrite of IPoGRE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32
+*   Traffic:
+    *   Generate IPoGRE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.9 Egress Classification and rewrite of IPv6oGRE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32 and IPv6-DST-DECAP/12 
+*   Traffic:
+    *   Generate IPv6oGRE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.10 Egress Classification and rewrite of IPoGUE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32
+*   Traffic:
+    *   Generate IPoGUE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.17.11 Egress Classification and rewrite of IPv6oGUE traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+    *    Configure decapsulation rules for IPv4-DST-DECAP/32 and IPv6-DST-DECAP/12 
+*   Traffic:
+    *   Generate IPv6oGUE traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
