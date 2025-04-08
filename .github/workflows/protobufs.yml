@@ -13,22 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.23'
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Install protobuf
-      uses: arduino/setup-protoc@v1
+      uses: arduino/setup-protoc@v3
       with:
-        version: '3.x'
+        version: '23.x'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Lint protobufs
       run: |
@@ -38,7 +38,7 @@ jobs:
         find github.com/openconfig/featureprofiles/ -name \*.proto -exec api-linter --disable-rule all --enable-rule core {} \+
     - name: Validate textprotos
       run: |
-        go install github.com/bstoll/textproto-validator@latest
+        go install github.com/bstoll/textproto-validator@15e24d0eb567d63615f0aa70940bc073ab674fe7
         make protoimports
         for i in `find . -name \*.textproto`; do
           textproto-validator -I ./protobuf-import $i
@@ -49,21 +49,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.23'
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-    - name: Fetch Openconfig Models
+    - name: Fetch OpenConfig Models
       run: make openconfig_public
     - name: Validate Paths
       run: |

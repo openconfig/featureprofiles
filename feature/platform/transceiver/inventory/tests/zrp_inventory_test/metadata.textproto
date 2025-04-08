@@ -1,0 +1,23 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "129cc5ed-8dbb-465c-9ac3-936fb34112c2"
+plan_id: "TRANSCEIVER-7 (400ZR_PLUS)"
+description: "Telemetry: 400ZR_PLUS Optics inventory info streaming"
+testbed: TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    component_mfg_date_unsupported: true
+  }
+}

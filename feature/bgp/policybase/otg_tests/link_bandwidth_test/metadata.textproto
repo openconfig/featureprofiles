@@ -10,14 +10,10 @@ platform_exceptions:  {
     vendor:  ARISTA
   }
   deviations:  {
-    route_policy_under_afi_unsupported:  true
     omit_l2_mtu:  true
     missing_value_for_defaults:  true
     interface_enabled:  true
     default_network_instance:  "default"
-    skip_set_rp_match_set_options:  true
-    skip_setting_disable_metric_propagation:  true
-    bgp_conditions_match_community_set_unsupported:  true
     bgp_extended_community_index_unsupported:  true
   }
 }
@@ -35,6 +31,17 @@ platform_exceptions:  {
     bgp_extended_community_index_unsupported: true
     bgp_conditions_match_community_set_unsupported: true
     bgp_explicit_extended_community_enable: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    bgp_extended_community_index_unsupported: true
+    skip_bgp_send_community_type: true
   }
 }
 tags:  TAGS_AGGREGATION
