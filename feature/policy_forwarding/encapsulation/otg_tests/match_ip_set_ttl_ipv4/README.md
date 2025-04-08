@@ -46,7 +46,31 @@ set packet TTL = 1.
             "policies": [
               {
                 "config": {
-                  "policy-id": "retain ttl",
+                  "policy-id": "customer1_prefix4_retain ttl",
+                  "type": "PBR_POLICY"
+                },
+                "policy": "retain ttl",
+                "rules": [
+                  {
+                    "config": {
+                      "sequence-id": 1,
+                    },
+                    "ipv4": {
+                      "config": {
+                        "destination-address": "ipv4_inner_dst_B"
+                        "hop-limit": 1
+                      }
+                    },
+                    "action": {
+                      "next-hop-group": "cloud_v4_nhg",
+                      "set-ttl": 1
+                     }
+                  }
+                ]
+              },
+              {
+                "config": {
+                  "policy-id": "customer1_prefix6_retain ttl",
                   "type": "PBR_POLICY"
                 },
                 "policy": "retain ttl",
@@ -57,20 +81,89 @@ set packet TTL = 1.
                     },
                     "ipv6": {
                       "config": {
-                        "destination-address": "router_ip"
+                        "destination-address": "inner_ipv6_dst_B"
                         "hop-limit": 1
                       }
                     },
                     "action": {
-                      "set-ip-ttl": 1  #TODO: Add set-ip-ttl [https://github.com/openconfig/public/pull/1263/files]
+                      "next-hop-group": "cloud_v6_nhg",
+                      "set-hop-limit": 1
                      }
                   }
                 ]
               }
             ]  
           }
-        }
-      }
+        },
+       "next-hops": {
+                        "next-hop": [
+                            {
+                                "index": 1,
+                                "config": {
+                                    "index": 1,
+                                    "next-hop": "nh_ip_addr_1",
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "index": 1,
+                                                "type": "GRE",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst_def",
+                                                    "src-ip": "outer_ipv4_src1",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip-ttl"
+                                                }
+                                            },
+                                            {
+                                                "index": 2,
+                                                "type": "MPLS",
+                                                "config": {
+                                                    "index": 2,
+                                                    "mpls-label-stack": [
+                                                        100
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "index": 2,
+                                "config": {
+                                    "index": 2,
+                                    "next-hop": "nh_ip_addr_2",
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "index": 1,
+                                                "type": "GRE",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst_def",
+                                                    "src-ip": "outer_ipv4_src2",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip-ttl"
+                                                }
+                                            },
+                                            {
+                                                "index": 2,
+                                                "type": "MPLS",
+                                                "config": {
+                                                    "index": 2,
+                                                    "mpls-label-stack": [
+                                                        100
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+       }
     ]
   }
 }
