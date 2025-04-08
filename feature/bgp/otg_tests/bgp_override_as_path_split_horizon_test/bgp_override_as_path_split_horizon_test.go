@@ -37,19 +37,21 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesv4CIDR   = "203.0.113.1/32"
-	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv4Prefix = 32
-	peerGrpName1             = "BGP-PEER-GROUP1"
-	peerGrpName2             = "BGP-PEER-GROUP2"
-	dutGlobalAS              = 64512
-	dutLocalAS1              = 65501
-	dutLocalAS2              = 64513
-	ateAS1                   = 65502
-	ateAS2                   = 65503
-	plenIPv4                 = 30
-	plenIPv6                 = 126
-	policyName               = "ALLOW"
+	advertisedRoutesv4CIDR      = "203.0.113.1/32"
+	advertisedRoutesv4Net       = "203.0.113.1"
+	advertisedRoutesv4Prefix    = 32
+	advertisedRoutesv4PrefixLen = "32..32"
+	peerGrpName1                = "BGP-PEER-GROUP1"
+	peerGrpName2                = "BGP-PEER-GROUP2"
+	dutGlobalAS                 = 64512
+	dutLocalAS1                 = 65501
+	dutLocalAS2                 = 64513
+	ateAS1                      = 65502
+	ateAS2                      = 65503
+	plenIPv4                    = 30
+	plenIPv6                    = 126
+	policyName                  = "ALLOW"
+	prefixSetName               = "prefSet"
 )
 
 var (
@@ -112,6 +114,8 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Prot
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutPort2.IPv4)
 	global.As = ygot.Uint32(dutGlobalAS)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -122,6 +126,7 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Prot
 		pg.PeerAs = ygot.Uint32(nbr.PeerAS)
 		pg.LocalAs = ygot.Uint32(nbr.LocalAS)
 		pg.PeerGroupName = ygot.String(nbr.PeerGrp)
+		pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 		nv4 := bgp.GetOrCreateNeighbor(nbr.Neighborip)
 		nv4.PeerGroup = ygot.String(nbr.PeerGrp)
@@ -173,12 +178,10 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.Devi
 
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(otgPort1V4Peer)
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(otgPort2V4Peer)
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	t.Logf("Pushing config to OTG and starting protocols...")
@@ -204,7 +207,7 @@ func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 		SetPrefix(uint32(advertisedRoutesv4Prefix)).
 		SetCount(1)
 
-	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
 	bgpNeti1AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
 
 	t.Logf("Pushing config to OTG and starting protocols...")
@@ -218,6 +221,7 @@ func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 // sent and received IPv4 prefixes.
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantSent uint32) {
 	t.Helper()
+	time.Sleep(15 * time.Second)
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
@@ -232,15 +236,17 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
-	pd := rp.GetOrCreatePolicyDefinition(name)
-	st, err := pd.AppendNewStatement("id-1")
+
+	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
+	prefixSet.GetOrCreatePrefix(advertisedRoutesv4CIDR, advertisedRoutesv4PrefixLen)
+	pdef := rp.GetOrCreatePolicyDefinition(name)
+	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
-	stc := st.GetOrCreateConditions()
-	stc.InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	st.GetOrCreateActions().PolicyResult = pr
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
+	stmt.GetOrCreateActions().PolicyResult = pr
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
 // verifyOTGPrefixTelemetry is to Validate prefix received on OTG por2.
@@ -259,7 +265,7 @@ func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 					gotASPath := prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()
 					t.Logf("Received prefix %v on otg as expected with AS-PATH %v", prefix.GetAddress(), gotASPath)
 				} else {
-					t.Errorf("Prefix %v is not received on otg", prefix.GetAddress())
+					t.Errorf("Prefix %v is received on otg when it is not expected", prefix.GetAddress())
 				}
 			}
 		}
@@ -325,7 +331,6 @@ func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
 		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
 		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-
 		t.Log("Verify that the DUT accepts the route.")
 		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
 		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
@@ -440,8 +445,7 @@ func TestBGPOverrideASPathSplitHorizon(t *testing.T) {
 	})
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
-		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
