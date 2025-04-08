@@ -16,3 +16,4 @@ platform_exceptions: {
     banner_delimiter: "c"
   }
 }
+testbed:  TESTBED_DUT
