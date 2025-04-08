@@ -92,7 +92,7 @@ func buildBadServer(t *testing.T, mode badMode) func(uint) func() {
 }
 
 type gRIBIServer struct {
-	*spb.UnimplementedGRIBIServer
+	spb.UnimplementedGRIBIServer
 }
 
 func (g *gRIBIServer) Get(_ *spb.GetRequest, stream spb.GRIBI_GetServer) error {

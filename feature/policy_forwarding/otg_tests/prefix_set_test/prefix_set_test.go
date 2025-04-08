@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -37,6 +38,19 @@ const (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func configurePrefSetPolicy(t *testing.T, dut *ondatra.DUTDevice, prefSet string) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition("pol1")
+	stmt, err := pdef.AppendNewStatement("pol1")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "pol1", err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(prefSet)
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
 func TestPrefixSet(t *testing.T) {
@@ -55,6 +69,11 @@ func TestPrefixSet(t *testing.T) {
 	v4PrefixSet.GetOrCreatePrefix(pfx2, mskLen)
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetA).Config(), v4PrefixSet)
+
+	if deviations.BgpPrefixsetReqRoutepolRef(dut) {
+		configurePrefSetPolicy(t, dut, prefixSetA)
+	}
+
 	prefixSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetA).State())
 	if len(prefixSet.Prefix) != 2 {
 		t.Errorf("Prefix set has %v prefixes, want 2", len(prefixSet.Prefix))
@@ -128,6 +147,11 @@ func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 	v4PrefixSet.GetOrCreatePrefix("173.42.128.0/20", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("173.43.128.0/20", mskLen)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).Config(), v4PrefixSet)
+
+	if deviations.BgpPrefixsetReqRoutepolRef(dut) {
+		configurePrefSetPolicy(t, dut, tag3IPv4)
+	}
+
 	prefixSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).State())
 	if got, want := len(prefixSet.Prefix), 10; got != want {
 		t.Errorf("Prefix set has %v prefixes, want %v", got, want)

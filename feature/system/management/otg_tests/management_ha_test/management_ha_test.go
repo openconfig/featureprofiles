@@ -183,9 +183,9 @@ func TestManagementHA1(t *testing.T) {
 	})
 
 	t.Run("traffic received by port1", func(t *testing.T) {
-		createFlowV6(t, bs)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+		createFlowV6(t, bs)
 		time.Sleep(30 * time.Second)
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
