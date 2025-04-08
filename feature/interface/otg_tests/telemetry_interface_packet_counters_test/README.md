@@ -92,8 +92,22 @@ paths:
   /interfaces/interface/rates/config/load-interval:
 
   ## State Paths ##
+  /interfaces/interface/state/counters/carrier-transitions:
+  /interfaces/interface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/state/counters/in-discards:
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-fcs-errors:
+  /interfaces/interface/state/counters/in-multicast-pkts:
+  /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-broadcast-pkts:
+  /interfaces/interface/state/counters/out-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /interfaces/interface/state/counters/out-multicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
   /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
   /interfaces/interface/rates/state/load-interval:
   /interfaces/interface/subinterfaces/subinterface/state/counters/out-broadcast-pkts:
   /interfaces/interface/subinterfaces/subinterface/state/counters/carrier-transitions:

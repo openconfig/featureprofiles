@@ -116,21 +116,69 @@ func TestInterfaceCounters(t *testing.T) {
 		counter ygnmi.SingletonQuery[uint64]
 		skip    bool
 	}{{
-		desc:    "InUnicastPkts",
-		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().State(),
+		desc:    "CarrierTransitions",
+		path:    intfCounterPath + "carrier-transitions",
+		counter: intfCounters.CarrierTransitions().State(),
 	}, {
-		desc:    "InUnicastPkts",
-		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().State(),
+		desc:    "InBroadcastPkts",
+		path:    intfCounterPath + "in-broadcast-pkts",
+		counter: intfCounters.InBroadcastPkts().State(),
+	}, {
+		desc:    "InDiscards",
+		path:    intfCounterPath + "in-discards",
+		counter: intfCounters.InDiscards().State(),
+	}, {
+		desc:    "InErrors",
+		path:    intfCounterPath + "in-errors",
+		counter: intfCounters.InErrors().State(),
+	}, {
+		desc:    "InFcsErrors",
+		path:    intfCounterPath + "in-fcs-errors",
+		counter: intfCounters.InFcsErrors().State(),
+	}, {
+		desc:    "InMulticastPkts",
+		path:    intfCounterPath + "in-multicast-pkts",
+		counter: intfCounters.InMulticastPkts().State(),
+	}, {
+		desc:    "InOctets",
+		path:    intfCounterPath + "in-octets",
+		counter: intfCounters.InOctets().State(),
 	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
 		counter: intfCounters.InPkts().State(),
 	}, {
+		desc:    "InUnicastPkts",
+		path:    intfCounterPath + "in-unicast-pkts",
+		counter: intfCounters.InUnicastPkts().State(),
+	}, {
+		desc:    "OutBroadcastPkts",
+		path:    intfCounterPath + "out-broadcast-pkts",
+		counter: intfCounters.OutBroadcastPkts().State(),
+	}, {
+		desc:    "OutDiscards",
+		path:    intfCounterPath + "out-discards",
+		counter: intfCounters.OutDiscards().State(),
+	}, {
+		desc:    "OutErrors",
+		path:    intfCounterPath + "out-errors",
+		counter: intfCounters.OutErrors().State(),
+	}, {
+		desc:    "OutMulticastPkts",
+		path:    intfCounterPath + "out-multicast-pkts",
+		counter: intfCounters.OutMulticastPkts().State(),
+	}, {
+		desc:    "OutOctets",
+		path:    intfCounterPath + "out-octets",
+		counter: intfCounters.OutOctets().State(),
+	}, {
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
 		counter: intfCounters.OutPkts().State(),
+	}, {
+		desc:    "OutUnicastPkts",
+		path:    intfCounterPath + "out-unicast-pkts",
+		counter: intfCounters.OutUnicastPkts().State(),
 	}, {
 		desc:    "SubinterfaceOutBroadcastPkts",
 		path:    subinterfaceCounterPath + "out-broadcast-pkts",
