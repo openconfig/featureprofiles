@@ -94,6 +94,8 @@ func ConfigureOtgLagMemberPort(agg gosnappi.Lag, portID string, a *Port, index i
 
 // ConfigureOtgInterface configures the Ethernet for the LAG or subinterface.
 func ConfigureOtgInterface(t *testing.T, top gosnappi.Config, intf *InterfaceProperties, a *Port) {
+	t.Helper()
+
 	dev := top.Devices().Add().SetName(intf.Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(intf.Name + ".Eth").SetMac(intf.Mac)
 	if a.Islag {

@@ -2,10 +2,9 @@ package weighted_ecmp_test
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 	"time"
-
-	"math/rand"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -743,8 +742,8 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 			batch := gnmi.OCBatch()
 			statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 			id := formatID(loopBack.ateISISSysID)
-			iPv4Query := statePath.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Level(uint8(isisLevel)).Lsp(id).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(fmt.Sprintf(loopBack.ateLoopbackV4 + "/32"))
-			iPv6Query := statePath.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Level(uint8(isisLevel)).Lsp(id).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).ExtendedIpv4Reachability().Prefix(fmt.Sprintf(loopBack.ateLoopbackV6 + "/128"))
+			iPv4Query := statePath.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Level(uint8(isisLevel)).Lsp(id).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(loopBack.ateLoopbackV4 + "/32")
+			iPv6Query := statePath.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Level(uint8(isisLevel)).Lsp(id).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).ExtendedIpv4Reachability().Prefix(loopBack.ateLoopbackV6 + "/128")
 			batch.AddPaths(iPv4Query, iPv6Query)
 			_, ok := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
 				_, present := val.Val()
