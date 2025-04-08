@@ -178,6 +178,10 @@ github.com/google/go-github/v50 v50.1.0 h1:hMUpkZjklC5GJ+c3GquSqOP/T4BNsB7XohaPh
 github.com/google/go-github/v50 v50.1.0/go.mod h1:Ev4Tre8QoKiolvbpOSG3FIi4Mlon3S2Nt9W5JYqKiwA=
 github.com/google/go-querystring v1.1.0 h1:AnCroh3fv4ZBgVIf1Iwtovgjaw/GiKJo8M8yD/fhyJ8=
 github.com/google/go-querystring v1.1.0/go.mod h1:Kcdr2DB4koayq7X8pmAG4sNG59So17icRSOU623lUBU=
+github.com/google/go-tpm v0.9.3 h1:+yx0/anQuGzi+ssRqeD6WpXjW2L/V0dItUayO0i9sRc=
+github.com/google/go-tpm v0.9.3/go.mod h1:h9jEsEECg7gtLis0upRBQU+GhYVH6jMjrFxI8u6bVUY=
+github.com/google/go-tpm-tools v0.3.13-0.20230620182252-4639ecce2aba h1:qJEJcuLzH5KDR0gKc0zcktin6KSAwL7+jWKBYceddTc=
+github.com/google/go-tpm-tools v0.3.13-0.20230620182252-4639ecce2aba/go.mod h1:EFYHy8/1y2KfgTAsx7Luu7NGhoxtuVHnNo8jE7FikKc=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
 github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
@@ -281,8 +285,8 @@ github.com/open-traffic-generator/keng-operator v0.3.28 h1:FpDe1wtGODN7ByAhF2LxM
 github.com/open-traffic-generator/keng-operator v0.3.28/go.mod h1:+koaOnSyrJHdzxnaye+M6k+ZbszQlWI9u3tMxSpORNA=
 github.com/open-traffic-generator/snappi/gosnappi v1.17.1 h1:mlyVWpFzrMWZzJXA2/qERQrR2Hherhb4Cv8wDqFyamE=
 github.com/open-traffic-generator/snappi/gosnappi v1.17.1/go.mod h1:mZpeEdqVwoARrbiLTZ8cIOHp9Dt7dECk8HttJWc/1Ws=
-github.com/openconfig/attestz v0.2.0 h1:VuksFIG1OlGnRuUpdTFAkMyAY59ITvyLbp4AtiTXV64=
-github.com/openconfig/attestz v0.2.0/go.mod h1:byY6H68zm3VXmQHEb4O4OZtRtFyHEjkmzrvIljYc79Y=
+github.com/openconfig/attestz v0.3.0 h1:UtlbIhhlLsJry9ZBYeVg2TvSrP9qj1KRSiv6QSZ7jGs=
+github.com/openconfig/attestz v0.3.0/go.mod h1:Ec8pX6G7ulaTPHsyscul3JCa+Hh9bvR3XeZutAf7+E4=
 github.com/openconfig/bootz v0.3.1 h1:Q0mThGmZiX/kht+crar6FtLVxqdjUS/deMnpcNX+F7c=
 github.com/openconfig/bootz v0.3.1/go.mod h1:IhVtV9zS/2i8rKXHkRW9eD2UV6zGeIXYtLcEzAeyc6A=
 github.com/openconfig/containerz v0.0.0-20250119143156-ea1f112cd31c h1:4WtTr8Iv2szea/InhymgT5ebeqny6KLB55YBrk2q8Lg=
