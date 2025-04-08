@@ -1,6 +1,5 @@
 # RT-3.52 Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking
 
-.
 
 ## Summary
 
@@ -94,7 +93,6 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
 | ASN2                                 |                      | `$DUT_Port2`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 **Different Flows used throughout the test:**
-You are correct, the previous markdown table was inaccurate. Here's the rebuilt markdown version:
 
 | Src_destination of flows | From_IP --> To_IP | DSCP | TZ Marking |
 |---|---|---|---|
