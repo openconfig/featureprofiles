@@ -24,13 +24,14 @@ import (
 )
 
 const (
-	ipv4PrefixLen = 30
-	ipv6PrefixLen = 126
-	mplsLabel1    = 1000001
-	mplsLabel2    = 1000002
-	mplsLabel3    = 1000003
-
-	tolerance = 0.01 // 1% Traffic Tolerance
+	ipv4PrefixLen   = 30
+	ipv6PrefixLen   = 126
+	mplsLabel1      = 1000001
+	mplsLabel2      = 1000002
+	mplsLabel3      = 1000003
+	lspNextHopIndex = 0
+	implicitNull    = 3
+	tolerance       = 0.01 // 1% Traffic Tolerance
 )
 
 var (
@@ -147,8 +148,8 @@ func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, in
 	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
 	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetIpAddress(nextHopIP)
+	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetPushLabel(oc.UnionUint32(implicitNull))
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
