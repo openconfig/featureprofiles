@@ -444,7 +444,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	t.Run("Check intf counters subscription", func(t *testing.T) {
 		inAndOutPktsPerSecoundCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
 		if !inAndOutPktsPerSecoundCounterOK {
-			t.Error("Interface Packet Counters are not updated per second")
+			t.Errorf("Interface Packet Counters are not updated per second")
 		}
 	})
 	otg.StopTraffic(t)
@@ -521,10 +521,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 		if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateOutPkts[k]; got < want {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
-	}
-	// Validate per second interface counters are updated
-	if !inAndOutPktsPerSecoundCounterOK {
-		t.Error("Interface Packet Counters are not updated per second")
 	}
 }
 
