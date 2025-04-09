@@ -32,10 +32,13 @@ following features:
 *   For the parent interface counters in-pkts and out-pkts:
 
     Check the presence of packet counter paths and monitor counters every
-    30 seconds:
+    30 seconds. Generate traffic to get atleast 10 or more samples. 
 
     *   /interfaces/interface[name='port']/state/counters/in-pkts
     *   /interfaces/interface[name='port']/state/counters/out-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/in-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/in-pkts
+   
 
 *   Subinterfaces counters:
 
