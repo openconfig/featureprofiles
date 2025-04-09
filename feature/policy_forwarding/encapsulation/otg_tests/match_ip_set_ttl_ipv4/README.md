@@ -2,7 +2,7 @@
 
 This test uses policy-forwarding to set the IP TTL.  It contains 2 scenarios as subtests:
 1. Apply this policy alone on an ingress interface.
-2. Apply this policy in combination with a gRIBI programmed next-hop which performs encapsulation and sets the TTL on the outer, encapsulation packet.
+2. Apply this policy in combination with a MPLSoGRE encapsulation and sets the TTL on the outer, encapsulation packet.
 
 ## Topology
 
@@ -36,7 +36,7 @@ outer_ip-ttl =        "64"
 **[TODO]** Test code needs to be implemented.
 
 Canonical OpenConfig for policy forwarding, matching IP prefix and TTL = 1 with action
-set packet TTL = 1.
+set packet TTL = 1 and NHG.
 
 ```json
 {
@@ -48,7 +48,7 @@ set packet TTL = 1.
             "policies": [
               {
                 "config": {
-                  "policy-id": "customer1_prefix4_retain ttl",
+                  "policy-id": "customer1_prefix4_retain_ttl",
                   "type": "PBR_POLICY"
                 },
                 "policy": "retain ttl",
@@ -59,7 +59,7 @@ set packet TTL = 1.
                     },
                     "ipv4": {
                       "config": {
-                        "destination-address": "ipv4_inner_dst_B"
+                        "destination-address": "ipv4_inner_dst_A"
                         "hop-limit": 1
                       }
                     },
@@ -72,7 +72,7 @@ set packet TTL = 1.
               },
               {
                 "config": {
-                  "policy-id": "customer1_prefix6_retain ttl",
+                  "policy-id": "customer1_prefix6_retain_ttl",
                   "type": "PBR_POLICY"
                 },
                 "policy": "retain ttl",
@@ -83,7 +83,7 @@ set packet TTL = 1.
                     },
                     "ipv6": {
                       "config": {
-                        "destination-address": "inner_ipv6_dst_B"
+                        "destination-address": "inner_ipv6_dst_A"
                         "hop-limit": 1
                       }
                     },
@@ -96,8 +96,35 @@ set packet TTL = 1.
               }
             ]  
           }
-        },
-       "next-hops": {
+       },
+       "static": {
+                    "next-hop-groups": {
+                        "net-hop-group": [
+                            {
+                                "config": {
+                                    "name": "MPLS_in_GRE_Encap"
+                                },
+                                "name": "MPLS_in_GRE_Encap",
+                                "next-hops": {
+                                    "next-hop": [
+                                        {
+                                            "index": 1,
+                                            "config": {
+                                                "index": 1
+                                            }
+                                        },
+                                        {
+                                            "index": 2,
+                                            "config": {
+                                                "index": 2
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "next-hops": {
                         "next-hop": [
                             {
                                 "index": 1,
@@ -110,8 +137,8 @@ set packet TTL = 1.
                                                 "index": 1,
                                                 "type": "GRE",
                                                 "config": {
-                                                    "dst-ip": "outer_ipv4_dst_A",
-                                                    "src-ip": "outer_ipv6_src",
+                                                    "dst-ip": "outer_ipv4_dst",
+                                                    "src-ip": "outer_ipv4_src",
                                                     "dscp": "outer_dscp",
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
@@ -141,8 +168,8 @@ set packet TTL = 1.
                                                 "index": 1,
                                                 "type": "GRE",
                                                 "config": {
-                                                    "dst-ip": "outer_ipv6_dst",
-                                                    "src-ip": "outer_ipv6_src",
+                                                    "dst-ip": "outer_ipv6_dst_A",
+                                                    "src-ip": "outer_ipv6_src_A",
                                                     "dscp": "outer_dscp",
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
@@ -164,13 +191,14 @@ set packet TTL = 1.
                         ]
                     }
                 }
+            }
     ]
   }
 }
 ```
 * Push the gNMI the policy forwarding configuration
 * Push the configuration to DUT using gnmi.Set with REPLACE option
-* Send traffic from ATE port 1 to DUT port 1 with TTL as 1.
+* Send v4/v6 traffic from ATE port 1 to DUT port 1 with TTL as 1.
 * Using OTG, validate ATE port 2 receives MPLS-IN-GRE packets
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv4_dst
   * Validate MPLS label is set
@@ -181,35 +209,31 @@ set packet TTL = 1.
 
 ```yaml
 paths:
-
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/hop-limit:
-  # afts state paths set via gRIBI
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/network-instance:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/mpls/pushed-mpls-label-stack:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/src-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dst-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dst-udp-port:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/ip-ttl:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dscp:
+  #TODO: Add new OC for GRE encap headers
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/type:          
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dst-ip:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/src-ip:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dscp:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/ip-ttl:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/index:
+  #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/mpls-label-stack:
+
+  #TODO: Add new OC for policy forwarding actions
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:   
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-ttl:   
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/set-hop-limit:  
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/packet-type:    
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/count:     
 
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
-      replace: true
     gNMI.Subscribe:
-      on_change: true
-  gribi:
-    gRIBI.Modify:
-      afts:next-hops:next-hop:encap-headers:encap-header:udp_v6:
-      afts:next-hops:next-hop:encap-headers:encap-header:mpls:
-    gRIBI.Flush:
 ```
 
 ## Required DUT platform
