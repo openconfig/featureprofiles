@@ -318,7 +318,6 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 	return pktCounterOK
 }
 
-
 func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) (map[string]uint64, map[string]uint64) {
 	// TODO: Replace InUnicastPkts with InPkts and OutUnicastPkts with OutPkts.
 	if deviations.InterfaceCountersFromContainer(dut) {
