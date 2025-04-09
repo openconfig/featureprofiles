@@ -104,6 +104,11 @@ collaborative coding culture.
   coding culture.
     
   ---
+## Important Links
+
+- [GitHub Copilot Overview](https://runon.cisco.com/c/r/runon/Services/devops_github_copilot/ov/github_copilot_overview.html#devops_github_copilot-github-copilot)
+- GitHub Copilot [Documentation](https://docs.github.com/en/copilot)
+- Software Engineering at Google by O'Reilly Publications (https://learning.oreilly.com/library/view/software-engineering-at/9781492082781/)
 
   ## TODO
     - April 9th, 2024: Add a table of ownership of different components within B4.
