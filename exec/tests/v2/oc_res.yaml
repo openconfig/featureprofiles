@@ -5,7 +5,7 @@ testbeds:
   - 8808_FOX2625PLW8_MGMT_GRPC
 tests:
 - name: OC-RES-Utilization
-  path: feature/cisco/platform/utilization_test/otg_test/
+  path: feature/cisco/platform/otg_test/utilization_test/
   timeout: 36000
   mustpass: true
   internal: true
