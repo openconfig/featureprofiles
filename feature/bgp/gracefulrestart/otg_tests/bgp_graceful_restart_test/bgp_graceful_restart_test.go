@@ -81,33 +81,33 @@ const (
 )
 
 var (
-	dutSrc = attrs.Attributes{
-		Desc:    "DUT to ATE source",
-		IPv4:    "192.0.2.1",
-		IPv6:    "2001:db8::192:0:2:1",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	ateSrc = attrs.Attributes{
-		Name:    "ateSrc",
-		MAC:     "02:00:01:01:01:01",
-		IPv4:    "192.0.2.2",
-		IPv6:    "2001:db8::192:0:2:2",
-		IPv4Len: plenIPv4,
-		IPv6Len: plenIPv6,
-	}
-	dutDst = attrs.Attributes{
-		Desc:    "DUT to ATE destination",
+	dutIBGP = attrs.Attributes{
+		Desc:    "DUT to port2 ATE iBGP peer",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	ateDst = attrs.Attributes{
-		Name:    "atedst",
-		MAC:     "02:00:02:01:01:01",
+	ateIBGP = attrs.Attributes{
+		Name:    "ateIBGP",
+		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::192:0:2:6",
+		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
+	}
+	dutEBGP = attrs.Attributes{
+		Desc:    "DUT to port1 ATE eBGP peer",
+		IPv4:    "192.0.2.1",
+		IPv6:    "2001:db8::192:0:2:1",
+		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
+	}
+	ateEBGP = attrs.Attributes{
+		Name:    "ateEBGP",
+		MAC:     "02:00:02:01:01:01",
+		IPv4:    "192.0.2.2",
+		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -134,10 +134,10 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-	i1 := dutSrc.NewOCInterface(dut.Port(t, "port1").Name(), dut)
+	i1 := dutEBGP.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
-	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
+	i2 := dutIBGP.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	t.Log("Configure/update Network Instance")
@@ -166,10 +166,10 @@ type bgpNeighbor struct {
 }
 
 func buildNbrList() []*bgpNeighbor {
-	nbr1v4 := &bgpNeighbor{as: ateAS, neighborip: ateSrc.IPv4, isV4: true}
-	nbr1v6 := &bgpNeighbor{as: ateAS, neighborip: ateSrc.IPv6, isV4: false}
-	nbr2v4 := &bgpNeighbor{as: dutAS, neighborip: ateDst.IPv4, isV4: true}
-	nbr2v6 := &bgpNeighbor{as: dutAS, neighborip: ateDst.IPv6, isV4: false}
+	nbr1v4 := &bgpNeighbor{as: dutAS, neighborip: ateIBGP.IPv4, isV4: true}
+	nbr1v6 := &bgpNeighbor{as: dutAS, neighborip: ateIBGP.IPv6, isV4: false}
+	nbr2v4 := &bgpNeighbor{as: ateAS, neighborip: ateEBGP.IPv4, isV4: true}
+	nbr2v6 := &bgpNeighbor{as: ateAS, neighborip: ateEBGP.IPv6, isV4: false}
 	return []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 }
 
@@ -183,7 +183,7 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 	g.As = ygot.Uint32(as)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	g.RouterId = ygot.String(dutDst.IPv4)
+	g.RouterId = ygot.String(dutEBGP.IPv4)
 	bgpgr := g.GetOrCreateGracefulRestart()
 	bgpgr.Enabled = ygot.Bool(true)
 
@@ -256,13 +256,13 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 func checkBgpGRConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP configuration")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(ateSrc.IPv4)
-	nbrPathv6 := statePath.Neighbor(ateSrc.IPv6)
+	nbrPath := statePath.Neighbor(ateIBGP.IPv4)
+	nbrPathv6 := statePath.Neighbor(ateIBGP.IPv6)
 
 	isGrEnabled := gnmi.Get(t, dut, statePath.Global().GracefulRestart().Enabled().State())
 	t.Logf("isGrEnabled %v", isGrEnabled)
 	if isGrEnabled {
-		t.Logf("Graceful restart on neighbor %v enabled as Expected", ateDst.IPv4)
+		t.Logf("Graceful restart on neighbor %v enabled as Expected", ateEBGP.IPv4)
 	} else {
 		t.Errorf("Expected Graceful restart status on neighbor: got %v, want Enabled", isGrEnabled)
 	}
@@ -288,7 +288,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP state")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-	for _, attr := range []attrs.Attributes{ateSrc, ateDst} {
+	for _, attr := range []attrs.Attributes{ateIBGP, ateEBGP} {
 
 		nbrPath := statePath.Neighbor(attr.IPv4)
 		nbrPathv6 := statePath.Neighbor(attr.IPv6)
@@ -340,60 +340,61 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, keepaliveTimer uint32) {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
-	ateSrc.AddToOTG(config, p1, &dutSrc)
 	p2 := ate.Port(t, "port2")
-	ateDst.AddToOTG(config, p2, &dutDst)
-	srcDev := config.Devices().Items()[0]
-	srcEth := srcDev.Ethernets().Items()[0]
-	srcIpv4 := srcEth.Ipv4Addresses().Items()[0]
-	srcIpv6 := srcEth.Ipv6Addresses().Items()[0]
-	dstDev := config.Devices().Items()[1]
-	dstEth := dstDev.Ethernets().Items()[0]
-	dstIpv4 := dstEth.Ipv4Addresses().Items()[0]
-	dstIpv6 := dstEth.Ipv6Addresses().Items()[0]
+	ateEBGP.AddToOTG(config, p1, &dutEBGP)
+	ateIBGP.AddToOTG(config, p2, &dutIBGP)
 
-	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
-	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
+	iBGPDev := config.Devices().Items()[1]
+	iBGPEth := iBGPDev.Ethernets().Items()[0]
+	iBGPIpv4 := iBGPEth.Ipv4Addresses().Items()[0]
+	iBGPIpv6 := iBGPEth.Ipv6Addresses().Items()[0]
+	eBGPDev := config.Devices().Items()[0]
+	eBGPEth := eBGPDev.Ethernets().Items()[0]
+	eBGPIpv4 := eBGPEth.Ipv4Addresses().Items()[0]
+	eBGPIpv6 := eBGPEth.Ipv6Addresses().Items()[0]
+
+	iBGP := iBGPDev.Bgp().SetRouterId(iBGPIpv4.Address())
+	iBGP4Peer := iBGP.Ipv4Interfaces().Add().SetIpv4Name(iBGPIpv4.Name()).Peers().Add().SetName(ateIBGP.Name + ".BGP4.peer")
 	// The hold timer is ussually 3 times longer than the keep-alive..which means that after 3 failed keep-alives the session is considered down
-	srcBgp4Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
-	srcBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
-	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	srcBgp6Peer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
-	srcBgp6Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
-	srcBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
-	srcBgp6Peer.SetPeerAddress(srcIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	iBGP4Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
+	iBGP4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	iBGP4Peer.SetPeerAddress(iBGPIpv4.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+	iBGP6Peer := iBGP.Ipv6Interfaces().Add().SetIpv6Name(iBGPIpv6.Name()).Peers().Add().SetName(ateIBGP.Name + ".BGP6.peer")
+	iBGP6Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
+	iBGP6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	iBGP6Peer.SetPeerAddress(iBGPIpv6.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 
-	dstBgp := dstDev.Bgp().SetRouterId(dstIpv4.Address())
-	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().SetIpv4Name(dstIpv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
-	dstBgp4Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
-	dstBgp4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
-	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
-	dstBgp6Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
-	dstBgp6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
-	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+	eBGP := eBGPDev.Bgp().SetRouterId(eBGPIpv4.Address())
+	eBGP4Peer := eBGP.Ipv4Interfaces().Add().SetIpv4Name(eBGPIpv4.Name()).Peers().Add().SetName(ateEBGP.Name + ".BGP4.peer")
+	eBGP4Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
+	eBGP4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	eBGP4Peer.SetPeerAddress(eBGPIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	eBGP6Peer := eBGP.Ipv6Interfaces().Add().SetIpv6Name(eBGPIpv6.Name()).Peers().Add().SetName(ateEBGP.Name + ".BGP6.peer")
+	eBGP6Peer.Advanced().SetKeepAliveInterval(keepaliveTimer).SetHoldTimeInterval(3 * keepaliveTimer)
+	eBGP6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	eBGP6Peer.SetPeerAddress(eBGPIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	srcBgp4PeerRoutes := srcBgp4Peer.V4Routes().Add().SetName("bgpNeti1")
-	srcBgp4PeerRoutes.SetNextHopIpv4Address(srcIpv4.Address()).
+	iBGP4PeerRoutes := iBGP4Peer.V4Routes().Add().SetName("bgpNeti1")
+	iBGP4PeerRoutes.SetNextHopIpv4Address(iBGPIpv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	srcBgp4PeerRoutes.Addresses().Add().SetAddress(ebgpV4AdvStartRoute).SetPrefix(advertisedRoutesv4Prefix).SetCount(routeCount)
-	srcBgp6PeerRoutes := srcBgp6Peer.V6Routes().Add().SetName("bgpNeti1v6")
-	srcBgp6PeerRoutes.SetNextHopIpv6Address(srcIpv6.Address()).
+	iBGP4PeerRoutes.Addresses().Add().SetAddress(ibgpV4AdvStartRoute).SetPrefix(advertisedRoutesv4Prefix).SetCount(routeCount)
+	iBGP6PeerRoutes := iBGP6Peer.V6Routes().Add().SetName("bgpNeti1v6")
+	iBGP6PeerRoutes.SetNextHopIpv6Address(iBGPIpv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	srcBgp6PeerRoutes.Addresses().Add().SetAddress(ebgpV6AdvStartRoute).SetPrefix(advertisedRoutesv6Prefix).SetCount(routeCount)
+	iBGP6PeerRoutes.Addresses().Add().SetAddress(ibgpV6AdvStartRoute).SetPrefix(advertisedRoutesv6Prefix).SetCount(routeCount)
 
-	dstBgp4PeerRoutes := dstBgp4Peer.V4Routes().Add().SetName("bgpNeti2")
-	dstBgp4PeerRoutes.SetNextHopIpv4Address(dstIpv4.Address()).
+	eBGP4PeerRoutes := eBGP4Peer.V4Routes().Add().SetName("bgpNeti2")
+	eBGP4PeerRoutes.SetNextHopIpv4Address(eBGPIpv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	dstBgp4PeerRoutes.Addresses().Add().SetAddress(ibgpV4AdvStartRoute).SetPrefix(advertisedRoutesv4Prefix).SetCount(routeCount)
-	dstBgp6PeerRoutes := dstBgp6Peer.V6Routes().Add().SetName("bgpNeti2v6")
-	dstBgp6PeerRoutes.SetNextHopIpv6Address(dstIpv6.Address()).
+	eBGP4PeerRoutes.Addresses().Add().SetAddress(ebgpV4AdvStartRoute).SetPrefix(advertisedRoutesv4Prefix).SetCount(routeCount)
+	eBGP6PeerRoutes := eBGP6Peer.V6Routes().Add().SetName("bgpNeti2v6")
+	eBGP6PeerRoutes.SetNextHopIpv6Address(eBGPIpv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	dstBgp6PeerRoutes.Addresses().Add().SetAddress(ibgpV6AdvStartRoute).SetPrefix(advertisedRoutesv6Prefix).SetCount(routeCount)
+	eBGP6PeerRoutes.Addresses().Add().SetAddress(ebgpV6AdvStartRoute).SetPrefix(advertisedRoutesv6Prefix).SetCount(routeCount)
 
 	ate.OTG().PushConfig(t, config)
 
@@ -525,20 +526,20 @@ func gNOIBGPRequest(t *testing.T, mode string) {
 	}
 }
 
-func configACL(d *oc.Root, ateDstCIDR string) *oc.Acl_AclSet {
+func configACL(d *oc.Root, ateEBGPCIDR string) *oc.Acl_AclSet {
 	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
 	aclEntry10 := acl.GetOrCreateAclEntry(10)
 	aclEntry10.SequenceId = ygot.Uint32(10)
 	aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
 	a := aclEntry10.GetOrCreateIpv4()
 	a.SourceAddress = ygot.String(aclNullPrefix)
-	a.DestinationAddress = ygot.String(ateDstCIDR)
+	a.DestinationAddress = ygot.String(ateEBGPCIDR)
 
 	aclEntry20 := acl.GetOrCreateAclEntry(20)
 	aclEntry20.SequenceId = ygot.Uint32(20)
 	aclEntry20.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
 	a2 := aclEntry20.GetOrCreateIpv4()
-	a2.SourceAddress = ygot.String(ateDstCIDR)
+	a2.SourceAddress = ygot.String(ateEBGPCIDR)
 	a2.DestinationAddress = ygot.String(aclNullPrefix)
 
 	aclEntry30 := acl.GetOrCreateAclEntry(30)
@@ -588,55 +589,28 @@ func verifyBGPActive(t *testing.T, mode string, dst attrs.Attributes) {
 	}
 }
 
-func blockBGPTCP(t *testing.T, dst attrs.Attributes, dutDstIfName string) *oc.Acl_Interface {
+func blockBGPTCP(t *testing.T, dst attrs.Attributes, dutEBGPIfName string) *oc.Acl_Interface {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	dstCIDR := dst.IPv4 + "/32"
-	iFace := d.GetOrCreateAcl().GetOrCreateInterface(dutDstIfName)
+	iFace := d.GetOrCreateAcl().GetOrCreateInterface(dutEBGPIfName)
 	gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, dstCIDR))
-	aclConf := configACLInterface(iFace, dutDstIfName)
+	aclConf := configACLInterface(iFace, dutEBGPIfName)
 	gnmi.Replace(t, dut, aclConf.Config(), iFace)
 	return iFace
 
 }
 
-func unblockBGPTCP(t *testing.T, iface *oc.Acl_Interface, dutDstIfName string) {
+func unblockBGPTCP(t *testing.T, iface *oc.Acl_Interface, dutEBGPIfName string) {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d))
-	aclPath := configACLInterface(iface, dutDstIfName)
+	aclPath := configACLInterface(iface, dutEBGPIfName)
 	gnmi.Replace(t, dut, aclPath.Config(), iface)
 
 }
 
 func TestBGPPGracefulRestart(t *testing.T) {
-	cases := []struct {
-		name      string
-		restarter string
-		mode      string
-		desc      string
-	}{{
-		name:      "RT-1.4.2 Restart DUT Speaker Gracefully",
-		restarter: "speaker",
-		mode:      "gracefully",
-		desc:      "RT-1.4.2 Restarting DUT speaker whose BGP process was killed gracefully",
-	}, {
-		name:      "RT-1.4.3 Restart DUT Speaker Abruptly",
-		restarter: "speaker",
-		mode:      "abruptly",
-		desc:      "RT-1.4.3 Restarting DUT speaker whose BGP process was killed abruptly",
-	}, {
-		name:      "RT-1.4.4 Restart Receiver Gracefully",
-		restarter: "receiver",
-		mode:      "gracefully",
-		desc:      "RT-1.4.4 DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed",
-	}, {
-		name:      "RT-1.4.5 Restart Receiver Abruptly",
-		restarter: "receiver",
-		mode:      "abruptly",
-		desc:      "RT-1.4.5 DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly",
-	}}
-
 	t.Run("RT-1.4.1 Enable and validate BGP Graceful restart feature", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		ate := ondatra.ATE(t, "ate")
@@ -676,6 +650,33 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 	})
 
+	cases := []struct {
+		name      string
+		restarter string
+		mode      string
+		desc      string
+	}{{
+		name:      "RT-1.4.2 Restart DUT Speaker Gracefully",
+		restarter: "speaker",
+		mode:      "gracefully",
+		desc:      "RT-1.4.2 Restarting DUT speaker whose BGP process was killed gracefully",
+	}, {
+		name:      "RT-1.4.3 Restart DUT Speaker Abruptly",
+		restarter: "speaker",
+		mode:      "abruptly",
+		desc:      "RT-1.4.3 Restarting DUT speaker whose BGP process was killed abruptly",
+	}, {
+		name:      "RT-1.4.4 Restart Receiver Gracefully",
+		restarter: "receiver",
+		mode:      "gracefully",
+		desc:      "RT-1.4.4 DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed",
+	}, {
+		name:      "RT-1.4.5 Restart Receiver Abruptly",
+		restarter: "receiver",
+		mode:      "abruptly",
+		desc:      "RT-1.4.5 DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly",
+	}}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dut := ondatra.DUT(t, "dut")
@@ -686,13 +687,13 @@ func TestBGPPGracefulRestart(t *testing.T) {
 			modes := []string{"IBGP", "EBGP"}
 			for _, mode := range modes {
 				if mode == "EBGP" {
-					src = ateDst
-					dst = ateSrc
+					src = ateIBGP
+					dst = ateEBGP
 					dstStart = ebgpV4AdvStartRoute
 				}
 				if mode == "IBGP" {
-					src = ateSrc
-					dst = ateDst
+					src = ateEBGP
+					dst = ateIBGP
 					dstStart = ibgpV4AdvStartRoute
 				}
 				t.Log(tc.desc)
@@ -808,28 +809,28 @@ func TestBGPPGracefulRestart(t *testing.T) {
 		})
 
 		var src, dst attrs.Attributes
-		var dstStart, dutDstIfName string
+		var dstStart, dutEBGPIfName string
 		modes := []string{"IBGP", "EBGP"}
 		for _, mode := range modes {
 			if mode == "EBGP" {
-				src = ateDst
-				dst = ateSrc
+				src = ateEBGP
+				dst = ateIBGP
 				dstStart = ebgpV4AdvStartRoute
-				dutDstIfName = dut.Port(t, "port1").Name()
+				dutEBGPIfName = dut.Port(t, "port1").Name()
 			}
 			if mode == "IBGP" {
-				src = ateSrc
-				dst = ateDst
+				src = ateIBGP
+				dst = ateEBGP
 				dstStart = ibgpV4AdvStartRoute
-				dutDstIfName = dut.Port(t, "port2").Name()
+				dutEBGPIfName = dut.Port(t, "port2").Name()
 			}
 			t.Logf("Starting the test for %s", mode)
 			// Creating traffic
 			configureFlow(t, ate, src, dst, dstStart)
 			checkBgpStatus(t, dut)
 
-			t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutDstIfName)
-			iFace := blockBGPTCP(t, dst, dutDstIfName)
+			t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutEBGPIfName)
+			iFace := blockBGPTCP(t, dst, dutEBGPIfName)
 			startTime := time.Now()
 
 			ate.OTG().StartTraffic(t)
@@ -853,8 +854,8 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				confirmPacketLoss(t, ate)
 			})
 
-			t.Logf("Removing Acl on the dut interface %s to restore BGP", dutDstIfName)
-			unblockBGPTCP(t, iFace, dutDstIfName)
+			t.Logf("Removing Acl on the dut interface %s to restore BGP", dutEBGPIfName)
+			unblockBGPTCP(t, iFace, dutEBGPIfName)
 
 		}
 	})
@@ -896,20 +897,20 @@ func TestBGPPGracefulRestart(t *testing.T) {
 			configureATE(t, ate, 60)
 
 			var src, dst attrs.Attributes
-			var dstStart, dutDstIfName string
+			var dstStart, dutEBGPIfName string
 			modes := []string{"EBGP", "IBGP"}
 			for _, mode := range modes {
 				if mode == "EBGP" {
-					src = ateDst
-					dst = ateSrc
+					src = ateEBGP
+					dst = ateIBGP
 					dstStart = ebgpV4AdvStartRoute
-					dutDstIfName = dut.Port(t, "port1").Name()
+					dutEBGPIfName = dut.Port(t, "port1").Name()
 				}
 				if mode == "IBGP" {
-					src = ateSrc
-					dst = ateDst
+					src = ateIBGP
+					dst = ateEBGP
 					dstStart = ibgpV4AdvStartRoute
-					dutDstIfName = dut.Port(t, "port2").Name()
+					dutEBGPIfName = dut.Port(t, "port2").Name()
 				}
 				t.Log(tc.desc)
 				t.Logf("Starting the test for %s", mode)
@@ -939,8 +940,8 @@ func TestBGPPGracefulRestart(t *testing.T) {
 						customAction.Protocol().Bgp().Notification().SetNames([]string{dst.Name + ".BGP4.peer"}).Custom().SetCode(6).SetSubcode(6)
 					}
 				}
-				t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutDstIfName)
-				iFace := blockBGPTCP(t, dst, dutDstIfName)
+				t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutEBGPIfName)
+				iFace := blockBGPTCP(t, dst, dutEBGPIfName)
 				startTime := time.Now()
 
 				replaceDuration := time.Since(startTime)
@@ -960,8 +961,8 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				t.Run("Confirm Packet Loss for "+mode, func(t *testing.T) {
 					confirmPacketLoss(t, ate)
 				})
-				t.Logf("Removing Acl on the dut interface %s to restore BGP", dutDstIfName)
-				unblockBGPTCP(t, iFace, dutDstIfName)
+				t.Logf("Removing Acl on the dut interface %s to restore BGP", dutEBGPIfName)
+				unblockBGPTCP(t, iFace, dutEBGPIfName)
 
 			}
 		})
