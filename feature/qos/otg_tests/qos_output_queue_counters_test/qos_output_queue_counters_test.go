@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 type trafficData struct {
