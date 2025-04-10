@@ -988,8 +988,8 @@ func TestGnmiUnionReplace(t *testing.T) {
 			configPath: "testdata/acl.txt",
 			checks:     aclValidator,
 		},
+		# TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 		{
-			# TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 			configPath: "testdata/sflow.txt",
 			checks:     sflowValidator,
 		},
@@ -997,8 +997,8 @@ func TestGnmiUnionReplace(t *testing.T) {
 			configPath: "testdata/qos-egress.txt",
 			checks:     qosegressValidator,
 		},
+		# TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 		{
-			# TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 			configPath: "testdata/interfaces.txt",
 			checks:     interfaceValidator,
 		},
