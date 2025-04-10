@@ -745,7 +745,7 @@ func GetSudiRootCA(t *testing.T) (string, error) {
 		return "", errors.New("Failed to Parse 'show platform security attest certificate CiscoHASUDI' cmd output")
 	}
 	certs := strings.Join(matches[:2], "\n")
-	t.Logf(certs)
+	t.Log(certs)
 	return certs, nil
 }
 
@@ -1045,7 +1045,7 @@ func TestEnrollZFlow(t *testing.T) {
 
 				err = verifyControlCardId(t, dut, resp.ControlCardId, cardType)
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("Controll Card ID values Verification Successfull")
 				}
@@ -1057,7 +1057,7 @@ func TestEnrollZFlow(t *testing.T) {
 
 				err = verifyPCRValues(t, dut, resp.PcrValues, cardType[0])
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("PCR values Verification Successfull")
 				}
@@ -1234,7 +1234,7 @@ func TestGetPCRIndices(t *testing.T) {
 
 				err = verifyControlCardId(t, dut, resp.ControlCardId, cardType)
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("Controll Card ID values Verification Successfull")
 				}
@@ -1246,7 +1246,7 @@ func TestGetPCRIndices(t *testing.T) {
 
 				err = verifyPCRValues(t, dut, resp.PcrValues, cardType[0])
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("PCR values Verification Successfull")
 				}

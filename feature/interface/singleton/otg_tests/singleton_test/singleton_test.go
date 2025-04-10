@@ -245,7 +245,7 @@ func (tc *testCase) verifyInterfaceDUT(
 	fptest.LogQuery(t, dp.String(), dip.State(), di)
 
 	di.PopulateDefaults()
-	if tc.mtu == 1500 {
+	if tc.mtu == 1500 || tc.mtu == 5000 || tc.mtu == 9236 {
 		// MTU default values are still not populated.
 		di.GetSubinterface(0).GetIpv4().Mtu = ygot.Uint16(tc.mtu)
 		di.GetSubinterface(0).GetIpv6().Mtu = ygot.Uint32(uint32(tc.mtu))

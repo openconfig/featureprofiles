@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -40,6 +41,7 @@ import (
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 const (
@@ -500,6 +502,35 @@ func AddISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
+// addISISOC, configures ISIS on DUT
+func AddISISOCWithSysAreaID(t *testing.T, device *ondatra.DUTDevice, ifaceName, sysID, areaID, instanceName string) {
+	t.Helper()
+
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTISIS, instanceName)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaID, sysID)}
+	glob.LevelCapability = 2
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf := isis.GetOrCreateInterface(ifaceName)
+	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+	intf.Enabled = ygot.Bool(true)
+	intf.HelloPadding = 1
+	intf.Passive = ygot.Bool(false)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = 2
+
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, instanceName)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, instanceName)
+	gnmi.Update(t, device, dutNode.Config(), dutConf)
+}
+
 // addBGPOC, configures ISIS on DUT
 func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	t.Helper()
@@ -733,8 +764,10 @@ func RebootDevice(t *testing.T) {
 type InterfacePhysicalLink struct {
 	Intf               *oc.Interface
 	IntfName           string
+	IntfV4Addr         string
 	LineCardNumber     string
 	PeerIntfName       string
+	PeerV4Addr         string
 	PeerIntf           *oc.Interface
 	PeerLineCardNumber string
 }
@@ -773,6 +806,10 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	if !enableInterfaceLldp(t, peer, peerInterfaces) {
 		t.Fatalf("Failed to enable LLDP on all interfaces for device %s", peer.Name())
 	}
+	// Fixed sleep time for the LLDP convergence
+	time.Sleep(35 * time.Second)
+	// update dut interface after enabling the interface
+	dutInterfaces = getAllInterfaces(t, dut)
 
 	// Get only enabled interfaces of DUT
 	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)
@@ -863,7 +900,6 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	}
 
 	t.Logf("Total Links: %d, Member Count: %d, Number of Bundles: %d\n", linkCount, memberCount, numBundles)
-
 	for bundleName, links := range bundleMap {
 		t.Logf("Bundle: %s\n", bundleName)
 		for _, link := range links {
@@ -1193,6 +1229,141 @@ func GetActiveGrpcStreams(t *testing.T, dut *ondatra.DUTDevice, expectedStreams 
 	return activeStreams
 }
 
+// incrementSubnetCIDR takes a CIDR and an increment index to generate the next subnet CIDR.
+func IncrementSubnetCIDR(cidr string, index int) (string, error) {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", fmt.Errorf("parsing CIDR failed: %v", err)
+	}
+
+	// Determine the number of bits for the subnet.
+	ones, bits := ipnet.Mask.Size()
+
+	// Calculate the new subnet based on the index and number of hosts.
+	subnetIncrement := big.NewInt(1)
+	subnetIncrement.Lsh(subnetIncrement, uint(bits-ones))
+	subnetIncrement.Mul(subnetIncrement, big.NewInt(int64(index)))
+
+	ipBigInt := big.NewInt(0).SetBytes(ip)
+	ipBigInt.Add(ipBigInt, subnetIncrement)
+
+	// Convert big.Int back to net.IP.
+	newIP := make(net.IP, len(ip))
+	if len(ip) == net.IPv4len {
+		ipBigInt.FillBytes(newIP[12:16]) // IPv4 addresses are the last 4 bytes of the IPv6 space.
+	} else {
+		newIP = ipBigInt.FillBytes(make([]byte, net.IPv6len))
+	}
+
+	return (&net.IPNet{IP: newIP, Mask: ipnet.Mask}).String(), nil
+}
+
+func incrementIPv6(ip net.IP) net.IP {
+	ip = ip.To16()
+	ipInt := big.NewInt(0).SetBytes(ip)
+
+	ipInt.Add(ipInt, big.NewInt(1))
+
+	ipBytes := ipInt.Bytes()
+	newIP := make(net.IP, net.IPv6len)
+	copy(newIP[net.IPv6len-len(ipBytes):], ipBytes)
+
+	return newIP
+}
+
+// getUsableIPs takes a subnet and returns the first and second usable IP addresses.
+func GetUsableIPs(cidr string) (net.IP, net.IP) {
+	_, subnet, _ := net.ParseCIDR(cidr)
+	if subnet.IP.To4() != nil {
+		// It's an IPv4 address
+		firstIP := incrementIP(subnet.IP, 1)
+		secondIP := incrementIP(firstIP, 1)
+		return firstIP, secondIP
+	} else {
+		// It's an IPv6 address
+		firstIP := incrementIPv6(subnet.IP)
+		secondIP := incrementIPv6(firstIP)
+		return firstIP, secondIP
+	}
+}
+
+// generateMAC is a placeholder for a function that generates a MAC address based on some logic.
+func generateMAC(vlanID int) string {
+	return fmt.Sprintf("00:1A:11:%02X:00:01", vlanID)
+}
+
+// generateSubnetAttributes calculates subnet attributes based on a base IPv4 and IPv6 address, VLAN ID, and an index.
+func GenerateSubnetAttributes(baseIPv4, baseIPv6 string, vlanID, index int) (attrs.Attributes, attrs.Attributes, error) {
+
+	newIPv4Subnet, err := IncrementSubnetCIDR(baseIPv4, index)
+	if err != nil {
+		return attrs.Attributes{}, attrs.Attributes{}, err
+	}
+
+	newIPv6Subnet, err := IncrementSubnetCIDR(baseIPv6, index)
+	if err != nil {
+		return attrs.Attributes{}, attrs.Attributes{}, err
+	}
+
+	dutIPv4, ateIPv4 := GetUsableIPs(newIPv4Subnet)
+	dutIPv6, ateIPv6 := GetUsableIPs(newIPv6Subnet)
+
+	dutMAC := generateMAC(vlanID)
+	ateMAC := generateMAC(vlanID)
+
+	dutAttrs := attrs.Attributes{
+		Name:    fmt.Sprintf("DUTport%d", vlanID),
+		IPv4:    dutIPv4.String(),
+		IPv6:    dutIPv6.String(),
+		MAC:     dutMAC,
+		Desc:    fmt.Sprintf("DUT Port %d", vlanID),
+		IPv4Len: 30,
+		IPv6Len: 126,
+	}
+
+	ateAttrs := attrs.Attributes{
+		Name:    fmt.Sprintf("ATEport%d", vlanID),
+		IPv4:    ateIPv4.String(),
+		IPv6:    ateIPv6.String(),
+		MAC:     ateMAC,
+		Desc:    fmt.Sprintf("ATE Port %d", vlanID),
+		IPv4Len: 30,
+		IPv6Len: 126,
+	}
+
+	return dutAttrs, ateAttrs, nil
+}
+
+func GnmiProtoSetConfigPush(t *testing.T, dut *ondatra.DUTDevice, configFilePath string, timeout time.Duration) {
+	b, err := os.ReadFile(configFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	setReq := &gnmipb.SetRequest{}
+
+	if err := prototext.Unmarshal(b, setReq); err != nil {
+		panic(err)
+	}
+
+	gNMIC := dut.RawAPIs().GNMI(t)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if _, err = gNMIC.Set(ctx, setReq); err != nil {
+		t.Fatalf("gnmi Set Config Push failed with unexpected error: %v", err)
+	}
+}
+
+// SwitchoverReady checks if the RP is ready for switchover.
+func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) bool {
+	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
+	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		ready, present := val.Val()
+		return present && ready
+	}).Await(t)
+	return ok
+}
+
 // GetVersion fetches the software version from the device and splits it into components.
 func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
 	// fetching the version string from the device.
@@ -1244,7 +1415,7 @@ func SupervisorSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
@@ -1309,7 +1480,7 @@ func SupervisorSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {

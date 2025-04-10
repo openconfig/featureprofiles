@@ -85,7 +85,7 @@ func TestInvalidCheckRpc(t *testing.T) {
 	if len(rpList) < 2 {
 		activeRp = "0/RP0/CPU0"
 	} else {
-		standbyRpName, activeRpName := components.FindStandbyRP(t, dut, rpList)
+		standbyRpName, activeRpName := components.FindStandbyControllerCard(t, dut, rpList)
 		t.Logf("Standby RP: %v, Active RP: %v", standbyRpName, activeRpName)
 		activeRp = activeRpName
 	}

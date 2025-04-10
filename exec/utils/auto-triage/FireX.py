@@ -64,7 +64,8 @@ class FireX:
 
         return testsuites_metadata
 
-    def _create_testsuites(self, vectorstore, testcases, historial_testsuite):
+    # def _create_testsuites(self, vectorstore, testcases, historial_testsuite):
+    def _create_testsuites(self, testcases, historial_testsuite):
         testsuites = []
     
         # Visit every testcase inside a testsuite
@@ -118,23 +119,23 @@ class FireX:
                     testcase_data["triage_status"] = "New"
 
                     # Find reccomended failures
-                    labels = vectorstore.query(
-                        text if text is not None else "",
-                    )
+                    # labels = vectorstore.query(
+                    #     text if text is not None else "",
+                    # )
 
-                    print(f"Called FireX._create_testsuites() and generated for {testcase.get('name')} the following labels: {labels}")
+                    # print(f"Called FireX._create_testsuites() and generated for {testcase.get('name')} the following labels: {labels}")
 
-                    if len(labels) > 0:
-                        testcase_data["generated_labels"] = labels
-                        testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
-                        # Handle auto tagging with a threshold of 0.9 similarity score
-                        if testcase_data["generated_labels"][0]["score"] > 0.9:
-                            testcase_data["generated"] = False
-                            testcase_data["triage_status"] = "Resolved"
-                        else:
-                            testcase_data["generated"] = True
-                    else:
-                        testcase_data["label"] = ""
+                    # if len(labels) > 0:
+                    #     testcase_data["generated_labels"] = labels
+                    #     testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
+                    #     # Handle auto tagging with a threshold of 0.9 similarity score
+                    #     if testcase_data["generated_labels"][0]["score"] > 0.9:
+                    #         testcase_data["generated"] = False
+                    #         testcase_data["triage_status"] = "Resolved"
+                    #     else:
+                    #         testcase_data["generated"] = True
+                    # else:
+                    #     testcase_data["label"] = ""
             # Passed Testcase
             else:
                 testcase_data["status"] = "passed"
@@ -143,7 +144,8 @@ class FireX:
             testsuites.append(testcase_data)
         return testsuites
 
-    def get_testsuites(self, vectorstore, database, run_info):
+    # def get_testsuites(self, vectorstore, database, run_info):
+    def get_testsuites(self, database, run_info):
         """Gather testsuite data to store into Database"""
         documents = []
 
@@ -223,7 +225,8 @@ class FireX:
                         data["bugs"].append(github.inherit(name))
 
             # Create the individual testcases taking into consideration the historical run
-            data["testcases"] = self._create_testsuites(vectorstore, testcases, historial_testsuite)
+            # data["testcases"] = self._create_testsuites(vectorstore, testcases, historial_testsuite)
+            data["testcases"] = self._create_testsuites(testcases, historial_testsuite)
             documents.append(data)
         return documents
 
