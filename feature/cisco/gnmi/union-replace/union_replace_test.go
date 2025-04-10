@@ -989,6 +989,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			checks:     aclValidator,
 		},
 		{
+			# TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 			configPath: "testdata/sflow.txt",
 			checks:     sflowValidator,
 		},
@@ -997,6 +998,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			checks:     qosegressValidator,
 		},
 		{
+			# TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 			configPath: "testdata/interfaces.txt",
 			checks:     interfaceValidator,
 		},
