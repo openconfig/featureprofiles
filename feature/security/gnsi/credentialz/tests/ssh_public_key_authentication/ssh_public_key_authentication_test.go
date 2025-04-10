@@ -15,6 +15,7 @@
 package sshpublickeyauthentication_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -42,6 +43,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+	authorizedKeysListVersion := fmt.Sprintf("%s-%d", authorizedKeysListVersion, time.Now().Unix())
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
 
@@ -69,14 +71,17 @@ func TestCredentialz(t *testing.T) {
 
 	t.Run("auth should succeed ssh public key authorized for user", func(t *testing.T) {
 		// Push authorized key to the dut.
+
 		credz.RotateAuthorizedKey(t,
 			dut,
 			dir,
 			username,
+			// authorizedKeysListVersion,
 			authorizedKeysListVersion,
 			uint64(authorizedKeysListCreatedOn))
 
 		var startingAcceptCounter, startingLastAcceptTime uint64
+
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			startingAcceptCounter, startingLastAcceptTime = credz.GetAcceptTelemetry(t, dut)
 		}
@@ -108,15 +113,16 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotAuthorizedKeysListCreatedOn := userState.GetAuthorizedKeysListCreatedOn()
-		if !cmp.Equal(time.Unix(0, int64(gotAuthorizedKeysListCreatedOn)), time.Unix(authorizedKeysListCreatedOn, 0)) {
+		if !cmp.Equal(time.Unix(0, int64(gotAuthorizedKeysListCreatedOn)), time.Unix(0, int64(authorizedKeysListCreatedOn))) {
 			t.Fatalf(
-				"Telemetry reports authorized keys list version on is not correct\n\tgot: %d\n\twant: %d",
+				"Telemetry reports authorized keys list created on is not correct\n\tgot: %d\n\twant: %d",
 				gotAuthorizedKeysListCreatedOn, authorizedKeysListCreatedOn,
 			)
 		}
 	})
 
 	t.Cleanup(func() {
+		// authorizedKeysListVersion := fmt.Sprintf("v1-%d", time.Now().Unix())
 		// Cleanup user authorized key after test.
 		credz.RotateAuthorizedKey(t, dut, "", username, "", 0)
 	})
