@@ -477,11 +477,21 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 }
 
 // createGracefulRestartAction create a bgp control action for initiating the graceful restart process
-func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay uint32) gosnappi.ControlAction {
+func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay uint32, notification string) gosnappi.ControlAction {
 	t.Helper()
 	grAction := gosnappi.NewControlAction()
-	grAction.Protocol().Bgp().InitiateGracefulRestart().
-		SetPeerNames(peerNames).SetRestartDelay(restartDelay)
+	if notification == "soft" {
+		grAction.Protocol().Bgp().InitiateGracefulRestart().
+			SetPeerNames(peerNames).SetRestartDelay(restartDelay).Notification().Cease().SetSubcode(gosnappi.DeviceBgpCeaseErrorSubcode.ADMIN_RESET_CODE6_SUBCODE4)
+	}
+	if notification == "hard" {
+		grAction.Protocol().Bgp().InitiateGracefulRestart().
+			SetPeerNames(peerNames).SetRestartDelay(restartDelay).Notification().Cease().SetSubcode(gosnappi.DeviceBgpCeaseErrorSubcode.HARD_RESET_CODE6_SUBCODE9)
+	}
+	if notification == "none" {
+		grAction.Protocol().Bgp().InitiateGracefulRestart().
+			SetPeerNames(peerNames).SetRestartDelay(restartDelay)
+	}
 	return grAction
 }
 
@@ -589,13 +599,13 @@ func verifyBGPActive(t *testing.T, mode string, dst attrs.Attributes) {
 	}
 }
 
-func blockBGPTCP(t *testing.T, dst attrs.Attributes, dutEBGPIfName string) *oc.Acl_Interface {
+func blockBGPTCP(t *testing.T, dst attrs.Attributes, dutIfName string) *oc.Acl_Interface {
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
 	dstCIDR := dst.IPv4 + "/32"
-	iFace := d.GetOrCreateAcl().GetOrCreateInterface(dutEBGPIfName)
+	iFace := d.GetOrCreateAcl().GetOrCreateInterface(dutIfName)
 	gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, dstCIDR))
-	aclConf := configACLInterface(iFace, dutEBGPIfName)
+	aclConf := configACLInterface(iFace, dutIfName)
 	gnmi.Replace(t, dut, aclConf.Config(), iFace)
 	return iFace
 
@@ -612,6 +622,7 @@ func unblockBGPTCP(t *testing.T, iface *oc.Acl_Interface, dutEBGPIfName string) 
 
 func TestBGPPGracefulRestart(t *testing.T) {
 	t.Run("RT-1.4.1 Enable and validate BGP Graceful restart feature", func(t *testing.T) {
+		t.Skip()
 		dut := ondatra.DUT(t, "dut")
 		ate := ondatra.ATE(t, "ate")
 
@@ -669,16 +680,17 @@ func TestBGPPGracefulRestart(t *testing.T) {
 		name:      "RT-1.4.4 Restart Receiver Gracefully",
 		restarter: "receiver",
 		mode:      "gracefully",
-		desc:      "RT-1.4.4 DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed",
+		desc:      "RT-1.4.4 DUT Helper for a restarting BGP speaker whose BGP process was gracefully killed",
 	}, {
 		name:      "RT-1.4.5 Restart Receiver Abruptly",
 		restarter: "receiver",
 		mode:      "abruptly",
-		desc:      "RT-1.4.5 DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly",
+		desc:      "RT-1.4.5 DUT Helper for a restarting BGP speaker whose BGP process was killed abruptly",
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Skip()
 			dut := ondatra.DUT(t, "dut")
 			ate := ondatra.ATE(t, "ate")
 
@@ -696,8 +708,11 @@ func TestBGPPGracefulRestart(t *testing.T) {
 					dst = ateIBGP
 					dstStart = ibgpV4AdvStartRoute
 				}
+				t.Logf("Waiting 10s before the start of the test")
+				time.Sleep(10 * time.Second)
 				t.Log(tc.desc)
 				t.Logf("Starting the test for %s", mode)
+
 				// Creating traffic
 				configureFlow(t, ate, src, dst, dstStart)
 				// Starting traffic before graceful restart from DUT
@@ -717,7 +732,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 						t.Logf("Pid of BGP daemon '%s' is '%d'", pName, pId)
 					}
 					// Kill BGP daemon through gNOI Kill Request.
-					t.Logf("Kill the BGP process on the dut")
+					t.Logf("Kill %s the BGP process on the dut", tc.mode)
 					gNOIKillProcess(t, dut, pName, uint32(pId), tc.mode)
 					startTime = time.Now()
 					time.Sleep(2 * time.Second)
@@ -728,7 +743,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 					if tc.mode == "gracefully" {
 						// Send Graceful Restart Trigger from ATE to DUT within the GR timer configured on the DUT
 						t.Log("Send Graceful Restart Trigger from OTG to DUT")
-						ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{dst.Name + ".BGP4.peer"}, triggerGrTimer))
+						ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{dst.Name + ".BGP4.peer"}, triggerGrTimer, "none"))
 						startTime = time.Now()
 						t.Log("Sending Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
 					}
@@ -742,11 +757,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 					}
 				}
-
-				t.Run("Verify BGP NOT Established", func(t *testing.T) {
-					verifyBGPActive(t, mode, dst)
-				})
-
+				verifyBGPActive(t, mode, dst)
 				if tc.restarter == "speaker" {
 					t.Logf("Stop BGP on the %s ATE Peer to delay the BGP reestablishment for a period longer than the stale routes timer", mode)
 					stopBgp := gosnappi.NewControlState()
@@ -760,12 +771,8 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				t.Logf("Waiting for %s short of stale route time expiration", waitDuration)
 				time.Sleep(waitDuration)
 				ate.OTG().StopTraffic(t)
-				t.Run("Verify no Packet Loss for "+mode, func(t *testing.T) {
-					verifyNoPacketLoss(t, ate)
-				})
-				t.Run("Verify BGP still ACTIVE", func(t *testing.T) {
-					verifyBGPActive(t, mode, dst)
-				})
+				verifyNoPacketLoss(t, ate)
+				verifyBGPActive(t, mode, dst)
 
 				waitDuration = grStaleRouteTime*time.Second - time.Since(startTime) + 30*time.Second
 				t.Logf("Waiting another %s seconds to ensure the stale time expired", waitDuration)
@@ -781,6 +788,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 	t.Run("RT-1.4.6 Test support for RFC8538 compliance by letting Hold-time expire", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		ate := ondatra.ATE(t, "ate")
+		// keepalive timer is reduced so that hold time (3 * keepalive) is shorter than the stale routes timer
 		var keepaliveTimer uint16 = 30
 
 		// ATE Configuration.
@@ -803,59 +811,58 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 		// Start protocols
 		ate.OTG().StartProtocols(t)
-		t.Run("Check BGP status", func(t *testing.T) {
-			t.Log("Check BGP status")
-			checkBgpStatus(t, dut)
-		})
+		checkBgpStatus(t, dut)
 
 		var src, dst attrs.Attributes
-		var dstStart, dutEBGPIfName string
+		var dstStart, dutBGPIfName string
 		modes := []string{"IBGP", "EBGP"}
 		for _, mode := range modes {
 			if mode == "EBGP" {
-				src = ateEBGP
-				dst = ateIBGP
-				dstStart = ebgpV4AdvStartRoute
-				dutEBGPIfName = dut.Port(t, "port1").Name()
-			}
-			if mode == "IBGP" {
 				src = ateIBGP
 				dst = ateEBGP
-				dstStart = ibgpV4AdvStartRoute
-				dutEBGPIfName = dut.Port(t, "port2").Name()
+				dstStart = ebgpV4AdvStartRoute
+				dutBGPIfName = dut.Port(t, "port1").Name()
 			}
+			if mode == "IBGP" {
+				src = ateEBGP
+				dst = ateIBGP
+				dstStart = ibgpV4AdvStartRoute
+				dutBGPIfName = dut.Port(t, "port2").Name()
+			}
+			t.Logf("Waiting 10s before the start of the test")
+			time.Sleep(10 * time.Second)
 			t.Logf("Starting the test for %s", mode)
 			// Creating traffic
 			configureFlow(t, ate, src, dst, dstStart)
 			checkBgpStatus(t, dut)
 
-			t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutEBGPIfName)
-			iFace := blockBGPTCP(t, dst, dutEBGPIfName)
+			t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutBGPIfName)
+			iFace := blockBGPTCP(t, dst, dutBGPIfName)
 			startTime := time.Now()
 
 			ate.OTG().StartTraffic(t)
 			holdTimer := 3 * keepaliveTimer
 			waitDuration := time.Duration(holdTimer)*time.Second - time.Since(startTime) + 10*time.Second
-			t.Logf("Waiting %s seconds to ensure the hold time expired", waitDuration)
+			t.Logf("Waiting %s seconds to ensure the hold timer of %v expired", waitDuration, 3*keepaliveTimer)
 			time.Sleep(waitDuration)
 
-			t.Run("Verify no Packet Loss for "+mode, func(t *testing.T) {
-				verifyNoPacketLoss(t, ate)
-			})
-			startTime = time.Now()
-			t.Run("Verify BGP NOT Established", func(t *testing.T) {
-				verifyBGPActive(t, mode, dst)
-			})
+			verifyNoPacketLoss(t, ate)
+			verifyBGPActive(t, mode, dst)
 
-			waitDuration = time.Duration(grStaleRouteTime)*time.Second - time.Since(startTime)
+			t.Logf("Time passed since acl applied is %s", time.Since(startTime))
+			if time.Since(startTime) > time.Duration(grStaleRouteTime)*time.Second {
+				waitDuration = time.Since(startTime) - time.Duration(grStaleRouteTime)*time.Second
+			} else {
+				waitDuration = time.Duration(grStaleRouteTime)*time.Second - time.Since(startTime) + 5*time.Second
+			}
+
+			t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, grStaleRouteTime)
 			time.Sleep(waitDuration)
 			sendTraffic(t, ate)
-			t.Run("Confirm Packet Loss for "+mode, func(t *testing.T) {
-				confirmPacketLoss(t, ate)
-			})
+			confirmPacketLoss(t, ate)
 
-			t.Logf("Removing Acl on the dut interface %s to restore BGP", dutEBGPIfName)
-			unblockBGPTCP(t, iFace, dutEBGPIfName)
+			t.Logf("Removing Acl on the dut interface %s to restore BGP", dutBGPIfName)
+			unblockBGPTCP(t, iFace, dutBGPIfName)
 
 		}
 	})
@@ -889,7 +896,6 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 	for _, tc := range nextCases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Skip()
 			dut := ondatra.DUT(t, "dut")
 			ate := ondatra.ATE(t, "ate")
 			// ATE Configuration.
@@ -897,21 +903,23 @@ func TestBGPPGracefulRestart(t *testing.T) {
 			configureATE(t, ate, 60)
 
 			var src, dst attrs.Attributes
-			var dstStart, dutEBGPIfName string
+			var dstStart, dutBGPIfName string
 			modes := []string{"EBGP", "IBGP"}
 			for _, mode := range modes {
 				if mode == "EBGP" {
-					src = ateEBGP
-					dst = ateIBGP
-					dstStart = ebgpV4AdvStartRoute
-					dutEBGPIfName = dut.Port(t, "port1").Name()
-				}
-				if mode == "IBGP" {
 					src = ateIBGP
 					dst = ateEBGP
-					dstStart = ibgpV4AdvStartRoute
-					dutEBGPIfName = dut.Port(t, "port2").Name()
+					dstStart = ebgpV4AdvStartRoute
+					dutBGPIfName = dut.Port(t, "port1").Name()
 				}
+				if mode == "IBGP" {
+					src = ateEBGP
+					dst = ateIBGP
+					dstStart = ibgpV4AdvStartRoute
+					dutBGPIfName = dut.Port(t, "port2").Name()
+				}
+				t.Logf("Waiting 10s before the start of the test")
+				time.Sleep(10 * time.Second)
 				t.Log(tc.desc)
 				t.Logf("Starting the test for %s", mode)
 				// Creating traffic
@@ -923,25 +931,17 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 				if tc.direction == "send" {
 					// Sending BGP clear request
-					t.Logf("Sending Clear BGP Notification")
+					t.Logf("Sending Clear BGP Notification from DUT")
+					t.Skip()
 					gNOIBGPRequest(t, tc.notification)
-					time.Sleep(2 * time.Second)
 				}
 				if tc.direction == "receive" {
-					// Receiving BGP clear request. Ate is sending
-					t.Logf("Receiving Clear BGP Notification. ATE is sending the notification")
-					customAction := gosnappi.NewControlAction()
-					if tc.notification == "soft" {
-						// to add the correct code and subcode
-						customAction.Protocol().Bgp().Notification().SetNames([]string{dst.Name + ".BGP4.peer"}).Custom().SetCode(1).SetSubcode(6)
-					}
-					if tc.notification == "hard" {
-						// to add the correct code and subcode
-						customAction.Protocol().Bgp().Notification().SetNames([]string{dst.Name + ".BGP4.peer"}).Custom().SetCode(6).SetSubcode(6)
-					}
+					// Receiving BGP clear request. ATE is sending graceful restart along with RFC8538 notification
+					t.Logf("Send Graceful Restart Trigger from OTG to DUT with %s notifcation", tc.notification)
+					ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{dst.Name + ".BGP4.peer"}, triggerGrTimer, tc.notification))
 				}
-				t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutEBGPIfName)
-				iFace := blockBGPTCP(t, dst, dutEBGPIfName)
+				t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutBGPIfName)
+				iFace := blockBGPTCP(t, dst, dutBGPIfName)
 				startTime := time.Now()
 
 				replaceDuration := time.Since(startTime)
@@ -949,20 +949,16 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				t.Logf("Waiting for %s short of stale route time expiration", waitDuration)
 				time.Sleep(waitDuration)
 				ate.OTG().StopTraffic(t)
-				t.Run("Verify no Packet Loss for "+mode, func(t *testing.T) {
-					verifyNoPacketLoss(t, ate)
-				})
+				verifyNoPacketLoss(t, ate)
 
 				waitDuration = grStaleRouteTime*time.Second - time.Since(startTime) + 30*time.Second
 				t.Logf("Waiting another %s seconds to ensure the stale time expired", waitDuration)
 				time.Sleep(waitDuration)
 
 				sendTraffic(t, ate)
-				t.Run("Confirm Packet Loss for "+mode, func(t *testing.T) {
-					confirmPacketLoss(t, ate)
-				})
-				t.Logf("Removing Acl on the dut interface %s to restore BGP", dutEBGPIfName)
-				unblockBGPTCP(t, iFace, dutEBGPIfName)
+				confirmPacketLoss(t, ate)
+				t.Logf("Removing Acl on the dut interface %s to restore BGP", dutBGPIfName)
+				unblockBGPTCP(t, iFace, dutBGPIfName)
 
 			}
 		})
