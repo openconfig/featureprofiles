@@ -1337,3 +1337,8 @@ func SkipOpticalChannelOutputPowerInterval(dut *ondatra.DUTDevice) bool {
 func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTransceiverDescription()
 }
+
+// Devices that do not support med action config.
+func BgpSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
+}
