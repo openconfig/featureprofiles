@@ -254,37 +254,23 @@ func TestInterfaceCounters(t *testing.T) {
 	}
 }
 
-func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) bool {
-	if deviations.InterfaceCountersFromContainer(dut) {
-		time.Sleep(10 * time.Second)
-		return true
-	}
-	inSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Counters().InUnicastPkts().State(), 90*time.Second)
-	outSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Counters().OutUnicastPkts().State(), 90*time.Second)
-
-	inPkts := inSamples.Await(t)
-	outPkts := outSamples.Await(t)
-
-	if len(inPkts) < 2 || len(outPkts) < 2 {
-		t.Fatalf("did not get enough samples: in counters: %s out counters %s",
-			inPkts, outPkts)
-	}
-	t.Logf("Sample Size Incoming Packets: %d, Sample Size Outgoing Packets: %d", len(inPkts), len(outPkts))
-	var pktCounterOK = true
-	// check counters for first and last sample interval, they shouldn't be equal
+// verifyCounters verifies the interface counters are updated on every subscription request spaced at 30s time interval.
+func verifyCounters(t *testing.T, dut *ondatra.DUTDevice, inPkts, outPkts []*ygnmi.Value[uint64]) bool {
+	counterOK := true
 	inValFirst, _ := inPkts[0].Val()
 	outValFirst, _ := outPkts[0].Val()
 	inValFinal, _ := inPkts[len(inPkts)-1].Val()
 	outValFinal, _ := outPkts[len(inPkts)-1].Val()
 
 	if inValFinal == inValFirst || outValFinal == outValFirst {
-		t.Logf("Counters not incremented: Initial Incoming Packets: %d, Final Incoming Packets: %d", inValFirst, inValFinal)
-		t.Logf("Counters not incremented: Initial Outgoing Packets: %d,  Final Outgoing Packets: %d", outValFirst, outValFinal)
-		pktCounterOK = false
-		return pktCounterOK
+		t.Errorf("Counters not incremented: Initial Incoming Packets: %d, Final Incoming Packets: %d, Initial Outgoing Packets: %d,  Final Outgoing Packets: %d", inValFirst, inValFinal, outValFirst, outValFinal)
+		counterOK = false
+		return counterOK
 	}
 
-	var tolerance = uint64(70)
+	t.Logf("Logging, length of inPkts: %d, length of outPkts: %d", len(inPkts), len(outPkts))
+	t.Logf("inpkts: %v, outPkts: %v", inPkts, outPkts)
+	tolerance := uint64(70)
 	for i := 1; i < len(inPkts); i++ {
 		inValOld, _ := inPkts[i-1].Val()
 		outValOld, _ := outPkts[i-1].Val()
@@ -294,11 +280,50 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		outValDelta := outValLatest - outValOld
 		t.Logf("Incoming Packets: %d, Outgoing Packets: %d", inValLatest, outValLatest)
 		if inValLatest == inValOld || outValLatest == outValOld || outValDelta <= inValDelta-tolerance || outValDelta >= inValDelta+tolerance {
-			t.Logf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d, Tolerance: %d", inValDelta, outValDelta, tolerance)
-			pktCounterOK = false
+			t.Errorf("Comparison with previous iteration: Incoming Packets Delta : %d, Outgoing Packets Delta: %d, Tolerance: %d", inValDelta, outValDelta, tolerance)
+			counterOK = false
 			break
 		}
 	}
+	return counterOK
+}
+
+func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath) bool {
+	if deviations.InterfaceCountersFromContainer(dut) {
+		time.Sleep(10 * time.Second)
+		return true
+	}
+	// Subscribe to input/output interface counters
+	pktCounterOK := true
+	inInterfaceCountersSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Counters().InPkts().State(), 300*time.Second)
+	outInterfaceCountersSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Counters().OutPkts().State(), 300*time.Second)
+	inInterfaceCountersPkts := inInterfaceCountersSamples.Await(t)
+	outInterfaceCountersPkts := outInterfaceCountersSamples.Await(t)
+	if got := verifyCounters(t, dut, inInterfaceCountersPkts, outInterfaceCountersPkts); got == false {
+		pktCounterOK = false
+		t.Fatalf("Interface Packet Counters are not updated every 30 second")
+	}
+
+	// Subscribe to sub-interface ipv4 counters
+	inSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv4().Counters().InPkts().State(), 300*time.Second)
+	outSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv4().Counters().OutPkts().State(), 300*time.Second)
+	inSubInterfacePkts := inSubInterfaceSamples.Await(t)
+	outSubInterfacePkts := outSubInterfaceSamples.Await(t)
+	if got := verifyCounters(t, dut, inSubInterfacePkts, outSubInterfacePkts); got == false {
+		pktCounterOK = false
+		t.Fatalf("Sub-interface IPv4 Packet Counters are not updated every 30 second")
+	}
+
+	// Subscribe to sub-interface ipv6 counters
+	inSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv6().Counters().InPkts().State(), 300*time.Second)
+	outSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv6().Counters().OutPkts().State(), 300*time.Second)
+	inSubInterfaceIpv6Pkts := inSubInterfaceIpv6Samples.Await(t)
+	outSubInterfaceIpv6Pkts := outSubInterfaceIpv6Samples.Await(t)
+	if got := verifyCounters(t, dut, inSubInterfaceIpv6Pkts, outSubInterfaceIpv6Pkts); got == false {
+		pktCounterOK = false
+		t.Fatalf("Sub-interface IPv6 Packet Counters are not updated every 30 second")
+	}
+
 	return pktCounterOK
 }
 
@@ -423,8 +448,13 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	otg.StartTraffic(t)
 	time.Sleep(2 * time.Second)
-	// Check incoming and outgoing interface counters updated per second
-	inAndOutPktsPerSecoundCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
+	// Validate per second interface counters are updated
+	t.Run("Check intf counters subscription", func(t *testing.T) {
+		inAndOutPktsPerSecoundCounterOK := validateInAndOutPktsPerSecond(t, dut, i1, i2)
+		if !inAndOutPktsPerSecoundCounterOK {
+			t.Errorf("Interface Packet Counters are not updated per second")
+		}
+	})
 	otg.StopTraffic(t)
 
 	// Check interface status is up.
@@ -499,10 +529,6 @@ func TestIntfCounterUpdate(t *testing.T) {
 		if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateOutPkts[k]; got < want {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
-	}
-	// Validate per second interface counters are updated
-	if !inAndOutPktsPerSecoundCounterOK {
-		t.Error("Interface Packet Counters are not updated per second")
 	}
 }
 
