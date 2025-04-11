@@ -75,7 +75,7 @@ func TestGNMIClient(t *testing.T) {
 		}
 
 	} else {
-		req = &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}
+		req = &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}, Type: gpb.GetRequest_CONFIG}
 	}
 
 	if _, err := c.Get(context.Background(), req); err != nil {
