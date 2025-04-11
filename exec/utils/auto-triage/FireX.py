@@ -98,10 +98,12 @@ class FireX:
                 if inherit and history.get("status") == "aborted":
                     testcase_data["triage_status"] = history.get("triage_status", "New")
                     testcase_data["label"] = history.get("label", "")
+                    testcase_data["status"] = "aborted"
                     testcase_data["bugs"] = history.get("bugs", [])
                 else:
                     testcase_data["triage_status"] = "New"
                     testcase_data["label"] = ""
+                    testcase_data["status"] = "aborted"
             # Failed Testcase
             elif (error_el != None and error_el.get("message")) or failure_el != None:
                 text = error_el.text if error_el != None else failure_el.text
