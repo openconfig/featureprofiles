@@ -303,7 +303,7 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		pktCounterOK = false
 		t.Fatalf("Interface Packet Counters are not updated every 30 second")
 	}
-	
+
 	// Subscribe to sub-interface ipv4 counters
 	inSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv4().Counters().InPkts().State(), 300*time.Second)
 	outSubInterfaceSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv4().Counters().OutPkts().State(), 300*time.Second)
@@ -313,17 +313,17 @@ func validateInAndOutPktsPerSecond(t *testing.T, dut *ondatra.DUTDevice, i1, i2 
 		pktCounterOK = false
 		t.Fatalf("Sub-interface IPv4 Packet Counters are not updated every 30 second")
 	}
-	
+
 	// Subscribe to sub-interface ipv6 counters
 	inSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i1.Subinterface(0).Ipv6().Counters().InPkts().State(), 300*time.Second)
 	outSubInterfaceIpv6Samples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Subinterface(0).Ipv6().Counters().OutPkts().State(), 300*time.Second)
 	inSubInterfaceIpv6Pkts := inSubInterfaceIpv6Samples.Await(t)
 	outSubInterfaceIpv6Pkts := outSubInterfaceIpv6Samples.Await(t)
 	if got := verifyCounters(t, dut, inSubInterfaceIpv6Pkts, outSubInterfaceIpv6Pkts); got == false {
-	pktCounterOK = false
-	t.Fatalf("Sub-interface IPv6 Packet Counters are not updated every 30 second")
+		pktCounterOK = false
+		t.Fatalf("Sub-interface IPv6 Packet Counters are not updated every 30 second")
 	}
-	
+
 	return pktCounterOK
 }
 
