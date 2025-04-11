@@ -365,7 +365,9 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+		if !deviations.BgpSetMedActionUnsupported(dut) {
+			stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+		}
 		if err != nil {
 			t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
 		}
