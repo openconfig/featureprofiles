@@ -1337,3 +1337,8 @@ func SkipOpticalChannelOutputPowerInterval(dut *ondatra.DUTDevice) bool {
 func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTransceiverDescription()
 }
+
+// BGPDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
+func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
+}
