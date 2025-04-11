@@ -99,9 +99,11 @@ func TestInterfaceCounters(t *testing.T) {
 	// TODO: Uncomment the code which is commented out after the issue fixed.
 	intfCounters := gnmi.OC().Interface(dp.Name()).Counters()
 	subint := gnmi.OC().Interface(dp.Name()).Subinterface(0)
+	subinterfaceCounters := subint.Counters()
 	ipv4Counters := subint.Ipv4().Counters()
 	ipv6Counters := subint.Ipv6().Counters()
 	intfCounterPath := "/interfaces/interface/state/counters/"
+	subinterfaceCounterPath := "/interfaces/interface/subinterfaces/subinterface/state/counters/"
 	ipv4CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/"
 	ipv6CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/"
 
@@ -114,21 +116,97 @@ func TestInterfaceCounters(t *testing.T) {
 		counter ygnmi.SingletonQuery[uint64]
 		skip    bool
 	}{{
-		desc:    "InUnicastPkts",
-		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().State(),
+		desc:    "CarrierTransitions",
+		path:    intfCounterPath + "carrier-transitions",
+		counter: intfCounters.CarrierTransitions().State(),
 	}, {
-		desc:    "InUnicastPkts",
-		path:    intfCounterPath + "in-unicast-pkts",
-		counter: intfCounters.InUnicastPkts().State(),
+		desc:    "InBroadcastPkts",
+		path:    intfCounterPath + "in-broadcast-pkts",
+		counter: intfCounters.InBroadcastPkts().State(),
+	}, {
+		desc:    "InDiscards",
+		path:    intfCounterPath + "in-discards",
+		counter: intfCounters.InDiscards().State(),
+	}, {
+		desc:    "InErrors",
+		path:    intfCounterPath + "in-errors",
+		counter: intfCounters.InErrors().State(),
+	}, {
+		desc:    "InFcsErrors",
+		path:    intfCounterPath + "in-fcs-errors",
+		counter: intfCounters.InFcsErrors().State(),
+	}, {
+		desc:    "InMulticastPkts",
+		path:    intfCounterPath + "in-multicast-pkts",
+		counter: intfCounters.InMulticastPkts().State(),
+	}, {
+		desc:    "InOctets",
+		path:    intfCounterPath + "in-octets",
+		counter: intfCounters.InOctets().State(),
 	}, {
 		desc:    "InPkts",
 		path:    intfCounterPath + "in-pkts",
 		counter: intfCounters.InPkts().State(),
 	}, {
+		desc:    "InUnicastPkts",
+		path:    intfCounterPath + "in-unicast-pkts",
+		counter: intfCounters.InUnicastPkts().State(),
+	}, {
+		desc:    "OutBroadcastPkts",
+		path:    intfCounterPath + "out-broadcast-pkts",
+		counter: intfCounters.OutBroadcastPkts().State(),
+	}, {
+		desc:    "OutDiscards",
+		path:    intfCounterPath + "out-discards",
+		counter: intfCounters.OutDiscards().State(),
+	}, {
+		desc:    "OutErrors",
+		path:    intfCounterPath + "out-errors",
+		counter: intfCounters.OutErrors().State(),
+	}, {
+		desc:    "OutMulticastPkts",
+		path:    intfCounterPath + "out-multicast-pkts",
+		counter: intfCounters.OutMulticastPkts().State(),
+	}, {
+		desc:    "OutOctets",
+		path:    intfCounterPath + "out-octets",
+		counter: intfCounters.OutOctets().State(),
+	}, {
 		desc:    "OutPkts",
 		path:    intfCounterPath + "out-pkts",
 		counter: intfCounters.OutPkts().State(),
+	}, {
+		desc:    "OutUnicastPkts",
+		path:    intfCounterPath + "out-unicast-pkts",
+		counter: intfCounters.OutUnicastPkts().State(),
+	}, {
+		desc:    "SubinterfaceOutBroadcastPkts",
+		path:    subinterfaceCounterPath + "out-broadcast-pkts",
+		counter: subinterfaceCounters.OutBroadcastPkts().State(),
+	}, {
+		desc:    "SubinterfaceCarrierTransitions",
+		path:    subinterfaceCounterPath + "carrier-transitions",
+		counter: subinterfaceCounters.CarrierTransitions().State(),
+	}, {
+		desc:    "SubinterfaceOutErrors",
+		path:    subinterfaceCounterPath + "out-errors",
+		counter: subinterfaceCounters.OutErrors().State(),
+	}, {
+		desc:    "SubinterfaceLastClear",
+		path:    subinterfaceCounterPath + "last-clear",
+		counter: subinterfaceCounters.LastClear().State(),
+	}, {
+		desc:    "SubinterfaceInErrors",
+		path:    subinterfaceCounterPath + "in-errors",
+		counter: subinterfaceCounters.InErrors().State(),
+	}, {
+		desc:    "SubinterfaceInUnknownProtos",
+		path:    subinterfaceCounterPath + "in-unknown-protos",
+		counter: subinterfaceCounters.InUnknownProtos().State(),
+	}, {
+		desc:    "SubinterfaceInBroadcastPkts",
+		path:    subinterfaceCounterPath + "in-broadcast-pkts",
+		counter: subinterfaceCounters.InBroadcastPkts().State(),
 	}, {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
@@ -159,7 +237,8 @@ func TestInterfaceCounters(t *testing.T) {
 		path:    ipv6CounterPath + "out-discarded-pkts",
 		counter: ipv6Counters.OutDiscardedPkts().State(),
 		skip:    skipIpv6DiscardedPkts,
-	}}
+	},
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -439,6 +518,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv4PrefixLen uint8
 		ipv6Addr      string
 		ipv6PrefixLen uint8
+		loadInterval  uint16
 	}{{
 		desc:          "Input interface port1",
 		intfName:      dp1.Name(),
@@ -446,6 +526,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv4PrefixLen: 31,
 		ipv6Addr:      "2001:DB8::1",
 		ipv6PrefixLen: 126,
+		loadInterval:  30,
 	}, {
 		desc:          "Output interface port2",
 		intfName:      dp2.Name(),
@@ -453,6 +534,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		ipv4PrefixLen: 31,
 		ipv6Addr:      "2001:DB8::5",
 		ipv6PrefixLen: 126,
+		loadInterval:  30,
 	}}
 
 	// Configure IPv4 and IPv6 addresses under subinterface.
@@ -462,6 +544,9 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 			Name:        ygot.String(intf.intfName),
 			Description: ygot.String(intf.desc),
 			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		}
+		li := &oc.Interface_Rates{
+			LoadInterval: ygot.Uint16(intf.loadInterval),
 		}
 		i.GetOrCreateEthernet()
 		s := i.GetOrCreateSubinterface(0)
@@ -483,16 +568,35 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
 
+		// Setting the load interval for the interface.
+		if !deviations.LoadIntervalNotSupported(dut) {
+			t.Logf("Setting load interval for Interface %s: %v", intf.intfName, intf.loadInterval)
+			li.SetLoadInterval(intf.loadInterval)
+			gnmi.Update(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
+		}
 		t.Logf("Validate that IPv4 and IPv6 addresses are enabled: %s", intf.intfName)
 		subint := gnmi.OC().Interface(intf.intfName).Subinterface(0)
 
 		if !deviations.IPv4MissingEnabled(dut) {
 			if !gnmi.Get(t, dut, subint.Ipv4().Enabled().State()) {
 				t.Errorf("Ipv4().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
+			} else {
+				t.Logf("Ipv4().Enabled().Get(t) for interface %v: got true, want true", intf.intfName)
 			}
 		}
 		if !gnmi.Get(t, dut, subint.Ipv6().Enabled().State()) {
 			t.Errorf("Ipv6().Enabled().Get(t) for interface %v: got false, want true", intf.intfName)
+		} else {
+			t.Logf("Ipv6().Enabled().Get(t) for interface %v: got true, want true", intf.intfName)
+		}
+
+		// Validate that Load Interval are enabled.
+		if !deviations.LoadIntervalNotSupported(dut) {
+			t.Logf("Validate that Load Interval are enabled: %s", intf.intfName)
+			intload := gnmi.Get(t, dut, gnmi.OC().Interface(intf.intfName).Rates().LoadInterval().State())
+			if intload != intf.loadInterval {
+				t.Errorf("Get(DUT port1 load interval): got %v, want %v", intload, intf.loadInterval)
+			}
 		}
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
