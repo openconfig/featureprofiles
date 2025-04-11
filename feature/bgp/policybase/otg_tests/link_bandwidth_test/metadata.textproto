@@ -14,6 +14,7 @@ platform_exceptions:  {
     missing_value_for_defaults:  true
     interface_enabled:  true
     default_network_instance:  "default"
+    match_link_bandwidth_regex_diff_prefix: true
     bgp_extended_community_index_unsupported:  true
   }
 }
