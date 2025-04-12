@@ -6,27 +6,25 @@ IPv4/IPv6 unicast routes next hop group and next hop.
 
 ## Testbed
 
-* atedut_4.testbed
+* atedut_2.testbed
 
 ## Test Setup
 
 ### Generate DUT and ATE Configuration
 
-Configure DUT:port1,port2,port3 for IS-IS session with ATE:port1,port2,port3
+Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
+
 *   IS-IS must be level 2 only with wide metric.
 *   IS-IS must be point to point.
-*   Send 100 ipv4 and 100 ipv6 prefixes from ATE:port1 to DUT:port1.
+*   Send 1000 ipv4 and 1000 ipv6 prefixes from ATE:port1 to DUT:port1.
 
+Establish EBGP sessions between ATE:port1,port2 and DUT:port1,port2
 
-Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2 and another between ATE:port3 and DUT:port3.
-*   Configure eBGP over the interface ip between ATE:port1,port2 and DUT:port1,port2.
-*   Configure eBGP over multihop between ATE:port3 and DUT:port3.
-*   eBGP must be multipath on ATE:port1,port2 and multihop on ATE:port3.
-*   Advertise 100 ipv4,ipv6 prefixes from ATE port1,port2 observe received prefixes at DUT.
+*   Configure EBGP over the interface ip between ATE:port1,port2 and DUT:port1,port2.
+*   EBGP must be multipath on ATE:port1,port2.
+*   Advertise 1000 ipv4,ipv6 prefixes from ATE port1,port2 observe received prefixes at DUT.
 *   Validate total number of entries of AFT for IPv4 and IPv6.
 *   Each prefix must have 2 next hops pointing to ATE port1,port2.
-*   Advertise 100 ipv4,ipv6 from ATE port3 observe received prefixes at DUT.
-*   Each prefix must have 1 next hop pointing to BGP neighbour ip.
 
 ### Procedure
 
@@ -36,14 +34,12 @@ Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2 and another 
 ### Verifications
 
 *   BGP route advertised from ATE:port1,port2 must have 2 nexthops.
-*   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
 *   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
+*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop is same as expected.
 *   Verify all other leaves mentioned in the path section.
-
 
 ## AFT-1.1.1: AFT Base Link Down scenario 1
 
@@ -55,8 +51,7 @@ Bring down the link between ATE:port2 and DUT:port2 using OTG api.
 
 *   BGP routes advertised from ATE:port1,port2 must have 1 nexthop.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
-*   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
+*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop is same as expected.
@@ -70,12 +65,7 @@ Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG api.
 ### Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must be removed from RIB,FIB of the DUT, query results nil.
-*   IS-IS routes advertised from ATE:port1 must have one next hop.
-*   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
-*   Verify afts prefix advertised by BGP,ISIS.
-*   Verify its next hop group, number of next hop and its interfaces.
-*   Verify the number of next hop is same as expected.
+*   ISIS routes advertised from ATE:port1 must be removed from RIB,FIB of the DUT, query result nil.
 
 ## AFT-1.1.3: AFT Base Link Up scenario 1
 
@@ -87,9 +77,8 @@ Bring up link between ATE:port1 and DUT:port1 using OTG api.
 
 *   BGP routes advertised from ATE:port1,port2 must have one next hop.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
-*   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
 *   Verify afts prefix advertised by BGP,ISIS.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
+*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop is same as expected.
 
@@ -103,15 +92,15 @@ Bring up both link between ATE:port1,port2 and DUT:port1,port2 using OTG api.
 
 *   BGP routes advertised from ATE:port1,port2 must have 2 next hops.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
-*   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
+*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop is same as expected.
 
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+The below yaml defines the OC paths intended to be covered by this test.
+OC paths used for test setup are not listed here.
 
 ```yaml
 paths:
