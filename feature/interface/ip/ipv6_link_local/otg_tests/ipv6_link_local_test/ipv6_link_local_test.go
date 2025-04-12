@@ -245,7 +245,6 @@ func otgSrcToDstFlow(t *testing.T, top gosnappi.Config, srcIPv6, dstIPv6, flowNa
 	flow.Metrics().SetEnable(true)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
-	e1.Dst().SetValue(ateDst.MAC)
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
 	v6 := flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(srcIPv6)
