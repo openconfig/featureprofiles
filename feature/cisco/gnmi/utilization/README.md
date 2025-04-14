@@ -12,6 +12,11 @@ This automation tests the implementation of the utilization thresholds for five 
 
 * Spitfire-distributed
 
+## Documentation
+
+- SFS: EDCS-25509520
+- [Automation Doc and test plan](https://miggbo.atlassian.net/browse/XR-58015) available in jira ticket
+
 ## Tests
 
 * TestSetSystemThreshold
