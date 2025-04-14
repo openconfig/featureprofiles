@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "49517013-0588-4565-afbc-3ea41d8db257"
+plan_id: "attestz-1"
+description: "Validate attestz for initial install"
+testbed: TESTBED_DUT
