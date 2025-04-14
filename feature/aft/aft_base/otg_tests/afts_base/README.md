@@ -21,7 +21,6 @@ Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
 Establish EBGP sessions between ATE:port1,port2 and DUT:port1,port2
 
 *   Configure EBGP over the interface ip between ATE:port1,port2 and DUT:port1,port2.
-*   EBGP must be multipath on ATE:port1,port2.
 *   Advertise 1000 ipv4,ipv6 prefixes from ATE port1,port2 observe received prefixes at DUT.
 *   Validate total number of entries of AFT for IPv4 and IPv6.
 *   Each prefix must have 2 next hops pointing to ATE port1,port2.
@@ -35,10 +34,9 @@ Establish EBGP sessions between ATE:port1,port2 and DUT:port1,port2
 
 *   BGP route advertised from ATE:port1,port2 must have 2 nexthops.
 *   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
-*   Verify the number of next hop is same as expected.
+*   Verify the number of next hop is 2 as expected.
 *   Verify all other leaves mentioned in the path section.
 
 ## AFT-1.1.1: AFT Base Link Down scenario 1
@@ -54,7 +52,7 @@ Bring down the link between ATE:port2 and DUT:port2 using OTG api.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
-*   Verify the number of next hop is same as expected.
+*   Verify the number of next hop per prefix must be 1.
 
 ## AFT-1.1.2: AFT Base Link Down scenario 2
 
@@ -80,7 +78,7 @@ Bring up link between ATE:port1 and DUT:port1 using OTG api.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify its next hop group, number of next hop and its interfaces.
-*   Verify the number of next hop is same as expected.
+*   Verify the number of next hop per prefix is 1.
 
 ## AFT-1.1.4: AFT Base Link Up scenario 2
 
@@ -95,7 +93,7 @@ Bring up both link between ATE:port1,port2 and DUT:port1,port2 using OTG api.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
-*   Verify the number of next hop is same as expected.
+*   Verify the number of next hop per prefix is 2.
 
 ## OpenConfig Path and RPC Coverage
 
