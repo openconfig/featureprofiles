@@ -10,23 +10,7 @@ Ongoing traffic flows using gRIBI rules will switch to static route.
 
 ## Test setup
 
-TODO: Complete test environment setup steps
-
-inner_ipv6_dst_A = "2001:aa:bb::1/128"
-inner_ipv6_dst_B = "2001:aa:bb::2/128"
-inner_ipv6_default = "::/0"
-
-ipv4_inner_dst_A = "10.5.1.1/32"
-ipv4_inner_dst_B = "10.5.1.2/32"
-ipv4_inner_default = "0.0.0.0/0"
-
-outer_ipv6_src =      "2001:f:a:1::0"
-outer_ipv6_dst_A =    "2001:f:c:e::1"
-outer_ipv6_dst_B =    "2001:f:c:e::2"
-outer_ipv6_dst_def =  "2001:1:1:1::0"
-outer_dst_udp_port =  "6635"
-outer_dscp =          "26"
-outer_ip-ttl =        "64"
+Refer TE-18.1 for test setup.
 
 ## Procedure
 
@@ -34,73 +18,11 @@ outer_ip-ttl =        "64"
 
 #### gRIBI RPC content
 
-The gRIBI client should send this proto message to the DUT to create AFT
+The gRIBI client should send TE-18.1 proto message to the DUT to create AFT
 entries.
 
-```proto
-#
-# aft entries used for network instance "NI_A"
-IPv6Entry {2001:DB8:2::2/128 (NI_A)} -> NHG#100 (DEFAULT VRF)
-IPv4Entry {203.0.113.2/32 (NI_A)} -> NHG#100 (DEFAULT VRF) -> {
-  {NH#101, DEFAULT VRF}
-}
-
-# this nexthop specifies a MPLS in UDP encapsulation
-NH#101 -> {
-  encap_-_headers {
-    encap_header {
-      index: 1
-      mpls {
-        pushed_mpls_label_stack: [101,]
-      }
-    }
-    encap_header {
-      index: 2
-      udp_v6 {
-        src_ip: "outer_ipv6_src"
-        dst_ip: "outer_ipv6_dst_A"
-        dst_udp_port: "outer_dst_udp_port"
-        ip_ttl: "outer_ip-ttl"
-        dscp: "outer_dscp"
-      }
-    }
-  }
-  next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
-  network_instance: "DEFAULT"
-}
-
-#
-# entries used for network-instance "NI_B"
-IPv6Entry {2001:DB8:2::2/128 (NI_B)} -> NHG#200 (DEFAULT VRF)
-IPv4Entry {203.0.113.2/32 (NI_B)} -> NHG#200 (DEFAULT VRF) -> {
-  {NH#201, DEFAULT VRF}
-}
-
-NH#201 -> {
-  encap_headers {
-    encap_header {
-      index: 1
-      mpls {
-        pushed_mpls_label_stack: [201,]
-      }
-    }
-    encap_header {
-      index: 2
-      udp_v6 {
-        src_ip: "outer_ipv6_src"
-        dst_ip: "outer_ipv6_dst_B"
-        dst_udp_port: "outer_dst_udp_port"
-        ip_ttl: "outer_ip-ttl"
-        dscp: "outer_dscp"
-      }
-    }
-  }
-  next_hop_group_id: "nhg_B"  
-  # network_instance: "DEFAULT"  TODO: requires new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance
-}
-```
-
-* Configure static-routes with next-hops using encap-headers as a backup prefix match rule for MPLS in GRE encap.
+* Configure static-routes as mentioned at PF-1.14 with next-hops using encap-headers as a backup
+  prefix match rule for MPLS in GRE encap.
 * Push the configuration to DUT using gnmi.Set with REPLACE option
 * Configure ATE port 1 with traffic flow which matches AFT next hop route
 * Generate traffic from ATE port 1 to ATE port 2
