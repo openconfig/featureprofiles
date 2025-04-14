@@ -49,7 +49,6 @@ Bring down the link between ATE:port2 and DUT:port2 using OTG api.
 
 *   BGP routes advertised from ATE:port1,port2 must have 1 nexthop.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop per prefix must be 1.
@@ -76,7 +75,6 @@ Bring up link between ATE:port1 and DUT:port1 using OTG api.
 *   BGP routes advertised from ATE:port1,port2 must have one next hop.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   Verify afts prefix advertised by BGP,ISIS.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop per prefix is 1.
 
@@ -90,7 +88,6 @@ Bring up both link between ATE:port1,port2 and DUT:port1,port2 using OTG api.
 
 *   BGP routes advertised from ATE:port1,port2 must have 2 next hops.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
-*   For verifying prefix, nexthop groups, next hop use the leaves mentioned in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop per prefix is 2.
