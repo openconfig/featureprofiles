@@ -30,6 +30,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
@@ -96,6 +98,16 @@ var (
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
+
+	dutLoopback = attrs.Attributes{
+		Desc:    "Loopback ip",
+		IPv4:    "192.0.2.21",
+		IPv6:    "2001:db8::21",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
+
+	lb string
 )
 
 type testCase struct {
@@ -244,7 +256,7 @@ func (tc *testCase) verifyInterfaceDUT(
 	fptest.LogQuery(t, dp.String(), dip.State(), di)
 
 	di.PopulateDefaults()
-	if tc.mtu == 1500 {
+	if tc.mtu == 1500 || tc.mtu == 5000 || tc.mtu == 9236 {
 		// MTU default values are still not populated.
 		di.GetSubinterface(0).GetIpv4().Mtu = ygot.Uint16(tc.mtu)
 		di.GetSubinterface(0).GetIpv6().Mtu = ygot.Uint32(uint32(tc.mtu))
@@ -430,6 +442,36 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		t.Logf("ap1 out-octets %d -> ap2 in-octets %d", aicp1.GetCounters().GetOutOctets(), aicp2.GetCounters().GetInOctets())
 	}
 
+	// Flow counters
+	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
+	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	fpc := fp.GetCounters()
+
+	// Pragmatic check on the average in and out packet sizes.  IPv4 may
+	// fragment the packet unless DF bit is set.  IPv6 never fragments.
+	// Under no circumstances should DUT send packets greater than MTU.
+
+	octets := fpc.GetOutOctets()
+	ateOutPkts := fpc.GetOutPkts()
+	ateInPkts := fpc.GetInPkts()
+
+	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
+		batch := gnmi.OCBatch()
+		batch.AddPaths(
+			gnmi.OC().Interface(p1.Name()).Counters(),
+			gnmi.OC().Interface(p2.Name()).Counters(),
+		)
+		gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+			got, present := v.Val()
+			if !present {
+				return false
+			}
+			diffP1 := diffCounters(p1InBefore, inCounters(got.GetInterface(p1.Name()).GetCounters()))
+			diffP2 := diffCounters(p2OutBefore, outCounters(got.GetInterface(p2.Name()).GetCounters()))
+			return (diffP1.unicast+diffP1.drop >= ateOutPkts) && (diffP2.unicast >= ateInPkts-diffP2.drop)
+		}).Await(t)
+	}
+
 	// After Traffic Unicast, Multicast, Broadcast Counter
 	p1InAfter := inCounters(gnmi.Get(t, tc.dut, p1Counter.State()))
 	p2OutAfter := outCounters(gnmi.Get(t, tc.dut, p2Counter.State()))
@@ -449,18 +491,6 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		t.Errorf("Large number of outbound Broadcast packets %d, want <= 100)", p2OutDiff.broadcast)
 	}
 
-	// Flow counters
-	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
-	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	fpc := fp.GetCounters()
-
-	// Pragmatic check on the average in and out packet sizes.  IPv4 may
-	// fragment the packet unless DF bit is set.  IPv6 never fragments.
-	// Under no circumstances should DUT send packets greater than MTU.
-
-	octets := fpc.GetOutOctets()
-	ateOutPkts := fpc.GetOutPkts()
-	ateInPkts := fpc.GetInPkts()
 	if ateOutPkts == 0 {
 		t.Error("Flow did not send any packet")
 	} else if avg := octets / ateOutPkts; avg > uint64(tc.mtu) {
@@ -546,4 +576,68 @@ func TestMTUs(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("MTU=%d", mtu), tc.testMTU)
 	}
+}
+
+func (tc *testCase) configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	lb = netutil.LoopbackInterface(t, dut, 0)
+	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
+	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+	foundV4 := false
+	for _, ip := range ipv4Addrs {
+		if v, ok := ip.Val(); ok {
+			foundV4 = true
+			dutLoopback.IPv4 = v.GetIp()
+			break
+		}
+	}
+	if !foundV4 {
+		lo1 := dutLoopback.NewOCInterface(lb, dut)
+		lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
+	}
+}
+
+func (tc *testCase) configureInterface(t *testing.T, i *oc.Interface, a *attrs.Attributes) {
+	a.ConfigOCInterface(i, tc.dut)
+	i.Description = ygot.String(*i.Description)
+	_ = i.GetOrCreateSubinterface(0)
+}
+
+func (tc *testCase) configInterfaceDUTUnnumbered(i *oc.Interface, a *attrs.Attributes) {
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	unnumebered := s4.GetOrCreateUnnumbered()
+	unnumebered.SetEnabled(true)
+	refInterface := unnumebered.GetOrCreateInterfaceRef()
+	refInterface.SetInterface(lb)
+}
+
+func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
+	d := gnmi.OC()
+
+	p1 := tc.dut.Port(t, "port1")
+	tc.duti1 = &oc.Interface{Name: ygot.String(p1.Name())}
+	tc.configureInterface(t, tc.duti1, &dutSrc)
+	tc.configureDUTLoopback(t, tc.dut)
+	tc.configInterfaceDUTUnnumbered(tc.duti1, &dutSrc)
+	di1 := d.Interface(p1.Name())
+	fptest.LogQuery(t, p1.String(), di1.Config(), tc.duti1)
+	gnmi.Replace(t, tc.dut, di1.Config(), tc.duti1)
+
+	dip := gnmi.OC().Interface(p1.Name())
+	di := gnmi.Get(t, tc.dut, dip.State())
+	fptest.LogQuery(t, p1.String(), dip.State(), di)
+	if got := di.GetSubinterface(0).GetIpv4().GetUnnumbered().GetEnabled(); got != true {
+		t.Errorf("Unnumbered subinterface enabled got %v, want true", got)
+	}
+}
+
+// TestUnnumberedSubInterfaceEnabled tests that an subinterface can be configured with an unnumbered address.
+func TestUnnumberedSubInterfaceEnabled(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	tc := &testCase{
+		dut: dut,
+	}
+	t.Run("unnumbered_subinterface_enable", tc.testUnnumberedSubInterfaceEnabled)
 }

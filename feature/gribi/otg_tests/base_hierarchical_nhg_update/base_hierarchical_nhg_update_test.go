@@ -48,11 +48,11 @@ const (
 
 	// Destination ATE MAC address for port-2 and port-3.
 	pMAC = "00:1A:11:00:1A:BC"
-	// 12-bit filter for egress flow tracking. ABC in hex == 0xabc in hexadecimal.
-	pMACFilter      = "0xabc"
-	pMACFilterport2 = "0xab9"
-	pMACFilterport3 = "0xaba"
-	pMACFilterport4 = "0xabb"
+	// 8-bit filter for egress flow tracking. ABC in hex == 0xabc in hexadecimal.
+	pMACFilter      = "0xbc"
+	pMACFilterport2 = "0xb9"
+	pMACFilterport3 = "0xba"
+	pMACFilterport4 = "0xbb"
 
 	// port-2 nexthop ID.
 	p2NHID = 40
@@ -99,7 +99,7 @@ const (
 	port4mac        = "00:1A:11:00:1A:BB"
 	vip1            = "198.18.196.1"
 	outerSrcIP      = "203.0.113.0"
-	fps             = 1000000 // traffic frames per second
+	fps             = 100000 // traffic frames per second
 	innerSrcIP      = "198.51.100.61"
 	vrfPrefixcount  = 10000
 	ipv4Prefixcount = 700
@@ -280,16 +280,15 @@ type transitKey struct{}
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
-	}
-	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 
 	// Remove interface from VRF-1.
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
 	p1 := args.dut.Port(t, "port1")
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
-
+	if deviations.ExplicitInterfaceInDefaultVRF(args.dut) {
+		fptest.AssignToNetworkInstance(t, args.dut, p1.Name(), deviations.DefaultNetworkInstance(args.dut), 0)
+	}
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
 	// Delete Policy-forwarding PolicyW from the ingress interface
@@ -323,15 +322,16 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	var op1, op3 *client.OpResult
 	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
 		nh, op1 = gribi.NHEntry(p2NHID, "MACwithInterface", dni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP2, Mac: pMAC, Dest: atePort2DummyIP.IPv4})
-		args.client.AddEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{op1})
 	} else {
-		args.client.AddNH(t, p2NHID, "MACwithInterface", dni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP2, Mac: pMAC})
+		nh, op1 = gribi.NHEntry(p2NHID, "MACwithInterface", dni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP2, Mac: pMAC})
 	}
-	args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, dni, fluent.InstalledInFIB)
+	nhg, op2 := gribi.NHGEntry(virtualIPNHGID, map[uint64]uint64{p2NHID: 1}, dni, fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
 	args.client.AddIPv4(t, virtualPfx, virtualIPNHGID, dni, dni, fluent.InstalledInFIB)
 
-	args.client.AddNH(t, dstNHID, virtualIP, dni, fluent.InstalledInFIB)
-	args.client.AddNHG(t, dstNHGID, map[uint64]uint64{dstNHID: 1}, dni, fluent.InstalledInFIB)
+	nh, op1 = gribi.NHEntry(dstNHID, virtualIP, dni, fluent.InstalledInFIB)
+	nhg, op2 = gribi.NHGEntry(dstNHGID, map[uint64]uint64{dstNHID: 1}, dni, fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
 
 	if transit {
 		args.client.AddIPv4(t, dstPfx, dstNHGID, niTeVrf111, dni, fluent.InstalledInFIB)
@@ -344,17 +344,18 @@ func testBaseHierarchialNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Adding a new NH via port %v with ID %v", dutP3, p3NHID)
 	if deviations.GRIBIMACOverrideWithStaticARP(args.dut) || deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
 		nh, op3 = gribi.NHEntry(p3NHID, "MACwithInterface", dni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC, Dest: atePort3DummyIP.IPv4})
-		args.client.AddEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{op3})
 	} else {
-		args.client.AddNH(t, p3NHID, "MACwithInterface", dni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC})
+		nh, op3 = gribi.NHEntry(p3NHID, "MACwithInterface", dni, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dutP3, Mac: pMAC})
 	}
 
 	t.Logf("Performing implicit in-place replace with two next-hops (NH IDs: %v and %v)", p2NHID, p3NHID)
-	args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p2NHID: 1, p3NHID: 1}, dni, fluent.InstalledInFIB)
+	nhg, op2 = gribi.NHGEntry(virtualIPNHGID, map[uint64]uint64{p2NHID: 1, p3NHID: 1}, dni, fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op3, op2})
 	validateTrafficFlows(t, args.ate, nil, nil, []gosnappi.Flow{p2Flow, p3Flow}, startTraffic, args.client, false)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p3NHID)
-	args.client.AddNHG(t, virtualIPNHGID, map[uint64]uint64{p3NHID: 1}, dni, fluent.InstalledInFIB)
+	nhg, op2 = gribi.NHGEntry(virtualIPNHGID, map[uint64]uint64{p3NHID: 1}, dni, fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op3, op2})
 	validateTrafficFlows(t, args.ate, []gosnappi.Flow{p3Flow}, []gosnappi.Flow{p2Flow}, nil, startTraffic, args.client, false)
 
 	t.Logf("Performing implicit in-place replace using the next-hop with ID %v", p2NHID)
@@ -539,7 +540,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain, transi
 	flowipv4.Rate().SetPps(fps)
 	eth := flowipv4.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+	ethTag.SetName("EgressTrackingFlow").SetOffset(40).SetLength(8)
 
 	return flowipv4
 }
@@ -622,7 +623,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 		if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
 		} else {
-			t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
+			t.Logf("Received %d packets with %s as the last 8 bits in the dst MAC", got, macFilter)
 		}
 
 	}

@@ -1,6 +1,7 @@
 *~
 topologies/kne/testbed.kne.yml
 .vscode/
+.idea/
 # used by `make validate_paths`
 openconfig_public/
 # used by `make proto/...`
