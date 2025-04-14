@@ -302,7 +302,7 @@ func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port, dut *onda
 	}
 
 	// LAG members may fall behind, so wait for them to be up.
-	gnmi.Await(t, tc.dut1, dip.OperStatus().State(), time.Minute, opUp)
+	gnmi.Await(t, dut, dip.OperStatus().State(), time.Minute, opUp)
 }
 
 func TestLacpTimers(t *testing.T) {
