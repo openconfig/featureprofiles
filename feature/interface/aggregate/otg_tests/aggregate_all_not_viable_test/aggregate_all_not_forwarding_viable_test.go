@@ -202,10 +202,18 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
 	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
+		expectedbundleBW, _ := checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != expectedbundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, expectedbundleBW)
+		}
 		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
+		}
+		expectedbundleBW, _ = checkBundleViableLinksBW(t, dut, dutPortList[1:agg2.ateLagCount+1])
+		if got, _ := gnmi.Lookup(t, dut, ocpath.Root().Interface(aggIDs[1]).Aggregation().LagSpeed().State()).Val(); got != expectedbundleBW {
+			t.Errorf("Forwarding unviable links counted as part of LAG bandwidth, got %v, want %v", got, expectedbundleBW)
 		}
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:agg2.ateLagCount+1], dutPortList[2:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -245,6 +253,29 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		}
 		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
 			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
+		}
+		// Ensure LAG_2 is UP when all members are in forwarding unviable state
+		if got := gnmi.Get(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State()); got != oc.Interface_OperStatus_UP {
+			t.Errorf("OperStatus for LAG_2 is %v, want %v", got, oc.Interface_OperStatus_UP)
+		}
+		// Ensure aggregatable, collecting, distributing and sync state is true for all the ports of LAG_2
+		for _, port := range dutPortList[1 : agg2.ateLagCount+1] {
+			lacpPath := gnmi.OC().Lacp().Interface(aggIDs[1]).Member(port.Name())
+			if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
+				t.Errorf("Forwarding-Viable state for port %s is %v, want %v", port.Name(), got, false)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Aggregatable().State()); got != true {
+				t.Errorf("Aggregatable state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Collecting().State()); got != true {
+				t.Errorf("Collecting state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Distributing().State()); got != true {
+				t.Errorf("Distributing state for port %s is %v, want %v", port.Name(), got, true)
+			}
+			if got := gnmi.Get(t, dut, lacpPath.Synchronization().State()); got != oc.Lacp_LacpSynchronizationType_IN_SYNC {
+				t.Errorf("Sync state for port %s is not %v", port.Name(), got)
+			}
 		}
 	})
 
@@ -914,6 +945,25 @@ func configForwardingViable(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*on
 			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
 		}
 	}
+}
+
+// Translates an openconfig ETHERNET_SPEED into Mbps which can be used to verify a LAG's speed.
+func ethernetPortSpeedToMbps(speed oc.E_IfEthernet_ETHERNET_SPEED) uint32 {
+	// Returns bits/sec.
+	bps := fptest.EthernetSpeedToUint64(speed)
+	return uint32(bps / 1_000_000)
+}
+
+// Check number of forwading viable links in the bundle and return total cumulative BW of these links
+func checkBundleViableLinksBW(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port) (uint32, error) {
+	lagSpeed := uint32(0)
+	for _, port := range dutPorts {
+		if got := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().State()); got != false {
+			portSpeed := ethernetPortSpeedToMbps(gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().PortSpeed().State()))
+			lagSpeed += portSpeed
+		}
+	}
+	return lagSpeed, nil
 }
 
 // incrementMAC uses a mac string and increments it by the given i
