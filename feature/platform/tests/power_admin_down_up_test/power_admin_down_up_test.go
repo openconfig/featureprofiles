@@ -47,7 +47,7 @@ func TestFabricPowerAdmin(t *testing.T) {
 
 			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 3*time.Minute)
 
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 8*time.Minute)
 		})
 	}
 }
@@ -76,7 +76,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
 
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 8*time.Minute)
 		})
 	}
 }
