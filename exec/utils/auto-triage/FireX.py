@@ -138,47 +138,128 @@ class FireX:
         return origin_run_id, origin_timestamp, origin_verified_by, origin_logs
 
     def get_testsuites(self, database, run_info):
-        documents = []; current_run_id = run_info.get("firex_id", "Unknown")
-        if self.root is None: logger.error("XML root is None..."); return documents
+        """Gather testsuite data to store into Database"""
+        documents = []
+        current_run_id = run_info.get("firex_id", "Unknown") # Get current run_id early
+
+        if self.root is None:
+             logger.error("XML root is None, cannot process test suites.")
+             return documents
+
+        # Visit all testsuites within a run
         for testsuite in self.root.findall("./testsuite"):
-            stats = testsuite.attrib; properties = testsuite.find("properties"); testcases = testsuite.findall("testcase")
-            if properties is None: logger.warning(f"Skipping testsuite without properties..."); continue
-            failures_count = int(stats.get("failures", 0)); errors_count = int(stats.get("errors", 0)); test_passed = failures_count + errors_count == 0
-            current_run_timestamp = str(stats.get("timestamp", "N/A"))
-            data = { "group": run_info.get("group", "Unknown"), "efr": run_info.get("tag", "Unknown"), "run_id": current_run_id, "lineup": run_info.get("lineup", "Unknown"), "tests": int(stats.get("tests", 0)), "failures": failures_count, "errors": errors_count, "disabled": int(stats.get("disabled", 0)), "skipped": int(stats.get("skipped", 0)), "timestamp" : current_run_timestamp, "health": "ok", "testcases": [], "bugs": [] }
+            stats = testsuite.attrib
+            properties = testsuite.find("properties")
+            testcases = testsuite.findall("testcase")
+
+            # If properties element is missing, we might not get framework or other keys, log and skip
+            if properties is None:
+                logger.warning(f"Skipping testsuite without properties element. Attributes: {stats}")
+                continue
+
+            failures_count = int(stats.get("failures", 0))
+            errors_count = int(stats.get("errors", 0))
+            test_passed = failures_count + errors_count == 0
+            current_run_timestamp = str(stats.get("timestamp", "N/A")) # Timestamp of the run being processed NOW
+
+            # Initialize base data dictionary
+            data = {
+                "group": run_info.get("group", "Unknown"),
+                "efr": run_info.get("tag", "Unknown"),
+                "run_id": current_run_id, # Use current run_id fetched earlier
+                "lineup": run_info.get("lineup", "Unknown"),
+                "tests": int(stats.get("tests", 0)),
+                "failures": failures_count,
+                "errors": errors_count,
+                "disabled": int(stats.get("disabled", 0)),
+                "skipped": int(stats.get("skipped", 0)),
+                "timestamp" : current_run_timestamp, # Use timestamp from THIS run
+                "health": "ok",
+                "testcases": [],
+                "bugs": []
+            }
+
+            # Define known keys expected from properties
             b4_keys = ["test.plan_id", "test.description", "test.uuid", "testsuite_hash", "testsuite_root"]
             cafy_keys_mappings = {"testsuite_name": "plan_id", "testsuite_hash": "testsuite_hash", "testsuite_root": "testsuite_root"}
-            framework_property = properties.find("./property[@name='framework']"); framework = framework_property.get("value") if framework_property is not None else "unknown"
-            if properties is not None:
-                if framework == "cafy2":
-                    for p in properties.findall("property"): prop_name = p.get("name"); data[cafy_keys_mappings[prop_name]] = p.get("value") if prop_name in cafy_keys_mappings else data.get(cafy_keys_mappings.get(prop_name))
-                else:
-                    for p in properties.findall("property"): prop_name = p.get("name"); data[prop_name.replace("test.", "")] = p.get("value") if prop_name in b4_keys else data.get(prop_name.replace("test.", ""))
-            historial_testsuite = None; historical_timestamp = None
-            plan_id_for_lookup = data.get("plan_id"); group_for_lookup = data.get("group"); lineup_for_lookup = data.get("lineup")
+
+            # Determine framework
+            framework_property = properties.find("./property[@name='framework']")
+            framework = framework_property.get("value") if framework_property is not None else "unknown"
+
+            # Process properties based on framework, only adding known keys
+            if framework == "cafy2":
+                for p in properties.findall("property"):
+                    prop_name = p.get("name")
+                    # Check if key exists in mapping before assignment
+                    if prop_name in cafy_keys_mappings:
+                         data[cafy_keys_mappings[prop_name]] = p.get("value")
+            else: # Assume B4 or other framework
+                for p in properties.findall("property"):
+                    prop_name = p.get("name")
+                    # Check if key exists in b4_keys before assignment
+                    if prop_name in b4_keys:
+                         # Remove "test." prefix for B4 keys when storing
+                         data[prop_name.replace("test.", "")] = p.get("value")
+
+
+
+            # Find IMMEDIATE predecessor run
+            historial_testsuite = None
+            historical_timestamp = None # Immediate predecessor details
+            plan_id_for_lookup = data.get("plan_id") # Get plan_id AFTER potentially adding it from properties
+            group_for_lookup = data.get("group")
+            lineup_for_lookup = data.get("lineup")
+
             if plan_id_for_lookup and group_for_lookup != "Unknown" and lineup_for_lookup != "Unknown":
                 try:
                     if hasattr(database, 'get_historical_testsuite') and callable(getattr(database, 'get_historical_testsuite')):
+                         # Get the IMMEDIATE predecessor run (no before_timestamp specified)
                          historial_testsuite = database.get_historical_testsuite(lineup_for_lookup, group_for_lookup, plan_id_for_lookup)
                          if historial_testsuite:
-                             retrieved_run_id = historial_testsuite.get('run_id', 'N/A'); retrieved_ts = historial_testsuite.get("timestamp", 'N/A')
+                             retrieved_run_id = historial_testsuite.get('run_id', 'N/A')
+                             retrieved_ts = historial_testsuite.get("timestamp", 'N/A')
                              logger.info(f"Retrieved immediate predecessor for inheritance: run_id=[{retrieved_run_id}], timestamp=[{retrieved_ts}]")
-                             historical_timestamp = historial_testsuite.get("timestamp")
-                         else: logger.info(f"No immediate predecessor found for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}.")
-                    else: logger.warning("Database object missing 'get_historical_testsuite'.")
-                except Exception as e: logger.error(f"Error calling get_historical_testsuite for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}: {e}")
-            else: logger.warning(f"Skipping historical lookup due to missing keys...")
+                             historical_timestamp = historial_testsuite.get("timestamp") # Timestamp of immediate predecessor
+                         else:
+                             logger.info(f"No immediate predecessor found for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}.")
+                    else:
+                         logger.warning("Database object does not have a callable 'get_historical_testsuite' method.")
+                except Exception as e:
+                    logger.error(f"Error calling get_historical_testsuite for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}: {e}")
+            else:
+                logger.warning(f"Skipping historical lookup due to missing keys: plan_id={plan_id_for_lookup}, group={group_for_lookup}, lineup={lineup_for_lookup}")
+
+            # Inherit associated bugs from immediate predecessor only
             if historial_testsuite:
                 for bug in historial_testsuite.get("bugs", []):
-                    name = bug.get("name"); bug_type = bug.get("type")
+                    name = bug.get("name")
+                    bug_type = bug.get("type")
                     if name and bug_type:
                         try:
-                            if bug_type == "DDTS": data["bugs"].append(ddts.inherit(name)); data["health"] = "unstable" if test_passed and ddts.is_open(name) else data["health"]
-                            elif bug_type == "TechZone": data["bugs"].append(techzone.inherit(name))
-                            elif bug_type == "Github": data["bugs"].append(github.inherit(name))
-                        except Exception as e: logger.error(f"Error inheriting bug {name} of type {bug_type}: {e}")
-                    else: logger.warning(f"Skipping bug inheritance due to missing name or type: {bug}")
-            data["testcases"] = self._create_testsuites(database, testcases, historial_testsuite, historical_timestamp, group_for_lookup, plan_id_for_lookup, lineup_for_lookup)
+                            if bug_type == "DDTS":
+                                data["bugs"].append(ddts.inherit(name))
+                                if test_passed and ddts.is_open(name):
+                                    data["health"] = "unstable"
+                            elif bug_type == "TechZone":
+                                data["bugs"].append(techzone.inherit(name))
+                            elif bug_type == "Github":
+                                data["bugs"].append(github.inherit(name))
+                        except Exception as e:
+                            logger.error(f"Error inheriting bug {name} of type {bug_type}: {e}")
+                    else:
+                        logger.warning(f"Skipping bug inheritance due to missing name or type: {bug}")
+
+            # Pass database object AND immediate predecessor details AND lookup keys to _create_testsuites
+            data["testcases"] = self._create_testsuites(
+                database, # Pass database object for backtracking calls
+                testcases, # Current test cases from XML
+                historial_testsuite, # Immediate predecessor data (can be None)
+                historical_timestamp, # Immediate predecessor timestamp (can be None)
+                group_for_lookup,   # Pass details needed for backtracking lookup
+                plan_id_for_lookup,
+                lineup_for_lookup
+            )
             documents.append(data)
         return documents
 
@@ -226,7 +307,7 @@ class FireX:
                 # Store origin details
                 testcase_data["original_verification_run_id"] = origin_run_id
                 testcase_data["verified_by"] = origin_verified_by
-                testcase_data["inheritance_date"] = origin_timestamp # Use origin timestamp here
+                testcase_data["inheritance_date"] = origin_timestamp
 
                 # Store predecessor details
                 predecessor_run_id = historial_testsuite.get("run_id", "Unknown") if historial_testsuite else "Unknown"
