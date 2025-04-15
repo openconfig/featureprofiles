@@ -140,6 +140,12 @@ Verify that interface packet counters are properly incremented in every streamin
     *   /interfaces/interface/ethernet/state/
     *   /components/component/port/breakout-mode/groups/group/state
 
+### RT-5.1.7
+#### Enable unnumbered subinterface and check the state
+* Enable a IPv4 unnumbered subinterface with a loopback interface as the interface reference
+* Check that the state of the unnumbered subinterface is enabled
+  * /interfaces/interface/subinterfaces/subinterface/ipv4/unnumbered/state/enabled
+
 ## Config Parameter Coverage
 
 * /interfaces/interface/config/name
@@ -147,6 +153,7 @@ Verify that interface packet counters are properly incremented in every streamin
 * /interfaces/interface/config/enabled
 * /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
 * /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
+* /interfaces/interface/subinterfaces/subinterface/ipv4/unnumbered/config/enabled
 * /interfaces/interface/config/id
 * /interfaces/interface/ethernet/config/mac-address
 * /interfaces/interface/ethernet/config/port-speed
@@ -173,6 +180,7 @@ Verify that interface packet counters are properly incremented in every streamin
 * /interfaces/interface/state/counters/out-unicast-pkts
 * /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu
 * /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu
+* /interfaces/interface/subinterfaces/subinterface/ipv4/unnumbered/state/enabled
 * /interfaces/interface/state/oper-status
 * /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip
 * /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts
@@ -229,6 +237,7 @@ paths:
   /interfaces/interface/state/counters/out-unicast-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/unnumbered/state/enabled:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:

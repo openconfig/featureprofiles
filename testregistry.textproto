@@ -63,8 +63,8 @@ test: {
 }
 test: {
   id: "ACL-1.1"
-  description: "Layer 3 filtering"
-  exec: " "
+  description: "ACL match based on L3/L4 fields and DSCP value"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/acl/otg_tests/acl_dscp_match/README.md"
 }
 test: {
   id: "ACL-1.2"
@@ -508,7 +508,30 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test/README.md"
   exec: " "
 }
-
+test: {
+  id: "PF-1.17"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_macsec/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.18"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_qos/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.19"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.20"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_scale_test/README.md"
+  exec: " "
+}
 test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
@@ -894,6 +917,12 @@ test: {
   id: "RT-3.32"
   description: "DSCP based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection plus GUE DECAP and ENCAP"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-3.52"
+  description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking based on tunnel destination."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
   exec: " "
 }
 test: {

@@ -29,13 +29,16 @@ following features:
 
     *   /interfaces/interface/rates/state/load-interval
 
-*   For the parent interface counters in-pkts and out-pkts:
+*   Validate if counters are being updated consistently
 
     Check the presence of packet counter paths and monitor counters every
-    30 seconds:
+    30 seconds. Generate traffic to get atleast 10 or more samples. 
 
     *   /interfaces/interface[name='port']/state/counters/in-pkts
     *   /interfaces/interface[name='port']/state/counters/out-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv4/state/counters/in-pkts
+    *   /interfaces/interface[name='port']/subinterfaces/subinterface[index='index-id']/ipv6/state/counters/in-pkts
+   
 
 *   Subinterfaces counters:
 
@@ -92,9 +95,30 @@ paths:
   /interfaces/interface/rates/config/load-interval:
 
   ## State Paths ##
+  /interfaces/interface/state/counters/carrier-transitions:
+  /interfaces/interface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/state/counters/in-discards:
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-fcs-errors:
+  /interfaces/interface/state/counters/in-multicast-pkts:
+  /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-broadcast-pkts:
+  /interfaces/interface/state/counters/out-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /interfaces/interface/state/counters/out-multicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
   /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
   /interfaces/interface/rates/state/load-interval:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-broadcast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/carrier-transitions:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/last-clear:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
@@ -119,10 +143,10 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type
-  * FFF - fixed form factor is enough for this test. However it can run also
-  on a MFF testbed.
-    gNMI.Set:
+    * FFF - fixed form factor is enough for this test. However it can run also
+      on a MFF testbed.
+      gNMI.Set:
 
 ## Minimum DUT platform requirement
-  * FFF - fixed form factor
+* FFF - fixed form factor
 
