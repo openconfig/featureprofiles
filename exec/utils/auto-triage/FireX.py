@@ -210,7 +210,7 @@ class FireX:
             testcase_data["inherited_label"] = False; testcase_data["inheritance_date"] = None # Will hold ORIGIN timestamp
             testcase_data["inheritance_source_run_id"] = None # Will hold IMMEDIATE predecessor run_id
             testcase_data["inheritance_reason"] = None; testcase_data["log_similarity_score"] = None # Vs ORIGIN log now
-            testcase_data["original_verification_run_id"] = None; testcase_data["original_verified_by"] = None
+            testcase_data["original_verification_run_id"] = None; testcase_data["verified_by"] = None
 
             if should_inherit_label and history: # Inherit label etc from immediate predecessor
                 testcase_data["inherited_label"] = True
@@ -225,7 +225,7 @@ class FireX:
 
                 # Store origin details
                 testcase_data["original_verification_run_id"] = origin_run_id
-                testcase_data["original_verified_by"] = origin_verified_by
+                testcase_data["verified_by"] = origin_verified_by
                 testcase_data["inheritance_date"] = origin_timestamp # Use origin timestamp here
 
                 # Store predecessor details
@@ -265,7 +265,7 @@ class FireX:
             testcase_data.setdefault("triage_status", "New" if current_status in ["failed", "aborted"] else None)
             testcase_data.setdefault("label", "" if not testcase_data.get("label") else testcase_data.get("label"))
             testcase_data.setdefault("bugs", [])
-            testcase_data.setdefault("original_verification_run_id", None); testcase_data.setdefault("original_verified_by", None)
+            testcase_data.setdefault("original_verification_run_id", None); testcase_data.setdefault("verified_by", None)
             testcase_data.setdefault("log_similarity_score", None); testcase_data.setdefault("inheritance_date", None)
             testcase_data.setdefault("inheritance_source_run_id", None); testcase_data.setdefault("inheritance_reason", None)
 
