@@ -1,11 +1,11 @@
 package interface_neighbors_test
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -36,8 +36,8 @@ func TestLCReloadIPv4NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadLineCards(t, dut1, &wg)
-	go ReloadLineCards(t, dut2, &wg)
+	go util.ParallelReloadLineCards(t, dut1, &wg)
+	go util.ParallelReloadLineCards(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(30 * time.Second)
 	testInterfaceIPv4Neighbors(t, dut1, dut2)
@@ -49,7 +49,7 @@ func TestFlapInterfacesIPv4NeighborsPath(t *testing.T) {
 	ports := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
 		"Bundle-Ether100", "Bundle-Ether101"}
 
-	FlapBulkInterfaces(t, dut1, ports)
+	util.FlapBulkInterfaces(t, dut1, ports)
 	testInterfaceIPv4Neighbors(t, dut1, dut2)
 }
 func TestDelMemberPortIPv4NeighborsPath(t *testing.T) {
@@ -82,8 +82,8 @@ func TestProcessRestartIPv4NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ProcessRestart(t, dut1, "arp", &wg)
-	go ProcessRestart(t, dut2, "arp", &wg)
+	go util.ParallelProcessRestart(t, dut1, "arp", &wg)
+	go util.ParallelProcessRestart(t, dut2, "arp", &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	testInterfaceIPv4Neighbors(t, dut1, dut2)
@@ -95,8 +95,8 @@ func TestReloadRouterIPv4NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadRouter(t, dut1, &wg)
-	go ReloadRouter(t, dut2, &wg)
+	go util.ParallelReloadRouter(t, dut1, &wg)
+	go util.ParallelReloadRouter(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(5 * time.Second)
 	testInterfaceIPv4Neighbors(t, dut1, dut2)
@@ -108,8 +108,8 @@ func TestRPFOIPv4NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go RPFO(t, dut1, &wg)
-	go RPFO(t, dut2, &wg)
+	go util.ParallelRPFO(t, dut1, &wg)
+	go util.ParallelRPFO(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(5 * time.Second)
 	testInterfaceIPv4Neighbors(t, dut1, dut2)
@@ -186,8 +186,8 @@ func TestLCReloadIPv4ProxyARPPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadLineCards(t, dut1, &wg)
-	go ReloadLineCards(t, dut2, &wg)
+	go util.ParallelReloadLineCards(t, dut1, &wg)
+	go util.ParallelReloadLineCards(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(20 * time.Second)
 	wg.Add(2)
@@ -203,7 +203,7 @@ func TestFlapInterfacesIPv4ProxyARPPath(t *testing.T) {
 	ports := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
 		"Bundle-Ether100", "Bundle-Ether101"}
 
-	FlapBulkInterfaces(t, dut1, ports)
+	util.FlapBulkInterfaces(t, dut1, ports)
 	wg.Add(2)
 	go testProxyARP(t, dut1, &wg)
 	go testProxyARP(t, dut2, &wg)
@@ -247,8 +247,8 @@ func TestProcessRestartIPv4ProxyARPPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ProcessRestart(t, dut1, "arp", &wg)
-	go ProcessRestart(t, dut2, "arp", &wg)
+	go util.ParallelProcessRestart(t, dut1, "arp", &wg)
+	go util.ParallelProcessRestart(t, dut2, "arp", &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	wg.Add(2)
@@ -263,8 +263,8 @@ func TestReloadRouterIPv4ProxyARPPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadRouter(t, dut1, &wg)
-	go ReloadRouter(t, dut2, &wg)
+	go util.ParallelReloadRouter(t, dut1, &wg)
+	go util.ParallelReloadRouter(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(5 * time.Second)
 	wg.Add(2)
@@ -279,8 +279,8 @@ func TestRPFOIPv4ProxyARPPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go RPFO(t, dut1, &wg)
-	go RPFO(t, dut2, &wg)
+	go util.ParallelRPFO(t, dut1, &wg)
+	go util.ParallelRPFO(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(5 * time.Second)
 	wg.Add(2)
@@ -325,8 +325,8 @@ func TestLCReloadIPv6NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadLineCards(t, dut1, &wg)
-	go ReloadLineCards(t, dut2, &wg)
+	go util.ParallelReloadLineCards(t, dut1, &wg)
+	go util.ParallelReloadLineCards(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(20 * time.Second)
 	testInterfaceIPv6Neighbors(t, dut1, dut2)
@@ -338,7 +338,7 @@ func TestFlapInterfaceIPv6NeighborsPath(t *testing.T) {
 	ports := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
 		"Bundle-Ether100", "Bundle-Ether101"}
 
-	FlapBulkInterfaces(t, dut1, ports)
+	util.FlapBulkInterfaces(t, dut1, ports)
 	testInterfaceIPv6Neighbors(t, dut1, dut2)
 }
 func TestDelMemberPortIPv6NeighborsPath(t *testing.T) {
@@ -371,8 +371,8 @@ func TestProcessRestartIPv6NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	ProcessRestart(t, dut1, "ipv6_nd", &wg)
-	ProcessRestart(t, dut2, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut1, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut2, "ipv6_nd", &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	testInterfaceIPv6Neighbors(t, dut1, dut2)
@@ -384,8 +384,8 @@ func TestReloadRouterIPv6NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadRouter(t, dut1, &wg)
-	go ReloadRouter(t, dut2, &wg)
+	go util.ParallelReloadRouter(t, dut1, &wg)
+	go util.ParallelReloadRouter(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(5 * time.Second)
 	testInterfaceIPv6Neighbors(t, dut1, dut2)
@@ -397,8 +397,8 @@ func TestRPFOIPv6NeighborsPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go RPFO(t, dut1, &wg)
-	go RPFO(t, dut2, &wg)
+	go util.ParallelRPFO(t, dut1, &wg)
+	go util.ParallelRPFO(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(5 * time.Second)
 	testInterfaceIPv6Neighbors(t, dut1, dut2)
@@ -475,7 +475,7 @@ func TestFlapInterfaceIPv6NDRouterAdvPath(t *testing.T) {
 	ports := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
 		"Bundle-Ether100", "Bundle-Ether101"}
 
-	FlapBulkInterfaces(t, dut1, ports)
+	util.FlapBulkInterfaces(t, dut1, ports)
 	wg.Add(2)
 	go testNDRouterAdv(t, dut1, &wg)
 	go testNDRouterAdv(t, dut2, &wg)
@@ -519,8 +519,8 @@ func TestProcessRestartIPv6NDRouterAdvPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ProcessRestart(t, dut1, "ipv6_nd", &wg)
-	go ProcessRestart(t, dut2, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut1, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut2, "ipv6_nd", &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	wg.Add(2)
@@ -571,7 +571,7 @@ func TestFlapInterfaceIPv6NDPrefixPath(t *testing.T) {
 	ports := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
 		"Bundle-Ether100", "Bundle-Ether101"}
 
-	FlapBulkInterfaces(t, dut1, ports)
+	util.FlapBulkInterfaces(t, dut1, ports)
 	wg.Add(2)
 	go testNDPrefix(t, dut1, &wg)
 	go testNDPrefix(t, dut2, &wg)
@@ -615,8 +615,8 @@ func TestProcessRestartIPv6NDPrefixPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ProcessRestart(t, dut1, "ipv6_nd", &wg)
-	go ProcessRestart(t, dut2, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut1, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut2, "ipv6_nd", &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	wg.Add(2)
@@ -667,7 +667,7 @@ func TestFlapInterfaceIPv6NDDadPath(t *testing.T) {
 	ports := []string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
 		"Bundle-Ether100", "Bundle-Ether101"}
 
-	FlapBulkInterfaces(t, dut1, ports)
+	util.FlapBulkInterfaces(t, dut1, ports)
 	wg.Add(2)
 	go testNDDad(t, dut1, &wg)
 	go testNDDad(t, dut2, &wg)
@@ -711,8 +711,8 @@ func TestProcessRestartIPv6NDDadPath(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ProcessRestart(t, dut1, "ipv6_nd", &wg)
-	go ProcessRestart(t, dut2, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut1, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut2, "ipv6_nd", &wg)
 	wg.Wait()
 	time.Sleep(30 * time.Second)
 	wg.Add(2)
@@ -748,8 +748,8 @@ func TestLCReloadIPv6ND(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadLineCards(t, dut1, &wg)
-	go ReloadLineCards(t, dut2, &wg)
+	go util.ParallelReloadLineCards(t, dut1, &wg)
+	go util.ParallelReloadLineCards(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(20 * time.Second)
 	wg.Add(2)
@@ -773,8 +773,8 @@ func TestReloadRouterIPv6ND(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go ReloadRouter(t, dut1, &wg)
-	go ReloadRouter(t, dut2, &wg)
+	go util.ParallelReloadRouter(t, dut1, &wg)
+	go util.ParallelReloadRouter(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	wg.Add(2)
@@ -797,8 +797,8 @@ func TestRPFOIPv6ND(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	wg.Add(2)
-	go RPFO(t, dut1, &wg)
-	go RPFO(t, dut2, &wg)
+	go util.ParallelRPFO(t, dut1, &wg)
+	go util.ParallelRPFO(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	wg.Add(2)
@@ -841,8 +841,8 @@ func TestLCReloadIPv4Scale(t *testing.T) {
 	IPv4 := true
 
 	wg.Add(2)
-	go ReloadLineCards(t, dut1, &wg)
-	go ReloadLineCards(t, dut2, &wg)
+	go util.ParallelReloadLineCards(t, dut1, &wg)
+	go util.ParallelReloadLineCards(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(40 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -865,7 +865,7 @@ func TestFlapInterfaceIPv4Scale(t *testing.T) {
 			intfList = append(intfList, intf.GetName())
 		}
 	}
-	FlapBulkInterfaces(t, dut1, intfList)
+	util.FlapBulkInterfaces(t, dut1, intfList)
 	time.Sleep(30 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
 	testIPv4ScaleNeighbors(t, dut1)
@@ -907,8 +907,8 @@ func TestProcessRestartIPv4Scale(t *testing.T) {
 	IPv4 := true
 
 	wg.Add(2)
-	go ProcessRestart(t, dut1, "ipv6_nd", &wg)
-	go ProcessRestart(t, dut2, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut1, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut2, "ipv6_nd", &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -923,8 +923,8 @@ func TestReloadRouterIPv4Scale(t *testing.T) {
 	IPv4 := true
 
 	wg.Add(2)
-	go ReloadRouter(t, dut1, &wg)
-	go ReloadRouter(t, dut2, &wg)
+	go util.ParallelReloadRouter(t, dut1, &wg)
+	go util.ParallelReloadRouter(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -938,8 +938,8 @@ func TestRPFOIPv4Scale(t *testing.T) {
 	IPv4 := true
 
 	wg.Add(2)
-	go RPFO(t, dut1, &wg)
-	go RPFO(t, dut2, &wg)
+	go util.ParallelRPFO(t, dut1, &wg)
+	go util.ParallelRPFO(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -962,7 +962,7 @@ func testIPv4ScaleNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 			if ip[:2] == "10" || ip[:2] == "11" || ip[:2] == "12" || ip[:2] == "13" ||
 				ip[:2] == "20" || ip[:2] == "21" || ip[:2] == "22" || ip[:2] == "23" {
 				IntfIPv4Addr[ip] = InterfaceIPv4Address{ipAddress, neighbor, proxyARP}
-			}	
+			}
 		}
 	}
 	if len(IntfIPv4Addr) < wantLen {
@@ -998,8 +998,8 @@ func TestLCReloadIPv6Scale(t *testing.T) {
 	IPv4 := false
 
 	wg.Add(2)
-	go ReloadLineCards(t, dut1, &wg)
-	go ReloadLineCards(t, dut2, &wg)
+	go util.ParallelReloadLineCards(t, dut1, &wg)
+	go util.ParallelReloadLineCards(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(40 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -1021,9 +1021,9 @@ func TestFlapInterfaceIPv6Scale(t *testing.T) {
 			intfList = append(intfList, intf.GetName())
 		}
 	}
-	FlapBulkInterfaces(t, dut1, intfList)
+	util.FlapBulkInterfaces(t, dut1, intfList)
 	time.Sleep(30 * time.Second)
-	pingScaleNeighbors(t, dut1, dut2, IPv4)	
+	pingScaleNeighbors(t, dut1, dut2, IPv4)
 	testIPv6ScaleNeighbors(t, dut1)
 }
 
@@ -1062,8 +1062,8 @@ func TestProcessRestartIPv6Scale(t *testing.T) {
 	IPv4 := false
 
 	wg.Add(2)
-	go ProcessRestart(t, dut1, "ipv6_nd", &wg)
-	go ProcessRestart(t, dut2, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut1, "ipv6_nd", &wg)
+	go util.ParallelProcessRestart(t, dut2, "ipv6_nd", &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -1078,8 +1078,8 @@ func TestReloadRouterIPv6Scale(t *testing.T) {
 	IPv4 := false
 
 	wg.Add(2)
-	go ReloadRouter(t, dut1, &wg)
-	go ReloadRouter(t, dut2, &wg)
+	go util.ParallelReloadRouter(t, dut1, &wg)
+	go util.ParallelReloadRouter(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(30 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -1094,8 +1094,8 @@ func TestRPFOIPv6Scale(t *testing.T) {
 	var wg sync.WaitGroup
 
 	wg.Add(2)
-	go RPFO(t, dut1, &wg)
-	go RPFO(t, dut2, &wg)
+	go util.ParallelRPFO(t, dut1, &wg)
+	go util.ParallelRPFO(t, dut2, &wg)
 	wg.Wait()
 	time.Sleep(10 * time.Second)
 	pingScaleNeighbors(t, dut1, dut2, IPv4)
@@ -1104,7 +1104,7 @@ func TestRPFOIPv6Scale(t *testing.T) {
 
 func testIPv6ScaleNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 
-	path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6()	
+	path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6()
 	got := gnmi.CollectAll(t, dut, path.State(), 30*time.Second).Await(t)
 	IntfIPv6Addr = make(map[string]InterfaceIPv6Address)
 	var dad uint32
