@@ -21,7 +21,7 @@ techzone = TechZone()
 github = Github()
 
 # Define a constant for max backtracking depth
-MAX_VERIFICATION_LOOKUP_DEPTH = 10 
+MAX_VERIFICATION_LOOKUP_DEPTH = 30 
 
 class FireX:
    
