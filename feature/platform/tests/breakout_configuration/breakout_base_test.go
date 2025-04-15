@@ -63,7 +63,7 @@ func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numB
 
 // verifyBreakout checks if the breakout configuration matches the expected values.
 // It reports errors to the testing object if there is a mismatch.
-func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, t *testing.T) {
+func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, numPhysicalChannelsWant uint8, numPhysicalChannelsGot uint8, t *testing.T) {
 	// Ensure that the index is set to the expected value (1 in this case).
 	if index != uint8(1) {
 		t.Errorf("Index: got %v, want 1", index)
@@ -75,6 +75,10 @@ func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, 
 	// Verify that the configured breakout speed is as expected.
 	if breakoutSpeedGot != breakoutSpeedWant {
 		t.Errorf("Breakout speed configured: got %v, want %v", breakoutSpeedGot, breakoutSpeedWant)
+	}
+	// Verify that the number of physical channels configured matches the expected value.
+	if numPhysicalChannelsGot != numPhysicalChannelsWant {
+		t.Errorf("Number of physical channels configured: got %v, want %v", numPhysicalChannelsGot, numPhysicalChannelsWant)
 	}
 
 }
