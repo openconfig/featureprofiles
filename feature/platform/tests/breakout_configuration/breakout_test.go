@@ -24,6 +24,7 @@ import (
 
 const (
 	maxPingRetries = 3 // Set the number of retry attempts
+	schemaValue = 1
 
 )
 
@@ -33,7 +34,6 @@ var (
 	breakOutCompName           string
 	fullInterfaceName          string
 	foundComp                  bool
-	schemaValue                uint8
 	dutPort1                   = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "203.0.113.1",
@@ -190,14 +190,6 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	var Dutipv4Subnets []string
 	var Ateipv4Subnets []string
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		schemaValue = 0
-	case ondatra.ARISTA:
-		schemaValue = 1
-	default:
-		t.Fatalf("Unsupported vendor %s. Need to add breakout component names.", dut.Vendor())
-	}
 
 	cases := []struct {
 		numbreakouts  uint8
