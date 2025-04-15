@@ -30,8 +30,6 @@ paths:
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/always-compare-med:
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/route-selection-options/state/always-compare-med:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action:
 
 rpcs:
   gnmi:
