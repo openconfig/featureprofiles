@@ -93,7 +93,7 @@ Bring up both link between ATE:port1,port2 and DUT:port1,port2 using OTG api.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
-*   Verify the number of next hop per prefix is 2.
+
 
 ## OpenConfig Path and RPC Coverage
 
