@@ -24,8 +24,7 @@ import (
 
 const (
 	maxPingRetries = 3 // Set the number of retry attempts
-	schemaValue = 1
-
+	schemaValue    = 1
 )
 
 var (
@@ -192,36 +191,36 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	var Ateipv4Subnets []string
 
 	cases := []struct {
-		numbreakouts  uint8
-		breakoutspeed oc.E_IfEthernet_ETHERNET_SPEED
-		dutIntfIP     string
-		ateIntfIp     string
-		expectedPMD   string
+		numbreakouts        uint8
+		breakoutspeed       oc.E_IfEthernet_ETHERNET_SPEED
+		dutIntfIP           string
+		ateIntfIp           string
+		expectedPMD         string
 		numPhysicalChannels uint8
 	}{
 		{
-			numbreakouts:  4,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			dutIntfIP:     dutPort1.IPv4,
-			ateIntfIp:     atePort1.IPv4,
-			expectedPMD:   "PMD_100GBASE_FR",
+			numbreakouts:        4,
+			breakoutspeed:       oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+			dutIntfIP:           dutPort1.IPv4,
+			ateIntfIp:           atePort1.IPv4,
+			expectedPMD:         "PMD_100GBASE_FR",
 			numPhysicalChannels: 2,
 		},
 		{
 
-			numbreakouts:  2,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			dutIntfIP:     dutPort1.IPv4,
-			ateIntfIp:     atePort1.IPv4,
-			expectedPMD:   "PMD_100GBASE_FR",
+			numbreakouts:        2,
+			breakoutspeed:       oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+			dutIntfIP:           dutPort1.IPv4,
+			ateIntfIp:           atePort1.IPv4,
+			expectedPMD:         "PMD_100GBASE_FR",
 			numPhysicalChannels: 2,
 		},
 		{
-			numbreakouts:  4,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-			dutIntfIP:     dutPort2.IPv4,
-			ateIntfIp:     atePort2.IPv4,
-			expectedPMD:   "PMD_100GBASE_FR",
+			numbreakouts:        4,
+			breakoutspeed:       oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
+			dutIntfIP:           dutPort2.IPv4,
+			ateIntfIp:           atePort2.IPv4,
+			expectedPMD:         "PMD_100GBASE_FR",
 			numPhysicalChannels: 2,
 		},
 	}
@@ -273,9 +272,9 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			for _, componentName := range componentNameList {
 				t.Logf("Starting Test for %s %v", componentName, tc)
 				configContainer := &oc.Component_Port_BreakoutMode_Group{
-					Index:         ygot.Uint8(1),
-					NumBreakouts:  ygot.Uint8(tc.numbreakouts),
-					BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+					Index:               ygot.Uint8(1),
+					NumBreakouts:        ygot.Uint8(tc.numbreakouts),
+					BreakoutSpeed:       oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
 					NumPhysicalChannels: ygot.Uint8(tc.numPhysicalChannels),
 				}
 				groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
