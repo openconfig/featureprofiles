@@ -23,7 +23,8 @@ Establish EBGP sessions between ATE:port1,port2 and DUT:port1,port2
 *   Configure EBGP over the interface ip between ATE:port1,port2 and DUT:port1,port2.
 *   Advertise 1000 ipv4,ipv6 prefixes from ATE port1,port2 observe received prefixes at DUT.
 *   Validate total number of entries of AFT for IPv4 and IPv6.
-*   Each prefix must have 2 next hops pointing to ATE port1,port2.
+*   Each prefix advertised by the BGP must have 2 next hops pointing to ATE port1,port2.
+*   Each prefix advertised by the ISIS must have one next hop pointing to ATE port1.
 
 ### Procedure
 
@@ -36,8 +37,10 @@ Establish EBGP sessions between ATE:port1,port2 and DUT:port1,port2
 *   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   Verify its next hop group, number of next hop and its interfaces.
-*   Verify the number of next hop is 2 as expected.
-*   Verify all other leaves mentioned in the path section.
+*   Verify the number of next hop is 2 for BGP advertised prefix.
+*   Verify the number of next hop is 1 for ISIS advertised prefix.
+*   Verify the prefixes are pointing to the egress interface/interfaces.
+*   Verify all other leaves mentioned in the path section have the data populated correctly.
 
 ## AFT-1.1.1: AFT Base Link Down scenario 1
 
