@@ -197,6 +197,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		dutIntfIP     string
 		ateIntfIp     string
 		expectedPMD   string
+		numPhysicalChannels uint8
 	}{
 		{
 			numbreakouts:  4,
@@ -204,6 +205,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			dutIntfIP:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
 			expectedPMD:   "PMD_100GBASE_FR",
+			numPhysicalChannels: 2,
 		},
 		{
 
@@ -212,6 +214,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			dutIntfIP:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
 			expectedPMD:   "PMD_100GBASE_FR",
+			numPhysicalChannels: 2,
 		},
 		{
 			numbreakouts:  4,
@@ -219,6 +222,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			dutIntfIP:     dutPort2.IPv4,
 			ateIntfIp:     atePort2.IPv4,
 			expectedPMD:   "PMD_100GBASE_FR",
+			numPhysicalChannels: 2,
 		},
 	}
 
@@ -272,6 +276,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					Index:         ygot.Uint8(1),
 					NumBreakouts:  ygot.Uint8(tc.numbreakouts),
 					BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+					NumPhysicalChannels: ygot.Uint8(tc.numPhysicalChannels),
 				}
 				groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
 				breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
@@ -308,8 +313,9 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					index := *groupDetails.Index
 					numBreakouts := *groupDetails.NumBreakouts
 					breakoutSpeed := groupDetails.BreakoutSpeed
+					numPhysicalChannels := *groupDetails.NumPhysicalChannels
 					verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
-						breakoutSpeed.String(), t)
+						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
 
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
