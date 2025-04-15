@@ -180,8 +180,15 @@ class FireX:
             }
 
             # Define known keys expected from properties
-            b4_keys = ["test.plan_id", "test.description", "test.uuid", "testsuite_hash", "testsuite_root"]
-            cafy_keys_mappings = {"testsuite_name": "plan_id", "testsuite_hash": "testsuite_hash", "testsuite_root": "testsuite_root"}
+            b4_keys = ["test.plan_id", 
+                       "test.description", 
+                       "test.uuid", 
+                       "testsuite_hash", 
+                       "testsuite_root"]
+            
+            cafy_keys_mappings = {"testsuite_name": "plan_id", 
+                                  "testsuite_hash": "testsuite_hash", 
+                                  "testsuite_root": "testsuite_root"}
 
             # Determine framework
             framework_property = properties.find("./property[@name='framework']")
