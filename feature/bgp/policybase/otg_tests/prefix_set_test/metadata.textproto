@@ -10,7 +10,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
     skip_set_rp_match_set_options: true
@@ -26,6 +25,7 @@ platform_exceptions:  {
     interface_enabled: true
     default_network_instance: "default"
     missing_value_for_defaults: true
+    default_import_export_policy_unsupported: true
   }
 }
 platform_exceptions:  {

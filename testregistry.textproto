@@ -63,8 +63,8 @@ test: {
 }
 test: {
   id: "ACL-1.1"
-  description: "Layer 3 filtering"
-  exec: " "
+  description: "ACL match based on L3/L4 fields and DSCP value"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/acl/otg_tests/acl_dscp_match/README.md"
 }
 test: {
   id: "ACL-1.2"
@@ -307,7 +307,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "Health-1.1"
+  id: "Health-1.2"
   description: "Healthz component status paths"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
   exec: " "
@@ -474,9 +474,74 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.11"
+  description: "Rewrite the ingress innner packet TTL"
+  readme: " "
+}
+test: {
+  id: "PF-1.12"
+  description: "PF-1.12 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.13"
+  description: "PF-1.13 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload scale test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_scale_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.14"
+  description: "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.15"
+  description: "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_scale_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.16"
+  description: "MPLSoGRE IPV4 encapsulation IPV4/IPV6 local proxy test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.17"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_macsec/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.18"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gre_udp_qos/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.19"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.20"
+  description: "MPLSoGRE and MPLSoGUE MACsec"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_scale_test/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
+  exec: " "
+}
+test: {
+  id: "PLT-1.2"
+  description: "Interface parent component Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/interface_parent_component/README.md"
   exec: " "
 }
 test: {
@@ -855,6 +920,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-3.52"
+  description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking based on tunnel destination."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
+  exec: " "
+}
+test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
@@ -945,6 +1016,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.11"
+  description: "Interface LACP Intervals"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_interval_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.12"
+  description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/tests/core_lldp_tlv_population_test/README.md"
@@ -1011,6 +1094,12 @@ test: {
   id: "RT-7.9"
   description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
   readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.10"
+  description: "Routing policy statement insertion and removal"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/statement_insertion_removal/README.md"
   exec: " "
 }
 test: {
