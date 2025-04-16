@@ -255,7 +255,7 @@ class FireX:
                 "bugs": []
             }
 
-            # --- Use Strict Property Handling ---
+
             b4_keys = ["test.plan_id", 
                        "test.description", 
                        "test.uuid", 
@@ -284,7 +284,7 @@ class FireX:
             
 
 
-            # Find IMMEDIATE predecessor run
+            # Grab historical testsuite if it exists
             historial_testsuite = None
             historical_timestamp = None # Immediate predecessor details
             plan_id_for_lookup = data.get("plan_id")
@@ -316,9 +316,8 @@ class FireX:
                     bug_type = bug.get("type")
                     if name and bug_type:
                         try:
-                            # Simplified bug inheritance logic for brevity
                             if bug_type in ["DDTS", "TechZone", "Github"]:
-                                data["bugs"].append(globals()[bug_type.lower()].inherit(name)) # Assumes global ddts, techzone, github objects
+                                data["bugs"].append(globals()[bug_type.lower()].inherit(name)) 
                                 if bug_type == "DDTS" and test_passed and ddts.is_open(name):
                                     data["health"] = "unstable"
                         except Exception as e:
@@ -356,7 +355,7 @@ class FireX:
             failure_el = testcase.find("failure"); error_el = testcase.find("error"); skipped_el = testcase.find("skipped")
             current_status = "passed"; should_inherit_label = False; current_log = None
 
-            
+            # Determine Status and Handle Status-Specific Fields
 
             if skipped_el is not None:
                 current_status = "skipped"
@@ -369,23 +368,12 @@ class FireX:
                 testcase_data["status"] = current_status
                 should_inherit_label = bool(history and history.get("status") == "aborted")
 
-                # Initialize/Populate fields specific to failed/aborted status
-                testcase_data["inherited_label"] = False
-                testcase_data["inheritance_date"] = None
-                testcase_data["inheritance_source_run_id"] = None
-                testcase_data["inheritance_reason"] = None
-                testcase_data["log_similarity_score"] = None # Set to None for aborted
-                testcase_data["original_verification_run_id"] = None
-                testcase_data["verified_by"] = "Unknown"
-                # Initialize bugs and triage_status here for aborted/failed
-                testcase_data["bugs"] = []
-                testcase_data["triage_status"] = "New" # Default if not inheriting
-
                 if should_inherit_label and history: # Inherit for ABORTED
+                    # Populate ALL relevant fields ONLY if inheriting
                     testcase_data["inherited_label"] = True
-                    testcase_data["triage_status"] = history.get("triage_status", "New") 
+                    testcase_data["triage_status"] = history.get("triage_status", "New")
                     testcase_data["label"] = history.get("label", "")
-                    testcase_data["bugs"] = history.get("bugs", []) 
+                    testcase_data["bugs"] = history.get("bugs", [])
 
                     origin_run_id, origin_timestamp, origin_verified_by, _ = self._find_verification_origin(
                         database, lineup, group, plan_id, current_test_name, historical_timestamp
@@ -393,6 +381,7 @@ class FireX:
                     testcase_data["original_verification_run_id"] = origin_run_id
                     testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
                     testcase_data["inheritance_date"] = origin_timestamp
+
                     predecessor_run_id = historial_testsuite.get("run_id", "Unknown") if historial_testsuite else "Unknown"
                     testcase_data["inheritance_source_run_id"] = predecessor_run_id
 
@@ -402,7 +391,12 @@ class FireX:
                     elif origin_run_id: testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}].")
                     else: pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"; testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found.")
 
-               
+                else: # Aborted, but no inheritance (New Issue)
+                    testcase_data["inherited_label"] = False
+                    testcase_data["triage_status"] = "New"
+                    testcase_data["label"] = "" # Needs labeling
+                    testcase_data["bugs"] = []
+                    # No inheritance/origin/similarity fields populated
 
             elif (error_el is not None and error_el.get("message")) or failure_el is not None:
                 current_status = "failed"
@@ -413,23 +407,12 @@ class FireX:
                 testcase_data["logs"] = current_log
                 should_inherit_label = bool(history and history.get("status") == "failed")
 
-                # Initialize/Populate fields specific to failed/aborted status
-                testcase_data["inherited_label"] = False
-                testcase_data["inheritance_date"] = None
-                testcase_data["inheritance_source_run_id"] = None
-                testcase_data["inheritance_reason"] = None
-                testcase_data["log_similarity_score"] = "no logs provided in source and original" # Default string
-                testcase_data["original_verification_run_id"] = None
-                testcase_data["verified_by"] = "Unknown" # Default
-                # Initialize bugs and triage_status here for aborted/failed
-                testcase_data["bugs"] = []
-                testcase_data["triage_status"] = "New" # Default if not inheriting
-
                 if should_inherit_label and history: # Inherit for FAILED
+                    # Populate ALL relevant fields ONLY if inheriting
                     testcase_data["inherited_label"] = True
-                    testcase_data["triage_status"] = history.get("triage_status", "New") # Overwrite default
+                    testcase_data["triage_status"] = history.get("triage_status", "New")
                     testcase_data["label"] = history.get("label", "")
-                    testcase_data["bugs"] = history.get("bugs", []) # Overwrite default
+                    testcase_data["bugs"] = history.get("bugs", [])
 
                     origin_run_id, origin_timestamp, origin_verified_by, origin_logs = self._find_verification_origin(
                         database, lineup, group, plan_id, current_test_name, historical_timestamp
@@ -437,16 +420,19 @@ class FireX:
                     testcase_data["original_verification_run_id"] = origin_run_id
                     testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
                     testcase_data["inheritance_date"] = origin_timestamp
+
                     predecessor_run_id = historial_testsuite.get("run_id", "Unknown") if historial_testsuite else "Unknown"
                     testcase_data["inheritance_source_run_id"] = predecessor_run_id
 
-                    # Update Reason String (same logic as aborted)
+                    # Update Reason String
                     reason_label = history.get('label', ''); reason_ts_str = f"on {origin_timestamp}" if origin_timestamp else "(ts unknown)"; reason_verified_by = testcase_data["verified_by"]
                     if origin_run_id and reason_verified_by != "Unknown": testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}].")
                     elif origin_run_id: testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}].")
                     else: pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"; testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found.")
 
-                    # Calculate Log Similarity vs ORIGIN log
+                    # Calculate Log Similarity (vs ORIGIN log if available, else predecessor)
+                    # Initialize score to None ONLY when inheriting
+                    testcase_data["log_similarity_score"] = None
                     similarity_calculated = False
                     if self.embedding_model:
                         if current_log and origin_logs:
@@ -471,13 +457,24 @@ class FireX:
                                      similarity_calculated = True
                                      logger.debug(f"Log similarity score vs predecessor (fallback): {similarity:.4f}")
                                 except Exception as e: logger.error(f"Failed similarity vs predecessor for TC '{current_test_name}': {e}")
-                       
+
+                    # If similarity calculation was not successful for any reason, set to the string
                     if not similarity_calculated:
-                         testcase_data["log_similarity_score"] = "no logs provided in source and original"
+                         testcase_data["log_similarity_score"] = "no logs provided for comparison" # Changed string slightly
                 elif not self.embedding_model:
                     logger.warning(f"Cannot calculate log similarity for '{current_test_name}': Model unavailable.")
-            else: 
-                current_status = "passed" # Ensure status is set if default path taken
+                    testcase_data["log_similarity_score"] = "model unavailable"
+                # --- End Log Similarity ---
+
+                else: # Failed, but no inheritance (New Issue)
+                    testcase_data["inherited_label"] = False
+                    testcase_data["triage_status"] = "New"
+                    testcase_data["label"] = "" # Needs labeling
+                    testcase_data["bugs"] = []
+                    # NOT add log_similarity_score or other inheritance/origin fields here
+
+            else: # Passed
+                current_status = "passed"
                 testcase_data["status"] = current_status
                 testcase_data["label"] = "Test Passed. No Label Required."
                 # No other fields needed for passed
