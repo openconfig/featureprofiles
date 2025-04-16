@@ -613,10 +613,6 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 // 198.51.100.1/32 (a) with vrf selection w
 func testRecursiveIPv4EntrywithVrfPolW(t *testing.T, args *testArgs) {
 
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-
-		t.Skip("Skipping Test as it is not supported")
-	}
 	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
 	configNonDefaultNetworkInstance(t, args.dut)
 	configureVrfSelectionPolicyW(t, args.dut)

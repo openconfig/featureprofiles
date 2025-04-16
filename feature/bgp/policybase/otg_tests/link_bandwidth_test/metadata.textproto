@@ -39,6 +39,13 @@ platform_exceptions: {
   }
   deviations: {
     bgp_rib_oc_path_unsupported: true
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    bgp_extended_community_index_unsupported: true
+    skip_bgp_send_community_type: true
   }
 }
 tags:  TAGS_AGGREGATION

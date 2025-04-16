@@ -18,6 +18,7 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     missing_isis_interface_afi_safi_enable: true
     isis_require_same_l1_metric_with_l2_metric: true
+    unsupported_static_route_next_hop_recurse: true
   }
 }
 platform_exceptions: {
