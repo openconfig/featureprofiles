@@ -15,6 +15,7 @@
 package zr_low_power_mode_test
 
 import (
+	"flag"
 	"fmt"
 	"reflect"
 	"testing"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -36,6 +38,11 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
+)
+
+var (
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -84,6 +91,8 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 
 func TestLowPowerMode(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	samplingInterval := 10 * time.Second
@@ -101,8 +110,6 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamPartNo.Close()
 			streamType := samplestream.New(t, dut, gnmi.OC().Component(tr).Type().State(), samplingInterval)
 			defer streamType.Close()
-			streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
-			defer streamDescription.Close()
 			streamMfgName := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgName().State(), samplingInterval)
 			defer streamMfgName.Close()
 			streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
@@ -115,18 +122,25 @@ func TestLowPowerMode(t *testing.T) {
 			allStream := map[string]*samplestream.SampleStream[string]{
 				"serialNo":        streamSerialNo,
 				"partNo":          streamPartNo,
-				"description":     streamDescription,
 				"mfgName":         streamMfgName,
 				"mfgDate":         streamMfgDate,
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
+
+			if !deviations.SkipTransceiverDescription(dut) {
+				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
+				defer streamDescription.Close()
+				allStream["description"] = streamDescription
+			}
+
 			validateStreamOutput(t, allStream)
 
 			d := &oc.Root{}
 			i := d.GetOrCreateInterface(dp.Name())
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			// Disable interface
+			t.Logf("Bringing down interface to verify")
 			i.Enabled = ygot.Bool(false)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			// Wait for interface to go down.
@@ -134,7 +148,9 @@ func TestLowPowerMode(t *testing.T) {
 
 			validateStreamOutput(t, allStream)
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
-			samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
+				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
+			}
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
