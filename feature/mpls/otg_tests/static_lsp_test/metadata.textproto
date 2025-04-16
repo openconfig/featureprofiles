@@ -11,5 +11,6 @@ platform_exceptions:  {
   }
   deviations:  {
     ipv4_missing_enabled:  true
+    skip_static_lsp_next_hops:  true
   }
 }
