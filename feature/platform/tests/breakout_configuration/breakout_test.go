@@ -24,7 +24,7 @@ import (
 
 const (
 	maxPingRetries = 3 // Set the number of retry attempts
-	schemaValue    = 0
+	schemaValue    = 1
 )
 
 var (
@@ -191,33 +191,37 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	var Ateipv4Subnets []string
 
 	cases := []struct {
-		numbreakouts  uint8
-		breakoutspeed oc.E_IfEthernet_ETHERNET_SPEED
-		dutIntfIP     string
-		ateIntfIp     string
-		expectedPMD   string
+		numbreakouts        uint8
+		breakoutspeed       oc.E_IfEthernet_ETHERNET_SPEED
+		dutIntfIP           string
+		ateIntfIp           string
+		expectedPMD         string
+		numPhysicalChannels uint8
 	}{
 		{
-			numbreakouts:  4,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			dutIntfIP:     dutPort1.IPv4,
-			ateIntfIp:     atePort1.IPv4,
-			expectedPMD:   "PMD_400GBASE_DR4",
+			numbreakouts:        4,
+			breakoutspeed:       oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+			dutIntfIP:           dutPort1.IPv4,
+			ateIntfIp:           atePort1.IPv4,
+			expectedPMD:         "PMD_100GBASE_FR",
+			numPhysicalChannels: 2,
 		},
 		{
 
-			numbreakouts:  2,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			dutIntfIP:     dutPort1.IPv4,
-			ateIntfIp:     atePort1.IPv4,
-			expectedPMD:   "PMD_100GBASE_LR4",
+			numbreakouts:        2,
+			breakoutspeed:       oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+			dutIntfIP:           dutPort1.IPv4,
+			ateIntfIp:           atePort1.IPv4,
+			expectedPMD:         "PMD_100GBASE_FR",
+			numPhysicalChannels: 2,
 		},
 		{
-			numbreakouts:  4,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
-			dutIntfIP:     dutPort2.IPv4,
-			ateIntfIp:     atePort2.IPv4,
-			expectedPMD:   "PMD_40GBASE_SR4",
+			numbreakouts:        4,
+			breakoutspeed:       oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
+			dutIntfIP:           dutPort2.IPv4,
+			ateIntfIp:           atePort2.IPv4,
+			expectedPMD:         "PMD_100GBASE_FR",
+			numPhysicalChannels: 2,
 		},
 	}
 
@@ -256,9 +260,10 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				t.Skip("Skipping test for Juniper devices")
 
 			case ondatra.ARISTA:
-				// Add Arista-specific implementation here
-				t.Logf("Arista implementation for breakout components not yet available")
-				t.Skip("Skipping test for Arista devices")
+				breakOutCompName, fullInterfaceName, foundComp = getCompName(dut, dutPort1.IPv4, expectedBreakOutPortConvention, t)
+				t.Logf("breakOutCompName is: %s fullInterfaceName is %s: "+
+					"fullInterfaceName and foundComp is %v", breakOutCompName, fullInterfaceName, foundComp)
+				componentNameList = []string{breakOutCompName}
 
 			default:
 				t.Fatalf("Unsupported vendor %s. Need to add breakout component names.", dut.Vendor())
@@ -267,9 +272,10 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			for _, componentName := range componentNameList {
 				t.Logf("Starting Test for %s %v", componentName, tc)
 				configContainer := &oc.Component_Port_BreakoutMode_Group{
-					Index:         ygot.Uint8(0),
-					NumBreakouts:  ygot.Uint8(tc.numbreakouts),
-					BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+					Index:               ygot.Uint8(1),
+					NumBreakouts:        ygot.Uint8(tc.numbreakouts),
+					BreakoutSpeed:       oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+					NumPhysicalChannels: ygot.Uint8(tc.numPhysicalChannels),
 				}
 				groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
 				breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
@@ -306,14 +312,14 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					index := *groupDetails.Index
 					numBreakouts := *groupDetails.NumBreakouts
 					breakoutSpeed := groupDetails.BreakoutSpeed
+					numPhysicalChannels := *groupDetails.NumPhysicalChannels
 					verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
-						breakoutSpeed.String(), t)
+						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
 
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
 					tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 					t.Logf("Start DUT interface Config.")
-
 					breakOutPorts, err := findNewPortNames(dut, t, dutPortName, tc.numbreakouts)
 					if err != nil {
 						t.Fatal(err)
@@ -322,7 +328,6 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					if dut.Vendor() == ondatra.CISCO {
 						sortBreakoutPorts(breakOutPorts)
 					}
-
 					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
 					if err != nil {
 						t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
