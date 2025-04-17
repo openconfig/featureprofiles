@@ -4,4 +4,13 @@
 uuid: "a477c97d-c895-4af3-9c97-9327bf86d517"
 plan_id: "CNTR-1"
 description: "Basic container lifecycle via `gnoi.Containerz`."
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    containerz_oc_unsupported: true
+  }
+}

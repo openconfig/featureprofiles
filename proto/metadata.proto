@@ -734,6 +734,9 @@ message Metadata {
     // Nokia b/394622453
     bool skip_transceiver_description = 265;
 
+    // Devices that do not support containerz config via OpenConfig.
+    bool containerz_oc_unsupported = 266;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }

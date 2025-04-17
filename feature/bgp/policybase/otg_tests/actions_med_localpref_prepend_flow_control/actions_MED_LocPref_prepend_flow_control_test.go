@@ -275,6 +275,7 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		}
 		metric, _ := strconv.Atoi(policyValue)
 		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+		actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 
 		stmt2, err := pdef.AppendNewStatement(matchStatement2)
 		if err != nil {

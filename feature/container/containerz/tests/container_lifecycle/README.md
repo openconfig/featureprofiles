@@ -6,38 +6,8 @@ Verify the correct behaviour of `gNOI.Containerz` when operating containers.
 
 ## Procedure
 
-This step only applies if the reference implementation of containerz is being
-tested.
-
-Start by pulling the reference implementation:
-
-```shell
-$ git clone git@github.com:openconfig/containerz.git
-```
-
-Then `cd` into the containerz directory and build containerz:
-
-```shell
-$ cd containerz
-$ go build .
-```
-
-Finally start containerz:
-
-```shell
-$ ./containerz start
-```
-
-You should see the following output:
-
-```shell
-$ ./containerz start
-I0620 12:02:57.408496 3615908 janitor.go:33] janitor-starting
-I0620 12:02:57.408547 3615908 janitor.go:36] janitor-started
-I0620 12:02:57.408583 3615908 server.go:167] server-start
-I0620 12:02:57.408595 3615908 server.go:170] Starting up on Containerz server, listening on: [::]:19999
-I0620 12:02:57.408608 3615908 server.go:171] server-ready
-```
+* Build the test and upgrade container as described below
+* Pass the tarballs of the container the test as arguments.
 
 ### Build Test Container
 

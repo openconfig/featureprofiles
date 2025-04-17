@@ -63,9 +63,9 @@ func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numB
 
 // verifyBreakout checks if the breakout configuration matches the expected values.
 // It reports errors to the testing object if there is a mismatch.
-func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, t *testing.T) {
+func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, numPhysicalChannelsWant uint8, numPhysicalChannelsGot uint8, t *testing.T) {
 	// Ensure that the index is set to the expected value (1 in this case).
-	if index != uint8(0) {
+	if index != uint8(1) {
 		t.Errorf("Index: got %v, want 1", index)
 	}
 	// Check if the number of breakouts configured matches what was expected.
@@ -76,13 +76,17 @@ func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, 
 	if breakoutSpeedGot != breakoutSpeedWant {
 		t.Errorf("Breakout speed configured: got %v, want %v", breakoutSpeedGot, breakoutSpeedWant)
 	}
+	// Verify that the number of physical channels configured matches the expected value.
+	if numPhysicalChannelsGot != numPhysicalChannelsWant {
+		t.Errorf("Number of physical channels configured: got %v, want %v", numPhysicalChannelsGot, numPhysicalChannelsWant)
+	}
 
 }
 
 func verifyDelete(t *testing.T, dut *ondatra.DUTDevice, compname string, schemaValue uint8) {
 
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.Get(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(schemaValue).Index().Config()) //catch the error  as it is expected and absorb the panic.
+		gnmi.Get(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(schemaValue).Index().Config()) // catch the error  as it is expected and absorb the panic.
 	}); errMsg != nil {
 		t.Log("Expected failure as this verifies the breakout config is removed")
 	} else {
@@ -128,35 +132,52 @@ func IncrementIPNetwork(ipStr string, numBreakouts uint8, isIPv4 bool, lastOctet
 // the newly broken out ports of OneHundredGigE0/0/0/0/10/0-4
 func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName string, numBreakouts uint8) ([]string, error) {
 	// Fetch the current state of all interfaces from the device using gNMI.
-	intfs := gnmi.Get(t, dut, gnmi.OC().InterfaceMap().State())
 
-	// Split the original port name by '/' to extract the correct index (third-last segment in this case).
-	portSegments := strings.Split(originalPortName, "/")
-	if len(portSegments) < 4 {
-		return nil, fmt.Errorf("invalid port name format: %v", originalPortName)
-	}
-	portIndex := portSegments[len(portSegments)-2] // Get the third-last segment, which is "30"
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		intfs := gnmi.Get(t, dut, gnmi.OC().InterfaceMap().State())
 
-	// Define a pattern to match breakout port names that include the original port index.
-	breakoutPattern := fmt.Sprintf(`\w+/\d+/\d+/%s/\d+`, portIndex)
-
-	// Compile the pattern into a regular expression.
-	re := regexp.MustCompile(breakoutPattern)
-
-	// Loop through all interfaces and collect those that match the breakout pattern
-	newPortNames := []string{}
-	for intfName := range intfs {
-		if re.MatchString(intfName) {
-			newPortNames = append(newPortNames, intfName)
+		// Split the original port name by '/' to extract the correct index (third-last segment in this case).
+		portSegments := strings.Split(originalPortName, "/")
+		if len(portSegments) < 4 {
+			return nil, fmt.Errorf("invalid port name format: %v", originalPortName)
 		}
+		portIndex := portSegments[len(portSegments)-2] // Get the third-last segment, which is "30"
+
+		// Define a pattern to match breakout port names that include the original port index.
+		breakoutPattern := fmt.Sprintf(`\w+/\d+/\d+/%s/\d+`, portIndex)
+
+		// Compile the pattern into a regular expression.
+		re := regexp.MustCompile(breakoutPattern)
+
+		// Loop through all interfaces and collect those that match the breakout pattern
+		var newPortNames []string
+		for intfName := range intfs {
+			if re.MatchString(intfName) {
+				newPortNames = append(newPortNames, intfName)
+			}
+		}
+
+		// Check if the number of new ports found is equal to the number of breakouts expected.
+		if len(newPortNames) != int(numBreakouts) {
+			return nil, fmt.Errorf("expected to find %d new ports, found %d", numBreakouts, len(newPortNames))
+		}
+
+		return newPortNames, nil
+
+	// Returns all reserved ports (We are only reserving the breakout ports for the test)
+	case ondatra.ARISTA:
+		portsAll := dut.Ports()
+		newPortNames := []string{}
+		for _, port := range portsAll {
+			newPortNames = append(newPortNames, port.Name())
+		}
+		return newPortNames, nil
+	default:
+		t.Fatalf("Unsupported vendor %s. Need to add breakout component names.", dut.Vendor())
 	}
 
-	// Check if the number of new ports found is equal to the number of breakouts expected.
-	if len(newPortNames) != int(numBreakouts) {
-		return nil, fmt.Errorf("expected to find %d new ports, found %d", numBreakouts, len(newPortNames))
-	}
-
-	return newPortNames, nil
+	return nil, nil
 }
 
 // fetchResponses will fetch the ping response
@@ -211,18 +232,28 @@ func getCompName(dut *ondatra.DUTDevice, string, portPrefix string, t *testing.T
 	}
 
 	// Extract line card slot and port number from the interface name
-	var portNumber = string
-	var lcSlot = string
-	parts := strings.Split(dutPortName, "/")
-	if len(parts) >= 4 {
-		lcSlot = parts[2]
-		portNumber = parts[3]
-		t.Logf("Extracted Linecard Slot: %s, Port Number: %s", lcSlot, portNumber)
-		compName := fmt.Sprintf("Port0/%s/0/%s", lcSlot, portNumber)
-		t.Logf("compName is: %s", compName)
-		return compName, dutPortName, true
-	} else {
-		t.Logf("Invalid location format: %s", dutPortName)
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		var portNumber = string
+		var lcSlot = string
+		parts := strings.Split(dutPortName, "/")
+		if len(parts) >= 4 {
+			lcSlot = parts[2]
+			portNumber = parts[3]
+			t.Logf("Extracted Linecard Slot: %s, Port Number: %s", lcSlot, portNumber)
+			compName := fmt.Sprintf("Port0/%s/0/%s", lcSlot, portNumber)
+			t.Logf("compName is: %s", compName)
+			return compName, dutPortName, true
+		} else {
+			t.Logf("Invalid location format: %s", dutPortName)
+			return "", "", false
+		}
+	case ondatra.ARISTA:
+		lastIndex := strings.LastIndex(dutPortName, "/")
+		breakOutCompName := dutPortName[:lastIndex] + "-Port"
+		return breakOutCompName, dutPortName, true
+	default:
+		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		return "", "", false
 	}
 }
