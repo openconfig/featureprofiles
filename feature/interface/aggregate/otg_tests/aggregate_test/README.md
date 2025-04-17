@@ -29,7 +29,7 @@ Validate link operational status of Static LAG and LACP.
 *   /interfaces/interface/aggregation/config/min-links
 *   TODO: /lacp/config/system-priority
 *   /lacp/interfaces/interface/config/name
-*   TODO: /lacp/interfaces/interface/config/interval
+*   /lacp/interfaces/interface/config/interval
 *   /lacp/interfaces/interface/config/lacp-mode
 *   TODO: /lacp/interfaces/interface/config/system-id-mac
 *   TODO: /lacp/interfaces/interface/config/system-priority
