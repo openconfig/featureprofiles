@@ -1342,3 +1342,8 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
+
+// Devices that do not propagate IGP metric through redistribution
+func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
+}
