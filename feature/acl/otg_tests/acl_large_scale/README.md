@@ -615,11 +615,9 @@ paths:
   /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/prefix:
 
   #prefix-set state ipv4, ipv6
-  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/name:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/description:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/prefix:
-  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state:
   /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/name:
   /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/description:
   /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/prefix:
