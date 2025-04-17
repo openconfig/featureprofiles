@@ -737,6 +737,10 @@ message Metadata {
     // Devices that do not support containerz config via OpenConfig.
     bool containerz_oc_unsupported = 266;
 
+    // StaticLspNextHopsNotSupported for devices that do not support static lsp next-hops.
+    // yang path "/network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/
+    bool skip_static_lsp_next_hops = 267;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
