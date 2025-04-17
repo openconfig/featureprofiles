@@ -1,4 +1,4 @@
-# PF-1.21 ECMP hashing for GUE flows with IPv4|UDP outer header
+# PF-1.22 ECMP hashing for GUE flows with IPv4|UDP outer header
 ## Summary
 This test ensures that only the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes
 
@@ -149,7 +149,7 @@ B7 <-- EBGP --> N4;
 - Repeat each test with the each ATE Flow-type or explicitly mentioned flow-type
 - Conduct each of the following test, using a single flow-type with 1024 flows
 
-### PF-1.21.1: [Baseline] Load-balance test
+### PF-1.22.1: [Baseline] Load-balance test
 - Configure the DUT and ATE as stated above
 - Initiate a single flow-type for a predetermined time(3 minutes) and follow the below stated and applicable verification steps
 - L4 source port of outer header(GUEv1 encap header) should be randomized for each flow-type that's running
@@ -175,7 +175,7 @@ B7 <-- EBGP --> N4;
         - Traffic forwarded towards ATE4 (via LAG2) should be load-balanced across the LAG members
     - No packet loss should be observed
 
-### PF-1.21.2: Randomize the L4 source port field in immediate next header to outer header and verify load-balance behavior
+### PF-1.22.2: Randomize the L4 source port field in immediate next header to outer header and verify load-balance behavior
 - Configure the DUT and ATE as stated above
 - L4 source port of inner/middle header(immediate next header to outer header) should be randomized for each flow-type thats running
 - Initiate a flow-type for a predetermined time(3 minutes) and follow the below stated and applicable verification steps
@@ -202,7 +202,7 @@ B7 <-- EBGP --> N4;
     - No packet loss should be observed
     - Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field 
 
-### PF-1.21.3: Randomize the L4 source port field and SIP in immediate next header to outer header (middle header) and verify load-balance behavior [Applicable to Packet#1 and Packet#6]
+### PF-1.22.3: Randomize the L4 source port field and SIP in immediate next header to outer header (middle header) and verify load-balance behavior [Applicable to Packet#1 and Packet#6]
 - Configure the DUT and ATE as stated above
 - L4 source port of middle header(immediate next header to outer header) should be randomized for each flow-type that's running
 - SIP(immediate next header to outer header) should be randomized between ATE1LO[1-10] addresses for each flow-type that's running
@@ -214,7 +214,7 @@ B7 <-- EBGP --> N4;
     -  No packet loss should be observed
     -  Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field
 
-### PF-1.21.4: Randomize the L4 source port field and SIP in immediate next header to outer header (inner header) and verify load-balance behavior [NA to Packet#1 and Packet#6]
+### PF-1.22.4: Randomize the L4 source port field and SIP in immediate next header to outer header (inner header) and verify load-balance behavior [NA to Packet#1 and Packet#6]
 - Configure the DUT and ATE as stated above
 - L4 source port of inner header should be randomized for each flow-type that's running
 - SIP of inner header should be randomized between the v4/v6 prefixes advertised by H1 for each flow-type that's running
