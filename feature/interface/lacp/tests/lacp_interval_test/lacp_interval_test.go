@@ -222,7 +222,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	tc.configDstAggregateDUT(agg2, &dut2Src)
 	fptest.LogQuery(t, tc.aggID+" on DUT2", aggPath.Config(), agg2)
 	gnmi.Replace(t, tc.dut2, aggPath.Config(), agg2)
-	
+
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut1) {
 		fptest.AssignToNetworkInstance(t, tc.dut1, tc.aggID, deviations.DefaultNetworkInstance(tc.dut1), 0)
 		fptest.AssignToNetworkInstance(t, tc.dut1, dut1Src.Name, deviations.DefaultNetworkInstance(tc.dut1), 0)
