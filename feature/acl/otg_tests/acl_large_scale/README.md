@@ -605,22 +605,25 @@ paths:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action:
 
   #prefix-set config ipv4, ipv6
-  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set:
+  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/name:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/name:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/description:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/prefix:
-  /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/config/name:
-  /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/config/description:
-  /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/config/prefix:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/name:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/name:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/description:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/prefix:
 
   #prefix-set state ipv4, ipv6
-  /defined-sets/ipv4-prefix-sets/ipv6-prefix-set:
-  /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/state/name:
-  /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/state/description:
-  /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/state/prefix:
+  /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/name:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/description:
   /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/state/prefix:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/name:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/description:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/state/prefix:
+
 
 rpcs:
   gnmi:
