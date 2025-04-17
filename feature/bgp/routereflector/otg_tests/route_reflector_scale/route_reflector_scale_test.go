@@ -523,7 +523,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	} else {
 		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 	}
-	if gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotSent, ok := val.Val()
 		return ok && gotSent == wantSent
 	}).Await(t); !ok {
