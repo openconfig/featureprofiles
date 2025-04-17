@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "126340a4-016c-493c-a630-87f1a5331e6f"
+plan_id:  "MPLS-2.2"
+description:  "MPLS forwarding via static LSP to BGP next-hop."
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    static_mpls_lsp_unsupported: true
+  }
+}
