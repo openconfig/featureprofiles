@@ -50,14 +50,29 @@ outer_ip-ttl =        "64"
   * Update policer-policies in a batch of `sched_q` = 1,000
   * Policer-policies changes should take effect within `sched_r` / 2 time
 
-#### Scale profile A - many vlans
+#### Scale profile A - many vlans 1 NH per NHG with same MPLS label
 
 * 20 ip destinations * 1,000 vlans = 20,000 'flows'
+* 1000 network-instances have each have 1 static route pointing a static  NHG with 8 NH. The encap-headers for the NH should indicate MPLS in GRE encapsulation as per the canonical OC defined in test TE-18.1
+* Configure static LSP's for the MPLS label to VLAN mapping.
+* 1 default route in each VRF pointing to policy forwarding NHG.
+* Create 20K gRIBI NHG with 1 NH per NHG with same MPLS label.
+* Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
 * Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
-* The 20 ip destinations are split evenly between the 20 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
-#### Scale profile B - many destinations, few vlans
+#### Scale profile B - many vlans 1 NH per NHG with different MPLS label
+
+* 20 ip destinations * 1,000 vlans = 20,000 'flows'
+* 1000 network-instances have each have 1 static route pointing a static  NHG with 8 NH. The encap-headers for the NH should indicate MPLS in GRE encapsulation as per the canonical OC defined in test TE-18.1
+* Configure static LSP's for the MPLS label to VLAN mapping.
+* 1 default route in each VRF pointing to policy forwarding NHG.
+* Create 20K gRIBI NHG with 1 NH per NHG with different MPLS label.
+* Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
+* Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
+* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+
+#### Scale profile C - many destinations, few vlans
 
 * 200 ip destinations * 100 vlans = 20,000 'flows'
 * Each ingress vlan has 4 policer-policies = 4,000 'token buckets'
@@ -66,7 +81,7 @@ outer_ip-ttl =        "64"
 
 #### Procedure - Flow Scale
 
-* For each scale profile, create the following subsets TE-18.1.5.n
+* For each scale profile, create the following subsets TE-18.3.1.n
   * Configure ATE flows to send 100 pps per flow and wait for ARP
   * Send traffic for q flows (destination IP prefixes) for 2 seconds
   * At traffic start time, gRIBI client to send `flow_q` aft entries and their
@@ -80,10 +95,17 @@ outer_ip-ttl =        "64"
 
 #### Procedure - Policer + Flow Scale
 
-* For each scale profile, create the following subsets TE-18.1.6.n
+* For each scale profile, create the following subsets TE-18.3.1.n
   * Program all 20,000 flows
   * Every `sched_r` interval use gnmi.Set to replace `sched_q` scheduler policies
   * Verify packet loss changes for all flows within `sched_r` / 2 time
+
+
+#### Procedure - VRF Scale
+
+* For each scale profile, create the following subsets TE-18.3.1.n
+  * Generate traffic stream for policy forwarding NHG and gRIBI NHG
+  * Observe that MPLS over GRE and MPLS over UDP encapsulation are working properly.
 
 #### OpenConfig Path and RPC Coverage
 
