@@ -533,7 +533,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "PF-1.21"
+  id: "PF-1.22"
   description: "ECMP hashing for GUE flows with IPv4|UDP outer header"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/ipv4_gue_hashing_test/README.md"
   exec: " "
