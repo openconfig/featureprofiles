@@ -15,6 +15,7 @@
 package passwordconsolelogin_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -40,6 +41,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+	passwordVersion := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
 
@@ -99,7 +101,7 @@ func TestCredentialz(t *testing.T) {
 				)
 			}
 			gotPasswordCreatedOn := userState.GetPasswordCreatedOn()
-			if !cmp.Equal(time.Unix(0, int64(gotPasswordCreatedOn)), time.Unix(passwordCreatedOn, 0)) {
+			if !cmp.Equal(time.Unix(0, int64(gotPasswordCreatedOn)), time.Unix(0, int64(passwordCreatedOn))) {
 				t.Fatalf(
 					"Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d",
 					gotPasswordCreatedOn, passwordCreatedOn,
