@@ -1342,3 +1342,28 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
+
+// SRLB and SRGB configuration does not effective with OC config
+func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
+}
+
+// Isis Prefix Segment config does not supported
+func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrPrefixSegmentConfigUnsupported()
+}
+
+// Isis Node Segment Configuration do not supported
+func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
+}
+
+// Verify counters based on SID label do not support
+func SkipVerifySidCounters(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipVerifySidCounters()
+}
+
+// Snycast SID config not supported
+func SkipVerifyAnycastSid(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipVerifyAnycastSid()
+}

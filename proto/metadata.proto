@@ -737,6 +737,21 @@ message Metadata {
     // Devices that do not support containerz config via OpenConfig.
     bool containerz_oc_unsupported = 266;
 
+    // SRGB and SLGB config through OC is not reflecting
+    bool isis_srgb_srlb_unsupported = 267;
+
+    // Prefix segment configuration not supported
+    bool isis_sr_prefix_segment_config_unsupported = 268;
+
+    // node segment configuration not supported
+    bool isis_sr_node_segment_config_unsupported = 269;
+
+    // DUT not returning value for sid counters
+    bool skip_verify_sid_counters = 270;
+
+    // DUT not supporting with anycast SID configuration
+    bool skip_verify_anycast_sid = 271;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
