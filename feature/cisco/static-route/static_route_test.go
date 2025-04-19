@@ -21,5 +21,7 @@ func TestStaticRoute(t *testing.T) {
 	configureDUT(t, dut2)
 	topo := configureATE(t, ate)
 	t.Log("ATE CONFIG: ", topo)
+	// time.Sleep(15 * time.Minute)
+	configureTrafficFlow(t, ate, topo)
 
 }
