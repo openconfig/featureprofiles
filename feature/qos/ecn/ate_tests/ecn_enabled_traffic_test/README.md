@@ -37,13 +37,6 @@ minimum threshold.
         priority.
         *   AF3, AF2, AF1, BE1 and BE0 will use WRR queues.
 
-*   Test results should be independent of the location of interfaces. For
-    example, 2 input interfaces and output interface could be located on
-
-    *   Same ASIC-based forwarding engine
-    *   Different ASIC-based forwarding engine on same line card
-    *   Different ASIC-based forwarding engine on different line cards
-
 *   Test results should be the same for port speeds 100G and 400G.
 
 *   Counters should be also verified for each test case:
