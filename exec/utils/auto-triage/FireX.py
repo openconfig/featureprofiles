@@ -317,9 +317,12 @@ class FireX:
                     if name and bug_type:
                         try:
                             if bug_type in ["DDTS", "TechZone", "Github"]:
-                                data["bugs"].append(globals()[bug_type.lower()].inherit(name)) 
-                                if bug_type == "DDTS" and test_passed and ddts.is_open(name):
-                                    data["health"] = "unstable"
+                                inherited_bug = globals()[bug_type.lower()].inherit(name)
+                                # Only append the bug if it's not None (filtered out)
+                                if inherited_bug is not None:
+                                    data["bugs"].append(inherited_bug) 
+                                    if bug_type == "DDTS" and test_passed and ddts.is_open(name):
+                                        data["health"] = "unstable"
                         except Exception as e:
                             logger.error(f"Error inheriting bug {name} of type {bug_type}: {e}")
                     else:
@@ -373,10 +376,17 @@ class FireX:
                 # Always set inherited_label to False by default
                 testcase_data["inherited_label"] = False
                 
-                # Check if we should inherit from history
+                # Check if we should inherit from history - MODIFIED to prioritize label_id
                 should_inherit = False
-                if history and history.get("status") == "aborted" and history.get("label", "").strip():
-                    should_inherit = True
+                if history:
+                    # First try to match by label_id if it exists in history
+                    if history.get("label_id") and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on label_id match")
+                    # Fall back to the old status-based logic
+                    elif history.get("status") == "aborted" and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on status match (fallback)")
                     
                 if should_inherit:  # Inherit for ABORTED
                     # Populate ALL relevant fields ONLY if inheriting
@@ -385,6 +395,7 @@ class FireX:
                     testcase_data["triage_status"] = "Resolved"
                     testcase_data["label"] = history.get("label", "")
                     testcase_data["bugs"] = history.get("bugs", [])
+                    testcase_data["label_id"] = history.get("label_id", "")
 
                     # Find verification origin
                     try:
@@ -432,10 +443,17 @@ class FireX:
                 # Always set inherited_label to False by default
                 testcase_data["inherited_label"] = False
                 
-                # Check if we should inherit from history
+                # Check if we should inherit from history - MODIFIED to prioritize label_id
                 should_inherit = False
-                if history and history.get("status") == "failed" and history.get("label", "").strip():
-                    should_inherit = True
+                if history:
+                    # First try to match by label_id if it exists in history
+                    if history.get("label_id") and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on label_id match")
+                    # Fall back to the old status-based logic
+                    elif history.get("status") == "failed" and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on status match (fallback)")
                     
                 if should_inherit:  # Inherit for FAILED
                     try:
@@ -445,6 +463,7 @@ class FireX:
                         testcase_data["triage_status"] = "Resolved"
                         testcase_data["label"] = history.get("label", "")
                         testcase_data["bugs"] = history.get("bugs", [])
+                        testcase_data["label_id"] = history.get("label_id", "")
 
                         # Find verification origin
                         origin_run_id, origin_timestamp, origin_verified_by, origin_logs = self._find_verification_origin(
