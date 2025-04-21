@@ -69,7 +69,6 @@ func TestMotdBanner(t *testing.T) {
 					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
 					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
-					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry MOTD Banner: got %v, want %s", stateGot, testCase.banner)
 					}
@@ -121,7 +120,6 @@ func TestLoginBanner(t *testing.T) {
 				if testCase.banner == deviations.BannerDelimiter(dut)+""+deviations.BannerDelimiter(dut) {
 					stateGot := gnmi.Get(t, dut, state.State())
 					stateGot = strings.TrimSpace(stateGot)
-					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					stateGot = deviations.BannerDelimiter(dut) + stateGot + deviations.BannerDelimiter(dut)
 					if stateGot != testCase.banner {
 						t.Errorf("Telemetry Login Banner: got %v, want %s", stateGot, testCase.banner)
