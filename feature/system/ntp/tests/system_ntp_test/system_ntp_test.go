@@ -15,10 +15,9 @@
 package system_ntp_test
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -26,6 +25,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
