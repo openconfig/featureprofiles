@@ -317,9 +317,12 @@ class FireX:
                     if name and bug_type:
                         try:
                             if bug_type in ["DDTS", "TechZone", "Github"]:
-                                data["bugs"].append(globals()[bug_type.lower()].inherit(name)) 
-                                if bug_type == "DDTS" and test_passed and ddts.is_open(name):
-                                    data["health"] = "unstable"
+                                inherited_bug = globals()[bug_type.lower()].inherit(name)
+                                # Only append the bug if it's not None (filtered out)
+                                if inherited_bug is not None:
+                                    data["bugs"].append(inherited_bug) 
+                                    if bug_type == "DDTS" and test_passed and ddts.is_open(name):
+                                        data["health"] = "unstable"
                         except Exception as e:
                             logger.error(f"Error inheriting bug {name} of type {bug_type}: {e}")
                     else:
@@ -344,19 +347,23 @@ class FireX:
         for testcase in testcases:
             current_test_name = testcase.get("name", "Unnamed Test")
             inheritance_possible = historial_testsuite is not None
-            history = None # Immediate predecessor's TC data
+            history = None  # Immediate predecessor's TC data
             if inheritance_possible:
                 for e in historial_testsuite.get("testcases", []):
-                    if e.get("name") == current_test_name: history = e; break
-
+                    if e.get("name") == current_test_name: 
+                        history = e 
+                        break
+                
             # Initialize basic fields common to all statuses
             testcase_data = {"name": current_test_name, "time": float(testcase.get("time", 0))}
 
-            failure_el = testcase.find("failure"); error_el = testcase.find("error"); skipped_el = testcase.find("skipped")
-            current_status = "passed"; should_inherit_label = False; current_log = None
+            failure_el = testcase.find("failure")
+            error_el = testcase.find("error")
+            skipped_el = testcase.find("skipped")
+            current_status = "passed"
+            current_log = None
 
             # Determine Status and Handle Status-Specific Fields
-
             if skipped_el is not None:
                 current_status = "skipped"
                 testcase_data["status"] = current_status
@@ -366,35 +373,62 @@ class FireX:
             elif error_el is not None and error_el.get("message") is None:
                 current_status = "aborted"
                 testcase_data["status"] = current_status
-                should_inherit_label = bool(history and history.get("status") == "aborted")
-
-                if should_inherit_label and history: # Inherit for ABORTED
+                # Always set inherited_label to False by default
+                testcase_data["inherited_label"] = False
+                
+                # Check if we should inherit from history - MODIFIED to prioritize label_id
+                should_inherit = False
+                if history:
+                    # First try to match by label_id if it exists in history
+                    if history.get("label_id") and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on label_id match")
+                    # Fall back to the old status-based logic
+                    elif history.get("status") == "aborted" and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on status match (fallback)")
+                    
+                if should_inherit:  # Inherit for ABORTED
                     # Populate ALL relevant fields ONLY if inheriting
                     testcase_data["inherited_label"] = True
-                    testcase_data["triage_status"] = history.get("triage_status", "New")
+                    # Set triage_status to "Resolved" if there's a meaningful label
+                    testcase_data["triage_status"] = "Resolved"
                     testcase_data["label"] = history.get("label", "")
                     testcase_data["bugs"] = history.get("bugs", [])
+                    testcase_data["label_id"] = history.get("label_id", "")
 
-                    origin_run_id, origin_timestamp, origin_verified_by, _ = self._find_verification_origin(
-                        database, lineup, group, plan_id, current_test_name, historical_timestamp
-                    )
-                    testcase_data["original_verification_run_id"] = origin_run_id
-                    testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
-                    testcase_data["inheritance_date"] = origin_timestamp
+                    # Find verification origin
+                    try:
+                        origin_run_id, origin_timestamp, origin_verified_by, _ = self._find_verification_origin(
+                            database, lineup, group, plan_id, current_test_name, historical_timestamp
+                        )
+                        testcase_data["original_verification_run_id"] = origin_run_id
+                        testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
+                        testcase_data["inheritance_date"] = origin_timestamp
 
-                    predecessor_run_id = historial_testsuite.get("run_id", "Unknown") if historial_testsuite else "Unknown"
-                    testcase_data["inheritance_source_run_id"] = predecessor_run_id
+                        predecessor_run_id = historial_testsuite.get("run_id", "Unknown") if historial_testsuite else "Unknown"
+                        testcase_data["inheritance_source_run_id"] = predecessor_run_id
 
-                    # Update Reason String
-                    reason_label = history.get('label', ''); reason_ts_str = f"on {origin_timestamp}" if origin_timestamp else "(ts unknown)"; reason_verified_by = testcase_data["verified_by"]
-                    if origin_run_id and reason_verified_by != "Unknown": testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}].")
-                    elif origin_run_id: testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}].")
-                    else: pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"; testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found.")
-
-                else: # Aborted, but no inheritance (New Issue)
-                    testcase_data["inherited_label"] = False
+                        # Update Reason String
+                        reason_label = history.get('label', '')
+                        reason_ts_str = f"on {origin_timestamp}" if origin_timestamp else "(ts unknown)"
+                        reason_verified_by = testcase_data["verified_by"]
+                        
+                        if origin_run_id and reason_verified_by != "Unknown":
+                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}]."
+                        elif origin_run_id:
+                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}]."
+                        else:
+                            pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"
+                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found."
+                    except Exception as e:
+                        logger.error(f"Error during aborted test inheritance: {e}")
+                        # Fallback if verification origin fails
+                        testcase_data["triage_status"] = "New"
+                        testcase_data["inherited_label"] = False
+                else:  # Aborted, but no inheritance (New Issue)
                     testcase_data["triage_status"] = "New"
-                    testcase_data["label"] = "" # Needs labeling
+                    testcase_data["label"] = ""  # Needs labeling
                     testcase_data["bugs"] = []
                     # No inheritance/origin/similarity fields populated
 
@@ -405,75 +439,107 @@ class FireX:
                 current_log = str(text).strip() if text else ""
                 testcase_data["message"] = "Failed"
                 testcase_data["logs"] = current_log
-                should_inherit_label = bool(history and history.get("status") == "failed")
+                
+                # Always set inherited_label to False by default
+                testcase_data["inherited_label"] = False
+                
+                # Check if we should inherit from history - MODIFIED to prioritize label_id
+                should_inherit = False
+                if history:
+                    # First try to match by label_id if it exists in history
+                    if history.get("label_id") and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on label_id match")
+                    # Fall back to the old status-based logic
+                    elif history.get("status") == "failed" and history.get("label", "").strip():
+                        should_inherit = True
+                        logger.debug(f"Inheriting label for '{current_test_name}' based on status match (fallback)")
+                    
+                if should_inherit:  # Inherit for FAILED
+                    try:
+                        # Populate ALL relevant fields ONLY if inheriting
+                        testcase_data["inherited_label"] = True
+                        # Set triage_status to "Resolved" if there's a meaningful label
+                        testcase_data["triage_status"] = "Resolved"
+                        testcase_data["label"] = history.get("label", "")
+                        testcase_data["bugs"] = history.get("bugs", [])
+                        testcase_data["label_id"] = history.get("label_id", "")
 
-                if should_inherit_label and history: # Inherit for FAILED
-                    # Populate ALL relevant fields ONLY if inheriting
-                    testcase_data["inherited_label"] = True
-                    testcase_data["triage_status"] = history.get("triage_status", "New")
-                    testcase_data["label"] = history.get("label", "")
-                    testcase_data["bugs"] = history.get("bugs", [])
+                        # Find verification origin
+                        origin_run_id, origin_timestamp, origin_verified_by, origin_logs = self._find_verification_origin(
+                            database, lineup, group, plan_id, current_test_name, historical_timestamp
+                        )
+                        testcase_data["original_verification_run_id"] = origin_run_id
+                        testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
+                        testcase_data["inheritance_date"] = origin_timestamp
 
-                    origin_run_id, origin_timestamp, origin_verified_by, origin_logs = self._find_verification_origin(
-                        database, lineup, group, plan_id, current_test_name, historical_timestamp
-                    )
-                    testcase_data["original_verification_run_id"] = origin_run_id
-                    testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
-                    testcase_data["inheritance_date"] = origin_timestamp
+                        predecessor_run_id = historial_testsuite.get("run_id", "Unknown") if historial_testsuite else "Unknown"
+                        testcase_data["inheritance_source_run_id"] = predecessor_run_id
 
-                    predecessor_run_id = historial_testsuite.get("run_id", "Unknown") if historial_testsuite else "Unknown"
-                    testcase_data["inheritance_source_run_id"] = predecessor_run_id
+                        # Update Reason String
+                        reason_label = history.get('label', '')
+                        reason_ts_str = f"on {origin_timestamp}" if origin_timestamp else "(ts unknown)"
+                        reason_verified_by = testcase_data["verified_by"]
+                        
+                        if origin_run_id and reason_verified_by != "Unknown":
+                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}]."
+                        elif origin_run_id:
+                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}]."
+                        else:
+                            pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"
+                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found."
 
-                    # Update Reason String
-                    reason_label = history.get('label', ''); reason_ts_str = f"on {origin_timestamp}" if origin_timestamp else "(ts unknown)"; reason_verified_by = testcase_data["verified_by"]
-                    if origin_run_id and reason_verified_by != "Unknown": testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}].")
-                    elif origin_run_id: testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}].")
-                    else: pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"; testcase_data["inheritance_reason"] = (f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found.")
-
-                    # Calculate Log Similarity (vs ORIGIN log if available, else predecessor)
-                    # Initialize score to None ONLY when inheriting
-                    testcase_data["log_similarity_score"] = None
-                    similarity_calculated = False
-                    if self.embedding_model:
-                        if current_log and origin_logs:
-                            try:
-                                logger.debug(f"Calculating log similarity for TC '{current_test_name}' vs ORIGIN log from run [{origin_run_id}]")
-                                embeddings = self.embedding_model.embed_documents([current_log, origin_logs])
-                                vec1=np.array(embeddings[0]).reshape(1, -1); vec2=np.array(embeddings[1]).reshape(1, -1)
-                                similarity = cosine_similarity(vec1, vec2)[0][0]
-                                testcase_data["log_similarity_score"] = float(similarity)
-                                similarity_calculated = True
-                                logger.debug(f"Log similarity score vs origin: {similarity:.4f}")
-                            except Exception as e: logger.error(f"Failed similarity vs origin for TC '{current_test_name}': {e}")
-                        elif current_log: # Fallback: Compare to predecessor if origin logs missing
-                            predecessor_log = history.get("logs", "")
-                            if predecessor_log:
-                                logger.debug(f"Origin log missing for '{current_test_name}'. Comparing vs predecessor [{predecessor_run_id}].")
+                        # Calculate Log Similarity (vs ORIGIN log if available, else predecessor)
+                        # Initialize score to None ONLY when inheriting
+                        testcase_data["log_similarity_score"] = None
+                        similarity_calculated = False
+                        
+                        if self.embedding_model:
+                            if current_log and origin_logs:
                                 try:
-                                     embeddings = self.embedding_model.embed_documents([current_log, predecessor_log])
-                                     vec1=np.array(embeddings[0]).reshape(1, -1); vec2=np.array(embeddings[1]).reshape(1, -1)
-                                     similarity = cosine_similarity(vec1, vec2)[0][0]
-                                     testcase_data["log_similarity_score"] = float(similarity)
-                                     similarity_calculated = True
-                                     logger.debug(f"Log similarity score vs predecessor (fallback): {similarity:.4f}")
-                                except Exception as e: logger.error(f"Failed similarity vs predecessor for TC '{current_test_name}': {e}")
+                                    logger.debug(f"Calculating log similarity for TC '{current_test_name}' vs ORIGIN log from run [{origin_run_id}]")
+                                    embeddings = self.embedding_model.embed_documents([current_log, origin_logs])
+                                    vec1 = np.array(embeddings[0]).reshape(1, -1)
+                                    vec2 = np.array(embeddings[1]).reshape(1, -1)
+                                    similarity = cosine_similarity(vec1, vec2)[0][0]
+                                    testcase_data["log_similarity_score"] = float(similarity)
+                                    similarity_calculated = True
+                                    logger.debug(f"Log similarity score vs origin: {similarity:.4f}")
+                                except Exception as e:
+                                    logger.error(f"Failed similarity vs origin for TC '{current_test_name}': {e}")
+                            elif current_log:  # Fallback: Compare to predecessor if origin logs missing
+                                predecessor_log = history.get("logs", "")
+                                if predecessor_log:
+                                    logger.debug(f"Origin log missing for '{current_test_name}'. Comparing vs predecessor [{predecessor_run_id}].")
+                                    try:
+                                        embeddings = self.embedding_model.embed_documents([current_log, predecessor_log])
+                                        vec1 = np.array(embeddings[0]).reshape(1, -1)
+                                        vec2 = np.array(embeddings[1]).reshape(1, -1)
+                                        similarity = cosine_similarity(vec1, vec2)[0][0]
+                                        testcase_data["log_similarity_score"] = float(similarity)
+                                        similarity_calculated = True
+                                        logger.debug(f"Log similarity score vs predecessor (fallback): {similarity:.4f}")
+                                    except Exception as e:
+                                        logger.error(f"Failed similarity vs predecessor for TC '{current_test_name}': {e}")
 
-                    # If similarity calculation was not successful for any reason, set to the string
-                    if not similarity_calculated:
-                         testcase_data["log_similarity_score"] = "no logs provided for comparison" # Changed string slightly
-                elif not self.embedding_model:
+                        # If similarity calculation was not successful for any reason, set to the string
+                        if not similarity_calculated:
+                            testcase_data["log_similarity_score"] = "no logs provided for comparison"
+                    except Exception as e:
+                        logger.error(f"Error during failed test inheritance: {e}")
+                        # Fallback if verification origin fails
+                        testcase_data["triage_status"] = "New"
+                        testcase_data["inherited_label"] = False
+                elif not self.embedding_model and should_inherit:
                     logger.warning(f"Cannot calculate log similarity for '{current_test_name}': Model unavailable.")
                     testcase_data["log_similarity_score"] = "model unavailable"
-                # --- End Log Similarity ---
-
-                else: # Failed, but no inheritance (New Issue)
-                    testcase_data["inherited_label"] = False
+                else:  # Failed, but no inheritance (New Issue)
                     testcase_data["triage_status"] = "New"
-                    testcase_data["label"] = "" # Needs labeling
+                    testcase_data["label"] = ""  # Needs labeling
                     testcase_data["bugs"] = []
-                    # NOT add log_similarity_score or other inheritance/origin fields here
+                    # No additional fields needed for new issues
 
-            else: # Passed
+            else:  # Passed
                 current_status = "passed"
                 testcase_data["status"] = current_status
                 testcase_data["label"] = "Test Passed. No Label Required."
