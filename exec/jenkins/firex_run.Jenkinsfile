@@ -662,7 +662,8 @@ def lockTestbeds(List testbeds) {
         error "No testbeds available"
     }
 
-    testbeds = jsonObj['testbeds'].collect { it['id'] }
+    def locked = jsonObj['testbeds'].collect { it['id'] }
+    testbeds = testbeds.findAll { tb -> locked.contains(tb) }
     echo "Locked testbeds ${testbeds.join(',')}"
     return testbeds
 }
