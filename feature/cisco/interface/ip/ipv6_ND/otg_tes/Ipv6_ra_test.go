@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"net"
 	"os"
 	"strconv"
@@ -63,12 +64,14 @@ const (
 	frameSize                       = 512
 	pps                             = 100
 	routerAdvertisementDisabled     = true
+	scale                           = 100
+	subifBaseIP                     = "2001:db8::"
 )
 
 var (
 	dutSrc = attrs.Attributes{
 		Desc:    "dutsrc",
-		IPv6:    "2001:db8::1",
+		IPv6:    "2001:db3::1",
 		IPv6Len: plen6,
 		MAC:     "02:11:01:00:00:04",
 	}
@@ -76,7 +79,7 @@ var (
 	ateSrc = attrs.Attributes{
 		Name:    "atesrc",
 		MAC:     "02:11:01:00:00:01",
-		IPv6:    "2001:db8::2",
+		IPv6:    "2001:db3::2",
 		IPv6Len: plen6,
 	}
 
@@ -92,6 +95,7 @@ var (
 		IPv6:    "2001:db8::6",
 		IPv6Len: plen6,
 	}
+	scaleStatus = false
 )
 
 type InterfaceInfo struct {
@@ -143,7 +147,7 @@ func configInterfaceIPv6RA(t *testing.T, dut *ondatra.DUTDevice, interfaces Inte
 	}
 	s4 := i.GetOrCreateSubinterface(interfaces.subIntf).GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		t.Log("IPv4 enabled")
+		// t.Log("IPv4 enabled")
 		s4.Enabled = ygot.Bool(true)
 	}
 	s6 := i.GetOrCreateSubinterface(interfaces.subIntf).GetOrCreateIpv6()
@@ -152,7 +156,7 @@ func configInterfaceIPv6RA(t *testing.T, dut *ondatra.DUTDevice, interfaces Inte
 	case "Interval":
 		// if !deviations.Ipv6RouterAdvertisementIntervalUnsupported(dut) {
 		// ipv6 nd ra-interval 5 5
-		t.Log("IPv6 RA Interval")
+		// t.Log("IPv6 RA Interval")
 		routerAdvert.SetInterval(routerAdvertisementTimeInterval)
 		// }
 	case "Suppress":
@@ -184,7 +188,7 @@ func unConfigInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceList []Int
 }
 
 // Configures OTG interfaces to send and receive ipv6 packets.
-func configureOTG(t *testing.T, ate *ondatra.ATEDevice, vlanID uint32) gosnappi.Config {
+func configureOTG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, vlanID uint32) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Logf("Configuring OTG port1")
 	srcPort := topo.Ports().Add().SetName("port1")
@@ -200,6 +204,10 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, vlanID uint32) gosnappi.
 	dstEth.Connection().SetPortName(dstPort.Name())
 	if vlanID != 0 {
 		dstEth.Vlans().Add().SetName(dstPort.Name()).SetId(uint32(vlanID))
+		if scaleStatus {
+			ap2 := ate.Port(t, "port2")
+			configureATESubIfs(t, topo, ap2, dut)
+		}
 	}
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
 	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
@@ -646,6 +654,175 @@ func rpfo(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, gribi_reco
 	}
 }
 
+// createSubifDUT creates a single L3 subinterface
+func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv6Addr string, ipv6SubintfPrefixLen int) *oc.Interface_Subinterface {
+	t.Helper()
+	i := d.GetOrCreateInterface(dutPort.Name())
+	s := i.GetOrCreateSubinterface(index)
+	if vlanID != 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
+	}
+	s6 := s.GetOrCreateIpv6()
+	a := s6.GetOrCreateAddress(ipv6Addr)
+	a.PrefixLength = ygot.Uint8(uint8(ipv6SubintfPrefixLen))
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s6.Enabled = ygot.Bool(true)
+	}
+	return s
+}
+
+func createBundleSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, intf string, index uint32, vlanID uint16, ipv6Addr string, ipv6SubintfPrefixLen int) *oc.Interface_Subinterface {
+	t.Helper()
+	i := d.GetOrCreateInterface(intf)
+	s := i.GetOrCreateSubinterface(index)
+	if vlanID != 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
+	}
+	s6 := s.GetOrCreateIpv6()
+	a := s6.GetOrCreateAddress(ipv6Addr)
+	a.PrefixLength = ygot.Uint8(uint8(ipv6SubintfPrefixLen))
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s6.Enabled = ygot.Bool(true)
+	}
+	return s
+}
+
+// incrementIPv6 increments the IPv6 address by the given value.
+func incrementIPv6(ip string, increment int) string {
+	ipAddr := net.ParseIP(ip).To16()
+	if ipAddr == nil {
+		return ""
+	}
+	ipInt := big.NewInt(0).SetBytes(ipAddr)
+	ipInt.Add(ipInt, big.NewInt(int64(increment)))
+	newIP := ipInt.Bytes()
+
+	// Ensure the result is 16 bytes for IPv6.
+	if len(newIP) < 16 {
+		paddedIP := make([]byte, 16)
+		copy(paddedIP[16-len(newIP):], newIP)
+		newIP = paddedIP
+	}
+
+	return net.IP(newIP).String()
+}
+
+// createStaticArpEntries creates static ARP entries for the given subinterface.
+func createStaticArpEntries(portName string, index uint32, ipv6Addr string, macAddr string) *oc.Interface_Subinterface {
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(portName)
+	s := i.GetOrCreateSubinterface(index)
+	s6 := s.GetOrCreateIpv6()
+	n6 := s6.GetOrCreateNeighbor(ipv6Addr)
+	n6.LinkLayerAddress = ygot.String(macAddr)
+	return s
+}
+
+// configureDUTSubIfs configures DefaultVRFIPv4NHCount DUT subinterfaces on the target device
+func configureDUTSubIfs(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port) {
+	d := &oc.Root{}
+
+	batchConfig := &gnmi.SetBatch{}
+	t.Logf("Setting up %d subinterfaces", scale)
+	for i := 0; i <= scale; i++ {
+		index := uint32(i)
+		vlanID := uint16(i)
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			vlanID = uint16(i) + 1
+		}
+		dutIPv6 := incrementIPv6(subifBaseIP, (4*i)+2)
+		ateIPv6 := incrementIPv6(subifBaseIP, (4*i)+1)
+		mac, err := incrementMAC(ateSrc.MAC, i+1)
+		// t.Logf("dutIPv6: %v, ateIPv6: %v, mac: %v", dutIPv6, ateIPv6, mac)
+		if err != nil {
+			t.Fatalf("failed to increment MAC: %v", err)
+		}
+		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(dutPort.Name()).Subinterface(index).Config(), createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv6, ipv6PrefixLen))
+		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(dutPort.Name()).Subinterface(index).Config(), createStaticArpEntries(dutPort.Name(), index, ateIPv6, mac))
+
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), index)
+		}
+	}
+	batchConfig.Set(t, dut)
+}
+
+func configureBundleSubIfs(t *testing.T, dut *ondatra.DUTDevice, intf InterfaceInfo) {
+	d := &oc.Root{}
+	batchConfig := &gnmi.SetBatch{}
+	t.Logf("Setting up %d subinterfaces", scale)
+	for i := 0; i <= scale; i++ {
+		index := uint32(i)
+		vlanID := uint16(i)
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			vlanID = uint16(i) + 1
+		}
+		dutIPv6 := incrementIPv6(subifBaseIP, (4*i)+2)
+		ateIPv6 := incrementIPv6(subifBaseIP, (4*i)+1)
+		mac, err := incrementMAC(ateSrc.MAC, i+1)
+		if err != nil {
+			t.Fatalf("failed to increment MAC: %v", err)
+		}
+		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intf.name).Subinterface(index).Config(), createBundleSubifDUT(t, d, dut, intf.name, index, vlanID, dutIPv6, ipv6PrefixLen))
+		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intf.name).Subinterface(index).Config(), createStaticArpEntries(intf.name, index, ateIPv6, mac))
+
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, intf.name, deviations.DefaultNetworkInstance(dut), index)
+		}
+	}
+	batchConfig.Set(t, dut)
+
+	for i := 0; i <= scale; i++ {
+		interfaces := InterfaceInfo{
+			intf:     intf.intf,
+			name:     intf.name,
+			attr:     dutSrc,
+			subIntf:  uint32(i),
+			intftype: oc.IETFInterfaces_InterfaceType_ieee8023adLag,
+		}
+		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
+	}
+}
+
+// configureATE configures a single ATE layer 3 interface.
+func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv6, ateIPv6 string) {
+	t.Helper()
+	dev := top.Devices().Add().SetName(Name + ".Dev")
+	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
+	eth.Connection().SetPortName(atePort.ID())
+	if vlanID != 0 {
+		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
+	}
+	eth.Ipv6Addresses().Add().SetName(Name + ".IPv6").SetAddress(ateIPv6).SetGateway(dutIPv6).SetPrefix(uint32(ateSrc.IPv6Len))
+}
+
+// configureATESubIfs configures *fpargs.DefaultVRFIPv4NHCount ATE subinterfaces on the target device
+// It returns a slice of the corresponding ATE IPAddresses.
+func configureATESubIfs(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, dut *ondatra.DUTDevice) {
+	for i := 0; i <= scale; i++ {
+		vlanID := uint16(i)
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			vlanID = uint16(i) + 1
+		}
+		dutIPv6 := incrementIPv6(subifBaseIP, (4*i)+2)
+		ateIPv6 := incrementIPv6(subifBaseIP, (4*i)+1)
+		name := fmt.Sprintf(`dst%d`, i)
+		mac, err := incrementMAC(ateSrc.MAC, i+1)
+		if err != nil {
+			t.Fatalf("failed to increment MAC: %v", err)
+		}
+		configureATE(t, top, atePort, vlanID, name, mac, dutIPv6, ateIPv6)
+	}
+}
+
 func TestIpv6NDRAPhysical(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -670,7 +847,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 	}
 	configureDUTRaPhysical(t, dut, interfaceList)
 	// defer unConfigInterface(t, dut, interfaceList)
-	otgConfig := configureOTG(t, ate, interfaceList[1].subIntf)
+	otgConfig := configureOTG(t, dut, ate, interfaceList[1].subIntf)
 
 	t.Run("TestCase-1: No periodical Router Advertisement with Interval", func(t *testing.T) {
 
@@ -1165,7 +1342,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 	for _, interfaces := range interfaceList {
 		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 	}
-	otgConfig := configureOTG(t, ate, interfaceList[1].subIntf)
+	otgConfig := configureOTG(t, dut, ate, interfaceList[1].subIntf)
 
 	t.Run("TestCase-1: No periodical Router Advertisement", func(t *testing.T) {
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
@@ -1623,6 +1800,58 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 
 }
 
+func TestIpv6NDRAScale(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	physicaSrclInt := dut.Port(t, "port1")
+	physicaDstlInt := dut.Port(t, "port2")
+	scaleStatus = true
+	defer func() { scaleStatus = false }()
+	interfaceList := []InterfaceInfo{
+
+		{
+			intf:     physicaSrclInt,
+			name:     physicaSrclInt.Name(),
+			attr:     dutSrc,
+			subIntf:  0,
+			intftype: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		},
+		{
+			intf:     physicaDstlInt,
+			name:     physicaDstlInt.Name(),
+			attr:     dutDst,
+			subIntf:  1,
+			intftype: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		},
+	}
+	configureDUTRaPhysical(t, dut, interfaceList)
+	configureDUTSubIfs(t, dut, interfaceList[1].intf)
+	// defer unConfigInterface(t, dut, interfaceList)
+
+	for _, interfaces := range interfaceList {
+		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
+	}
+	otgConfig := configureOTG(t, dut, ate, interfaceList[1].subIntf)
+
+	t.Run("TestCase-1: No periodical Router Advertisement", func(t *testing.T) {
+		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+		})
+		t.Run("Validate RA EDT", func(t *testing.T) {
+			edtStatus := verifyedt(t, dut, interfaceList[0].name)
+			if !edtStatus {
+				t.Fatalf("Error: RA EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+	})
+
+	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
+	})
+
+}
+
 type aggPortData struct {
 	// dutIPv4     string
 	// ateIPv4     string
@@ -1846,19 +2075,10 @@ func incrementMAC(mac string, i int) (string, error) {
 }
 
 // configureOTGPorts define ATE ports
-func configureOTGSubIntfPorts(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, portList []*ondatra.Port, a *aggPortData) []string {
+func configureOTGSubIntfPorts(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, portList []*ondatra.Port, a *aggPortData) []string {
 	agg := top.Lags().Add().SetName(a.ateAggName)
-	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(a.ateAggMAC)
-	lagDev := top.Devices().Add().SetName(agg.Name() + ".Dev")
-	lagEth := lagDev.Ethernets().Add().SetName(agg.Name() + ".Eth").SetMac(a.ateAggMAC)
-	lagEth.Connection().SetLagName(agg.Name())
-	// t.Logf(".ateAggName - %v", a.ateAggName)
-	if a.ateAggName != LAG1 {
-		lagEth.Vlans().Add().SetName(agg.Name() + ".vlan").SetId(uint32(a.subIntf))
-	}
-	// otgSubIntfPorts = append(otgSubIntfPorts, agg.Name()+".IPv4")
-	// lagEth.Ipv4Addresses().Add().SetName(agg.Name() + ".IPv4").SetAddress(a.ateIPv4).SetGateway(a.dutIPv4).SetPrefix(ipv4PLen)
-	lagEth.Ipv6Addresses().Add().SetName(agg.Name() + ".IPv6").SetAddress(a.ateIPv6).SetGateway(a.dutIPv6).SetPrefix(ipv6PLen)
+	t.Logf("ateAggName - %v", a.ateAggName)
+
 	for aggIdx, pList := range portList {
 		top.Ports().Add().SetName(pList.ID())
 		if pList.PMD() == ondatra.PMD100GBASEFR {
@@ -1877,6 +2097,42 @@ func configureOTGSubIntfPorts(t *testing.T, ate *ondatra.ATEDevice, top gosnappi
 		}
 		lagPort.Ethernet().SetMac(newMac).SetName(a.ateAggName + "." + strconv.Itoa(aggIdx))
 		lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(aggIdx) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
+	}
+
+	if a.ateAggName != LAG1 {
+		t.Logf("configureOTGSubIntfPorts ateAggName - %v", a.ateAggName)
+		if scaleStatus {
+			for i := 1; i <= scale; i++ {
+				vlanID := uint16(i)
+				if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+					vlanID = uint16(i) + 1
+				}
+				t.Logf("vlanID - %v", vlanID)
+				dutIPv6 := incrementIPv6(subifBaseIP, (4*i)+2)
+				ateIPv6 := incrementIPv6(subifBaseIP, (4*i)+1)
+				mac, err := incrementMAC(ateSrc.MAC, i+1)
+				if err != nil {
+					t.Fatalf("failed to increment MAC: %v", err)
+				}
+				agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(mac)
+				devName := fmt.Sprintf(`.%d.Dev`, i)
+				lagDev := top.Devices().Add().SetName(agg.Name() + devName)
+				ethName := fmt.Sprintf(`.%d.Eth`, i)
+				lagEth := lagDev.Ethernets().Add().SetName(agg.Name() + ethName).SetMac(mac)
+				lagEth.Connection().SetLagName(agg.Name())
+				vlanName := fmt.Sprintf(`.%d.vlan`, i)
+				lagEth.Vlans().Add().SetName(agg.Name() + vlanName).SetId(uint32(i))
+				ipv6Name := fmt.Sprintf(`.%d.IPv6`, i)
+				lagEth.Ipv6Addresses().Add().SetName(agg.Name() + ipv6Name).SetAddress(ateIPv6).SetGateway(dutIPv6).SetPrefix(ipv6PLen)
+			}
+		}
+	} else {
+		t.Logf("configureOTGSubIntfPorts ateAggName - %v", a.ateAggName)
+		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(a.ateAggMAC)
+		lagDev := top.Devices().Add().SetName(agg.Name() + ".Dev")
+		lagEth := lagDev.Ethernets().Add().SetName(agg.Name() + ".Eth").SetMac(a.ateAggMAC)
+		lagEth.Connection().SetLagName(agg.Name())
+		lagEth.Ipv6Addresses().Add().SetName(agg.Name() + ".IPv6").SetAddress(a.ateIPv6).SetGateway(a.dutIPv6).SetPrefix(ipv6PLen)
 	}
 	return pmd100GFRPorts
 }
@@ -1913,7 +2169,7 @@ func configureOTGPorts(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 }
 
 // configureATE configure ATE
-func configureATEIpv6Ra(t *testing.T, ate *ondatra.ATEDevice, subIntf bool) gosnappi.Config {
+func configureATEIpv6Ra(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, subIntf bool) gosnappi.Config {
 	t.Helper()
 	top := gosnappi.NewConfig()
 	otgSubIntfPorts = []string{}
@@ -1933,12 +2189,9 @@ func configureATEIpv6Ra(t *testing.T, ate *ondatra.ATEDevice, subIntf bool) gosn
 				atePortList = append(atePortList, ate.Port(t, fmt.Sprintf("port%d", portIdx+2)))
 				portIdx++
 			}
-			// agg := top.Lags().Add().SetName(a.ateAggName)
-			// // top.Captures().Add().SetName("raCapture").SetPortNames([]string{agg.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
-			// top.Captures().Add().SetName("raCapture").SetPortNames([]string{agg.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
 		}
 		if subIntf {
-			configureOTGSubIntfPorts(t, ate, top, portList, a)
+			configureOTGSubIntfPorts(t, dut, ate, top, portList, a)
 		} else {
 			configureOTGPorts(t, ate, top, portList, a)
 		}
@@ -1987,7 +2240,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 	for _, interfaces := range interfaceList {
 		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 	}
-	otgConfig := configureATEIpv6Ra(t, ate, false)
+	otgConfig := configureATEIpv6Ra(t, dut, ate, false)
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 	}
@@ -2486,7 +2739,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 	}
 	// defer unConfigureDUTLagSubIntf(t, dut, true)
-	otgConfig := configureATEIpv6Ra(t, ate, true)
+	otgConfig := configureATEIpv6Ra(t, dut, ate, true)
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 	}
@@ -2951,6 +3204,73 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		t.Logf("Validating the Router Advertisement packets")
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 10)
+	})
+
+}
+
+func TestIpv6NDRABundleSubIntfScale(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	physicaSrclInt := dut.Port(t, "port1")
+	physicaDstlInt := dut.Port(t, "port2")
+	scaleStatus = true
+	defer func() { scaleStatus = false }()
+
+	interfaceList := []InterfaceInfo{
+
+		{
+			intf:     physicaSrclInt,
+			name:     "Bundle-Ether1",
+			attr:     dutSrc,
+			subIntf:  0,
+			intftype: oc.IETFInterfaces_InterfaceType_ieee8023adLag,
+		},
+		{
+			intf:     physicaDstlInt,
+			name:     "Bundle-Ether2",
+			attr:     dutDst,
+			subIntf:  0,
+			intftype: oc.IETFInterfaces_InterfaceType_ieee8023adLag,
+		},
+	}
+	agg1.subIntf = 0
+	agg2.subIntf = 1
+	aggIDs := configureDUTLag(t, dut)
+	configureBundleSubIfs(t, dut, interfaceList[1])
+	// defer unConfigInterface(t, dut, interfaceList)
+	for _, interfaces := range interfaceList {
+		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
+	}
+	// defer unConfigureDUTLagSubIntf(t, dut, true)
+	otgConfig := configureATEIpv6Ra(t, dut, ate, true)
+	for _, aggID := range aggIDs {
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+	}
+
+	t.Run("TestCase-1: No periodical Router Advertisement with Interval", func(t *testing.T) {
+
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
+		}
+
+		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+		})
+		t.Run("Validate RA Interval EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAInterval(t, dut)
+			if !edtStatus {
+				t.Fatalf("Error: RA Interval EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		//unconfigure Ipv6 Ra Interval
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Interval().Config())
+		}
+	})
+
+	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 	})
 
 }
