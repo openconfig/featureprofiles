@@ -375,6 +375,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/p4rt_daemon_failure_test/README.md"
 }
 test: {
+  id: "P4RT-1.3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/tests/p4rt_device_down_test/README.md"
+}
+test: {
   id: "P4RT-2.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/tests/p4rt_election/README.md"
 }
