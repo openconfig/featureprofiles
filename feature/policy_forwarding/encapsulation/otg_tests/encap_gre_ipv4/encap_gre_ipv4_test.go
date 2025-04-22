@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,7 +85,7 @@ type testCase struct {
 	capturePort            string
 	captureFilename        string
 	srcDstPortPair         []attrs.Attributes
-	applyCustomFlow        func(t *testing.T, top gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow)
+	applyCustomFlow        func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow)
 	verifyOutput           func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, tc testCase)
 	checkEncapDscp         bool
 	checkEncapLoadBalanced bool
@@ -122,7 +123,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			ipType:         IPv4,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
-			applyCustomFlow: func(t *testing.T, top gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
+			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv4, ok := (*packet).(gosnappi.FlowIpv4)
 				if !ok || foundIpv4 == nil {
 					return
@@ -143,7 +144,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			ipType:         IPv6,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
-			applyCustomFlow: func(t *testing.T, top gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
+			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv6, ok := (*packet).(gosnappi.FlowIpv6)
 				if !ok || foundIpv6 == nil {
 					return
@@ -192,7 +193,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			ipType:         IPv4,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
-			applyCustomFlow: func(t *testing.T, top gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
+			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv4, ok := (*packet).(gosnappi.FlowIpv4)
 				if !ok || foundIpv4 == nil {
 					return
@@ -213,7 +214,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			ipType:         IPv6,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
-			applyCustomFlow: func(t *testing.T, top gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
+			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv6, ok := (*packet).(gosnappi.FlowIpv6)
 				if !ok || foundIpv6 == nil {
 					return
@@ -234,7 +235,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			ipType:         IPv4,
 			capturePort:    "port1",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
-			applyCustomFlow: func(t *testing.T, top gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
+			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				(*flow).Size().SetFixed(4000)
 				foundIpv4, ok := (*packet).(gosnappi.FlowIpv4)
 				if !ok || foundIpv4 == nil {
@@ -248,6 +249,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         false,
 			checkEncapLoadBalanced: true,
+			policyRule:             "rule-src1-v4",
 			flowName:               "FlowTC71",
 		},
 		{
@@ -255,7 +257,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			ipType:         IPv6,
 			capturePort:    "port1",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
-			applyCustomFlow: func(t *testing.T, top gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
+			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				(*flow).Size().SetFixed(4000)
 			},
 			verifyOutput: func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, tc testCase) {
@@ -264,27 +266,22 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         false,
 			checkEncapLoadBalanced: true,
+			policyRule:             "rule-src1-v6",
 			flowName:               "FlowTC72",
 		},
 	}
 
-	//for _, tc := range testCases {
-	for _, tc := range []testCase{testCases[6]} {
+	for _, tc := range testCases {
+		// for _, tc := range []testCase{testCases[0]} {
 		t.Run(tc.name, func(t *testing.T) {
 			runTest(t, tc, dut, ate, top)
 		})
 	}
 }
 
-func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config) {
-	var captureCS gosnappi.ControlState
-	otg := ate.OTG()
-	config.Flows().Clear()
-	if tc.capturePort != "" {
-		enableCapture(t, ate, config, []string{tc.capturePort})
-		defer clearCapture(t, ate, config)
-	}
-	flow := config.Flows().Add().SetName(tc.flowName)
+func configureFlows(t *testing.T, config *gosnappi.Config, tc testCase) {
+	(*config).Flows().Clear()
+	flow := (*config).Flows().Add().SetName(tc.flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{fmt.Sprintf("%s.%s", tc.srcDstPortPair[0].Name, tc.ipType)}).SetRxNames([]string{fmt.Sprintf("%s.%s", tc.srcDstPortPair[1].Name, tc.ipType)})
 	flow.Size().SetFixed(trafficFrameSize)
@@ -312,12 +309,23 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	if tc.applyCustomFlow != nil {
 		tc.applyCustomFlow(t, config, tc, &flow, &ipPacket)
 	}
+}
 
+func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config) {
+	var captureState gosnappi.ControlState
+	configureFlows(t, &config, tc)
+
+	if tc.capturePort != "" {
+		enableCapture(t, ate, config, []string{tc.capturePort})
+		defer clearCapture(t, ate, config)
+	}
+
+	otg := ate.OTG()
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
 
 	if tc.capturePort != "" {
-		captureCS = startCapture(t, ate)
+		captureState = startCapture(t, ate)
 	}
 
 	otg.StartTraffic(t)
@@ -327,8 +335,8 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 
 	otg.StopProtocols(t)
 
-	if captureCS != nil {
-		stopCapture(t, ate, captureCS)
+	if captureState != nil {
+		stopCapture(t, ate, captureState)
 		tc.captureFilename = getCapture(t, ate, tc)
 	}
 
@@ -466,7 +474,7 @@ func configureTcamProfile(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
 	gpbSetRequest := buildCliSetRequest(tcamProfileConfig)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		t.Fatalf("Failed to set tcam profile from cli: %v", err)
 	}
 }
 
@@ -508,22 +516,14 @@ func buildCliSetRequest(config string) *gpb.SetRequest {
 	return gpbSetRequest
 }
 
-func buildCliGetRequest(cliCommand string) *gpb.GetRequest {
-	// Build the gNMI GetRequest for the CLI command
-	gpbGetRequest := &gpb.GetRequest{
-		Path: []*gpb.Path{
-			{
-				Origin: "cli",
-				Elem: []*gpb.PathElem{
-					{
-						Name: cliCommand,
-					},
-				},
-			},
-		},
+func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
+	cliClient := dut.RawAPIs().CLI(t)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
 	}
-
-	return gpbGetRequest
+	t.Logf("Received from cli %s", output.Output())
+	return output.Output()
 }
 
 func configurePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice) {
@@ -543,7 +543,7 @@ func configurePolicyForwardingFromCLI(t *testing.T, dut *ondatra.DUTDevice, poli
 	t.Logf("Push the CLI Policy config:%s", dut.Vendor())
 	gpbSetRequest := buildCliSetRequest(tpConfig)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		t.Fatalf("Failed to set policy forwarding from cli: %v", err)
 	}
 }
 
@@ -555,17 +555,17 @@ func configurePolicyForwardingFromOC(t *testing.T, dut *ondatra.DUTDevice, polic
 	// Rule 1: Match IPV4-SRC1 and accept/forward
 	rule1 := policy.GetOrCreateRule(1)
 	rule1.GetOrCreateTransport()
-	rule1.GetOrCreateIpv4().DestinationAddress = ygot.String("192.0.2.4/30")
+	rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(fmt.Sprintf("%s/32", otgPort2.IPv4))
 	rule1.GetOrCreateAction().SetNextHop(dutPort3.IPv4)
 
 	// Rule 2: Match IPV6-SRC1 and accept/forward
 	rule2 := policy.GetOrCreateRule(2)
-	rule2.GetOrCreateIpv6().DestinationAddress = ygot.String("2001:db8::6/128")
+	rule2.GetOrCreateIpv6().DestinationAddress = ygot.String(fmt.Sprintf("%s/32", otgPort3.IPv4))
 	rule2.GetOrCreateAction().SetNextHop(dutPort3.IPv6)
 
 	// Rule 3: Match IPV4-SRC2 and encapsulate to 32 IPv4 GRE destinations
 	rule3 := policy.GetOrCreateRule(3)
-	rule3.GetOrCreateIpv4().DestinationAddress = ygot.String("192.0.2.8/30")
+	rule3.GetOrCreateIpv4().DestinationAddress = ygot.String(fmt.Sprintf("%s/128", otgPort2.IPv4))
 	encapGre3 := rule3.GetOrCreateAction().GetOrCreateEncapsulateGre()
 	for i, dest := range tunnelDestinations {
 		targetName := fmt.Sprintf("gre%d", i)
@@ -575,7 +575,7 @@ func configurePolicyForwardingFromOC(t *testing.T, dut *ondatra.DUTDevice, polic
 
 	// Rule 4: Match IPV6-SRC2 and encapsulate to 32 IPv4 GRE destinations
 	rule4 := policy.GetOrCreateRule(4)
-	rule4.GetOrCreateIpv6().DestinationAddress = ygot.String("2001:db8::a/128")
+	rule4.GetOrCreateIpv6().DestinationAddress = ygot.String(fmt.Sprintf("%s/128", otgPort3.IPv6))
 	encapGre4 := rule4.GetOrCreateAction().GetOrCreateEncapsulateGre()
 	for i, dest := range tunnelDestinations {
 		targetName := fmt.Sprintf("gre%d", i)
@@ -609,7 +609,7 @@ func configureQoSClassifierFromCLI(t *testing.T, dut *ondatra.DUTDevice, classif
 	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
 	gpbSetRequest := buildCliSetRequest(qosConfig)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		t.Fatalf("Failed to set qos classifier from cli: %v", err)
 	}
 }
 
@@ -688,20 +688,20 @@ func trafficPolicyCliConfig(dut *ondatra.DUTDevice, policyName string, interface
 		var v4MatchRules, v6MatchRules string
 		v4MatchRules += fmt.Sprintf(`
         match rule-src1-v4 ipv4
-        destination prefix %s
+        destination prefix %s/32
         actions
         count
         redirect next-hop group SRC1_NH
         !
-        `, "192.0.2.4 255.255.255.252")
+        `, otgPort2.IPv4)
 
 		v4MatchRules += fmt.Sprintf(`
         match rule-src2-v4 ipv4
-        destination prefix %s
+        destination prefix %s/32
         actions
         count
         !
-        `, "192.0.2.8 255.255.255.252")
+        `, otgPort3.IPv4)
 
 		v6MatchRules += fmt.Sprintf(`
         match rule-src1-v6 ipv6
@@ -757,33 +757,22 @@ func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 }
 
 func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	//TODO get output from cli command
-	return
-	// t.Logf("Checking policy statistics for flow %s", tc.flowName)
-	// gnmiClient := dut.RawAPIs().GNMI(t)
-	// //| %s| sed -e 's/.*%s:\(.*\)packets.*/\1/' | xargs
-	// policyCountersCommand := fmt.Sprintf("show traffic-policy %s interface counters", trafficPolicyName)
-	// gpbGetRequest := buildCliGetRequest(policyCountersCommand)
-	// response, err := gnmiClient.Get(context.Background(), gpbGetRequest)
-	// if err != nil {
-	// 	t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	// }
-	// if len(response.Notification) == 0 || len(response.Notification[0].Update) == 0 {
-	// 	t.Fatalf("No output received for CLI command '%s'", policyCountersCommand)
-	// }
-	// cliOutput := response.Notification[0].Update[0].Val.GetAsciiVal()
-	// t.Logf("Received from cli %s", cliOutput)
-	// totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
-	// if err != nil {
-	// 	t.Fatalf("Invalid response for CLI command '%s': %v", policyCountersCommand, err)
-	// }
-	// previouslyMatched := ruleMatchedPackets[tc.policyRule]
-	// if totalMatched != previouslyMatched+noOfPackets {
-	// 	t.Errorf("Expected %d packets matched by policy %s for flow %s, but got %d", noOfPackets, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
-	// } else {
-	// 	t.Logf("%d packets matched by policy %s for flow %s", totalMatched-previouslyMatched, trafficPolicyName, tc.flowName)
-	// }
-	// ruleMatchedPackets[tc.policyRule] = totalMatched
+	t.Logf("Checking policy statistics for flow %s", tc.flowName)
+	//extract text from CLI output between rule name and packets
+	policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, tc.policyRule, tc.policyRule)
+	cliOutput := runCliCommand(t, dut, policyCountersCommand)
+	cliOutput = strings.TrimSpace(cliOutput)
+	totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
+	if err != nil {
+		t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
+	}
+	previouslyMatched := ruleMatchedPackets[tc.policyRule]
+	if totalMatched != previouslyMatched+noOfPackets {
+		t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
+	} else {
+		t.Logf("%d packets matched by policy %s rule %s for flow %s", totalMatched-previouslyMatched, trafficPolicyName, tc.policyRule, tc.flowName)
+	}
+	ruleMatchedPackets[tc.policyRule] = totalMatched
 }
 
 func checkPolicyStatisticsFromOC(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
@@ -791,7 +780,7 @@ func checkPolicyStatisticsFromOC(t *testing.T, dut *ondatra.DUTDevice, tc testCa
 	totalMatched := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(trafficPolicyName).Rule(uint32(ruleSequenceMap[tc.policyRule])).MatchedPkts().State())
 	previouslyMatched := ruleMatchedPackets[tc.policyRule]
 	if totalMatched != previouslyMatched+noOfPackets {
-		t.Errorf("Expected %d packets matched by policy %s for flow %s, but got %d", noOfPackets, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
+		t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
 	}
 	ruleMatchedPackets[tc.policyRule] = totalMatched
 }
@@ -825,12 +814,15 @@ func startCapture(t *testing.T, ate *ondatra.ATEDevice) gosnappi.ControlState {
 func getCapture(t *testing.T, ate *ondatra.ATEDevice, tc testCase) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(tc.capturePort))
+	if len(bytes) == 0 {
+		t.Fatalf("Empty capture received for flow %s on port %s", tc.flowName, tc.capturePort)
+	}
 	f, err := os.Create(captureFilePath)
 	if err != nil {
-		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
+		t.Fatalf("Could not create temporary pcap file: %v\n", err)
 	}
 	if _, err := f.Write(bytes); err != nil {
-		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
+		t.Fatalf("Could not write bytes to pcap file: %v\n", err)
 	}
 	f.Close()
 	return f.Name()
@@ -886,7 +878,7 @@ func checkGreCapture(t *testing.T, tc testCase) {
 		if ipInnerLayer == nil {
 			t.Error("Inner IP layer not found")
 		}
-		var innerPacketTOS uint8
+		var innerPacketTOS, dscp uint8
 		switch tc.ipType {
 		case IPv4:
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv4)
@@ -894,21 +886,23 @@ func checkGreCapture(t *testing.T, tc testCase) {
 				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
 			}
 			innerPacketTOS = ipInnerPacket.TOS
+			dscp = innerPacketTOS >> 2
 		case IPv6:
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv6)
 			if !ok || ipInnerPacket == nil {
 				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
 			}
 			innerPacketTOS = ipInnerPacket.TrafficClass
+			dscp = innerPacketTOS
 		}
 
 		tunnelPackets[ipOuterLayer.DstIP.String()] += 1
 		if tc.checkEncapDscp {
 			if ipOuterLayer.TOS != innerPacketTOS {
-				t.Errorf("DSCP mismatch: outer DSCP %d, inner DSCP %d", ipOuterLayer.TOS, innerPacketTOS)
+				t.Errorf("TOS mismatch: outer TOS %d, inner TOS %d", ipOuterLayer.TOS, innerPacketTOS)
 			}
+			dscpPackets[dscp] += 1
 		}
-		dscpPackets[innerPacketTOS] += 1
 	}
 	if packetCount < noOfPackets {
 		t.Errorf("Received %d, expecting more than %d packets", packetCount, noOfPackets)
