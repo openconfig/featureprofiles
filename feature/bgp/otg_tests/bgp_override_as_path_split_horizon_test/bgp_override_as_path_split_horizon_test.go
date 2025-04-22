@@ -37,19 +37,21 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesv4CIDR   = "203.0.113.1/32"
-	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv4Prefix = 32
-	peerGrpName1             = "BGP-PEER-GROUP1"
-	peerGrpName2             = "BGP-PEER-GROUP2"
-	dutGlobalAS              = 64512
-	dutLocalAS1              = 65501
-	dutLocalAS2              = 64513
-	ateAS1                   = 65502
-	ateAS2                   = 65503
-	plenIPv4                 = 30
-	plenIPv6                 = 126
-	policyName               = "ALLOW"
+	advertisedRoutesv4CIDR      = "203.0.113.1/32"
+	advertisedRoutesv4Net       = "203.0.113.1"
+	advertisedRoutesv4Prefix    = 32
+	advertisedRoutesv4PrefixLen = "32..32"
+	peerGrpName1                = "BGP-PEER-GROUP1"
+	peerGrpName2                = "BGP-PEER-GROUP2"
+	dutGlobalAS                 = 64512
+	dutLocalAS1                 = 65501
+	dutLocalAS2                 = 64513
+	ateAS1                      = 65502
+	ateAS2                      = 65503
+	plenIPv4                    = 30
+	plenIPv6                    = 126
+	policyName                  = "ALLOW"
+	prefixSetName               = "prefSet"
 )
 
 var (
@@ -205,7 +207,7 @@ func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 		SetPrefix(uint32(advertisedRoutesv4Prefix)).
 		SetCount(1)
 
-	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SET)
+	bgpNeti1AsPath := bgpNeti1Bgp4PeerRoutes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
 	bgpNeti1AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
 
 	t.Logf("Pushing config to OTG and starting protocols...")
@@ -234,14 +236,17 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
+
+	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
+	prefixSet.GetOrCreatePrefix(advertisedRoutesv4CIDR, advertisedRoutesv4PrefixLen)
 	pdef := rp.GetOrCreatePolicyDefinition(name)
 	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	stmt.GetOrCreateActions().PolicyResult = pr
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-
 }
 
 // verifyOTGPrefixTelemetry is to Validate prefix received on OTG por2.
@@ -260,7 +265,7 @@ func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 					gotASPath := prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()
 					t.Logf("Received prefix %v on otg as expected with AS-PATH %v", prefix.GetAddress(), gotASPath)
 				} else {
-					t.Errorf("Prefix %v is not received on otg", prefix.GetAddress())
+					t.Errorf("Prefix %v is received on otg when it is not expected", prefix.GetAddress())
 				}
 			}
 		}
