@@ -44,12 +44,6 @@ var (
 		ondatra.CISCO:   1,
 		ondatra.NOKIA:   1,
 	}
-	loopbackSubIntf = map[ondatra.Vendor]int32{
-		ondatra.JUNIPER: 0,
-		ondatra.ARISTA:  0,
-		ondatra.CISCO:   0,
-		ondatra.NOKIA:   0,
-	}
 )
 
 // TestNtpServerConfigurability validates that NTP servers can be configured on the DUT.
@@ -93,7 +87,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 	for _, testCase := range testCases {
 		if testCase.vrf != "" && !deviations.NtpNonDefaultVrfUnsupported(dut) {
 			createVRF(t, dut, testCase.vrf)
-			AddLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName, []uint32{uint32(loopbackSubIntf[dut.Vendor()])})
+			AddLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName)
 		}
 	}
 
@@ -140,7 +134,7 @@ func createVRF(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
 }
-func AddLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loopbackIntfName string, unit []uint32) {
+func AddLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loopbackIntfName string) {
 	root := &oc.Root{}
 	i := root.GetOrCreateInterface(loopbackIntfName)
 	i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
