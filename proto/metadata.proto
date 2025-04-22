@@ -714,6 +714,15 @@ message Metadata {
     // Devices that do not support SR IGP configuration
     // Cisco b/390502067
     bool sr_igp_config_unsupported = 260;
+    
+    // Devices that do not support policy forwarding on next-hop
+    bool policy_forwarding_to_next_hop_unsupported = 267;
+
+    // Devices that do not support policy forwarding encapsulate gre action
+    bool policy_forwarding_gre_encapsulation_unsupported = 268;
+
+    // Devices that do not support qos classifier dscp remark action
+    bool qos_classifier_dscp_remark_unsupported = 269;
 
     // Cisco: b/404301960
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 

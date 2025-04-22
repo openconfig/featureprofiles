@@ -1,0 +1,34 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1D7A5559-4899-42E8-A2E7-84AB7DFBCFF3"
+plan_id: "PF-1.2"
+description: "Policy-based GRE traffic Encapsulation on IPv4 GRE tunnel"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+    hardware_model: "PTX10008"
+    hardware_model: "PTX10001-36MR"
+    hardware_model: "cptx"
+  }
+  deviations: {
+    tunnel_state_path_unsupported: true
+    tunnel_config_path_unsupported: true
+  }
+}
+
+platform_exceptions: {  
+  platform: {
+    vendor: ARISTA  
+  }
+  deviations: {
+    omit_l2_mtu: true
+    default_network_instance: "default"
+    policy_forwarding_to_next_hop_unsupported: true
+    policy_forwarding_gre_encapsulation_unsupported: true
+    qos_classifier_dscp_remark_unsupported: true
+    interface_enabled: true
+  }
+}
+tags: TAGS_AGGREGATION
