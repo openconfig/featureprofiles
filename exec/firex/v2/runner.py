@@ -564,8 +564,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
     if not isinstance(testbeds, list): testbeds = testbeds.split(',')
     if not isinstance(testbeds_exclude, list): testbeds_exclude = testbeds_exclude.split(',')
 
-    for tb in testbeds:
-        if tb in testbeds_exclude:
+    for tb in testbeds_exclude:
+        if tb in testbeds:
+            logger.print(f'Excluding testbed {tb}')
             testbeds.remove(tb)
 
     while len(testbeds) > 0:
