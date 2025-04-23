@@ -3,8 +3,8 @@ package otgconfighelpers
 import (
 	"testing"
 
-	"github.com/open_traffic_generator/gosnappi/gosnappi"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/ondatra"
 )
 
 /*
