@@ -28,6 +28,7 @@ const (
 	ipv4DstPfx      = "172.16.0.0"
 	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	thresholdCPUUtilization = 80
 )
 
 var (
@@ -355,7 +356,7 @@ func (ce *commonEntities) checkCPUUtilization(t *testing.T) error {
 	for _, cpu := range cpus {
 		cpuUtil := gnmi.OC().System().Cpu(cpu.GetIndex()).Total().Avg().State()
 		utilization := gnmi.Get(t, dut, cpuUtil)
-		if utilization > 80 {
+		if utilization > thresholdCPUUtilization {
 			return fmt.Errorf("high CPU utilization seen, cpu name: %d, output: %d%%", cpu.GetIndex(), utilization)
 		}
 		t.Logf("CPU utilization within limit, cpu name: %d, output: %d%%\n", cpu.GetIndex(), utilization)
@@ -475,7 +476,7 @@ func TestCoppSystem(t *testing.T) {
 	}
 
 	ce.configureDUT(t)
-
+  // TODO: Add test cases for BGP, LDP and LLDP traffic
 	testCases := []coppSystemTestcase{
 		{
 			name:               "CoppSystemL3DstMissVRFExceedingLimitTest",
