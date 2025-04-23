@@ -87,7 +87,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 	for _, testCase := range testCases {
 		if testCase.vrf != "" && !deviations.NtpNonDefaultVrfUnsupported(dut) {
 			createVRF(t, dut, testCase.vrf)
-			AddLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName)
+			addLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName)
 		}
 	}
 
@@ -134,7 +134,8 @@ func createVRF(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
 }
-func AddLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loopbackIntfName string) {
+
+func addLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loopbackIntfName string) {
 	root := &oc.Root{}
 	i := root.GetOrCreateInterface(loopbackIntfName)
 	i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
