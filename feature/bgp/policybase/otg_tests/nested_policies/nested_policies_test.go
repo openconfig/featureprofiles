@@ -308,7 +308,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	batch.Set(t, dut)
-	// Sleep for 5 second to ensure that OTG has recived the update packet
+	// Sleep for 5 second to ensure that OTG has received the update packet
 	time.Sleep(5 * time.Second)
 }
 
@@ -387,7 +387,7 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	statPath := rp.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
 	statPath.SetCallPolicy(v4MedPolicy)
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -529,7 +529,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	batch.Set(t, dut)
-	// Sleep for 5 second to ensure that OTG has recived the update packet
+	// Sleep for 5 second to ensure that OTG has received the update packet
 	time.Sleep(5 * time.Second)
 }
 
@@ -607,7 +607,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	statPath := rp.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
 	statPath.SetCallPolicy(v6MedPolicy)
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
