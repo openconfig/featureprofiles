@@ -57,7 +57,7 @@ collaborative coding culture.
   ## Coding Best Practices
 
   ### Before Submitting a PR:
-
+    
     1. Run Sanity Checks:
         - Use tools like GitHub Copilot for:
             - Logic improvements.
@@ -69,6 +69,8 @@ collaborative coding culture.
         - Add a concise `README` for new features:
             - Feature name, Jira ID, test steps, dependencies, and special configurations.
         - Document caveats, important limitations, and dependencies in comments and/or the `README`.
+        - Link the SFS/scoping document if applicable. 
+        - Add any OC paths covered.
         - **More documentation is always preferable to less.**
 
     3. Code Comments:
