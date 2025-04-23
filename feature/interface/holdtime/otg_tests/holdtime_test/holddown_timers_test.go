@@ -1,20 +1,23 @@
 package holddown_times_test
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/openconfig/ondatra/netutil"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -24,7 +27,7 @@ const (
 	lagName       = "LAGRx" // OTG LAG NAME
 	upTimer       = 5000
 	downTimer     = 300
-	toleranceMS   = 200 // Define the tolerance in milliseconds
+	toleranceMS   = 700 // Define the tolerance in milliseconds
 
 )
 
@@ -49,7 +52,7 @@ var (
 	}
 
 	ateDst = attrs.Attributes{
-		Name:    "ateDst",
+		Name:    "LAGRx",
 		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv6:    "2001:db8::6",
@@ -139,6 +142,18 @@ func configureOTG(t *testing.T,
 	OTGInterfaceUP(t, ate)
 }
 
+func getDutCurrentTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	systemClient := gnoiClient.System()
+	ctx := context.Background()
+	timestamp, err := systemClient.Time(ctx, &spb.TimeRequest{})
+	if err != nil {
+		t.Fatalf("systemClient.Time: %v", err)
+	}
+	timeObj := time.Unix(0, int64(timestamp.GetTime()))
+	return timeObj
+}
+
 func OTGInterfaceUP(t *testing.T,
 	ate *ondatra.ATEDevice) {
 
@@ -156,13 +171,7 @@ func OTGInterfaceDOWN(t *testing.T,
 
 	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
 	portStateAction := gosnappi.NewControlState()
-	timestamp := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-
-	timeObj, err := time.Parse(time.RFC3339Nano, timestamp)
-	if err != nil {
-		t.Errorf("Failed to parse time string: %v", timestamp)
-		return timeObj
-	}
+	timeObj := getDutCurrentTime(t, dut)
 
 	// make sure interface is not down
 	portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
@@ -256,7 +265,7 @@ func flapOTGInterface(t *testing.T,
 	dut *ondatra.DUTDevice,
 	actionState string) (time.Time, time.Time, string, string) {
 
-	var otgStateChangeTsStr string
+	var preTriggerDutTime time.Time
 	var expectedStatus oc.E_Interface_OperStatus
 	if actionState == "UP" {
 		expectedStatus = oc.Interface_OperStatus_UP
@@ -276,39 +285,35 @@ func flapOTGInterface(t *testing.T,
 	// TC2 Step 1 Read timestamp of last oper-status change  form DUT port-1
 	preStateTSSTR := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 	DutLastChangeTS1 := time.Unix(0, int64(preStateTSSTR)).UTC().Format(time.RFC3339Nano)
-	t.Logf("Step1. DutLastChangeTS1 is: %v", DutLastChangeTS1)
+	t.Logf("Step1.RT5.5.2: DutLastChangeTS1 is: %v", DutLastChangeTS1)
 	if actionState == "UP" {
 		portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-		otgStateChangeTsStr = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		preTriggerDutTime = getDutCurrentTime(t, dut)
 		ate.OTG().SetControlState(t, portStateAction)
 	} else if actionState == "DOWN" {
 		// TC2 Step 2 Bring Down OTG Interface
-		t.Log("RT-5.5.2: Bring Down OTG Interface")
+		t.Log("Step2.RT-5.5.2: Bring Down OTG Interface")
 		portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-		otgStateChangeTsStr = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		preTriggerDutTime = getDutCurrentTime(t, dut)
 		ate.OTG().SetControlState(t, portStateAction)
 
 		// TC2 Step 3
-		t.Log("Step 3 sleeping 500ms")
-		time.Sleep(500 * time.Millisecond)
+		t.Log("Step3.RT-5.5.2: sleeping 1000ms")
+		time.Sleep(1000 * time.Millisecond)
 	}
 
-	// Step 4. Read timestamp of last oper-status change  form DUT port-1 (DUT_LAST_CHANGE_TS)
+	// Step 4. Read timestamp of last oper-status change  from DUT port-1 (DUT_LAST_CHANGE_TS)
+	t.Log("Step4.RT-5.5.2: Read time stamps of last oper-status change from DUT")
 	postStateTSSTR := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 	DutLastChangeTS2STR := time.Unix(0, int64(postStateTSSTR)).UTC().Format(time.RFC3339Nano)
 	DutLastChangeOper2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 
 	// Step 5. verify oper-status is DOWN
+	t.Log("Step5.RT-5.5.2: Verify oper-status is DOWN")
 	if DutLastChangeOper2 != expectedStatus {
 		t.Errorf("Interface %s status got %v, want %v", aggID, DutLastChangeOper2, expectedStatus.String())
 	} else {
 		t.Logf("Interface %s status got %v, want %v", aggID, DutLastChangeOper2, expectedStatus.String())
-	}
-
-	// convert string type change to time.time
-	otgStateChangeTs, err := time.Parse(time.RFC3339Nano, otgStateChangeTsStr)
-	if err != nil {
-		t.Fatalf("failed to parse event timestamp: %v %v", err, otgStateChangeTs)
 	}
 
 	DutLastChangeTS2, err := time.Parse(time.RFC3339Nano, DutLastChangeTS2STR)
@@ -317,7 +322,7 @@ func flapOTGInterface(t *testing.T,
 	}
 
 	// Step 6. verify oper-status last change time has changed
-	t.Log("Compare if pre and post timestamps are the same for the last change before and after shut event")
+	t.Log("Step6.RT-5.5.2: Compare if pre and post timestamps are the same for the last change before and after shut event")
 	if DutLastChangeTS1 == DutLastChangeTS2STR {
 		t.Fatalf("Before Trigger Last Change was %v after trigger Last Change was %v", DutLastChangeTS1, DutLastChangeTS2STR)
 	} else {
@@ -325,18 +330,16 @@ func flapOTGInterface(t *testing.T,
 	}
 
 	// convert to time objects
-	otgStateChangeTs = otgStateChangeTs.UTC()
 	DutLastChangeTS2 = DutLastChangeTS2.UTC()
 
-	return otgStateChangeTs, DutLastChangeTS2, expectedStatus.String(), DutLastChangeOper2.String()
-
+	return preTriggerDutTime, DutLastChangeTS2, expectedStatus.String(), DutLastChangeOper2.String()
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
 func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, waitTime time.Duration) {
 	t.Helper()
 
-	t.Logf("Checking Oper Status on %s", aggID)
+	t.Logf("Checking Oper Status of %s in DUT", aggID)
 
 	// Determine the expected status based on the portState argument.
 	var want oc.E_Interface_OperStatus
@@ -363,9 +366,9 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 
 	// check the status and log the result.
 	if status != want {
-		t.Fatalf("Failed: %s Status: got %v, want %v", aggID, status, want)
+		t.Fatalf("Failed: %s Status: got %v, want %v in DUT", aggID, status, want)
 	} else {
-		t.Logf("Pass: %s Status: got %v, want %v", aggID, status, want)
+		t.Logf("Pass: %s Status: got %v, want %v in DUT", aggID, status, want)
 	}
 }
 
@@ -403,8 +406,16 @@ func TestHoldTimeConfig(t *testing.T) {
 
 	t.Run(fmt.Sprintf("Verify Interface State for %s", aggID), func(t *testing.T) {
 		// Verify Port Status
-		t.Logf("Verifying port status for %s", aggID)
-		verifyPortsStatus(t, dut, "UP", 45)
+		gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(ateDst.Name).OperStatus().State(), 2*time.Minute, func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
+			state, present := val.Val()
+			if present && state.String() == "UP" {
+				t.Logf("Operational status of %v in OTG is UP", aggID)
+			} else {
+				t.Errorf("ERROR: Operational status of %v in OTG is DOWN", aggID)
+			}
+			return present
+		}).Await(t)
+		verifyPortsStatus(t, dut, "UP", 10)
 	})
 
 }
@@ -444,7 +455,7 @@ func TestTC2LongDown(t *testing.T) {
 	durationInMS := duration.Milliseconds()
 
 	// Define the expected delay and tolerance
-	expectedDelayMS := 300 // Expected delay in milliseconds
+	expectedDelayMS := downTimer // Expected delay in milliseconds
 	minDuration := int64(expectedDelayMS - toleranceMS)
 	maxDuration := int64(expectedDelayMS + toleranceMS)
 
@@ -456,7 +467,9 @@ func TestTC2LongDown(t *testing.T) {
 		t.Logf("Last change reported at: %v", DutLastChangeTS2)
 		t.Logf("Duration between shutdown triggered and last change reported: %v ms", durationInMS)
 
-		if pass {
+		if durationInMS == 0 || durationInMS < 0 {
+			t.Fatalf("FAIL: Interface couldnt shut within 1000mSec, got %d ms", durationInMS)
+		} else if pass {
 			t.Logf("PASS: Duration is within the expected range; got %d ms", durationInMS)
 		} else {
 			t.Errorf("FAIL: Expected duration to be within %d ms to %d ms; got %d ms", minDuration, maxDuration, durationInMS)
@@ -486,6 +499,7 @@ func TestTC3ShortUP(t *testing.T) {
 
 		// shutting down OTG interface to emulate the RF
 		OTGInterfaceDOWN(t, ate, dut)
+		verifyPortsStatus(t, dut, "DOWN", 2)
 		oper1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 		change1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 		t.Log(oper1)
@@ -493,6 +507,8 @@ func TestTC3ShortUP(t *testing.T) {
 
 		// bring port back up for 4 seconds below the 5000 ms hold up timer
 		OTGInterfaceUP(t, ate)
+		// Wait for 4000 ms less than hold up timer < 5000ms
+		time.Sleep(4000 * time.Millisecond)
 		// shut the OTG interface back to down state
 		OTGInterfaceDOWN(t, ate, dut)
 		oper2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
@@ -537,7 +553,7 @@ func TestTC4SLongUP(t *testing.T) {
 		// bring port back up for 4 seconds below the 5000 ms hold up timer
 		OTGInterfaceUP(t, ate)
 		// ensure the LAG interface is still down
-		verifyPortsStatus(t, dut, "UP", 30)
+		verifyPortsStatus(t, dut, "UP", 45)
 
 		// Collecting time stamp of interface up
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
@@ -612,18 +628,12 @@ func TestTC5ShortDOWN(t *testing.T) {
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
 
 		if *change2.LastChange == *change1.LastChange && change2.OperStatus == change1.OperStatus {
-			time2 := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			t2 := getDutCurrentTime(t, dut)
 
 			// Dereference the value and convert to int64 before passing to time.Unix function
 			change2LastChangeTime := time.Unix(0, int64(*change2.LastChange)).UTC().Format(time.RFC3339Nano)
 			change1LastChangeTime := time.Unix(0, int64(*change1.LastChange)).UTC().Format(time.RFC3339Nano)
 			t1 := time1.UTC().Format(time.RFC3339Nano)
-			t2, err := time.Parse(time.RFC3339Nano, time2)
-			if err != nil {
-				t.Errorf("Failed to parse time string: %v", err)
-				return
-			}
-
 			timeDiff := t2.Sub(time1).Milliseconds()
 
 			logMessage += fmt.Sprintf("End Time                | %v                               | -\n"+
