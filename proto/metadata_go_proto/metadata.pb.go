@@ -1009,6 +1009,7 @@ type Metadata_Deviations struct {
 	// Devices that block one IS-IS level specific authentication config attribute for P2P links.
 	// The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
 	SetIsisAuthWithInterfaceAuthenticationContainer bool `protobuf:"varint,261,opt,name=set_isis_auth_with_interface_authentication_container,json=setIsisAuthWithInterfaceAuthenticationContainer,proto3" json:"set_isis_auth_with_interface_authentication_container,omitempty"`
+	// Cisco: b/412891277
 	// Devices that do not support config for UsedThresholdUpper and UsedThresholdUpperClear
 	UpperAndClearThresholdsConfigUnsupported bool `protobuf:"varint,262,opt,name=upper_and_clear_thresholds_config_unsupported,json=upperAndClearThresholdsConfigUnsupported,proto3" json:"upper_and_clear_thresholds_config_unsupported,omitempty"`
 }
