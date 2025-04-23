@@ -10,6 +10,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -126,15 +127,10 @@ func testInterfaceIPv4Neighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ond
 	pingNeighbors(t, dut1, dut2, IPv4)
 	time.Sleep(5 * time.Second)
 	validateIPv4NeighborPath(t, dut1, flag_bit)
-	updateIPv4InterfaceDUT(t, dut2, reset)
-	updateIPv4InterfaceDUT(t, dut2, reset)
-	pingNeighbors(t, dut1, dut2, IPv4)
-	time.Sleep(5 * time.Second)
-	validateIPv4NeighborPath(t, dut1, flag_bit)
-	deleteIPv4NeighborPath(t, dut1)
+	updateIPv4InterfaceDUT(t, dut2, reset, flag_bit)
+	updateIPv4InterfaceDUT(t, dut2, reset, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	time.Sleep(5 * time.Second)
-	validateIPv4NeighborPath(t, dut1, flag_bit)
+	deleteIPv4NeighborPath(t, dut1, flag_bit)
 
 	reset = true
 	dut2IntfAttrib[0].attrib.IPv4 = backupDut2IPv4[0]
@@ -142,27 +138,16 @@ func testInterfaceIPv4Neighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ond
 	dut2IntfAttrib[2].attrib.IPv4 = backupDut2IPv4[2]
 	dut2IntfAttrib[3].attrib.IPv4 = backupDut2IPv4[3]
 
-	updateIPv4InterfaceDUT(t, dut1, reset)
-	updateIPv4InterfaceDUT(t, dut2, reset)
-	time.Sleep(5 * time.Second)
-	pingNeighbors(t, dut1, dut2, IPv4)
 	flag_bit = flag_bit &^ delete_bit
-	validateIPv4NeighborPath(t, dut1, flag_bit)
-	updateStaticARPDUT(t, dut1)
-	time.Sleep(5 * time.Second)
+	updateIPv4InterfaceDUT(t, dut1, reset, flag_bit)
+	updateIPv4InterfaceDUT(t, dut2, reset, flag_bit)
 	flag_bit = flag_bit | static_bit
-	validateIPv4NeighborPath(t, dut1, flag_bit)
-	updateStaticARPDUT(t, dut1)
-	updateStaticARPDUT(t, dut1)
-	time.Sleep(5 * time.Second)
-	validateIPv4NeighborPath(t, dut1, flag_bit)
-	deleteIPv4NeighborPath(t, dut1, true)
+	updateStaticARPDUT(t, dut1, flag_bit)
+	updateStaticARPDUT(t, dut1, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	time.Sleep(5 * time.Second)
-	validateIPv4NeighborPath(t, dut1, flag_bit)
-	updateStaticARPDUT(t, dut1)
+	deleteIPv4NeighborPath(t, dut1, flag_bit, true)
 	flag_bit = flag_bit &^ delete_bit
-	validateIPv4NeighborPath(t, dut1, flag_bit)
+	updateStaticARPDUT(t, dut1, flag_bit)
 }
 
 func TestIPv4ProxyARPPath(t *testing.T) {
@@ -295,15 +280,11 @@ func testProxyARP(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
 	flag_bit := 0
 
 	validateIPv4ProxyARPPath(t, dut, oc.ProxyArp_Mode_ALL, flag_bit)
-	updateProxyARPDUT(t, dut, oc.ProxyArp_Mode_REMOTE_ONLY)
-	validateIPv4ProxyARPPath(t, dut, oc.ProxyArp_Mode_REMOTE_ONLY, flag_bit)
-	updateProxyARPDUT(t, dut, oc.ProxyArp_Mode_ALL)
-	validateIPv4ProxyARPPath(t, dut, oc.ProxyArp_Mode_ALL, flag_bit)
-	deleteIPv4ProxyARPPath(t, dut)
+	updateProxyARPDUT(t, dut, oc.ProxyArp_Mode_REMOTE_ONLY, flag_bit)
+	updateProxyARPDUT(t, dut, oc.ProxyArp_Mode_ALL, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	validateIPv4ProxyARPPath(t, dut, oc.ProxyArp_Mode_DISABLE, flag_bit)
-	updateProxyARPDUT(t, dut, oc.ProxyArp_Mode_ALL)
-	validateIPv4ProxyARPPath(t, dut, oc.ProxyArp_Mode_ALL, flag_bit)
+	deleteIPv4ProxyARPPath(t, dut, oc.ProxyArp_Mode_DISABLE, flag_bit)
+	updateProxyARPDUT(t, dut, oc.ProxyArp_Mode_ALL, flag_bit)
 }
 
 func TestIPv6NeighborsPath(t *testing.T) {
@@ -415,13 +396,9 @@ func testInterfaceIPv6Neighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ond
 	pingNeighbors(t, dut1, dut2, IPv4)
 	time.Sleep(10 * time.Second)
 	validateIPv6NeighborPath(t, dut1, flag_bit)
-	updateIPv6InterfaceDUT(t, dut2, reset)
-	time.Sleep(5 * time.Second)
-	pingNeighbors(t, dut1, dut2, IPv4)
-	validateIPv6NeighborPath(t, dut1, flag_bit)
-	deleteIPv6NeighborPath(t, dut1)
+	updateIPv6InterfaceDUT(t, dut2, reset, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	validateIPv6NeighborPath(t, dut1, flag_bit)
+	deleteIPv6NeighborPath(t, dut1, flag_bit)
 
 	reset = true
 	dut2IntfAttrib[0].attrib.IPv6 = backupDut2IPv6[0]
@@ -429,28 +406,16 @@ func testInterfaceIPv6Neighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ond
 	dut2IntfAttrib[2].attrib.IPv6 = backupDut2IPv6[2]
 	dut2IntfAttrib[3].attrib.IPv6 = backupDut2IPv6[3]
 
-	updateIPv6InterfaceDUT(t, dut1, reset)
-	updateIPv6InterfaceDUT(t, dut2, reset)
-	time.Sleep(5 * time.Second)
-	pingNeighbors(t, dut1, dut2, IPv4)
 	flag_bit = flag_bit &^ delete_bit
-	validateIPv6NeighborPath(t, dut1, flag_bit)
-	updateNDStaticDUT(t, dut1)
-	time.Sleep(5 * time.Second)
+	updateIPv6InterfaceDUT(t, dut1, reset, flag_bit)
+	updateIPv6InterfaceDUT(t, dut2, reset, flag_bit)
 	flag_bit = flag_bit | static_bit
-	validateIPv6NeighborPath(t, dut1, flag_bit)
-	updateNDStaticDUT(t, dut1)
-	time.Sleep(5 * time.Second)
-	updateNDStaticDUT(t, dut1)
-	time.Sleep(5 * time.Second)
-	validateIPv6NeighborPath(t, dut1, flag_bit)
-	deleteIPv6NeighborPath(t, dut1, true)
+	updateNDStaticDUT(t, dut1, flag_bit)
+	updateNDStaticDUT(t, dut1, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	validateIPv6NeighborPath(t, dut1, flag_bit)
-	updateNDStaticDUT(t, dut1)
-	time.Sleep(5 * time.Second)
+	deleteIPv6NeighborPath(t, dut1, flag_bit, true)
 	flag_bit = flag_bit &^ delete_bit
-	validateIPv6NeighborPath(t, dut1, flag_bit)
+	updateNDStaticDUT(t, dut1, flag_bit)
 }
 
 func TestIPv6NDRouterAdvPath(t *testing.T) {
@@ -536,17 +501,14 @@ func testNDRouterAdv(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
 	reset := false
 
 	validateIPv6RouterAdvPath(t, dut, flag_bit)
-	updateNDRouterAdvDUT(t, dut, reset)
 	flag_bit = flag_bit | update_bit
-	validateIPv6RouterAdvPath(t, dut, flag_bit)
-	deleteIPv6RouterAdvPath(t, dut)
+	updateNDRouterAdvDUT(t, dut, reset, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	validateIPv6RouterAdvPath(t, dut, flag_bit)
+	deleteIPv6RouterAdvPath(t, dut, flag_bit)
 	reset = true
-	updateNDRouterAdvDUT(t, dut, reset)
 	flag_bit = flag_bit &^ delete_bit
 	flag_bit = flag_bit &^ update_bit
-	validateIPv6RouterAdvPath(t, dut, flag_bit)
+	updateNDRouterAdvDUT(t, dut, reset, flag_bit)
 }
 
 func TestIPv6NDPrefixPath(t *testing.T) {
@@ -632,17 +594,14 @@ func testNDPrefix(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
 	reset := false
 
 	validateNDPrefixPath(t, dut, flag_bit)
-	updateNDPrefixDUT(t, dut, reset)
 	flag_bit = flag_bit | update_bit
-	validateNDPrefixPath(t, dut, flag_bit)
-	deleteNDPrefixPath(t, dut)
+	updateNDPrefixDUT(t, dut, reset, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	validateNDPrefixPath(t, dut, flag_bit)
+	deleteNDPrefixPath(t, dut, flag_bit)
 	reset = true
-	updateNDPrefixDUT(t, dut, reset)
 	flag_bit = flag_bit &^ delete_bit
 	flag_bit = flag_bit &^ update_bit
-	validateNDPrefixPath(t, dut, flag_bit)
+	updateNDPrefixDUT(t, dut, reset, flag_bit)
 }
 
 func TestIPv6NDDadPath(t *testing.T) {
@@ -728,17 +687,14 @@ func testNDDad(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
 	reset := false
 
 	validateNDDadPath(t, dut, flag_bit)
-	updateNDDadDUT(t, dut, reset)
 	flag_bit = flag_bit | update_bit
-	validateNDDadPath(t, dut, flag_bit)
-	deleteNDDadPath(t, dut)
+	updateNDDadDUT(t, dut, reset, flag_bit)
 	flag_bit = flag_bit | delete_bit
-	validateNDDadPath(t, dut, flag_bit)
+	deleteNDDadPath(t, dut, flag_bit)
 	reset = true
-	updateNDDadDUT(t, dut, reset)
 	flag_bit = flag_bit &^ delete_bit
 	flag_bit = flag_bit &^ update_bit
-	validateNDDadPath(t, dut, flag_bit)
+	updateNDDadDUT(t, dut, reset, flag_bit)
 }
 
 func TestLCReloadIPv6ND(t *testing.T) {
@@ -949,7 +905,8 @@ func TestRPFOIPv4Scale(t *testing.T) {
 func testIPv4ScaleNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 
 	path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4()
-	got := gnmi.CollectAll(t, dut, path.State(), 30*time.Second).Await(t)
+	got := gnmi.CollectAll(t, gnmiOptsForSample(t, dut, 30*time.Second), path.State(), 30*time.Second).Await(t)
+
 	IntfIPv4Addr = make(map[string]InterfaceIPv4Address)
 	wantLen := TOTAL_SCALE_INTF_COUNT
 
@@ -958,6 +915,7 @@ func testIPv4ScaleNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 		ipAddress := val.Address
 		neighbor := val.Neighbor
 		proxyARP := val.ProxyArp
+
 		for ip := range ipAddress {
 			if ip[:2] == "10" || ip[:2] == "11" || ip[:2] == "12" || ip[:2] == "13" ||
 				ip[:2] == "20" || ip[:2] == "21" || ip[:2] == "22" || ip[:2] == "23" {
@@ -1105,7 +1063,7 @@ func TestRPFOIPv6Scale(t *testing.T) {
 func testIPv6ScaleNeighbors(t *testing.T, dut *ondatra.DUTDevice) {
 
 	path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6()
-	got := gnmi.CollectAll(t, dut, path.State(), 30*time.Second).Await(t)
+	got := gnmi.CollectAll(t, gnmiOptsForSample(t, dut, 30*time.Second), path.State(), 30*time.Second).Await(t)
 	IntfIPv6Addr = make(map[string]InterfaceIPv6Address)
 	var dad uint32
 	var routerAdv *oc.Interface_Subinterface_Ipv6_RouterAdvertisement
@@ -1159,10 +1117,20 @@ func validateIPv4NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state", func(t *testing.T) {
 
+		var portName string
+		var neighbor string
+		var idx uint32
+
 		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv4
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv4
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv4
+			}
 
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().Neighbor(neighbor).State()
 
@@ -1202,10 +1170,20 @@ func validateIPv4NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/ip", func(t *testing.T) {
 
+		var portName string
+		var neighbor string
+		var idx uint32
+
 		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv4
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv4
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv4
+			}
 
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().Neighbor(neighbor).Ip().State()
 
@@ -1243,11 +1221,20 @@ func validateIPv4NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address", func(t *testing.T) {
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv4
+		var portName string
+		var neighbor string
+		var idx uint32
 
+		for i := 0; i < TOTAL_INTF_COUNT; i++ {
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv4
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv4
+			}
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().Neighbor(neighbor).LinkLayerAddress().State()
 
 			if flag_bit&delete_bit == delete_bit {
@@ -1284,11 +1271,20 @@ func validateIPv4NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/origin", func(t *testing.T) {
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv4
+		var portName string
+		var neighbor string
+		var idx uint32
 
+		for i := 0; i < TOTAL_INTF_COUNT; i++ {
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv4
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv4
+			}
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().Neighbor(neighbor).Origin().State()
 
 			if flag_bit&delete_bit == delete_bit {
@@ -1351,38 +1347,53 @@ func validateIPv4ProxyARPPath(t *testing.T, dut *ondatra.DUTDevice, mode oc.E_Pr
 	})
 }
 
-func updateIPv4InterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
+func updateIPv4InterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool, flag_bit int) {
 
-	t.Run("Update interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor", func(t *testing.T) {
+	t.Run("Update interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor\n", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 		var dutIntfAttrib [4]InterfaceAttributes
+		var monitorDut *ondatra.DUTDevice
 
 		if dut.ID() == "dut1" {
 			dutIntfAttrib = dut1IntfAttrib
+			monitorDut = ondatra.DUT(t, "dut2")
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
+			monitorDut = ondatra.DUT(t, "dut1")
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			path := gnmi.OC().Interface(portName)
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4().NeighborAny().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, monitorDut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Neighbor]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					path := gnmi.OC().Interface(portName)
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
 
-			if reset == true {
-				gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
-			} else {
-				attrib.IPv4 = getNewIPv4(attrib.IPv4)
-				gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
-			}
+					if reset == true {
+						gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
+					} else {
+						attrib.IPv4 = getNewIPv4(attrib.IPv4)
+						gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
+					}
+				}
+				batchConfig.Set(t, dut)
+				pingNeighbors(t, dut, monitorDut, true)
 
+				return v.IsPresent()
+			}).Await(t)
+
+		if ok {
+			validateIPv4NeighborPath(t, monitorDut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func updateStaticARPDUT(t *testing.T, dut *ondatra.DUTDevice) {
+func updateStaticARPDUT(t *testing.T, dut *ondatra.DUTDevice, flag_bit int) {
 
 	t.Run("Update Static interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor", func(t *testing.T) {
 
@@ -1394,22 +1405,33 @@ func updateStaticARPDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			staticIPv4 = getNewStaticIPv4(attrib.IPv4)
-			path := gnmi.OC().Interface(portName)
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4().NeighborAny().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Neighbor]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					staticIPv4 = getNewStaticIPv4(attrib.IPv4)
+					path := gnmi.OC().Interface(portName)
 
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
-			obj.GetOrCreateEthernet()
-			gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
+					obj.GetOrCreateEthernet()
+					gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateIPv4NeighborPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func updateProxyARPDUT(t *testing.T, dut *ondatra.DUTDevice, mode oc.E_ProxyArp_Mode) {
+func updateProxyARPDUT(t *testing.T, dut *ondatra.DUTDevice, mode oc.E_ProxyArp_Mode, flag_bit int) {
 
 	t.Run("Update interfaces/interface/subinterfaces/subinterface/ipv4/proxy-arp", func(t *testing.T) {
 		batchConfig := &gnmi.SetBatch{}
@@ -1420,60 +1442,92 @@ func updateProxyARPDUT(t *testing.T, dut *ondatra.DUTDevice, mode oc.E_ProxyArp_
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			idx := attrib.Subinterface
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4().ProxyArp().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_ProxyArp]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					idx := attrib.Subinterface
 
-			path := gnmi.OC().Interface(portName)
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
-			obj.GetOrCreateSubinterface(idx).GetOrCreateIpv4().
-				GetOrCreateProxyArp().SetMode(mode)
+					path := gnmi.OC().Interface(portName)
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
+					obj.GetOrCreateSubinterface(idx).GetOrCreateIpv4().
+						GetOrCreateProxyArp().SetMode(mode)
 
-			gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
+					gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv4DUT(obj, attrib))
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateIPv4ProxyARPPath(t, dut, mode, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func deleteIPv4NeighborPath(t *testing.T, dut *ondatra.DUTDevice, static ...bool) {
+func deleteIPv4NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int, static ...bool) {
 
 	t.Run("Delete interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4().NeighborAny().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Neighbor]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dut1IntfAttrib[i].intfName
+					idx := dut1IntfAttrib[i].attrib.Subinterface
 
-			if len(static) > 0 && static[0] == true {
-				neighbor := getNewStaticIPv4(dut1IntfAttrib[i].attrib.IPv4)
-				path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().Neighbor(neighbor)
-				gnmi.BatchDelete(batchConfig, path.Config())
-			} else {
-				path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4()
-				gnmi.BatchDelete(batchConfig, path.Config())
-			}
+					if len(static) > 0 && static[0] == true {
+						neighbor := getNewStaticIPv4(dut1IntfAttrib[i].attrib.IPv4)
+						path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().Neighbor(neighbor)
+						gnmi.BatchDelete(batchConfig, path.Config())
+					} else {
+						path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4()
+						gnmi.BatchDelete(batchConfig, path.Config())
+					}
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateIPv4NeighborPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func deleteIPv4ProxyARPPath(t *testing.T, dut *ondatra.DUTDevice) {
+func deleteIPv4ProxyARPPath(t *testing.T, dut *ondatra.DUTDevice, mode oc.E_ProxyArp_Mode, flag_bit int) {
 
 	t.Run("Delete interfaces/interface/subinterfaces/subinterface/ipv4/proxy-arp", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().ProxyArp()
-			gnmi.BatchDelete(batchConfig, path.Config())
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4().ProxyArp().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_ProxyArp]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dut1IntfAttrib[i].intfName
+					idx := dut1IntfAttrib[i].attrib.Subinterface
+					path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv4().ProxyArp()
+					gnmi.BatchDelete(batchConfig, path.Config())
 
+				}
+				batchConfig.Set(t, dut)
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateIPv4ProxyARPPath(t, dut, mode, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
@@ -1498,10 +1552,20 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state", func(t *testing.T) {
 
+		var portName string
+		var neighbor string
+		var idx uint32
+
 		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv6
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv6
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv6
+			}
 
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).State()
 
@@ -1525,20 +1589,22 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 					path = gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).State()
 					op := gnmi.Get(t, dut, path)
 					if op.GetOrigin().String() != "STATIC" || op.GetIsRouter() != true ||
-						op.GetNeighborState().String() != "REACHABLE" || op.GetIp() != neighbor {
+						(op.GetNeighborState().String() != "REACHABLE" && op.GetNeighborState().String() != "DELAY") ||
+						op.GetIp() != neighbor {
 						t.Errorf("Invalid Neighbor Info for interface %s", portName)
 						t.Errorf("want Origin DYNAMIC found %s", op.GetOrigin().String())
 						t.Errorf("want IsRouter true found %v", op.GetIsRouter())
-						t.Errorf("want State REACHABLE found %s", op.GetNeighborState().String())
+						t.Errorf("want State REACHABLE/DELAY found %s", op.GetNeighborState().String())
 					}
 				} else {
 					op := gnmi.Get(t, dut, path)
 					if op.GetOrigin().String() != "DYNAMIC" || op.GetIsRouter() != true ||
-						op.GetNeighborState().String() != "REACHABLE" || op.GetIp() != neighbor {
+						(op.GetNeighborState().String() != "REACHABLE" && op.GetNeighborState().String() != "DELAY") ||
+						op.GetIp() != neighbor {
 						t.Errorf("Invalid Neighbor Info for interface %s", portName)
 						t.Errorf("want Origin DYNAMIC found %s", op.GetOrigin().String())
 						t.Errorf("want IsRouter true found %v", op.GetIsRouter())
-						t.Errorf("want State REACHABLE found %s", op.GetNeighborState().String())
+						t.Errorf("want State REACHABLE/DELAY found %s", op.GetNeighborState().String())
 					}
 				}
 			}
@@ -1547,11 +1613,20 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/ip", func(t *testing.T) {
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv6
+		var portName string
+		var neighbor string
+		var idx uint32
 
+		for i := 0; i < TOTAL_INTF_COUNT; i++ {
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv6
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv6
+			}
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).Ip().State()
 
 			if flag_bit&delete_bit == delete_bit {
@@ -1588,10 +1663,20 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address", func(t *testing.T) {
 
+		var portName string
+		var neighbor string
+		var idx uint32
+
 		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv6
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv6
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv6
+			}
 
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).LinkLayerAddress().State()
 
@@ -1629,10 +1714,20 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/origin", func(t *testing.T) {
 
+		var portName string
+		var neighbor string
+		var idx uint32
+
 		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv6
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv6
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv6
+			}
 
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).Origin().State()
 
@@ -1670,11 +1765,20 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/is-router", func(t *testing.T) {
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv6
+		var portName string
+		var neighbor string
+		var idx uint32
 
+		for i := 0; i < TOTAL_INTF_COUNT; i++ {
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv6
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv6
+			}
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).IsRouter().State()
 
 			if flag_bit&delete_bit == delete_bit {
@@ -1711,10 +1815,20 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 
 	t.Run("Get interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/neighbor-state", func(t *testing.T) {
 
+		var portName string
+		var neighbor string
+		var idx uint32
+
 		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			neighbor := dut2IntfAttrib[i].attrib.IPv6
+			if dut.ID() == "dut1" {
+				portName = dut1IntfAttrib[i].intfName
+				idx = dut1IntfAttrib[i].attrib.Subinterface
+				neighbor = dut2IntfAttrib[i].attrib.IPv6
+			} else {
+				portName = dut2IntfAttrib[i].intfName
+				idx = dut2IntfAttrib[i].attrib.Subinterface
+				neighbor = dut1IntfAttrib[i].attrib.IPv6
+			}
 
 			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).NeighborState().State()
 
@@ -1737,12 +1851,12 @@ func validateIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int
 					neighbor = getNewStaticIPv6(dut1IntfAttrib[i].attrib.IPv6)
 					path = gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor).NeighborState().State()
 					op := gnmi.Get(t, dut, path)
-					if op.String() != "REACHABLE" {
+					if op.String() != "REACHABLE" && op.String() != "DELAY" {
 						t.Errorf("Invalid Static Neighbor State Info for interface %s, want REACHABLE found %s", portName, op.String())
 					}
 				} else {
 					op := gnmi.Get(t, dut, path)
-					if op.String() != "REACHABLE" {
+					if op.String() != "REACHABLE" && op.String() != "DELAY" {
 						t.Errorf("Invalid Neighbor State Info for interface %s, want REACHABLE found %s", portName, op.String())
 					}
 				}
@@ -1818,12 +1932,12 @@ func validateNDPrefixPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int) {
 		} else if flag_bit&update_bit == update_bit {
 			op := gnmi.GetAll(t, dut, path)
 			if len(op) < 12 {
-				t.Errorf("Prefix Value Not Found")
-			} else {
-				op := gnmi.GetAll(t, dut, path)
-				if len(op) < 8 {
-					t.Errorf("Prefix Value Not Found")
-				}
+				t.Errorf("Prefix Value Not Found, want 12 found %v", len(op))
+			}
+		} else {
+			op := gnmi.GetAll(t, dut, path)
+			if len(op) < 8 {
+				t.Errorf("Prefix Value Not Found, want 8 found %v", len(op))
 			}
 		}
 	})
@@ -1906,37 +2020,53 @@ func validateNDDadPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int) {
 	})
 }
 
-func updateIPv6InterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
+func updateIPv6InterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool, flag_bit int) {
 
 	t.Run("Update interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 		var dutIntfAttrib [4]InterfaceAttributes
+		var monitorDut *ondatra.DUTDevice
 
 		if dut.ID() == "dut1" {
 			dutIntfAttrib = dut1IntfAttrib
+			monitorDut = ondatra.DUT(t, "dut2")
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
+			monitorDut = ondatra.DUT(t, "dut1")
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			path := gnmi.OC().Interface(portName)
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().NeighborAny().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, monitorDut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Neighbor]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					path := gnmi.OC().Interface(portName)
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
 
-			if reset == true {
-				gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			} else {
-				attrib.IPv6 = getNewIPv6(attrib.IPv6)
-				gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			}
+					if reset == true {
+						gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					} else {
+						attrib.IPv6 = getNewIPv6(attrib.IPv6)
+						gnmi.BatchReplace(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					}
+				}
+				batchConfig.Set(t, dut)
+				pingNeighbors(t, monitorDut, dut, false)
+
+				return v.IsPresent()
+			}).Await(t)
+
+		if ok {
+			validateIPv6NeighborPath(t, monitorDut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func updateNDStaticDUT(t *testing.T, dut *ondatra.DUTDevice) {
+func updateNDStaticDUT(t *testing.T, dut *ondatra.DUTDevice, flag_bit int) {
 
 	t.Run("Update Static interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor", func(t *testing.T) {
 
@@ -1948,22 +2078,34 @@ func updateNDStaticDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			staticIPv6 = getNewStaticIPv6(attrib.IPv6)
-			path := gnmi.OC().Interface(portName)
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().NeighborAny().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Neighbor]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					staticIPv6 = getNewStaticIPv6(attrib.IPv6)
+					path := gnmi.OC().Interface(portName)
 
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
-			obj.GetOrCreateEthernet()
-			gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
+					obj.GetOrCreateEthernet()
+					gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+
+		if ok {
+			validateIPv6NeighborPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func updateNDRouterAdvDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
+func updateNDRouterAdvDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool, flag_bit int) {
 
 	t.Run("Update interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement", func(t *testing.T) {
 
@@ -1975,38 +2117,50 @@ func updateNDRouterAdvDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			idx := attrib.Subinterface
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					idx := attrib.Subinterface
 
-			path := gnmi.OC().Interface(portName)
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
-			ra := obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
-				GetOrCreateRouterAdvertisement()
+					path := gnmi.OC().Interface(portName)
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
+					ra := obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
+						GetOrCreateRouterAdvertisement()
 
-			if reset == true {
-				ra.SetInterval(RAInterval)
-				ra.SetLifetime(RALifetime)
-				ra.SetOtherConfig(RAOtherConfig)
-				ra.SetSuppress(RASuppress)
+					if reset == true {
+						ra.SetInterval(RAInterval)
+						ra.SetLifetime(RALifetime)
+						ra.SetOtherConfig(RAOtherConfig)
+						ra.SetSuppress(RASuppress)
 
-				gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			} else {
-				ra.SetInterval(RAInterval_Update)
-				ra.SetLifetime(RALifetime_Update)
-				ra.SetOtherConfig(RAOtherConfig_Update)
-				ra.SetSuppress(RASuppress_Update)
+						gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					} else {
+						ra.SetInterval(RAInterval_Update)
+						ra.SetLifetime(RALifetime_Update)
+						ra.SetOtherConfig(RAOtherConfig_Update)
+						ra.SetSuppress(RASuppress_Update)
 
-				gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			}
+						gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					}
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+
+		if ok {
+			validateIPv6RouterAdvPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func updateNDPrefixDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
+func updateNDPrefixDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool, flag_bit int) {
 
 	t.Run("Update interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/prefixes", func(t *testing.T) {
 
@@ -2018,41 +2172,53 @@ func updateNDPrefixDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			idx := attrib.Subinterface
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					idx := attrib.Subinterface
 
-			path := gnmi.OC().Interface(portName)
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
+					path := gnmi.OC().Interface(portName)
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
 
-			if reset == true {
-				ndp := obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
-					GetOrCreateRouterAdvertisement().GetOrCreatePrefix(NDPrefix)
-				ndp.SetPreferredLifetime(NDPrefixPreferredLifetime)
-				ndp.SetValidLifetime(NDPrefixValidLifetime)
-				ndp.SetDisableAutoconfiguration(NDPrefixDisableAutoconfiguration)
-				ndp.SetEnableOnlink(NDPrefixEnableOnlink)
+					if reset == true {
+						ndp := obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
+							GetOrCreateRouterAdvertisement().GetOrCreatePrefix(NDPrefix)
+						ndp.SetPreferredLifetime(NDPrefixPreferredLifetime)
+						ndp.SetValidLifetime(NDPrefixValidLifetime)
+						ndp.SetDisableAutoconfiguration(NDPrefixDisableAutoconfiguration)
+						ndp.SetEnableOnlink(NDPrefixEnableOnlink)
 
-				gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			} else {
-				ndp := obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
-					GetOrCreateRouterAdvertisement().GetOrCreatePrefix(NDPrefix_Update)
+						gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					} else {
+						ndp := obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
+							GetOrCreateRouterAdvertisement().GetOrCreatePrefix(NDPrefix_Update)
 
-				ndp.SetPreferredLifetime(NDPrefixPreferredLifetime_Update)
-				ndp.SetValidLifetime(NDPrefixValidLifetime_Update)
-				ndp.SetDisableAutoconfiguration(NDPrefixDisableAutoconfiguration_Update)
-				ndp.SetEnableOnlink(NDPrefixEnableOnlink_Update)
+						ndp.SetPreferredLifetime(NDPrefixPreferredLifetime_Update)
+						ndp.SetValidLifetime(NDPrefixValidLifetime_Update)
+						ndp.SetDisableAutoconfiguration(NDPrefixDisableAutoconfiguration_Update)
+						ndp.SetEnableOnlink(NDPrefixEnableOnlink_Update)
 
-				gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			}
+						gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					}
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+
+		if ok {
+			validateNDPrefixPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func updateNDDadDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
+func updateNDDadDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool, flag_bit int) {
 
 	t.Run("Update interfaces/interface/subinterfaces/subinterface/ipv6/dad", func(t *testing.T) {
 
@@ -2064,110 +2230,166 @@ func updateNDDadDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool) {
 		} else {
 			dutIntfAttrib = dut2IntfAttrib
 		}
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dutIntfAttrib[i].intfName
-			attrib := dutIntfAttrib[i].attrib
-			idx := attrib.Subinterface
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
 
-			path := gnmi.OC().Interface(portName)
-			obj := &oc.Interface{}
-			obj.Name = ygot.String(portName)
+					portName := dutIntfAttrib[i].intfName
+					attrib := dutIntfAttrib[i].attrib
+					idx := attrib.Subinterface
 
-			if reset == true {
-				obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
-					SetDupAddrDetectTransmits(NDDad)
+					path := gnmi.OC().Interface(portName)
+					obj := &oc.Interface{}
+					obj.Name = ygot.String(portName)
 
-				gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			} else {
-				obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
-					SetDupAddrDetectTransmits(NDDad_Update)
+					if reset == true {
+						obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
+							SetDupAddrDetectTransmits(NDDad)
 
-				gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
-			}
+						gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					} else {
+						obj.GetOrCreateSubinterface(idx).GetOrCreateIpv6().
+							SetDupAddrDetectTransmits(NDDad_Update)
+
+						gnmi.BatchUpdate(batchConfig, path.Config(), configInterfaceIPv6DUT(obj, attrib))
+					}
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateNDDadPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func deleteIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, static ...bool) {
+func deleteIPv6NeighborPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int, static ...bool) {
 
 	t.Run("Delete interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().NeighborAny().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Neighbor]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dut1IntfAttrib[i].intfName
+					idx := dut1IntfAttrib[i].attrib.Subinterface
 
-			if len(static) > 0 && static[0] == true {
-				neighbor := getNewStaticIPv6(dut1IntfAttrib[i].attrib.IPv6)
-				path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor)
+					if len(static) > 0 && static[0] == true {
+						neighbor := getNewStaticIPv6(dut1IntfAttrib[i].attrib.IPv6)
+						path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().Neighbor(neighbor)
 
-				gnmi.BatchDelete(batchConfig, path.Config())
-			} else {
-				path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6()
+						gnmi.BatchDelete(batchConfig, path.Config())
+					} else {
+						path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6()
 
-				gnmi.BatchDelete(batchConfig, path.Config())
-			}
+						gnmi.BatchDelete(batchConfig, path.Config())
+					}
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateIPv6NeighborPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func deleteIPv6RouterAdvPath(t *testing.T, dut *ondatra.DUTDevice) {
+func deleteIPv6RouterAdvPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int) {
 
 	t.Run("Delete interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			path1 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Interval()
-			path2 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Lifetime()
-			path3 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().OtherConfig()
-			path4 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Suppress()
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dut1IntfAttrib[i].intfName
+					idx := dut1IntfAttrib[i].attrib.Subinterface
+					path1 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Interval()
+					path2 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Lifetime()
+					path3 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().OtherConfig()
+					path4 := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Suppress()
 
-			gnmi.BatchDelete(batchConfig, path1.Config())
-			gnmi.BatchDelete(batchConfig, path2.Config())
-			gnmi.BatchDelete(batchConfig, path3.Config())
-			gnmi.BatchDelete(batchConfig, path4.Config())
+					gnmi.BatchDelete(batchConfig, path1.Config())
+					gnmi.BatchDelete(batchConfig, path2.Config())
+					gnmi.BatchDelete(batchConfig, path3.Config())
+					gnmi.BatchDelete(batchConfig, path4.Config())
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateIPv6RouterAdvPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func deleteNDPrefixPath(t *testing.T, dut *ondatra.DUTDevice) {
+func deleteNDPrefixPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int) {
 
 	t.Run("Delete interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/prefixes", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Prefix("400:0:2::1/124")
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dut1IntfAttrib[i].intfName
+					idx := dut1IntfAttrib[i].attrib.Subinterface
+					path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().RouterAdvertisement().Prefix("400:0:2::1/124")
 
-			gnmi.BatchDelete(batchConfig, path.Config())
+					gnmi.BatchDelete(batchConfig, path.Config())
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateNDPrefixPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
-func deleteNDDadPath(t *testing.T, dut *ondatra.DUTDevice) {
+func deleteNDDadPath(t *testing.T, dut *ondatra.DUTDevice, flag_bit int) {
 
 	t.Run("Delete interfaces/interface/subinterfaces/subinterface/ipv6/dad", func(t *testing.T) {
 
 		batchConfig := &gnmi.SetBatch{}
 
-		for i := 0; i < TOTAL_INTF_COUNT; i++ {
-			portName := dut1IntfAttrib[i].intfName
-			idx := dut1IntfAttrib[i].attrib.Subinterface
-			path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().DupAddrDetectTransmits()
+		path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().State()
+		_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, dut), path, 10*time.Second,
+			func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv6]) bool {
+				for i := 0; i < TOTAL_INTF_COUNT; i++ {
+					portName := dut1IntfAttrib[i].intfName
+					idx := dut1IntfAttrib[i].attrib.Subinterface
+					path := gnmi.OC().Interface(portName).Subinterface(idx).Ipv6().DupAddrDetectTransmits()
 
-			gnmi.BatchDelete(batchConfig, path.Config())
+					gnmi.BatchDelete(batchConfig, path.Config())
+				}
+				batchConfig.Set(t, dut)
+
+				return v.IsPresent()
+			}).Await(t)
+		if ok {
+			validateNDDadPath(t, dut, flag_bit)
+		} else {
+			t.Errorf("SubscriptionMode_ON_CHANGE failed")
 		}
-		batchConfig.Set(t, dut)
 	})
 }
 
@@ -2256,7 +2478,7 @@ func validateIPv6ScaleNeighbors(t *testing.T) {
 		if IntfIPv6Addr[ip].dad != NDDad {
 			t.Errorf("Invalid DAD %v for IP %s", IntfIPv6Addr[ip].dad, ip)
 		}
-		prefixData := IntfIPv6Addr[ip].routerAdv.Prefix["300:0:2::/124"]
+		prefixData := IntfIPv6Addr[ip].routerAdv.GetPrefix("300:0:2::/124")
 
 		if prefixData == nil {
 			t.Errorf("Prefix info not available for IP %s", ip)

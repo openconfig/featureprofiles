@@ -9,14 +9,17 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/interfaces"
 	"github.com/openconfig/ondatra/gnmi/oc/platform"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -651,7 +654,7 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 
 	// for _, intf := range Interfaces {
 	// 	if findBreakoutPort(intf.GetName()) == true {
-	// 		fmt.Printf("Debug: Breakout Interface Name :%s\n", intf.GetName())
+	//
 	// 		cp, comp, bmp, bmode := doBreakoutPort(t, dut, intf.GetName())
 	// 		gnmi.BatchReplace(batchConfig, cp.Config(), comp)
 	// 		gnmi.BatchReplace(batchConfig, bmp.Config(), bmode)
@@ -781,7 +784,6 @@ func configInterfaceIPv4PhyScale(t *testing.T, FourHundredGigEList InterfaceLCLi
 	for j := 0; j < (MAX_PHY_INTF); j++ {
 		intfLC1 := FourHundredGigEList.interfaceLC1
 		intfLC2 := FourHundredGigEList.interfaceLC2
-		// fmt.Printf("Debug: DUT:%v InterfaceLC1: %s  InterfaceLC2: %s\n", dut.ID(), intfLC1[j], intfLC2[j])
 		pathLC1 := gnmi.OC().Interface(intfLC1[j])
 		pathLC2 := gnmi.OC().Interface(intfLC2[j])
 		intfNameLC1 := &oc.Interface{Name: ygot.String(intfLC1[j])}
@@ -832,7 +834,7 @@ func configInterfaceIPv4PhySubScale(t *testing.T, FourHundredGigEList InterfaceL
 		gnmi.BatchDelete(batchConfig, pathLC1.Config())
 		gnmi.BatchDelete(batchConfig, pathLC2.Config())
 		for k := 0; k < MAX_SUB_INTF; k++ {
-			// fmt.Printf("Debug: DUT:%v InterfaceSubLC1: %s  InterfaceSubLC2: %s\n", dut.ID(), intfLC1[j], intfLC2[j])
+
 			intfNameLC1 := &oc.Interface{Name: ygot.String(intfLC1[j])}
 			intfNameLC2 := &oc.Interface{Name: ygot.String(intfLC2[j])}
 			var dutScalePort = &attrs.Attributes{}
@@ -879,8 +881,6 @@ func configInterfaceIPv4BundleScale(t *testing.T, HundredGigEList InterfaceLCLis
 
 	for j := 0; j < (MAX_BUNDLE_INTF); j++ {
 		BI := bundleIntf + strconv.Itoa(j)
-		// fmt.Printf("Debug: DUT: %v Bundle :%s\n", dut.ID(), BI)
-		// fmt.Printf("Debug: Memb1 :%s Memb2: %s\n", intfLC1[mpIdx+j], intfLC2[mpIdx+j])
 		pathb := gnmi.OC().Interface(BI)
 		pathm1 := gnmi.OC().Interface(intfLC1[mpIdx+j])
 		pathm2 := gnmi.OC().Interface(intfLC2[mpIdx+j])
@@ -940,8 +940,7 @@ func configInterfaceIPv4BundleSubScale(t *testing.T, HundredGigEList InterfaceLC
 		gnmi.BatchDelete(batchConfig, pathm1.Config())
 		gnmi.BatchDelete(batchConfig, pathm2.Config())
 		for k := 0; k < MAX_SUB_INTF; k++ {
-			// fmt.Printf("Debug: DUT: %v Bundle :%s\n", dut.ID(), BI)
-			// fmt.Printf("Debug: Memb1 :%s Memb2: %s\n", intfLC1[mpIdx+j], intfLC2[mpIdx+j])
+
 			intf := &oc.Interface{Name: ygot.String(BI)}
 			var dutScalePort = &attrs.Attributes{}
 
@@ -1003,7 +1002,7 @@ func configInterfaceIPv6PhyScale(t *testing.T, FourHundredGigEList InterfaceLCLi
 	batchConfig := &gnmi.SetBatch{}
 
 	for j := 0; j < (MAX_PHY_INTF); j++ {
-		// fmt.Printf("Debug: DUT:%v InterfaceLC1: %s InterfaceLC2:%s\n", dut.ID(), intfLC1[j], intfLC2[j])
+
 		pathLC1 := gnmi.OC().Interface(intfLC1[j])
 		pathLC2 := gnmi.OC().Interface(intfLC2[j])
 		intfNameLC1 := &oc.Interface{Name: ygot.String(intfLC1[j])}
@@ -1061,7 +1060,7 @@ func configInterfaceIPv6PhySubScale(t *testing.T, FourHundredGigEList InterfaceL
 		gnmi.BatchDelete(batchConfig, pathLC1.Config())
 		gnmi.BatchDelete(batchConfig, pathLC2.Config())
 		for k := 0; k < MAX_SUB_INTF; k++ {
-			// fmt.Printf("Debug: DUT:%v InterfaceSub: %s InterfaceSub:%s\n", dut.ID(), intfLC1[j], intfLC2[j])
+
 			intfNameLC1 := &oc.Interface{Name: ygot.String(intfLC1[j])}
 			intfNameLC2 := &oc.Interface{Name: ygot.String(intfLC2[j])}
 			var dutScalePort = &attrs.Attributes{}
@@ -1114,8 +1113,6 @@ func configInterfaceIPv6BundleScale(t *testing.T, HundredGigEList InterfaceLCLis
 
 	for j := 0; j < (MAX_BUNDLE_INTF); j++ {
 		BI := bundleIntf + strconv.Itoa(j)
-		// fmt.Printf("Debug: DUT: %v Bundle :%s\n", dut.ID(), BI)
-		// fmt.Printf("Debug: Memb1 :%s Memb2: %s\n", intfLC1[mpIdx+j], intfLC2[mpIdx+j])
 		pathb := gnmi.OC().Interface(BI)
 		pathm1 := gnmi.OC().Interface(intfLC1[mpIdx+j])
 		pathm2 := gnmi.OC().Interface(intfLC2[mpIdx+j])
@@ -1184,8 +1181,7 @@ func configInterfaceIPv6BundleSubScale(t *testing.T, HundredGigEList InterfaceLC
 		mapBundleMemberPorts[dut.ID()] = append(mapBundleMemberPorts[dut.ID()], bundleArray)
 
 		for k := 0; k < MAX_SUB_INTF; k++ {
-			// fmt.Printf("Debug: DUT: %v Bundle :%s\n", dut.ID(), BI)
-			// fmt.Printf("Debug: Memb1 :%s Memb2: %s\n", intfLC1[mpIdx+j], intfLC2[mpIdx+j])
+
 			intf := &oc.Interface{Name: ygot.String(BI)}
 			var dutScalePort = &attrs.Attributes{}
 
@@ -1461,7 +1457,6 @@ func pingScaleNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUT
 			defer func() { <-sem }()
 			pingRequest := &spb.PingRequest{Count: 2}
 			pingRequest.Destination = dest
-			// fmt.Printf("Debug: Pinging %s\n", dest)
 
 			pingClient, err := gnoiClient.System().Ping(context.Background(), pingRequest)
 
@@ -1498,4 +1493,16 @@ func fetchResponses(c spb.System_PingClient) ([]*spb.PingResponse, error) {
 			pingResp = append(pingResp, resp)
 		}
 	}
+}
+
+func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
+}
+
+func gnmiOptsForSample(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(interval),
+	)
 }
