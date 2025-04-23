@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/otg/otg"
-	"github.com/openconfig/ondatra/ondatra"
-	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 /*
