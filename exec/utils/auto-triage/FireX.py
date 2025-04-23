@@ -212,18 +212,55 @@ class FireX:
              # If no historical runs were found at all in the loop
              logger.debug("No historical runs were successfully checked.")
              return None, None, None, None
+         
+         
+    def _is_ai_generated_label(self, testcase):
+        """
+        Determine if a test case has an AI-generated label based on multiple indicators.
+        This provides a centralized place to add new indicators in the future.
+        """
+        # Check for direct indicators from AI labeling
+        if testcase.get("generated", False):
+            return True
+        
+        if testcase.get("generated_label_details") is not None:
+            return True
+        
+        if testcase.get("generated_score") is not None:
+            return True
+        
+        if testcase.get("recalibration_candidate", False):
+            return True
+        
+        # Check for "AI Suggested" pattern in triage_status or label
+        label = testcase.get("label", "")
+        if "ai suggested" in label.lower():
+            return True
+        
+        # Check for the pattern where label exists but triage_status is still "New"
+        # This often indicates an AI suggestion that hasn't been verified
+        if label and testcase.get("triage_status") == "New":
+            return True
+        
+        # Check for user feedback indicators
+        if "user_verified_label" in testcase and not testcase.get("user_verified_label"):
+            return True
+        
+        return False
 
 
     def get_testsuites(self, database, run_info):
         """Gather testsuite data to store into Database"""
+        logger.info(f"Starting get_testsuites for run_id: {run_info.get('firex_id', 'Unknown')}")
         documents = []
         current_run_id = run_info.get("firex_id", "Unknown")
 
         if self.root is None:
-             logger.error("XML root is None, cannot process test suites.")
-             return documents
+            logger.error("XML root is None, cannot process test suites.")
+            return documents
 
         # Visit all testsuites within a run
+        logger.info(f"Processing testsuites from XML root")
         for testsuite in self.root.findall("./testsuite"):
             stats = testsuite.attrib
             properties = testsuite.find("properties")
@@ -237,6 +274,7 @@ class FireX:
             errors_count = int(stats.get("errors", 0))
             test_passed = failures_count + errors_count == 0
             current_run_timestamp = str(stats.get("timestamp", "N/A"))
+            logger.info(f"Processing testsuite with timestamp: {current_run_timestamp}, failures: {failures_count}, errors: {errors_count}")
 
             # Initialize base data dictionary
             data = {
@@ -254,13 +292,13 @@ class FireX:
                 "testcases": [],
                 "bugs": []
             }
-
+            logger.debug(f"Initialized base data: group={data['group']}, lineup={data['lineup']}, run_id={data['run_id']}")
 
             b4_keys = ["test.plan_id", 
-                       "test.description", 
-                       "test.uuid", 
-                       "testsuite_hash", 
-                       "testsuite_root"]
+                    "test.description", 
+                    "test.uuid", 
+                    "testsuite_hash", 
+                    "testsuite_root"]
             
             cafy_keys_mappings = {
                 "testsuite_name": "plan_id", 
@@ -269,20 +307,23 @@ class FireX:
                 }
             framework_property = properties.find("./property[@name='framework']")
             framework = framework_property.get("value") if framework_property is not None else "unknown"
+            logger.debug(f"Testsuite framework: {framework}")
 
             if properties is not None:
                 if framework == "cafy2":
+                    logger.debug("Processing as CAFY2 framework")
                     for p in properties.findall("property"):
                         prop_name = p.get("name")
                         if prop_name in cafy_keys_mappings:
-                             data[cafy_keys_mappings[prop_name]] = p.get("value")
+                            data[cafy_keys_mappings[prop_name]] = p.get("value")
+                            logger.debug(f"Set {cafy_keys_mappings[prop_name]}={p.get('value')}")
                 else: # Assume B4 or other framework
+                    logger.debug("Processing as B4 or other framework")
                     for p in properties.findall("property"):
                         prop_name = p.get("name")
                         if prop_name in b4_keys:
-                             data[prop_name.replace("test.", "")] = p.get("value")
-            
-
+                            data[prop_name.replace("test.", "")] = p.get("value")
+                            logger.debug(f"Set {prop_name.replace('test.', '')}={p.get('value')}")
 
             # Grab historical testsuite if it exists
             historial_testsuite = None
@@ -290,45 +331,95 @@ class FireX:
             plan_id_for_lookup = data.get("plan_id")
             group_for_lookup = data.get("group")
             lineup_for_lookup = data.get("lineup")
+            logger.info(f"Historical lookup parameters: plan_id={plan_id_for_lookup}, group={group_for_lookup}, lineup={lineup_for_lookup}")
 
-            if plan_id_for_lookup and group_for_lookup != "Unknown" and lineup_for_lookup != "Unknown":
+            # Special case for b4-featureprofiles - try with just group and lineup
+            if group_for_lookup == "b4-featureprofiles" and lineup_for_lookup != "Unknown":
                 try:
+                    logger.info(f"Attempting special lookup for b4-featureprofiles group with lineup: {lineup_for_lookup}")
                     if hasattr(database, 'get_historical_testsuite') and callable(getattr(database, 'get_historical_testsuite')):
-                         historial_testsuite = database.get_historical_testsuite(lineup_for_lookup, group_for_lookup, plan_id_for_lookup) # No before_timestamp -> gets latest
-                         if historial_testsuite:
-                             retrieved_run_id = historial_testsuite.get('run_id', 'N/A')
-                             retrieved_ts = historial_testsuite.get("timestamp", 'N/A')
-                             logger.info(f"Retrieved immediate predecessor for inheritance: run_id=[{retrieved_run_id}], timestamp=[{retrieved_ts}]")
-                             historical_timestamp = historial_testsuite.get("timestamp") # Timestamp of immediate predecessor
-                         else:
-                             logger.info(f"No immediate predecessor found for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}.")
+                        # Try to find recent tests from the same group/lineup, even without plan_id
+                        historial_testsuite = database.get_historical_testsuite(lineup_for_lookup, group_for_lookup, plan_id_for_lookup)
+                        
+                        if historial_testsuite:
+                            retrieved_run_id = historial_testsuite.get('run_id', 'N/A')
+                            retrieved_ts = historial_testsuite.get("timestamp", 'N/A')
+                            logger.info(f"SUCCESS: Retrieved predecessor for b4-featureprofiles: run_id=[{retrieved_run_id}], timestamp=[{retrieved_ts}]")
+                            historical_timestamp = historial_testsuite.get("timestamp")
+                        else:
+                            logger.info(f"No predecessor found for special b4-featureprofiles lookup with {group_for_lookup}/{lineup_for_lookup}")
                     else:
-                         logger.warning("Database object does not have a callable 'get_historical_testsuite' method.")
+                        logger.warning("Database object does not have a callable 'get_historical_testsuite' method.")
                 except Exception as e:
-                    logger.error(f"Error calling get_historical_testsuite for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}: {e}")
+                    logger.error(f"Error in special lookup for b4-featureprofiles: {e}", exc_info=True)
+            # Standard lookup requiring all three keys
+            elif plan_id_for_lookup and group_for_lookup != "Unknown" and lineup_for_lookup != "Unknown":
+                try:
+                    logger.info(f"Attempting standard historical lookup with plan_id={plan_id_for_lookup}")
+                    if hasattr(database, 'get_historical_testsuite') and callable(getattr(database, 'get_historical_testsuite')):
+                        historial_testsuite = database.get_historical_testsuite(lineup_for_lookup, group_for_lookup, plan_id_for_lookup) # No before_timestamp -> gets latest
+                        if historial_testsuite:
+                            retrieved_run_id = historial_testsuite.get('run_id', 'N/A')
+                            retrieved_ts = historial_testsuite.get("timestamp", 'N/A')
+                            logger.info(f"SUCCESS: Retrieved immediate predecessor for inheritance: run_id=[{retrieved_run_id}], timestamp=[{retrieved_ts}]")
+                            historical_timestamp = historial_testsuite.get("timestamp") # Timestamp of immediate predecessor
+                        else:
+                            logger.info(f"No immediate predecessor found for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}.")
+                    else:
+                        logger.warning("Database object does not have a callable 'get_historical_testsuite' method.")
+                except Exception as e:
+                    logger.error(f"Error calling get_historical_testsuite for {group_for_lookup}/{plan_id_for_lookup}/{lineup_for_lookup}: {e}", exc_info=True)
             else:
                 logger.warning(f"Skipping historical lookup due to missing keys: plan_id={plan_id_for_lookup}, group={group_for_lookup}, lineup={lineup_for_lookup}")
 
+            # Create a dictionary to track which test cases had AI-generated labels in history
+            ai_generated_testcases = {}
+            
+            # Examine historical data before processing test cases
+            if historial_testsuite:
+                logger.info(f"Checking historical test cases for AI-generated indicators")
+                ai_generated_count = 0
+                for historical_tc in historial_testsuite.get("testcases", []):
+                    tc_name = historical_tc.get("name", "")
+                    
+                    # Use helper method to check for AI-generated indicators
+                    is_ai_generated = self._is_ai_generated_label(historical_tc)
+                    
+                    # Store this information for each test case
+                    ai_generated_testcases[tc_name] = is_ai_generated
+                    
+                    if is_ai_generated:
+                        ai_generated_count += 1
+                        logger.warning(f"Found AI-generated test case in historical data: {tc_name}")
+                
+                if ai_generated_count > 0:
+                    logger.warning(f"Found {ai_generated_count} AI-generated test cases in historical data")
+
             # Inherit associated bugs from immediate predecessor only
             if historial_testsuite:
+                logger.debug(f"Processing bug inheritance from historical testsuite")
                 for bug in historial_testsuite.get("bugs", []):
                     name = bug.get("name")
                     bug_type = bug.get("type")
                     if name and bug_type:
                         try:
+                            logger.debug(f"Inheriting bug {name} of type {bug_type}")
                             if bug_type in ["DDTS", "TechZone", "Github"]:
                                 inherited_bug = globals()[bug_type.lower()].inherit(name)
                                 # Only append the bug if it's not None (filtered out)
                                 if inherited_bug is not None:
                                     data["bugs"].append(inherited_bug) 
+                                    logger.debug(f"Successfully inherited bug {name}")
                                     if bug_type == "DDTS" and test_passed and ddts.is_open(name):
                                         data["health"] = "unstable"
+                                        logger.info(f"Set health to 'unstable' due to open DDTS bug {name}")
                         except Exception as e:
-                            logger.error(f"Error inheriting bug {name} of type {bug_type}: {e}")
+                            logger.error(f"Error inheriting bug {name} of type {bug_type}: {e}", exc_info=True)
                     else:
                         logger.warning(f"Skipping bug inheritance due to missing name or type: {bug}")
 
             # Pass database object AND immediate predecessor details AND lookup keys to _create_testsuites
+            logger.info(f"Calling _create_testsuites with {len(testcases)} test cases")
             data["testcases"] = self._create_testsuites(
                 database, 
                 testcases, 
@@ -336,26 +427,62 @@ class FireX:
                 historical_timestamp,
                 group_for_lookup,   
                 plan_id_for_lookup,
-                lineup_for_lookup
+                lineup_for_lookup,
+                ai_generated_testcases  # Dictionary of AI-generated test cases
             )
+            
+            logger.info(f"Processed {len(data['testcases'])} test cases")
             documents.append(data)
+        
+        logger.info(f"Completed get_testsuites with {len(documents)} documents")
         return documents
 
 
-    def _create_testsuites(self, database, testcases, historial_testsuite, historical_timestamp, group, plan_id, lineup):
+    def _create_testsuites(self, database, testcases, historial_testsuite, historical_timestamp, group, plan_id, lineup, ai_generated_testcases=None):
+        """Process test cases and handle inheritance, skipping AI-generated labels"""
+        logger.info(f"Starting _create_testsuites with {len(testcases)} testcases")
+        
+        # Initialize ai_generated_testcases if not provided
+        if ai_generated_testcases is None:
+            ai_generated_testcases = {}
+        
         testsuites = []
         for testcase in testcases:
             current_test_name = testcase.get("name", "Unnamed Test")
-            inheritance_possible = historial_testsuite is not None
+            logger.info(f"Processing testcase: {current_test_name}")
+            
+            # Check if this test was AI-generated in historical data
+            is_ai_generated = ai_generated_testcases.get(current_test_name, False)
+            
+            if is_ai_generated:
+                logger.warning(f"SKIPPING INHERITANCE for AI-generated test case: {current_test_name}")
+            
+            # Only allow inheritance if not AI-generated
+            inheritance_possible = historial_testsuite is not None and not is_ai_generated
             history = None  # Immediate predecessor's TC data
+            
             if inheritance_possible:
+                logger.debug(f"Checking for historical data for testcase: {current_test_name}")
                 for e in historial_testsuite.get("testcases", []):
                     if e.get("name") == current_test_name: 
+                        # Double-check for AI-generated indicators at this level too
+                        if self._is_ai_generated_label(e):
+                            logger.warning(f"Found AI-generated indicators in historical test case during match lookup: {current_test_name}")
+                            history = None
+                            break
+                        
+                        logger.debug(f"Found historical match for testcase: {current_test_name}")
                         history = e 
                         break
                 
+                if history is None:
+                    logger.info(f"No applicable history found for testcase: {current_test_name}")
+                else:
+                    logger.debug(f"Historical data status: {history.get('status')}, label: {history.get('label', 'None')}")
+            
             # Initialize basic fields common to all statuses
             testcase_data = {"name": current_test_name, "time": float(testcase.get("time", 0))}
+            logger.debug(f"Initialized basic testcase data for {current_test_name}")
 
             failure_el = testcase.find("failure")
             error_el = testcase.find("error")
@@ -366,12 +493,14 @@ class FireX:
             # Determine Status and Handle Status-Specific Fields
             if skipped_el is not None:
                 current_status = "skipped"
+                logger.info(f"Testcase {current_test_name} is SKIPPED")
                 testcase_data["status"] = current_status
                 testcase_data["label"] = "Test Skipped. No Label Required."
                 # No other fields needed for skipped
 
             elif error_el is not None and error_el.get("message") is None:
                 current_status = "aborted"
+                logger.info(f"Testcase {current_test_name} is ABORTED")
                 testcase_data["status"] = current_status
                 # Always set inherited_label to False by default
                 testcase_data["inherited_label"] = False
@@ -379,16 +508,20 @@ class FireX:
                 # Check if we should inherit from history - MODIFIED to prioritize label_id
                 should_inherit = False
                 if history:
+                    logger.debug(f"Checking inheritance criteria for ABORTED testcase {current_test_name}")
                     # First try to match by label_id if it exists in history
                     if history.get("label_id") and history.get("label", "").strip():
                         should_inherit = True
-                        logger.debug(f"Inheriting label for '{current_test_name}' based on label_id match")
+                        logger.info(f"Will inherit label for '{current_test_name}' based on label_id match")
                     # Fall back to the old status-based logic
                     elif history.get("status") == "aborted" and history.get("label", "").strip():
                         should_inherit = True
-                        logger.debug(f"Inheriting label for '{current_test_name}' based on status match (fallback)")
+                        logger.info(f"Will inherit label for '{current_test_name}' based on status match (fallback)")
+                    else:
+                        logger.info(f"No inheritance criteria met for ABORTED testcase {current_test_name}")
                     
                 if should_inherit:  # Inherit for ABORTED
+                    logger.info(f"INHERITING LABEL for ABORTED testcase {current_test_name}")
                     # Populate ALL relevant fields ONLY if inheriting
                     testcase_data["inherited_label"] = True
                     # Set triage_status to "Resolved" if there's a meaningful label
@@ -396,12 +529,16 @@ class FireX:
                     testcase_data["label"] = history.get("label", "")
                     testcase_data["bugs"] = history.get("bugs", [])
                     testcase_data["label_id"] = history.get("label_id", "")
+                    logger.debug(f"Set inherited label: '{testcase_data['label']}' for {current_test_name}")
 
                     # Find verification origin
                     try:
+                        logger.debug(f"Looking up verification origin for {current_test_name}")
                         origin_run_id, origin_timestamp, origin_verified_by, _ = self._find_verification_origin(
                             database, lineup, group, plan_id, current_test_name, historical_timestamp
                         )
+                        logger.info(f"Found verification origin: run_id={origin_run_id}, verified_by={origin_verified_by}")
+                        
                         testcase_data["original_verification_run_id"] = origin_run_id
                         testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
                         testcase_data["inheritance_date"] = origin_timestamp
@@ -415,18 +552,23 @@ class FireX:
                         reason_verified_by = testcase_data["verified_by"]
                         
                         if origin_run_id and reason_verified_by != "Unknown":
-                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}]."
+                            inheritance_reason = f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}]."
                         elif origin_run_id:
-                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}]."
+                            inheritance_reason = f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}]."
                         else:
                             pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"
-                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found."
+                            inheritance_reason = f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found."
+                        
+                        testcase_data["inheritance_reason"] = inheritance_reason
+                        logger.debug(f"Set inheritance_reason for {current_test_name}: {inheritance_reason}")
                     except Exception as e:
-                        logger.error(f"Error during aborted test inheritance: {e}")
+                        logger.error(f"Error during aborted test inheritance for {current_test_name}: {e}", exc_info=True)
                         # Fallback if verification origin fails
+                        logger.info(f"FALLBACK to New Issue due to error for {current_test_name}")
                         testcase_data["triage_status"] = "New"
                         testcase_data["inherited_label"] = False
                 else:  # Aborted, but no inheritance (New Issue)
+                    logger.info(f"NEW ISSUE (no inheritance) for ABORTED testcase {current_test_name}")
                     testcase_data["triage_status"] = "New"
                     testcase_data["label"] = ""  # Needs labeling
                     testcase_data["bugs"] = []
@@ -434,11 +576,13 @@ class FireX:
 
             elif (error_el is not None and error_el.get("message")) or failure_el is not None:
                 current_status = "failed"
+                logger.info(f"Testcase {current_test_name} is FAILED")
                 testcase_data["status"] = current_status
                 text = error_el.text if error_el is not None else failure_el.text
                 current_log = str(text).strip() if text else ""
                 testcase_data["message"] = "Failed"
                 testcase_data["logs"] = current_log
+                logger.debug(f"Set logs for {current_test_name} (length: {len(current_log) if current_log else 0})")
                 
                 # Always set inherited_label to False by default
                 testcase_data["inherited_label"] = False
@@ -446,16 +590,20 @@ class FireX:
                 # Check if we should inherit from history - MODIFIED to prioritize label_id
                 should_inherit = False
                 if history:
+                    logger.debug(f"Checking inheritance criteria for FAILED testcase {current_test_name}")
                     # First try to match by label_id if it exists in history
                     if history.get("label_id") and history.get("label", "").strip():
                         should_inherit = True
-                        logger.debug(f"Inheriting label for '{current_test_name}' based on label_id match")
+                        logger.info(f"Will inherit label for '{current_test_name}' based on label_id match")
                     # Fall back to the old status-based logic
                     elif history.get("status") == "failed" and history.get("label", "").strip():
                         should_inherit = True
-                        logger.debug(f"Inheriting label for '{current_test_name}' based on status match (fallback)")
+                        logger.info(f"Will inherit label for '{current_test_name}' based on status match (fallback)")
+                    else:
+                        logger.info(f"No inheritance criteria met for FAILED testcase {current_test_name}")
                     
                 if should_inherit:  # Inherit for FAILED
+                    logger.info(f"INHERITING LABEL for FAILED testcase {current_test_name}")
                     try:
                         # Populate ALL relevant fields ONLY if inheriting
                         testcase_data["inherited_label"] = True
@@ -464,11 +612,15 @@ class FireX:
                         testcase_data["label"] = history.get("label", "")
                         testcase_data["bugs"] = history.get("bugs", [])
                         testcase_data["label_id"] = history.get("label_id", "")
+                        logger.debug(f"Set inherited label: '{testcase_data['label']}' for {current_test_name}")
 
                         # Find verification origin
+                        logger.debug(f"Looking up verification origin for {current_test_name}")
                         origin_run_id, origin_timestamp, origin_verified_by, origin_logs = self._find_verification_origin(
                             database, lineup, group, plan_id, current_test_name, historical_timestamp
                         )
+                        logger.info(f"Found verification origin: run_id={origin_run_id}, verified_by={origin_verified_by}")
+                        
                         testcase_data["original_verification_run_id"] = origin_run_id
                         testcase_data["verified_by"] = origin_verified_by if origin_verified_by is not None else "Unknown"
                         testcase_data["inheritance_date"] = origin_timestamp
@@ -482,12 +634,15 @@ class FireX:
                         reason_verified_by = testcase_data["verified_by"]
                         
                         if origin_run_id and reason_verified_by != "Unknown":
-                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}]."
+                            inheritance_reason = f"Inherited label '{reason_label}' (verified by {reason_verified_by} in run [{origin_run_id}] {reason_ts_str}) via predecessor [{predecessor_run_id}]."
                         elif origin_run_id:
-                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}]."
+                            inheritance_reason = f"Inherited label '{reason_label}' (origin run [{origin_run_id}] {reason_ts_str}, verified_by Unknown) via predecessor [{predecessor_run_id}]."
                         else:
                             pred_ts_str = f"on {historical_timestamp}" if historical_timestamp else "(ts unknown)"
-                            testcase_data["inheritance_reason"] = f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found."
+                            inheritance_reason = f"Inherited label '{reason_label}' from predecessor [{predecessor_run_id}] {pred_ts_str}, origin details not found."
+                        
+                        testcase_data["inheritance_reason"] = inheritance_reason
+                        logger.debug(f"Set inheritance_reason for {current_test_name}: {inheritance_reason}")
 
                         # Calculate Log Similarity (vs ORIGIN log if available, else predecessor)
                         # Initialize score to None ONLY when inheriting
@@ -495,22 +650,23 @@ class FireX:
                         similarity_calculated = False
                         
                         if self.embedding_model:
+                            logger.debug(f"Attempting to calculate log similarity for {current_test_name}")
                             if current_log and origin_logs:
                                 try:
-                                    logger.debug(f"Calculating log similarity for TC '{current_test_name}' vs ORIGIN log from run [{origin_run_id}]")
+                                    logger.debug(f"Calculating similarity vs ORIGIN log for {current_test_name}")
                                     embeddings = self.embedding_model.embed_documents([current_log, origin_logs])
                                     vec1 = np.array(embeddings[0]).reshape(1, -1)
                                     vec2 = np.array(embeddings[1]).reshape(1, -1)
                                     similarity = cosine_similarity(vec1, vec2)[0][0]
                                     testcase_data["log_similarity_score"] = float(similarity)
                                     similarity_calculated = True
-                                    logger.debug(f"Log similarity score vs origin: {similarity:.4f}")
+                                    logger.info(f"Log similarity score vs origin: {similarity:.4f} for {current_test_name}")
                                 except Exception as e:
-                                    logger.error(f"Failed similarity vs origin for TC '{current_test_name}': {e}")
+                                    logger.error(f"Failed similarity vs origin for TC '{current_test_name}': {e}", exc_info=True)
                             elif current_log:  # Fallback: Compare to predecessor if origin logs missing
                                 predecessor_log = history.get("logs", "")
                                 if predecessor_log:
-                                    logger.debug(f"Origin log missing for '{current_test_name}'. Comparing vs predecessor [{predecessor_run_id}].")
+                                    logger.debug(f"Origin log missing, comparing vs predecessor for {current_test_name}")
                                     try:
                                         embeddings = self.embedding_model.embed_documents([current_log, predecessor_log])
                                         vec1 = np.array(embeddings[0]).reshape(1, -1)
@@ -518,22 +674,25 @@ class FireX:
                                         similarity = cosine_similarity(vec1, vec2)[0][0]
                                         testcase_data["log_similarity_score"] = float(similarity)
                                         similarity_calculated = True
-                                        logger.debug(f"Log similarity score vs predecessor (fallback): {similarity:.4f}")
+                                        logger.info(f"Log similarity score vs predecessor (fallback): {similarity:.4f} for {current_test_name}")
                                     except Exception as e:
-                                        logger.error(f"Failed similarity vs predecessor for TC '{current_test_name}': {e}")
+                                        logger.error(f"Failed similarity vs predecessor for TC '{current_test_name}': {e}", exc_info=True)
 
                         # If similarity calculation was not successful for any reason, set to the string
                         if not similarity_calculated:
+                            logger.info(f"Could not calculate log similarity for {current_test_name}")
                             testcase_data["log_similarity_score"] = "no logs provided for comparison"
                     except Exception as e:
-                        logger.error(f"Error during failed test inheritance: {e}")
+                        logger.error(f"Error during failed test inheritance for {current_test_name}: {e}", exc_info=True)
                         # Fallback if verification origin fails
+                        logger.info(f"FALLBACK to New Issue due to error for {current_test_name}")
                         testcase_data["triage_status"] = "New"
                         testcase_data["inherited_label"] = False
                 elif not self.embedding_model and should_inherit:
                     logger.warning(f"Cannot calculate log similarity for '{current_test_name}': Model unavailable.")
                     testcase_data["log_similarity_score"] = "model unavailable"
                 else:  # Failed, but no inheritance (New Issue)
+                    logger.info(f"NEW ISSUE (no inheritance) for FAILED testcase {current_test_name}")
                     testcase_data["triage_status"] = "New"
                     testcase_data["label"] = ""  # Needs labeling
                     testcase_data["bugs"] = []
@@ -541,9 +700,13 @@ class FireX:
 
             else:  # Passed
                 current_status = "passed"
+                logger.info(f"Testcase {current_test_name} is PASSED")
                 testcase_data["status"] = current_status
                 testcase_data["label"] = "Test Passed. No Label Required."
                 # No other fields needed for passed
 
             testsuites.append(testcase_data)
+            logger.info(f"Finished processing testcase: {current_test_name} with status: {current_status}")
+        
+        logger.info(f"Completed _create_testsuites with {len(testsuites)} testcases processed")
         return testsuites
