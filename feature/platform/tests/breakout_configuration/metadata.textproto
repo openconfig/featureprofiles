@@ -3,7 +3,7 @@
 plan_id: "PLT-1.1"
 uuid: "6ac4eed0-9e04-46f5-85d8-ca88ee5fec7d"
 description: "Interface breakout Test"
-testbed: TESTBED_DUT_ATE_8LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO

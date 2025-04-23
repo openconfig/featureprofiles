@@ -136,6 +136,7 @@ functions.
       * match-set-options = "ANY"
     * actions/bgp-actions/config/
       * set-med = 100
+      * set-med-action = "SET"
     * actions/config/policy-result = "ACCEPT_ROUTE"
 
 * Use gnmi Set REPLACE option to configure the policies above on the DUT at this subtree level:
@@ -208,6 +209,7 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-refs:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action:
 
   # Policy for bgp attachment
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
