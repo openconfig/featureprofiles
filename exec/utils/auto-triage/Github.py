@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+CISCO_URL_BASE = os.environ.get("CISCO_URL_BASE")
+PUBLIC_URL_BASE = os.environ.get("PUBLIC_URL_BASE")
+
 class Github:
     def __init__(self):
         # Get GitHub tokens from environment variables
@@ -37,9 +40,9 @@ class Github:
             return None
         
         # Skip common placeholder texts
-        if url.lower() in ["todo", "wdolaast-patch-222", "kjahed/fix-auto-adv", 
-                          "new failure. todo", "issue after upstream merge", 
+        if url.lower() in ["new failure. todo", "issue after upstream merge", 
                           "need fix new test version"]:
+            
             logger.info(f"Skipping placeholder text: {url}")
             return None
             
@@ -96,10 +99,10 @@ class Github:
             
         # Determine which API base URL and token to use
         if url_info.get("is_cisco", False):
-            api_base = "https://wwwin-github.cisco.com/api/v3"
+            api_base = CISCO_URL_BASE
             token = self.cisco_token
         else:
-            api_base = "https://api.github.com"
+            api_base = PUBLIC_URL_BASE
             token = self.public_token
         
         api_url = f"{api_base}/repos/{url_info['owner']}/{url_info['repo']}/{'pulls' if url_info['type'] == 'pull' else 'issues'}/{url_info['number']}"
