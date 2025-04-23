@@ -58,7 +58,7 @@ func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, er
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
 	for _, platformExceptions := range metadata.Get().GetPlatformExceptions() {
-		if platformExceptions.GetPlatform().GetVendor().String() == "" {
+		if platformExceptions.GetPlatform().Vendor.String() == "" {
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 

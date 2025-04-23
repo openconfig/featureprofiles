@@ -19,5 +19,5 @@ class IDatabase(ABC):
         pass
 
     @abstractmethod
-    def get_historical_testsuite(self, lineup, group, plan):
+    def get_historical_testsuite(self, lineup, group, plan, before_timestamp=None):
         pass

@@ -59,7 +59,8 @@ whitelist_arguments([
     'sim_use_mtls',
     'collect_dut_info',
     'cflow_over_ssh',
-    'testbed_checks'
+    'testbed_checks',
+    "testbeds_exclude",
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -548,7 +549,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         force_reboot=False,
                         sim_use_mtls=False,
                         testbed_checks=False,
-                        smus=None):
+                        smus=None,
+                        testbeds_exclude=[]):
     
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
@@ -560,6 +562,12 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = testbeds.split(',')
+    if not isinstance(testbeds_exclude, list): testbeds_exclude = testbeds_exclude.split(',')
+
+    for tb in testbeds_exclude:
+        if tb in testbeds:
+            logger.print(f'Excluding testbed {tb}')
+            testbeds.remove(tb)
 
     while len(testbeds) > 0:
         reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)

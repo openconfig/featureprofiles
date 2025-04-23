@@ -1,0 +1,11 @@
+name: resource_utilization
+owners: 
+  - liawalsh
+testbeds:
+  - 8808-1DUT
+tests:
+  - name: resource_utilization 
+    path: feature/cisco/gnmi/utilization
+    mustpass: true
+    internal: true
+    timeout: 1800
