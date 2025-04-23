@@ -22,4 +22,11 @@ platform_exceptions: {
     missing_isis_interface_afi_safi_enable: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    sr_igp_config_unsupported: true
+  }
+}
