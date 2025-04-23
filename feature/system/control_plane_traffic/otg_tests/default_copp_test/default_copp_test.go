@@ -452,8 +452,8 @@ func (ce *commonEntities) testCoppSystemHelper(t *testing.T, tc *coppSystemTestc
 	otgObj.StopProtocols(t)
 	finalCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, "port1").Name()).Counters().State())
 	finalInPkts := finalCounters.GetInPkts()
-	fmt.Println("initial pkts:", initialInPkts)
-	fmt.Println("final pkts:", finalInPkts)
+	t.Logf("Testcase: %s, initial incoming packets: %v", tc.name, initialInPkts)
+	t.Logf("Testcase: %s, final incoming packets: %v", tc.name, finalInPkts)
 	finalPktCounts := ce.getDroppedPktCounts(t, tc.counters)
 	for idx, counter := range tc.counters {
 		if tc.increasedDropCount && finalPktCounts[idx] <= initialPktCounts[idx] {
