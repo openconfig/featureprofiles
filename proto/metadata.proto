@@ -42,6 +42,7 @@ message Metadata {
     TESTBED_DUT_400ZR_100G_4LINKS = 10;
     TESTBED_DUT_400FR_100G_4LINKS = 11;
     TESTBED_DUT_ATE_5LINKS = 12;
+    TESTBED_ATEDUT_10LR = 13;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -736,6 +737,57 @@ message Metadata {
 
     // Devices that do not support containerz config via OpenConfig.
     bool containerz_oc_unsupported = 266;
+    
+    // Arista b/390507780
+    bool qos_shaper_config_unsupported = 267;
+
+    // Arista b/390507780
+    bool qos_shaper_state_unsupported = 268;
+
+    // Arista b/393178770
+    bool ethernet_over_mplsogre_unsupported = 269;
+
+    // Arista b/390507408
+    bool sflow_unsupported = 270;
+
+    // Arista b/390507402
+    bool mpls_unsupported = 271;
+
+    // Arista b/390507399
+    bool macsec_unsupported = 272;
+
+    // Arista b/390506900
+    bool gue_gre_decap_unsupported = 273;
+
+    // Arista b/390506584
+    bool mpls_label_classification_unsupported = 274;
+
+    // Arista b/390506395
+    bool local_proxy_unsupported = 275;
+
+    // Arista b/390506513
+    bool static_mpls_unsupported = 276;
+
+    // Arista b/390504878
+    bool qos_classification_unsupported = 277;
+
+    // Arista b/390503348
+    bool policy_forwarding_unsupported = 278;
+
+    // Arista b/393177745
+    bool cfm_unsupported = 279;
+
+    // Arista b/390506903
+    bool label_range_unsupported = 280;
+
+    // Arista b/390506907
+    bool static_arp_unsupported = 281;
+
+    // Arista b/390506907
+    bool interface_policy_forwarding_unsupported = 282;
+    
+    // Arista b/390507957
+    bool next_hop_group_config_unsupported = 283;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
@@ -766,3 +818,4 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
+
