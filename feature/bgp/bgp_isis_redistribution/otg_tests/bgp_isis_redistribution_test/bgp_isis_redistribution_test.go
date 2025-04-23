@@ -486,8 +486,8 @@ func verifyNonMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, a
 	}
 
 	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(advertisedIPv4.address).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
-		prefix, present := v.Val()
-		return present && prefix.GetPrefix() == advertisedIPv4.address
+		_, present := v.Val()
+		return !present
 	}).Await(t)
 	if ok {
 		t.Errorf("Prefix found, not want: %s", advertisedIPv4.address)
@@ -699,8 +699,8 @@ func verifyNonMatchingCommunityTelemetryV6(t *testing.T, dut *ondatra.DUTDevice,
 	}
 
 	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(advertisedIPv6.address).State(), 60*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
-		prefix, present := v.Val()
-		return present && prefix.GetPrefix() == advertisedIPv6.address
+		_, present := v.Val()
+		return !present
 	}).Await(t)
 	if ok {
 		t.Errorf("Prefix found, not want: %s", advertisedIPv6.address)

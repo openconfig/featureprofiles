@@ -239,6 +239,10 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 	isis := prot.GetOrCreateIsis()
 
 	globalISIS := isis.GetOrCreateGlobal()
+	// Explicit Disable the default igp-ldp-sync enabled global leaf
+	isismpls := prot.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateMpls()
+	isismplsldpsync := isismpls.GetOrCreateIgpLdpSync()
+	isismplsldpsync.Enabled = ygot.Bool(false)
 	if deviations.ISISInstanceEnabledRequired(dut) {
 		globalISIS.Instance = ygot.String(isisInstance)
 	}
@@ -257,6 +261,9 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 	}
 	for _, intfName := range intfs {
 		isisIntf := isis.GetOrCreateInterface(intfName)
+		// Explicit Disable the default igp-ldp-sync enabled interface level leaf
+		isisintfmplsldpsync := isisIntf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
+		isisintfmplsldpsync.Enabled = ygot.Bool(false)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		if deviations.InterfaceRefConfigUnsupported(dut) {

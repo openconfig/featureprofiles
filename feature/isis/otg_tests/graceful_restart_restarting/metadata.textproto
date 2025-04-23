@@ -16,6 +16,5 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     isis_instance_enabled_required: true
     missing_value_for_defaults: true
-    skip_isis_set_level: true
   }
 }
