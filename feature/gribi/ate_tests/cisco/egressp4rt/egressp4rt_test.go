@@ -620,11 +620,11 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 				for i := 1; i <= 1; i++ {
 					_, packets, err := test.client.StreamChannelGetPackets(&stream, uint64(test.wantPkts), 90*time.Second)
 					s := len(packets)
-					if s == 0 {
-						if portIDe == "14" && (flap == "flap" || flap == "flap1") {
-							break
-						}
-					}
+// 					if s == 0 {
+// 						if portIDe == "14" && (flap == "flap" || flap == "flap1") {
+// 							break
+// 						}
+// 					}
 					if s != pktOut {
 						t.Log("Count mismatch")
 					}
@@ -706,10 +706,10 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 						}
 					}
 					if got, want := gotPkts, test.wantPkts; got != want {
-						if portIDe == "14" && (flap == "flap" || flap == "flap1") {
+						//if portIDe == "14" && (flap == "flap" || flap == "flap1") {
 							t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 							t.Logf(" Count Mismatch for out src %s dst %s, inner src %s dst %s", outSrc, outDst, inSrc, inDst)
-						}
+						//}
 					} else {
 						t.Logf("Count match for out src %s dst %s, inner src %s dst %s", outSrc, outDst, inSrc, inDst)
 					}
@@ -1109,11 +1109,11 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 					_, packets, err := test.client.StreamChannelGetPackets(&stream, uint64(test.wantPkts), 90*time.Second)
 					s := len(packets)
 
-					if s == 0 {
-						if portIDe == "14" && (flap == "flap" || flap == "flap1") {
-							break
-						}
-					}
+// 					if s == 0 {
+// 						if portIDe == "14" && (flap == "flap" || flap == "flap1") {
+// 							break
+// 						}
+// 					}
 
 					if s != pktOut {
 						t.Log("Count mismatch")
@@ -1183,10 +1183,10 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 						}
 					}
 					if got, want := gotPkts, test.wantPkts; got != want {
-						if portIDe == "14" && (flap == "flap" || flap == "flap1") {
+						//if portIDe == "14" && (flap == "flap" || flap == "flap1") {
 							t.Errorf("Number of PacketIn, got: %d, want: %d", got, want)
 							t.Logf(" Count Mismatch for out src %s dst %s, inner src %s dst %s", outSrc, outDst, inSrc, inDst)
-						}
+						//}
 					} else {
 						t.Logf("Count match for out src %s dst %s, inner src %s dst %s", outSrc, outDst, inSrc, inDst)
 					}
@@ -1703,11 +1703,11 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 					// Extract packets from PacketIn message sent to p4rt client
 					_, packets, err := test.client.StreamChannelGetPackets(&stream, uint64(test.wantPkts), 90*time.Second)
 					s := len(packets)
-					if s == 0 && err != nil {
-						if flap == "flap" {
-							break
-						}
-					}
+// 					if s == 0 && err != nil {
+// 						if flap == "flap" {
+// 							break
+// 						}
+// 					}
 
 					if s != pktOut {
 						t.Log("Count mismatch")
