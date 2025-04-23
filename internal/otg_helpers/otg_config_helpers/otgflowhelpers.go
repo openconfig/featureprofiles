@@ -2,7 +2,7 @@
 package otgconfighelpers
 
 import (
-	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
 // Iana Ethertype is the IANA Ethertype for MPLS, IPv4 and IPv6.
