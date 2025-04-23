@@ -736,6 +736,7 @@ message Metadata {
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
 
+    // Cisco: b/412891277
     // Devices that do not support config for UsedThresholdUpper and UsedThresholdUpperClear
     bool upper_and_clear_thresholds_config_unsupported = 262;
 
