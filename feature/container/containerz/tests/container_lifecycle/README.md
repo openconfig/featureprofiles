@@ -6,38 +6,8 @@ Verify the correct behaviour of `gNOI.Containerz` when operating containers.
 
 ## Procedure
 
-This step only applies if the reference implementation of containerz is being
-tested.
-
-Start by pulling the reference implementation:
-
-```shell
-$ git clone git@github.com:openconfig/containerz.git
-```
-
-Then `cd` into the containerz directory and build containerz:
-
-```shell
-$ cd containerz
-$ go build .
-```
-
-Finally start containerz:
-
-```shell
-$ ./containerz start
-```
-
-You should see the following output:
-
-```shell
-$ ./containerz start
-I0620 12:02:57.408496 3615908 janitor.go:33] janitor-starting
-I0620 12:02:57.408547 3615908 janitor.go:36] janitor-started
-I0620 12:02:57.408583 3615908 server.go:167] server-start
-I0620 12:02:57.408595 3615908 server.go:170] Starting up on Containerz server, listening on: [::]:19999
-I0620 12:02:57.408608 3615908 server.go:171] server-ready
-```
+* Build the test and upgrade container as described below
+* Pass the tarballs of the container the test as arguments.
 
 ### Build Test Container
 
@@ -65,6 +35,8 @@ Now export the container to a tarball.
 
 ```shell
 $ docker save -o /tmp/cntrsrv.tar cntrsrv:latest
+$ docker tag cntrsrv:latest cntrsrv:upgrade
+$ docker save -o /tmp/cntrsrv-upgrade.tar cntrsrv:upgrade
 $ docker rmi cntrsrv:latest
 ```
 
@@ -98,16 +70,28 @@ Using the container started as part of CNTR-1.2, validate that the container can
 be stopped, and is subsequently no longer listed in the `gnoi.Containerz.List`
 API.
 
-## CNTR-1.5: Restart Behaviour
+## CNTR-1.5: Create a volume on the DUT.
+
+Validate the the DUT is capable of creating a volume, reading it back
+and removing it. 
+
+## CNTR-1.6: Upgrade a container on the DUT.
+
+Using the same container started as part of CNTR-1.1, validate that the container
+can be upgraded to the new version of the image identified by a different tag
+than the current running container image. 
+
+## CNTR-1.7: Restart Behaviour
 
 Using the containers started as part of CNTR-1.1, restart the device via gNOI
 and ensure that the containers are still running post reboot.
 
-## CNTR-1.6: Failover Behaviour
+## CNTR-1.8: Failover Behaviour
 
 Using the containers started as part of CNTR-1.1, trigger a failover and 
 ensure that the containers that were running on the failed RP are running 
 on the backup RP.
+=
 
 ## OpenConfig Path and RPC Coverage
 
@@ -121,6 +105,10 @@ rpcs:
     containerz.Containerz.StopContainer:
     containerz.Containerz.Log:
     containerz.Containerz.ListContainer:
+    containerz.Containerz.CreateVolume:
+    containerz.Containerz.RemoveVolume:
+    containerz.Containerz.ListVolume:
+    containerz.Containerz.UpdateContainer:
     system.System.Reboot:
     system.System.SwitchControlProcessor:
 ```

@@ -16,6 +16,7 @@ package link_bandwidth_test
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"testing"
@@ -46,6 +47,7 @@ const (
 	v43Route          = "203.0.115.0"
 	v43TrafficStart   = "203.0.115.1"
 	v4RoutePrefix     = uint32(24)
+	parseV4           = "203.0.0.0/16"
 	v61Route          = "2001:db8:128:128::0"
 	v61RouteOtg       = "2001:db8:128:128::"
 	v61RouteAdvertise = "2001:db8:128:128::/64"
@@ -174,7 +176,7 @@ func TestBGPLinkBandwidth(t *testing.T) {
 		name                     string
 		policyName               string
 		applyPolicy              func(t *testing.T, dut *ondatra.DUTDevice, policyName string)
-		validate                 func(t *testing.T, dut *ondatra.DUTDevice, policyName string)
+		validate                 func(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string)
 		routeCommunity           extCommunity
 		localPerf                bool
 		validateRouteCommunityV4 func(t *testing.T, td testData, ec extCommunity)
@@ -251,7 +253,7 @@ func TestBGPLinkBandwidth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Description: %s", tc.name)
 			tc.applyPolicy(t, dut, tc.policyName)
-			tc.validate(t, dut, tc.policyName)
+			tc.validate(t, dut, td, tc.policyName)
 			tc.validateRouteCommunityV4(t, td, tc.routeCommunity)
 			tc.validateRouteCommunityV6(t, td, tc.routeCommunity)
 		})
@@ -344,7 +346,7 @@ func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
 }
 
-func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	_, ok := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
@@ -361,9 +363,31 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName st
 	if !ok {
 		t.Fatalf("invalid import policy")
 	}
+	// Validating if OTG has learnt 3 prefixes with subnet 203.0.0.0/16 on which policy applied
+	found := 0
+	bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
+	for _, bgpPrefix := range bgpPrefixes {
+		_, ok := gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(), bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).State(), 10*time.Second, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			if !v.IsPresent() {
+				return false
+			}
+			prefix, _ := v.Val()
+			_, subnet, _ := net.ParseCIDR(parseV4)
+			if subnet.Contains(net.ParseIP(*prefix.Address)) {
+				found++
+				if found == 3 {
+					return true
+				}
+			}
+			return false
+		}).Await(t)
+		if ok {
+			t.Log("Validated policy & prefixes installed")
+		}
+	}
 }
 
-func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	_, ok := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
@@ -379,6 +403,13 @@ func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName st
 	}).Await(t)
 	if !ok {
 		t.Fatalf("invalid export policy")
+	}
+	_, oks := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if !oks {
+		t.Fatalf("Prefixes not installed yet")
 	}
 }
 
@@ -404,25 +435,28 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 		}).Await(t)
 	if ok {
 		bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
-		t.Logf("bgp prefix:%v", bgpPrefixes)
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.GetAddress() == v4Prefix {
 				t.Logf("Prefix recevied on OTG is correct, got  Address %s, want prefix %v", bgpPrefix.GetAddress(), v4Prefix)
+				for _, ec := range bgpPrefix.ExtendedCommunity {
+					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
+					t.Logf("LC: Bandwidth from OTG : %v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+				}
 				switch community {
 				case "none":
 					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("community and ext communituy are not empty it should be none")
+						t.Errorf("ERROR: community and ext communituy are not empty it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
 						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
-							t.Errorf("community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
+							t.Errorf("ERROR: community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						}
 					}
 				default:
 					if len(bgpPrefix.ExtendedCommunity) == 0 {
-						t.Errorf("ERROR extended community is empty, expected %v", community)
+						t.Errorf("ERROR: extended community is empty, expected %v", community)
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
@@ -430,15 +464,15 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]
 						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
-							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
+							t.Errorf("ERROR: AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
 						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
-							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
-							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
-							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
 
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
@@ -449,6 +483,7 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 			}
 		}
 	}
+
 }
 
 func validateRouteCommunityV6(t *testing.T, td testData, ec extCommunity) {
@@ -480,18 +515,18 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 				switch community {
 				case "none":
 					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("community and ext community are not empty it should be none")
+						t.Errorf("ERROR: community and ext community are not empty it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
 						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
-							t.Errorf("community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
+							t.Errorf("ERROR: community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						}
 					}
 				default:
 					if len(bgpPrefix.ExtendedCommunity) == 0 {
-						t.Errorf("ERROR extended community is empty, expected %v", community)
+						t.Errorf("ERROR: extended community is empty, expected %v", community)
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
@@ -499,15 +534,15 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]
 						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
-							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
+							t.Errorf("ERROR: AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
 						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
-							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
-							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
-							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
 							verifyExtCommunityIndexV6(t, td, v6Prefix)
@@ -550,35 +585,40 @@ func configureImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice) 
 	gnmi.Replace(t, dut, path.Config(), policy)
 }
 
-func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, td testData) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().
 		Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 
 	policy := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, path.State())
 	importPolicies := policy.GetImportPolicy()
+	found := 0
 	if len(importPolicies) != 1 {
 		t.Fatalf("ImportPolicy Ipv4 = %v, want %v", importPolicies, []string{"allow-all"})
 	}
-	bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
-	locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.
-		AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
-	found := 0
-	expected := map[string]bool{
-		advertisedIPv41.address + "/" + strconv.Itoa(int(advertisedIPv41.prefix)): true,
-		advertisedIPv42.address + "/" + strconv.Itoa(int(advertisedIPv42.prefix)): true,
-		advertisedIPv43.address + "/" + strconv.Itoa(int(advertisedIPv43.prefix)): true,
-	}
-	for route, prefix := range locRib.Route {
-		if expected[prefix.GetPrefix()] {
-			found++
-			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+	_, ok := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if ok {
+		bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
+		locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.
+			AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
+		expected := map[string]bool{
+			advertisedIPv41.address + "/" + strconv.Itoa(int(advertisedIPv41.prefix)): true,
+			advertisedIPv42.address + "/" + strconv.Itoa(int(advertisedIPv42.prefix)): true,
+			advertisedIPv43.address + "/" + strconv.Itoa(int(advertisedIPv43.prefix)): true,
+		}
+		for route, prefix := range locRib.Route {
+			if expected[prefix.GetPrefix()] {
+				found++
+				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+			}
+		}
+		if found != len(expected) {
+			t.Fatalf("Not all V4 routes found. expected:%d got:%d", len(expected), found)
 		}
 	}
-	if found != len(expected) {
-		t.Fatalf("Not all V4 routes found. expected:%d got:%d", len(expected), found)
-	}
-
 	// Verify ipv6 policy.
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policyV6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, pathV6.State())
@@ -586,22 +626,28 @@ func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, a
 	if len(importPolicies) != 1 {
 		t.Errorf("ImportPolicy Ipv6 got= %v, want= %v", importPolicies, []string{"allow-all"})
 	}
-	bgpRIBPathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
-	locRibv6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPathV6.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
-	found = 0
-	expectedV6 := map[string]bool{
-		v61RouteAdvertise: true,
-		v62RouteAdvertise: true,
-		v63RouteAdvertise: true,
-	}
-	for route, prefix := range locRibv6.Route {
-		if expectedV6[prefix.GetPrefix()] {
-			found++
-			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+	_, oks := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP6.peer").UnicastIpv6PrefixAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if oks {
+		bgpRIBPathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
+		locRibv6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPathV6.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
+		found = 0
+		expectedV6 := map[string]bool{
+			v61RouteAdvertise: true,
+			v62RouteAdvertise: true,
+			v63RouteAdvertise: true,
 		}
-	}
-	if found != len(expectedV6) {
-		t.Fatalf("Not all v6 Routes found expected: %d got: %d", len(expectedV6), found)
+		for route, prefix := range locRibv6.Route {
+			if expectedV6[prefix.GetPrefix()] {
+				found++
+				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+			}
+		}
+		if found != len(expectedV6) {
+			t.Fatalf("Not all v6 Routes found expected: %d got: %d", len(expectedV6), found)
+		}
 	}
 }
 
@@ -883,6 +929,7 @@ func createFlowV6(t *testing.T, td testData, fc flowConfig) {
 	td.ate.OTG().PushConfig(t, td.top)
 	td.ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, td.ate.OTG(), td.top, "IPv6")
+	time.Sleep(3 * time.Second)
 }
 
 func checkTraffic(t *testing.T, td testData, flowName string) {
@@ -917,11 +964,20 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
+	// Note: we have to define the peer group even if we aren't setting any policy because it's
+	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+	pg4 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
+	pg4.SetPeerGroupName(cfgplugins.BGPPeerGroup1)
+	pg6 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
+	pg6.SetPeerGroupName(cfgplugins.BGPPeerGroup1)
+
 	nV41 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
 	nV41.SetPeerAs(ateAS)
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(dutAS)
+	nV41.SetPeerGroup(cfgplugins.BGPPeerGroup1)
+	nV42.SetPeerGroup(cfgplugins.BGPPeerGroup1)
 	if !deviations.SkipBgpSendCommunityType(td.dut) {
 		nV42.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 	}
@@ -931,6 +987,8 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(dutAS)
+	nV61.SetPeerGroup(cfgplugins.BGPPeerGroup1)
+	nV62.SetPeerGroup(cfgplugins.BGPPeerGroup1)
 	if !deviations.SkipBgpSendCommunityType(td.dut) {
 		nV62.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 	}
@@ -1063,7 +1121,7 @@ func baseSetupConfigAndVerification(t *testing.T, td testData) {
 	td.verifyDUTBGPEstablished(t)
 	td.verifyOTGBGPEstablished(t)
 	configureImportRoutingPolicyAllowAll(t, td.dut)
-	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate)
+	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate, td)
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev1", dstIP: v41TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev2", dstIP: v42TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev3", dstIP: v43TrafficStart})
