@@ -18,11 +18,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
 
+	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/tools/internal/ocpaths"
 	"github.com/openconfig/featureprofiles/tools/internal/ocrpcs"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -58,27 +56,6 @@ func init() {
 	config = New(nil)
 }
 
-func clonePublicRepo(downloadPath, branch string) (string, error) {
-	if downloadPath == "" {
-		return "", fmt.Errorf("must provide download path")
-	}
-	publicPath := filepath.Join(config.DownloadPath, "public")
-
-	cmd := exec.Command("git", "clone", "-b", branch, "--single-branch", "--depth", "1", "https://github.com/openconfig/public.git", publicPath)
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", err
-	}
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("failed to clone public repo: %v, command failed to start: %q", err, cmd.String())
-	}
-	stderrOutput, _ := io.ReadAll(stderr)
-	if err := cmd.Wait(); err != nil {
-		return "", fmt.Errorf("failed to clone public repo: %v, command failed during execution: %q\n%s", err, cmd.String(), stderrOutput)
-	}
-	return publicPath, nil
-}
-
 func unmarshalFile(filePath string) (*npb.NOSImageProfile, error) {
 	if filePath == "" {
 		return nil, fmt.Errorf("must provide non-empty file path to read from")
@@ -92,7 +69,6 @@ func unmarshalFile(filePath string) (*npb.NOSImageProfile, error) {
 		return nil, err
 	}
 	return profile, nil
-
 }
 
 func main() {
@@ -104,10 +80,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	if profile.GetSoftwareVersion() == "" {
+		log.Exitln("Software version must be specified")
+	}
+
+	if profile.GetHardwareName() == "" {
+		log.Exitln("HW name must be specified")
+	}
+
 	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {
 		fmt.Println(fmt.Errorf("cannot create download path directory: %v", config.DownloadPath))
 	}
-	publicPath, err := clonePublicRepo(config.DownloadPath, "v"+profile.Ocpaths.GetVersion())
+
+	ocReleaseTag := ""
+	if profile.Ocpaths.GetVersion() != "" {
+		ocReleaseTag = "v" + profile.Ocpaths.GetVersion()
+	}
+	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, ocReleaseTag)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

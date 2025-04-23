@@ -102,3 +102,14 @@ to Automatic Test Equipment (ATE).
 *   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-lower
 *   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-upper
 *   /components/component/transceiver/thresholds/threshold/state/severity
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

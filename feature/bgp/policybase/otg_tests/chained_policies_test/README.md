@@ -98,8 +98,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v4``` configure a statement with the name ```asp-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS
 *   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set AS-PATH prepend to the ASN of the DUT
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
@@ -112,8 +110,9 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to set MED
-*   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set MED to ```1000```
+*   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set MED to ```1000``` and set MED action to ```SET```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 
 ##### Configure chained bgp export policies for the DUT BGP neighbor on ATE Port-1
 *   Set default export policy to ```REJECT_ROUTE```
@@ -195,8 +194,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v6``` configure a statement with the name ```asp-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS
 *   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set AS-PATH prepend to the ASN of the DUT
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
@@ -209,8 +206,9 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to set MED
-*   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set MED to ```1000```
+*   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set MED to ```1000``` and set MED action to ```SET```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 
 ##### Configure chained bgp export policies for the DUT BGP neighbor on ATE Port-1
 *   Set default export policy to ```REJECT_ROUTE```
@@ -247,6 +245,8 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
@@ -260,11 +260,15 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
 
-## Protocol/RPC Parameter Coverage
 
-* gNMI
-  * Subscribe (ONCE)
-  * Set (REPLACE)
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+
+```
 
 ## Required DUT platform
 

@@ -16,6 +16,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    link_local_mask_len: true
+  }
+} # CISCOXR
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {

@@ -78,14 +78,14 @@ var (
 		IPv4Len: 30,
 	}
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "DUT Port 2",
-		IPv4:    "192.0.2.21",
-		IPv4Len: 30,
+		Desc:       "DUT Port 2",
+		IPv4Sec:    "192.0.2.21",
+		IPv4LenSec: 30,
 	}
 	dutPort3DummyIP = attrs.Attributes{
-		Desc:    "DUT Port 3",
-		IPv4:    "192.0.2.41",
-		IPv4Len: 30,
+		Desc:       "DUT Port 3",
+		IPv4Sec:    "192.0.2.41",
+		IPv4LenSec: 30,
 	}
 
 	atePort1 = attrs.Attributes{
@@ -117,10 +117,12 @@ func TestMain(m *testing.M) {
 
 func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	dummyIPCIDR1 := nh1IpAddr + "/32"
+	dummyIPCIDR2 := nh2IpAddr + "/32"
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 	s2 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(nh1IpAddr + "/32"),
+		Prefix: ygot.String(dummyIPCIDR1),
 		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
 			strconv.Itoa(nh1ID): {
 				Index: ygot.String(strconv.Itoa(nh1ID)),
@@ -131,7 +133,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 		},
 	}
 	s3 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(nh2IpAddr + "/32"),
+		Prefix: ygot.String(dummyIPCIDR2),
 		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
 			strconv.Itoa(nh2ID): {
 				Index: ygot.String(strconv.Itoa(nh2ID)),
@@ -141,9 +143,24 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		},
 	}
+	static1 := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Name:       ygot.String(deviations.StaticProtocolName(dut)),
+		Static: map[string]*oc.NetworkInstance_Protocol_Static{
+			dummyIPCIDR1: s2,
+		},
+	}
+	static2 := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Name:       ygot.String(deviations.StaticProtocolName(dut)),
+		Static: map[string]*oc.NetworkInstance_Protocol_Static{
+			dummyIPCIDR2: s3,
+		},
+	}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Replace(t, dut, sp.Static(nh1IpAddr+"/32").Config(), s2)
-	gnmi.Replace(t, dut, sp.Static(nh2IpAddr+"/32").Config(), s3)
+	gnmi.Update(t, dut, sp.Config(), static1)
+	gnmi.Update(t, dut, sp.Config(), static2)
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2, nh1IpAddr, staticDstMAC))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3, nh2IpAddr, staticDstMAC))
 }
@@ -349,7 +366,7 @@ func TestIPv4Entry(t *testing.T) {
 					if tc.gribiMACOverrideWithStaticARPStaticRoute {
 						staticARPWithMagicUniversalIP(t, dut)
 					} else if tc.gribiMACOverrideWithStaticARP {
-						//Creating a Static ARP entry for staticDstMAC
+						// Creating a Static ARP entry for staticDstMAC
 						d := gnmi.OC()
 						p2 := dut.Port(t, "port2")
 						p3 := dut.Port(t, "port3")
@@ -359,7 +376,7 @@ func TestIPv4Entry(t *testing.T) {
 						gnmi.Update(t, dut, d.Interface(p3.Name()).Config(), configStaticArp(p3, nh2IpAddr, staticDstMAC))
 					}
 					if tc.gribiMACOverrideWithStaticARP || tc.gribiMACOverrideWithStaticARPStaticRoute {
-						//Programming a gRIBI flow with above IP/mac-address as the next-hop entry
+						// Programming a gRIBI flow with above IP/mac-address as the next-hop entry
 						tc.entries = []fluent.GRIBIEntry{
 							fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 								WithIndex(nh1ID).WithInterfaceRef(dut.Port(t, "port2").Name()).WithIPAddress(nh1IpAddr).WithMacAddress(staticDstMAC),

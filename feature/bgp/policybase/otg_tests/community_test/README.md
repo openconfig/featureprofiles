@@ -2,7 +2,7 @@
 
 ## Summary
 
-BGP policy configuration for AS Paths and Community Sets
+BGP policy configuration for Community Sets
 
 ## Subtests
 
@@ -38,21 +38,42 @@ BGP policy configuration for AS Paths and Community Sets
       * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_all_3_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ALL
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_no_3_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'no_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = INVERT
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'no_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_any_my_regex_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ANY
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Send traffic from ATE port-2 to all prefix-sets.
     * Verify traffic is received on ATE port 1 for accepted prefixes.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
+
+* RT-7.2.3 - Update community set and validate
+  1. Configure a community-set named `update_comm_set` with "100:1" as member.
+
+  2. Create a `policy-definition` named 'community-match' with the following `statements`
+    * statement[name='accept_update_comm_set']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'update_comm_set'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+  3. Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "100:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "100:1".
+
+  4. Update the community-set named `update_comm_set` with "200:2" as member.
+
+  5. Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "200:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "200:1". 
+
+
 
 ### Expected community matches
 
@@ -62,8 +83,6 @@ BGP policy configuration for AS Paths and Community Sets
 | prefix-set-2 | accept         | reject      | reject     | accept             |
 | prefix-set-3 | reject         | reject      | accept     | accept             |
 | prefix-set-4 | reject         | reject      | accept     | reject             |
-
-* TODO: add coverage for link-bandwidth community in separate test.
 
 ## Config Parameter Coverage
 
@@ -77,7 +96,9 @@ BGP policy configuration for AS Paths and Community Sets
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/
 import-policy
 
@@ -106,3 +127,53 @@ import-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths
+  ### Policy definition
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  ### Policy for community-set match
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+
+  ## State paths
+  ### Policy definition state
+
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
+
+  ### Policy for community-set match state
+
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set:
+
+  ### Paths to verify policy state
+
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+
+  ### Paths to verify prefixes sent and received
+
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

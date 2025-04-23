@@ -1,3 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/feature.proto
+# proto-message: FeatureProfile
+
 id {
   name: "isis_link_state_database"
   version: 1

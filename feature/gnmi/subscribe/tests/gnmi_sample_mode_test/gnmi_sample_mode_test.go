@@ -35,24 +35,14 @@ func TestGNMISampleMode(t *testing.T) {
 	p1Stream := samplestream.New(t, dut, gnmi.OC().Interface(p1.Name()).Description().State(), 10*time.Second)
 	defer p1Stream.Close()
 
-	desc := p1Stream.Next(t)
-	if desc == nil {
-		t.Errorf("Interface %q telemetry not received before config", p1.Name())
-	} else {
-		v, ok := desc.Val()
-		if !ok {
-			t.Errorf("Interface %q telemetry empty before config", p1.Name())
-		}
-		t.Logf("Description before config: %s", v)
-	}
-
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 
-	desc = p1Stream.Next(t)
+	desc := p1Stream.Next()
 	if desc == nil {
 		t.Errorf("Interface %q telemetry not received after config", p1.Name())
 	} else {
 		v, ok := desc.Val()
+		t.Logf("Description from stream : %s", v)
 		if !ok {
 			t.Errorf("Interface %q telemetry empty after config", p1.Name())
 		}
@@ -64,11 +54,12 @@ func TestGNMISampleMode(t *testing.T) {
 
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Description().Config(), "DUT Port 1 - Updated")
 
-	desc = p1Stream.Next(t)
+	desc = p1Stream.Next()
 	if desc == nil {
 		t.Errorf("Interface %q telemetry not received after description update", p1.Name())
 	} else {
 		v, ok := desc.Val()
+		t.Logf("Description from stream : %s", v)
 		if !ok {
 			t.Errorf("Interface %q telemetry empty after description update", p1.Name())
 		}
@@ -108,7 +99,7 @@ func TestNoInvalidValuesOnInterfaceFlap(t *testing.T) {
 	time.Sleep(10 * time.Second) // wait 10 seconds for at-least 1 stream value.
 
 	// Now validate description stream didn't return any invalid values.
-	vals := p1Stream.All(t)
+	vals := p1Stream.All()
 
 	for idx, v := range vals {
 		if v, ok := v.Val(); !ok {
@@ -133,7 +124,7 @@ func TestISISProtocol(t *testing.T) {
 
 	// Starting ISIS protocol takes some time to converge. So we may not receive ISIS data
 	// in the first sample after configuration.
-	samples := niStream.Nexts(t, 5)
+	samples := niStream.Nexts(5)
 
 	updated := false
 	for idx, sample := range samples {

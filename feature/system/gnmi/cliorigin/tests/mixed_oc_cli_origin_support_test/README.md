@@ -54,12 +54,21 @@ update:  {
 
 TODO: Support other vendor CLIs and place examples here.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   origin: "cli"
-*   /qos/forwarding-groups/forwarding-group/config/output-queue
-*   /qos/queues/queue/config/name
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
+  ## Config paths
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+  /qos/queues/queue/config/name:
 
-*   None
+  ## State paths: None
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      origin: "cli"
+```

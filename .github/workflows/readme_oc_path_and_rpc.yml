@@ -1,0 +1,99 @@
+name: README OpenConfig Path and RPC Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: "49 0 * * *"
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
+      with:
+        fetch-depth: 0
+    - name: Set up Go
+      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe
+      with:
+        go-version: stable
+        cache: false
+
+    - name: Validate Validation Script
+      run: |
+        cd tools/validate_readme_spec
+        ./validate_readme_spec_test.sh
+
+    - name: Validate Template README
+      run: |
+        go install ./tools/validate_readme_spec
+        validate_readme_spec --alsologtostderr doc/test-requirements-template.md
+
+    - name: Validate Test READMEs
+      run: |
+        go install ./tools/validate_readme_spec
+
+        exemption_flags=(
+          --non-test-readme feature/security/gnsi/certz/test_data/README.md
+          --non-test-readme feature/p4rt/README.md
+          --non-test-readme feature/security/gnsi/acctz/README.md
+        )
+
+        # TODO: Just use this one line after all READMEs have converted to the new format.
+        # validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+
+        function validate() {
+          validate_readme_spec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
+        }
+
+        ##### BEGIN: Validate Changed Test READMEs # TODO: Remove this section after all are converted.
+
+        # Adapted from rebase_check.yml
+        # Notes:
+        #   * Do not use ${GITHUB_REF}, github.sha, or HEAD because they are
+        #     the merged commit of the pull request and main.  There are no
+        #     outdated files in the merged commit.
+        #   * refs/pull/${pr_number}/head is not available, so use
+        #     github.event.pull_request.head.sha which is the "head sha" of
+        #     the event that triggered the pull request.
+        #   * Do not use github.event.pull_request.base.sha because it is
+        #     the base when the pull request was created, not after a rebase.
+        #     Ask git merge-base to tell us a suitable base.
+        readonly HEAD="${{ github.event.pull_request.head.sha }}"
+        if [ ! -z "${HEAD}" ]; then
+          readonly BASE="$(git merge-base origin/main "${HEAD}")"
+
+          affected_readmes=()
+          for f in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | xargs -r dirname | sort -u | sed 's/$/\/README.md/'); do
+            if [ -f "$f" ]; then
+              affected_readmes+=("$f")
+            fi
+          done
+
+          echo "########## READMEs in changed directories to be validated (including ones to be exempted):"
+          printf '%s\n' "${affected_readmes[@]}"
+
+          echo "########## Validating READMEs in changed directories:"
+          for f in "${affected_readmes[@]}"; do
+            validate_readme_spec --alsologtostderr "${exemption_flags[@]}" "${f}"
+          done
+        fi
+
+        ##### END: Validate Changed Test READMEs #####
+
+        echo "########## Validating already-converted READMEs:"
+        validate feature/aft
+        validate feature/bgp/policybase/otg_tests/import_export_multi_test
+        validate feature/gnmi
+        validate feature/gnoi
+        validate feature/isis
+        validate feature/mtu
+        validate feature/networkinstance
+        validate feature/security
+        validate feature/staticroute
+        validate feature/system/management
+        validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
+        validate feature/system/ntp/tests/system_ntp_test
+        validate feature/qos/otg_tests/bursty_traffic_test
