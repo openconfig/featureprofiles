@@ -76,12 +76,6 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
-	loopbackIntf = map[ondatra.Vendor]int{
-		ondatra.JUNIPER: 0,
-		ondatra.ARISTA:  1,
-		ondatra.CISCO:   1,
-		ondatra.NOKIA:   1,
-	}
 	mgmtVRF = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "mvrf1",
 		ondatra.ARISTA:  "mvrf1",
