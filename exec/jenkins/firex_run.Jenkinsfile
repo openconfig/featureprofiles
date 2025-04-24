@@ -423,9 +423,15 @@ pipeline {
                                     firex_cmd_parts.add("--comps ${params['XR Components']}")
                                 }
                             }
-                            firex_cmd_parts.add("--otg_keng_controller ${params['otg_keng_controller']}")
-                            firex_cmd_parts.add("--otg_keng_layer23_hw_server ${params['otg_keng_layer23_hw_server']}")
-                            firex_cmd_parts.add("--otg_gnmi_server ${params['otg_gnmi_server']}")
+                            if(params['otg_keng_controller']){
+                                firex_cmd_parts.add("--otg_keng_controller ${params['otg_keng_controller']}")
+                            }
+                            if(params['otg_keng_layer23_hw_server']){
+                                firex_cmd_parts.add("--otg_keng_layer23_hw_server ${params['otg_keng_layer23_hw_server']}")
+                            }
+                            if(params['otg_gnmi_server']){
+                                firex_cmd_parts.add("--otg_gnmi_server ${params['otg_gnmi_server']}")
+                            }
                             if(params['otg_controller_command']){
                                 firex_cmd_parts.add("--otg_controller_command ${params['otg_controller_command']}")
                             }
