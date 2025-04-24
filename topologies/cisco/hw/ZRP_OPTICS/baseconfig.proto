@@ -550,9 +550,6 @@ replace: {
 		"ssh server netconf port 6444\n"
 		"ssh server netconf vrf default\n"
 		"license smart transport off\n"
-		" description not connected interface\n"
-		" shutdown\n"
-		"!\n"
 		"end\n"
 }
 }
