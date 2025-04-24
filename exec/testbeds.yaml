@@ -417,3 +417,15 @@ testbeds:
       gnmi_port: 50062
       rest_port: 30062
 
+  # Testbeds belonging to other teams
+
+  ZRP_OPTICS_ACACIA: &ZRP_OPTICS_DEFAULTS
+    hw: ZRP_OPTICS
+    owner: liawalsh
+    testbed: topologies/cisco/hw/ZRP_OPTICS/testbed
+    binding: topologies/cisco/hw/ZRP_OPTICS/binding_acacia
+    baseconf: topologies/cisco/hw/ZRP_OPTICS/baseconfig.proto
+
+  ZRP_OPTICS_CIENA:
+    <<: *ZRP_OPTICS_DEFAULTS
+    binding: topologies/cisco/hw/ZRP_OPTICS/binding_ciena
