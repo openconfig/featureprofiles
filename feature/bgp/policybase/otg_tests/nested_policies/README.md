@@ -120,9 +120,10 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-##### Configure BGP actions to set MED
+##### Configure BGP actions to set MED and set MED action as SET
 *   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set MED to ```1000```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 
 ##### Configure a nested policy 
 *   For routing-policy ```asp-policy-v4``` attach the policy ```med-policy-v4```
@@ -231,9 +232,10 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-##### Configure BGP actions to set MED
+##### Configure BGP actions to set MED and set MED action as SET
 *   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set MED to ```1000```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 
 ##### Configure a nested policy 
 *   For routing-policy ```asp-policy-v6``` call the policy ```med-policy-v6```
