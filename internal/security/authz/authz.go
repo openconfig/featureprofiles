@@ -87,13 +87,7 @@ func getPolicyFromOcPath(t *testing.T, dut *ondatra.DUTDevice) (GrpcAuthzPolicy,
 
 	// Perform a gNMI Get or Subscribe to retrieve the policy data
 	createdOn := gnmi.Get(t, dut, gnmi.OC().System().Aaa().Authorization().GrpcAuthzPolicyCreatedOn().State())
-	// if err != nil {
-	// 	return policy, fmt.Errorf("failed to retrieve GrpcAuthzPolicyCreatedOn: %v", err)
-	// }
 	version := gnmi.Get(t, dut, gnmi.OC().System().Aaa().Authorization().GrpcAuthzPolicyVersion().State())
-	// if err != nil {
-	// 	return policy, fmt.Errorf("failed to retrieve GrpcAuthzPolicyCreatedOn: %v", err)
-	// }
 
 	policy.GrpcAuthzPolicyCreatedOn = createdOn
 	policy.GrpcAuthzPolicyVersion = version
@@ -146,7 +140,7 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
 	policyExpected := GrpcAuthzPolicy{
-		GrpcAuthzPolicyCreatedOn: createdOn,
+		GrpcAuthzPolicyCreatedOn: createdOn * 1e9, // convert to nanoseconds
 		GrpcAuthzPolicyVersion:   version,
 	}
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
