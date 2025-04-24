@@ -15,9 +15,9 @@ MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.p
 MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
 MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
 
-DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller:'
-DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server:'
-DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server:'
+DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller'
+DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server'
+DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server'
 
 def _check_otg_version(otgContainer,version):
     if not re.match(r'^\d+\.\d+\.\d+(-\d+)?$', version):
@@ -63,7 +63,7 @@ def _otg_docker_compose_template(control_port, gnmi_port, rest_port, controller,
 version: "2.1"
 services:
   controller:
-    image: {DOCKER_KENG_CONTROLLER+controller}
+    image: {DOCKER_KENG_CONTROLLER}:{controller}
     restart: always
     ports:
       - "{control_port}:40051"
@@ -86,7 +86,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: {DOCKER_KENG_LAYER23+layer23}
+    image: {DOCKER_KENG_LAYER23}:{layer23}
     restart: always
     command:
       - "dotnet"
@@ -101,7 +101,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: {DOCKER_OTG_GNMI+gnmi}
+    image: {DOCKER_OTG_GNMI}:{gnmi}
     restart: always
     ports:
       - "{gnmi_port}:50051"

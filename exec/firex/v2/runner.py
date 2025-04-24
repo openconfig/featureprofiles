@@ -45,9 +45,9 @@ MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.p
 MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
 MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
 
-DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller:'
-DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server:'
-DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server:'
+DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller'
+DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server'
+DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server'
 
 whitelist_arguments([
     'test_html_report',
@@ -64,10 +64,10 @@ whitelist_arguments([
     'collect_dut_info',
     'cflow_over_ssh',
     'testbed_checks'
-    'keng_controller'
-    'keng_layer23_hw_server'
+    'otg_keng_controller'
+    'otg_keng_layer23_hw_server'
     'otg_gnmi_server'
-    'controller_command'
+    'otg_controller_command'
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -135,8 +135,8 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,version):
-   controller_version,layer23_version,gnmi_version = keng_controller,keng_layer23_hw_server,otg_gnmi_server
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,version):
+   controller_version,layer23_version,gnmi_version = otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server
    if version["controller"] != '1.3.0-2':
        controller_version = version["controller"]
    if version["hw"] !=  '1.3.0-4':
@@ -144,11 +144,11 @@ def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_contro
    if version["gnmi"] !=  '1.13.15':
        gnmi_version = version["gnmi"]
     # check for controller_commands
-   if controller_command:
+   if otg_controller_command:
         # Remove the enclosing brackets and split the command into a list
-        controller_command = controller_command[0].strip('[]').split(", ")
+        otg_controller_command = otg_controller_command[0].strip('[]').split(", ")
         controller_command_formatted = ""
-        for i in controller_command:
+        for i in otg_controller_command:
             controller_command_formatted = controller_command_formatted + f"\n      - \"{i}\""
    else:
         controller_command_formatted = ""
@@ -156,7 +156,7 @@ def _otg_docker_compose_template(control_port, gnmi_port, rest_port, keng_contro
 version: "2.1"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:{controller_version}
+    image: {DOCKER_KENG_CONTROLLER}:{controller_version}
     restart: always
     ports:
       - "{control_port}:40051"
@@ -179,7 +179,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:{layer23_version}
+    image: {DOCKER_KENG_LAYER23}:{layer23_version}
     restart: always
     command:
       - "dotnet"
@@ -194,7 +194,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:{gnmi_version}
+    image: {DOCKER_OTG_GNMI}:{gnmi_version}
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -215,13 +215,13 @@ services:
    logger.info(f"dockerFile: {dockerFile}")
    return dockerFile
 
-def _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,version):
+def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,version):
     logger.info(f"_write_otg_docker_compose_file")
     if not 'otg' in reserved_testbed:
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        res = fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,version))
+        res = fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,version))
     logger.info(f"docker-compose file written: {res}")
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
@@ -566,10 +566,6 @@ def _aggregate_ondatra_log_files(log_files, out_file):
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
 def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
-                        keng_controller,
-                        keng_layer23_hw_server,
-                        otg_gnmi_server,
-                        controller_command='',
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
@@ -582,8 +578,12 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         sim_use_mtls=False,
                         testbed_checks=False,
                         smus=None,
+                        otg_keng_controller='1.3.0-2',
+                        otg_keng_layer23_hw_server='1.3.0-4',
+                        otg_gnmi_server='1.13.15',
+                        otg_controller_command='',
                         ):
-    print(f'Bringing up testbed..., with keng_controller {keng_controller}, keng_layer23_hw_server {keng_layer23_hw_server}, otg_gnmi_server {otg_gnmi_server}, controller_command {controller_command}')
+    print(f'Bringing up testbed..., with otg_keng_controller {otg_keng_controller}, otg_keng_layer23_hw_server {otg_keng_layer23_hw_server}, otg_gnmi_server {otg_gnmi_server}, otg_controller_command {otg_controller_command}')
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
@@ -637,7 +637,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
 
         if is_otg:
             try:
-                c |= BringupIxiaController.s(keng_controller=keng_controller, keng_layer23_hw_server=keng_layer23_hw_server, otg_gnmi_server=otg_gnmi_server,controller_command=controller_command)
+                c |= BringupIxiaController.s()
             except Exception as e:
                 _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
                 raise e
@@ -690,9 +690,6 @@ def b4_chain_provider(ws, testsuite_id,
                         reserved_testbed,
                         test_name,
                         test_path,
-                        keng_controller,
-                        keng_layer23_hw_server,
-                        otg_gnmi_server,
                         test_repo_url=PUBLIC_FP_REPO_URL,
                         test_branch='main',
                         test_revision=None,
@@ -715,6 +712,9 @@ def b4_chain_provider(ws, testsuite_id,
                         sanitizer=None,
                         cflow=None,
                         cflow_over_ssh=False,
+                        otg_keng_controller='1.3.0-2',
+                        otg_keng_layer23_hw_server='1.3.0-4',
+                        otg_gnmi_server='1.13.15',
                         **kwargs):
     
     if internal_test:
@@ -736,8 +736,8 @@ def b4_chain_provider(ws, testsuite_id,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
                     test_enable_grpc_logs=test_enable_grpc_logs,
-                    keng_controller=keng_controller,
-                    keng_layer23_hw_server=keng_layer23_hw_server,
+                    otg_keng_controller=otg_keng_controller,
+                    otg_keng_layer23_hw_server=otg_keng_layer23_hw_server,
                     otg_gnmi_server=otg_gnmi_server,
                     collect_debug_files=collect_debug_files,
                     override_test_args_from_env=override_test_args_from_env,
@@ -1652,7 +1652,7 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,otg_version={
+def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,otg_version={
     "controller": "1.3.0-2",
     "hw": "1.3.0-4",
     "gnmi": "1.13.15",
@@ -1662,8 +1662,8 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, keng_
     pname = reserved_testbed["id"].lower()
     remote_exec(f'ls -la {test_log_directory_path}')
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
-    logger.print(f'the controller images are keng_controller: {keng_controller}, keng_layer23: {keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}, docker_file: {docker_file}')
-    _write_otg_docker_compose_file(docker_file, reserved_testbed, keng_controller,keng_layer23_hw_server,otg_gnmi_server,controller_command,otg_version)
+    logger.print(f'the controller images are otg_keng_controller: {otg_keng_controller}, keng_layer23: {otg_keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}, docker_file: {docker_file}')
+    _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,otg_version)
 
     conn_args = {}
     if 'username' in reserved_testbed['otg']:
