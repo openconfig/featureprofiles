@@ -1342,6 +1342,7 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
+
 // NextHopGroupConfigUnsupported returns true if devices do not support next-hop-group config
 func NextHopGroupConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNextHopGroupConfigUnsupported()
@@ -1396,14 +1397,17 @@ func StaticMplsUnsupported(dut *ondatra.DUTDevice) bool {
 func QosClassificationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosClassificationUnsupported()
 }
+
 // PolicyForwardingUnsupported returns true if policy forwarding is unsupported
 func PolicyForwardingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingUnsupported()
 }
+
 // InterfacePolicyForwardingUnsupported returns true if interface policy forwarding is unsupported
 func InterfacePolicyForwardingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
+
 // QosShaperStateUnsupported returns true if qos shaper state is unsupported
 func QosShaperStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosShaperStateUnsupported()
@@ -1423,4 +1427,3 @@ func LabelRangeUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticArpUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticArpUnsupported()
 }
-
