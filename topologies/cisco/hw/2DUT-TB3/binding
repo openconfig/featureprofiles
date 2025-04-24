@@ -14,6 +14,7 @@ duts {
     skip_verify: false
     username: "cafyauto"
     password: "cisco123"
+    mutual_tls: true
     trust_bundle_file: "$TRUST_BUNDLE_FILE"
     cert_file: "$CERT_FILE"
     key_file:  "$KEY_FILE"
