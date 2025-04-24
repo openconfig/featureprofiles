@@ -434,8 +434,9 @@ def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
-            # Do we ever need multiple testbeds?
-            return output['testbeds'][0]
+            for tb in output['testbeds']:
+                if tb['id'] == testbed_id:
+                    return tb
         return None
     except:
         return None
