@@ -15,18 +15,36 @@
 package system_ntp_test
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
+var (
+	dutlo0Attrs = attrs.Attributes{
+		Desc:    "Loopback ip",
+		IPv4:    "203.0.113.1",
+		IPv4Len: 32,
+	}
+	loopbackIntf = map[ondatra.Vendor]int{
+		ondatra.JUNIPER: 0,
+		ondatra.ARISTA:  1,
+		ondatra.CISCO:   1,
+		ondatra.NOKIA:   1,
+	}
+)
 
 // TestNtpServerConfigurability validates that NTP servers can be configured on the DUT.
 func TestNtpServerConfigurability(t *testing.T) {
@@ -65,10 +83,11 @@ func TestNtpServerConfigurability(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
 	for _, testCase := range testCases {
 		if testCase.vrf != "" && !deviations.NtpNonDefaultVrfUnsupported(dut) {
 			createVRF(t, dut, testCase.vrf)
+			addLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName)
 		}
 	}
 
@@ -85,7 +104,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 			ntp.SetEnabled(true)
 			for _, address := range testCase.addresses {
 				server := ntp.GetOrCreateServer(address)
-
+				server.SetSourceAddress(dutlo0Attrs.IPv4)
 				if testCase.vrf != "" {
 					server.SetNetworkInstance(testCase.vrf)
 				}
@@ -114,4 +133,14 @@ func createVRF(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
 	ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), ni)
+}
+
+func addLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loopbackIntfName string) {
+	root := &oc.Root{}
+	i := root.GetOrCreateInterface(loopbackIntfName)
+	i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	i.Description = ygot.String(fmt.Sprintf("Port %s", loopbackIntfName))
+	si := i.GetOrCreateSubinterface(0)
+	si.Enabled = ygot.Bool(true)
+	gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), i)
 }
