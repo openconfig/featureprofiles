@@ -72,6 +72,7 @@ var (
 	otgPort3 = attrs.Attributes{Desc: "OTG port 1", Name: "port3", MAC: "00:01:12:00:00:03", IPv4: "192.0.2.10", IPv4Len: 30, IPv6: "2001:DB8:0::A", IPv6Len: 126, MTU: 2000}
 
 	tunnelDestinations = []string{}
+	dscpValues         = []uint32{0, 8, 16, 24, 32, 40, 48, 56}
 )
 
 type ipFlow interface {
@@ -198,7 +199,7 @@ func TestEncapGREIPv4(t *testing.T) {
 				if !ok || foundIpv4 == nil {
 					return
 				}
-				foundIpv4.Priority().Dscp().Phb().Increment().SetStart(0).SetStep(8).SetCount(8)
+				foundIpv4.Priority().Dscp().Phb().SetValues(dscpValues)
 			},
 			verifyOutput: func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, tc testCase) {
 				checkGreCapture(t, tc)
@@ -219,7 +220,12 @@ func TestEncapGREIPv4(t *testing.T) {
 				if !ok || foundIpv6 == nil {
 					return
 				}
-				foundIpv6.TrafficClass().Increment().SetStart(0).SetStep(32).SetCount(8)
+
+				var tcValues []uint32
+				for _, dscp := range dscpValues {
+					tcValues = append(tcValues, dscp<<2)
+				}
+				foundIpv6.TrafficClass().SetValues(tcValues)
 			},
 			verifyOutput: func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, tc testCase) {
 				checkGreCapture(t, tc)
@@ -440,6 +446,10 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureTcamProfile(t *testing.T, dut *ondatra.DUTDevice) {
+	if dut.Vendor() != ondatra.ARISTA || strings.ToLower(dut.Model()) == "ceos" {
+		t.Logf("Tcam profile not supported on %s %s", dut.Name(), dut.Model())
+		return
+	}
 	tcamProfileConfig := `
     hardware tcam
    profile tcam-test
@@ -520,9 +530,9 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 	cliClient := dut.RawAPIs().CLI(t)
 	output, err := cliClient.RunCommand(context.Background(), cliCommand)
 	if err != nil {
-		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
+		t.Errorf("Failed to execute CLI command '%s': %v", cliCommand, err)
 	}
-	t.Logf("Received from cli %s", output.Output())
+	t.Logf("Received from cli: %s", output.Output())
 	return output.Output()
 }
 
@@ -543,7 +553,7 @@ func configurePolicyForwardingFromCLI(t *testing.T, dut *ondatra.DUTDevice, poli
 	t.Logf("Push the CLI Policy config:%s", dut.Vendor())
 	gpbSetRequest := buildCliSetRequest(tpConfig)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Failed to set policy forwarding from cli: %v", err)
+		t.Errorf("Failed to set policy forwarding from cli: %v", err)
 	}
 }
 
@@ -609,7 +619,7 @@ func configureQoSClassifierFromCLI(t *testing.T, dut *ondatra.DUTDevice, classif
 	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
 	gpbSetRequest := buildCliSetRequest(qosConfig)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Failed to set qos classifier from cli: %v", err)
+		t.Errorf("Failed to set qos classifier from cli: %v", err)
 	}
 }
 
@@ -762,9 +772,14 @@ func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testC
 	policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, tc.policyRule, tc.policyRule)
 	cliOutput := runCliCommand(t, dut, policyCountersCommand)
 	cliOutput = strings.TrimSpace(cliOutput)
+	if cliOutput == "" {
+		t.Errorf("No output for CLI command '%s'", policyCountersCommand)
+		return
+	}
 	totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
 	if err != nil {
 		t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
+		return
 	}
 	previouslyMatched := ruleMatchedPackets[tc.policyRule]
 	if totalMatched != previouslyMatched+noOfPackets {
@@ -864,19 +879,23 @@ func checkGreCapture(t *testing.T, tc testCase) {
 		ipOuterLayer, ok := ipLayer.(*layers.IPv4)
 		if !ok || ipOuterLayer == nil {
 			t.Errorf("Outer IP layer not found %d", ipLayer)
+			return
 		}
 		greLayer := packet.Layer(layers.LayerTypeGRE)
 		grePacket, ok := greLayer.(*layers.GRE)
 		if !ok || grePacket == nil {
-			t.Errorf("GRE layer not found %d", greLayer)
+			t.Error("GRE layer not found")
+			return
 		}
 		if ipOuterLayer.Protocol != greProtocol {
 			t.Errorf("Packet is not encapslated properly. Encapsulated protocol is: %d", ipOuterLayer.Protocol)
+			return
 		}
 		innerPacket := gopacket.NewPacket(grePacket.Payload, grePacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(innerLayerType)
 		if ipInnerLayer == nil {
 			t.Error("Inner IP layer not found")
+			return
 		}
 		var innerPacketTOS, dscp uint8
 		switch tc.ipType {
@@ -884,6 +903,7 @@ func checkGreCapture(t *testing.T, tc testCase) {
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv4)
 			if !ok || ipInnerPacket == nil {
 				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
+				return
 			}
 			innerPacketTOS = ipInnerPacket.TOS
 			dscp = innerPacketTOS >> 2
@@ -891,6 +911,7 @@ func checkGreCapture(t *testing.T, tc testCase) {
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv6)
 			if !ok || ipInnerPacket == nil {
 				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
+				return
 			}
 			innerPacketTOS = ipInnerPacket.TrafficClass
 			dscp = innerPacketTOS
@@ -905,7 +926,7 @@ func checkGreCapture(t *testing.T, tc testCase) {
 		}
 	}
 	if packetCount < noOfPackets {
-		t.Errorf("Received %d, expecting more than %d packets", packetCount, noOfPackets)
+		t.Errorf("Received %d gre packets, expecting more than %d gre packets", packetCount, noOfPackets)
 	}
 	if tc.checkEncapLoadBalanced {
 		if len(tunnelPackets) != tunnelCount {
