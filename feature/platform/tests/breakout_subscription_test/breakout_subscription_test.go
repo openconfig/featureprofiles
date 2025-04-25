@@ -1,10 +1,10 @@
-/ Copyright 2022 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,37 +16,38 @@ package breakout_subscription_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net"
 	"sort"
 	"strconv"
-	"strings"
+	"sync"
 	"testing"
-	"text/tabwriter"
 	"time"
 
-	"google3/third_party/golang/cmp/cmp"
-	"google3/third_party/golang/cmp/cmpopts/cmpopts"
+	"github.com/google/go-cmp/cmp"
+	"google3/third_party/golang/grpc/codes/codes"
+	"google3/third_party/golang/grpc/status/status"
 	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
-
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	otgtelemetry "google3/third_party/openconfig/ondatra/gnmi/otg/otg"
-	"google3/third_party/openconfig/ondatra/netutil/netutil"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers
+	gpb "github.com/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	spb "github.com/openconfig/gnoi/system/system_go_proto"
+	tpb "github.com/openconfig/gnoi/types/types_go_proto"
+	"github/openconfig/ondatra/gnmi"
+	"github/openconfig/ondatra/gnmi/oc"
+	"github/openconfig/ondatra/netutil"
+	"github/openconfig/ondatra"
+	"github/openconfig/testt"
+	"github/openconfig/ygnmi/ygnmi"
 )
-
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
-}
 
 // Settings for configuring the aggregate testbed with the test
 // topology.  IxNetwork flow requires both source and destination
@@ -67,6 +68,28 @@ func TestMain(m *testing.M) {
 // for point to point links, but we use /126 so the numbering is
 // consistent with IPv4.
 //
+
+const (
+	syncResponseWaitTimeOut = 300 * time.Second
+)
+
+var (
+	telemetryPaths = []ygnmi.PathStruct{
+		gnmi.OC().InterfaceAny().AdminStatus().State().PathStruct(),
+		gnmi.OC().InterfaceAny().OperStatus().State().PathStruct(),
+		gnmi.OC().InterfaceAny().Id().State().PathStruct(),
+		gnmi.OC().InterfaceAny().HardwarePort().State().PathStruct(),
+		gnmi.OC().InterfaceAny().Ethernet().MacAddress().State().PathStruct(),
+		gnmi.OC().InterfaceAny().Ethernet().PortSpeed().State().PathStruct(),
+		gnmi.OC().InterfaceAny().ForwardingViable().State().PathStruct(),
+		gnmi.OC().Lacp().InterfaceAny().MemberAny().Interface().State().PathStruct(),
+		gnmi.OC().ComponentAny().IntegratedCircuit().NodeId().State().PathStruct(),
+		gnmi.OC().ComponentAny().Parent().State().PathStruct(),
+		gnmi.OC().ComponentAny().OperStatus().State().PathStruct(),
+		gnmi.OC().ComponentAny().Name().State().PathStruct(),
+	}
+)
+
 const (
 	plen4          = 30
 	plen6          = 126
@@ -109,6 +132,7 @@ var (
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
+	maxCompWaitTime uint64 = 600
 )
 
 const (
@@ -127,6 +151,49 @@ type testCase struct {
 	aggID    string
 	l3header string
 }
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
+// createSubscriptionList creates a subscription list for the given telemetry OC paths
+func createSubscriptionList(t *testing.T, telemetryData []ygnmi.PathStruct) *gpb.SubscriptionList {
+	subscriptions := make([]*gpb.Subscription, 0)
+	for _, path := range telemetryData {
+		gnmiPath, _, err := ygnmi.ResolvePath(path)
+		if err != nil {
+			t.Errorf("[Error]:Error in resolving gnmi path =%v", path)
+		}
+		gnmiRequest := &gpb.Subscription{
+			Path: gnmiPath,
+			Mode: gpb.SubscriptionMode_ON_CHANGE,
+		}
+		subscriptions = append(subscriptions, gnmiRequest)
+	}
+	return &gpb.SubscriptionList{
+		Subscription: subscriptions,
+		Mode:         gpb.SubscriptionList_STREAM,
+	}
+}
+
+// incrementMAC uses a mac string and increments it by the given i
+func incrementMAC(mac string, i int) (string, error) {
+	macAddr, err := net.ParseMAC(mac)
+	if err != nil {
+		return "", err
+	}
+	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
+	convMac = convMac + uint64(i)
+	buf := new(bytes.Buffer)
+	err = binary.Write(buf, binary.BigEndian, convMac)
+	if err != nil {
+		return "", err
+	}
+	newMac := net.HardwareAddr(buf.Bytes()[2:8])
+	return newMac.String(), nil
+}
+
+// configureATE configures the ATE with the testbed topology.
 func (tc *testCase) configureATE(t *testing.T) {
 	if len(tc.atePorts) < 2 {
 		t.Fatalf("Testbed requires at least 2 ports, got: %v", tc.atePorts)
@@ -156,7 +223,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("01:01:01:01:01:01")
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
-	p100gbasefr := []string{}
+	var p100gbasefr []string
 	for _, p := range tc.atePorts {
 		if p.PMD() == ondatra.PMD100GBASEFR {
 			p100gbasefr = append(p100gbasefr, p.ID())
@@ -180,6 +247,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.ate.OTG().StartProtocols(t)
 }
 
+// clearAggregateMembers clears the aggregate members of the DUT.
 func (tc *testCase) clearAggregateMembers(t *testing.T) {
 	for n, port := range tc.dutPorts {
 		if n < 1 {
@@ -196,11 +264,9 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	if tc.lagType == lagTypeLACP {
 		d.GetOrCreateLacp().GetOrCreateInterface(tc.aggID)
 	}
-
 	agg := d.GetOrCreateInterface(tc.aggID)
 	agg.GetOrCreateAggregation().LagType = tc.lagType
 	agg.Type = ieee8023adLag
-
 	for n, port := range tc.dutPorts {
 		if n < 1 {
 			// We designate port 0 as the source link, not part of LAG.
@@ -214,18 +280,19 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 			i.Enabled = ygot.Bool(true)
 		}
 	}
-
 	p := gnmi.OC()
 	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", tc.dut), p.Config(), d)
 	gnmi.Update(t, tc.dut, p.Config(), d)
 }
 
+
 func (tc *testCase) configSrcAggregateDUT(i *oc.Interface, a *attrs.Attributes) {
-	tc.configSrcDUT(i, a)
+	tc.configDstDUT(i, a)
 	i.Type = ieee8023adLag
 	g := i.GetOrCreateAggregation()
 	g.LagType = tc.lagType
 }
+
 
 func (tc *testCase) configSrcMemberDUT(i *oc.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
@@ -284,13 +351,13 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
-	tc.configSrcAggregateDUT(agg, &dutDst)
+	tc.configSrcAggregateDUT(agg, &dutSrc)
 	aggPath := d.Interface(tc.aggID)
 	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
 	gnmi.Replace(t, tc.dut, aggPath.Config(), agg)
 
-	dstp := tc.dutPorts[]
-	dsti := &oc.Interface{Name: ygot.String(srcp.Name())}
+	dstp := tc.dutPorts[2]
+	dsti := &oc.Interface{Name: ygot.String(dstp.Name())}
 	tc.configDstDUT(dsti, &dutDst)
 	dsti.Type = ethernetCsmacd
 	dstiPath := d.Interface(dstp.Name())
@@ -313,130 +380,412 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		}
 	}
 }
-func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) *gnmi.Watcher[string] {
-	t.Helper()
 
-	interfaceNamePath := gnmi.OC().Interface(p.Name()).Name().State()
-	t.Logf("TRY: subscribe ON_CHANGE to %s", interfaceNamePath)
-
-	watchName := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		interfaceNamePath,
-		time.Minute,
-		func(val *ygnmi.Value[string]) bool {
-			iname, present := val.Val()
-			return present && iname == p.Name()
-		})
-
-	return watchName
-}
-// subscribeOnChangeInterfaceID sends gnmi subscribe ON_CHANGE to various paths
-
-func subscribeOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Watcher[uint32] {
-	t.Helper()
-
-	p1 := dut.Port(t, "port1")
-
-	interfaceIDPath := gnmi.OC().Interface(p1.Name()).Id().State()
-	hardwarePortPath := gnmi.OC().Interface(p1.Name()).HardwarePort().State()
-	adminStatusPath := gnmi.OC().Interface(p1.Name()).AdminStatus().State()
-	operStatusPath := gnmi.OC().Interface(p1.Name()).OperStatus().State()
-	forwardingViablePath := gnmi.OC().Interface(p1.Name()).ForwardingViable().State()
-	ethernetMacAddressPath := gnmi.OC().Interface(p1.Name()).Ethernet().MacAddress().State()
-	ethernetPortSpeedPath := gnmi.OC().Interface(p1.Name()).Ethernet().PortSpeed().State()
-
-	watchID := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		interfaceIDPath,
-		time.Minute,
-		// Stop the gnmi.Watch() if value is invalid.
-		func(val *ygnmi.Value[uint32]) bool {
-			id, present := val.Val()
-			return !present || id != dutPort1.ID
-		})
-	watchHardwarePort := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		hardwarePortPath,
-		time.Minute,
-		// Stop the gnmi.Watch() if value is invalid.
-		func(val *ygnmi.Value[uint32]) bool {
-			id, present := val.Val()
-			return !present || id != dutPort1.ID
-		})
-	watchAdminStatus := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		adminStatusPath,
-		time.Minute,
-		// Stop the gnmi.Watch() if value is invalid.
-		func(val *ygnmi.Value[oc.E_Interface_AdminStatus]) bool {
-			status, present := val.Val()
-			return !present || status != oc.Interface_AdminStatus_UP
-		})
-	watchOperStatus := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		operStatusPath,
-		time.Minute,
-		// Stop the gnmi.Watch() if value is invalid.
-		func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
-			status, present := val.Val()
-			return !present || status != opUp
-		})
-	watchForwardingViable := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		forwardingViablePath,
-		time.Minute,
-		// Stop the gnmi.Watch() if value is invalid.
-		func(val *ygnmi.Value[bool]) bool {
-			viable, present := val.Val()
-			return !present || viable!= true
-		})
-	watchEthernetMacAddress := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		ethernetMacAddressPath,
-		time.Minute,
-		// Stop the gnmi.Watch() if value is invalid.
-		func(val *ygnmi.Value[string]) bool {
-			mac, present := val.Val()
-			return !present || mac != dutPort1.MAC
-		})
-	watchEthernetPortSpeed := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		ethernetPortSpeedPath,
-		time.Minute,
-		// Stop the gnmi.Watch() if value is invalid.
-		func(val *ygnmi.Value[oc.E_IfEthernet_ETHERNET_SPEED]) bool {
-			speed, present := val.Val()
-			return !present || speed != oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-		})
-
-	return watchID, watchHardwarePort, watchAdminStatus, watchOperStatus, watchForwardingViable, watchEthernetMacAddress, watchEthernetPortSpeed
+// sortPorts sorts the ports by the testbed port ID.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
+	return ports
 }
 
-// define different flows for traffic
+func (tc *testCase) verifyDUT(t *testing.T) {
+	// Wait for LAG negotiation and verify LAG type for the aggregate interface.
+	gnmi.Await(t, tc.dut, gnmi.OC().Interface(tc.aggID).Type().State(), time.Minute, ieee8023adLag)
+	for _, port := range tc.dutPorts {
+		path := gnmi.OC().Interface(port.Name())
+		gnmi.Await(t, tc.dut, path.OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	}
+}
+
+// LinecardReboot performs a linecard reboot.
+func LinecardReboot(t *testing.T, dut *ondatra.DUTDevice) {
+	const linecardBoottime = 10 * time.Minute
+	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	t.Logf("Found linecard list: %v", lcs)
+
+	var validCards []string
+	// don't consider the empty linecard slots.
+	if len(lcs) > *args.NumLinecards {
+		for _, lc := range lcs {
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !ok || (ok && !empty) {
+				validCards = append(validCards, lc)
+			}
+		}
+	} else {
+		validCards = lcs
+	}
+	if *args.NumLinecards >= 0 && len(validCards) != *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(validCards), *args.NumLinecards)
+	}
+
+	if got := len(validCards); got == 0 {
+		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
+	}
+
+	var removableLinecard string
+	for _, lc := range validCards {
+		t.Logf("Check if %s is removable", lc)
+		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
+			t.Logf("Detected non-removable line card: %v", lc)
+			continue
+		}
+		if got := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); got {
+			t.Logf("Found removable line card: %v", lc)
+			removableLinecard = lc
+		}
+	}
+	if removableLinecard == "" {
+		if *args.NumLinecards > 0 {
+			t.Fatalf("No removable line card found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable line card found for the testing")
+		}
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	rebootSubComponentRequest := &spb.RebootRequest{
+		Method: spb.RebootMethod_COLD,
+		Subcomponents: []*tpb.Path{
+			components.GetSubcomponentPath(removableLinecard, useNameOnly),
+		},
+	}
+	intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
+	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
+
+	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+	t.Logf("Wait for 10s to allow the subcomponent's reboot process to start")
+	time.Sleep(10 * time.Second)
+
+	req := &spb.RebootStatusRequest{
+		Subcomponents: rebootSubComponentRequest.GetSubcomponents(),
+	}
+
+	if deviations.GNOISubcomponentRebootStatusUnsupported(dut) {
+		req.Subcomponents = nil
+	}
+	rebootDeadline := time.Now().Add(linecardBoottime)
+	for retry := true; retry; {
+		t.Log("Waiting for 10 seconds before checking.")
+		time.Sleep(10 * time.Second)
+		if time.Now().After(rebootDeadline) {
+			retry = false
+			break
+		}
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
+		switch {
+		case status.Code(err) == codes.Unimplemented:
+			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
+		case err == nil:
+			retry = resp.GetActive()
+		default:
+			// any other error just sleep.
+		}
+	}
+
+	t.Logf("Validate removable linecard %v status", removableLinecard)
+	gnmi.Await(t, dut, gnmi.OC().Component(removableLinecard).Removable().State(), linecardBoottime, true)
+
+	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 10*time.Minute)
+
+}
+
+// chassisReboot performs a chassis reboot.
+func chassisReboot(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	maxRebootTime := uint64(10 * time.Minute.Seconds())
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
+
+	preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	var preCompMatrix []string
+	for _, preComp := range preRebootCompDebug {
+		if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
+		}
+	}
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	rebootRequest := &spb.RebootRequest{
+		Method: spb.RebootMethod_COLD,
+	}
+	t.Logf("rebootRequest: %v", rebootRequest)
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform chassis reboot with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+	t.Logf("Wait for 10s to allow the chassis reboot process to start")
+	time.Sleep(10 * time.Second)
+	req := &spb.RebootStatusRequest{}
+	if deviations.GNOISubcomponentRebootStatusUnsupported(dut) {
+		req.Subcomponents = nil
+	}
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+	startComp := time.Now()
+
+	for {
+		postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+		postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+		var postCompMatrix []string
+		for _, postComp := range postRebootCompDebug {
+			if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+				postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+			}
+		}
+
+		if len(preRebootCompStatus) == len(postRebootCompStatus) {
+			t.Logf("All components on the DUT are in responsive state")
+			time.Sleep(10 * time.Second)
+			break
+		}
+
+		if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
+			t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
+			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
+				t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
+			}
+			t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// subscribedUpdates is a function that subscribes to the DUT and returns the updates received.
+func subscribedUpdates(t *testing.T, dut *ondatra.DUTDevice, stream gpb.GNMI_SubscribeClient, mu *sync.Mutex, sharedResult *updateResult) ([]*gpb.Notification, error) {
+	var notifications []*gpb.Notification
+	startTime := time.Now()
+	for {
+		respUpdate, err := stream.Recv()
+		if err != nil {
+			return notifications, err
+		}
+		if respUpdate == nil {
+			break
+		}
+		if uint64(time.Since(startTime).Seconds()) > 10 {
+			break
+		}
+		if respUpdate.GetUpdate() != nil {
+
+			if n, ok := respUpdate.GetResponse().(*gpb.SubscribeResponse_Update); ok {
+				notification := n.Update
+				notifications = append(notifications, notification)
+				notification.GetUpdate()
+				// --- Update shared state incrementally ---
+				mu.Lock()
+				// Decide: Append or replace? Appending might be safer.
+				sharedResult.notifications = append(sharedResult.notifications, notification)
+				// Also update shared error state if applicable
+				// sharedResult.err = nil // Or potential partial errors
+				mu.Unlock()
+				// --- End incremental update ---
+				t.Logf("Notification in Update message: %v", notification)
+				t.Logf("Notification GetUpdate in Update message: %v", notification.GetUpdate())
+				// Now you can work with the 'notification' variable
+			}
+		} else {
+			t.Logf("No updates received ")
+			break
+		}
+	}
+	t.Logf("Notifications received: %v", notifications)
+	return notifications, nil
+}
+
+// updateResult is a struct to share the result of the goroutine.
+type updateResult struct {
+	notifications []*gpb.Notification
+	err           error
+}
+type recievedUpdateWithTimeout func(t *testing.T, dut *ondatra.DUTDevice, stream gpb.GNMI_SubscribeClient, mu *sync.Mutex, sharedResult *updateResult) ([]*gpb.Notification, error)
+
+// recieveUpdateWithTimeout is a function that receives updates from the DUT and returns the updates received but with a timeout.
+func recieveUpdateWithTimeout(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, stream gpb.GNMI_SubscribeClient, recieveUpdate recievedUpdateWithTimeout, updateTimeout time.Duration) ([]*gpb.Notification, error) {
+	t.Helper()
+	ctxTimeout, cancelTimeout := context.WithTimeout(ctx, updateTimeout)
+	defer cancelTimeout()
+
+	done := make(chan updateResult, 1)
+	// --- Changes for sharing result ---
+	var mu sync.Mutex             // Mutex to protect sharedResult
+	var sharedResult updateResult // Variable to hold the latest result from the goroutine
+	go func() {
+		_, err := recieveUpdate(t, dut, stream, &mu, &sharedResult)
+		mu.Lock()
+		sharedResult.err = err
+		t.Logf("Goroutine: Updated sharedResult INSIDE LOCK. Update count: %d, Err: %v", len(sharedResult.notifications), sharedResult.err) // <<< ADD THIS LOG
+		// Unlock mutex after updating
+		mu.Unlock()
+		done <- sharedResult
+	}()
+
+	select {
+	case result := <-done:
+
+		return result.notifications, result.err
+	case <-ctxTimeout.Done():
+		mu.Lock()
+		lastUpdates := sharedResult.notifications
+		t.Logf("Timeout Case: Read sharedResult INSIDE LOCK. Update count: %d, Err: %v", len(lastUpdates), sharedResult.err) // <<< ADD THIS LOG
+		// Unlock mutex
+		mu.Unlock()
+		return lastUpdates, ctxTimeout.Err() // Return timeout error context.DeadlineExceeded
+	}
+}
+
+// newSubscribeRequest is a function that creates a subscribe request to the DUT.
+func newSubscribeRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) gpb.GNMI_SubscribeClient {
+	subscribeList := createSubscriptionList(t, telemetryPaths)
+
+	subscribeRequest := &gpb.SubscribeRequest{
+		Request: &gpb.SubscribeRequest_Subscribe{
+			Subscribe: subscribeList,
+		},
+	}
+	stream, err := dut.RawAPIs().GNMI(t).Subscribe(ctx)
+	if err != nil {
+		t.Fatalf("[Fail]:Failed to create subscribe stream: %v", err)
+	}
+
+	if err := stream.Send(subscribeRequest); err != nil {
+		t.Fatalf("[Fail]:Failed to send subscribe request: %v", err)
+	}
+	return stream
+}
+
+// setDUTInterfaceState sets the admin state on the dut interface
+func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *ondatra.Port, state bool) {
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Name = ygot.String(dutPort.Name())
+	gnmi.Update(t, dut, dc.Interface(dutPort.Name()).Config(), i)
+}
+
+// checkSyncResponse is a function that checks if the DUT has sent the sync response.
+func checkSyncResponse(t *testing.T, stream gpb.GNMI_SubscribeClient) {
+	startTime := time.Now()
+	for {
+		resp, err := stream.Recv()
+		if resp.GetSyncResponse() == true {
+			t.Logf("Received sync_response!")
+			break
+		}
+		if err != nil {
+			t.Errorf("[Error]: While receieving the subcription response %v", err)
+		}
+
+		if time.Since(startTime).Seconds() > float64(syncResponseWaitTimeOut) {
+			t.Fatalf("[Fail]:Didn't receive sync_response. Time limit = %v  exceeded", syncResponseWaitTimeOut)
+		}
+	}
+}
+
+// verifyNotificationPaths is a function that verifies the paths in the notifications.
+func verifyNotificationPaths(t *testing.T, notifications []*gpb.Notification, expectedUpdatePaths []string) {
+	t.Helper()
+	var paths []string
+
+	for _, notification := range notifications {
+		path := ""
+		for _, elem := range notification.GetPrefix().GetElem() {
+			path += "/" + elem.GetName()
+		}
+		t.Logf("Notification path: %v", path)
+		if len(notification.GetUpdate()) > 0 {
+			path += "/" + notification.GetUpdate()[0].GetPath().GetElem()[0].GetName() + "/" + notification.GetUpdate()[0].GetPath().GetElem()[1].GetName()
+			t.Logf("Update path: %v", path)
+		}
+		paths = append(paths, path)
+	}
+	t.Logf("Paths in notification: %v", paths)
+	type pathResult struct {
+		path  string
+		found bool
+	}
+	var pathResults []pathResult
+	for _, expectedPath := range expectedUpdatePaths {
+		pathResults = append(pathResults, pathResult{path: expectedPath, found: false})
+	}
+	for _, pathResult := range pathResults {
+		for _, path := range paths {
+			if path == pathResult.path {
+				t.Logf("Expected path %v found in received updates: %v", pathResult.path, paths)
+				pathResult.found = true
+				break
+			}
+		}
+		if !pathResult.found {
+			t.Errorf("Expected path %v not found in received updates: %v", pathResult.path, paths)
+		}
+	}
+}
+
+// verifyUpdatevalue is a function that verifies the value of the leaf in the notifications.
+func verifyUpdateValue(t testing.TB, notifications []*gpb.Notification, expectedUpdateValue string) {
+	t.Helper()
+	for _, notification := range notifications {
+		for _, update := range notification.GetUpdate() {
+			for _, elem := range update.GetPath().GetElem() {
+				if elem.GetName() == "admin-status" {
+					var updateValueString string
+					err := json.Unmarshal(update.GetVal().GetJsonVal(), &updateValueString)
+					if err != nil {
+						t.Errorf("Error marshalling json value: %v", err)
+					} else if updateValueString != expectedUpdateValue {
+						t.Errorf("SubscribedValue stringVal in Update message for admin-status: %v, want: DOWN", updateValueString)
+					} else {
+						t.Logf("SubscribedValue stringVal in Update message for admin-status: %v, want: DOWN", updateValueString)
+					}
+				}
+				if elem.GetName() == "oper-status" {
+					var updateValueString string
+					err := json.Unmarshal(update.GetVal().GetJsonVal(), &updateValueString)
+					if err != nil {
+						t.Errorf("Error marshalling json value: %v", err)
+					} else if updateValueString != expectedUpdateValue {
+						t.Errorf("SubscribedValue stringVal in Update message for oper-status: %v, want: DOWN", updateValueString)
+					} else {
+						t.Logf("SubscribedValue stringVal in Update message for oper-status: %v, want: DOWN", updateValueString)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestBreakoutSubscription(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	aggID := netutil.NextAggregateInterface(t, dut)
-
-	tests := []testCase{
-		{
-			desc:     "PLT-1.2.1 Check response after a triggered interface state change",
-
-		},
-		{
-			desc:     "PLT-1.2.2 Check response after a triggered interface flap",
-
-		},
-		{
-			desc:     "PLT-1.2.3 Check response after a triggered LC reboot",
-
-		},
-		{
-			desc:     "PLT-1.2.4 Check response after a triggered reboot",
-
-		},
-
-	}
 	tc := &testCase{
 		dut:     dut,
 		ate:     ate,
@@ -449,20 +798,91 @@ func TestBreakoutSubscription(t *testing.T) {
 	}
 	tc.configureATE(t)
 	tc.configureDUT(t)
+	ctx := context.Background()
 	t.Run("verifyDUT", tc.verifyDUT)
+	stream := newSubscribeRequest(ctx, t, dut)
+	checkSyncResponse(t, stream)
+	t.Run("PLT-1.2.1 Check response after a triggered interface state change", func(t *testing.T) {
 
-	for _, tf := range tests {
-		t.Run(tf.desc, func(t *testing.T) {
-				// Verify subscribe ON_CHANGE is supported using a commonly supported OC path.
-			 watchName, ok := subscribeOnChangeInterfaceName(t, dut, dut.Ports()[0]).Await(t)
-			if !ok {
-				t.Fatalf("/interfaces/interface[name=%q]/state/name got:%v want:%q", dut.Ports()[0].Name(), watchName, dut.Ports()[0].Name())
-			}
-		
-			// Subscribe ON_CHANGE to '/interfaces/interface/state/id'.
-			watchPaths[] := subscribeOnChangeInterfaceID(t, dut)
-			
+		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
+		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], false)
+		time.Sleep(2 * time.Second)
+		updateTimeout := 10 * time.Second
+		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		if err != nil {
+			t.Logf("Received error(possibly end of updates): %v", err)
+			t.Logf("Received notifications in main function: %v", receivedNotifications)
+		} else {
+			t.Logf("Received notifications in main function: %v", receivedNotifications)
+		}
+		expectedUpdatePaths := []string{
+			"/interfaces/interface/state/admin-status",
+			"/lacp/interfaces/interface/members/member/state/interface",
+			"/interfaces/interface/state/oper-status",
+		}
+		verifyNotificationPaths(t, receivedNotifications, expectedUpdatePaths)
+		verifyUpdateValue(t, receivedNotifications, "DOWN")
+		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
+		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+		verifyUpdateValue(t, receivedNotifications, "UP")
 
-		})
-	}
+	})
+	// Check response after a triggered interface flap
+	t.Run("PLT-1.2.2 Check response after a triggered interface flap", func(t *testing.T) {
+		counter := 5
+		for i := 0; i < counter; i++ {
+			setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
+			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], false)
+			updateTimeout := 10 * time.Second
+		  receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		  if err != nil {
+		  	t.Logf("Received error(possibly end of updates): %v", err)
+		  }
+		 	verifyUpdateValue(t, receivedNotifications, "DOWN")
+		 	setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
+		 	setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+		  receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		 	verifyUpdateValue(t, receivedNotifications, "UP")
+		}
+		updateTimeout := 10 * time.Second
+		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		if err != nil {
+			t.Logf("Received error:(possibly end of updates) %v", err)
+		}
+		expectedUpdatePaths := []string{
+			"/interfaces/interface/state/admin-status",
+			"/lacp/interfaces/interface/members/member/state/interface",
+			"/interfaces/interface/state/oper-status",
+		}
+		verifyNotificationPaths(t, receivedNotifications, expectedUpdatePaths)
+	})
+	// Check response after a triggered LC reboot
+	t.Run("PLT-1.2.3 Check response after a triggered LC reboot", func(t *testing.T) {
+		LinecardReboot(t, dut)
+		updateTimeout := 300 * time.Second
+		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		if err != nil {
+			t.Logf("Received error:(possibly end of updates) %v", err)
+			t.Logf("Received notifications in main function: %v", receivedNotifications)
+		} else {
+			t.Logf("Received notifications in main function: %v", receivedNotifications)
+		}
+		expectedUpdatePaths := []string{
+			"/interfaces/interface/state/admin-status",
+			"/lacp/interfaces/interface/members/member/state/interface",
+			"/interfaces/interface/state/oper-status",
+			"/components/component/state/oper-status",
+		}
+		verifyNotificationPaths(t, receivedNotifications, expectedUpdatePaths)
+	})
+	defer stream.CloseSend()
+	defer ctx.Done()
+	// Check response after a triggered chassis reboot
+	t.Run("PLT-1.2.4 Check response after a triggered chassis reboot", func(t *testing.T) {
+		chassisReboot(t, dut)
+		stream := newSubscribeRequest(ctx, t, dut)
+		checkSyncResponse(t, stream)
+		defer stream.CloseSend()
+		defer ctx.Done()
+	})
 }
