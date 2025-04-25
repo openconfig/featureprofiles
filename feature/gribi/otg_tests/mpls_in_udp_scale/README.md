@@ -65,8 +65,8 @@ outer_ip-ttl =        "64"
 
 #### Scale profile C - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 8 NH per NHG, same MPLS label across 20k prefixes
 * 1 network-instance
-* Create 20K gRIBI NHG with 8 NH per NHG with same MPLS label.
-* Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
+* Create 2.5K gRIBI NHG with 8 NH per NHG with same MPLS label.
+* Create 1 unique gRIBI prefixes and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NH.
 * 1 MPLS label across all 20k tuples.
 
 #### Scale profile D - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 1 NH per NHG with same MPLS label to test gRIBI server scaling
