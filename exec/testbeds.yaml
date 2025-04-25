@@ -420,7 +420,7 @@ testbeds:
   # Testbeds belonging to other teams
 
   ZRP_OPTICS_ACACIA: &ZRP_OPTICS_DEFAULTS
-    hw: ZRP_OPTICS
+    hw: ZRP_OPTICS_ACACIA
     owner: liawalsh
     testbed: topologies/cisco/hw/ZRP_OPTICS/testbed
     binding: topologies/cisco/hw/ZRP_OPTICS/binding_acacia
