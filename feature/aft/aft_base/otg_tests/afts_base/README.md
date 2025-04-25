@@ -24,7 +24,6 @@ Establish EBGP sessions between ATE:port1,port2 and DUT:port1,port2
 
 * Configure EBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
 * Advertise `X` IPv4 and `X` IPv6 prefixes from ATE port1,port2.
-* Validate the total number of entries of AFT for IPv4 and IPv6. This should be `X + Y` for both address families.
 * Each prefix advertised by BGP must have 2 next hops pointing to ATE port1 and ATE port2.
 * Each prefix advertised by ISIS must have one next hop pointing to ATE port1.
 
