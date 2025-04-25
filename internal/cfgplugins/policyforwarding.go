@@ -2,13 +2,13 @@ package cfgplugins
 
 import (
 	"fmt"
-	"github.com/open-traffic-generator/snappi/gosnappi"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"testing"
 )
 
 const (
@@ -17,7 +17,6 @@ const (
 )
 
 var (
-	top                          = gosnappi.NewConfig()
 	nextHopGroupConfigIPV4Arista = `
 	nexthop-group 1V4_baybridge_vlan_3_20 type mpls-over-gre
 surajrawal
