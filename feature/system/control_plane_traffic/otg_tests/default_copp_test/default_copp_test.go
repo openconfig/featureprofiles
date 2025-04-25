@@ -34,9 +34,8 @@ import (
 )
 
 const (
-	loopbackName            = "loopback250"
-	loopback250IPv4         = "10.10.10.10"
-	broadcastMac            = "FF:FF:FF:FF:FF:FF"
+	broadcastMAC            = "FF:FF:FF:FF:FF:FF"
+	unknownMAC              = "02:10:02:01:01:01"
 	ipv4PrefixLen           = 30
 	ipv6PrefixLen           = 126
 	ipv4DstPfx              = "172.16.0.0"
@@ -137,24 +136,6 @@ func (ce *commonEntities) configInterfaceDUT(t *testing.T, i *oc.Interface, a *a
 	return i
 }
 
-// configureDUTLoopback configures the loopback interface on the DUT.
-func (ce *commonEntities) configureDUTLoopback(t *testing.T) {
-	t.Helper()
-
-	lb := loopbackName
-	lo0 := gnmi.OC().Interface(lb)
-	ipv4Addr := gnmi.Lookup(t, ce.dut, lo0.Subinterface(0).Ipv4().Address(loopback250IPv4).State())
-	if foundV4 := ipv4Addr.IsPresent(); !foundV4 {
-		lo1 := &oc.Interface{Name: ygot.String(lb)}
-		lo1.Type = oc.IETFInterfaces_InterfaceType_other
-		if deviations.InterfaceEnabled(ce.dut) {
-			lo1.Enabled = ygot.Bool(true)
-		}
-		lo1.GetOrCreateSubinterface(0).GetOrCreateIpv4().GetOrCreateAddress(loopback250IPv4).PrefixLength = ygot.Uint8(32)
-		gnmi.Replace(t, ce.dut, gnmi.OC().Interface(lb).Config(), lo1)
-	}
-}
-
 // createAndAddInterfacesToVRF creates interfaces and adds them to the specified VRF.
 func (ce *commonEntities) createAndAddInterfacesToVRF(t *testing.T, intfNames []string, unit []uint32) {
 	t.Helper()
@@ -166,10 +147,6 @@ func (ce *commonEntities) createAndAddInterfacesToVRF(t *testing.T, intfNames []
 		i := root.GetOrCreateInterface(intfName)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		i.Description = ygot.String(fmt.Sprintf("Port %s", strconv.Itoa(index+1)))
-		// if intfName == netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()]) {
-		// 	i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		// 	i.Description = ygot.String(fmt.Sprintf("Port %s", intfName))
-		// }
 		si := i.GetOrCreateSubinterface(unit[index])
 		si.Enabled = ygot.Bool(true)
 		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intfName).Config(), i)
@@ -203,7 +180,6 @@ func (ce *commonEntities) configureDUT(t *testing.T) {
 	i2.Enabled = ygot.Bool(true)
 	gnmi.Update(t, ce.dut, d.Interface(p2.Name()).Config(), ce.configInterfaceDUT(t, i2, &dutDst))
 
-	ce.configureDUTLoopback(t)
 	ce.createAndAddInterfacesToVRF(t, []string{p2.Name()}, []uint32{0})
 }
 
@@ -310,13 +286,13 @@ func (ce *commonEntities) createTrafficFlows(t *testing.T, top gosnappi.Config, 
 	flow.Duration().Continuous()
 
 	eth := flow.Packet().Add().Ethernet()
-	if flowParams.trafficType == "l3DstMissVRF" {
-		eth.Src().SetValue(ateDst.MAC)
+	if flowParams.trafficType == "l3DstMissVRF" || flowParams.trafficType == "l3DstMiss" {
+		eth.Src().SetValue(unknownMAC)
 	} else {
 		eth.Src().SetValue(ateSrc.MAC)
 	}
 
-	if flowParams.dstMACAddress != "" {
+	if flowParams.trafficType == "l2Bcast" {
 		eth.Dst().SetValue(flowParams.dstMACAddress)
 	} else if flowParams.trafficType == "l3DstMissVRF" {
 		dutDstInterface := ce.dut.Port(t, "port2").Name()
@@ -440,11 +416,15 @@ func (ce *commonEntities) testCoppSystemHelper(t *testing.T, tc *coppSystemTestc
 	otgObj.PushConfig(t, top)
 	otgObj.StartProtocols(t)
 
-	initialCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, "port1").Name()).Counters().State())
+	incomingPort := "port1"
+	if tc.flowParams.trafficType == "l3DstMissVRF" {
+		incomingPort = "port2"
+	}
+	initialCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, incomingPort).Name()).Counters().State())
 	initialInPkts := initialCounters.GetInPkts()
 	ce.runTraffic(t)
 	otgObj.StopProtocols(t)
-	finalCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, "port1").Name()).Counters().State())
+	finalCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, incomingPort).Name()).Counters().State())
 	finalInPkts := finalCounters.GetInPkts()
 	t.Logf("Testcase: %s, initial incoming packets: %v", tc.name, initialInPkts)
 	t.Logf("Testcase: %s, final incoming packets: %v", tc.name, finalInPkts)
@@ -524,25 +504,25 @@ func TestCoppSystem(t *testing.T) {
 		},
 		{
 			name:               "CoppSystemIpUcastExceedingLimitTest",
-			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 3, dstIPAddress: loopback250IPv4},
+			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: true,
 			counters:           []string{"CoppSystemIpUcast"},
 		},
 		{
 			name:               "CoppSystemIpUcastInLimitTest",
-			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 3, dstIPAddress: loopback250IPv4},
+			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: false,
 			counters:           []string{"CoppSystemIpUcast"},
 		},
 		{
 			name:               "CoppSystemL2BcastExceedingLimitTest",
-			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, dstMACAddress: broadcastMac},
+			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: true,
 			counters:           []string{"CoppSystemL2Bcast"},
 		},
 		{
 			name:               "CoppSystemL2BcastInLimitTest",
-			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, dstMACAddress: broadcastMac},
+			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: false,
 			counters:           []string{"CoppSystemL2Bcast"},
 		},
