@@ -50,26 +50,23 @@ outer_ip-ttl =        "64"
   * Update policer-policies in a batch of `sched_q` = 1,000
   * Policer-policies changes should take effect within `sched_r` / 2 time
 
-#### Scale profile A - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 1 NH per NHG with same MPLS label
+#### Scale profile A - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 1 NH per NHG, same MPLS label across 20k prefixes
 * 1 network-instance
 * Create 20K gRIBI NHG with 1 NH per NHG with same MPLS label.
 * Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
 * 1 MPLS label across all 20k tuples.
 
-#### Scale profile B - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 1 NH per NHG with different MPLS label
+#### Scale profile B - 1024 Network instance, 1 VLAN per Network instance, 20k gRIBI exact match prefixes, 1024 MPLS labels, 20 prefixes sharing one MPLS label.
 * 1024 network-instance.
 * 1 VLAN per VRF.
-* Create 20K gRIBI NHG with 1 NH per NHG with different MPLS label.
+* Create 20K gRIBI NHG with 1 NH per NHG.
 * Create 20 unique gRIBI prefixes which point to 1 NHG and repeat this 1k times, resulting in 20K total prefixes, pointing to 20k NHG.
 * 20 gRIBI prefixes with one MPLS label.
-* Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
-* 1 MPLS label across all 20k tuples.
 
-#### Scale profile C - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 8 NH per NHG with same MPLS label
+#### Scale profile C - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 8 NH per NHG, same MPLS label across 20k prefixes
 * 1 network-instance
 * Create 20K gRIBI NHG with 8 NH per NHG with same MPLS label.
 * Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
-* Each NH has a different prefix.
 * 1 MPLS label across all 20k tuples.
 
 #### Scale profile D - 1 Network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 1 NH per NHG with same MPLS label to test gRIBI server scaling
@@ -77,8 +74,7 @@ outer_ip-ttl =        "64"
 * Create 20K gRIBI NHG with 1 NH per NHG with same MPLS label.
 * Create 1 unique gRIBI prefixes which point to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
 * 1 MPLS label across all 20k tuples.
-* At traffic start time, gRIBI client to send 50 aft entries and their
-    related NHG and NH at rate 50 per second.
+* At traffic start time, gRIBI client to send 20 ops in a gRIBI calls at a rate of 50 per second.
   
 #### Scale profile E - many vlans 1 NH per NHG with same MPLS label
 
