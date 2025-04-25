@@ -68,6 +68,8 @@ whitelist_arguments([
     'otg_keng_layer23_hw_server'
     'otg_gnmi_server'
     'otg_controller_command'
+    'testbed_checks',
+    "testbeds_exclude",
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -462,8 +464,9 @@ def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
-            # Do we ever need multiple testbeds?
-            return output['testbeds'][0]
+            for tb in output['testbeds']:
+                if tb['id'] == testbed_id:
+                    return tb
         return None
     except:
         return None
@@ -582,8 +585,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         otg_keng_layer23_hw_server='1.3.0-4',
                         otg_gnmi_server='1.13.15',
                         otg_controller_command='',
-                        ):
-    print(f'Bringing up testbed..., with otg_keng_controller {otg_keng_controller}, otg_keng_layer23_hw_server {otg_keng_layer23_hw_server}, otg_gnmi_server {otg_gnmi_server}, otg_controller_command {otg_controller_command}')
+                        testbeds_exclude=[]):
+    
+
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
@@ -594,6 +598,12 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = testbeds.split(',')
+    if not isinstance(testbeds_exclude, list): testbeds_exclude = testbeds_exclude.split(',')
+
+    for tb in testbeds_exclude:
+        if tb in testbeds:
+            logger.print(f'Excluding testbed {tb}')
+            testbeds.remove(tb)
 
     while len(testbeds) > 0:
         reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)

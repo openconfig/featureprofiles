@@ -26,8 +26,8 @@
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.72.15 2003
-#telnet: RP1 -  telnet 10.85.72.15 2004
+#telnet: RP0 -  telnet 10.85.72.15 2003
+#telnet: RP1 -  telnet 10.85.72.15 2004
 
 ##Exec server:
 #ssh ott1lab-as2
@@ -170,8 +170,8 @@ duts {
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.72.15 2001
-#telnet: RP1 -  telnet 10.85.72.15 2002
+#telnet: RP0 -  telnet 10.85.72.15 2001
+#telnet: RP1 -  telnet 10.85.72.15 2002
 
 ##Exec server:
 #ssh ott1lab-as2
@@ -195,8 +195,7 @@ duts {
 
   options {
     insecure: false 
-    skip_verify: false
-    mutual_tls: true
+    skip_verify: true
     username: "cafyauto"
     password: "cisco123"
   }
