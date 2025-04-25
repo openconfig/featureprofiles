@@ -2,44 +2,73 @@ package container_lifecycle_test
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/containerz/client"
-	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
+
+	cpb "github.com/openconfig/gnoi/containerz"
 )
 
 var (
 	containerTar        = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
-	containerzAddr      = flag.String("containerz_addr", "localhost:19999", "containerz server address")
 )
 
 const (
 	instanceName = "test-instance"
 )
 
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 func containerzClient(ctx context.Context, t *testing.T) *client.Client {
-	client.Dial = func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
-		return grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
-	cli, err := client.NewClient(ctx, *containerzAddr)
-	if err != nil {
-		t.Fatalf("unable to dial containerz: %v", err)
+
+	dut := ondatra.DUT(t, "dut")
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		if deviations.ContainerzOCUnsupported(dut) {
+			dut.Config().New().WithAristaText(`
+				management api gnoi
+				service containerz
+				  transport gnmi default
+				  !
+				  container runtime
+					 vrf default
+				!
+			`).Append(t)
+		}
+	default:
+		t.Fatalf("dut %s does not support containerz", dut.Name())
 	}
 
-	return cli
+	t.Logf("Waiting for device to ingest its config.")
+	time.Sleep(time.Minute)
+
+	return client.NewClientFromStub(dut.RawAPIs().GNOI(t).Containerz())
 }
 
 func startContainer(ctx context.Context, t *testing.T) *client.Client {
 	cli := containerzClient(ctx, t)
+
+	// Call RemoveContainer here to make sure no other container is using the instanceName name or that instanceName
+	// is a leftover from a previous failed test.
+	if err := cli.RemoveContainer(ctx, instanceName, true); err != nil {
+		if status.Code(err) != codes.NotFound {
+			t.Fatalf("failed to remove container: %v", err)
+		}
+	}
 
 	progCh, err := cli.PushImage(ctx, "cntrsrv", "latest", *containerTar, false)
 	if err != nil {
@@ -49,7 +78,7 @@ func startContainer(ctx context.Context, t *testing.T) *client.Client {
 	for prog := range progCh {
 		switch {
 		case prog.Error != nil:
-			t.Fatalf("failed to push image: %v", err)
+			t.Fatalf("failed to push image: %v", prog.Error)
 		case prog.Finished:
 			t.Logf("Pushed %s/%s\n", prog.Image, prog.Tag)
 		default:
@@ -62,27 +91,10 @@ func startContainer(ctx context.Context, t *testing.T) *client.Client {
 		t.Fatalf("unable to start container: %v", err)
 	}
 
-	for i := 0; i < 5; i++ {
-		ch, err := cli.ListContainer(ctx, true, 0, map[string][]string{
-			"name": {instanceName},
-		})
-		if err != nil {
-			t.Fatalf("unable to list container state for %s", instanceName)
-		}
+	t.Logf("Started %s", ret)
 
-		for info := range ch {
-			if info.State == "RUNNING" {
-				t.Logf("Started %s", ret)
-				return cli
-			}
-		}
-		// wait for cntr container to come up.
-		time.Sleep(5 * time.Second)
-	}
-
-	t.Fatalf("unable to start %s", instanceName)
-
-	return nil
+	time.Sleep(5 * time.Second)
+	return cli
 }
 
 func stopContainer(ctx context.Context, t *testing.T, cli *client.Client) {
@@ -98,18 +110,28 @@ func TestDeployAndStartContainer(t *testing.T) {
 	cli := startContainer(ctx, t)
 	defer stopContainer(ctx, t, cli)
 
-	tlsc := credentials.NewTLS(&tls.Config{
-		InsecureSkipVerify: true, // NOLINT
-	})
-	conn, err := grpc.NewClient("localhost:60061", grpc.WithTransportCredentials(tlsc))
-	if err != nil {
-		t.Fatalf("Failed to dial cntrsrv, %v", err)
+	for i := 0; i < 5; i++ {
+		ch, err := cli.ListContainer(ctx, true, 0, map[string][]string{
+			"name": {instanceName},
+		})
+		if err != nil {
+			t.Fatalf("unable to list container state for %s", instanceName)
+		}
+
+		for info := range ch {
+			if info.Error != nil {
+				t.Fatalf("unable to list containers: %v", info.Error)
+			}
+			if info.State == cpb.ListContainerResponse_RUNNING.String() {
+
+				return
+			}
+		}
+		// wait for cntr container to come up.
+		time.Sleep(5 * time.Second)
 	}
 
-	cntrCli := cpb.NewCntrClient(conn)
-	if _, err = cntrCli.Ping(ctx, &cpb.PingRequest{}); err != nil {
-		t.Errorf("unable to reach cntrsrv: %v", err)
-	}
+	t.Fatalf("test-instance was not started.")
 }
 
 // TestRetrieveLogs implements CNTR-1.2 validating that logs can be retrieved from a
