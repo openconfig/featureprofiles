@@ -5,6 +5,7 @@
 ***NOTE:*** \
 Current verification relies on vendor specific CLI due to the lack of standardized CoPP YANG/OC models. \
 We will not configure any CoPP policies or thresholds on the DUT. We will solely rely on the vendor default and pre-applied CoPP policies and thresholds \
+Vendor implementation may differ and all vendors may not support all the subtests in this readme \
 Use OC wherever applicable and available e.g. configuring interfaces
 [TODO] Utilize standardized OC models as they become available
 
