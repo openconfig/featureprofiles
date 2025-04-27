@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	""google.golang.org/grpc/codes""
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
@@ -37,7 +37,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	gpb "github.com/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
 	spb "github.com/openconfig/gnoi/system/system_go_proto"
 	tpb "github.com/openconfig/gnoi/types/types_go_proto"
@@ -47,6 +47,21 @@ import (
 	"github/openconfig/ondatra"
 	"github/openconfig/testt"
 	"github/openconfig/ygnmi/ygnmi"
+=======
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
+	"github/openconfig/ondatra"
+	"github/openconfig/ondatra/gnmi"
+	"github/openconfig/ondatra/gnmi/oc"
+	"github/openconfig/ondatra/netutil"
+	"github/openconfig/testt"
+	"github/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/ygot/ygot"
+>>>>>>> 2f80d74a (adding the files for automation)
 )
 
 // Settings for configuring the aggregate testbed with the test
@@ -285,7 +300,10 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	gnmi.Update(t, tc.dut, p.Config(), d)
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2f80d74a (adding the files for automation)
 func (tc *testCase) configSrcAggregateDUT(i *oc.Interface, a *attrs.Attributes) {
 	tc.configDstDUT(i, a)
 	i.Type = ieee8023adLag
@@ -293,7 +311,10 @@ func (tc *testCase) configSrcAggregateDUT(i *oc.Interface, a *attrs.Attributes) 
 	g.LagType = tc.lagType
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2f80d74a (adding the files for automation)
 func (tc *testCase) configSrcMemberDUT(i *oc.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
 	i.Type = ethernetCsmacd
@@ -834,6 +855,7 @@ func TestBreakoutSubscription(t *testing.T) {
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], false)
 			updateTimeout := 10 * time.Second
+<<<<<<< HEAD
 		  receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 		  if err != nil {
 		  	t.Logf("Received error(possibly end of updates): %v", err)
@@ -843,6 +865,17 @@ func TestBreakoutSubscription(t *testing.T) {
 		 	setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
 		  receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 		 	verifyUpdateValue(t, receivedNotifications, "UP")
+=======
+			receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+			if err != nil {
+				t.Logf("Received error(possibly end of updates): %v", err)
+			}
+			verifyUpdateValue(t, receivedNotifications, "DOWN")
+			setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
+			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+			receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+			verifyUpdateValue(t, receivedNotifications, "UP")
+>>>>>>> 2f80d74a (adding the files for automation)
 		}
 		updateTimeout := 10 * time.Second
 		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
