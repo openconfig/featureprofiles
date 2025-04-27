@@ -47,21 +47,6 @@ import (
 	"github/openconfig/ondatra"
 	"github/openconfig/testt"
 	"github/openconfig/ygnmi/ygnmi"
-=======
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
-	"github/openconfig/ondatra"
-	"github/openconfig/ondatra/gnmi"
-	"github/openconfig/ondatra/gnmi/oc"
-	"github/openconfig/ondatra/netutil"
-	"github/openconfig/testt"
-	"github/openconfig/ygnmi/ygnmi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/ygot/ygot"
->>>>>>> 2f80d74a (adding the files for automation)
 )
 
 // Settings for configuring the aggregate testbed with the test
