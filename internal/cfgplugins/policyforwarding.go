@@ -176,7 +176,6 @@ Traffic-policies
     !
     match ipv6-all-default ipv6
        actions
-          count
           redirect next-hop group 1V6_baybridge_vlan_3_21
           set traffic class 3
  !
@@ -200,7 +199,6 @@ Traffic-policies
        ttl 1
        !
        actions
-          count
           redirect next-hop group 1V4_baybridge_vlan_3_22 ttl 1
           set traffic class 3
     !
