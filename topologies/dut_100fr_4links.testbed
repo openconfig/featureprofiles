@@ -1,0 +1,68 @@
+# proto-file: google3/third_party/openconfig/ondatra/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# 1 DUT, 1 ATE, Linked on 4 100G_FR ports
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+  ports {
+    id: "port2"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+}
+ates {
+  id: "ate"
+  vendor: IXIA
+  ports {
+    id: "port1"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+  ports {
+    id: "port2"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB
+    pmd: PMD_100GBASE_FR
+  }
+}
+links {
+  a: "dut:port1"
+  b: "ate:port1"
+}
+links {
+  a: "dut:port2"
+  b: "ate:port2"
+}
+links {
+  a: "dut:port3"
+  b: "ate:port3"
+}
+links {
+  a: "dut:port4"
+  b: "ate:port4"
+}
