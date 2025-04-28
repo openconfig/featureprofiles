@@ -42,9 +42,11 @@ func TestMain(m *testing.M) {
 const (
 	trafficDuration      = 1 * time.Minute
 	tolerancePct         = 2
-	peerGrpName          = "BGP-PEER-GROUP"
+	peerGrpName1         = "BGP-PEER-GROUP1"
+	peerGrpName2         = "BGP-PEER-GROUP2"
 	dutAS                = 65501
-	ateAS                = 65502
+	ateAS1               = 65502
+	ateAS2               = 65503
 	plenIPv4             = 30
 	plenIPv6             = 126
 	acceptPolicy         = "PERMIT-ALL"
@@ -88,22 +90,26 @@ var (
 		nbrAddr: atePort1.IPv4,
 		isV4:    true,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
-		as:      ateAS}
+		as:      ateAS1,
+		peerGrp: peerGrpName1}
 	ebgp1NbrV6 = &bgpNeighbor{
 		nbrAddr: atePort1.IPv6,
 		isV4:    false,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
-		as:      ateAS}
+		as:      ateAS1,
+		peerGrp: peerGrpName1}
 	ebgp2NbrV4 = &bgpNeighbor{
 		nbrAddr: atePort2.IPv4,
 		isV4:    true,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
-		as:      ateAS}
+		as:      ateAS2,
+		peerGrp: peerGrpName2}
 	ebgp2NbrV6 = &bgpNeighbor{
 		nbrAddr: atePort2.IPv6,
 		isV4:    false,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
-		as:      ateAS}
+		as:      ateAS2,
+		peerGrp: peerGrpName2}
 	ebgpNbrs = []*bgpNeighbor{ebgp1NbrV4, ebgp2NbrV4, ebgp1NbrV6, ebgp2NbrV6}
 
 	routes = map[string]*route{
@@ -147,6 +153,7 @@ type bgpNeighbor struct {
 	nbrAddr string
 	isV4    bool
 	afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE
+	peerGrp string
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -196,20 +203,23 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
-	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
-	pg.PeerAs = ygot.Uint32(ateAS)
-	pg.PeerGroupName = ygot.String(peerGrpName)
-	if !deviations.SkipBgpSendCommunityType(dut) {
-		pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-	}
-	as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	as4.Enabled = ygot.Bool(true)
-	as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	as6.Enabled = ygot.Bool(true)
-
 	for _, nbr := range ebgpNbrs {
+
+		pg := bgp.GetOrCreatePeerGroup(nbr.peerGrp)
+		pg.PeerAs = ygot.Uint32(nbr.as)
+		pg.PeerGroupName = ygot.String(nbr.peerGrp)
+
+		if !deviations.SkipBgpSendCommunityType(dut) {
+			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+		}
+
+		as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		as4.Enabled = ygot.Bool(true)
+		as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		as6.Enabled = ygot.Bool(true)
+
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.nbrAddr)
-		bgpNbr.PeerGroup = ygot.String(peerGrpName)
+		bgpNbr.PeerGroup = ygot.String(nbr.peerGrp)
 		bgpNbr.PeerAs = ygot.Uint32(nbr.as)
 		bgpNbr.Enabled = ygot.Bool(true)
 
@@ -368,21 +378,21 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	// eBGP v4 session on Port1.
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
-	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 session on Port1.
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
-	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// eBGP v4 session on Port2.
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
-	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 session on Port2.
 	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Ipv6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
-	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	for key, sendRoute := range routes {
@@ -614,7 +624,7 @@ func TestBGPCommMatchAction(t *testing.T) {
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
-	dutConf := bgpCreateNbr(dutAS, ateAS, dut)
+	dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 
 	otgConfig := configureOTG(t, otg)
@@ -646,11 +656,15 @@ func TestBGPCommMatchAction(t *testing.T) {
 				for _, testResult := range tc.testResults {
 					for _, prefix := range routes[testResult.prefixSetName].prefixesV4 {
 						validateATEIPv4PrefixCommunitySet(t, ate, atePort2.Name+".BGP4.peer", prefix, testResult.wantCommunitySet)
-						validateDutIPv4PrefixCommunitySet(t, dut, ebgp1NbrV4, prefix, nil)
+						if !deviations.BGPRibOcPathUnsupported(dut) {
+							validateDutIPv4PrefixCommunitySet(t, dut, ebgp1NbrV4, prefix, nil)
+						}
 					}
 					for _, prefix := range routes[testResult.prefixSetName].prefixesV6 {
 						validateATEIPv6PrefixCommunitySet(t, ate, atePort2.Name+".BGP6.peer", prefix, testResult.wantCommunitySet)
-						validateDutIPv6PrefixCommunitySet(t, dut, ebgp1NbrV6, prefix, nil)
+						if !deviations.BGPRibOcPathUnsupported(dut) {
+							validateDutIPv6PrefixCommunitySet(t, dut, ebgp1NbrV6, prefix, nil)
+						}
 					}
 				}
 				// Starting ATE Traffic and verify Traffic Flows
@@ -697,7 +711,7 @@ func TestBGPCommMatchAction(t *testing.T) {
 			{
 				desc:       "PeerGrp-match_and_add_comms",
 				nbr:        nil,
-				peerGrp:    peerGrpName,
+				peerGrp:    peerGrpName1,
 				policyName: "match_and_add_comms",
 				testResults: []TestResults{
 					{
@@ -745,7 +759,7 @@ func TestBGPCommMatchAction(t *testing.T) {
 			{
 				desc:       "PeerGrp-add_std_comms",
 				nbr:        nil,
-				peerGrp:    peerGrpName,
+				peerGrp:    peerGrpName1,
 				policyName: "add_std_comms",
 				testResults: []TestResults{
 					{
@@ -767,13 +781,17 @@ func TestBGPCommMatchAction(t *testing.T) {
 					for _, prefix := range routes[testResult.prefixSetName].prefixesV4 {
 						if (tc.nbr == nil) || (tc.nbr != nil && tc.nbr.isV4 == true) {
 							validateATEIPv4PrefixCommunitySet(t, ate, atePort2.Name+".BGP4.peer", prefix, testResult.wantCommunitySet)
-							validateDutIPv4PrefixCommunitySet(t, dut, ebgp1NbrV4, prefix, nil)
+							if !deviations.BGPRibOcPathUnsupported(dut) {
+								validateDutIPv4PrefixCommunitySet(t, dut, ebgp1NbrV4, prefix, nil)
+							}
 						}
 					}
 					for _, prefix := range routes[testResult.prefixSetName].prefixesV6 {
 						if (tc.nbr == nil) || (tc.nbr != nil && tc.nbr.isV4 != true) {
 							validateATEIPv6PrefixCommunitySet(t, ate, atePort2.Name+".BGP6.peer", prefix, testResult.wantCommunitySet)
-							validateDutIPv6PrefixCommunitySet(t, dut, ebgp1NbrV6, prefix, nil)
+							if !deviations.BGPRibOcPathUnsupported(dut) {
+								validateDutIPv6PrefixCommunitySet(t, dut, ebgp1NbrV6, prefix, nil)
+							}
 						}
 					}
 				}
