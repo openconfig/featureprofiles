@@ -167,7 +167,7 @@ by the bootz process. If the artifacts are incomplete an error will be returned.
 | ID        |Case  | Result |
 | --------- | ------------- | --- |
 | bootz-5.1 | no gNSI artifacts are provided  | Device boots with services default security policies  |
-| bootz-5.2 | gNSI certz policy is sent CA trust bundle  | Device creates new policy with  |
+| bootz-5.2 | gNSI certz policy is sent CA trust bundle  | Device creates new policy with CA bundle set  |
 | bootz-5.3 | gNSI ca auth policy provided | Device fails with status invalid parameter |
 | bootz-5.4 | gNSI Authz policy  | Device fails with invalid parameter |
 
