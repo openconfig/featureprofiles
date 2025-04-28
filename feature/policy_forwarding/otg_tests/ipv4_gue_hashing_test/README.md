@@ -241,66 +241,68 @@ B7 <-- EBGP --> N4;
     -  Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field
 
 
+
+## Canonical OpenConfig for GUEv1 Decapsulation configuration
+```json
+{
+    "network-instances": {
+        "network-instance": {
+            "config": {
+                "name": "DEFAULT"
+            },
+            "name": "DEFAULT",
+            "policy-forwarding": {
+                "policies": {
+                    "policy": [
+                        {
+                            "config": {
+                                "policy-id": "decap-policy"
+                            },
+                            "rules": {
+                                "rule": [
+                                    {
+                                        "sequence-id": 1,
+                                        "config": {
+                                            "sequence-id": 1
+                                        },
+                                        "ipv4": {
+                                            "config": {
+                                                "destination-address-prefix-set": "dst_prefix",
+                                                "protocol": "IP_UDP"
+                                            }
+                                        },
+                                        "transport": {
+                                            "config": {
+                                                "destination-port": 6080
+                                            }
+                                        }
+                                        "action": {
+                                            "decapsulate-gue": true
+                                        },
+                                    },
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
+```
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
 
-# BGP configuration
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group
-
-# BGP Policy configuration
-/routing-policy/policy-definitions/policy-definition/config/name
-/routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
-/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/REJECT_ROUTE
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy
-
-# IS-IS config
-/network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check:
-/network-instances/network-instance/protocols/protocol/isis/global/config/net:
-/network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
-/network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding:
-/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-mode:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-password:
-/network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-type:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-password:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-type:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/enabled:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled:
-
-# Interface configuration
-openconfig-interfaces/interfaces/interface/config
-
-# GUEv1 Decapsulation configuration
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue
+/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
 
 # telemetry
-openconfig-interfaces/interfaces/interface/state/counters/out-pkts
-openconfig-interfaces/interfaces/interface/state/counters/out-unicast-pkts
+openconfig-interfaces/interfaces/interface/state/counters/out-pkts:
+openconfig-interfaces/interfaces/interface/state/counters/out-unicast-pkts:
 
 rpcs:
   gnmi:
