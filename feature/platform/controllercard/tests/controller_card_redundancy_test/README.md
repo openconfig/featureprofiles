@@ -1,4 +1,4 @@
-# gNMI-1.17 Controller Card redundnacy test
+# gNMI-1.17: Controller card redundancy test
 
 ## Summary
 - collect inventory data for each controller card
@@ -100,46 +100,47 @@
 
 ```yaml
 paths:
-  /components/component/controller-card/state/power-admin-state:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/empty:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/location:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/oper-status:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/switchover-ready:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/redundant-role:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/last-switchover-time:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/last-switchover-reason/trigger:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/last-switchover-reason/details:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/last-reboot-time:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/last-reboot-reason:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/description:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/hardware-version:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/id:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/mfg-name:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/name:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/parent:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/part-no:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/serial-no:
-    platform_type: ["CONTROLLER_CARD"]
-  /components/component/state/type:
-    platform_type: ["CONTROLLER_CARD"]
+  ## State paths
+    /components/component/controller-card/state/power-admin-state:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/empty:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/location:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/oper-status:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/switchover-ready:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/redundant-role:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/last-switchover-time:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/last-switchover-reason/trigger:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/last-switchover-reason/details:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/last-reboot-time:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/last-reboot-reason:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/description:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/hardware-version:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/id:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/mfg-name:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/name:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/parent:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/part-no:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/serial-no:
+      platform_type: ["CONTROLLER_CARD"]
+    /components/component/state/type:
+      platform_type: ["CONTROLLER_CARD"]
 
 rpcs:
   gnmi:
