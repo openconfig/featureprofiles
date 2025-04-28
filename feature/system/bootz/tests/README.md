@@ -174,7 +174,7 @@ by the bootz process. If the artifacts are incomplete an error will be returned.
 1. Provide bootstrap reponse configured as prescribed.
 2. Initiate bootz boot on device via gnoi.FactoryReset()
 3. Validate device sends bootz request to bootserver
-4. Validate the progress periodically by polling `/system/bootz/state/status`
+4. Validate the progress periodically by subscribing to `/system/bootz/state/status`
     * The status should transition from:
         * BOOTZ_UNSPECIFIED
         * BOOTZ_SENT
