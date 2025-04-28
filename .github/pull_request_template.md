@@ -9,5 +9,5 @@ Submitter checklist:
 - [ ] I have performed a self-review of my code for basic quality (clarity and correctness).
 - [ ] I have added or updated documentation for new features or changes.
 - [ ] I have added comments for non-obvious code blocks.
-- [ ] I have run sanity checks and ensured code quality using tools like linters/formatters.
+- [ ] I have run sanity checks, including linting, formatting, and static analysis, to ensure code adheres to style guides and is free of obvious errors.
 - [ ] I have provided test logs and ensured all tests pass.
