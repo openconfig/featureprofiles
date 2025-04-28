@@ -10,7 +10,7 @@ BGP Route Propagation
 
 ## Procedure
 
-Establish eBGP sessions between:
+Establish eBGP sessions between:asDASd 
 
 *   ATE port-1 and DUT port-1
 *   ATE port-2 and DUT port-2
