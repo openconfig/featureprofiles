@@ -434,8 +434,9 @@ def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
-            # Do we ever need multiple testbeds?
-            return output['testbeds'][0]
+            for tb in output['testbeds']:
+                if tb['id'] == testbed_id:
+                    return tb
         return None
     except:
         return None
@@ -892,6 +893,13 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         test_did_pass = True
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
+
+        if not test_did_pass:
+            self.enqueue_child(InvokeAutoTriage.s(
+                test_name=test_name, 
+                script_output=self.console_output_file, 
+                debug_output=os.path.join(test_log_directory_path,"debug_commands.json")
+            ))
 
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
@@ -1736,6 +1744,18 @@ def CollectCoverageDataOverSSH(self, ws, internal_fp_repo_dir, reserved_testbed,
     )
     self.enqueue_child_and_get_results(c)
     return cflow_dat_dir
+
+# TODO: remove this task
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def InvokeAutoTriage(self, test_name, script_output, debug_output):
+    logger.print("Invoking auto triage...")
+    try:
+        cmd = "/ws/mastarke-sjc/py311_env/bin/python /ws/mastarke-sjc/my_local_git/CIT-Tool/development-site/data-labeler/scripts/on_demand_ai_debugger.py"
+        cmd += f' --logs-file {script_output} --test-name {test_name} --output {debug_output}'
+        logger.print(check_output(cmd))
+    except:
+        logger.warning(f'Failed to invoke auto triage. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
