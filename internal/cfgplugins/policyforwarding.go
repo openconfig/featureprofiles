@@ -140,15 +140,6 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
 !
 	`
 	PolicyForwardingConfigv4Arista = `
-Golint
-comments
-Apr 21, 5:20 PM
-exported var PolicyForwardingConfigv4Arista should have comment or be unexported
-
-go/go-style/decisions#doc-comments
-AI-fix contributed by FixbotFindingsRepair:Golint
-Actionable
-Was this helpful? 
 Traffic-policies
    traffic-policy tp_cloud_id_3_20
       match bgpsetttlv4 ipv4
@@ -173,7 +164,6 @@ Traffic-policies
        ttl 1
        !
        actions
-          count
           redirect next-hop group 1V6_baybridge_vlan_3_21 ttl 1
           set traffic class 3
     !
@@ -181,8 +171,6 @@ Traffic-policies
        destination prefix 2600:2d00:0:1:8000:10:0:ca33/128
        protocol icmpv6 type echo-reply neighbor-advertisement code all
        !
-       actions
-          count
     !
     match ipv4-all-default ipv4
     !
@@ -200,7 +188,6 @@ Traffic-policies
        ttl 1
        !
        actions
-          count
           redirect next-hop group 1V6_baybridge_vlan_3_22 ttl 1
           set traffic class 3
     !
@@ -208,8 +195,6 @@ Traffic-policies
        destination prefix 2600:2d00:0:1:7000:10:0:ca33/128
        protocol icmpv6 type echo-reply neighbor-advertisement code all
        !
-       actions
-          count
     !
     match bgpsetttlv4 ipv4
        ttl 1
@@ -223,18 +208,14 @@ Traffic-policies
        destination prefix 169.254.0.27/32
        protocol icmp type echo-reply code all
        !
-       actions
-          count
     !
     match ipv4-all-default ipv4
        actions
-          count
           redirect next-hop group 1V4_baybridge_vlan_3_22
           set traffic class 3
     !
     match ipv6-all-default ipv6
        actions
-          count
           redirect next-hop group 1V6_baybridge_vlan_3_22
           set traffic class 3
  !`
@@ -247,20 +228,17 @@ Traffic-policies
 			 destination prefix 169.254.0.33/32
 			 protocol icmp type echo-reply code all
 			 !
-			 actions
-					count
+			
 		!
 		match bgpsetttlv4 ipv4
 			 ttl 1
 			 !
 			 actions
-					count
 					redirect next-hop group 1V4_baybridge_vlan_3_23 ttl 1
 					set traffic class 3
 		!
 		match ipv4-all-default ipv4
 			 actions
-					count
 					redirect next-hop group 1V4_baybridge_vlan_3_23
 					set traffic class 3
 		!
