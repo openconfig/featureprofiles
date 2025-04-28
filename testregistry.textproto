@@ -565,7 +565,7 @@ test: {
 test: {
   id: "PLT-1.3"
   description: "ON_CHANGE subscription for breakout ports"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_subscription_test/README.md""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_subscription_test/README.md"
   exec: " "
 }
 test: {
