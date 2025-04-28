@@ -1,4 +1,4 @@
-# PLT-1.2: OnChange Subscription Test for Breakout Interfaces
+# PLT-1.3: OnChange Subscription Test for Breakout Interfaces
 
 ## Summary
 
@@ -15,7 +15,7 @@ OnChange Subscription Test for Breakout Interfaces
 * Configure DUT port 3 and ATE port 3 as singleton interfaces connected to eachother.
 * Send a single `SubscribeRequest` message to the DUT Singleton and Member ports with a SubscriptionList and SubscriptionMode as ONCHANGE for the paths covered in telemetry coverage.
 
-### PLT-1.2.1 Check response after a triggered interface state change
+### PLT-1.3.1 Check response after a triggered interface state change
 
   * Change the admin status of DUT port 1 and port 3 and check if subscription
   request detects the changes in below paths.
@@ -26,12 +26,12 @@ OnChange Subscription Test for Breakout Interfaces
   * Bring back DUT port 1 and port 3 to admin up state.
   * Record the responses of all the paths covered in telemetry coverage section.
 
-### PLT-1.2.2 Check response after a triggered interface flap
+### PLT-1.3.2 Check response after a triggered interface flap
 
   * Disable/Shut DUT port 1 and 3 and verify if operational and admin state change is Down. Enable the interfaces again and verify if the states change to UP. 
   * Repeat this step 5 times and verify if subscription detects the stable state as recorded in subtest 1.2.1
 
-### PLT-1.2.3 Check response after a triggered LC reboot
+### PLT-1.3.3 Check response after a triggered LC reboot
 
   * Issue a reboot to the Linecard and check if update for below path is also
   present along with paths mentioned in 1.2.1
@@ -39,7 +39,7 @@ OnChange Subscription Test for Breakout Interfaces
 
   * Compare if the responses match to the ones recorded in subtest 1.2.1
     
-### PLT-1.2.4 Check response after a triggered reboot
+### PLT-1.3.4 Check response after a triggered reboot
 
   * Issue a reboot to the device and check if all the paths can be subscribed to.
 
