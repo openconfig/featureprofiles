@@ -270,24 +270,6 @@ func TestMPLSOGREEncapIPv4(t *testing.T) {
 	}
 }
 
-// OTGPreValidation validates the OTG port status and interface resolution.
-func OTGPreValidation(t *testing.T, params *otgvalidationhelpers.OTGValidation, interfaceType string) {
-	ate := ondatra.ATE(t, "ate")
-	if err := params.ValidatePortIsActive(t, ate); err != nil {
-		t.Errorf("ValidatePortIsActive(): %q", err)
-	}
-	if interfaceType == "IPv4" {
-		if err := params.IsIPv4Interfaceresolved(t, ate); err != nil {
-			t.Errorf("IsIPv4Interfaceresolved(): %q", err)
-		}
-	}
-	if interfaceType == "IPv6" {
-		if err := params.IsIPv6Interfaceresolved(t, ate); err != nil {
-			t.Errorf("IsIPv6Interfaceresolved(): %q", err)
-		}
-	}
-}
-
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, traffictype string) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
