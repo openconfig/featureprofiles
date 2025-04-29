@@ -1,7 +1,8 @@
-package zr_input_output_power_test
+package zrp_input_output_power_test
 
 import (
 	"flag"
+	"reflect"
 	"testing"
 	"time"
 
@@ -19,15 +20,15 @@ const (
 	inactiveOCHRxPower         = -30.0
 	inactiveOCHTxPower         = -30.0
 	inactiveTransceiverRxPower = -20.0
-	rxPowerReadingError        = 3
+	rxPowerReadingError        = 2
 	txPowerReadingError        = 0.5
 	timeout                    = 10 * time.Minute
 )
 
 var (
 	frequencies         = []uint64{191400000, 196100000}
-	targetOpticalPowers = []float64{-9, -13}
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	targetOpticalPowers = []float64{0, -7}
+	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -44,25 +45,21 @@ func TestOpticalPower(t *testing.T) {
 	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
-
 	var (
 		trs  = make(map[string]string)
 		ochs = make(map[string]string)
 	)
 
 	for _, p := range dut.Ports() {
-		// Check the port PMD is 400ZR.
-		if p.PMD() != ondatra.PMD400GBASEZR {
-			t.Fatalf("%s PMD is %v, not 400ZR", p.Name(), p.PMD())
+		// Check the port PMD is 400ZR_PLUS.
+		if p.PMD() != ondatra.PMD400GBASEZRP {
+			t.Fatalf("%s PMD is %v, not 400ZR_PLUS", p.Name(), p.PMD())
 		}
 
 		// Get transceiver and optical channel.
 		trs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 		ochs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Component(trs[p.Name()]).Transceiver().Channel(0).AssociatedOpticalChannel().State())
+		// ochs[p.Name()] = components.OpticalChannelComponentFromPort(t, dut, p)
 	}
 
 	for _, frequency := range frequencies {
@@ -71,8 +68,6 @@ func TestOpticalPower(t *testing.T) {
 			for _, p := range dut.Ports() {
 				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, operationalMode)
 			}
-
-			t.Logf(" Frequency: %v, targetOpticalPower: %v", frequency, targetOpticalPower)
 
 			// Create sample steams for each port.
 			ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component_OpticalChannel])
@@ -97,8 +92,7 @@ func TestOpticalPower(t *testing.T) {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
 
-			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
-
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
 			// Disable interface.
@@ -110,7 +104,7 @@ func TestOpticalPower(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			}
-			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSampleStreams(t, dut, false, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
@@ -123,16 +117,9 @@ func TestOpticalPower(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
-
-			//Close the connections:
-			for portName := range ochs {
-				ochStreams[portName].Close()
-				trStreams[portName].Close()
-				interfaceStreams[portName].Close()
-			}
 		}
 	}
 }
@@ -207,14 +194,24 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 func validatePowerValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, operStatus oc.E_Interface_OperStatus) {
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
+		// All power values should be float64.
+		for _, ele := range []any{instant, min, max, avg} {
+			if reflect.TypeOf(ele).Kind() != reflect.Float64 {
+				t.Fatalf("Value %v is not type float64", ele)
+			}
+		}
 		if instant < minAllowed || instant > maxAllowed {
 			t.Errorf("Invalid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
+		} else {
+			t.Logf("Valid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 		}
 	case oc.Interface_OperStatus_DOWN:
 		if instant > inactiveValue {
 			t.Errorf("Invalid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
+		} else {
+			t.Logf("Valid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 		}
 	}
 	t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
