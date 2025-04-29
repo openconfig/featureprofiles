@@ -313,9 +313,11 @@ func (c *GrpcCounter) FetchUpdate(t *testing.T, dut *ondatra.DUTDevice, grpcServ
 		result := gnmi.Lookup(t, dut, path)
 
 		value, present := result.Val()
+		// AuthzPolicyCounters values for an RPC (e.g., /gnmi.gNMI/Get) are available only if the RPC has been invoked at least once.
+		// If the RPC has not been invoked, the counter values will be absent and can be ignored.
+		// So, Returning nil without updating the GrpcCounter struct, as its default values (0) are sufficient.
 		if !present {
 			return nil
-			// return fmt.Errorf("value for %s not present", counterName)
 		}
 
 		switch counterName {
@@ -360,8 +362,8 @@ func (counter1 GrpcCounter) CompareDiff(t testing.TB, counter2, expectedDiff Grp
 	return actualDiff, true
 }
 
-// Verify uses prob to validate if the user access for a certain rpc is expected.
-// It also execute the rpc when HardVerif is passed and verifies if it matches the expectation.
+// Verify uses probe to validate if the user access for a certain rpc is expected.
+// It also execute the rpc when HardVerify is passed and verifies if it matches the expectation.
 func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...verifyOpt) {
 	t.Logf("RPC: %v", rpc)
 	expectedRes := authzpb.ProbeResponse_ACTION_PERMIT
