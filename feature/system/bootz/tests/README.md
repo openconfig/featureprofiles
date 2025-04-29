@@ -193,3 +193,24 @@ by the bootz process. If the artifacts are incomplete an error will be returned.
     * `/system/bootz/state/checksum` matches sent proto
 6. Validate device state
     * System configuration is as expected.
+
+## OpenConfig Path and RPC Coverage
+
+
+```yaml
+paths:
+  /system/bootz/state/last-boot-attempt
+  /system/bootz/state/error-count
+  /system/bootz/state/status
+  /system/bootz/state/checksum
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+      on_change: true
+  gnoi:
+    BootConfig.GetBootConfig
+    BootConfig.SetBootConfig
+  bootz:
+    Bootstrap.GetBootstrapData
+    Bootstrap.GetStatus
+```
