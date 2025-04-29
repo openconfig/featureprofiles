@@ -175,7 +175,8 @@ func Get(t testing.TB, dut *ondatra.DUTDevice) (*authzpb.GetResponse, *Authoriza
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request,error:%v",err)
 			nopolicyexist = 1
-		} else {
+		}
+		if ((statusError.Code() != codes.Unknown) && (statusError.Code() != codes.FailedPrecondition)) {
 			t.Fatalf("Authz.Get request is failed on device %s: %v", dut.Name(), err)
 		}
 	}

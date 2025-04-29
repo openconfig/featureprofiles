@@ -206,6 +206,7 @@ func TestAuthz1(t *testing.T) {
 		// Pre-Test Section
 		statusmsg, policyBefore := authz.Get(t, dut)
 		if statusmsg == nil {
+			t.Logf("When the device has no pre-installed authz policy file,initial Authz Get operation results in failure.Handle graceful exit and continute with validation having Rotate Operation")
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
 		}
 		if statusmsg != nil {
@@ -291,8 +292,8 @@ func TestAuthz1(t *testing.T) {
 	t.Run("Authz-1.4, Test Normal Policy", func(t *testing.T) {
 		// Pre-Test Section
 		statusmsg, policyBefore := authz.Get(t, dut)
-		//t.Logf("Message for first authz get %s", msg)
 		if statusmsg == nil {
+			t.Logf("When the device has no pre-installed authz policy file,initial Authz Get operation results in failure.Handle graceful exit and continute with validation having Rotate Operation")
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
 		}
 		if statusmsg != nil {
