@@ -33,11 +33,9 @@ OnChange Subscription Test for Breakout Interfaces
 
 ### PLT-1.3.3 Check response after a triggered LC reboot
 
-  * Issue a reboot to the Linecard and check if update for below path is also
-  present along with paths mentioned in 1.2.1
+  * Issue a reboot to the Linecard and check if update for below path is
+  present.
   /components/component/state/oper-status
-
-  * Compare if the responses match to the ones recorded in subtest 1.2.1
     
 ### PLT-1.3.4 Check response after a triggered reboot
 
