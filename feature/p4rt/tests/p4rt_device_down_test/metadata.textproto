@@ -3,7 +3,7 @@
 
 uuid: "95b352ee-b17a-4ac5-a49d-315424f56c3d"
 plan_id: "P4RT-1.3"
-description: "P4RT Device Down Test"
+description: "P4RT behavior when a device/node is dowm"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
