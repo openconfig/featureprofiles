@@ -79,7 +79,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
-func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, targetOutputPowerdBm float64, targetFrequencyMHz uint64, targetOutputPowerTolerancedBm float64, targetFrequencyToleranceMHz float64) {
 	t.Helper()
 	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
@@ -135,11 +135,19 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			},
 		})
 	} else {
+		t.Logf(" otnIndex:%v, ethIndex: %v", otnIndex, ethIndex)
+		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
+			Description:        ygot.String("ETH Logical Channel"),
+			Index:              ygot.Uint32(ethIndex),
+			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
+			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		})
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				0: {
 					Index:          ygot.Uint32(0),
@@ -147,13 +155,6 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					Description:    ygot.String("OTN to Optical Channel"),
 					Allocation:     ygot.Float64(400),
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-				},
-				1: {
-					Index:          ygot.Uint32(1),
-					LogicalChannel: ygot.Uint32(ethIndex),
-					Description:    ygot.String("OTN to ETH"),
-					Allocation:     ygot.Float64(400),
-					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 				},
 			},
 		})
@@ -189,6 +190,7 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress:            ingress,
 		Assignment:         assignment,
+		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 	}
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G

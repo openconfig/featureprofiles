@@ -21,25 +21,25 @@ Each LAG bundle below is made up of 2x100G ports.
 
 ```mermaid
 graph LR;
-A[ATE1:LAG1] <-- IBGP+IS-IS --> B[LAG1:DUT];
-C[DUT:LAG2] <-- IBGP+IS-IS --> D[LAG1:ATE2];
-E[DUT:LAG3] <-- IBGP+IS-IS --> F[LAG2:ATE2];
-G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
+A[ATE1:INT] <-- IS-IS --> B[INT:DUT];
+C[DUT:LAG1] <-- IS-IS --> D[LAG1:ATE2];
+E[DUT:LAG2] <-- IS-IS --> F[LAG2:ATE2];
+G[DUT:LAG3] <-- IS-IS --> H[LAG3:ATE2];
 ```
 
 ## Procedure
 
 ### Test environment setup
 
-*   Configure 1 aggregate interface with 2 100GE ports between DUT and ATE1
+*   Configure 1 interface with 100GE ports between DUT and ATE1
 *   Configure 3 aggregate interfaces, each with 2 100GE ports between DUT and ATE2.
 *   Configure IPv4 and IPv6 L2 adjacencies between DUT and ATE aggregate interfaces.
     Therefore, DUT will have
-    * 1xIS-IS adjacency with ATE1 DUT:LAG1<->ATE1:LAG1, 
+    * 1xIS-IS adjacency with ATE1 DUT:INT<->ATE1:INT, 
     * 3xIS-IS adjacencies between DUT and ATE2
-        * DUT:LAG2<->ATE2:LAG1
-        * DUT:LAG3<->ATE2:LAG2
-        * DUT:LAG4<->ATE2:LAG3
+        * DUT:LAG1<->ATE2:LAG1
+        * DUT:LAG2<->ATE2:LAG2
+        * DUT:LAG3<->ATE2:LAG3
 
     * Set ISIS parameters as
         * /network-instances/network-instance/protocols/protocol/isis/global/
@@ -49,20 +49,16 @@ G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
             * config/level-capability = LEVEL_2
         * /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style = WIDE_METRIC
 
-*   Configure IPv4 and IPv6 IBGP peering between both ATEs and the DUT using
-    their loopback addresses for both IPv4 and IPv6 address families.
-
-    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config
 
 *   Attach a network with an IPv4 and an IPv6 prefix to ATE2 and have it
-    advertise these prefixes over its IBGP peering with the DUT. The DUT in turn
-    should advertise these prefixes over its IBGP peering with ATE1
+    advertise these prefixes over its ISIS peering with the DUT. The DUT in turn
+    should advertise these prefixes with ATE1
 
     *   Please use `IPv4 prefix = 100.0.1.0/24` and `IPv6 prefix =
         2001:db8:64:64::/64`
 
 *   Similarly, attach a different network to ATE1 with IPv4 and IPv6 prefixes
-    and advertise the same over its IBGP peering with the DUT.
+    and advertise the same over ISIS with the DUT.
 
     *   Please use `IPv4 prefix = 100.0.2.0/24` and `IPv6 prefix =
         2001:db8:64:65::/64`
@@ -87,11 +83,11 @@ G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
 ### Verification
 
 *   Ensure that the DUT has learnt the routes for prefixes 100.0.1.0/24 and
-    2001:db8:64:64::/64 over IBGP. Following paths
+    2001:db8:64:64::/64 over ISIS. Following paths
 
     *   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address
 
-*   Ensure that the DUT has learnt routes to the IPv4 and IPv6 loopback
+*   Ensure that the DUT has learnt routes to the IPv4 and IPv6
     addresses of ATE2. It is expected that these prefixes are reachable via 3
     different Next-Hop addresses corresponding to the LAG1, LAG2 and LAG3
     interfaces on ATE2.
@@ -101,7 +97,7 @@ G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
     ATE2:LAG1, ATE2:LAG2 and ATE2:LAG3 when the 3 LAG bundles have the same
     bandwidth available.
 
-    *   Traffic distribution between DUT:LAG2, DUT:LAG3 and DUT:LAG4 is expected
+    *   Traffic distribution between DUT:LAG1, DUT:LAG2 and DUT:LAG3 is expected
         to be ~33% each of the total traffic received on DUT:LAG1.
 
     *   Check for the following paths
@@ -130,7 +126,7 @@ G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
 ### Verification
 
 *   It is expected that the IS-IS instance in DUT will unequally distribute the
-    traffic received from ATE1:LAG1 over the LAG bundles corresponding to
+    traffic received from ATE1:INT over the LAG bundles corresponding to
     ATE2:LAG1, ATE2:LAG2 and ATE3:LAG3.
 
     *   Traffic on DUT:LAG2 is expected to be ~20% while traffic on DUT:LAG3 and
@@ -149,10 +145,6 @@ G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
 ```yaml
 paths:
   ## Config Paths ##
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/afi-safi-name:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/afi-name:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/safi-name:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
@@ -169,8 +161,6 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
     value: ACCEPT_ROUTE
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
 
   ## State Paths ##
   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
