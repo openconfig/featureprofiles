@@ -24,6 +24,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -35,9 +37,40 @@ const (
 	trafficPolicyName = "IP_MATCH_TRAFFIC_POLICY"
 	tunnelCount       = 32
 	captureFilePath   = "/tmp/capture.pcap"
+	testTimeout       = 10 * time.Second
+	IPv4              = "IPv4"
+	IPv6              = "IPv6"
 
-	IPv4 = "IPv4"
-	IPv6 = "IPv6"
+	tcamProfileConfig = `
+    hardware tcam
+  	profile tcam-test
+      feature traffic-policy port ipv4
+         sequence 45
+         key size limit 160
+         key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
+         action count drop redirect set-dscp set-tc
+         packet ipv4 forwarding routed
+      !
+      feature traffic-policy port ipv6
+         sequence 25
+         key size limit 160
+         key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
+         action count drop redirect set-dscp set-tc
+         packet ipv6 forwarding routed
+      !
+   system profile tcam-test
+    !
+    hardware counter feature gre tunnel interface out
+    !
+    hardware counter feature traffic-policy in
+    !
+    hardware counter feature traffic-policy out
+    !
+    hardware counter feature route ipv4
+    !
+    hardware counter feature nexthop
+    !
+    `
 )
 
 var (
@@ -278,7 +311,6 @@ func TestEncapGREIPv4(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		// for _, tc := range []testCase{testCases[0]} {
 		t.Run(tc.name, func(t *testing.T) {
 			runTest(t, tc, dut, ate, top)
 		})
@@ -317,6 +349,20 @@ func configureFlows(t *testing.T, config *gosnappi.Config, tc testCase) {
 	}
 }
 
+func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
+	transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
+	_, ok := gnmi.Watch(t, otg, transmitPath, timeout, func(val *ygnmi.Value[bool]) bool {
+		transmitState, present := val.Val()
+		return present && !transmitState
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Traffic for flow %s did not stop within the timeout of %d", flowName, timeout)
+	} else {
+		t.Logf("Traffic for flow %s has stopped", flowName)
+	}
+}
+
 func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	var captureState gosnappi.ControlState
 	configureFlows(t, &config, tc)
@@ -335,10 +381,7 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	}
 
 	otg.StartTraffic(t)
-	time.Sleep(5 * time.Second)
-	otg.StopTraffic(t)
-	time.Sleep(5 * time.Second)
-
+	waitForTraffic(t, otg, tc.flowName, testTimeout)
 	otg.StopProtocols(t)
 
 	if captureState != nil {
@@ -450,36 +493,7 @@ func configureTcamProfile(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Tcam profile not supported on %s %s", dut.Name(), dut.Model())
 		return
 	}
-	tcamProfileConfig := `
-    hardware tcam
-   profile tcam-test
-      feature traffic-policy port ipv4
-         sequence 45
-         key size limit 160
-         key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
-         action count drop redirect set-dscp set-tc
-         packet ipv4 forwarding routed
-      !
-      feature traffic-policy port ipv6
-         sequence 25
-         key size limit 160
-         key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
-         action count drop redirect set-dscp set-tc
-         packet ipv6 forwarding routed
-      !
-   system profile tcam-test
-    !
-    hardware counter feature gre tunnel interface out
-    !
-    hardware counter feature traffic-policy in
-    !
-    hardware counter feature traffic-policy out
-    !
-    hardware counter feature route ipv4
-    !
-    hardware counter feature nexthop
-    !
-    `
+
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
 	gpbSetRequest := buildCliSetRequest(tcamProfileConfig)
@@ -830,16 +844,20 @@ func getCapture(t *testing.T, ate *ondatra.ATEDevice, tc testCase) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(tc.capturePort))
 	if len(bytes) == 0 {
-		t.Fatalf("Empty capture received for flow %s on port %s", tc.flowName, tc.capturePort)
+		t.Errorf("Empty capture received for flow %s on port %s", tc.flowName, tc.capturePort)
+		return ""
 	}
 	f, err := os.Create(captureFilePath)
+	defer f.Close()
 	if err != nil {
-		t.Fatalf("Could not create temporary pcap file: %v\n", err)
+		t.Errorf("Could not create temporary pcap file: %v\n", err)
+		return ""
 	}
 	if _, err := f.Write(bytes); err != nil {
-		t.Fatalf("Could not write bytes to pcap file: %v\n", err)
+		t.Errorf("Could not write bytes to pcap file: %v\n", err)
+		return ""
 	}
-	f.Close()
+
 	return f.Name()
 }
 
@@ -851,9 +869,14 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState)
 }
 
 func checkGreCapture(t *testing.T, tc testCase) {
+	if tc.captureFilename == "" {
+		t.Errorf("Capture file not found for flow %s", tc.flowName)
+		return
+	}
 	handle, err := pcap.OpenOffline(tc.captureFilename)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	defer handle.Close()
 
@@ -958,9 +981,14 @@ func checkFlowStats(t *testing.T, ate *ondatra.ATEDevice, tc testCase) {
 }
 
 func checkFragmentationNeeded(t *testing.T, tc testCase) {
+	if tc.captureFilename == "" {
+		t.Errorf("Capture file not found for flow %s", tc.flowName)
+		return
+	}
 	handle, err := pcap.OpenOffline(tc.captureFilename)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	defer handle.Close()
 
