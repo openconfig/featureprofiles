@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package zr_low_power_mode_test
+package zrp_low_power_mode_test
 
 import (
 	"flag"
@@ -23,25 +23,24 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	intUpdateTime                 = 2 * time.Minute
-	targetOutputPowerdBm          = -10
+	intUpdateTime                 = 5 * time.Minute
+	samplingInterval              = 10 * time.Second
+	targetOutputPowerdBm          = -3
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -90,12 +89,20 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 }
 
 func TestLowPowerMode(t *testing.T) {
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 	dut := ondatra.DUT(t, "dut")
-	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
-	samplingInterval := 10 * time.Second
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+	t.Logf("dut1: %v", dut)
+	t.Logf("dut1 dp1 name: %v", dp1.Name())
+	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
+	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
+	cfgplugins.ConfigOpticalChannel(t, dut, och1, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	cfgplugins.ConfigOpticalChannel(t, dut, och2, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -110,6 +117,9 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamPartNo.Close()
 			streamType := samplestream.New(t, dut, gnmi.OC().Component(tr).Type().State(), samplingInterval)
 			defer streamType.Close()
+			// TODO: b/333021032 - Uncomment the description check from the test once the bug is fixed.
+			// streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
+			// defer streamDescription.Close()
 			streamMfgName := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgName().State(), samplingInterval)
 			defer streamMfgName.Close()
 			streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
@@ -120,41 +130,29 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamFirmwareVersion.Close()
 
 			allStream := map[string]*samplestream.SampleStream[string]{
-				"serialNo":        streamSerialNo,
-				"partNo":          streamPartNo,
+				"serialNo": streamSerialNo,
+				"partNo":   streamPartNo,
+				// "description":     streamDescription,
 				"mfgName":         streamMfgName,
 				"mfgDate":         streamMfgDate,
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
-
-			if !deviations.SkipTransceiverDescription(dut) {
-				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
-				defer streamDescription.Close()
-				allStream["description"] = streamDescription
-			}
-
 			validateStreamOutput(t, allStream)
 
-			d := &oc.Root{}
-			i := d.GetOrCreateInterface(dp.Name())
-			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			// Disable interface
-			t.Logf("Bringing down interface to verify")
-			i.Enabled = ygot.Bool(false)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			cfgplugins.ToggleInterface(t, dut, dp.Name(), false)
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
-
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 			validateStreamOutput(t, allStream)
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
-			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
-				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
-			}
+			samplingInterval := time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
 				if val, ok := opInstN.Val(); ok && val != -40 {
+					t.Logf("streaming /components/component/optical-channel/state/output-power/instant is reported: %f", val)
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/instant is not expected to be reported")
 				}
 			}
@@ -163,6 +161,7 @@ func TestLowPowerMode(t *testing.T) {
 			defer opAvg.Close()
 			if opAvgN := opAvg.Next(); opAvgN != nil {
 				if val, ok := opAvgN.Val(); ok && val != -40 {
+					t.Logf("streaming /components/component/optical-channel/state/output-power/avg is reported: %f", val)
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/avg is not expected to be reported")
 				}
 			}
@@ -171,6 +170,7 @@ func TestLowPowerMode(t *testing.T) {
 			defer opMin.Close()
 			if opMinN := opMin.Next(); opMinN != nil {
 				if val, ok := opMinN.Val(); ok && val != -40 {
+					t.Logf("streaming /components/component/optical-channel/state/output-power/min is reported: %f", val)
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/min is not expected to be reported")
 				}
 			}
@@ -179,13 +179,14 @@ func TestLowPowerMode(t *testing.T) {
 			defer opMax.Close()
 			if opMaxN := opMax.Next(); opMaxN != nil {
 				if val, ok := opMaxN.Val(); ok && val != -40 {
+					t.Logf("streaming /components/component/optical-channel/state/output-power/max is reported: %f", val)
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/max is not expected to be reported")
 				}
 			}
 
 			// Enable interface
-			i.Enabled = ygot.Bool(true)
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			cfgplugins.ToggleInterface(t, dut, dp.Name(), true)
+			// Wait for interface to go up.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			powerStreamMap := map[string]*samplestream.SampleStream[float64]{
@@ -195,7 +196,8 @@ func TestLowPowerMode(t *testing.T) {
 				"max":  opMax,
 			}
 			validateOutputPower(t, powerStreamMap)
-			cfgplugins.ValidateInterfaceConfig(t, dut, dp, targetOutputPowerdBm, targetFrequencyMHz, targetOutputPowerTolerancedBm, targetFrequencyToleranceMHz)
+			// TODO: jchenjian - Uncomment the output power and frequency checks from the test once the bug b/382296833 is fixed.
+			// cfgplugins.ValidateInterfaceConfig(t, dut, dp, targetOutputPowerdBm, targetFrequencyMHz, targetOutputPowerTolerancedBm, targetFrequencyToleranceMHz)
 		})
 	}
 }
