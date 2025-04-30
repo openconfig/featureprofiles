@@ -455,15 +455,6 @@ func TestControlPlaneACL(t *testing.T) {
 		verifyCounters(t, dut, aclNameIPv4, aclTypeIPv4, denyTermSeqID, initialDenyIPv4Count)
 		verifyCounters(t, dut, aclNameIPv6, aclTypeIPv6, denyTermSeqID, initialDenyIPv6Count)
 
-		// Verification of non-response: Implicitly verified by checking the deny counter.
-		// If packets hit the deny rule, the DUT should not have responded.
 	})
 
-	// TODO: Add cleanup steps if necessary (e.g., remove ACLs) using t.Cleanup()
-	t.Cleanup(func() {
-		t.Log("Cleaning up ACL configuration...")
-		gnmi.Delete(t, dut, gnmi.OC().Acl().Config())
-		gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().Config())
-		// Optionally remove interface configs too
-	})
 }
