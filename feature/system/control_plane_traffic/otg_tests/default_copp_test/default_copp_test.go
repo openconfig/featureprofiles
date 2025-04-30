@@ -251,16 +251,14 @@ func (ce *commonEntities) createTrafficFlows(t *testing.T, top gosnappi.Config, 
 
 	if flowParams.trafficType == "l2Bcast" {
 		eth.Dst().SetValue(flowParams.dstMACAddress)
+	} else if flowParams.trafficType == "lacp" {
+		slowMACAddress := "01:80:c2:00:00:02"
+		eth.Dst().SetValue(slowMACAddress)
+		eth.EtherType().SetValue(0x8809)
 	} else {
 		dutDstInterface := ce.dut.Port(t, "port1").Name()
 		dstMac := gnmi.Get(t, ce.dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
 		eth.Dst().SetValue(dstMac)
-	}
-
-	if flowParams.trafficType == "lacp" {
-		slowMACAddress := "01:80:c2:00:00:02"
-		eth.Dst().SetValue(slowMACAddress)
-		eth.EtherType().SetValue(0x8809)
 	}
 
 	if flowParams.trafficLayer == 3 {
@@ -412,7 +410,7 @@ func TestCoppSystem(t *testing.T) {
 	}
 
 	ce.configureDUT(t)
-	// TODO: Add test cases for BGP, LDP and LLDP traffic. Add test case for CoppSystemL3DstMiss
+	// TODO [https://github.com/openconfig/featureprofiles/issues/4171]: Add test cases for BGP, LDP and LLDP traffic. Add test case for CoppSystemL3DstMiss
 	testCases := []coppSystemTestcase{
 		{
 			name:               "CoppSystemL3LpmOverflowExceedingLimitTest",
