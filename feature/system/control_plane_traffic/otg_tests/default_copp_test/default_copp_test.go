@@ -146,7 +146,7 @@ func (ce *commonEntities) configureDUT(t *testing.T) {
 	gnmi.Update(t, ce.dut, d.Interface(p2.Name()).Config(), ce.configInterfaceDUT(t, i2, &dutDst))
 }
 
-// configureATE configures port1 and port2 on the ATE.
+// configureOTG configures port1 and port2 on the ATE.
 func configureOTG(t *testing.T) gosnappi.Config {
 	t.Helper()
 
