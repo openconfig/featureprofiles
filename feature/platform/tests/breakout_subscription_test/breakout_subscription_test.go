@@ -823,7 +823,7 @@ func TestBreakoutSubscription(t *testing.T) {
 		verifyUpdateValue(t, receivedNotifications, "DOWN")
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
-		receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		receivedNotifications, _ = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 		verifyUpdateValue(t, receivedNotifications, "UP")
 	})
 	// Check response after a triggered interface flap
@@ -842,7 +842,7 @@ func TestBreakoutSubscription(t *testing.T) {
 			verifyUpdateValue(t, receivedNotifications, "DOWN")
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
-			receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+			receivedNotifications, _ = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 			verifyUpdateValue(t, receivedNotifications, "UP")
 		}
 		expectedUpdatePaths := []string{
