@@ -40,8 +40,8 @@ const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
 
-	dutLoopbackIPv4  = "198.51.100.1"
-	dutLoopbackIPv6  = "2001:db8::1"
+	dutLoopbackIPv4 = "198.51.100.1"
+	dutLoopbackIPv6 = "2001:db8::1"
 
 	// Source IPs for testing
 	mgmtSrcIPv4    = "192.0.2.100" // Simulated Management Source IP
