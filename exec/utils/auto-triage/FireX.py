@@ -404,15 +404,27 @@ class FireX:
                     if name and bug_type:
                         try:
                             logger.debug(f"Inheriting bug {name} of type {bug_type}")
-                            if bug_type in ["DDTS", "TechZone", "Github"]:
-                                inherited_bug = globals()[bug_type.lower()].inherit(name)
-                                # Only append the bug if it's not None (filtered out)
-                                if inherited_bug is not None:
-                                    data["bugs"].append(inherited_bug) 
-                                    logger.debug(f"Successfully inherited bug {name}")
-                                    if bug_type == "DDTS" and test_passed and ddts.is_open(name):
-                                        data["health"] = "unstable"
-                                        logger.info(f"Set health to 'unstable' due to open DDTS bug {name}")
+                            # FIX: Make bug type check case-insensitive
+                            if bug_type.lower() in ["ddts", "techzone", "github"]:
+                                # Map to proper class name based on lowercase
+                                class_mapping = {
+                                    "ddts": "ddts",
+                                    "techzone": "techzone",
+                                    "github": "github"
+                                }
+                                # Get the appropriate module name for lookup
+                                module_name = class_mapping.get(bug_type.lower())
+                                if module_name:
+                                    inherited_bug = globals()[module_name].inherit(name)
+                                    # Only append the bug if it's not None (filtered out)
+                                    if inherited_bug is not None:
+                                        data["bugs"].append(inherited_bug) 
+                                        logger.debug(f"Successfully inherited bug {name}")
+                                        if bug_type.lower() == "ddts" and test_passed and ddts.is_open(name):
+                                            data["health"] = "unstable"
+                                            logger.info(f"Set health to 'unstable' due to open DDTS bug {name}")
+                                else:
+                                    logger.warning(f"Unknown bug type '{bug_type}' for bug '{name}'")
                         except Exception as e:
                             logger.error(f"Error inheriting bug {name} of type {bug_type}: {e}", exc_info=True)
                     else:
@@ -498,10 +510,62 @@ class FireX:
                 testcase_data["label"] = "Test Skipped. No Label Required."
                 # No other fields needed for skipped
 
-            elif error_el is not None and error_el.get("message") is None:
-                current_status = "aborted"
-                logger.info(f"Testcase {current_test_name} is ABORTED")
+            elif error_el is not None:  # Any error element, with or without message
+                
+                # First check if it matches our existing aborted condition
+                if error_el.get("message") is None:
+                    current_status = "aborted"
+                    logger.info(f"Testcase {current_test_name} is ABORTED (empty error)")
+                else:
+                    current_status = "failed"
+                    logger.info(f"Testcase {current_test_name} is FAILED (error with message)")
+                
                 testcase_data["status"] = current_status
+                
+                # Extract logs regardless of status
+                # Try direct log extraction from the error element first
+                text = error_el.text
+                current_log = str(text).strip() if text else ""
+                
+                # If no logs from error element, try file-based extraction
+                if not current_log:
+                    try:
+                        # Get properties from the testsuite
+                        testsuite = self.root.find(f".//testsuite/testcase[@name='{current_test_name}']/..") or \
+                                    self.root.find(f".//testsuite")  # Fallback to any testsuite
+                        
+                        if testsuite is not None:
+                            properties = testsuite.find("properties")
+                            
+                            if properties is not None:
+                                log_props = properties.findall("./property[@name='log']")
+                                root_props = properties.findall("./property[@name='testsuite_root']")
+                                
+                                if log_props and root_props:
+                                    log_path = log_props[0].get("value")
+                                    root_path = root_props[0].get("value")
+                                    
+                                    if log_path and root_path:
+                                        full_path = os.path.join(root_path, log_path)
+                                        logger.info(f"Trying to extract logs from: {full_path}")
+                                        
+                                        if os.path.exists(full_path):
+                                            # Try tail command
+                                            with os.popen(f"tail -n 50 {full_path}") as pipe:
+                                                tail_output = pipe.read()
+                                                if tail_output:
+                                                    current_log = tail_output
+                                                    logger.info(f"Extracted {len(current_log)} chars from log file")
+                    except Exception as e:
+                        logger.error(f"Error extracting logs: {e}")
+                
+                # Set message and logs
+                testcase_data["message"] = "Aborted" if current_status == "aborted" else "Failed"
+                testcase_data["logs"] = current_log
+                logger.info(f"Set {len(current_log)} chars of logs for {current_test_name}")
+    
+
+                
                 # Always set inherited_label to False by default
                 testcase_data["inherited_label"] = False
                 
