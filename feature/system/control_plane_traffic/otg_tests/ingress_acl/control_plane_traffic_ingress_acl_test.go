@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/openconfig/ygot/ygot"
-	"github/open_traffic_generator/gosnappi/gosnappi"
+	"github/open_traffic_generator/snappi/gosnappi"
 	"github/openconfig/featureprofiles/internal/attrs"
 	"github/openconfig/featureprofiles/internal/fptest"
 	"github/openconfig/featureprofiles/internal/otgutils"
@@ -205,7 +205,7 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 	// Term 40: Explicit Deny All
 	term40Ipv4 := aclSet4.GetOrCreateAclEntry(denyTermSeqID)
 	term40Ipv4.Description = ygot.String(denyTermName)
-	term40Ipv4.GetOrCreateIpv4().Protocol = oc.UnionUint8(0) // Match any protocol (0 for IPv4)
+	term40Ipv4.GetOrCreateIpv4()
 	term40Ipv4.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_REJECT
 
 	// --- Define IPv6 ACL ---
@@ -239,7 +239,7 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 	// Term 40: Explicit Deny All
 	term40Ipv6 := aclSet6.GetOrCreateAclEntry(denyTermSeqID)
 	term40Ipv6.Description = ygot.String(denyTermName)
-	term40Ipv6.GetOrCreateIpv6().Protocol = oc.UnionUint8(ipProtoAny) // Match any protocol (0 for IPv6 next-header)
+	term40Ipv6.GetOrCreateIpv6()
 	term40Ipv6.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_REJECT
 
 	// Push ACL configuration
