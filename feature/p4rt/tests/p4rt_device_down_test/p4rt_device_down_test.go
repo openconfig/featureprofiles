@@ -488,9 +488,9 @@ func TestP4rtConnect(t *testing.T) {
 	if writeErrors[deviceID2] == nil {
 		t.Errorf("P4RT Write for INACTIVE node %d (Node: %s) succeeded unexpectedly", deviceID2, p4rtNode2Name)
 	} else {
-		countOK, countNotOK, errDetails := p4rt_client.P4RTWriteErrParse(writeErrors[deviceID2])
-		t.Logf("Write Errors %d/%d: %s", countOK, countNotOK, errDetails)
-		t.Logf("P4RT Write for INACTIVE node %d (Node: %s) failed with expected code %s as expected.", deviceID2, p4rtNode2Name, writeErrors)
+		if countOK, countNotOK, errDetails := p4rt_client.P4RTWriteErrParse(writeErrors[deviceID2]); countNotOK > 0 {
+			t.Logf("Write to INACTIVE node with Device ID %d failed as expected (%d OK / %d Not OK): %s", deviceID2, countOK, countNotOK, errDetails)
+		}
 	}
 
 	// Receive Read Response and Verify Device 1 (Active) - Should find the entry
@@ -522,8 +522,8 @@ func TestP4rtConnect(t *testing.T) {
 		t.Errorf("Cannot perform Read verification for ACTIVE node %d, client is nil", deviceID1)
 	}
 
-	// Attempt to Receive Read Response for Device 2 (Inactive) - Should fail or return empty
-	t.Logf("Sending P4RT Read to INACTIVE node %d (Node: %s) (expected to fail or return empty)", deviceID2, p4rtNode2Name)
+	// Attempt to Receive Read Response for Device 2 (Inactive) - Should fail
+	t.Logf("Sending P4RT Read to INACTIVE node %d (Node: %s) (expected to fail)", deviceID2, p4rtNode2Name)
 	readFailedAsExpected := false
 	if args.client2 != nil {
 		rStream2, rErr2 := args.client2.Read(&p4pb.ReadRequest{
@@ -531,20 +531,20 @@ func TestP4rtConnect(t *testing.T) {
 			Entities: []*p4pb.Entity{{Entity: &p4pb.Entity_TableEntry{}}},
 		})
 		if rErr2 != nil {
-			t.Errorf("P4RT Read request for INACTIVE node %d failed for %s.", deviceID2)
+			t.Errorf("P4RT Read request for INACTIVE node %d failed: %v", deviceID2, rErr2)
 			readFailedAsExpected = true
 		} else {
 			// Read request succeeded, try Recv
 			readResp2, respErr2 := rStream2.Recv()
 			if respErr2 != nil {
-				t.Logf("P4RT Read Recv for INACTIVE node %d failed for %s.", deviceID2)
+				t.Logf("P4RT Read Recv for INACTIVE node %d failed: %v", deviceID2, respErr2)
 				readFailedAsExpected = true
 			} else {
 				// Read and Recv succeeded, verify entry is NOT present
 				if err := verifyReadReceiveMatch(t, lldpUpdate, readResp2); err == nil {
 					t.Errorf("P4RT Read for INACTIVE node %d unexpectedly succeeded AND found the LLDP entry.", deviceID2)
 				} else {
-					t.Logf("P4RT Read for INACTIVE node %d succeeded but did not find the LLDP entry, as expected.", deviceID2)
+					t.Errorf("P4RT Read for INACTIVE node %d unexpectedly succeeded but did not find the LLDP entry, as expected.", deviceID2)
 					readFailedAsExpected = true
 				}
 			}
@@ -562,3 +562,4 @@ func TestP4rtConnect(t *testing.T) {
 	enableLinecard(t, dut)
 
 }
+
