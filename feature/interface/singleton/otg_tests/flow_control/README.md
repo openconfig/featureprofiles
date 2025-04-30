@@ -6,7 +6,7 @@ Validate state of flow control for a interface
 
 ## Procedure
 
-*   Connect DUT-1 ports 1 to ATE-1 ports 1.
+*   Connect DUT-1 port 1 to ATE-1 port 1.
 
 *   Enable flow control on the interface and check the state of the flow-control
   for the port. it should return true
@@ -32,4 +32,5 @@ rpcs:
   gnmi:
     gNMI.Get:
 ```
-
+## Minimum DUT platform requirement
+FFF
