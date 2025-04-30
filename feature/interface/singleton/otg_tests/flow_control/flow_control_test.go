@@ -114,9 +114,9 @@ func configureATEInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 func TestFlowControl(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
 	flowControlEnabled := []bool{true, false}
 	for _, mode := range flowControlEnabled {
+		top := gosnappi.NewConfig()
 		configureDUTInterface(t, dut, &dutSrc, mode)
 		configureATEInterface(t, ate, top, mode)
 		verifyFlowControl(t, dut, mode)
