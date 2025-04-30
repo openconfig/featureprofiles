@@ -42,7 +42,6 @@ const (
 
 	dutLoopbackIPv4  = "198.51.100.1"
 	dutLoopbackIPv6  = "2001:db8::1"
-	loopbackIntfName = "lo0" // Assuming loopback interface name 'lo0'
 
 	// Source IPs for testing
 	mgmtSrcIPv4    = "192.0.2.100" // Simulated Management Source IP
