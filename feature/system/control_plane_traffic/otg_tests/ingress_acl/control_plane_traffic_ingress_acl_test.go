@@ -18,17 +18,15 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
-	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/acl"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/otg/otg"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygot/ygot"
+	"github/open_traffic_generator/gosnappi/gosnappi"
+	"github/openconfig/featureprofiles/internal/attrs"
+	"github/openconfig/featureprofiles/internal/fptest"
+	"github/openconfig/featureprofiles/internal/otgutils"
+	"github/openconfig/ondatra/gnmi"
+	"github/openconfig/ondatra/gnmi/oc"
+	"github/openconfig/ondatra/netutil"
+	"github/openconfig/ondatra/ondatra"
 )
 
 // Constants for test parameters
