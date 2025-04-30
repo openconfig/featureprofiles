@@ -32,20 +32,20 @@ import (
 // Constants for test parameters
 const (
 	// IPs for DUT interfaces and loopback
-	dutPort1IPv4 = "192.0.2.1"
-	atePort1IPv4 = "192.0.2.2"
-	dutPort1IPv6 = "2001:db8:0:1::1"
-	atePort1IPv6 = "2001:db8:0:1::2"
+	dutPort1IPv4  = "192.0.2.1"
+	atePort1IPv4  = "192.0.2.2"
+	dutPort1IPv6  = "2001:db8:0:1::1"
+	atePort1IPv6  = "2001:db8:0:1::2"
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
 
-	dutLoopbackIPv4 = "198.51.100.1"
-	dutLoopbackIPv6 = "2001:db8::1"
+	dutLoopbackIPv4  = "198.51.100.1"
+	dutLoopbackIPv6  = "2001:db8::1"
 	loopbackIntfName = "lo0" // Assuming loopback interface name 'lo0'
 
 	// Source IPs for testing
-	mgmtSrcIPv4 = "192.0.2.100" // Simulated Management Source IP
-	mgmtSrcIPv6 = "2001:db8::100"
+	mgmtSrcIPv4    = "192.0.2.100" // Simulated Management Source IP
+	mgmtSrcIPv6    = "2001:db8::100"
 	unknownSrcIPv4 = "192.0.2.200" // Simulated Unknown Source IP
 	unknownSrcIPv6 = "2001:db8::200"
 
@@ -67,11 +67,12 @@ const (
 	denyTermSeqID = 40 // Must be last for explicit deny
 
 	// Ports and Protocols
-	sshPort  = 22
-	grpcPort = 50051 // Standard gRPC port, adjust if different
-	ipProtoTCP   = 6
-	ipProtoICMP  = 1
+	sshPort       = 22
+	grpcPort      = 50051 // Standard gRPC port, adjust if different
+	ipProtoTCP    = 6
+	ipProtoICMP   = 1
 	ipProtoICMPv6 = 58
+	ipProtoAny    = 0 // For matching any protocol in ACL
 
 	// Traffic flow parameters
 	packetCount = 100
@@ -96,11 +97,38 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
+	dutLoopback = attrs.Attributes{
+		Desc:    "Loopback ",
+		IPv4:    dutLoopbackIPv4,
+		IPv6:    dutLoopbackIPv6,
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
 )
 
 // TestMain sets up the test environment.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	lb := netutil.LoopbackInterface(t, dut, 0)
+	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
+	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+	foundV4 := false
+	for _, ip := range ipv4Addrs {
+		if v, ok := ip.Val(); ok {
+			foundV4 = true
+			dutLoopback.IPv4 = v.GetIp()
+			break
+		}
+	}
+	if !foundV4 {
+		lo1 := dutLoopback.NewOCInterface(lb, dut)
+		lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
+	}
 }
 
 // configureDUT configures the DUT interfaces and loopback.
@@ -112,39 +140,31 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 
 	// Configure Loopback Interface
-	loopbackIntf := gnmi.OC().Interface(loopbackIntfName)
-	gnmi.Replace(t, dut, loopbackIntf.Config(), &oc.Interface{
-		Name:        ygot.String(loopbackIntfName),
-		Type:        oc.IETFInterfaces_InterfaceType_softwareLoopback,
-		Description: ygot.String("Loopback for Control Plane ACL Test"),
-		Enabled:     ygot.Bool(true),
-	})
-
-	// Configure secondary IP addresses on Loopback
-	// IPv4
-	loopbackIPv4 := loopbackIntf.Subinterface(0).Ipv4().Address(dutLoopbackIPv4)
-	gnmi.Update(t, dut, loopbackIPv4.Config(), &oc.Interface_Subinterface_Ipv4_Address{
-		Ip:           ygot.String(dutLoopbackIPv4),
-		PrefixLength: ygot.Uint8(32),
-	})
-	// IPv6
-	loopbackIPv6 := loopbackIntf.Subinterface(0).Ipv6().Address(dutLoopbackIPv6)
-	gnmi.Update(t, dut, loopbackIPv6.Config(), &oc.Interface_Subinterface_Ipv6_Address{
-		Ip:           ygot.String(dutLoopbackIPv6),
-		PrefixLength: ygot.Uint8(128),
-	})
+	configureDUTLoopback(t, dut)
 	t.Logf("DUT configuration applied.")
+}
+
+// sortPorts sorts the ports by the testbed port ID.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
+	return ports
 }
 
 // configureATE configures the ATE interfaces.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
-	config := gosnappi.NewConfig()
-	port1 := config.Ports().Add().SetName("port1")
-	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	iDut1Eth.Connection().SetPortName(port1.Name())
-	t.Logf("Pushing config to ATE and starting protocols...")
-	ate.OTG().PushConfig(t, config)
+	top := gosnappi.NewConfig()
+	atePorts := sortPorts(ate.Ports())
+	p0 := atePorts[0]
+	top.Ports().Add().SetName(p0.ID())
+	srcDev := top.Devices().Add().SetName(atePort1.Name)
+	srcEth := srcDev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	srcEth.Connection().SetPortName(p0.ID())
+	srcEth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6").SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
+
+	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 }
 
@@ -219,7 +239,7 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 	// Term 40: Explicit Deny All
 	term40Ipv6 := aclSet6.GetOrCreateAclEntry(denyTermSeqID)
 	term40Ipv6.Description = ygot.String(denyTermName)
-	term40Ipv6.GetOrCreateIpv6().Protocol = 0 // Match any protocol (0 for IPv6 next-header)
+	term40Ipv6.GetOrCreateIpv6().Protocol = oc.UnionUint8(ipProtoAny) // Match any protocol (0 for IPv6 next-header)
 	term40Ipv6.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_REJECT
 
 	// Push ACL configuration
@@ -251,7 +271,7 @@ func applyACLsToControlPlane(t *testing.T, dut *ondatra.DUTDevice) {
 // getACLMatchedPackets retrieves the matched packet count for a specific ACL entry applied to the control plane.
 func getACLMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, aclName string, aclType oc.E_Acl_ACL_TYPE, seqID uint32) uint64 {
 	t.Helper()
-	counterQuery := gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclName, aclType).AclEntry(seqID).State().MatchedPackets()
+	counterQuery := gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclName, aclType).AclEntry(seqID).MatchedPackets().State()
 	val := gnmi.Lookup(t, dut, counterQuery)
 	count, present := val.Val()
 	if !present {
@@ -264,7 +284,7 @@ func getACLMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, aclName string, 
 // createFlow defines a traffic flow using OTG/GoSNappi.
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, flowName, srcMac, dstMac, srcIP, dstIP string, proto uint8, srcPort, dstPort uint16, isIPv6 bool) gosnappi.Flow {
 	t.Helper()
-	flow := ate.OTG().NewConfig(t).Flows().Add().SetName(flowName)
+	flow := gosnappi.NewConfig().Flows().Add().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Port().SetTxName(atePort1.Name).SetRxNames([]string{atePort1.Name}) // Loopback traffic
 	flow.Size().SetFixed(frameSize)
@@ -273,37 +293,36 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, flowName, srcMac, dstMac, 
 
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(srcMac)
-	eth.Dst().SetValue(dstMac) // Should be DUT's MAC on the connected interface, fetch dynamically if needed
-
+	eth.Dst().SetValue(dstMac) // Should be DUT's MAC on the connected interface
 	if isIPv6 {
 		ipv6 := flow.Packet().Add().Ipv6()
 		ipv6.Src().SetValue(srcIP)
 		ipv6.Dst().SetValue(dstIP)
-		ipv6.NextHeader().SetValue(int32(proto))
+		ipv6.NextHeader().SetValue(uint32(proto))
 
 		if proto == ipProtoTCP {
 			tcp := flow.Packet().Add().Tcp()
-			tcp.SrcPort().SetValue(int32(srcPort))
-			tcp.DstPort().SetValue(int32(dstPort))
-			tcp.Syn().SetValue(1) // Set SYN flag
+			tcp.SrcPort().SetValue(uint32(srcPort))
+			tcp.DstPort().SetValue(uint32(dstPort))
 		} else if proto == ipProtoICMPv6 {
-			icmpv6 := flow.Packet().Add().Icmpv6()
-			icmpv6.SetType(128) // Echo Request
+			icmpv6 := flow.Packet().Add().Icmpv6() // Echo Request
+			icmpv6.SetEcho(gosnappi.NewFlowIcmpv6Echo())
+
 		}
 	} else {
 		ipv4 := flow.Packet().Add().Ipv4()
 		ipv4.Src().SetValue(srcIP)
 		ipv4.Dst().SetValue(dstIP)
-		ipv4.Protocol().SetValue(int32(proto))
+		ipv4.Protocol().SetValue(uint32(proto))
 
 		if proto == ipProtoTCP {
 			tcp := flow.Packet().Add().Tcp()
-			tcp.SrcPort().SetValue(int32(srcPort))
-			tcp.DstPort().SetValue(int32(dstPort))
-			tcp.Syn().SetValue(1) // Set SYN flag
+			tcp.SrcPort().SetValue(uint32(srcPort))
+			tcp.DstPort().SetValue(uint32(dstPort))
+			tcp.CtlSyn().SetValue(1) // Set SYN flag
 		} else if proto == ipProtoICMP {
 			icmp := flow.Packet().Add().Icmp()
-			icmp.SetType(8) // Echo Request
+			icmp.SetEcho(gosnappi.NewFlowIcmpEcho())
 		}
 	}
 	return flow
@@ -352,7 +371,7 @@ func TestControlPlaneACL(t *testing.T) {
 		initialSSHv6Count := getACLMatchedPackets(t, dut, aclNameIPv6, aclTypeIPv6, sshTermSeqID)
 
 		// Create OTG Traffic Flows
-		otgConfig := ate.OTG().NewConfig(t)
+		otgConfig := gosnappi.NewConfig()
 		// IPv4 ICMP from MGMT_SRC
 		flowICMPv4 := createFlow(t, ate, "Permit_ICMPv4", atePort1.MAC, dutPort1Mac, mgmtSrcIPv4, dutLoopbackIPv4, ipProtoICMP, 0, 0, false)
 		otgConfig.Flows().Append(flowICMPv4)
@@ -403,7 +422,7 @@ func TestControlPlaneACL(t *testing.T) {
 		initialDenyIPv6Count := getACLMatchedPackets(t, dut, aclNameIPv6, aclTypeIPv6, denyTermSeqID)
 
 		// Create OTG Traffic Flows
-		otgConfig := ate.OTG().NewConfig(t)
+		otgConfig := gosnappi.NewConfig()
 		// IPv4 ICMP from UNKNOWN_SRC
 		flowICMPv4Deny := createFlow(t, ate, "Deny_ICMPv4", atePort1.MAC, dutPort1Mac, unknownSrcIPv4, dutLoopbackIPv4, ipProtoICMP, 0, 0, false)
 		otgConfig.Flows().Append(flowICMPv4Deny)
@@ -451,4 +470,3 @@ func TestControlPlaneACL(t *testing.T) {
 		// Optionally remove interface configs too
 	})
 }
-
