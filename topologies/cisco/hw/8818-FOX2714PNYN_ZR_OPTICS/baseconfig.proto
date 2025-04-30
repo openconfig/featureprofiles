@@ -45,6 +45,8 @@ replace: {
       "aaa authentication login default local group google-tacacs group tacacs+\n"
       "grpc\n"
       " vrf mgmtVrf\n"
+      " tls-mutual\n"
+      " certificate-authentication\n"
       " dscp cs4\n"
       " port 8818\n"
       " gnmi\n"

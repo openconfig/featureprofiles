@@ -53,9 +53,13 @@ duts {
   }
   options {
     insecure: false
-    skip_verify: true
+    skip_verify: false 
+    mutual_tls: true
     username: "cisco"
     password: "cisco"
+    trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    cert_file: "$CERT_FILE"
+    key_file:  "$KEY_FILE"
   }
 
   # Options specific to gNMI.  Remove if not needed.
