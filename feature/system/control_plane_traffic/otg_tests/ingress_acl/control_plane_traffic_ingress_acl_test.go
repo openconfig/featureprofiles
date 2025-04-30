@@ -252,18 +252,15 @@ func configureACLs(t *testing.T, dut *ondatra.DUTDevice) {
 func applyACLsToControlPlane(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	aclSetPathIPv4 := gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclNameIPv4, aclTypeIPv4)
-	// Update the 'set-name' field
-	gnmi.Update(t, dut, aclSetPathIPv4.SetName().Config(), aclNameIPv4)
-	// Update the 'type' field
-	gnmi.Update(t, dut, aclSetPathIPv4.Type().Config(), aclTypeIPv4)
+	// Apply IPv4 ACL to control plane ingress using individual updates
+	ingressv4 := &oc.System_ControlPlaneTraffic_Ingress{}
+	ingressv4.GetOrCreateAclSet(aclNameIPv4, aclTypeIPv4)
+	gnmi.Update(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().Config(), ingressv4)
 
 	// Apply IPv6 ACL to control plane ingress using individual updates
-	aclSetPathIPv6 := gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclNameIPv6, aclTypeIPv6)
-	// Update the 'set-name' field
-	gnmi.Update(t, dut, aclSetPathIPv6.SetName().Config(), aclNameIPv6)
-	// Update the 'type' field
-	gnmi.Update(t, dut, aclSetPathIPv6.Type().Config(), aclTypeIPv6)
+	ingressv6 := &oc.System_ControlPlaneTraffic_Ingress{}
+	ingressv6.GetOrCreateAclSet(aclNameIPv6, aclTypeIPv6)
+	gnmi.Update(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().Config(), ingressv6)
 
 	t.Log("ACLs applied to control plane ingress using gnmi.Update.")
 }
