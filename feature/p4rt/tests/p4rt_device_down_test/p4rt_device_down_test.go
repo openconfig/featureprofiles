@@ -42,7 +42,6 @@ import (
   spb "github.com/openconfig/gnoi/system"
   tpb "github.com/openconfig/gnoi/types"
 
-  p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 type testArgs struct {
