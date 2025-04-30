@@ -99,7 +99,7 @@ func verifyFlowControl(t *testing.T, dut *ondatra.DUTDevice, flowControlMode boo
 	}
 }
 
-func configureATEInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, flowControlMode bool) {
+func configureATEInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	ap1 := ate.Port(t, "port1")
 	top.Ports().Add().SetName(ap1.ID())
 	d0 := top.Devices().Add().SetName(ateSrc.Name)
