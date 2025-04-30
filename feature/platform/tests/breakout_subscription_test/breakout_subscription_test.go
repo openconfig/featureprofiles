@@ -141,7 +141,6 @@ const (
 )
 
 type testCase struct {
-	desc    string
 	dut     *ondatra.DUTDevice
 	ate     *ondatra.ATEDevice
 	top     gosnappi.Config
@@ -150,7 +149,6 @@ type testCase struct {
 	dutPorts []*ondatra.Port
 	atePorts []*ondatra.Port
 	aggID    string
-	l3header string
 }
 
 func TestMain(m *testing.M) {
@@ -827,7 +825,6 @@ func TestBreakoutSubscription(t *testing.T) {
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
 		receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 		verifyUpdateValue(t, receivedNotifications, "UP")
-
 	})
 	// Check response after a triggered interface flap
 	t.Run("PLT-1.2.2 Check response after a triggered interface flap", func(t *testing.T) {
