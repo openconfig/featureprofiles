@@ -15,33 +15,32 @@
 package p4rt_device_down_test
 
 import (
-  "context"
-  "errors"
-  "flag"
-  "fmt"
-  "testing"
-  "time"
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"testing"
+	"time"
 
-  "github.com/cisco-open/go-p4/p4rt_client"
-  "github.com/cisco-open/go-p4/utils"
-  "github.com/google/go-cmp/cmp"
-  "github.com/open-traffic-generator/snappi/gosnappi"
-  "github.com/openconfig/featureprofiles/internal/attrs"
-  "github.com/openconfig/featureprofiles/internal/deviations"
-  "github.com/openconfig/featureprofiles/internal/fptest"
-  "github.com/openconfig/featureprofiles/internal/p4rtutils"
-  "github.com/openconfig/ondatra"
-  "github.com/openconfig/ondatra/gnmi"
-  "github.com/openconfig/ondatra/gnmi/oc"
-  "github.com/openconfig/ygot/ygot"
-  p4pb "github.com/p4lang/p4runtime/go/p4/v1"
-  "google.golang.org/protobuf/testing/protocmp"
+	"github.com/cisco-open/go-p4/p4rt_client"
+	"github.com/cisco-open/go-p4/utils"
+	"github.com/google/go-cmp/cmp"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/protobuf/testing/protocmp"
 
-  "github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/components"
 
-  spb "github.com/openconfig/gnoi/system"
-  tpb "github.com/openconfig/gnoi/types"
-
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 )
 
 type testArgs struct {
@@ -474,7 +473,7 @@ func TestP4rtConnect(t *testing.T) {
 			Atomicity: p4pb.WriteRequest_CONTINUE_ON_ERROR,
 		})
 	}
-  
+
 	// Verify Device 1 (Active) Read Results - Should succeed
 	if writeErrors[deviceID1] != nil {
 		countOK, countNotOK, errDetails := p4rt_client.P4RTWriteErrParse(writeErrors[deviceID1])
@@ -561,4 +560,3 @@ func TestP4rtConnect(t *testing.T) {
 	enableLinecard(t, dut)
 
 }
-
