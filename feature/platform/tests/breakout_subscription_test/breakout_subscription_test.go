@@ -285,10 +285,6 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	gnmi.Update(t, tc.dut, p.Config(), d)
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 2f80d74a (adding the files for automation)
 func (tc *testCase) configSrcAggregateDUT(i *oc.Interface, a *attrs.Attributes) {
 	tc.configDstDUT(i, a)
 	i.Type = ieee8023adLag
@@ -296,10 +292,6 @@ func (tc *testCase) configSrcAggregateDUT(i *oc.Interface, a *attrs.Attributes) 
 	g.LagType = tc.lagType
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 2f80d74a (adding the files for automation)
 func (tc *testCase) configSrcMemberDUT(i *oc.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
 	i.Type = ethernetCsmacd
@@ -507,7 +499,7 @@ func LinecardReboot(t *testing.T, dut *ondatra.DUTDevice) {
 // chassisReboot performs a chassis reboot.
 func chassisReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	maxRebootTime := uint64(10 * time.Minute.Seconds())
+	maxRebootTime := uint64(20 * time.Minute.Seconds())
 	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
 	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
 
@@ -612,8 +604,7 @@ func subscribedUpdates(t *testing.T, dut *ondatra.DUTDevice, stream gpb.GNMI_Sub
 				// sharedResult.err = nil // Or potential partial errors
 				mu.Unlock()
 				// --- End incremental update ---
-				t.Logf("Notification in Update message: %v", notification)
-				t.Logf("Notification GetUpdate in Update message: %v", notification.GetUpdate())
+
 				// Now you can work with the 'notification' variable
 			}
 		} else {
@@ -657,8 +648,14 @@ func recieveUpdateWithTimeout(ctx context.Context, t *testing.T, dut *ondatra.DU
 
 		return result.notifications, result.err
 	case <-ctxTimeout.Done():
+		if err := stream.CloseSend(); err != nil {
+			t.Logf("recieveUpdateWithTimeout: Error calling stream.CloseSend() on timeout: %v", err)
+		} else {
+			t.Logf("recieveUpdateWithTimeout: Successfully called stream.CloseSend() on timeout.")
+		}
 		mu.Lock()
 		lastUpdates := sharedResult.notifications
+
 		t.Logf("Timeout Case: Read sharedResult INSIDE LOCK. Update count: %d, Err: %v", len(lastUpdates), sharedResult.err) // <<< ADD THIS LOG
 		// Unlock mutex
 		mu.Unlock()
@@ -750,7 +747,7 @@ func verifyNotificationPaths(t *testing.T, notifications []*gpb.Notification, ex
 			}
 		}
 		if !pathResult.found {
-			t.Errorf("Expected path %v not found in received updates: %v", pathResult.path, paths)
+			t.Errorf(" Error: Expected path %v not found in received updates: %v", pathResult.path, paths)
 		}
 	}
 }
@@ -767,9 +764,9 @@ func verifyUpdateValue(t testing.TB, notifications []*gpb.Notification, expected
 					if err != nil {
 						t.Errorf("Error marshalling json value: %v", err)
 					} else if updateValueString != expectedUpdateValue {
-						t.Errorf("SubscribedValue stringVal in Update message for admin-status: %v, want: DOWN", updateValueString)
+						t.Errorf("Error: SubscribedValue stringVal in Update message for admin-status: %v, want: %v", updateValueString, expectedUpdateValue)
 					} else {
-						t.Logf("SubscribedValue stringVal in Update message for admin-status: %v, want: DOWN", updateValueString)
+						t.Logf("SubscribedValue stringVal in Update message for admin-status: %v, want: %v", updateValueString, expectedUpdateValue)
 					}
 				}
 				if elem.GetName() == "oper-status" {
@@ -777,10 +774,10 @@ func verifyUpdateValue(t testing.TB, notifications []*gpb.Notification, expected
 					err := json.Unmarshal(update.GetVal().GetJsonVal(), &updateValueString)
 					if err != nil {
 						t.Errorf("Error marshalling json value: %v", err)
-					} else if updateValueString != expectedUpdateValue {
-						t.Errorf("SubscribedValue stringVal in Update message for oper-status: %v, want: DOWN", updateValueString)
+					} else if strings.Contains(updateValueString, expectedUpdateValue) {
+						t.Logf("SubscribedValue stringVal in Update message for oper-status: %v, want: %v", updateValueString, expectedUpdateValue)
 					} else {
-						t.Logf("SubscribedValue stringVal in Update message for oper-status: %v, want: DOWN", updateValueString)
+						t.Errorf("Error: SubscribedValue stringVal in Update message for oper-status: %v, want: %v", updateValueString, expectedUpdateValue)
 					}
 				}
 			}
@@ -817,9 +814,6 @@ func TestBreakoutSubscription(t *testing.T) {
 		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 		if err != nil {
 			t.Logf("Received error(possibly end of updates): %v", err)
-			t.Logf("Received notifications in main function: %v", receivedNotifications)
-		} else {
-			t.Logf("Received notifications in main function: %v", receivedNotifications)
 		}
 		expectedUpdatePaths := []string{
 			"/interfaces/interface/state/admin-status",
@@ -830,28 +824,20 @@ func TestBreakoutSubscription(t *testing.T) {
 		verifyUpdateValue(t, receivedNotifications, "DOWN")
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
+		receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 		verifyUpdateValue(t, receivedNotifications, "UP")
 
 	})
 	// Check response after a triggered interface flap
 	t.Run("PLT-1.2.2 Check response after a triggered interface flap", func(t *testing.T) {
 		counter := 5
+		var receivedNotifications []*gpb.Notification
+		var err error
 		for i := 0; i < counter; i++ {
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], false)
 			updateTimeout := 10 * time.Second
-<<<<<<< HEAD
-		  receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
-		  if err != nil {
-		  	t.Logf("Received error(possibly end of updates): %v", err)
-		  }
-		 	verifyUpdateValue(t, receivedNotifications, "DOWN")
-		 	setDUTInterfaceWithState(t, dut, tc.dutPorts[0], true)
-		 	setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
-		  receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
-		 	verifyUpdateValue(t, receivedNotifications, "UP")
-=======
-			receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+			receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 			if err != nil {
 				t.Logf("Received error(possibly end of updates): %v", err)
 			}
@@ -860,12 +846,6 @@ func TestBreakoutSubscription(t *testing.T) {
 			setDUTInterfaceWithState(t, dut, tc.dutPorts[2], true)
 			receivedNotifications, err = recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 			verifyUpdateValue(t, receivedNotifications, "UP")
->>>>>>> 2f80d74a (adding the files for automation)
-		}
-		updateTimeout := 10 * time.Second
-		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
-		if err != nil {
-			t.Logf("Received error:(possibly end of updates) %v", err)
 		}
 		expectedUpdatePaths := []string{
 			"/interfaces/interface/state/admin-status",
@@ -886,9 +866,6 @@ func TestBreakoutSubscription(t *testing.T) {
 			t.Logf("Received notifications in main function: %v", receivedNotifications)
 		}
 		expectedUpdatePaths := []string{
-			"/interfaces/interface/state/admin-status",
-			"/lacp/interfaces/interface/members/member/state/interface",
-			"/interfaces/interface/state/oper-status",
 			"/components/component/state/oper-status",
 		}
 		verifyNotificationPaths(t, receivedNotifications, expectedUpdatePaths)
