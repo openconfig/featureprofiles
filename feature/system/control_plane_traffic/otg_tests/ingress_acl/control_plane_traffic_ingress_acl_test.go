@@ -20,13 +20,13 @@ import (
 
 	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github/openconfig/featureprofiles/internal/attrs"
-	"github/openconfig/featureprofiles/internal/fptest"
-	"github/openconfig/featureprofiles/internal/otgutils"
-	"github/openconfig/ondatra/gnmi"
-	"github/openconfig/ondatra/gnmi/oc"
-	"github/openconfig/ondatra/netutil"
-	"github/openconfig/ondatra/ondatra"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ondatra/ondatra"
 )
 
 // Constants for test parameters
