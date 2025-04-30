@@ -1,10 +1,10 @@
-// Copyright 2022 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -100,23 +100,11 @@ func verifyFlowControl(t *testing.T, dut *ondatra.DUTDevice, flowControlMode boo
 	}
 }
 
-func configureATEInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	ap1 := ate.Port(t, "port1")
-	top.Ports().Add().SetName(ap1.ID())
-	d0 := top.Devices().Add().SetName(ateSrc.Name)
-	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetPortName(ap1.ID())
-	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
-	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-}
-
 func TestFlowControl(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
-	configureATEInterface(t, ate, top)
+	p1 := dut.Port(t, "port1")
+	config := gosnappi.NewConfig()
+	ateSrc.AddToOTG(config, p1, &dutSrc)
 	flowControlEnabled := []bool{true, false}
 	for _, mode := range flowControlEnabled {
 		t.Run(fmt.Sprintf("FlowControl with mode: %v", mode), func(t *testing.T) {
@@ -125,3 +113,4 @@ func TestFlowControl(t *testing.T) {
 		})
 	}
 }
+
