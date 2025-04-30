@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -75,12 +74,6 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
-	mgmtVRF = map[ondatra.Vendor]string{
-		ondatra.JUNIPER: "mvrf1",
-		ondatra.ARISTA:  "mvrf1",
-		ondatra.CISCO:   "mgmtvrf1",
-		ondatra.NOKIA:   "mgmtvrf1",
-	}
 )
 
 type flowParameters struct {
@@ -136,34 +129,6 @@ func (ce *commonEntities) configInterfaceDUT(t *testing.T, i *oc.Interface, a *a
 	return i
 }
 
-// createAndAddInterfacesToVRF creates interfaces and adds them to the specified VRF.
-func (ce *commonEntities) createAndAddInterfacesToVRF(t *testing.T, intfNames []string, unit []uint32) {
-	t.Helper()
-
-	vrfName := mgmtVRF[ce.dut.Vendor()]
-	root := &oc.Root{}
-	batchConfig := &gnmi.SetBatch{}
-	for index, intfName := range intfNames {
-		i := root.GetOrCreateInterface(intfName)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		i.Description = ygot.String(fmt.Sprintf("Port %s", strconv.Itoa(index+1)))
-		si := i.GetOrCreateSubinterface(unit[index])
-		si.Enabled = ygot.Bool(true)
-		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intfName).Config(), i)
-	}
-
-	mgmtNI := root.GetOrCreateNetworkInstance(vrfName)
-	mgmtNI.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	for index, intfName := range intfNames {
-		vi := mgmtNI.GetOrCreateInterface(intfName)
-		vi.Interface = ygot.String(intfName)
-		vi.Subinterface = ygot.Uint32(unit[index])
-	}
-	gnmi.BatchReplace(batchConfig, gnmi.OC().NetworkInstance(vrfName).Config(), mgmtNI)
-	batchConfig.Set(t, ce.dut)
-	t.Logf("Added interface %v to VRF %s", intfNames, vrfName)
-}
-
 // configureDUT configures port1, port2 on the DUT.
 func (ce *commonEntities) configureDUT(t *testing.T) {
 	t.Helper()
@@ -179,8 +144,6 @@ func (ce *commonEntities) configureDUT(t *testing.T) {
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	i2.Enabled = ygot.Bool(true)
 	gnmi.Update(t, ce.dut, d.Interface(p2.Name()).Config(), ce.configInterfaceDUT(t, i2, &dutDst))
-
-	ce.createAndAddInterfacesToVRF(t, []string{p2.Name()}, []uint32{0})
 }
 
 // configureATE configures port1 and port2 on the ATE.
@@ -270,15 +233,9 @@ func (ce *commonEntities) createTrafficFlows(t *testing.T, top gosnappi.Config, 
 	flowName := fmt.Sprintf("%d-%s-Flow:", flowParams.trafficLayer, flowParams.trafficType)
 
 	flow := top.Flows().Add().SetName(flowName)
-	if flowParams.trafficType == "l3DstMissVRF" {
-		flow.TxRx().Port().
-			SetTxName(ce.ate.Port(t, "port2").ID()).
-			SetRxNames([]string{ce.ate.Port(t, "port1").ID()})
-	} else {
-		flow.TxRx().Port().
-			SetTxName(ce.ate.Port(t, "port1").ID()).
-			SetRxNames([]string{ce.ate.Port(t, "port2").ID()})
-	}
+	flow.TxRx().Port().
+		SetTxName(ce.ate.Port(t, "port1").ID()).
+		SetRxNames([]string{ce.ate.Port(t, "port2").ID()})
 
 	flow.Metrics().SetEnable(true)
 	flow.Rate().SetPps(flowParams.pps)
@@ -286,7 +243,7 @@ func (ce *commonEntities) createTrafficFlows(t *testing.T, top gosnappi.Config, 
 	flow.Duration().Continuous()
 
 	eth := flow.Packet().Add().Ethernet()
-	if flowParams.trafficType == "l3DstMissVRF" || flowParams.trafficType == "l3DstMiss" {
+	if flowParams.trafficType == "l3LpmOverflow" {
 		eth.Src().SetValue(unknownMAC)
 	} else {
 		eth.Src().SetValue(ateSrc.MAC)
@@ -294,19 +251,13 @@ func (ce *commonEntities) createTrafficFlows(t *testing.T, top gosnappi.Config, 
 
 	if flowParams.trafficType == "l2Bcast" {
 		eth.Dst().SetValue(flowParams.dstMACAddress)
-	} else if flowParams.trafficType == "l3DstMissVRF" {
-		dutDstInterface := ce.dut.Port(t, "port2").Name()
-		dstMac2 := gnmi.Get(t, ce.dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
-		eth.Dst().SetValue(dstMac2)
 	} else {
 		dutDstInterface := ce.dut.Port(t, "port1").Name()
 		dstMac := gnmi.Get(t, ce.dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
 		eth.Dst().SetValue(dstMac)
 	}
 
-	if flowParams.trafficType == "lldp" {
-		eth.EtherType().SetValue(0x88CC)
-	} else if flowParams.trafficType == "lacp" {
+	if flowParams.trafficType == "lacp" {
 		slowMACAddress := "01:80:c2:00:00:02"
 		eth.Dst().SetValue(slowMACAddress)
 		eth.EtherType().SetValue(0x8809)
@@ -417,9 +368,6 @@ func (ce *commonEntities) testCoppSystemHelper(t *testing.T, tc *coppSystemTestc
 	otgObj.StartProtocols(t)
 
 	incomingPort := "port1"
-	if tc.flowParams.trafficType == "l3DstMissVRF" {
-		incomingPort = "port2"
-	}
 	initialCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, incomingPort).Name()).Counters().State())
 	initialInPkts := initialCounters.GetInPkts()
 	ce.runTraffic(t)
@@ -464,31 +412,19 @@ func TestCoppSystem(t *testing.T) {
 	}
 
 	ce.configureDUT(t)
-	// TODO: Add test cases for BGP, LDP and LLDP traffic
+	// TODO: Add test cases for BGP, LDP and LLDP traffic. Add test case for CoppSystemL3DstMiss
 	testCases := []coppSystemTestcase{
 		{
-			name:               "CoppSystemL3DstMissVRFExceedingLimitTest",
-			flowParams:         flowParameters{pps: 20000, packetSize: 512, trafficLayer: 3, trafficType: "l3DstMissVRF", srcIPAddress: ateDst.IPv4},
+			name:               "CoppSystemL3LpmOverflowExceedingLimitTest",
+			flowParams:         flowParameters{pps: 20000, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: true,
-			counters:           []string{"CoppSystemL3DstMiss", "CoppSystemL3LpmOverflow"},
+			counters:           []string{"CoppSystemL3LpmOverflow"},
 		},
 		{
-			name:               "CoppSystemL3DstMissVRFInLimitTest",
-			flowParams:         flowParameters{pps: 200, packetSize: 512, trafficLayer: 3, trafficType: "l3DstMissVRF", srcIPAddress: ateDst.IPv4},
+			name:               "CoppSystemL3LpmOverflowInLimitTest",
+			flowParams:         flowParameters{pps: 200, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: false,
-			counters:           []string{"CoppSystemL3DstMiss", "CoppSystemL3LpmOverflow"},
-		},
-		{
-			name:               "CoppSystemL3DstMissExceedingLimitTest",
-			flowParams:         flowParameters{pps: 20000, packetSize: 512, trafficLayer: 3, trafficType: "l3DstMiss"},
-			increasedDropCount: true,
-			counters:           []string{"CoppSystemL3DstMiss", "CoppSystemL3LpmOverflow"},
-		},
-		{
-			name:               "CoppSystemL3DstMissInLimitTest",
-			flowParams:         flowParameters{pps: 200, packetSize: 512, trafficLayer: 3, trafficType: "l3DstMiss"},
-			increasedDropCount: false,
-			counters:           []string{"CoppSystemL3DstMiss", "CoppSystemL3LpmOverflow"},
+			counters:           []string{"CoppSystemL3LpmOverflow"},
 		},
 		{
 			name:               "CoppSystemL2UcastExceedingLimitTest",
