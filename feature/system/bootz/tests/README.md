@@ -212,5 +212,5 @@ rpcs:
     bootconfig.BootConfig.SetBootConfig:
   bootz:
     Bootstrap.GetBootstrapData:
-    Bootstrap.GetStatus:
+    Bootstrap.ReportStatus:
 ```
