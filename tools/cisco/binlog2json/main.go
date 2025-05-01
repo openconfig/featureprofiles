@@ -2,15 +2,20 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 	"unicode"
-
+	
 	"github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
@@ -19,12 +24,18 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+
+type RawTest struct {
+	TestName string          `json:"test_name"`
+	Requests []TestCaseEntry `json:"requests"`
+}
+
 // TestCaseEntry holds an individual test step
 type TestCaseEntry struct {
-	Error   any            `json:"error"`
+	Error   any            `json:"err"`
 	Request map[string]any `json:"request"`
 	RPC     string         `json:"rpc"`
-	Status  string         `json:"status"`
+	Status  any            `json:"status"`
 	Type    string         `json:"type"`
 }
 
@@ -58,16 +69,16 @@ type PolicyOutput struct {
 	HardwareInfo HardwareInfo                            `json:"hardware_info"`
 	ConfigMode   map[string]map[string]string            `json:"config_mode"`
 	VerifyMode   map[string]map[string]string            `json:"verify_mode"`
-	Inband       string                                  `json:"inband"`
-	IPv4         string                                  `json:"ipv4"`
-	IPv6         string                                  `json:"ipv6"`
+	Inband       string                                  `json:"inband,omitempty"`
+	IPv4         string                                  `json:"ipv4,omitempty"`
+	IPv6         string                                  `json:"ipv6,omitempty"`
 	LogLink      string                                  `json:"log_link"`
 	Outband      string                                  `json:"outband"`
 	Result       string                                  `json:"result"`
-	SimHw        SimHw                                   `json:"sim_hw"`
+	SimHw        SimHw                                   `json:"sim_hw,omitempty"`
 	Users        map[string]string                       `json:"users"`
 	Verification map[string]map[string]VerificationEntry `json:"verification"`
-	VRF          string                                  `json:"vrf"`
+	VRF          string                                  `json:"vrf,omitempty"`
 }
 
 type OutputJSON struct {
@@ -80,20 +91,44 @@ type OutputJSON struct {
 	UnitTest        bool                                   `json:"unit_test"`
 	UpdateResultsDB bool                                   `json:"update_results_db"`
 }
+type ResultWrapper struct {
+	Result string `json:"result,omitempty"`
+}
 
 type SimHw struct {
-	Sim struct {
-		Result string `json:"result"`
-	} `json:"sim"`
-	Hw struct {
-		Result string `json:"result"`
-	} `json:"hw"`
+	Sim *ResultWrapper `json:"sim,omitempty"`
+	Hw  *ResultWrapper `json:"hw,omitempty"`
 }
 
 type HardwareInfo struct {
 	PlatformFamily string   `json:"platform_family"`
 	NPU            []string `json:"npu"`
 	PID            []string `json:"pid"`
+}
+
+// Response structure
+type PostingResult struct {
+	Passed  int `json:"pass"`
+	Failed  int `json:"fail"`
+	Errored int `json:"error"`
+	Total   int `json:"total"`
+}
+
+type Property struct {
+	Name  string `xml:"name,attr"`
+	Value string `xml:"value,attr"`
+}
+
+type Properties struct {
+	Property []Property `xml:"property"`
+}
+
+type TestSuite struct {
+	Properties Properties `xml:"properties"`
+}
+
+type TestSuites struct {
+	TestSuites []TestSuite `xml:"testsuite"`
 }
 
 var allUsers = []string{"admin", "deny-all", "gribi-modify", "gnmi-set", "gnoi-ping", "gnoi-time", "gnsi-probe", "read-only"}
@@ -118,11 +153,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, err = generateJsonForVioletDB(jsonData, firexID)
+	violetJson, err := generateJsonForVioletDB(jsonData, firexID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating JSON for VioletDB: %v\n", err)
 		os.Exit(1)
 	}
+
+	// post to traceability service
+	res := postToTraceability(violetJson)
+	if res != nil {
+		log.Printf("Traceability: pass=%d, fail=%d, error=%d, total=%d", res.Passed, res.Failed, res.Errored, res.Total)
+	}
+
 }
 
 // Load binary log file
@@ -301,7 +343,7 @@ func sanitizeTestName(name string) string {
 		return r
 	}, name)
 }
-func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) ([]byte, error) {
+func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) ([]byte, error){
 	var currentTestName string
 	testCaseRequestsNew := make(map[string][]map[string]interface{})
 	clientHeaderCallID := make(map[uint64]*binlogpb.ClientHeader)
@@ -349,7 +391,7 @@ func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) ([]byte, error) {
 	formattedMap, err := json.MarshalIndent(callStatusMap, "", "  ")
 	if err != nil {
 		fmt.Println("Error marshaling callStatusMap:", err)
-		return
+		return nil, fmt.Errorf("error marshalling: %v", err)
 	}
 	fmt.Println("callStatusMap:")
 	fmt.Println(string(formattedMap))
@@ -372,17 +414,17 @@ func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) ([]byte, error) {
 	data, err := json.MarshalIndent(orderedOutput, "", "  ")
 	if err != nil {
 		fmt.Println("Error marshalling:", err)
-		return
+		return nil, fmt.Errorf("error marshalling: %v", err)
 	}
 
 	err = os.WriteFile("output.json", data, 0644)
 	if err != nil {
 		fmt.Println("Error writing file:", err)
-		return
+		return nil, fmt.Errorf("error writing file: %v", err)
 	}
-
+	fmt.Println("Data written to output.json")
+	return data, nil
 }
-
 // initConfigOpEntry initializes an empty ConfigOpEntry
 func initConfigOpEntry() ConfigOpEntry {
 	return ConfigOpEntry{
@@ -423,52 +465,6 @@ func finalizeVE(v *VerificationEntry) {
 	}
 }
 
-// Get NPU from hardware_model and mapping
-func getNPU(hwModel string, hwMapping map[string]map[string]map[string]any) string {
-	if npuVal, ok := hwMapping["8000"][hwModel]["npu"]; ok {
-		if npuStr, ok := npuVal.(string); ok {
-			return npuStr
-		}
-	}
-	return "unknown"
-}
-
-// Parse ondatra_binding.txt -> returns hardware model and whether IP is IPv6
-func getHardwareModelAndIP(path string) (string, bool) {
-	file, err := os.Open(path)
-
-	if err != nil {
-		log.Printf("Failed to open log file: %v", err)
-		return "", false
-	}
-	defer file.Close()
-
-	// Read the file content
-	raw, err := io.ReadAll(file)
-	if err != nil {
-		log.Printf("Failed to read log file: %v", err)
-		return "", false
-	}
-	lines := strings.Split(string(raw), "\n")
-
-	hwModel := ""
-	hasIPv6 := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "hardware_model:") {
-			hwModel = strings.Trim(strings.TrimPrefix(line, "hardware_model:"), `" `)
-		}
-		if strings.Contains(line, "gnmi:") {
-			if strings.Contains(line, "[") { // crude ipv6 check
-				hasIPv6 = true
-			}
-		}
-	}
-	hwModel = strings.TrimPrefix(hwModel, "CISCO-")
-	return hwModel, hasIPv6
-}
-
 func ifThenElse(cond bool, a, b string) string {
 	if cond {
 		return a
@@ -476,461 +472,578 @@ func ifThenElse(cond bool, a, b string) string {
 	return b
 }
 
-// Parse testbed_info.txt -> versioning, vrf and sim/hw detection
-func getSoftwareInfo(path string) (string, string, string, string, string) {
-	file, err := os.Open(path)
-	if err != nil {
-		log.Printf("Failed to open log file: %v", err)
-		return "", "", "", "", ""
-	}
-	defer file.Close()
-
-	// Read the file content
-	raw, err := io.ReadAll(file)
-	if err != nil {
-		log.Printf("Failed to read log file: %v", err)
-		return "", "", "", "", ""
-	}
-
-	// Split the content into lines
-	lines := strings.Split(string(raw), "\n")
-
-	version := ""
-	vrf := "pass"
-	sim := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, "XR version =") {
-			version = strings.TrimSpace(strings.Split(line, "=")[1])
-			if strings.Contains(version, ":") {
-				version = strings.TrimSpace(strings.Split(version, ":")[0])
+// extractNPU returns the NPU ID for a given platform family and model.
+func extractNPU(model string, hardwareMap map[string]map[string]map[string]any) string {
+	if familyMap, ok := hardwareMap["8000"]; ok {
+		if modelInfo, ok := familyMap[model]; ok {
+			if id, ok := modelInfo["npu"].(string); ok {
+				return id
 			}
 		}
-		if strings.Contains(line, "ssh server vrf default") {
-			vrf = "fail"
-		}
-		if strings.Contains(line, "VXR") {
-			sim = true
-		}
 	}
-	osLabel := version
-	parts := strings.Split(version, ".")
-	osMajor := strings.Join(parts[:3], ".")
-	osMinor := parts[3]
-
-	return osLabel, osMajor, osMinor, vrf, ifThenElse(sim, "true", "false")
+	return "unknown"
 }
 
-func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
-	var input TestResults
-	json.Unmarshal(jsonData, &input)
+// parseBindingInfo reads the binding file and returns the hardware model
+// (without the "CISCO-" prefix) and whether IPv6 is supported.
+func parseBindingInfo(filePath string) (model string, ipv6Supported bool) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		l := strings.TrimSpace(line)
+		if strings.HasPrefix(l, "hardware_model:") {
+			model = strings.Trim(l[len("hardware_model:"):], ` "`)
+		}
+		if strings.Contains(l, "gnmi:") && strings.Contains(l, "[") {
+			ipv6Supported = true
+		}
+	}
+	return strings.TrimPrefix(model, "CISCO-"), ipv6Supported
+}
 
-	if err := json.Unmarshal(jsonData, &input); err != nil {
-		panic(err)
+// usernameFromTestCase extracts the certificate username suffix from a test-case string.
+func usernameFromTestCase(tcName string) string {
+	tcName = strings.TrimSuffix(tcName, "/")
+	if idx := strings.LastIndex(tcName, "cert_"); idx != -1 {
+		return tcName[idx+len("cert_"):]
+	}
+	return ""
+}
+
+// parseTestbedInfo reads testbed_info.txt and returns:
+// - OS label
+// - major version
+// - minor version
+// - VRF status ("pass"/"fail")
+// - simulation flag ("true"/"false")
+func parseTestbedInfo(filePath string) (label, major, minor, vrf, sim string) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return
+	}
+	vrf = "pass"
+	var simDetected bool
+
+	for _, line := range strings.Split(string(data), "\n") {
+		l := strings.TrimSpace(line)
+		if strings.HasPrefix(l, "XR version =") {
+			parts := strings.SplitN(l, "=", 2)
+			version := strings.TrimSpace(strings.SplitN(parts[1], ":", 2)[0])
+			label = version
+			chunks := strings.Split(version, ".")
+			if len(chunks) >= 4 {
+				major = strings.Join(chunks[:3], ".")
+				minor = chunks[3]
+			}
+		}
+		if strings.Contains(l, "ssh server vrf default") {
+			vrf = "fail"
+		}
+		if strings.Contains(l, "VXR") {
+			simDetected = true
+		}
+	}
+	if simDetected {
+		sim = "true"
+	} else {
+		sim = "false"
+	}
+	return
+}
+
+// parseSlotInfo scans for the first occurrence of NAME: "0/RP0" or "0/RP1"
+// and returns its key and details.
+func parseSlotInfo(filePath string) (string, map[string]string) {
+	raw, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Printf("Error reading file %s: %v", filePath, err)
+		return "", nil
 	}
 
-	osLabel, osVersionMajor, osVersionMinor, vrfStatus, sim := getSoftwareInfo(firexID + "/testbed_info.txt")
+	// Split the file content into lines
+	lines := strings.Split(string(raw), "\n")
 
-	hardwareModel, hasIPv6 := getHardwareModelAndIP(firexID + "/ondatra_binding.txt") // returns e.g., "8808"
-	hwMappingData, _ := os.ReadFile("/auto/ops-tool/violet/hw_mapping_v2.json")
-	var hwMap map[string]map[string]map[string]any
-	_ = json.Unmarshal(hwMappingData, &hwMap)
+	slotInfo := make(map[string]string)
+	slotKey := ""
 
-	npu := getNPU(hardwareModel, hwMap)
-
-	// Map AuthZ1.4 suffix -> user under test
-	testUser := map[string]string{
-		"Validating_access_for_user_cert_deny_all":     "deny-all",
-		"Validating_access_for_user_cert_gnmi_set":     "gnmi-set",
-		"Validating_access_for_user_cert_gnoi_ping":    "gnoi-ping",
-		"Validating_access_for_user_cert_gnoi_time":    "gnoi-time",
-		"Validating_access_for_user_cert_gnsi_probe":   "gnsi-probe",
-		"Validating_access_for_user_cert_gribi_modify": "gribi-modify",
-		"Validating_access_for_user_cert_read_only":    "read-only",
-		"Validating_access_for_user_cert_user_admin":   "admin",
-	}
-
-	// Map each testcase to its policy
-	policyMap := map[string]string{
-		// AuthZ1.1,1.2,1.3 base entries
-		"TestAuthz1/Authz-1.1,_-_Test_empty_source/Verification_of_Policy_for_cert_user_admin_is_allowed_gNMI_Get_and_denied_gRIBI_Get\ufffd\u0001": "everyone-can-gnmi-not-gribi",
-		"TestAuthz1/Authz-1.1,_-_Test_empty_sourceR": "everyone-can-gnmi-not-gribi",
-		"TestAuthz1/Authz-1.2,_Test_Empty_Request/Verification_of_cert_deny_all_is_denied_to_issue_gRIBI.Get_and_cert_user_admin_is_allowed_to_issue_`gRIBI.Get`\ufffd\u0002": "everyone-can-gribi-not-gnmi",
-		"TestAuthz1/Authz-1.2,_Test_Empty_RequestP": "everyone-can-gribi-not-gnmi",
-		"TestAuthz1/Authz-1.3,_Test_that_there_can_only_be_One_policy/Verification_of_Policy_for_read-only_to_deny_gRIBI_Get_and_allow_gNMI_Get\ufffd\u0002": "gribi-get",
-		"TestAuthz1/Authz-1.3,_Test_that_there_can_only_be_One_policyx":                                                                                      "gribi-get",
-		// AuthZ1.4 config
-		"TestAuthz1/Authz-1.4,_Test_Normal_PolicyP":                                                         "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_deny_all\ufffd\u0001":     "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_gnmi_set\ufffd\u0001":     "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_gnoi_ping\ufffd\u0001":    "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_gnoi_time\ufffd\u0001":    "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_gnsi_probe\ufffd\u0001":   "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_gribi_modify\ufffd\u0001": "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_read_only\ufffd\u0001":    "normal-1",
-		"TestAuthz1/Authz-1.4,_Test_Normal_Policy/Validating_access_for_user_cert_user_admin\ufffd\u0001":   "normal-1",
-		// AuthZ2: verification-only probes
-		"TestAuthz2/Authz-2.1,_Test_only_one_rotation_request_at_a_time/Verification_of_Policy_for_user_admin_to_deny_gRIBI_Get_and_allow_gNMI_Get\ufffd\u0002":                                                      "everyone-can-gnmi-not-gribi",
-		"TestAuthz2/Authz-2.1,_Test_only_one_rotation_request_at_a_time|":                                                                                                                                            "everyone-can-gnmi-not-gribi",
-		"TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_closing_stream\ufffd\u0002":                                   "gribi-get",
-		"TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_rotate_that_is_not_finalized\ufffd\u0002":                     "gnmi-get",
-		"TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get\ufffd\u0002":                                                        "gribi-get",
-		"TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closedt":                                                                                                                                                "gribi-get",
-		"TestAuthz2/Authz-2.3,_Test_Rollback_on_Invalid_Policy/Applying_policy-invalid-no-allow-rules/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_closing_stream\ufffd\u0002": "gribi-get",
-		// (skip the “ignore” ones by not listing them)
-		"TestAuthz2/Authz-2.3,_Test_Rollback_on_Invalid_Policy/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get\ufffd\u0002": "gribi-get",
-
-		// AuthZ4: just probes under 'normal-1', same rules as before for each user
-		"TestAuthz4/Validating_access_for_user_cert_deny_allf":     "normal-1",
-		"TestAuthz4/Validating_access_for_user_cert_gnmi_setf":     "normal-1",
-		"TestAuthz4/Validating_access_for_user_cert_gnoi_pingh":    "normal-1",
-		"TestAuthz4/Validating_access_for_user_cert_gnoi_timeh":    "normal-1",
-		"TestAuthz4/Validating_access_for_user_cert_gnsi_probej":   "normal-1",
-		"TestAuthz4/Validating_access_for_user_cert_gribi_modifyn": "normal-1",
-		"TestAuthz4/Validating_access_for_user_cert_read_onlyh":    "normal-1",
-		"TestAuthz4/Validating_access_for_user_cert_user_adminj":   "normal-1",
-		"TestAuthz4\u0014": "normal-1",
-	}
-
-	// Prepare outputs per policy
-	output := make(map[string]*PolicyOutput)
-	for tc, entries := range input {
-		policy, ok := policyMap[tc]
-		if !ok {
+	// Search for "0/RP0" or "0/RP1"
+	for i := 0; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(line, `NAME: "0/RP0"`) {
+			slotKey = "0/RP0/CPU0"
+		} else if strings.HasPrefix(line, `NAME: "0/RP1"`) {
+			slotKey = "0/RP1/CPU0"
+		} else {
 			continue
 		}
 
-		// init policy block once
-		if _, exists := output[policy]; !exists {
-			output[policy] = &PolicyOutput{
-				ConfigOp: AggregatedConfigOp{
-					Upload:   initConfigOpEntry(),
-					Rotate:   initConfigOpEntry(),
-					Finalize: initConfigOpEntry(),
-					Probe:    initConfigOpEntry(),
-				},
-				ConfigMode: map[string]map[string]string{"cli": {"result": "pass"}, "non_cli": {"result": "pass"}},
-				VerifyMode: map[string]map[string]string{"cli": {"result": "pass"}, "non_cli": {"result": "pass"}},
-				Inband:     "pass",
-				LogLink:    "http://example.com/log",
-				Outband:    "pass",
-				Result:     "pass",
-				Users:      make(map[string]string),
-				IPv4:       ifThenElse(hasIPv6, "fail", "pass"),
-				IPv6:       ifThenElse(hasIPv6, "pass", "fail"),
-				VRF:        vrfStatus,
-				Verification: map[string]map[string]VerificationEntry{
-					"gribi": {"get": initVE(), "modify": initVE()},
-					"gnmi":  {"get": initVE(), "set": initVE(), "subscribe": initVE()},
-					"gnoi":  {"time": initVE(), "ping": initVE(), "reboot": initVE()},
-					"gnsi":  {"get": initVE()},
-				},
-			}
-			output[policy].SimHw.Sim.Result = ifThenElse(sim == "true", "pass", "fail")
-			output[policy].SimHw.Hw.Result = ifThenElse(sim == "true", "fail", "pass")
-
-			// hardware_info block
-			output[policy].HardwareInfo = HardwareInfo{
-				PlatformFamily: "8000",
-				NPU:            []string{npu},
-				PID:            []string{hardwareModel},
-			}
-		}
-		agg := output[policy]
-
-		// extract suffix for AuthZ1.4 tests
-	entryLoop:
-		for _, e := range entries {
-			suffix := tc[strings.LastIndex(tc, "/")+1:]
-			// config-only processing
-			if e.Type == "Upload" {
-				if polStr, ok := e.Request["policy"].(string); ok {
-					if strings.Contains(polStr, "Allow all policy") {
-						// drop out of this testcase immediately
-						break entryLoop
-					}
-				}
-			}
-			switch tc {
-			case "TestAuthz1/Authz-1.3,_Test_that_there_can_only_be_One_policy/Verification_of_Policy_for_read-only_to_deny_gRIBI_Get_and_allow_gNMI_Get\ufffd\u0002":
-			case "TestAuthz1/Authz-1.1,_-_Test_empty_sourceR",
-				"TestAuthz1/Authz-1.2,_Test_Empty_RequestP",
-				"TestAuthz1/Authz-1.3,_Test_that_there_can_only_be_One_policyx",
-				"TestAuthz1/Authz-1.4,_Test_Normal_PolicyP",
-				"TestAuthz2/Authz-2.1,_Test_only_one_rotation_request_at_a_time|",
-				"TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closedt",
-				"TestAuthz4\u0014":
-				if e.Type == "Upload" {
-					agg.ConfigOp.Upload.PassedTestcase[tc] = e.Request
-				} else if e.Type == "Rotate" {
-					if rr, ok := e.Request["RotateRequest"].(map[string]any); ok {
-						if ur, ok2 := rr["UploadRequest"]; ok2 {
-							agg.ConfigOp.Rotate.PassedTestcase[tc] = map[string]any{"RotateRequest": map[string]any{"UploadRequest": ur}}
-						}
-					}
-				} else if e.Type == "Finalize" {
-					agg.ConfigOp.Finalize.PassedTestcase[tc] = e.Request
-				}
-				continue
-			}
-
-			// verification-only entries
-			if e.Type == "Probe" {
-				// record probe and user
-				if e.Request["user"].(string) != "dummy" {
-					agg.ConfigOp.Probe.PassedTestcase[tc] = e.Request
-					if u, ok := e.Request["user"].(string); ok {
-						user := u[strings.LastIndex(u, "/")+1:]
-						agg.Users[user] = "pass"
-					}
-				}
-				continue
-			}
-
-			// determine user for AuthZ1.4
-			user := ""
-			if policy == "normal-1" {
-
-				if strings.HasPrefix(tc, "TestAuthz4") {
-					// AuthZ-4: names end with a single letter (f, h, j). Drop it.
-					if len(suffix) > 0 {
-						suffix = suffix[:len(suffix)-1]
-					}
-				} else {
-					// AuthZ-1.4: names end with the two-byte marker '\ufffd\u0001'. Drop it.
-					suffix = strings.TrimSuffix(suffix, "\ufffd\u0001")
-				}
-				user = testUser[suffix]
-			}
-
-			// helper to record verification
-			record := func(rpc, op string, pass bool) {
-				ve := agg.Verification[rpc][op]
-				ent := make(map[string]any)
-				// remove request for gnoi time
-				if rpc == "gnoi" && op == "time" || rpc == "gnsi" && op == "get" {
-					ent["status"] = e.Status
-					ent["rpc"] = e.RPC
-				} else {
-					ent["status"] = e.Status
-					ent["request"] = e.Request
-					if rpc == "gnoi" && op == "ping" || rpc == "gribi" && op == "modify" {
-						if e.Status == "" {
-							ent["status"] = "pass"
-						}
-						ent["rpc"] = e.RPC
-					}
-					if rpc == "gnsi" {
-						ent["rpc"] = e.RPC
-					}
-				}
-				if pass {
-					ve.PassedTestcases[tc] = ent
-				} else {
-					ve.FailedTestcases[tc] = ent
-				}
-				agg.Verification[rpc][op] = ve
-			}
-
-			// now apply explicit rules per RPC
-			switch {
-			case tc == "TestAuthz1/Authz-1.1,_-_Test_empty_source/Verification_of_Policy_for_cert_user_admin_is_allowed_gNMI_Get_and_denied_gRIBI_Get\ufffd\u0001" && e.RPC == "gRIBI" && e.Type == "Get":
-				record("gribi", "get", e.Status != "pass") // fail status => correct denial
-			case tc == "TestAuthz1/Authz-1.1,_-_Test_empty_source/Verification_of_Policy_for_cert_user_admin_is_allowed_gNMI_Get_and_denied_gRIBI_Get\ufffd\u0001" && e.RPC == "gNMI" && e.Type == "Get":
-				record("gnmi", "get", e.Status == "pass")
-
-			case tc == "TestAuthz1/Authz-1.2,_Test_Empty_Request/Verification_of_cert_deny_all_is_denied_to_issue_gRIBI.Get_and_cert_user_admin_is_allowed_to_issue_`gRIBI.Get`\ufffd\u0002" && e.RPC == "gNMI" && e.Type == "Get":
-				record("gnmi", "get", e.Status != "pass")
-			case tc == "TestAuthz1/Authz-1.2,_Test_Empty_Request/Verification_of_cert_deny_all_is_denied_to_issue_gRIBI.Get_and_cert_user_admin_is_allowed_to_issue_`gRIBI.Get`\ufffd\u0002" && e.RPC == "gRIBI" && e.Type == "Get":
-				record("gribi", "get", e.Status == "pass")
-
-			case tc == "TestAuthz2/Authz-2.1,_Test_only_one_rotation_request_at_a_time/Verification_of_Policy_for_user_admin_to_deny_gRIBI_Get_and_allow_gNMI_Get\ufffd\u0002":
-				if e.RPC == "gRIBI" && e.Type == "Get" {
-					record("gribi", "get", e.Status != "pass")
-				}
-				if e.RPC == "gNMI" && e.Type == "Get" {
-					record("gnmi", "get", e.Status == "pass")
-				}
-				continue entryLoop
-
-			// 2) AuthZ2.2a: rollback on close (read-only, gribi-get)
-			case tc == "TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_closing_stream\ufffd\u0002":
-				if e.RPC == "gRIBI" && e.Type == "Get" {
-					record("gribi", "get", e.Status == "pass")
-				}
-				if e.RPC == "gNMI" && e.Type == "Get" {
-					record("gnmi", "get", e.Status != "pass")
-				}
-				continue entryLoop
-
-			// 3) AuthZ2.2b: rollback on rotate (read-only, gnmi-get)
-			case tc == "TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_rotate_that_is_not_finalized\ufffd\u0002":
-				if e.RPC == "gRIBI" && e.Type == "Get" {
-					record("gribi", "get", e.Status != "pass")
-				}
-				if e.RPC == "gNMI" && e.Type == "Get" {
-					record("gnmi", "get", e.Status == "pass")
-				}
-				continue entryLoop
-
-			// 4) AuthZ2.2c: final rollback (identical to 2.2a)
-			case tc == "TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get\ufffd\u0002":
-				if e.RPC == "gRIBI" && e.Type == "Get" {
-					record("gribi", "get", e.Status == "pass")
-				}
-				if e.RPC == "gNMI" && e.Type == "Get" {
-					record("gnmi", "get", e.Status != "pass")
-				}
-				continue entryLoop
-
-			// 5) AuthZ2.3a: invalid policy rollback (after close)
-			case tc == "TestAuthz2/Authz-2.3,_Test_Rollback_on_Invalid_Policy/Applying_policy-invalid-no-allow-rules/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_closing_stream\ufffd\u0002":
-				if e.RPC == "gRIBI" && e.Type == "Get" {
-					record("gribi", "get", e.Status == "pass")
-				}
-				if e.RPC == "gNMI" && e.Type == "Get" {
-					record("gnmi", "get", e.Status != "pass")
-				}
-				continue entryLoop
-
-			// 6) AuthZ2.3b: ignore “before closing stream” case by omitting from policyMap
-
-			// 7) AuthZ2.3c: invalid policy final (same as 5a)
-			case tc == "TestAuthz2/Authz-2.3,_Test_Rollback_on_Invalid_Policy/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get\ufffd\u0002":
-				if e.RPC == "gRIBI" && e.Type == "Get" {
-					record("gribi", "get", e.Status == "pass")
-				}
-				if e.RPC == "gNMI" && e.Type == "Get" {
-					record("gnmi", "get", e.Status != "pass")
-				}
-				continue entryLoop
-
-			case policy == "normal-1" && e.RPC == "gRIBI" && e.Type == "Get":
-				if user == "gribi-modify" || user == "read-only" || user == "admin" {
-					record("gribi", "get", e.Status == "pass")
-				} else {
-					record("gribi", "get", e.Status != "pass")
-				}
-			case policy == "normal-1" && e.RPC == "gRIBI" && e.Type == "Modify":
-				if user == "gribi-modify" || user == "admin" {
-					record("gribi", "modify", e.Status == "")
-				} else {
-					record("gribi", "modify", e.Status != "pass")
-				}
-
-			case policy == "normal-1" && e.RPC == "gNMI" && e.Type == "Get":
-				if user == "gnmi-set" || user == "read-only" || user == "admin" {
-					record("gnmi", "get", e.Status == "pass")
-				} else {
-					record("gnmi", "get", e.Status != "pass")
-				}
-			case policy == "normal-1" && e.RPC == "gNMI" && e.Type == "Set":
-				if user == "gnmi-set" || user == "admin" {
-					record("gnmi", "set", e.Status == "pass")
-				} else {
-					record("gnmi", "set", e.Status != "pass")
-				}
-
-			case policy == "normal-1" && e.RPC == "system" && e.Type == "Time":
-				if user == "gnoi-time" || user == "admin" {
-					record("gnoi", "time", e.Status == "pass")
-				} else {
-					record("gnoi", "time", e.Status != "pass")
-				}
-			case policy == "normal-1" && e.RPC == "system" && e.Type == "Ping":
-				if user == "gnoi-ping" || user == "admin" {
-					if e.Status == "" {
-						record("gnoi", "ping", true)
-					} else {
-						record("gnoi", "ping", false)
-					}
-				} else {
-					record("gnoi", "ping", e.Status != "pass")
-				}
-
-			case policy == "normal-1" && e.RPC == "authz" && e.Type == "Get":
-				if user == "read-only" || user == "admin" {
-					record("gnsi", "get", e.Status == "pass")
-				} else {
-					record("gnsi", "get", e.Status != "pass")
-				}
+		// Extract descr
+		descrStart := strings.Index(line, `DESCR: "`)
+		if descrStart != -1 {
+			descrEnd := strings.Index(line[descrStart+8:], `"`)
+			if descrEnd != -1 {
+				slotInfo["descr"] = line[descrStart+8 : descrStart+8+descrEnd]
 			}
 		}
 
-		// finalize verification and config
-		for _, k := range []string{"gribi", "gnmi", "gnoi", "gnsi"} {
-			v := agg.Verification[k]
-			for key, ve := range v {
-				finalizeVE(&ve)
-				v[key] = ve
+		// Extract PID
+		if i+1 < len(lines) {
+			nextLine := strings.TrimSpace(lines[i+1])
+			pidStart := strings.Index(nextLine, `PID:`)
+			if pidStart != -1 {
+				slotInfo["pid"] = strings.TrimSpace(nextLine[pidStart+4:pidStart+10])
 			}
-			agg.Verification[k] = v
-		}
-		finalizeConfigOpEntry(&agg.ConfigOp.Upload)
-		finalizeConfigOpEntry(&agg.ConfigOp.Rotate)
-		finalizeConfigOpEntry(&agg.ConfigOp.Finalize)
-		finalizeConfigOpEntry(&agg.ConfigOp.Probe)
 
-		// Normalize user names and preserve statuses
-		userRes := make(map[string]string)
-		for user, status := range agg.Users {
-			// Replace hyphens with underscores in the user name
-			normalizedUser := strings.ReplaceAll(user, "-", "_")
-			userRes[normalizedUser] = status // Preserve the original status
-		}
-
-		// Ensure all users from `allUsers` are included in the output
-		for _, u := range allUsers {
-			normalizedUser := strings.ReplaceAll(u, "-", "_")
-			if _, exists := userRes[normalizedUser]; !exists {
-				// Default to "skip" if the user is not already in `userRes`
-				userRes[normalizedUser] = "skip"
+			// Extract serial number
+			snStart := strings.Index(nextLine, `SN:`)
+			if snStart != -1 {
+				slotInfo["serial_num"] = strings.TrimSpace(nextLine[snStart+3:])
 			}
 		}
-		agg.Users = userRes
+
+		// Break after finding the first match
+		break
 	}
 
-	// Final JSON
-	final := OutputJSON{
+	return slotKey, slotInfo
+}
+
+// parseLogLink unmarshals the xUnit XML and returns the first
+// test_details_url property value.
+func parseLogLink(xmlPath string) string {
+	data, err := os.ReadFile(xmlPath)
+	if err != nil {
+		log.Printf("read XML: %v", err)
+		return ""
+	}
+	var suite TestSuites
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		log.Printf("XML parse: %v", err)
+		return ""
+	}
+	for _, ts := range suite.TestSuites {
+		for _, prop := range ts.Properties.Property {
+			if strings.TrimSpace(prop.Name) == "test_details_url" {
+				return strings.TrimSpace(prop.Value)
+			}
+		}
+	}
+	return ""
+}
+
+func statusString(raw any) string {
+	if raw == nil {
+		return "pass"
+	}
+	switch v := raw.(type) {
+	case float64:
+		if v == 0 {
+			return "pass"
+		}
+		return "fail"
+	case int:
+		if v == 0 {
+			return "pass"
+		}
+		return "fail"
+	case string:
+		if v == "pass" {
+			return "pass"
+		}
+		return "fail"
+	default:
+		return "fail"
+	}
+}
+
+func extractAuthZVersion(testName string) string {
+	parts := strings.Split(testName, "/")
+	if parts[0] == "TestAuthz4" {
+		return "4"
+	}
+	if len(parts) > 1 {
+		versionPart := strings.Split(parts[1], ",")[0]
+		return strings.TrimPrefix(versionPart, "Authz-")
+	}
+	return ""
+}
+
+func extractPolicyName(request map[string]any) string {
+	if policyStr, ok := request["policy"].(string); ok {
+		var policy map[string]any
+		if err := json.Unmarshal([]byte(policyStr), &policy); err == nil {
+			if name, ok := policy["name"].(string); ok {
+				if strings.HasPrefix(name, "policy-") {
+					return strings.TrimPrefix(name, "policy-")
+				}
+				return name
+			}
+		}
+	}
+	return ""
+}
+
+func recordVerification(e TestCaseEntry, po *PolicyOutput, policy string, testCaseName string) {
+	st := statusString(e.Status)
+	rec := func(rpc, op string, pass bool) {
+		ve := po.Verification[rpc][op]
+		entry := map[string]any{
+			"status":  st,
+			"request": e.Request,
+			"rpc":     e.RPC,
+		}
+		if e.Error != nil {
+			entry["error"] = e.Error
+		}
+		if !pass && e.Error != nil && !strings.Contains(e.Error.(string), "unauthorized RPC request") {
+			pass = !pass
+		}
+		if pass {
+			ve.PassedTestcases[testCaseName] = entry
+		} else {
+			ve.FailedTestcases[testCaseName] = entry
+		}
+		po.Verification[rpc][op] = ve
+	}
+
+	switch policy {
+	case "everyone-can-gnmi-not-gribi":
+		// gNMI Get must pass, gRIBI Get must fail
+		if e.RPC == "gNMI" && e.Type == "Get" {
+			rec("gnmi", "get", st == "pass")
+		}
+		if e.RPC == "gRIBI" && e.Type == "Get" {
+			rec("gribi", "get", st != "pass")
+		}
+
+	case "everyone-can-gribi-not-gnmi":
+		// gRIBI Get must pass, gNMI Get must fail
+		if e.RPC == "gRIBI" && e.Type == "Get" {
+			rec("gribi", "get", st == "pass")
+		}
+		if e.RPC == "gNMI" && e.Type == "Get" {
+			rec("gnmi", "get", st != "pass")
+		}
+
+	case "gribi-get":
+		// only gRIBI Get should pass
+		if e.RPC == "gRIBI" && e.Type == "Get" {
+			rec("gribi", "get", st == "pass")
+		}
+
+	case "gnmi-get":
+		// only gNMI Get should pass
+		if e.RPC == "gNMI" && e.Type == "Get" {
+			rec("gnmi", "get", st == "pass")
+		}
+
+	case "normal-1":
+		user := usernameFromTestCase(testCaseName)
+		switch {
+		case e.RPC == "gRIBI" && e.Type == "Get":
+			allowed := user == "gribi_modify" || user == "read_only" || user == "user_admin"
+			rec("gribi", "get", allowed == (st == "pass"))
+		case e.RPC == "gRIBI" && e.Type == "Modify":
+			allowed := user == "gribi_modify" || user == "user_admin"
+			rec("gribi", "modify", allowed == (st == "pass"))
+		case e.RPC == "gNMI" && e.Type == "Get":
+			allowed := user == "gnmi_set" || user == "read_only" || user == "user_admin"
+			rec("gnmi", "get", allowed == (st == "pass"))
+		case e.RPC == "gNMI" && e.Type == "Set":
+			allowed := user == "gnmi_set" || user == "user_admin"
+			rec("gnmi", "set", allowed == (st == "pass"))
+		case e.RPC == "system" && e.Type == "Time":
+			allowed := user == "gnoi_time" || user == "user_admin"
+			rec("gnoi", "time", allowed == (st == "pass"))
+		case e.RPC == "system" && e.Type == "Ping":
+			allowed := user == "gnoi_ping" || user == "user_admin"
+			rec("gnoi", "ping", allowed == (st == "pass"))
+		case e.RPC == "authz" && e.Type == "Get":
+			allowed := user == "read_only" || user == "user_admin"
+			rec("gnsi", "get", allowed == (st == "pass"))
+		case e.RPC == "system" && e.Type == "Reboot":
+			rec("gnoi", "reboot", st == "pass")
+		}
+	}
+}
+
+// generateJsonForVioletDB transforms raw test results into the VioletDB payload.
+func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
+	// Parse input JSON into slice of RawTest
+	var tests []RawTest
+	if err := json.Unmarshal(jsonData, &tests); err != nil {
+		return nil, fmt.Errorf("failed to parse test results: %w", err)
+	}
+
+	// Extract system and hardware info
+	osLabel, osMajor, osMinor, vrfStatus, simFlag := parseTestbedInfo(firexID + "/testbed_info.txt")
+	hwModel, ipv6Supported := parseBindingInfo(firexID + "/ondatra_binding.txt")
+	mapBytes, _ := os.ReadFile("/auto/ops-tool/violet/hw_mapping_v2.json")
+	var hwMap map[string]map[string]map[string]any
+	_ = json.Unmarshal(mapBytes, &hwMap)
+
+	npuID := extractNPU(hwModel, hwMap)
+	slotKey, slotDetails := parseSlotInfo(firexID + "/testbed_info.txt")
+	logURL := parseLogLink(firexID + "/xunit_results.xml")
+
+	// Prepare container for per-policy outputs
+	outputs := make(map[string]*PolicyOutput)
+	var (
+		currVersion    string
+		inConfigPhase  bool
+		currPolicyOut  *PolicyOutput
+		currPolicyName string
+	)
+
+	// Walk through each test suite
+	for _, test := range tests {
+		if len(test.Requests) == 0 {
+			continue
+		}
+		testName := test.TestName
+		version := extractAuthZVersion(testName)
+		if version != currVersion {
+			currVersion = version
+			inConfigPhase = true
+			currPolicyOut = nil
+			currPolicyName = ""
+		}
+
+		for _, entry := range test.Requests {
+			switch entry.Type {
+			case "Upload":
+				if entry.Error != nil {
+					continue
+				}
+				if !inConfigPhase {
+					// restart config phase
+					inConfigPhase = true
+					currPolicyOut = nil
+					currPolicyName = ""
+				}
+				// skip the 'Allow all policy'
+				if p, ok := entry.Request["policy"].(string); ok &&
+					strings.Contains(p, "Allow all policy") {
+					inConfigPhase = false
+					continue
+				}
+				// determine policy key
+				key := extractPolicyName(entry.Request)
+				if key == "" || key == "invalid-no-allow-rules" {
+					continue
+				}
+				currPolicyName = key
+
+				// lazy-init PolicyOutput
+				po, exists := outputs[key]
+				if !exists {
+					po = &PolicyOutput{
+						ConfigOp: AggregatedConfigOp{
+							Upload:   initConfigOpEntry(),
+							Rotate:   initConfigOpEntry(),
+							Finalize: initConfigOpEntry(),
+							Probe:    initConfigOpEntry(),
+						},
+						ConfigMode:   map[string]map[string]string{"non_cli": {"result": "pass"}},
+						VerifyMode:   map[string]map[string]string{"non_cli": {"result": "pass"}},
+						LogLink:      logURL,
+						Outband:      "pass",
+						Result:       "pass",
+						Users:        make(map[string]string),
+						IPv4:         ifThenElse(ipv6Supported, "fail", "pass"),
+						IPv6:         ifThenElse(ipv6Supported, "pass", "fail"),
+						VRF:          vrfStatus,
+						SimHw:        SimHw{Sim: &ResultWrapper{}, Hw: &ResultWrapper{}},
+						Verification: defaultVerificationEntries(),
+					}
+					// populate sim/hw and hardware_info
+					po.SimHw.Sim.Result = ifThenElse(simFlag == "true", "pass", "fail")
+					po.SimHw.Hw.Result = ifThenElse(simFlag == "true", "fail", "pass")
+					po.HardwareInfo = HardwareInfo{
+						PlatformFamily: "8000",
+						NPU:            []string{npuID},
+						PID:            []string{hwModel},
+					}
+					outputs[key] = po
+				}
+				currPolicyOut = po
+				currPolicyOut.ConfigOp.Upload.PassedTestcase[testName] = entry.Request
+
+			case "Rotate":
+				if inConfigPhase && currPolicyOut != nil && entry.Error == nil {
+					currPolicyOut.ConfigOp.Rotate.PassedTestcase[testName] = entry.Request
+				}
+
+			case "Finalize":
+				if inConfigPhase && currPolicyOut != nil {
+					currPolicyOut.ConfigOp.Finalize.PassedTestcase[testName] = entry.Request
+				}
+				inConfigPhase = false
+
+			case "Probe":
+				inConfigPhase = false
+				if currPolicyOut != nil {
+					if u, _ := entry.Request["user"].(string); u == "dummy" {
+						continue
+					}
+					currPolicyOut.ConfigOp.Probe.PassedTestcase[testName] = entry.Request
+					if u, _ := entry.Request["user"].(string); u != "" {
+						currPolicyOut.Users[sanitizeUsername(u)] = "pass"
+					}
+				}
+
+			default:
+				// verification phase
+				if !inConfigPhase && currPolicyOut != nil {
+					recordVerification(entry, currPolicyOut, currPolicyName, testName)
+				}
+			}
+		}
+	}
+
+	// Finalize all policy outputs
+	for _, po := range outputs {
+		// clean up verification entries
+		for rpc, ops := range po.Verification {
+			for op, ve := range ops {
+				finalizeVE(&ve)
+				if ve.Result == "skip" {
+					delete(ops, op)
+				} else {
+					ops[op] = ve
+				}
+			}
+			if len(ops) == 0 {
+				delete(po.Verification, rpc)
+			}
+		}
+		// finalize config phases
+		finalizeConfigOpEntry(&po.ConfigOp.Upload)
+		finalizeConfigOpEntry(&po.ConfigOp.Rotate)
+		finalizeConfigOpEntry(&po.ConfigOp.Finalize)
+		finalizeConfigOpEntry(&po.ConfigOp.Probe)
+		// drop empty phases
+		cleanupConfigPhase(&po.ConfigOp.Upload)
+		cleanupConfigPhase(&po.ConfigOp.Rotate)
+		cleanupConfigPhase(&po.ConfigOp.Finalize)
+		cleanupConfigPhase(&po.ConfigOp.Probe)
+		// normalize network flags
+		if po.IPv4 == "pass" {
+			po.IPv6 = ""
+		} else if po.IPv4 == "fail" {
+			po.IPv4 = ""
+		}
+		if po.VRF == "fail" {
+			po.VRF = ""
+		}
+		// remove failed sim/hw entries
+		if po.SimHw.Sim.Result == "fail" {
+			po.SimHw.Sim = nil
+		}
+		if po.SimHw.Hw.Result == "fail" {
+			po.SimHw.Hw = nil
+		}
+		// drop skipped users
+		for u, st := range po.Users {
+			if st == "skip" {
+				delete(po.Users, u)
+			}
+		}
+		// determine overall result
+		po.Result = "pass"
+	outer:
+		for _, ops := range po.Verification {
+			for _, ve := range ops {
+				if len(ve.FailedTestcases) > 0 {
+					po.Result = "fail"
+					break outer
+				}
+			}
+		}
+	}
+
+	// Assemble final output JSON
+	finalOut := OutputJSON{
 		SubmitterID: "sahilsi3",
 		Testbed:     "PP_SFSIM_Fixed_virtual_topo",
 		Project:     "Manual",
 		Templates:   make(map[string]map[string]map[string][]any),
 		SoftwareInfo: map[string]string{
 			"device_os":        "XR",
-			"os_version_major": osVersionMajor,
-			"os_version_minor": osVersionMinor,
+			"os_version_major": osMajor,
+			"os_version_minor": osMinor,
 			"os_label":         osLabel,
 			"os_type":          "XR7",
 		},
 		SlotInfo: map[string]map[string]string{
-			"0/RP0/CPU0": {
-				"pid":        "8201-SYS",
-				"serial_num": "PCBEVTQ6JDD",
-				"descr":      "Cisco 8201 1RU Chassis",
-			},
+			slotKey: slotDetails, // Dynamically set the slot key and details
 		},
 		UnitTest:        false,
 		UpdateResultsDB: true,
 	}
-
-	for policy, agg := range output {
-		if _, exists := final.Templates[policy]; !exists {
-			final.Templates[policy] = make(map[string]map[string][]any)
+	for name, po := range outputs {
+		if _, ok := finalOut.Templates[name]; !ok {
+			finalOut.Templates[name] = map[string]map[string][]any{"capabilities": {"AUTHZ": {}}}
 		}
-		if _, exists := final.Templates[policy]["capabilities"]; !exists {
-			final.Templates[policy]["capabilities"] = make(map[string][]any)
-		}
-		final.Templates[policy]["capabilities"]["AUTHZ"] = append(final.Templates[policy]["capabilities"]["AUTHZ"], agg)
+		finalOut.Templates[name]["capabilities"]["AUTHZ"] = append(
+			finalOut.Templates[name]["capabilities"]["AUTHZ"], po,
+		)
 	}
 
-	data, _ := json.MarshalIndent(final, "", "  ")
-	err := os.WriteFile("violetdb.json", data, 0644)
+	payload, err := json.MarshalIndent(finalOut, "", "  ")
 	if err != nil {
-		fmt.Println("Error writing to file:", err)
-		return nil, fmt.Errorf("error writing to file: %v", err)
+		return nil, fmt.Errorf("failed to marshal output: %w", err)
 	}
-	fmt.Println("JSON data successfully written to violetdb.json")
-	return data, nil
+	return payload, nil
+}
+
+// defaultVerificationEntries returns the initial verification structure.
+func defaultVerificationEntries() map[string]map[string]VerificationEntry {
+	return map[string]map[string]VerificationEntry{
+		"gribi": {"get": initVE(), "modify": initVE()},
+		"gnmi":  {"get": initVE(), "set": initVE()},
+		"gnoi":  {"time": initVE(), "ping": initVE(), "reboot": initVE()},
+		"gnsi":  {"get": initVE()},
+	}
+}
+
+// cleanupConfigPhase clears a config entry if it was skipped.
+func cleanupConfigPhase(entry *ConfigOpEntry) {
+	if entry.Result == "skip" {
+		*entry = ConfigOpEntry{}
+	}
+}
+
+// sanitizeUsername extracts the base name and normalizes it.
+func sanitizeUsername(pathStr string) string {
+	base := filepath.Base(pathStr)
+	return strings.ReplaceAll(base, "-", "_")
+}
+
+// postToTraceability sends raw JSON to local endpoint
+func postToTraceability(data []byte) *PostingResult {
+	url := "http://violet-prod-lnx:8000/traceabilityv2"
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(data))
+	if err != nil {
+		log.Printf("request create error: %v", err)
+		return nil
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("request error: %v", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	var result PostingResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("decode error: %v", err)
+		return nil
+	}
+	return &result
 }
