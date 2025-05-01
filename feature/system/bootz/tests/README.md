@@ -208,8 +208,8 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
   gnoi:
-    BootConfig.GetBootConfig:
-    BootConfig.SetBootConfig:
+    bootconfig.BootConfig.GetBootConfig:
+    bootconfig.BootConfig.SetBootConfig:
   bootz:
     Bootstrap.GetBootstrapData:
     Bootstrap.GetStatus:
