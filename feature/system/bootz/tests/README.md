@@ -199,18 +199,18 @@ by the bootz process. If the artifacts are incomplete an error will be returned.
 
 ```yaml
 paths:
-  /system/bootz/state/last-boot-attempt
-  /system/bootz/state/error-count
-  /system/bootz/state/status
-  /system/bootz/state/checksum
+  /system/bootz/state/last-boot-attempt:
+  /system/bootz/state/error-count:
+  /system/bootz/state/status:
+  /system/bootz/state/checksum:
 rpcs:
   gnmi:
     gNMI.Subscribe:
       on_change: true
   gnoi:
-    BootConfig.GetBootConfig
-    BootConfig.SetBootConfig
+    BootConfig.GetBootConfig:
+    BootConfig.SetBootConfig:
   bootz:
-    Bootstrap.GetBootstrapData
-    Bootstrap.GetStatus
+    Bootstrap.GetBootstrapData:
+    Bootstrap.GetStatus:
 ```
