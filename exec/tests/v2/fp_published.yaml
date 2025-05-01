@@ -398,12 +398,11 @@ tests:
       - 8201-32FH_FLM254206E7
     groups: [ancx,P0]
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
-    path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
+    path: feature/interface/otg_tests/telemetry_interface_packet_counters_test
     owners:
       - agvarghe
     priority: 35
     mustpass: true
-    pr: 2805
     groups: [ancx,P1]
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
@@ -566,13 +565,13 @@ tests:
     testbeds:
       - 2DUT-TB2
   - name: SR-1.1 (Forwarding to Node-SID)
-    path: feature/experimental/segment_routing/node_sid_forward
+    path: feature/mpls/sr/otg_tests/isis_node_sid_forward
     owners:
       - arvbaska
     priority: 1
     groups: [ancx,P1]
   - name: MPLS-1.1 (MPLS Label Block Definition)
-    path: feature/experimental/mpls/label_block
+    path: feature/mpls/otg_tests/label_block
     owners:
       - arvbaska
     priority: 1
@@ -985,6 +984,7 @@ tests:
     owners:
       - mastarke
     mustpass: true
+    pr: 1499
     groups: [ancx,P0]
   - name: TUN-1.9 (GRE inner packet DSCP)
     path: feature/tunnel/otg_tests/tunnel_acl_based_test
