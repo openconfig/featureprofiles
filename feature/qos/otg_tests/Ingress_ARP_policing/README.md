@@ -18,7 +18,7 @@ Use TE-18.1 test environment setup.
 
 ### CPT-1.1 Generate and push configuration
 
-* Generate config for a scheduler polices with an input rate limit and a classifier matching ARP packets.
+* Generate config for a scheduler which polices with an input rate 1kbps limit and a classifier matching ARP packets.
 * Apply scheduler to DUT subinterface with vlan.
 * Use gnmi.Replace to push the config to the DUT.
 
