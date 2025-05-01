@@ -434,6 +434,7 @@ testbeds:
 
   # Testbeds belonging to other teams
 
+  # Below testbed used by Optics DT team (Sanket)
   ZRP_OPTICS_ACACIA: &ZRP_OPTICS_DEFAULTS
     hw: ZRP_OPTICS_ACACIA
     owner: liawalsh
@@ -444,3 +445,15 @@ testbeds:
   ZRP_OPTICS_CIENA:
     <<: *ZRP_OPTICS_DEFAULTS
     binding: topologies/cisco/hw/ZRP_OPTICS/binding_ciena
+
+  # Below testbed used by gusomaso from account team, dont use without checking
+  ZR_TB_GURU: &ZR_TB_GURU_DEFAULTS
+    hw: ZR_TB_GURU
+    owner: arvbaska
+    testbed: topologies/cisco/hw/ZR_TB_GURU/testbed
+    binding: topologies/cisco/hw/ZR_TB_GURU/binding_zr
+    baseconf: topologies/cisco/hw/ZR_TB_GURU/baseconfig.proto
+
+  ZRP_TB_GURU:
+    <<: *ZR_TB_GURU_DEFAULTS
+    binding: topologies/cisco/hw/ZR_TB_GURU/binding_zrp
