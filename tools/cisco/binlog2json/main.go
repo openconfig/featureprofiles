@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -203,6 +204,14 @@ func handleRequest(testCaseRequests map[string][]map[string]interface{},
 		createRequestEntry(rpc, method, callID, map[string]interface{}{"request": request}))
 }
 
+func sanitizeTestName(name string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || r == unicode.ReplacementChar {
+			return -1 // drop the character
+		}
+		return r
+	}, name)
+}
 func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) {
 	var currentTestName string
 	testCaseRequestsNew := make(map[string][]map[string]interface{})
@@ -232,50 +241,55 @@ func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) {
 
 		}
 	}
+	callStatusMap := make(map[uint64]map[string]interface{})
+
 	for _, e := range entries {
 		if e.Type == binlogpb.GrpcLogEntry_EVENT_TYPE_SERVER_TRAILER {
-			status := "fail"
-			if e.GetTrailer().GetStatusCode() == 0 {
-				status = "pass"
+			callID := e.GetCallId()
+			callStatusMap[callID] = map[string]interface{}{
+				"status": e.GetTrailer().GetStatusCode(),
+				"err":    e.GetTrailer().GetStatusMessage(),
 			}
-			for testName, items := range testCaseRequestsNew {
-				for i, item := range items {
-					requestMap := testCaseRequestsNew[testName][i]
-					if callID, ok := item["callid"].(uint64); ok && callID == e.GetCallId() {
-						requestMap["status"] = status
-						break
-					}
+		}
+	}
+	type TestCaseEntry struct {
+		TestName string                   `json:"test_name"`
+		Requests []map[string]interface{} `json:"requests"`
+	}
+	var orderedOutput []TestCaseEntry
+	formattedMap, err := json.MarshalIndent(callStatusMap, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshaling callStatusMap:", err)
+		return
+	}
+	fmt.Println("callStatusMap:")
+	fmt.Println(string(formattedMap))
+	for _, testName := range orderedTestCaseNames {
+		cleanName := sanitizeTestName(testName)
+		requests := testCaseRequestsNew[testName]
+		for i, req := range requests {
+			if callID, ok := req["callid"].(uint64); ok {
+				if statusEntry, exists := callStatusMap[callID]; exists {
+					requests[i]["status"] = statusEntry["status"]
+					requests[i]["err"] = statusEntry["err"]
 				}
 			}
-
 		}
+		orderedOutput = append(orderedOutput, TestCaseEntry{
+			TestName: cleanName,
+			Requests: requests,
+		})
 	}
-	fullData := make(map[string][]map[string]interface{})
-	for _, testName := range orderedTestCaseNames {
-		data, err := json.MarshalIndent(map[string][]map[string]interface{}{testName: testCaseRequestsNew[testName]}, "", "  ")
-		if err != nil {
-			fmt.Println("Error marshalling:", err)
-			return
-		}
-		fmt.Println(string(data))
-	}
-
-	for _, testName := range orderedTestCaseNames {
-		fullData[testName] = testCaseRequestsNew[testName]
-	}
-	jsonData, err := json.MarshalIndent(fullData, "", "  ")
+	data, err := json.MarshalIndent(orderedOutput, "", "  ")
 	if err != nil {
-		fmt.Println("Error encoding JSON:", err)
+		fmt.Println("Error marshalling:", err)
 		return
 	}
 
-	// Save JSON to a file
-	err = os.WriteFile("test_results.json", jsonData, 0644)
+	err = os.WriteFile("output.json", data, 0644)
 	if err != nil {
-		fmt.Println("Error writing to file:", err)
+		fmt.Println("Error writing file:", err)
 		return
 	}
-
-	fmt.Println("JSON data successfully written to test_results.json")
 
 }
