@@ -44,7 +44,7 @@ paths:
   /qos/classifiers/classifier/config/type:
   /qos/classifiers/classifier/terms/term/config/id:
   /qos/classifiers/classifier/terms/term/actions/config/target-group:
-  /qos/classifiers/classifier/terms/term/conditions/l2/config/
+  /qos/classifiers/classifier/terms/term/conditions/l2/config/ethertype:
 
 # qos scheduler config
   /qos/scheduler-policies/scheduler-policy/config/name:
