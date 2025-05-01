@@ -639,7 +639,7 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 		},
 	}}
 	setReq := &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: []*gpb.Update{occonfig[0], nyconfig[0]}}
-	log.V(1).Infof("SetResponse:\n%s", prototext.Format(setReq))
+	log.V(1).Infof("SetRequest:\n%s", prototext.Format(setReq))
 	_, err = gnmiC.Set(context.Background(), setReq)
 	if err != nil {
 		t.Errorf("Error while set union replace with oc+ny combination %v", err)
@@ -651,7 +651,7 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 	sam := &gpb.GetRequest{Path: path, Type: gpb.GetRequest_CONFIG, Encoding: gpb.Encoding_JSON_IETF}
 	getres, err := gnmiC.Get(context.Background(), sam)
 	if err != nil {
-		t.Errorf("Error while set union replace with oc+ny combination %v", err)
+		t.Errorf("Error while get union replace with oc+ny combination %v", err)
 	}
 
 	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(getres))
@@ -988,6 +988,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			configPath: "testdata/acl.txt",
 			checks:     aclValidator,
 		},
+		// TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 		{
 			configPath: "testdata/sflow.txt",
 			checks:     sflowValidator,
@@ -996,6 +997,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			configPath: "testdata/qos-egress.txt",
 			checks:     qosegressValidator,
 		},
+		// TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 		{
 			configPath: "testdata/interfaces.txt",
 			checks:     interfaceValidator,

@@ -169,7 +169,7 @@ testbeds:
       gnmi_port: 50059
       rest_port: 30059
 
-  8818-FOX2714PNYN:
+  8818-FOX2714PNYN: &8818-FOX2714PNYN_DEFAULTS
     hw: 8818-FOX2714PNYN
     owner: arvbaska
     testbed: topologies/cisco/hw/8818-FOX2714PNYN/testbed
@@ -180,6 +180,12 @@ testbeds:
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
+
+  8818-FOX2714PNYN_ZR_OPTICS:
+    <<: *8818-FOX2714PNYN_DEFAULTS
+    testbed: topologies/cisco/hw/8818-FOX2714PNYN_ZR_OPTICS/testbed
+    binding: topologies/cisco/hw/8818-FOX2714PNYN_ZR_OPTICS/binding
+    baseconf: topologies/cisco/hw/8818-FOX2714PNYN_ZR_OPTICS/baseconfig.proto
 
   8808_FOX2731P4L7: 
     hw: 8808_FOX2731P4L7
@@ -229,6 +235,21 @@ testbeds:
     baseconf:
       dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto
       peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 48818
+      gnmi_port: 58818
+      rest_port: 38818
+
+  8818-DUT-PEER-MTLS:
+    hw:
+      - 8818-FOX2714PNYN
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
+    binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls
+    baseconf:
+      dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
+      peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 48818
@@ -422,3 +443,15 @@ testbeds:
       gnmi_port: 50062
       rest_port: 30062
 
+  # Testbeds belonging to other teams
+
+  ZRP_OPTICS_ACACIA: &ZRP_OPTICS_DEFAULTS
+    hw: ZRP_OPTICS_ACACIA
+    owner: liawalsh
+    testbed: topologies/cisco/hw/ZRP_OPTICS/testbed
+    binding: topologies/cisco/hw/ZRP_OPTICS/binding_acacia
+    baseconf: topologies/cisco/hw/ZRP_OPTICS/baseconfig.proto
+
+  ZRP_OPTICS_CIENA:
+    <<: *ZRP_OPTICS_DEFAULTS
+    binding: topologies/cisco/hw/ZRP_OPTICS/binding_ciena

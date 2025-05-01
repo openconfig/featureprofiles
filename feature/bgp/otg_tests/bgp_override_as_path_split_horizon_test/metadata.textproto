@@ -1,0 +1,36 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "97f0e45a-2970-4227-9409-3003e7c7cdd7"
+plan_id: "RT-1.54"
+description: "BGP Override AS-path split-horizon"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    bgp_set_med_requires_equal_ospf_set_metric: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_allowownas_diff_default_value: true
+  }
+}
+tags: TAGS_AGGREGATION

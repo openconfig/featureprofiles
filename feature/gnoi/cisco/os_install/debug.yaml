@@ -74,3 +74,6 @@
   type: "command"
   errorPatterns:
     - "FAILURE"
+"show tech-support spi":
+  type: "show-tech"
+

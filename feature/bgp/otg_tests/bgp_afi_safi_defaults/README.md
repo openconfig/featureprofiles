@@ -10,6 +10,7 @@ BGP AFI SAFI OC DEFAULTS TEST
     defines as the defaults i.e,
 *   For BGP, there are no defaults for AFI-SAFI at the neighbor and peer-group levels. However at the
     global level the default is "false"
+*   For BGP neighbor level extended-next-hop encoding to be configured and validated too
 *   This test currently only verifies the defaults for ipv4-unicast and ipv6-unicast families.      
     However, this test can be extended further to cover for other AFI-SAFIs as well in future. 
 *   The test will check for default implementations under the neighbor and peer-group hierarchies and 
@@ -29,9 +30,11 @@ BGP AFI SAFI OC DEFAULTS TEST
             "IPv6-unicast enabled" boolean is left to OC default for the IPv4 peer".
         *   Ensure that only IPv6-Unicast enabled boolean is made "true" for IPv6 neighbor. 
             "IPv4-unicast enabled" boolean is left to OC default for the IPv6 peer".
-        *   Ensure that there are no AFI-SAFI configurations at the global and peer-group levels. 
+        *   Ensure that there are no AFI-SAFI configurations at peer-group levels. 
         *   On the ATE side ensure that IPv4-unicast and IPv6-unicast AFI-SAFI are enabled==true for 
             IPv4 and IPv6 neighbors.
+        *   Ensure that there is extended-next-hop encoding feature is configured via OC path and the
+            default value of this should be set to false
     
     *   Verification:
         *   For IPv4 neighbor, ensure that the IPv4 neighborship is up and IPv6-unicast capability is 
@@ -43,7 +46,7 @@ BGP AFI SAFI OC DEFAULTS TEST
     
     *   Configuration at the neighbor level is same as in [Test case-1] except for IPv4-unicast and 
         IPv6-unicast being enabled at the peer-group level
-    *   No configuration should be made at the global AFI-SAFI level
+    *   No configuration should be made at the neighbor AFI-SAFI level
     
     *   Verification:
         *   For IPv4 neighbor, ensure that the IPv4 neighborship is up and both IPv4-unicast and 
@@ -75,7 +78,6 @@ BGP AFI SAFI OC DEFAULTS TEST
         *   For IPv6 neighbor ensure that the IPv6 neighborship is not ESTABLISHED and
             IPv6-unicast capabilities are set to FALSE.
 
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
@@ -95,6 +97,7 @@ paths:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
     /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding:
 
     ## Telemetry Parameter coverage
 
@@ -105,6 +108,7 @@ paths:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as:
+    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/ipv4-unicast/state/extended-next-hop-encoding:
 
 rpcs:
     gnmi:

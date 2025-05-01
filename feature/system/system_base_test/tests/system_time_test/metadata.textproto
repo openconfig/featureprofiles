@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "6e856ff8-a277-4c2f-b4b5-4045bcfd6c02"
+plan_id:  "System-1.4"
+description:  "System time test"
+testbed:  TESTBED_DUT_ATE_2LINKS

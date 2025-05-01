@@ -5,7 +5,7 @@
 #
 # The list of directories of CA contents, also the count of CAs built
 # in each directory.
-DIRS=(01 02 10 1000)
+DIRS=(01 02 10 1000 20000)
 
 # The types of signatures to support for the CA Certs.
 TYPES=(rsa ecdsa)
@@ -20,14 +20,14 @@ RSAKEYLEN=2048
 LIFETIME=3650
 
 # Create RSA and ECDSA CA keys, and associated certificates.
-for d in ${DIRS[@]} ; do 
+for d in ${DIRS[@]} ; do
   if [ ! -d ca-${d} ] ; then
     mkdir ca-${d}
   fi
   # Create a CA key and certificate for each of the DIRS count of
   # keys / certs. Do this for each of the TYPES key types.
   for k in $(seq 1 ${d}); do
-    OFFSET=$(printf  "%04i" ${k})
+    OFFSET=$(printf  "%05i" ${k})
     for t in ${TYPES[@]}; do
       # Generate the appropriate key type keys.
       case ${t} in
@@ -53,6 +53,11 @@ done
 for d in ${DIRS[@]}; do
   for t in ${TYPES[@]}; do
     cat ca-${d}/ca-*-${t}-cert.pem > ca-${d}/trust_bundle_${d}_${t}.pem
+    CERTS=""
+    for cf in ca-${d}/ca-*-${t}-cert.pem; do
+      CERTS="${CERTS} -certfile ${cf}"
+    done
+    openssl crl2pkcs7 -nocrl ${CERTS} -out ca-${d}/trust_bundle_${d}_${t}.p7b
   done
 done
 
@@ -67,7 +72,7 @@ for  d in ${DIRS[@]}; do
     mkdir ca-${d}
   fi
   for t in ${TYPES[@]}; do
-    OFFSET=$(printf "%04i" ${d})
+    OFFSET=$(printf "%05i" ${d})
     # Create both client and server cert keys for each type.
     # use a/b here to signal the required 2 client or server certs/keys.
     for g in a b; do
