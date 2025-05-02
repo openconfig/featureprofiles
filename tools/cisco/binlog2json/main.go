@@ -138,12 +138,17 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error generating JSON for VioletDB: %v\n", err)
 		os.Exit(1)
 	}
-
-	// post to traceability service
-	res := postToTraceability(violetJson)
-	if res != nil {
-		log.Printf("Traceability: pass=%d, fail=%d, error=%d, total=%d", res.Passed, res.Failed, res.Errored, res.Total)
+	// Write the JSON to a file
+	err = os.WriteFile("violet.json", violetJson, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON to file: %v\n", err)
+		os.Exit(1)
 	}
+	// post to traceability service
+	// res := postToTraceability(violetJson)
+	// if res != nil {
+	// 	log.Printf("Traceability: pass=%d, fail=%d, error=%d, total=%d", res.Passed, res.Failed, res.Errored, res.Total)
+	// }
 
 }
 
