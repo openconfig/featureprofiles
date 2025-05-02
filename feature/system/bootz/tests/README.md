@@ -202,10 +202,10 @@ The rest of the stream will create trust for both client and server via
 the internal protocol documented at [BootstrapStream](https://github.com/openconfig/bootz/blob/main/proto/bootz.proto#L47).
 
 ```sequence {theme:"simple"}
-Device -> Server: BootstrapStreamRequest.bootstrap_request
-Server -> Device: BootstrapStreamResponse.challenge
-Device -> Server: BootstrapStreamRequest.response
-Server -> Device: BootstrapStreamResponse.bootstrap_data
+Device->Server: BootstrapStreamRequest.bootstrap_request
+Server->Device: BootstrapStreamResponse.challenge
+Device->Server: BootstrapStreamRequest.response
+Server->Device: BootstrapStreamResponse.bootstrap_data
 ```
 
 #### bootz-6.1: Validate minimum necessary bootz configuration
