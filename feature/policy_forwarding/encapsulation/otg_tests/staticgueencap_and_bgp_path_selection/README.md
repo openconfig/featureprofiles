@@ -485,139 +485,226 @@ Inflight**
         baseline. Verify the absence of drops or core dumps. If any, the test
         Must fail
 
+## Canonical OpenConfig for GUEv1 Encapsulation configuration
+```json
+{
+    "network-instances": {
+        "network-instance": [
+            {
+                "name": "DEFAULT",
+                "config": {
+                    "name": "DEFAULT"
+                },
+                "protocols": {
+                    "protocol": [
+                        {
+                            "identifier": STATIC,
+                            "name": "DEFAULT",
+                            "config": {
+                                "identifier": STATIC,
+                                "name": "DEFAULT",
+                                "enabled": true
+                            },
+                            "static-routes": {
+                                "static": [
+                                    {
+                                        "prefix": "destination_ip",
+                                        "config": {
+                                            "prefix": "destination_ip"
+                                        },
+                                        "next-hop-group": {
+                                            "config": {
+                                                "name": "gue_encap_v4_nhg"
+                                            }
+                                        }
+                                    },
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "static": {
+                    "next-hop-groups": {
+                        "net-hop-group": [
+                            {
+                                "name": "gue_encap_v4_nhg",
+                                "config": {
+                                    "name": "gue_encap_v4_nhg"
+                                },
+                                "next-hops": {
+                                    "next-hop": [
+                                        {
+                                            "index": 1,
+                                            "config": {
+                                                "index": 1
+                                            }
+                                        },
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "next-hops": {
+                        "next-hop": [
+                            {
+                                "index": 1,
+                                "config": {
+                                    "index": 1,
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "index": 1,
+                                                "type": "UDPV4",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst",
+                                                    "src-ip": "outer_ipv4_src",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip_ttl",
+                                                    "dst-udp-port": "outer_dst_udp_port"
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}
+```
+## Canonical OpenConfig for GUEv1 Decapsulation configuration
+```json
+{
+    "network-instances": {
+        "network-instance": {
+            "config": {
+                "name": "DEFAULT"
+            },
+            "name": "DEFAULT",
+            "policy-forwarding": {
+                "policies": {
+                    "policy": [
+                        {
+                            "config": {
+                                "policy-id": "decap-policy"
+                            },
+                            "rules": {
+                                "rule": [
+                                    {
+                                        "sequence-id": 1,
+                                        "config": {
+                                            "sequence-id": 1
+                                        },
+                                        "ipv4": {
+                                            "config": {
+                                                "destination-address-prefix-set": "dst_prefix",
+                                                "protocol": "IP_UDP"
+                                            }
+                                        },
+                                        "transport": {
+                                            "config": {
+                                                "destination-port": 6080
+                                            }
+                                        }
+                                        "action": {
+                                            "decapsulate-gue": true
+                                        },
+                                    },
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
+```
+## Canonical OpenConfig for DSCP rewrite configuration
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "rules": {
+                  "rule": [
+                    {
+                      "ipv4": {
+                        "config": {
+                          "source-address": "<value>",
+                          "source-address-prefix-set": "<value>",
+                          "destination-address": "<value>",
+                          "destination-address-prefix-set": "<value>",
+                          "dscp": "<value>"
+                        }
+                      },
+                      "ipv6": {
+                          "source-address": "<value>",
+                          "source-address-prefix-set": "<value>",
+                          "destination-address": "<value>",
+                          "destination-address-prefix-set": "<value>",
+                          "dscp": "<value>"
+                        },
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
 
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-  # define next-hop-groups calling the next-hop index to map
-/network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name
-/network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index
-
-# define next-hop by index mathing the one specified under Next-hop-group
-/network-instances/network-instance/static/next-hops/next-hop/config/index
-
-# define the encap type as UDP for the the Next-Hop
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/index
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type
 
 # define Encap details to be used for the UDP header part of the Next-hop config
 # for the Next-hop-group
 # Todo: Define a templatized approach for capturing src and dst udp ports, dscp
 # and ttl. NOS is expected to dynamically determine the payload protocol type and
 # attach the destination udp port.
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dscp
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/ip-ttl
+/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
 
-# Define static route for the Pseudo protocol next-hops mapping them to the
-# Next-hop-group
-/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
-/network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name
+/network-instances/network-instance/protocols/protocol/config/identifier:
+/network-instances/network-instance/protocols/protocol/config/identifier/name:
+/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+/network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name:
+/network-instances/network-instance/static-routes/static/next-hop-groups/next-hop-group/config/name:
+/network-instances/network-instance/static-routes/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index:
+/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/index:
+/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dst-ip:
+/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/src-ip:
+/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dscp:
+/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/ttl:
+/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dst-udp-port:
 
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp:
 
-# BGP configuration
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group
-
-# BGP Policy configuration
-/routing-policy/policy-definitions/policy-definition/config/name
-/routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
-/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/REJECT_ROUTE
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy
-
-# IS-IS config
-  /network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check:
-  /network-instances/network-instance/protocols/protocol/isis/global/config/net:
-  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
-  /network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding:
-  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/level-number:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/enabled:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/enabled:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-mode:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-password:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-type:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-password:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-type:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/enabled:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled:
-
-State Paths:
-# UDP encap
-/network-instances/network-instance/static/next-hop-groups/next-hop-group/state/name
-/network-instances/network-instance/static/next-hops/next-hop/state/index
-/network-instances/network-instance/static/next-hops/next-hop/state/recurse
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/state/index
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/state/type
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-udp-port
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port
-/network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl
-
-# static route
-/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix
-/network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/state/name
-
-# BGP
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/total-prefixes
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast/state
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
-
-# IS-IS
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/area-address
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/dis-system-id
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-circuit-type
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-snpa
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/nlpid
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/priority
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-status
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-support
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-suppress
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/system-id
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/topology
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/up-timestamp
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name
-/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/flags
-/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
-/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
-/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/s-bit
-/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/up-down
-
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp:
 
 rpcs:
   gnmi:
@@ -630,4 +717,5 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
+  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
   * FFF - fixed form factor
