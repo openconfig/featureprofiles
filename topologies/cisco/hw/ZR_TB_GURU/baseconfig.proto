@@ -3,6 +3,7 @@ replace: {
       origin: "cli"
     }
     val: {
+          ascii_val:
 	  "hostname yukon_tme_lab_local\n"
 	  "username cisco\n"
 	  " group root-lr\n"
