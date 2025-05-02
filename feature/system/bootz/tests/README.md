@@ -201,11 +201,17 @@ RPC allows for only requiring a self-signed cert for TLS session.
 The rest of the stream will create trust for both client and server via
 the internal protocol documented at [BootstrapStream](https://github.com/openconfig/bootz/blob/main/proto/bootz.proto#L47).
 
-```sequence {theme:"simple"}
-Device->Server: BootstrapStreamRequest.bootstrap_request
-Server->Device: BootstrapStreamResponse.challenge
-Device->Server: BootstrapStreamRequest.response
-Server->Device: BootstrapStreamResponse.bootstrap_data
+```mermaid
+sequenceDiagram
+   actor Device
+   actor Server
+   Device->Server: BootstrapStreamRequest.bootstrap_request
+   Note right of Server: Server will query OVGS to validate<br>the device and fetch needed keys<br>and build challenge
+   Server->Device: BootstrapStreamResponse.challenge
+   Note left of Device: Device will use private keys<br>to build the challenge reponse
+   Device->Server: BootstrapStreamRequest.response
+   Note right of Server: Server will validate the response and if valid<br>return bootstrap data
+   Server->Device: BootstrapStreamResponse.bootstrap_data
 ```
 
 #### bootz-6.1: Validate minimum necessary bootz configuration
