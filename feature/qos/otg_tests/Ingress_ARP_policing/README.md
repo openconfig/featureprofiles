@@ -60,7 +60,7 @@ json
                         "actions": {
                             "config": {
                                 "target-group": "arp policer"
-                            }
+                            },
                         }
                     }
                 }
@@ -77,21 +77,21 @@ json
              "scheduler-policy": {
                  "config": {
                    "name": "ARP-policer",
-                 } 
+                 }, 
             "Scheduler":{        
                 "config":{
                         "type": one-rate-two-color
-                    }       
+                    },       
                     "one-rate-two-color": {
                     "config": {
                         "cir": 1000000
                         "bc": 0
                         "queueing-behavior":
-                    }
+                    },
                     "exceed-action":
                      "config":{
                          "drop": True
-                        }
+                        },
                 }
               } 
             }
@@ -107,20 +107,20 @@ json
             "interface": {
                 "config": {
                     "interface-id":"ethernet 1/1"
-                }
+                },
                 "input": {
                     "classifiers":{
                         "classifier": {
                             "config": {
                                 "name": /qos/classifiers/classifier/config/name:ARP-match
                                 "type": "IPV4"
-                            }
-                        }
+                            },
+                        },
                     }
                     "scheduler-policy": {
                         "config": {
                             "name": /qos/scheduler-policies/scheduler-policy/config/name:ARP-policer
-                        }
+                        },
                     }                   
                 }
             }
