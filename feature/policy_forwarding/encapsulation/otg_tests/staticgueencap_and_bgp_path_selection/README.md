@@ -653,18 +653,17 @@ Inflight**
                           "dscp": "<value>"
                         },
                       }
-                    }
-                  ]
+                    ]                  
+                  }
                 }
-              }
-            ]
-          }
-        }
-      }
-    ]
-  }
+              ]
+            }
+         }
+       }
+     ]
+   }
 }
-
+```
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
