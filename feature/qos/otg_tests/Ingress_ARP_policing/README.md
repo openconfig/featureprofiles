@@ -38,33 +38,110 @@ Use TE-18.1 test environment setup.
 
 ```yaml
 paths:
- 
+
 # qos classifier config
-  /qos/classifiers/classifier/config/name:
-  /qos/classifiers/classifier/config/type:
-  /qos/classifiers/classifier/terms/term/config/id:
-  /qos/classifiers/classifier/terms/term/actions/config/target-group:
-  /qos/classifiers/classifier/terms/term/conditions/l2/config/ethertype:
+
+json
+{
+    "qos": {
+        "classifers": {
+            "classifier": {
+                "config": {
+                    "name": "ARP-match",
+                    "type": "ETHERNET"
+                },
+                "terms": {
+                    "term": {
+                        "config": {
+                            "id": "ARP"
+                        },
+                        "conditions": {
+                            "l2": {
+                                "config": {
+                                    "ethertype": 2054
+                                }
+                            }
+                        },
+                        "actions": {
+                            "config": {
+                                "target-group": "arp policer"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 # qos scheduler config
-  /qos/scheduler-policies/scheduler-policy/config/name:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/cir:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
+
+{
+    "qos": {
+         "scheduler-policies": {
+             "scheduler-policy": {
+                 "config": {
+                   "name": "ARP-policer",
+                 } 
+            "Scheduler":{        
+                "config":{
+                        "type": one-rate-two-color
+                    }       
+                    "one-rate-two-color": {
+                    "config": {
+                        "cir": 1000000
+                        "bc": 0
+                        "queueing-behavior":
+                    }
+                    "exceed-action":
+                     "config":{
+                         "drop": True
+                        }
+                }
+              } 
+            }
+         }
+    }
+}
 
   # qos interfaces config
-  /qos/interfaces/interface/config/interface-id:
-  /qos/interfaces/interface/input/classifiers/classifier/config/name:
-  /qos/interfaces/interface/input/classifiers/classifier/config/type:
-  /qos/interfaces/interface/input/scheduler-policy/config/name:
 
+  {
+    "qos":{
+        "interfaces": {
+            "interface": {
+                "config": {
+                    "interface-id":"ethernet 1/1"
+                }
+                "input": {
+                    "classifiers":{
+                        "classifier": {
+                            "config": {
+                                "name": /qos/classifiers/classifier/config/name:ARP-match
+                                "type": "IPV4"
+                            }
+                        }
+                    }
+                    "scheduler-policy": {
+                        "config": {
+                            "name": /qos/scheduler-policies/scheduler-policy/config/name:ARP-policer
+                        }
+                    }                   
+                }
+            }
+        }
+    }
+  }
+  
   # qos interface scheduler counters
+
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:    
+
+
+
 
 rpcs:
   gnmi:
