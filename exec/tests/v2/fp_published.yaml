@@ -1121,6 +1121,8 @@ tests:
   - name: TRANSCEIVER-1_ZRP (Telemetry 400ZRP Chromatic Dispersion(CD) telemetry values streaming)
     path: feature/platform/transceiver/chromatic_dispersion/tests/zrp_cd_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'
     owners:
       - mananpat
     mustpass: true
