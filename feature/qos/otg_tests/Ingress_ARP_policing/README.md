@@ -82,8 +82,8 @@ json
              "scheduler-policy": {
                  "config": {
                    "name": "ARP-policer",
-                 } 
-            "Scheduler":{        
+                 },
+                "Scheduler":{        
                 "config":{
                         "type": one-rate-two-color
                     }       
