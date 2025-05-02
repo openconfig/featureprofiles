@@ -86,8 +86,8 @@ json
                 "Scheduler":{        
                 "config":{
                         "type": one-rate-two-color
-                    }       
-                    "one-rate-two-color": {
+                    },
+                "one-rate-two-color": {
                     "config": {
                         "cir": 1000000
                         "bc": 0
