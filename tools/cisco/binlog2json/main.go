@@ -663,6 +663,9 @@ func extractPolicyName(request map[string]any) string {
 }
 
 func recordVerification(e TestCaseEntry, po *PolicyOutput, policy string, testCaseName string) {
+	if testCaseName == "TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_closing_stream"{
+		policy = "gribi-get"
+	}
 	st := statusString(e.Status)
 	rec := func(rpc, op string, pass bool) {
 		ve := po.Verification[rpc][op]
@@ -710,10 +713,18 @@ func recordVerification(e TestCaseEntry, po *PolicyOutput, policy string, testCa
 			rec("gribi", "get", st == "pass")
 		}
 
+		if e.RPC == "gNMI" && e.Type == "Get" {
+			rec("gnmi", "get", st != "pass")
+		}
+
 	case "gnmi-get":
 		// only gNMI Get should pass
 		if e.RPC == "gNMI" && e.Type == "Get" {
 			rec("gnmi", "get", st == "pass")
+		}
+
+		if e.RPC == "gRIBI" && e.Type == "Get"{
+			rec("gribi", "get", st != "pass")
 		}
 
 	case "normal-1":
