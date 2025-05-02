@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
@@ -43,8 +42,8 @@ type TestResults map[string][]TestCaseEntry
 
 // ConfigOpEntry aggregates config operations for a policy
 type ConfigOpEntry struct {
-	PassedTestcase map[string]map[string]any `json:"passed_testcase"`
-	FailedTestcase map[string]map[string]any `json:"failed_testcase"`
+	PassedTestcase map[string]map[string]any `json:"tc_pass_list"`
+	FailedTestcase map[string]map[string]any `json:"tc_fail_list"`
 	Result         string                    `json:"result"`
 }
 
@@ -58,8 +57,8 @@ type AggregatedConfigOp struct {
 
 // VerificationEntry holds RPC verification results
 type VerificationEntry struct {
-	PassedTestcases map[string]map[string]any `json:"passed_testcase"`
-	FailedTestcases map[string]map[string]any `json:"failed_testcase"`
+	PassedTestcases map[string]map[string]any `json:"tc_pass_list"`
+	FailedTestcases map[string]map[string]any `json:"tc_fail_list"`
 	Result          string                    `json:"result"`
 }
 
@@ -71,14 +70,12 @@ type PolicyOutput struct {
 	VerifyMode   map[string]map[string]string            `json:"verify_mode"`
 	Inband       string                                  `json:"inband,omitempty"`
 	IPv4         string                                  `json:"ipv4,omitempty"`
-	IPv6         string                                  `json:"ipv6,omitempty"`
 	LogLink      string                                  `json:"log_link"`
 	Outband      string                                  `json:"outband"`
 	Result       string                                  `json:"result"`
 	SimHw        SimHw                                   `json:"sim_hw,omitempty"`
 	Users        map[string]string                       `json:"users"`
 	Verification map[string]map[string]VerificationEntry `json:"verification"`
-	VRF          string                                  `json:"vrf,omitempty"`
 }
 
 type OutputJSON struct {
@@ -112,24 +109,7 @@ type PostingResult struct {
 	Failed  int `json:"fail"`
 	Errored int `json:"error"`
 	Total   int `json:"total"`
-}
-
-type Property struct {
-	Name  string `xml:"name,attr"`
-	Value string `xml:"value,attr"`
-}
-
-type Properties struct {
-	Property []Property `xml:"property"`
-}
-
-type TestSuite struct {
-	Properties Properties `xml:"properties"`
-}
-
-type TestSuites struct {
-	TestSuites []TestSuite `xml:"testsuite"`
-}
+} 
 
 var allUsers = []string{"admin", "deny-all", "gribi-modify", "gnmi-set", "gnoi-ping", "gnoi-time", "gnsi-probe", "read-only"}
 
@@ -484,27 +464,26 @@ func extractNPU(model string, hardwareMap map[string]map[string]map[string]any) 
 	return "unknown"
 }
 
-// parseBindingInfo reads the binding file and returns the hardware model
-// (without the "CISCO-" prefix) and whether IPv6 is supported.
-func parseBindingInfo(filePath string) (model string, ipv6Supported bool) {
+// parseBindingInfo reads the binding file and returns the hardware model.
+func parseBindingInfo(filePath string) (model string) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", false
+		return ""
 	}
 	for _, line := range strings.Split(string(data), "\n") {
 		l := strings.TrimSpace(line)
 		if strings.HasPrefix(l, "hardware_model:") {
 			model = strings.Trim(l[len("hardware_model:"):], ` "`)
 		}
-		if strings.Contains(l, "gnmi:") && strings.Contains(l, "[") {
-			ipv6Supported = true
-		}
 	}
-	return strings.TrimPrefix(model, "CISCO-"), ipv6Supported
+	return strings.TrimPrefix(model, "CISCO-")
 }
 
 // usernameFromTestCase extracts the certificate username suffix from a test-case string.
 func usernameFromTestCase(tcName string) string {
+	if(strings.Contains(tcName, "TestAuthz4")) {
+		tcName = tcName[:len(tcName)-1]
+	}
 	tcName = strings.TrimSuffix(tcName, "/")
 	if idx := strings.LastIndex(tcName, "cert_"); idx != -1 {
 		return tcName[idx+len("cert_"):]
@@ -516,14 +495,12 @@ func usernameFromTestCase(tcName string) string {
 // - OS label
 // - major version
 // - minor version
-// - VRF status ("pass"/"fail")
 // - simulation flag ("true"/"false")
-func parseTestbedInfo(filePath string) (label, major, minor, vrf, sim string) {
+func parseTestbedInfo(filePath string) (label, major, minor, sim string) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return
 	}
-	vrf = "pass"
 	var simDetected bool
 
 	for _, line := range strings.Split(string(data), "\n") {
@@ -537,9 +514,6 @@ func parseTestbedInfo(filePath string) (label, major, minor, vrf, sim string) {
 				major = strings.Join(chunks[:3], ".")
 				minor = chunks[3]
 			}
-		}
-		if strings.Contains(l, "ssh server vrf default") {
-			vrf = "fail"
 		}
 		if strings.Contains(l, "VXR") {
 			simDetected = true
@@ -610,27 +584,25 @@ func parseSlotInfo(filePath string) (string, map[string]string) {
 	return slotKey, slotInfo
 }
 
-// parseLogLink unmarshals the xUnit XML and returns the first
-// test_details_url property value.
-func parseLogLink(xmlPath string) string {
-	data, err := os.ReadFile(xmlPath)
-	if err != nil {
-		log.Printf("read XML: %v", err)
-		return ""
-	}
-	var suite TestSuites
-	if err := xml.Unmarshal(data, &suite); err != nil {
-		log.Printf("XML parse: %v", err)
-		return ""
-	}
-	for _, ts := range suite.TestSuites {
-		for _, prop := range ts.Properties.Property {
-			if strings.TrimSpace(prop.Name) == "test_details_url" {
-				return strings.TrimSpace(prop.Value)
-			}
-		}
-	}
-	return ""
+func extractTestDetailsURL(path string) (string, string) {
+    // Read the JSON file and extract test_details_url and testbed name
+	raw, err := os.ReadFile(path)
+    if err != nil {
+        log.Printf("Error reading file %s: %v", path, err)
+        return "", ""
+    }
+
+    var data map[string]any
+    if err := json.Unmarshal(raw, &data); err != nil {
+        log.Printf("Error unmarshalling JSON: %v", err)
+        return "", ""
+    }
+
+    // Extract test_details_url and testbed name
+    testDetailsURL, _ := data["test_details_url"].(string)
+    testbedName, _ := data["testbeds"].([]any)[0].(string)
+
+    return testDetailsURL, testbedName
 }
 
 func statusString(raw any) string {
@@ -778,15 +750,15 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 	}
 
 	// Extract system and hardware info
-	osLabel, osMajor, osMinor, vrfStatus, simFlag := parseTestbedInfo(firexID + "/testbed_info.txt")
-	hwModel, ipv6Supported := parseBindingInfo(firexID + "/ondatra_binding.txt")
+	osLabel, osMajor, osMinor, simFlag := parseTestbedInfo(firexID + "/testbed_info.txt")
+	hwModel := parseBindingInfo(firexID + "/ondatra_binding.txt")
 	mapBytes, _ := os.ReadFile("/auto/ops-tool/violet/hw_mapping_v2.json")
 	var hwMap map[string]map[string]map[string]any
 	_ = json.Unmarshal(mapBytes, &hwMap)
 
 	npuID := extractNPU(hwModel, hwMap)
 	slotKey, slotDetails := parseSlotInfo(firexID + "/testbed_info.txt")
-	logURL := parseLogLink(firexID + "/xunit_results.xml")
+	logURL, testBedName := extractTestDetailsURL(firexID + "/.firex_internal_data/repro_info/build_and_regress_abog.json")
 
 	// Prepare container for per-policy outputs
 	outputs := make(map[string]*PolicyOutput)
@@ -852,9 +824,7 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 						Outband:      "pass",
 						Result:       "pass",
 						Users:        make(map[string]string),
-						IPv4:         ifThenElse(ipv6Supported, "fail", "pass"),
-						IPv6:         ifThenElse(ipv6Supported, "pass", "fail"),
-						VRF:          vrfStatus,
+						IPv4:         "pass",
 						SimHw:        SimHw{Sim: &ResultWrapper{}, Hw: &ResultWrapper{}},
 						Verification: defaultVerificationEntries(),
 					}
@@ -929,15 +899,7 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 		cleanupConfigPhase(&po.ConfigOp.Rotate)
 		cleanupConfigPhase(&po.ConfigOp.Finalize)
 		cleanupConfigPhase(&po.ConfigOp.Probe)
-		// normalize network flags
-		if po.IPv4 == "pass" {
-			po.IPv6 = ""
-		} else if po.IPv4 == "fail" {
-			po.IPv4 = ""
-		}
-		if po.VRF == "fail" {
-			po.VRF = ""
-		}
+		
 		// remove failed sim/hw entries
 		if po.SimHw.Sim.Result == "fail" {
 			po.SimHw.Sim = nil
@@ -966,8 +928,8 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 
 	// Assemble final output JSON
 	finalOut := OutputJSON{
-		SubmitterID: "sahilsi3",
-		Testbed:     "PP_SFSIM_Fixed_virtual_topo",
+		SubmitterID: "kjahed",
+		Testbed:     testBedName,
 		Project:     "Manual",
 		Templates:   make(map[string]map[string]map[string][]any),
 		SoftwareInfo: map[string]string{
