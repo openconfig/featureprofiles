@@ -1138,6 +1138,8 @@ tests:
   - name: TRANSCEIVER-3_ZRP (Telemetry 400ZRP Optics firmware version streaming)
     path: platform/transceiver/firmware_version/tests/zrp_firmware_version_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1145,7 +1147,7 @@ tests:
     groups: [zrp]
   - name: TRANSCEIVER-4 (Telemetry 400ZR RX input and TX output power telemetry values streaming)
     path: feature/platform/transceiver/tests/zr_input_output_power_test
-    priority: 2
+    priority: 2    
     owners:
       - mananpat
     mustpass: true
@@ -1153,6 +1155,8 @@ tests:
   - name: TRANSCEIVER-4_ZRP (Telemetry 400ZRP RX input and TX output power telemetry values streaming)
     path: feature/platform/transceiver/input_output_power/tests/zrp_input_output_power_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1168,6 +1172,8 @@ tests:
   - name: TRANSCEIVER-5_ZRP (Configuration 400ZRP channel frequency, output TX launch power and operational mode setting)
     path: feature/platform/transceiver/tunable_parameters/tests/zrp_tunable_parameters_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1183,6 +1189,8 @@ tests:
   - name: TRANSCEIVER-7_ZRP (Telemetry 400ZRP Optics inventory info streaming)
     path: feature/platform/transceiver/inventory/tests/zrp_inventory_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1198,6 +1206,8 @@ tests:
   - name: TRANSCEIVER-8_ZRP (Telemetry 400ZRP Optics module temperature streaming.)
     path: feature/platform/transceiver/temperature/tests/zrp_temperature_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1213,6 +1223,8 @@ tests:
   - name: TRANSCEIVER-9_ZRP (Telemetry 400ZRP TX laser bias current telemetry values streaming.)
     path: feature/platform/transceiver/laser_bias_current/tests/zrp_laser_bias_current_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1229,6 +1241,8 @@ tests:
   - name: TRANSCEIVER-10_ZRP (Telemetry 400ZRP Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
     path: feature/platform/transceiver/fec_uncorrectable_frames/tests/zrp_fec_uncorrectable_frames_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1244,6 +1258,8 @@ tests:
   - name: TRANSCEIVER-11_ZRP (Telemetry 400ZRP Optics logical channels provisioning and related telemetry)
     path: feature/platform/transceiver/logical_channels/tests/zrp_logical_channels_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
@@ -1260,6 +1276,8 @@ tests:
   - name: TRANSCEIVER-12_ZRP (Telemetry 400ZRP Transceiver Supply Voltage streaming.)
     path: feature/platform/transceiver/supply_voltage/tests/zrp_supply_voltage_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
