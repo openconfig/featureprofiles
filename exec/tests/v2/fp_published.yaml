@@ -1136,7 +1136,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-3_ZRP (Telemetry 400ZRP Optics firmware version streaming)
-    path: platform/transceiver/firmware_version/tests/zrp_firmware_version_test
+    path: feature/platform/transceiver/firmware_version/tests/zrp_firmware_version_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
