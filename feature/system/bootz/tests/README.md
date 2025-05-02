@@ -201,7 +201,7 @@ RPC allows for only requiring a self-signed cert for TLS session.
 The rest of the stream will create trust for both client and server via
 the internal protocol documented at [BootstrapStream](https://github.com/openconfig/bootz/blob/main/proto/bootz.proto#L47).
 
-```sequence
+```sequence {theme:"simple"}
 Device -> Server: BootstrapStreamRequest.bootstrap_request
 Server -> Device: BootstrapStreamResponse.challenge
 Device -> Server: BootstrapStreamRequest.response
