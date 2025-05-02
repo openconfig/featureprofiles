@@ -3,7 +3,7 @@ import groovy.transform.Field
 @Field 
 def image_path, image_lineup, image_efr, image_version
 
-def testbeds, testbeds_override, testbeds_locked
+def testbeds, testbeds_override, testbeds_exclude, testbeds_locked
 def ts_internal, ts_absolute, ts_firex, ts_to_run
 def firex_id
 
@@ -113,6 +113,7 @@ pipeline {
         persistentString(name: 'Run Reason', defaultValue: '', description: '', trim: true)
 
         separator(sectionHeader: "Other")
+        persistentBoolean(name: 'Must reserve all testbeds', defaultValue: false, description: 'By default, the pipeline will reserve those testbeds that are available and modify the run list accordingly. Set to true to wait for all testbeds to be available.')
         persistentBoolean(name: 'Decomission testbeds', defaultValue: false, description: 'Decomission testbeds after each test. This option makes sure the TB is "recycled" between each test. For sim runs, this ensures that a new sim is brought up for each test.')
         persistentString(name: 'Number of FireX workers', defaultValue: '', description: 'The number of FireX workers to launch. This is the number of tests that can execute in parallel (subject to testbed availability). Defaults to the number of testbeds.', trim: true)
         persistentString(name: 'Extra FireX Args', defaultValue: '', description: '', trim: true)
@@ -347,8 +348,19 @@ pipeline {
                         error "Could not find any testbeds."
                     }
                     
-                    lockTestbeds(testbeds)
-                    testbeds_locked = true
+                    testbeds_locked = lockTestbeds(testbeds)
+                    if (testbeds_locked.size() == 0) {
+                        error "No testbeds available."
+                    }
+
+                    testbeds_exclude = []
+                    for (tb in testbeds) {
+                        if(!testbeds_locked.contains(tb)) {
+                            testbeds_exclude.add(tb)
+                        }
+                    }
+
+                    echo "Excluding unavailable testbeds ${testbeds_exclude.join(',')}"
                 }
             }
         }
@@ -491,6 +503,10 @@ pipeline {
                                 firex_cmd_parts.add("--reason '${params['Run Reason']}'")
                             }
 
+                            if(testbeds_exclude.size() > 0) {
+                                firex_cmd_parts.add("--testbeds_exclude ${testbeds_exclude.join(',')}")
+                            }
+
                             firex_cmd = firex_cmd_parts.join(' ')
                             firex_cmd += ' ' + params['Extra FireX Args']
                             sh "${firex_cmd}"   
@@ -523,8 +539,8 @@ pipeline {
         always {
             script {
                 withEnv(['JENKINS_NODE_COOKIE=dontkill']) {
-                    if(testbeds_locked) {
-                        releaseTestbeds(testbeds)
+                    if(testbeds_locked.size() > 0) {
+                        releaseTestbeds(testbeds_locked)
                     }
                 }
             }
@@ -631,7 +647,25 @@ def parseTestbeds(String testbeds_list) {
 }
 
 def lockTestbeds(List testbeds) {
-    sh "/auto/tftpboot-ottawa/b4/bin/tblock lock -w -r '${env.BUILD_URL}' '${testbeds.join(',')}'"
+    def lockMode = '-b'
+    if (params['Must reserve all testbeds']) {
+        lockMode = '-w'
+    }
+
+    def out = sh(
+        script: "/auto/tftpboot-ottawa/b4/bin/tblock -j lock ${lockMode} -r '${env.BUILD_URL}' '${testbeds.join(',')}'",
+        returnStdout: true
+    ).trim()
+
+    def jsonObj = readJSON text: out
+    if(jsonObj['status'] != 'ok') {
+        error "No testbeds available"
+    }
+
+    def locked = jsonObj['testbeds'].collect { it['id'] }
+    testbeds = testbeds.findAll { tb -> locked.contains(tb) }
+    echo "Locked testbeds ${testbeds.join(',')}"
+    return testbeds
 }
 
 def releaseTestbeds(List testbeds) {

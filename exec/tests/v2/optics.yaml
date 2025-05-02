@@ -1,0 +1,12 @@
+name: optics 
+owners: 
+  - mananpat
+testbeds:
+  - 8818-FOX2714PNYN_ZR_OPTICS
+tests:
+- name: optics (zr_optics_qualification)
+  path: feature/cisco/zr/
+  timeout: 12000
+  mustpass: true
+  internal: true
+  branch: master
