@@ -33,12 +33,7 @@ Use TE-18.1 test environment setup.
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts and conforming-octets
     * Validate at OTG that 0.5Kb packets are lost
 
-
-#### OpenConfig Path and RPC Coverage
-
-```yaml
-paths:
-
+```
 # qos classifier config
 
 json
@@ -82,12 +77,12 @@ json
              "scheduler-policy": {
                  "config": {
                    "name": "ARP-policer",
-                 },
-                "Scheduler":{        
+                 } 
+            "Scheduler":{        
                 "config":{
                         "type": one-rate-two-color
-                    },
-                "one-rate-two-color": {
+                    }       
+                    "one-rate-two-color": {
                     "config": {
                         "cir": 1000000
                         "bc": 0
@@ -132,7 +127,14 @@ json
         }
     }
   }
-  
+```
+
+
+#### OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+
   # qos interface scheduler counters
 
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
