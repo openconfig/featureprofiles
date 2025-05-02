@@ -1,6 +1,7 @@
 package static_route_test
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sort"
@@ -9,108 +10,142 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	ipv4PrefixLen   = 30
-	ipv4LBPrefixLen = 32
-	ipv6PrefixLen   = 126
-	DUT1_BASE_IPv4  = "190.0.1.1"
-	DUT2_BASE_IPv4  = "190.0.1.2"
-	ProtocolBGP     = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	ProtocolISIS    = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
-	ProtocolSTATIC  = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
-	AddressFamilyV4 = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+	DUT1_BASE_IPv4                = "190.0.1.1"
+	DUT2_BASE_IPv4                = "190.0.1.2"
+	DUT1_BASE_IPv6                = "190:0:1::1"
+	DUT2_BASE_IPv6                = "190:0:1::2"
+	REDIS_STATIC_ROUTE_BASE_IPv4  = "10.10.10.10"
+	LOCAL_STATIC_ROUTE_BASE_IPv4  = "20.20.20.20"
+	UNRSLV_STATIC_ROUTE_BASE_IPv4 = "30.30.30.30"
+	REDIS_STATIC_ROUTE_BASE_IPv6  = "10:10:10::10"
+	LOCAL_STATIC_ROUTE_BASE_IPv6  = "20:20:20::20"
+	UNRSLV_STATIC_ROUTE_BASE_IPv6 = "30:30:30::30"
+	ipv4PrefixLen                 = 30
+	ipv4LBPrefixLen               = 32
+	ipv6PrefixLen                 = 126
+	ipv6LBPrefixLen               = 128
+	ProtocolBGP                   = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	ProtocolISIS                  = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	ProtocolSTATIC                = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
+	AddressFamilyV4               = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+	AddressFamilyV6               = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
 )
 
-type RouterBGPAttrib struct {
-	networkInstance string
-	RouterID        string
-	neighbor        string
-	AS              uint32
-}
-
 var (
-	DefaultInstance = *ciscoFlags.DefaultNetworkInstance
-	dut1RouterBGP   = RouterBGPAttrib{
-		networkInstance: DefaultInstance,
-		RouterID:        "1.1.1.1",
-		neighbor:        "2.2.2.2",
-		AS:              62000,
-	}
-	dut2RouterBGP = RouterBGPAttrib{
-		networkInstance: DefaultInstance,
-		RouterID:        "2.2.2.2",
-		neighbor:        "1.1.1.1",
-		AS:              62000,
-	}
-
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
-		IPv4:    "10.0.0.2",
+		IPv4:    "6.0.1.2",
+		IPv6:    "6:0:1::2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
 		Name:    "atePort2",
-		IPv4:    "11.0.0.2",
+		IPv4:    "7.0.1.2",
+		IPv6:    "7:0:1::2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dut1Port1 = attrs.Attributes{
 		Desc:    "dut1ate",
-		IPv4:    "10.0.0.1",
+		IPv4:    "6.0.1.1",
+		IPv6:    "6:0:1::1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dut2Port1 = attrs.Attributes{
 		Desc:    "dut2ate",
-		IPv4:    "11.0.0.1",
+		IPv4:    "7.0.1.1",
+		IPv6:    "7:0:1::1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 )
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
+	var connectedPort string
+	var unresolvedPort string
+	var redisV4Prefix string
+	var redisV6Prefix string
+	var localV4Prefix string
+	var localV6Prefix string
+	var unrslvV4Prefix string
+	var unrslvV6Prefix string
+	var loopbackIPv4 string
+	var loopbackIPv6 string
 	var baseIPv4 string
-	var loopbackIP string
-	var routerBGP RouterBGPAttrib
+	var baseIPv6 string
 	var DUTSysID string
+	var portName string
+	count := 5
 	DUTAreaAddress := "47.0001"
-	// var v4Prefix string
-	// var v4NextHop string
 
 	if dut.ID() == "dut1" {
-		baseIPv4 = DUT1_BASE_IPv4
-		loopbackIP = "1.1.1.1"
-		routerBGP = dut1RouterBGP
 		DUTSysID = "0000.0000.0001"
-		// v4Prefix = fmt.Sprintf("%s/%d", "2.2.2.2", ipv4LBPrefixLen)
-		// v4NextHop = DUT2_BASE_IPv4
+		portName = "port11"
+		connectedPort = dut.Port(t, portName).Name()
+		baseIPv4 = DUT1_BASE_IPv4
+		loopbackIPv4 = "1.1.1.1"
+		redisV4Prefix = fmt.Sprintf("%s/%d", REDIS_STATIC_ROUTE_BASE_IPv4, ipv4LBPrefixLen)
+		redisV6Prefix = fmt.Sprintf("%s/%d", REDIS_STATIC_ROUTE_BASE_IPv6, ipv6LBPrefixLen)
+		baseIPv6 = DUT1_BASE_IPv6
+		loopbackIPv6 = "1:1:1::1"
 	} else {
-		baseIPv4 = DUT2_BASE_IPv4
-		loopbackIP = "2.2.2.2"
-		routerBGP = dut2RouterBGP
 		DUTSysID = "0000.0000.0002"
-		// v4Prefix = fmt.Sprintf("%s/%d", "1.1.1.1", ipv4LBPrefixLen)
-		// v4NextHop = DUT1_BASE_IPv4
+		portName := "port11"
+		connectedPort = dut.Port(t, portName).Name()
+		portName = "port12"
+		// unresolvedPort = dut.Port(t, portName).Name()
+		unresolvedPort = "FourHundredGigE0/0/0/2"
+		baseIPv4 = DUT2_BASE_IPv4
+		loopbackIPv4 = "2.2.2.2"
+		localV4Prefix = fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_BASE_IPv4, ipv4LBPrefixLen)
+		localV6Prefix = fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_BASE_IPv6, ipv6LBPrefixLen)
+		unrslvV4Prefix = fmt.Sprintf("%s/%d", UNRSLV_STATIC_ROUTE_BASE_IPv4, ipv4LBPrefixLen)
+		unrslvV6Prefix = fmt.Sprintf("%s/%d", UNRSLV_STATIC_ROUTE_BASE_IPv6, ipv6LBPrefixLen)
+		baseIPv6 = DUT2_BASE_IPv6
+		loopbackIPv6 = "2:2:2::2"
 	}
 
-	isisIntfNameList := configInterface(t, dut, baseIPv4)
-	configLoopBackInterface(t, dut, loopbackIP)
+	isisIntfNameList := configInterface(t, dut, baseIPv4, baseIPv6)
+	configLoopBackInterface(t, dut, loopbackIPv4, loopbackIPv6)
 	configRP(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	configRouterISIS(t, dut, DUTAreaAddress, DUTSysID, isisIntfNameList)
-	configRouterBGP(t, dut, routerBGP)
-	// // configLoopBackStaticRoute(t, dut, v4Prefix, v4NextHop)
+	configRouterBGP(t, dut)
+	var ipv4 bool
+	if dut.ID() == "dut1" {
+		ipv4 = true
+		configBulkStaticRoute(t, dut, redisV4Prefix, connectedPort, count, ipv4)
+		ipv4 = false
+		configBulkStaticRoute(t, dut, redisV6Prefix, connectedPort, count, ipv4)
+	} else {
+		ipv4 = true
+		configBulkStaticRoute(t, dut, localV4Prefix, connectedPort, count, ipv4)
+		configBulkStaticRoute(t, dut, unrslvV4Prefix, unresolvedPort, count, ipv4)
+		ipv4 = false
+		configBulkStaticRoute(t, dut, localV6Prefix, connectedPort, count, ipv4)
+		configBulkStaticRoute(t, dut, unrslvV6Prefix, unresolvedPort, count, ipv4)
+	}
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
@@ -132,10 +167,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	intfs[atePort2.Name].WithIPv4Loopback("3.3.3.3/32")
 	util.AddAteISISL2(t, topo, atePort1.Name, "45", "ISIS-3", 10, "3.3.3.3/32", 1)
 	util.AddAteISISL2(t, topo, atePort2.Name, "46", "ISIS-2", 10, "3.3.3.3/32", 1)
-	util.AddAteISISL2(t, topo, atePort1.Name, "47", "ISIS-30", 10, "30.30.30.1/32", 100)
-	util.AddAteISISL2(t, topo, atePort2.Name, "48", "ISIS-31", 10, "31.31.31.1/32", 100)
-	util.AddAteEBGPPeer(t, topo, atePort1.Name, "1.1.1.1", 64001, "BGP", atePort1.IPv4, "20.20.20.1/32", 100, true)
-	util.AddAteEBGPPeer(t, topo, atePort2.Name, "2.2.2.2", 64001, "BGP", atePort2.IPv4, "21.21.21.1/32", 100, true)
+	util.AddAteISISL2(t, topo, atePort1.Name, "47", "ISIS-30", 10, "30.30.30.1/32", 5)
+	util.AddAteISISL2(t, topo, atePort2.Name, "48", "ISIS-31", 10, "31.31.31.1/32", 5)
+	util.AddAteEBGPPeer(t, topo, atePort1.Name, "1.1.1.1", 64001, "BGP", atePort1.IPv4, "20.20.20.1/32", 5, true)
+	util.AddAteEBGPPeer(t, topo, atePort2.Name, "2.2.2.2", 64001, "BGP", atePort2.IPv4, "21.21.21.1/32", 5, true)
 
 	topo.Push(t)
 	topo.StartProtocols(t)
@@ -149,11 +184,10 @@ func configureTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.AT
 	var dstEndPoint ondatra.Endpoint
 	dstEndPoint = topo.Interfaces()[atePort2.Name]
 
-	bgp_flow := createTrafficFlow(t, ate, "Flow_BGP", srcEndPoint, dstEndPoint, "20.20.20.1", "21.21.21.1", 100)
-	isis_flow := createTrafficFlow(t, ate, "Flow_ISIS", srcEndPoint, dstEndPoint, "30.30.30.1", "31.31.31.1", 100)
+	bgp_flow := createTrafficFlow(t, ate, "Flow_BGP", srcEndPoint, dstEndPoint, "20.20.20.1", "21.21.21.1", 5)
+	isis_flow := createTrafficFlow(t, ate, "Flow_ISIS", srcEndPoint, dstEndPoint, "30.30.30.1", "31.31.31.1", 5)
 	var flows []*ondatra.Flow
 	flows = append(flows, bgp_flow, isis_flow)
-	// flows = append(flows, bgp_flow)
 	validateTrafficFlow(t, ate, flows)
 }
 
@@ -183,10 +217,6 @@ func validateTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.
 
 	ate.Traffic().Start(t, flows...)
 	time.Sleep(1 * time.Minute)
-	// threshold := 0.90
-	// stats := gnmi.GetAll(t, ate, gnmi.OC().InterfaceAny().Counters().State())
-	// trafficPass := util.CheckTrafficPassViaPortPktCounter(stats, threshold)
-	// fmt.Printf("Debug: trafficPass:%v", trafficPass)
 
 	ate.Traffic().Stop(t)
 	time.Sleep(1 * time.Minute)
@@ -198,7 +228,7 @@ func validateTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.
 	time.Sleep(10 * time.Minute)
 }
 
-func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string) []string {
+func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, baseIPv6 string) []string {
 
 	var isisIntfNameList []string
 	intfNameList := getInterfaceNameList(t, dut)
@@ -211,15 +241,19 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string) []st
 		path := gnmi.OC().Interface(port)
 		portAttrib.Desc = dut.ID() + portName
 		portAttrib.IPv4 = baseIPv4
-		baseIPv4 = getNewIP(baseIPv4)
+		baseIPv4 = getNewIPv4(baseIPv4)
 		portAttrib.IPv4Len = ipv4PrefixLen
+		portAttrib.IPv6 = baseIPv6
+		baseIPv6 = getNewIPv6(baseIPv6)
+		portAttrib.IPv6Len = ipv6PrefixLen
+
 		if i >= 4 {
 			portAttrib.Subinterface = 1
 		} else {
 			portAttrib.Subinterface = 0
 			isisIntfNameList = append(isisIntfNameList, intfNameList[i])
 		}
-		gnmi.Replace(t, dut, path.Config(), configInterfaceIPv4DUT(intf, portAttrib))
+		gnmi.Replace(t, dut, path.Config(), configInterfaceDUT(intf, portAttrib))
 	}
 
 	p1 := dut.Port(t, "port7").Name()
@@ -239,12 +273,16 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string) []st
 
 	bundlePortAttrib.Desc = dut.ID() + "Bundle-Ether100"
 	bundlePortAttrib.IPv4 = baseIPv4
-	baseIPv4 = getNewIP(baseIPv4)
+	baseIPv4 = getNewIPv4(baseIPv4)
 	bundlePortAttrib.IPv4Len = ipv4PrefixLen
+	bundlePortAttrib.Subinterface = 0
+	bundlePortAttrib.IPv6 = baseIPv6
+	baseIPv6 = getNewIPv6(baseIPv6)
+	bundlePortAttrib.IPv6Len = ipv6PrefixLen
 	bundlePortAttrib.Subinterface = 0
 
 	pathb1 := gnmi.OC().Interface("Bundle-Ether100")
-	gnmi.Replace(t, dut, pathb1.Config(), configInterfaceIPv4DUT(i1, bundlePortAttrib))
+	gnmi.Replace(t, dut, pathb1.Config(), configInterfaceDUT(i1, bundlePortAttrib))
 	BE100 := generateBundleMemberInterfaceConfig(p1, "Bundle-Ether100")
 	gnmi.Replace(t, dut, pathb1m1.Config(), BE100)
 	BE100 = generateBundleMemberInterfaceConfig(p2, "Bundle-Ether100")
@@ -253,12 +291,16 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string) []st
 
 	bundlePortAttrib.Desc = dut.ID() + "Bundle-Ether101"
 	bundlePortAttrib.IPv4 = baseIPv4
-	baseIPv4 = getNewIP(baseIPv4)
+	baseIPv4 = getNewIPv4(baseIPv4)
 	bundlePortAttrib.IPv4Len = ipv4PrefixLen
+	bundlePortAttrib.Subinterface = 1
+	bundlePortAttrib.IPv6 = baseIPv6
+	baseIPv6 = getNewIPv6(baseIPv6)
+	bundlePortAttrib.IPv6Len = ipv6PrefixLen
 	bundlePortAttrib.Subinterface = 1
 
 	pathb2 := gnmi.OC().Interface("Bundle-Ether101")
-	gnmi.Replace(t, dut, pathb2.Config(), configInterfaceIPv4DUT(i2, bundlePortAttrib))
+	gnmi.Replace(t, dut, pathb2.Config(), configInterfaceDUT(i2, bundlePortAttrib))
 	BE101 := generateBundleMemberInterfaceConfig(p3, "Bundle-Ether101")
 	gnmi.Replace(t, dut, pathb2m1.Config(), BE101)
 	BE101 = generateBundleMemberInterfaceConfig(p4, "Bundle-Ether101")
@@ -275,7 +317,7 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string) []st
 	intf := &oc.Interface{Name: &port}
 	path := gnmi.OC().Interface(port)
 
-	gnmi.Replace(t, dut, path.Config(), configInterfaceIPv4DUT(intf, portAttrib))
+	gnmi.Replace(t, dut, path.Config(), configInterfaceDUT(intf, portAttrib))
 	isisIntfNameList = append(isisIntfNameList, port)
 
 	op := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().SubinterfaceAny().Name().State())
@@ -286,7 +328,7 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string) []st
 	return isisIntfNameList
 }
 
-func configInterfaceIPv4DUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	i.Description = ygot.String(a.Desc)
 	s := &oc.Interface_Subinterface{}
@@ -311,16 +353,21 @@ func configInterfaceIPv4DUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface 
 	s4 := s.GetOrCreateIpv4()
 	s4a := s4.GetOrCreateAddress(a.IPv4)
 	s4a.PrefixLength = ygot.Uint8(a.IPv4Len)
+	s6 := s.GetOrCreateIpv6()
+	s6a := s6.GetOrCreateAddress(a.IPv6)
+	s6a.PrefixLength = ygot.Uint8(a.IPv6Len)
 
 	return i
 }
-func configLoopBackInterface(t *testing.T, dut *ondatra.DUTDevice, loopbackIP string) {
+func configLoopBackInterface(t *testing.T, dut *ondatra.DUTDevice, loopbackIPv4 string, loopbackIPv6 string) {
 
 	var portAttrib = &attrs.Attributes{}
 
 	lb := netutil.LoopbackInterface(t, dut, 0)
-	portAttrib.IPv4 = loopbackIP
+	portAttrib.IPv4 = loopbackIPv4
 	portAttrib.IPv4Len = ipv4LBPrefixLen
+	portAttrib.IPv6 = loopbackIPv6
+	portAttrib.IPv6Len = ipv6LBPrefixLen
 	portAttrib.Subinterface = 0
 	lo1 := portAttrib.NewOCInterface(lb, dut)
 	lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
@@ -346,74 +393,141 @@ func getInterfaceNameList(t *testing.T, dut *ondatra.DUTDevice) []string {
 	return intfNameList
 }
 
-// func configLoopBackStaticRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, Basev4NextHop string) {
+func configBulkStaticRoute(t *testing.T, dut *ondatra.DUTDevice,
+	prefix, nextHop string, count int, ipv4 bool) {
 
-// 	ni := oc.NetworkInstance{Name: ygot.String(DefaultInstance)}
-// 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, DefaultInstance)
-// 	sr := static.GetOrCreateStatic(v4Prefix)
-// 	v4NextHop := Basev4NextHop
+	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
+	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+	sr := static.GetOrCreateStatic(prefix)
+	nh := sr.GetOrCreateNextHop("0")
+	nh.GetOrCreateInterfaceRef().Interface = ygot.String(nextHop)
 
-// 	for i := 0; i < 4; i++ {
-// 		nh := sr.GetOrCreateNextHop(strconv.Itoa(i))
-// 		nh.NextHop = oc.UnionString(v4NextHop)
-// 		v4NextHop = getNewIP(v4NextHop)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Config(), static)
 
-// 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(DefaultInstance).
-// 			Protocol(ProtocolSTATIC, DefaultInstance).Config(), static)
-// 	}
-
-// 	if dut.ID() == "dut1" {
-// 		sr := static.GetOrCreateStatic("3.3.3.3/32")
-// 		nh := sr.GetOrCreateNextHop("0")
-// 		nh.NextHop = oc.UnionString("10.0.0.2")
-
-// 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(DefaultInstance).
-// 			Protocol(ProtocolSTATIC, DefaultInstance).Config(), static)
-// 	}
-
-// }
-func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string, delete bool) {
-	t.Logf("*** Configuring static route in DEFAULT network-instance ...")
-	ni := oc.NetworkInstance{Name: ygot.String(DefaultInstance)}
-	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "STATIC")
-	if v4Prefix != "" {
-		sr := static.GetOrCreateStatic(v4Prefix)
-		nh := sr.GetOrCreateNextHop("0")
-		nh.NextHop = oc.UnionString(v4NextHop)
-		if delete {
-			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(DefaultInstance).
-				Protocol(ProtocolSTATIC, "STATIC").Static(v4Prefix).Config())
-
+	for i := 0; i < count; i++ {
+		tempV4Prefix := prefix
+		if ipv4 == true {
+			prefix = getNewStaticIPv4(prefix[:11]) + "/32"
+			nextHop = tempV4Prefix[:11]
 		} else {
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(DefaultInstance).
-				Protocol(ProtocolSTATIC, "STATIC").Config(), static)
+			prefix = getNewStaticIPv6(prefix[:12]) + "/128"
+			nextHop = tempV4Prefix[:12]
 		}
-	}
-	if v6Prefix != "" {
-		sr := static.GetOrCreateStatic(v6Prefix)
-		nh := sr.GetOrCreateNextHop("0")
-		nh.NextHop = oc.UnionString(v6NextHop)
-		if delete {
-			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(DefaultInstance).
-				Protocol(ProtocolSTATIC, "STATIC").Static(v6Prefix).Config())
-		} else {
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(DefaultInstance).
-				Protocol(ProtocolSTATIC, "STATIC").Config(), static)
-		}
+		st := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+		sr := st.GetOrCreateStatic(prefix)
+		nh := sr.GetOrCreateNextHop(strconv.Itoa(i + 1))
+		nh.NextHop = oc.UnionString(nextHop)
+		nh.Recurse = ygot.Bool(true)
+
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+			Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Config(), st)
 	}
 }
-func configRouterISIS(t *testing.T, dut *ondatra.DUTDevice, DUTAreaAddress, DUTSysID string, ifaceNameList []string) {
+
+// func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string, delete bool) {
+// 	t.Logf("*** Configuring static route in DEFAULT network-instance ...")
+// 	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
+// 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "STATIC")
+// 	if v4Prefix != "" {
+// 		sr := static.GetOrCreateStatic(v4Prefix)
+// 		nh := sr.GetOrCreateNextHop("0")
+// 		nh.NextHop = oc.UnionString(v4NextHop)
+// 		if delete {
+// 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+// 				Protocol(ProtocolSTATIC, "STATIC").Static(v4Prefix).Config())
+
+//			} else {
+//				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+//					Protocol(ProtocolSTATIC, "STATIC").Config(), static)
+//			}
+//		}
+//		if v6Prefix != "" {
+//			sr := static.GetOrCreateStatic(v6Prefix)
+//			nh := sr.GetOrCreateNextHop("0")
+//			nh.NextHop = oc.UnionString(v6NextHop)
+//			if delete {
+//				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+//					Protocol(ProtocolSTATIC, "STATIC").Static(v6Prefix).Config())
+//			} else {
+//				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+//					Protocol(ProtocolSTATIC, "STATIC").Config(), static)
+//			}
+//		}
+//	}
+
+func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, noRecurse, recurse bool, interfaceName, prefix,
+	nextHop string) (*oc.NetworkInstance_Protocol, *networkinstance.NetworkInstance_ProtocolPath) {
+
+	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
+	path := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+	sr := static.GetOrCreateStatic(prefix)
+	nh := sr.GetOrCreateNextHop("0")
+	nh.SetNextHop(oc.UnionString(nextHop))
+
+	if noRecurse == false {
+		nh.SetRecurse(recurse)
+	}
+	if interfaceName != "" {
+		nh.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceName)
+	}
+
+	return static, path
+}
+
+func configStaticRouteWithAttributes(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
+	interfaceName, prefix, nextHop string, metric, tag, distance uint32) (*oc.NetworkInstance_Protocol,
+	*networkinstance.NetworkInstance_ProtocolPath) {
+
+	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
+	path := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+
+	sr := static.GetOrCreateStatic(prefix)
+	sr.SetSetTag(oc.UnionString(strconv.Itoa(int(tag))))
+
+	nh := sr.GetOrCreateNextHop("0")
+	nh.SetNextHop(oc.UnionString(nextHop))
+	nh.SetRecurse(recurse)
+	nh.SetMetric(metric)
+	nh.SetPreference(distance)
+	if interfaceName != "" {
+		nh.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceName)
+	}
+	return static, path
+}
+
+func configStaticRouteBFD(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
+	prefix string) (*oc.NetworkInstance_Protocol, *networkinstance.NetworkInstance_ProtocolPath) {
+
+	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
+	path := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+
+	sr := static.GetOrCreateStatic(prefix)
+	nh := sr.GetOrCreateNextHop("0")
+	nh.EnableBfd.SetEnabled(true)
+
+	return static, path
+}
+func configRouterISIS(t *testing.T, dut *ondatra.DUTDevice, DUTAreaAddress,
+	DUTSysID string, ifaceNameList []string) {
 
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(ProtocolISIS, "ISIS")
 	isis := prot.GetOrCreateIsis()
+
 	glob := isis.GetOrCreateGlobal()
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)}
 	glob.LevelCapability = 2
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	// glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	// glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+
 	for i := 0; i < len(ifaceNameList); i++ {
 		intf := isis.GetOrCreateInterface(ifaceNameList[i])
 		intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -421,7 +535,8 @@ func configRouterISIS(t *testing.T, dut *ondatra.DUTDevice, DUTAreaAddress, DUTS
 		intf.HelloPadding = 1
 		intf.Passive = ygot.Bool(false)
 		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		// intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+
 	}
 	intfLB := isis.GetOrCreateInterface("Loopback0")
 	intfLB.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -429,6 +544,7 @@ func configRouterISIS(t *testing.T, dut *ondatra.DUTDevice, DUTAreaAddress, DUTS
 	intfLB.HelloPadding = 1
 	intfLB.Passive = ygot.Bool(false)
 	intfLB.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intfLB.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 
 	level := isis.GetOrCreateLevel(2)
 	level.MetricStyle = 2
@@ -437,7 +553,7 @@ func configRouterISIS(t *testing.T, dut *ondatra.DUTDevice, DUTAreaAddress, DUTS
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(ProtocolISIS, "ISIS")
 	gnmi.Replace(t, dut, dutNode.Config(), dutConf)
 }
-func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice, routerBGP RouterBGPAttrib) {
+func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice) {
 
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -445,6 +561,7 @@ func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice, routerBGP RouterBGPAt
 	bgp := prot.GetOrCreateBgp()
 	glob := bgp.GetOrCreateGlobal()
 	glob.As = ygot.Uint32(65000)
+
 	if dut.ID() == "dut1" {
 		glob.RouterId = ygot.String("1.1.1.1")
 	} else {
@@ -452,6 +569,7 @@ func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice, routerBGP RouterBGPAt
 	}
 	glob.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
 	glob.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	pgATE := bgp.GetOrCreatePeerGroup("BGP-ATE-GROUP")
 	pgATE.PeerAs = ygot.Uint32(64001)
@@ -466,6 +584,9 @@ func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice, routerBGP RouterBGPAt
 	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
 	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
+	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
 
 	if dut.ID() == "dut1" {
 		pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP")
@@ -479,6 +600,10 @@ func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice, routerBGP RouterBGPAt
 		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
 		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+
 	} else {
 		pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP")
 		pg.PeerAs = ygot.Uint32(63001)
@@ -491,11 +616,21 @@ func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice, routerBGP RouterBGPAt
 		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
 		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
 	}
 
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(ProtocolBGP, "BGP")
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(ProtocolBGP, "BGP")
 	gnmi.Replace(t, dut, dutNode.Config(), dutConf)
+
+	if dut.ID() == "dut1" {
+		cliConfig := "router bgp 65000 instance BGP\n address-family ipv4 unicast\n  redistribute static route-policy ALLOW\n !\n!\n"
+		config.TextWithGNMI(context.Background(), t, dut, cliConfig)
+		cliConfig = "router bgp 65000 instance BGP\n address-family ipv6 unicast\n  redistribute static route-policy ALLOW\n !\n!\n"
+		config.TextWithGNMI(context.Background(), t, dut, cliConfig)
+	}
 }
 
 func configRP(t *testing.T, dut *ondatra.DUTDevice) {
@@ -508,12 +643,46 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 	dutNode := gnmi.OC().RoutingPolicy()
 	dutConf := dev.GetOrCreateRoutingPolicy()
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+
 }
-func getNewIP(ip string) string {
+func getNewIPv4(ip string) string {
 
 	newIP := net.ParseIP(ip)
 	newIP = newIP.To4()
 	newIP[0] += 1
+
+	return newIP.String()
+}
+
+func getNewIPv6(ip string) string {
+
+	newIP := net.ParseIP(ip)
+	newIP = newIP.To16()
+	newIP[1] += 1
+
+	return newIP.String()
+}
+
+func getNewStaticIPv4(ip string) string {
+
+	newIP := net.ParseIP(ip)
+	newIP = newIP.To4()
+	newIP[0] += 1
+	newIP[1] += 1
+	newIP[2] += 1
+	newIP[3] += 1
+
+	return newIP.String()
+}
+
+func getNewStaticIPv6(ip string) string {
+
+	newIP := net.ParseIP(ip)
+	newIP = newIP.To16()
+	newIP[1] += 1
+	newIP[3] += 1
+	newIP[5] += 1
+	newIP[15] += 1
 
 	return newIP.String()
 }
@@ -527,4 +696,9 @@ func generateBundleMemberInterfaceConfig(name, bundleID string) *oc.Interface {
 	e.AggregateId = ygot.String(bundleID)
 
 	return i
+}
+
+func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
 }
