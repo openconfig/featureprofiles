@@ -1230,7 +1230,6 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [zrp]
-    pr: 1510
   - name: TRANSCEIVER-10 (Telemetry 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
     path: feature/platform/transceiver/tests/zr_fec_uncorrectable_frames_test
     priority: 2
@@ -1265,7 +1264,6 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [zrp]
-    pr: 1436
   - name: TRANSCEIVER-12 (Telemetry 400ZR Transceiver Supply Voltage streaming.)
     path: feature/platform/transceiver/tests/zr_supply_voltage_test
     priority: 2
