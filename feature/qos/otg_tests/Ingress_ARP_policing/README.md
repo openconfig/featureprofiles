@@ -33,7 +33,7 @@ Use TE-18.1 test environment setup.
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts and conforming-octets
     * Validate at OTG that 0.5Kb packets are lost
 
-```
+```json
 # qos classifier config
 
 json
