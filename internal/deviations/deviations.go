@@ -1347,4 +1347,3 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
 }
-
