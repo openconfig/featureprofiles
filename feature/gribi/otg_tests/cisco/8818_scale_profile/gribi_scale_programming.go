@@ -882,7 +882,7 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 					prefixLimit = floorRatio // Switch to floor ratio for remaining NHGs
 				}
 
-				nhgID := nhgIDs[nhgIndex%numNHGsPerBatch]
+				nhgID = nhgIDs[nhgIndex%numNHGsPerBatch]
 				nhgIndex++
 				// Generate NextHopGroup entry
 				nhgEntry := fluent.NextHopGroupEntry().
@@ -1062,6 +1062,7 @@ func TestChains(t *testing.T) {
 		fluent.NextHopGroupEntry().WithID(nhgRedirectToVrfR).AddNextHop(nhID, 1).WithNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 
+	t.Logf("Peer NH IP: %v", peerNHIP)
 	level1Primary := routesParam{
 		ipEntries:     vipIPs, // 512 VIP prefixes
 		prefixVRF:     deviations.DefaultNetworkInstance(dut),
@@ -1153,6 +1154,7 @@ func TestChains(t *testing.T) {
 	LogGribiInfo(t, "decapWan", decapWanPE)
 
 	configBatches := CombinePairedEntries(dut, batches, &level1Primary, &level2Primary, &level3PrimaryA, &level1Frr1, &level2Frr1, &decapWan)
+	// configBatches := CombinePairedEntries(dut, batches, &level1Primary) //, &level2Primary)
 
 	client.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
@@ -1164,14 +1166,26 @@ func TestChains(t *testing.T) {
 	// only program the first batch
 	entries := configBatches[0]
 
-	// dont forget to add backup entries
-	entries = append(entries, backUpFluentEntries...)
+	// t.Logf("Printing entries for batch 0 with %d entries", len(entries))
+	// for i, entry := range entries {
+	// 	t.Logf("Entry %d: %v", i, entry)
+	// }
+
+	// Program backup entries first
+	t.Logf("Programming backup entries")
+	client.Modify().AddEntry(t, backUpFluentEntries...)
+	if err := awaitTimeout(ctx, client, t, 1*time.Minute); err != nil {
+		t.Fatalf("Could not program entries, got err: %v", err)
+	}
 
 	// Program the entries
+	t.Logf("Programming %d entries", len(entries))
 	client.Modify().AddEntry(t, entries...)
 	if err := awaitTimeout(ctx, client, t, aftProgTimeout); err != nil {
 		t.Fatalf("Could not program entries, got err: %v", err)
 	}
+	// t.Logf("waiting for %d minutes", 5)
+	// time.Sleep(5 * time.Minute)
 
 	// // Inject 5000 IPv4Entry-ies and 5000 IPv6Entry-ies to each of the 4 encap VRFs.
 	// pushEncapEntries(t, defaultIpv4Entries, args)
