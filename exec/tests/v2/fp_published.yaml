@@ -1140,14 +1140,14 @@ tests:
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-3 (Telemetry 400ZR Optics firmware version streaming)
-    path: platform/platform/transceiver/firmware_version/tests/zr_firmware_version_test
+    path: feature/platform/transceiver/firmware_version/tests/zr_firmware_version_test
     priority: 2
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-3_ZRP (Telemetry 400ZRP Optics firmware version streaming)
-    path: platform/platform/transceiver/firmware_version/tests/zrp_firmware_version_test
+    path: feature/platform/transceiver/firmware_version/tests/zrp_firmware_version_test
     priority: 2
     owners:
       - mananpat
