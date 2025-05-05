@@ -1378,9 +1378,9 @@ func getStaticNeighbor(ip string, ipv4 bool) string {
 func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, IPv4 bool) {
 
 	pingRequest := &spb.PingRequest{}
-	gnoiClient, err := dut1.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	ports := [4]string{dut2.Port(t, "port1").Name(), dut2.Port(t, "port2").Name(),
+	ports := [4]string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
 		"Bundle-Ether100", "Bundle-Ether101"}
+	gnoiClient, err := dut1.RawAPIs().BindingDUT().DialGNOI(context.Background())
 
 	if err != nil {
 		t.Fatalf("Error dialing gNOI: %v", err)
@@ -1388,9 +1388,17 @@ func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevic
 	for i := 0; i < len(ports); i++ {
 
 		if IPv4 == true {
-			pingRequest.Destination = dut2IntfAttrib[i].attrib.IPv4
+			if dut1.ID() == "dut1" {
+				pingRequest.Destination = dut2IntfAttrib[i].attrib.IPv4
+			} else {
+				pingRequest.Destination = dut1IntfAttrib[i].attrib.IPv4
+			}
 		} else {
-			pingRequest.Destination = dut2IntfAttrib[i].attrib.IPv6
+			if dut1.ID() == "dut1" {
+				pingRequest.Destination = dut2IntfAttrib[i].attrib.IPv6
+			} else {
+				pingRequest.Destination = dut1IntfAttrib[i].attrib.IPv6
+			}
 		}
 		pingClient, err := gnoiClient.System().Ping(context.Background(), pingRequest)
 		if err != nil {
@@ -1404,13 +1412,16 @@ func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevic
 				t.Logf("Failed to handle gnoi ping client stream: %v for Destination %s", err, dut2IntfAttrib[i].attrib.IPv6)
 			}
 		}
-		summary := responses[len(responses)-1]
-		if summary.Received == 0 {
-			if IPv4 == true {
-				t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv4)
-			} else {
-				t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv6)
+		if len(responses) > 0 {
+			summary := responses[len(responses)-1]
+			if summary.Received == 0 {
+				if IPv4 == true {
+					t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv4)
+				} else {
+					t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv6)
+				}
 			}
+
 		}
 	}
 }
@@ -1467,7 +1478,7 @@ func pingScaleNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUT
 			if err != nil {
 				t.Logf("Failed to handle gnoi ping client stream: %v for Destination %s", err, dest)
 			}
-			if len(responses) > 1 {
+			if len(responses) > 0 {
 				summary := responses[len(responses)-1]
 				if summary.Received == 0 {
 					t.Logf("No response to ping from Destination %s\n", dest)

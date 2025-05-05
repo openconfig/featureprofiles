@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/system"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -815,17 +816,35 @@ func ParallelProcessRestart(t *testing.T, dut *ondatra.DUTDevice, processName st
 
 	defer wg.Done()
 
+	waitForRestart := true
+	pid := system.FindProcessIDByName(t, dut, processName)
+	if pid == 0 {
+		t.Fatalf("process %s not found on device", processName)
+	}
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
 		Name:    processName,
+		Pid:     uint32(pid),
 		Restart: true,
 	}
-	killProcessResp, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
-	time.Sleep(10 * time.Second)
-	t.Logf("KillProcess response: %v", killProcessResp)
-	if err != nil {
-		t.Fatalf("Failed to restart process: %v", err)
+	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+	time.Sleep(30 * time.Second)
+
+	if waitForRestart {
+		gnmi.WatchAll(
+			t,
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gnmipb.SubscriptionMode_ON_CHANGE)),
+			gnmi.OC().System().ProcessAny().State(),
+			time.Minute,
+			func(p *ygnmi.Value[*oc.System_Process]) bool {
+				val, ok := p.Val()
+				if !ok {
+					return false
+				}
+				return val.GetName() == processName && val.GetPid() != pid
+			},
+		)
 	}
 }
 
