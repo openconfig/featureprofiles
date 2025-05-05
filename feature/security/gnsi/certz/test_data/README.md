@@ -10,6 +10,7 @@ Creation of test data for use in TLS tests.
    * ca-02 - a set of two CAs where signatures are RSA or ECDSA.
    * ca-10 - a set of ten CAs where signatures are RSA or ECDSA.
    * ca-1000 - a set of one thousand CAs where signatures are RSA or ECDSA.
+   * ca-20000 - a set of twenty thousand CAs where signatures are RSA or ECDSA.
    * server_cert.cnf/server_cert_ext.cnf - server openssl profile configuration
    * client_cert.cnf/client_cert_ext.cnf - client openssl profile configuration
 
@@ -21,15 +22,3 @@ Each CA set includes, for both RSA and ECDSA signature types:
   * CA trust bundle
 
 NOTE: Creation of bad data has not been completed yet.
-
-## OpenConfig Path and RPC Coverage
-
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
-
-TODO(OCRPC): Record may not be correct or complete
-
-```yaml
-rpcs:
-  gnsi:
-    certz.v1.Certz.GetProfileList:
-```

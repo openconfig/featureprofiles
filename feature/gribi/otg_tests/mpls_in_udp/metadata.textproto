@@ -1,0 +1,31 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "36cc79b5-3766-4cb4-b83b-1baea1464dc8"
+plan_id:  "TE-18.1"
+description:  "gRIBI MPLS in UDP Encapsulation"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor: ARISTA
+  }
+  deviations:  {
+    static_protocol_name: "STATIC"
+    gribi_encap_header_unsupported: true
+    gribi_mac_override_static_arp_static_route: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor: CISCO
+  }
+  deviations:  {
+    static_protocol_name: "STATIC"
+    gribi_encap_header_unsupported: true
+    gribi_mac_override_static_arp_static_route: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}

@@ -5,7 +5,7 @@ uuid:  "b4b2249f-9226-4555-9946-dc22cf6adae2"
 plan_id:  "RT-1.32"
 description:  "BGP policy actions - MED, LocPref, prepend, flow-control"
 testbed:  TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_DATACENTER_EDGE]
+tags: [TAGS_DATACENTER_EDGE]
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -20,10 +20,18 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_rib_oc_path_unsupported: true
+    bgp_set_med_v7_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
   }
@@ -33,7 +41,6 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"

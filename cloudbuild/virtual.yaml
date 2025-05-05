@@ -5,7 +5,7 @@ steps:
       gcloud secrets versions access latest --secret=featureprofiles-ci-ssh > builder-key
       gcloud secrets versions access latest --secret=featureprofiles-ci-ssh-pub > builder-key.pub
   - id: fp-presubmit
-    name: gcr.io/${PROJECT_ID}/remote-builder
+    name: us-west1-docker.pkg.dev/${PROJECT_ID}/featureprofiles-ci/remote-builder
     waitFor: ["-"]
     env:
       - USERNAME=user

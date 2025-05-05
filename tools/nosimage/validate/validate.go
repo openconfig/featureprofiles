@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/tools/internal/ocpaths"
 	"github.com/openconfig/featureprofiles/tools/internal/ocrpcs"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -79,10 +80,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	if profile.GetSoftwareVersion() == "" {
+		log.Exitln("Software version must be specified")
+	}
+
+	if profile.GetHardwareName() == "" {
+		log.Exitln("HW name must be specified")
+	}
+
 	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {
 		fmt.Println(fmt.Errorf("cannot create download path directory: %v", config.DownloadPath))
 	}
-	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, "v"+profile.Ocpaths.GetVersion())
+
+	ocReleaseTag := ""
+	if profile.Ocpaths.GetVersion() != "" {
+		ocReleaseTag = "v" + profile.Ocpaths.GetVersion()
+	}
+	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, ocReleaseTag)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

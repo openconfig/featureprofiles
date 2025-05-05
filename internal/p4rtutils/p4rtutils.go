@@ -25,12 +25,10 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/args"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	p4_v1 "github.com/p4lang/p4runtime/go/p4/v1"
+	p4V1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 // Some hardcoding to simplify things
@@ -53,7 +51,7 @@ var (
 
 // ACLWbbIngressTableEntryInfo defines struct for wbb acl table
 type ACLWbbIngressTableEntryInfo struct {
-	Type            p4_v1.Update_Type
+	Type            p4V1.Update_Type
 	IsIpv4          uint8
 	IsIpv6          uint8
 	EtherType       uint16
@@ -67,40 +65,40 @@ type ACLWbbIngressTableEntryInfo struct {
 }
 
 // Filling up P4RT Structs is a bit cumbersome, wrap things to simplify
-func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update {
+func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4V1.Update {
 	if info == nil {
 		glog.Fatal("Nil info")
 	}
 
-	matchFields := []*p4_v1.FieldMatch{}
+	var matchFields []*p4V1.FieldMatch
 
 	if info.IsIpv4 > 0 {
-		matchFields = append(matchFields, &p4_v1.FieldMatch{
+		matchFields = append(matchFields, &p4V1.FieldMatch{
 			FieldId: WbbMatchMap["is_ipv4"],
-			FieldMatchType: &p4_v1.FieldMatch_Optional_{
-				Optional: &p4_v1.FieldMatch_Optional{
-					Value: []byte{byte(info.IsIpv4)},
+			FieldMatchType: &p4V1.FieldMatch_Optional_{
+				Optional: &p4V1.FieldMatch_Optional{
+					Value: []byte{info.IsIpv4},
 				},
 			},
 		})
 	}
 
 	if info.IsIpv6 > 0 {
-		matchFields = append(matchFields, &p4_v1.FieldMatch{
+		matchFields = append(matchFields, &p4V1.FieldMatch{
 			FieldId: WbbMatchMap["is_ipv6"],
-			FieldMatchType: &p4_v1.FieldMatch_Optional_{
-				Optional: &p4_v1.FieldMatch_Optional{
-					Value: []byte{byte(info.IsIpv6)},
+			FieldMatchType: &p4V1.FieldMatch_Optional_{
+				Optional: &p4V1.FieldMatch_Optional{
+					Value: []byte{info.IsIpv6},
 				},
 			},
 		})
 	}
 
 	if info.EtherTypeMask > 0 {
-		matchFields = append(matchFields, &p4_v1.FieldMatch{
+		matchFields = append(matchFields, &p4V1.FieldMatch{
 			FieldId: WbbMatchMap["ether_type"],
-			FieldMatchType: &p4_v1.FieldMatch_Ternary_{
-				Ternary: &p4_v1.FieldMatch_Ternary{
+			FieldMatchType: &p4V1.FieldMatch_Ternary_{
+				Ternary: &p4V1.FieldMatch_Ternary{
 					Value: []byte{
 						byte(info.EtherType >> 8),
 						byte(info.EtherType & 0xFF),
@@ -115,22 +113,22 @@ func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update
 	}
 
 	if info.TTLMask > 0 {
-		matchFields = append(matchFields, &p4_v1.FieldMatch{
+		matchFields = append(matchFields, &p4V1.FieldMatch{
 			FieldId: WbbMatchMap["ttl"],
-			FieldMatchType: &p4_v1.FieldMatch_Ternary_{
-				Ternary: &p4_v1.FieldMatch_Ternary{
-					Value: []byte{byte(info.TTL)},
-					Mask:  []byte{byte(info.TTLMask)},
+			FieldMatchType: &p4V1.FieldMatch_Ternary_{
+				Ternary: &p4V1.FieldMatch_Ternary{
+					Value: []byte{info.TTL},
+					Mask:  []byte{info.TTLMask},
 				},
 			},
 		})
 	}
 
 	if info.OuterVlanIDMask > 0 {
-		matchFields = append(matchFields, &p4_v1.FieldMatch{
+		matchFields = append(matchFields, &p4V1.FieldMatch{
 			FieldId: WbbMatchMap["outer_vlan_id"],
-			FieldMatchType: &p4_v1.FieldMatch_Ternary_{
-				Ternary: &p4_v1.FieldMatch_Ternary{
+			FieldMatchType: &p4V1.FieldMatch_Ternary_{
+				Ternary: &p4V1.FieldMatch_Ternary{
 					Value: []byte{
 						byte((info.OuterVlanID >> 8) & 0xF),
 						byte(info.OuterVlanID & 0xFF),
@@ -144,16 +142,16 @@ func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update
 		})
 	}
 
-	update := &p4_v1.Update{
+	update := &p4V1.Update{
 		Type: info.Type,
-		Entity: &p4_v1.Entity{
-			Entity: &p4_v1.Entity_TableEntry{
-				TableEntry: &p4_v1.TableEntry{
+		Entity: &p4V1.Entity{
+			Entity: &p4V1.Entity_TableEntry{
+				TableEntry: &p4V1.TableEntry{
 					TableId: WbbTableMap["acl_wbb_ingress_table"],
 					Match:   matchFields,
-					Action: &p4_v1.TableAction{
-						Type: &p4_v1.TableAction_Action{
-							Action: &p4_v1.Action{
+					Action: &p4V1.TableAction{
+						Type: &p4V1.TableAction_Action{
+							Action: &p4V1.Action{
 								ActionId: WbbActionsMap["acl_wbb_ingress_trap"],
 							},
 						},
@@ -174,8 +172,8 @@ func aclWbbIngressTableEntryGet(info *ACLWbbIngressTableEntryInfo) *p4_v1.Update
 }
 
 // ACLWbbIngressTableEntryGet returns acl table updates
-func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v1.Update {
-	var updates []*p4_v1.Update
+func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4V1.Update {
+	var updates []*p4V1.Update
 
 	for _, info := range infoList {
 		updates = append(updates, aclWbbIngressTableEntryGet(info))
@@ -184,21 +182,10 @@ func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v
 	return updates
 }
 
-func explicitP4RTNodes() map[string]string {
-	return map[string]string{
-		"port1": *args.P4RTNodeName1,
-		"port2": *args.P4RTNodeName2,
-	}
-}
-
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
-	if deviations.ExplicitP4RTNodeComponent(dut) {
-		return explicitP4RTNodes()
-	}
-
 	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())

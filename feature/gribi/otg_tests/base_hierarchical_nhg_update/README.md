@@ -116,3 +116,15 @@ rpcs:
 
 * vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
 
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```

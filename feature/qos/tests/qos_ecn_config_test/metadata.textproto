@@ -9,10 +9,6 @@ platform_exceptions: {
   platform: {
     vendor: JUNIPER
   }
-  deviations: {
-    state_path_unsupported: true
-    drop_weight_leaves_unsupported: true
-  }
 }
 platform_exceptions: {
   platform: {
