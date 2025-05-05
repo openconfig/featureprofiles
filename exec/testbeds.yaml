@@ -402,6 +402,12 @@ testbeds:
     baseconf:
       dut: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp.conf
       dut2: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp_peer.conf    
+  8818-DUT-PEER_SIM:
+    sim: true
+    topology: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/DUT_baseconfig.proto
+      peer: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/PEER_baseconfig.proto    
 
   # OTG
   8201-32FH-FLM254306M8_OTG:
