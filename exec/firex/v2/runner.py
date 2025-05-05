@@ -939,6 +939,13 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
+        if not test_did_pass:
+            self.enqueue_child(InvokeAutoTriage.s(
+                test_name=test_name, 
+                script_output=self.console_output_file, 
+                debug_output=os.path.join(test_log_directory_path,"debug_commands.json")
+            ))
+
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
             ws=ws,
@@ -1785,6 +1792,18 @@ def CollectCoverageDataOverSSH(self, ws, internal_fp_repo_dir, reserved_testbed,
     )
     self.enqueue_child_and_get_results(c)
     return cflow_dat_dir
+
+# TODO: remove this task
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def InvokeAutoTriage(self, test_name, script_output, debug_output):
+    logger.print("Invoking auto triage...")
+    try:
+        cmd = "/ws/mastarke-sjc/py311_env/bin/python /ws/mastarke-sjc/my_local_git/CIT-Tool/development-site/data-labeler/scripts/on_demand_ai_debugger.py"
+        cmd += f' --logs-file {script_output} --test-name {test_name} --output {debug_output}'
+        logger.print(check_output(cmd))
+    except:
+        logger.warning(f'Failed to invoke auto triage. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
