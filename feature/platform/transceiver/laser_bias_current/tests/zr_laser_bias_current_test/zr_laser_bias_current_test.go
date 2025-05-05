@@ -154,7 +154,7 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	defer p1Stream.Close()
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	// power off interface transceiver
-	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Name().Config(), dp1.Name())
+	gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Name().Config(), transceiverState)
 	// for transceiver disable, the input needs to be the transceiver name instead of the interface name
 	gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), false)
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
