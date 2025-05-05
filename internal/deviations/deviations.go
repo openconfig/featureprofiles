@@ -1342,3 +1342,9 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
+
+// MatchLinkBandwidthRegexDiffPrefix returns true if the "link-bandwidth:" is
+// not used for matching the prefix extended community.
+func MatchLinkBandwidthRegexDiffPrefix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchLinkBandwidthRegexDiffPrefix()
+}
