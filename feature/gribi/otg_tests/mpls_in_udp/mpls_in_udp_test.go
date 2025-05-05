@@ -129,6 +129,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
 			e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 		}
+		if deviations.InterfaceEnabled(dut) {
+			s := intf.GetOrCreateSubinterface(0)
+			s4 := s.GetOrCreateIpv4()
+			s4.Enabled = ygot.Bool(true)
+		}
+
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
 	}
 }
@@ -228,19 +234,14 @@ func configureEncapHeaderCli(t *testing.T, dut *ondatra.DUTDevice) {
 		var encapHeaderCLI string
 		encapHeaderCLI = fmt.Sprintf("tunnel type mpls-over-udp udp destination port %s\n", outerDstUDPPort)
 		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = fmt.Sprintf(" nexthop-group %s type mpls-over-udp\n", nhgName)
+		encapHeaderCLI = fmt.Sprintf("nexthop-group %s type mpls-over-udp\n", nhgName)
+		encapHeaderCLI += fmt.Sprintf(" tos %s\n", outerDscp)
+		encapHeaderCLI += fmt.Sprintf(" ttl %s\n", outerIPTTL)
+		encapHeaderCLI += " fec hierarchical\n"
+		encapHeaderCLI += fmt.Sprintf(" tunnel-source %s\n", outerIpv6Src)
+		encapHeaderCLI += fmt.Sprintf(" entry 0 push label-stack 899999 tunnel-destination %s\n", outerIpv6DstA)
 		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = fmt.Sprintf(" tos %s\n", outerDscp)
-		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = fmt.Sprintf(" ttl %s\n", outerIPTTL)
-		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = " fec hierarchical"
-		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = fmt.Sprintf(" tunnel-source %s\n", outerIpv6Src)
-		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = fmt.Sprintf(" entry 0 push label-stack 899999 tunnel-destination %s\n", outerIpv6DstA)
-		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
-		encapHeaderCLI = fmt.Sprintf(" ip route vrf customer %s nexthop-group nhg%d\n", outerIpv6DstA, nhg10ID)
+		encapHeaderCLI = fmt.Sprintf("ip route vrf customer %s nexthop-group nhg%d\n", outerIpv6DstA, nhg10ID)
 		helpers.GnmiCLIConfig(t, dut, encapHeaderCLI)
 	default:
 		t.Logf("Unsupported vendor %s for native command support for deviation 'GribiEncapHeaderUnsupported'", dut.Vendor())
