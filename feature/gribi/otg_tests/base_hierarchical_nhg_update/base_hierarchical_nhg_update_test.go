@@ -564,7 +564,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 	var macFilter string
 
 	otg := ate.OTG()
-	config := otg.FetchConfig(t)
+	config := otg.GetConfig(t)
 
 	switch option {
 	case trafficOnPort2Port3NotOnPort4:
