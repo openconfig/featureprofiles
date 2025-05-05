@@ -289,7 +289,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		}
 		batch.Set(t, dut)
 	}
-	// Sleep for 5 second to ensure that OTG has recived the update packet
+	// Sleep for 5 second to ensure that OTG has received the update packet
 	time.Sleep(time.Second * 5)
 }
 
