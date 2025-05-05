@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 	"time"
-        "fmt"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
