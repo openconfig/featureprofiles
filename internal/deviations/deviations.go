@@ -1342,8 +1342,3 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
-
-// Devices that do not support med action config.
-func BgpSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
-}
