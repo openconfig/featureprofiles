@@ -173,11 +173,12 @@ Verification:
 -  Push DUT configuration.
 -  Initiate traffic flow type#5
 Verification: 
--  The outer header destination IP of the traffic will fall within the decap range configured(DECAP-DST-SUBNET/30)
--  The outer header destination port of the traffic is unconfigured UDP decap port, therefore it doesn't matches the criteria and the relevant packets should be dropped
--  The DUT will decapsulate the outer header and perform the lookup based on the inner ip address
+-  The outer header destination IP of the traffic falls within the DECAP-DST-SUBNET/30 range
+-  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it does not match the decapsulation criteria.
+-  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
+-  The DUT decapsulation counters should not increment for this flow
 -  The drop counters will reflect the packets to 1000000
--  100% packet loss should be observed
+-  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
 
 ### PF-1.4.6: GUE Decapsulation of inner IPv6 traffic using non-default and unconfigured GUE UDP port (Negative).
 -  Push DUT configuration.
@@ -188,7 +189,7 @@ Verification:
 -  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
 -  The DUT decapsulation counters should not increment for this flow
 -  The drop counters will reflect the packets to 1000000
--  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent.
+-  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
 
 ### PF-1.4.7: Inner IPV4 GUE Pass-through (Negative)
 -  Push DUT configuration.
@@ -291,6 +292,4 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
-  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
   * FFF - fixed form factor
-  * vRX - virtual router device
