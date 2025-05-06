@@ -2,12 +2,12 @@
 
 ## Summary
 
-This is to test the functionality of decapsulation of static GUEv1 to IPv4 or IPv6 payload ([GUE Variant 1](https://datatracker.ietf.org/doc/html/draft-ietf-intarea-gue-09#section-4)). These tests verify the use case of IPv4 and IPv6 encapsulated traffic in IPv4 GUE tuennel. 
+This is to test the functionality of decapsulation of static GUEv1 to IPv4 or IPv6 payload ([GUE Variant 1](https://datatracker.ietf.org/doc/html/draft-ietf-intarea-gue-09#section-4)). These tests verify the use case of IPv4 and IPv6 encapsulated traffic in IPv4 GUE tunnel. 
 
 The tests validate that the DUT performs the following action-
 
  - Decapsulate the outer ((UDPoIPv4)) headers of GUE packets destined to the locally configured decap IPv4 address/addresses and matching UDP port. 
-    - The first two bits the UDP payload will be used to determine GUE varient 1 (MSB bits 01) and first four bits will determine the payload protocol IPv4/IPv6.
+    - The first two bits of the UDP payload will be used to determine GUE varient 1 (MSB bits 01) and first four bits will determine the payload protocol version IPv4/IPv6.
     - If the first four bits of the payload protocol has bit combination of 0100, it specifies the inner payload protocol is IPv4.
     - If the first four bits of the payload protocol has bit combination of 0110, it specifies the inner payload protocol is IPv6. 
  - Decapsulate the packet only if it matches the locally configured decap IPv4 address/addresses and matching UDP port port/port-range.
