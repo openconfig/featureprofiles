@@ -184,25 +184,7 @@ B7 <-- EBGP --> N4;
 - Initiate a flow-type and follow the below stated and applicable verification steps
 - Repeat the test for all flow types with above-stated modified field
 - Validations:
-    - Flow#1 for H3 should be load-balanced across the bundle members via ATE3
-    - Flow#2 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members 
-    - Flow#3 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members
-    - Flow#4 for H4 should be load-balanced via ATE4 and ATE5
-        - Traffic via ATE4 should be load-balanced across the bundle members
-    - Flow#5 for H4 should be load-balanced via ATE4 and ATE5
-        - Traffic via ATE4 should be load-balanced across the bundle members
-    - Flow#6 for H3 should be load-balanced across the bundle members via ATE3
-    - Flow#7 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members 
-    - Flow#8 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members
-    - Flow#9 for H4 should be load-balanced via ATE4 and ATE5
-        - Traffic via ATE4 should be load-balanced across the bundle members
-    - Flow#10 for H4 should be load-balanced via ATE4 and ATE5
-        - Traffic via ATE4 should be load-balanced across the bundle members
-    - No packet loss should be observed
+    - Flow validations are same as captured in sub-test#PF-1.22.1
     - Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field 
 
 ### PF-1.22.3: Randomize the L4 source port field and SIP in immediate next header to outer header (middle header) and verify load-balance behavior [Applicable to Packet#1 and Packet#6]
