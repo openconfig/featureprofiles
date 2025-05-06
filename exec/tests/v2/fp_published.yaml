@@ -1540,15 +1540,6 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: Authz (General Authz (1-4) tests)
-    path: feature/security/gnsi/authz/tests/authz
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    pr: 4113
-    groups: [newfnt]
   - name: Credentialz-5 (Hiba Authentication)
     path: feature/security/gnsi/credentialz/tests/hiba_authentication
     priority: 2
