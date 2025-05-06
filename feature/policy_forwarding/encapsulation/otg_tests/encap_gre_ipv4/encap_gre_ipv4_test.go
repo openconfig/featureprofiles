@@ -848,11 +848,11 @@ func getCapture(t *testing.T, ate *ondatra.ATEDevice, tc testCase) string {
 		return ""
 	}
 	f, err := os.Create(captureFilePath)
-	defer f.Close()
 	if err != nil {
 		t.Errorf("Could not create temporary pcap file: %v\n", err)
 		return ""
 	}
+	defer f.Close()
 	if _, err := f.Write(bytes); err != nil {
 		t.Errorf("Could not write bytes to pcap file: %v\n", err)
 		return ""
