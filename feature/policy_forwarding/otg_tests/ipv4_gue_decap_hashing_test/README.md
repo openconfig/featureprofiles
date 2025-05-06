@@ -1,6 +1,7 @@
-# PF-1.22 ECMP hashing for GUE flows with IPv4|UDP outer header
+# PF-1.22 ECMP hashing for GUE flows with IPv4|UDP outer header on decapsulation node
 ## Summary
-This test ensures that only the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes
+This test ensures that only the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes. 
+Comprehensive static GUEv1 Decapsulation to IPv4 or IPv6 payload test is documented in [#4178](https://github.com/openconfig/featureprofiles/pull/4178).
 
 ## Topology
 ```mermaid
