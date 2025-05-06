@@ -24,7 +24,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
-	"time"
+	"io"
 
 	cpb "github.com/openconfig/gnsi/credentialz"
 	tpb "github.com/openconfig/kne/proto/topo"
@@ -121,8 +121,16 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cp
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate host parameters finalize request, error: %s", err)
 	}
-	// Brief sleep for finalize to get processed.
-	time.Sleep(time.Second)
+	// Read response to Finalize until EOF
+	for {
+		_, err := credzRotateClient.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed during finalize Recv, error: %s", err)
+		}
+	}
 }
 
 func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateAccountCredentialsRequest) {
@@ -148,59 +156,116 @@ func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate account credentials finalize request, error: %s", err)
 	}
-	// Brief sleep for finalize to get processed.
-	time.Sleep(time.Second)
+	// Read response to Finalize until EOF
+	for {
+		_, err := credzRotateClient.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed during finalize Recv, error: %s", err)
+		}
+	}
 }
 
-// RotateUserPassword apply password for the specified username on the dut.
+// RotateUserPassword applies or deletes the password for the specified username on the DUT.
+// To add/update a password, provide non-empty password, version, and createdOn.
+// To delete a password, provide empty strings for password and version, and 0 for createdOn.
 func RotateUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password, version string, createdOn uint64) {
-	request := &cpb.RotateAccountCredentialsRequest{
-		Request: &cpb.RotateAccountCredentialsRequest_Password{
-			Password: &cpb.PasswordRequest{
-				Accounts: []*cpb.PasswordRequest_Account{
-					{
-						Account: username,
-						Password: &cpb.PasswordRequest_Password{
-							Value: &cpb.PasswordRequest_Password_Plaintext{
-								Plaintext: password,
+	var request *cpb.RotateAccountCredentialsRequest
+
+	if password == "" && version == "" && createdOn == 0 {
+		// request to delete the password
+		request = &cpb.RotateAccountCredentialsRequest{
+			Request: &cpb.RotateAccountCredentialsRequest_Password{
+				Password: &cpb.PasswordRequest{
+					Accounts: []*cpb.PasswordRequest_Account{
+						{
+							Account: username,
+							Password: &cpb.PasswordRequest_Password{
 							},
+							Version:   version,
+							CreatedOn: createdOn,
 						},
-						Version:   version,
-						CreatedOn: createdOn,
 					},
 				},
 			},
-		},
+		}
 	}
-
-	sendAccountCredentialsRequest(t, dut, request)
-}
-
-// RotateAuthorizedPrincipal apply authorized principal for the specified username on the dut.
-func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal string, version string, createdOn uint64) {
-	request := &cpb.RotateAccountCredentialsRequest{
-		Request: &cpb.RotateAccountCredentialsRequest_User{
-			User: &cpb.AuthorizedUsersRequest{
-				Policies: []*cpb.UserPolicy{
-					{
-						Account: username,
-						AuthorizedPrincipals: &cpb.UserPolicy_SshAuthorizedPrincipals{
-							AuthorizedPrincipals: []*cpb.UserPolicy_SshAuthorizedPrincipal{
-								{
-									AuthorizedUser: userPrincipal,
+	if password != "" && version != "" && createdOn != 0 {
+		// request to construct new / rotate password
+		request = &cpb.RotateAccountCredentialsRequest{
+			Request: &cpb.RotateAccountCredentialsRequest_Password{
+				Password: &cpb.PasswordRequest{
+					Accounts: []*cpb.PasswordRequest_Account{
+						{
+							Account: username,
+							Password: &cpb.PasswordRequest_Password{
+								Value: &cpb.PasswordRequest_Password_Plaintext{
+									Plaintext: password,
 								},
 							},
+							Version:   version,
+							CreatedOn: createdOn,
 						},
-						Version:   version,
-						CreatedOn: createdOn,
 					},
 				},
 			},
-		},
+		}
 	}
 
 	sendAccountCredentialsRequest(t, dut, request)
 }
+
+// RotateAuthorizedPrincipal applies or deletes authorized principal for the specified username on the dut.
+// To add/update authorized principal, provide non-empty authorized principal, version, and createdOn.
+// To delete authorized principal, provide empty strings for authorized principal and version, and 0 for createdOn.
+func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal string, version string, createdOn uint64) {
+    var request *cpb.RotateAccountCredentialsRequest
+
+    if userPrincipal == "" && version == "" && createdOn == 0 {
+    	// request to delete userPrincipal
+		request = &cpb.RotateAccountCredentialsRequest{
+    		Request: &cpb.RotateAccountCredentialsRequest_User{
+    			User: &cpb.AuthorizedUsersRequest{
+        			Policies: []*cpb.UserPolicy{
+        				{
+        					Account: username,
+        					Version:   version,
+        					CreatedOn: createdOn,
+        				},
+        			},
+        		},
+        	},
+        }
+	} 
+	if userPrincipal != "" && version != "" && createdOn != 0 {
+	    // request to construct new/rotate password 
+		request = &cpb.RotateAccountCredentialsRequest{
+        	Request: &cpb.RotateAccountCredentialsRequest_User{
+        		User: &cpb.AuthorizedUsersRequest{
+        			Policies: []*cpb.UserPolicy{
+        				{
+        					Account: username,
+        					AuthorizedPrincipals: &cpb.UserPolicy_SshAuthorizedPrincipals{
+        						AuthorizedPrincipals: []*cpb.UserPolicy_SshAuthorizedPrincipal{
+        							{
+        								AuthorizedUser: userPrincipal,
+        							},
+        						},
+        					},
+        					Version:   version,
+        					CreatedOn: createdOn,
+        				},
+        			},
+        		},
+        	},
+        }
+	}
+
+	sendAccountCredentialsRequest(t, dut, request)
+}
+
 
 // RotateAuthorizedKey read user key contents from the specified directory & apply it as authorized key on the dut.
 func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, version string, createdOn uint64) {
@@ -211,9 +276,23 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 		if err != nil {
 			t.Fatalf("Failed reading private key contents, error: %s", err)
 		}
-		keyContents = append(keyContents, &cpb.AccountCredentials_AuthorizedKey{
-			AuthorizedKey: data,
-			KeyType:       cpb.KeyType_KEY_TYPE_ED25519,
+	        // Split the key into fields to extract the key type and actual key
+                parts := strings.Fields(string(data))
+                if len(parts) < 2 {
+		        t.Fatalf("Invalid public key format: %s", data)
+		}
+	        keyTypeStr := parts[0]
+                actualKey := parts[1]
+	        var keyType cpb.KeyType
+                switch keyTypeStr {
+                case "ssh-ed25519":
+			keyType = cpb.KeyType_KEY_TYPE_ED25519
+		default:
+			t.Fatalf("Unsupported key type: %s", keyTypeStr)
+		}
+	        keyContents = append(keyContents, &cpb.AccountCredentials_AuthorizedKey{
+			AuthorizedKey: []byte(actualKey),
+			KeyType:       keyType,
 		})
 	}
 	request := &cpb.RotateAccountCredentialsRequest{

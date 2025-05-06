@@ -15,7 +15,7 @@
 package passwordconsolelogin_test
 
 import (
-	"fmt"
+    "fmt"
 	"testing"
 	"time"
 
@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
-	passwordVersion := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
+    passwordVersion := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
 
@@ -109,4 +109,8 @@ func TestCredentialz(t *testing.T) {
 			}
 		})
 	}
+	t.Cleanup(func() {
+		// Cleanup user password after test.
+			credz.RotateUserPassword(t, dut, username, "", "", 0)
+		})
 }

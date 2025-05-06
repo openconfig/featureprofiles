@@ -32,6 +32,7 @@ import (
 
 const (
 	username               = "testuser"
+	maxSSHRetryTime        = 30 // Unit is seconds.
 	hostCertificateVersion = "v1.0"
 )
 
@@ -44,6 +45,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+    hostCertificateVersion := fmt.Sprintf("%s-%d", hostCertificateVersion, time.Now().Unix())
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
 
@@ -66,7 +68,6 @@ func TestCredentialz(t *testing.T) {
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 	})
-
 	// Setup hiba for authorized principals command.
 	credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
 
@@ -77,9 +78,18 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with hiba fails as expected.
-		_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
-		if err == nil {
-			t.Fatalf("Dialing ssh succeeded, but we expected to fail")
+		startTime := time.Now()
+		for {
+			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			if err != nil {
+				t.Logf("Dialing ssh failed as expected.")
+				break
+			}
+			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
+				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh succeeded, but we expected to fail.")
+			}
+			t.Logf("Dialing ssh succeeded but expected to fail, retrying ...")
+			time.Sleep(5 * time.Second)
 		}
 
 		if !deviations.SSHServerCountersUnsupported(dut) {
@@ -101,16 +111,25 @@ func TestCredentialz(t *testing.T) {
 		)
 
 		// Setup trusted user ca on the dut.
-		credz.RotateTrustedUserCA(t, dut, dir)
+		credz.RotateTrustedUserCA(t, dut, dir, hostCertificateVersion, uint64(hostCertificateCreatedOn),)
 
 		var startingAcceptCounter, startingLastAcceptTime uint64
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			startingAcceptCounter, startingLastAcceptTime = credz.GetAcceptTelemetry(t, dut)
 		}
 
-		_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
-		if err != nil {
-			t.Fatalf("Dialing ssh failed, but we expected to succeed, errror: %s", err)
+		startTime := time.Now()
+		for {
+			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			if err == nil {
+				t.Logf("Dialing ssh succeeded as expected.")
+				break
+			}
+			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
+				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh failed, but we expected to succeed, error: %s", err)
+			}
+			t.Logf("Dialing ssh failed, retrying ...")
+			time.Sleep(5 * time.Second)
 		}
 
 		// Verify ssh counters.
@@ -134,7 +153,7 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		if !cmp.Equal(time.Unix(int64(gotHostCertificateCreatedOn), 0), time.Unix(int64(hostCertificateCreatedOn), 0)) {
 			t.Fatalf(
 				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
 				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
@@ -150,13 +169,10 @@ func TestCredentialz(t *testing.T) {
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
 		})
-
 		// Remove user ca so subsequent fail cases work.
-		credz.RotateTrustedUserCA(t, dut, "")
-
+		credz.RotateTrustedUserCA(t, dut, "", "", 0)
 		// Clear hiba for authorized principals command.
 		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
-
 		// Remove host artifacts from the dut.
 		credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
 	})

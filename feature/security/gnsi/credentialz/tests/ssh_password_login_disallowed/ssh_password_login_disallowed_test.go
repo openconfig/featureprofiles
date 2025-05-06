@@ -15,8 +15,11 @@
 package sshpasswordlogindisallowed_test
 
 import (
+    "fmt"
 	"context"
 	"os"
+
+	"golang.org/x/crypto/ssh"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,9 +38,11 @@ import (
 )
 
 const (
-	username      = "testuser"
-	userPrincipal = "my_principal"
-	command       = "show version"
+	username        = "testuser"
+	userPrincipal   = "my_principal"
+	command         = "show version"
+	maxSSHRetryTime = 30 // Unit is seconds.
+	passwordVersion = "v1.0"
 )
 
 func TestMain(m *testing.M) {
@@ -45,6 +50,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+    passwordVersion := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
 	recordStartTime := timestamppb.New(time.Now())
@@ -69,13 +75,12 @@ func TestCredentialz(t *testing.T) {
 	// Setup user and password.
 	credz.SetupUser(t, dut, username)
 	password := credz.GeneratePassword()
-	credz.RotateUserPassword(t, dut, username, password, "v1.0", uint64(time.Now().Unix()))
-
-	credz.RotateTrustedUserCA(t, dut, dir)
+	credz.RotateUserPassword(t, dut, username, password, passwordVersion, uint64(time.Now().Unix()))
+	credz.RotateTrustedUserCA(t, dut, dir, passwordVersion, uint64(time.Now().Unix()))
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 	})
-	credz.RotateAuthorizedPrincipal(t, dut, username, userPrincipal)
+	credz.RotateAuthorizedPrincipal(t, dut, username, userPrincipal, passwordVersion, uint64(time.Now().Unix()))
 
 	t.Run("auth should fail ssh password authentication disallowed", func(t *testing.T) {
 		var startingRejectCounter, startingLastRejectTime uint64
@@ -84,9 +89,18 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with password fails as expected.
-		_, err := credz.SSHWithPassword(target, username, password)
-		if err == nil {
-			t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
+		startTime := time.Now()
+		for {
+			_, err := credz.SSHWithPassword(target, username, password)
+			if err != nil {
+				t.Logf("Dialing ssh failed as expected.")
+				break
+			}
+			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
+				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh succeeded, but we expected to fail.")
+			}
+			t.Logf("Dialing ssh succeeded but expected to fail, retrying ...")
+			time.Sleep(5 * time.Second)
 		}
 
 		// Verify ssh counters.
@@ -108,11 +122,21 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with certificate succeeds.
-		conn, err := credz.SSHWithCertificate(t, target, username, dir)
-		if err != nil {
-			t.Fatalf("Dialing ssh failed, but we expected to succeed, error: %s", err)
+		startTime := time.Now()
+		var conn *ssh.Client
+		for {
+			conn, err = credz.SSHWithCertificate(t, target, username, dir)
+			if err == nil {
+				t.Logf("Dialing ssh succeeded as expected.")
+				defer conn.Close()
+				break
+			}
+			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
+				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh failed, but we expected to succeed, error: %s", err)
+			}
+			t.Logf("Dialing ssh failed, retrying ...")
+			time.Sleep(5 * time.Second)
 		}
-		defer conn.Close()
 
 		// Send command for accounting.
 		sess, err := conn.NewSession()
@@ -184,5 +208,11 @@ func TestCredentialz(t *testing.T) {
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
 		})
+        // Cleanup user password after test.
+        credz.RotateUserPassword(t, dut, username, "", "", 0)
+        // Cleanup user principal after test.
+        credz.RotateAuthorizedPrincipal(t, dut, username, "", "", 0)
+	// Cleanup user ca.
+	credz.RotateTrustedUserCA(t, dut, "", "", 0)
 	})
 }

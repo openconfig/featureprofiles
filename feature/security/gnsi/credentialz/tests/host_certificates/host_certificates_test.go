@@ -20,11 +20,8 @@ import (
 	"os"
 	"testing"
 	"time"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/ondatra/gnmi"
-
-	"reflect"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
@@ -33,7 +30,7 @@ import (
 )
 
 const (
-	hostCertificateVersion = "v1"
+	hostCertificateVersion = "v1.0"
 )
 
 var (
@@ -90,10 +87,8 @@ func TestCredentialz(t *testing.T) {
 				User: "admin",
 				Auth: []ssh.AuthMethod{},
 				HostKeyCallback: func(hostname string, remote net.Addr, gotHostKey ssh.PublicKey) error {
-				        //if !cmp.Equal(gotHostKey, wantHostKey) {
-					// ***** cmp.Equal function is crashing (panic) while comparing the keys hence used reflect to function to compare *****"
-					if !reflect.DeepEqual(gotHostKey, wantHostKey) {
-						t.Fatalf("Host presented key (cert) that does not match expected host certificate. got: %v, want: %v", gotHostKey, wantHostKey)
+					if !cmp.Equal(gotHostKey.Marshal(), wantHostKey.Marshal()) {
+						t.Fatalf("Host presented key (cert) does not match expected. got: %x, want: %x", gotHostKey.Marshal(), wantHostKey.Marshal())
 					}
 					return nil
 				},
@@ -119,5 +114,9 @@ func TestCredentialz(t *testing.T) {
 				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
 			)
 		}
+	})
+	t.Cleanup(func() {
+		// Remove host artifacts from the dut.
+		credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
 	})
 }
