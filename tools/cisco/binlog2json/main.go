@@ -145,10 +145,10 @@ func main() {
 		os.Exit(1)
 	}
 	// post to traceability service
-	// res := postToTraceability(violetJson)
-	// if res != nil {
-	// 	log.Printf("Traceability: pass=%d, fail=%d, error=%d, total=%d", res.Passed, res.Failed, res.Errored, res.Total)
-	// }
+	res := postToTraceability(violetJson)
+	if res != nil {
+		log.Printf("Traceability: pass=%d, fail=%d, error=%d, total=%d", res.Passed, res.Failed, res.Errored, res.Total)
+	}
 
 }
 
