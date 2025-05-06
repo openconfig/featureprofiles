@@ -15,7 +15,7 @@
 package sshpasswordlogindisallowed_test
 
 import (
-    "fmt"
+  "fmt"
 	"context"
 	"os"
 
