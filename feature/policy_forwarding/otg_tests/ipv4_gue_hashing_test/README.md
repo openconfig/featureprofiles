@@ -46,7 +46,7 @@ B7 <-- EBGP --> N4;
 4. Configure IPv4 and IPv6 IBGP[ASN100] between DUT <> ATE3
 5. Configure IPv4 and IPv6 EBGP[ASN100:ASN200] between DUT <> ATE4
 6. Configure IPv4 and IPv6 EBGP[ASN100:ASN200] between DUT <> ATE5
-7. Configure DUT as decapsulation node for IP|UDP (GUE v1)
+7. Configure DUT as decapsulation node for IP|UDP (GUE v1)using "DUT-DECAP-Address" and decap UDP port as 6080
 8. Enable BGP multipath for both EBGP and IBGP sessions to enable load balancing traffic across multiple paths/links
 9. Enable BGP multihop for BGP(IBGP/EBGP) sessions on LAG interfaces 
 10. DUT has multiple paths to Host2 via multiple nodes, ATE2 & ATE3
@@ -91,36 +91,36 @@ B7 <-- EBGP --> N4;
 |          | Inner       | IPv4\|TCP         | H1v4 address        | H3v4 address        | 14                  | 15                        |             |Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
 |          | MPLS        | MPLS              | N/A                 | N/A                 | N/A                 | N/A                       | Static label for ATE3 to reach H3v4    | *Note: Inner Dst is H3v4* |
 |          | Middle      | IPv4\|UDP         | ATE1LO1v4 IPv4 addr | ATE3-port IPv4 addr | 5995 (randomizable) | 6080                      |             | Src Port: Any unreserved UDP port |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |             | Src Port: Any unassigned UDP port; GUE v1 encapsulation |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |             | Src Port: Any unassigned UDP port; GUE v1 encapsulation |
 | **2** | **Overall** | **Payload o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                           |                                                         |
 |          | Inner       | IPv4\|UDP         | H1v4 address        | H2v4 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
 | **3** | **Overall** | **Payload o IPv4\|TCP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                           |                                                         |
 |          | Inner       | IPv4\|TCP         | H1v4 address        | H2v4 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
 | **4** | **Overall** | **Payload o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                           |                                                         |
 |          | Inner       | IPv4\|UDP         | H1v4 address        | H4v4 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port|
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
 | **5** | **Overall** | **Payload o IPv4\|TCP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                           |                                                         |
 |          | Inner       | IPv4\|TCP         | H1v4 address        | H4v4 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
 | **6** | **Overall** | **Payload o IPv6\|TCP o MPLS o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v6 address        | H3v6 address        | 14                  | 15                        |             | Src Port: Any unassigned TCP; Dst Port: Any App/unassigned TCP |
 |          | MPLS        | MPLS              | N/A                 | N/A                 | N/A                 | N/A                       | Static label for ATE3 to reach H3v4 | *Note: Inner Dst is H3v6* |
 |          | Middle      | IPv4\|UDP         | ATE1LO1v4 IPv4 addr | ATE3-port IPv4 addr | 5995 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port | 
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation     |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation     |
 | **7** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                   |                      |                                                             |
 |          | Inner       | IPv6\|UDP         | H1v6 address        | H2v6 address        | 5995 (randomizable) | 5994 (randomizable)       |              | Src/Dst Ports: Any unassigned UDP port  |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation  |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation  |
 | **8** | **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                   |                      |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v6 address        | H2v6 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation |
 | **9** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                   |                      |                                                             |
 |          | Inner       | IPv6\|UDP         | H1v6 address        | H4v6 address        | 5995 (randomizable) | 5994 (randomizable)       |              | Src/Dst Ports: Any unreserved UDP port  |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
 | **10**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v6 address        | H4v6 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
-|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT decap address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
 
 
 ### Flow types
@@ -140,21 +140,23 @@ B7 <-- EBGP --> N4;
 
 ## Procedure
 
-- Run each flow for 3 minutes
 - Traffic towards a destination is spread evenly across nodes and LAGs (if applicable):
     - Tolerance for delta: 5%
 - Start the Ixia traffic as specified for test
-    - Set up 1,024 10Mbps flows for each flow type
+    - Sent 1000000 packets at the 10% of the line rate.
     - Packets are generated based on different header field entropy which can be defined by the test case
 - Repeat each test with the each ATE Flow-type or explicitly mentioned flow-type
 - Conduct each of the following test, using a single flow-type with 1024 flows
 
-### PF-1.22.1: [Baseline] Load-balance test
+### PF-1.22.1: [Baseline] GUE decap and Load-balance test
 - Configure the DUT and ATE as stated above
-- Initiate a single flow-type for a predetermined time(3 minutes) and follow the below stated and applicable verification steps
+- Initiate a single flow-type and follow the below stated and applicable verification steps
 - L4 source port of outer header(GUEv1 encap header) should be randomized for each flow-type that's running
 - Repeat the test for all flow-types
 - Validations:
+-  The outer header destination IP of the traffic is the DUT-DECAP-Address and the destination port of the traffic (UDP 6080) matches the configured UDP decap port criteria
+-  Therefore, DUT will decapsulate the outer header and perform a lookup based on the inner IP address
+-  The following validations are applicable as per the flow-type that is being tested
     - Flow#1 for H3 should be load-balanced across the bundle members via ATE3
     - Flow#2 for H2 should be load-balanced via ATE2 and ATE3
         - Traffic via ATE3 should be load-balanced across the bundle members 
@@ -178,7 +180,7 @@ B7 <-- EBGP --> N4;
 ### PF-1.22.2: Randomize the L4 source port field in immediate next header to outer header and verify load-balance behavior
 - Configure the DUT and ATE as stated above
 - L4 source port of inner/middle header(immediate next header to outer header) should be randomized for each flow-type thats running
-- Initiate a flow-type for a predetermined time(3 minutes) and follow the below stated and applicable verification steps
+- Initiate a flow-type and follow the below stated and applicable verification steps
 - Repeat the test for all flow types with above-stated modified field
 - Validations:
     - Flow#1 for H3 should be load-balanced across the bundle members via ATE3
@@ -207,7 +209,7 @@ B7 <-- EBGP --> N4;
 - L4 source port of middle header(immediate next header to outer header) should be randomized for each flow-type that's running
 - SIP(immediate next header to outer header) should be randomized between ATE1LO[1-10] addresses for each flow-type that's running
 - Execute the test for flow-type1 and flow-type6 with above-stated modified fields
-- Initiate a single flow-type for a predetermined time(3 minutes) and follow the below stated and applicable verification steps
+- Initiate a single flow-type and follow the below stated and applicable verification steps
 - Validations:
     -  Flow#1 for H3 should be load-balanced across the bundle members via ATE3
     -  Flow#6 for H3 should be load-balanced across the bundle members via ATE3
@@ -218,7 +220,7 @@ B7 <-- EBGP --> N4;
 - Configure the DUT and ATE as stated above
 - L4 source port of inner header should be randomized for each flow-type that's running
 - SIP of inner header should be randomized between the v4/v6 prefixes advertised by H1 for each flow-type that's running
-- Initiate a flow-type for a predetermined time(3 minutes) and follow the below stated and applicable verification steps
+- Initiate a flow-type and follow the below stated and applicable verification steps
 - Execute the test for flow-type2, flow-type3, flow-type4, flow-type5, flow-type7, flow-type8, flow-type9 and flow-type10 with above-stated modified fields
 - Validations:
     -  Flow#2 for H2 should be load-balanced via ATE2 and ATE3
@@ -243,6 +245,8 @@ B7 <-- EBGP --> N4;
 
 
 ## Canonical OpenConfig for GUEv1 Decapsulation configuration
+TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
+
 ```json
 {
     "network-instances": {
