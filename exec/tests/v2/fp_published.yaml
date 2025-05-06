@@ -1474,4 +1474,103 @@ tests:
     timeout: 4200
     pr: 4002
     groups: [newfnt]
+  - name: Health-1.1 (Generic Health Check)
+    path: feature/system/health/tests/system_generic_health_check
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    pr: 3896
+    groups: [newfnt]
+  - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    pr: 3709
+    groups: [newfnt]
+  - name: Credentialz-2 (SSH Password Login Disallowed)
+    path: feature/security/gnsi/credentialz/tests/ssh_password_login_disallowed
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Credentialz-4 (SSH Public Key Authentication)
+    path: feature/security/gnsi/credentialz/tests/ssh_public_key_authentication
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-4.2 (Record Payload Truncation)
+    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Credentialz-3 (Host Certificates)
+    path: feature/security/gnsi/credentialz/tests/host_certificates
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-2.1 (Record Subscribe Partial)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-4.1 (Record History Truncation)
+    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Authz (General Authz (1-4) tests)
+    path: feature/security/gnsi/authz/tests/authz
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    pr: 4113
+    groups: [newfnt]
+  - name: Credentialz-5 (Hiba Authentication)
+    path: feature/security/gnsi/credentialz/tests/hiba_authentication
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Credentialz-1 (Password console login)
+    path: feature/security/gnsi/credentialz/tests/password_console_login
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-1.1 (Record Subscribe Full)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_full
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
   
