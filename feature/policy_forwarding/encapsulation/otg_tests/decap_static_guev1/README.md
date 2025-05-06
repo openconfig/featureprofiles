@@ -6,7 +6,7 @@ This is to test the functionality of decapsulation of static GUEv1 to IPv4 or IP
 
 The tests validate that the DUT performs the following action-
 
- - Decapsulate the outer ((UDPoIPv4)) headers of GUE packets destined to the locally configured decap IPv4 address/addresses and matching UDP port. 
+ - Decapsulate the outer (UDPoIPv4) headers of GUE packets destined to the locally configured decap IPv4 address/addresses and matching UDP port. 
     - The first two bits of the UDP payload will be used to determine GUE varient 1 (MSB bits 01) and first four bits will determine the payload protocol version IPv4/IPv6.
     - If the first four bits of the payload protocol has bit combination of 0100, it specifies the inner payload protocol is IPv4.
     - If the first four bits of the payload protocol has bit combination of 0110, it specifies the inner payload protocol is IPv6. 
@@ -16,6 +16,8 @@ The tests validate that the DUT performs the following action-
     - If explicit configration is present to copy the TTL from outer to inner header after decapsulation, then it will be honored.
  - Post decapsulation, the inner TTL value will be decremented before egressing to next-hop
  - Traffic not subject to match criteria will be forwared using the traditional IP forwarding.
+
+ Comprehensive ECMP hashing test for GUE flows with IPv4|UDP outer header on decapsulation node is documented in [#4135](https://github.com/openconfig/featureprofiles/pull/4135)
 
 ## Procedure
 
