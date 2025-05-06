@@ -62,6 +62,10 @@ type VerificationEntry struct {
 	Result          string                    `json:"result"`
 }
 
+type UserResult struct {
+    Result string `json:"result"`
+}
+
 // PolicyOutput is the final structure per policy
 type PolicyOutput struct {
 	ConfigOp     AggregatedConfigOp                      `json:"config_operation"`
@@ -74,7 +78,7 @@ type PolicyOutput struct {
 	Outband      string                                  `json:"outband"`
 	Result       string                                  `json:"result"`
 	SimHw        SimHw                                   `json:"sim_hw,omitempty"`
-	Users        map[string]string                       `json:"users"`
+	Users        map[string]UserResult                   `json:"users"`
 	Verification map[string]map[string]VerificationEntry `json:"verification"`
 }
 
@@ -839,7 +843,7 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 						LogLink:      logURL,
 						Outband:      "pass",
 						Result:       "pass",
-						Users:        make(map[string]string),
+						Users:        make(map[string]UserResult),
 						IPv4:         "pass",
 						SimHw:        SimHw{Sim: &ResultWrapper{}, Hw: &ResultWrapper{}},
 						Verification: defaultVerificationEntries(),
@@ -875,8 +879,8 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 						continue
 					}
 					currPolicyOut.ConfigOp.Probe.PassedTestcase[testName] = entry.Request
-					if u, _ := entry.Request["user"].(string); u != "" {
-						currPolicyOut.Users[sanitizeUsername(u)] = "pass"
+					if userPath, _ := entry.Request["user"].(string); userPath != "" {
+						currPolicyOut.Users[sanitizeUsername(userPath)] = UserResult{Result: "pass"}
 					}
 				}
 
@@ -924,8 +928,8 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 			po.SimHw.Hw = nil
 		}
 		// drop skipped users
-		for u, st := range po.Users {
-			if st == "skip" {
+		for u, ur := range po.Users {
+			if ur.Result == "skip" {
 				delete(po.Users, u)
 			}
 		}
