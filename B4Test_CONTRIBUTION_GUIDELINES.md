@@ -3,6 +3,8 @@
 This document outlines the PR review process and coding best practices to ensure high-quality contributions and foster a
 collaborative coding culture.
 
+Please also read contribution guidelines laid out by Google here:  https://github.com/openconfig/featureprofiles/blob/main/CONTRIBUTING.md
+
 # Goals
 
 - Improve compliance with the PR review process.
