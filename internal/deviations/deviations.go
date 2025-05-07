@@ -1342,3 +1342,8 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
+
+// StaticLspNextHopsNotSupported returns true if devices do not support lsp next-hops
+func StaticLspNextHopsNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticLspNextHops()
+}
