@@ -81,6 +81,18 @@ Using the same container started as part of CNTR-1.1, validate that the containe
 can be upgraded to the new version of the image identified by a different tag
 than the current running container image. 
 
+## CNTR-1.7: Restart Behaviour
+
+Using the containers started as part of CNTR-1.1, restart the device via gNOI
+and ensure that the containers are still running post reboot.
+
+## CNTR-1.8: Failover Behaviour
+
+Using the containers started as part of CNTR-1.1, trigger a failover and 
+ensure that the containers that were running on the failed RP are running 
+on the backup RP.
+=
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the RPCs intended to be covered by this test.
@@ -97,4 +109,10 @@ rpcs:
     containerz.Containerz.RemoveVolume:
     containerz.Containerz.ListVolume:
     containerz.Containerz.UpdateContainer:
+    system.System.Reboot:
+    system.System.SwitchControlProcessor:
 ```
+
+## Required DUT Platform
+
+* MFF
