@@ -49,17 +49,17 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 | Flow type   | Payload Description   | Header Level   | Source IP        | Destination IP                                                                             | Source Port                             | Destination Port                             | DSCP | TTL |
 |-------------|-----------------------|----------------|------------------|--------------------------------------------------------------------------------------------|-----------------------------------------|----------------------------------------------|------|-----|
-| Flow type#1 | IP+UDP+IPv4 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6081 (DUT configured non-default decap port)                | 35   | 70  |
+| Flow type#1 | IP+UDP+IPv4 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6081 (DUT configured decap port)                | 35   | 70  |
 |             |                       | Inner IPv4     | IPV4-SRC1        | IPV4-DST1                                                                                  | N/A                                     | N/A                                          | 32   | 50  |
-| Flow type#2 | IP+UDP+IPv6 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6081 (DUT configured non-default decap port)                | 35   | 70  |
+| Flow type#2 | IP+UDP+IPv6 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6081 (DUT configured decap port)                | 35   | 70  |
 |             |                       | Inner IPv6     | IPV6-SRC1        | IPV6-DST1                                                                                  | N/A                                     | N/A                                          | 32   | 50  |
-| Flow type#3 | IP+UDP+IPv4 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6085 (DUT unconfigured non-default port)              | 35   | 70  |
+| Flow type#3 | IP+UDP+IPv4 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6085 (DUT unconfigured port)              | 35   | 70  |
 |             |                       | Inner IPv4     | IPV4-SRC1        | IPV4-DST1                                                                                  | N/A                                     | N/A                                          | 32   | 50  |
-| Flow type#4 | IP+UDP+IPv6 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6085 (DUT unconfigured non-default port)              | 35   | 70  |
+| Flow type#4 | IP+UDP+IPv6 Payload | Outer IPGUE    | ATE-P1-Address   | Randomized: DECAP-DST_1/32, DECAP-DST_2/32, DECAP-DST_3/32, DECAP-DST_4/32                   | Varies depending on the application     | 6085 (DUT unconfigured port)              | 35   | 70  |
 |             |                       | Inner IPv6     | IPV6-SRC1        | IPV6-DST1                                                                                  | N/A                                     | N/A                                          | 32   | 50  |
-| Flow type#5 | IP+UDP+IPv4 Payload | Outer IPGUE    | ATE-P1-Address   | ATE-P2-Address                                                                             | Varies depending on the application     | 6081 (DUT configured non-default decap port)         | 35   | 70  |
+| Flow type#5 | IP+UDP+IPv4 Payload | Outer IPGUE    | ATE-P1-Address   | ATE-P2-Address                                                                             | Varies depending on the application     | 6081 (DUT configured decap port)         | 35   | 70  |
 |             |                       | Inner IPv4     | IPV4-SRC1        | IPV4-DST1                                                                                  | N/A                                     | N/A                                          | 32   | 50  |
-| Flow type#6 | IP+UDP+IPv6 Payload | Outer IPGUE    | ATE-P1-Address   | ATE-P2-Address                                                                             | Varies depending on the application     | 6081 (DUT configured non-default decap port)         | 35   | 70  |
+| Flow type#6 | IP+UDP+IPv6 Payload | Outer IPGUE    | ATE-P1-Address   | ATE-P2-Address                                                                             | Varies depending on the application     | 6081 (DUT configured decap port)         | 35   | 70  |
 |             |                       | Inner IPv6     | IPV6-SRC1        | IPV6-DST1                                                                                  | N/A                                     | N/A                                          | 32   | 50  |
 
 *  ATE Port 2 receives below flow/packet types:
@@ -67,7 +67,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 | RX-Flow-type   | Payload Type        | Header Level   | Source IP        | Destination IP   | DSCP | TTL | UDP Source Port                             | UDP Destination Port                             |
 |----------------|---------------------|----------------|------------------|------------------|------|-----|-----------------------------------------|----------------------------------------------|
 | RX-Flow-type#1 | IPv4 Payload        | N/A            | IPV4-SRC1        | IPV4-DST1        | 32   | 49  | N/A                                     | N/A                                          |
-| RX-Flow-type#2 | IPv4 Payload        | N/A            | IPV4-SRC1        | IPV4-DST1        | 32   | 49  | N/A                                     | N/A                                          |
+| RX-Flow-type#2 | IPv6 Payload        | N/A            | IPV6-SRC1        | IPV6-DST1        | 32   | 49  | N/A                                     | N/A                                          |
 | RX-Flow-type#5 | IP+UDP+IPv4 Payload | Outer IPGUE    | ATE-P1-Address   | ATE-P2-Address   | 35   | 68  | Varies depending on the application     | 6081 (configured non-default on DUT)         |
 |                |                     | Inner IPv4     | IPV4-SRC1        | IPV4-DST1        | 32   | 50  | N/A                                     | N/A                                          |
 | RX-Flow-type#6 | IP+UDP+IPv6 Payload | Outer IPGUE    | ATE-P1-Address   | ATE-P2-Address   | 35   | 68  | Varies depending on the application     | 6081 (configured non-default on DUT)         |
@@ -115,7 +115,7 @@ Verification:
 -  The inner packet's DSCP value (32) will be preserved
 -  The DUT will forward the traffic towards ATE Port 2
 -  The relevant DUT counters will reflect 1,000,000 decapsulated packets
--  ATE Port 2 receives 1,000,000 packets structured as RX-Flow-type#2
+-  ATE Port 2 receives 1000 packets structured as RX-Flow-type#2
 -  No packet loss should be observed
 
 ### PF-1.4.2: GUE Decapsulation of inner IPv6 traffic using non-default and configured GUE UDP port
@@ -130,7 +130,7 @@ Verification:
 -  The inner packet's DSCP value (32) will be preserved
 -  The DUT will forward the traffic towards ATE Port 2
 -  The relevant DUT counters will reflect 1,000,000 decapsulated packets
--  ATE Port 2 receives 1,000,000 packets structured as RX-Flow-type#4
+-  ATE Port 2 receives 1000 packets structured as RX-Flow-type#4
 -  No packet loss should be observed
 
 ### PF-1.4.3: GUE Decapsulation of inner IPv4 traffic using non-default and unconfigured GUE UDP port (Negative).
@@ -162,7 +162,7 @@ Verification:
 -  The outer header destination UDP port (6081) matches a configured decap port
 -  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
 -  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer destination IP address and forward the packets as standard IP traffic
--  ATE Port 2 receives 1,000,000 packets structured as RX-Flow-type#7 (original GUE encapsulated packets, outer TTL decremented by DUT)
+-  ATE Port 2 receives 1000 packets structured as RX-Flow-type#7 (original GUE encapsulated packets, outer TTL decremented by DUT)
 -  No packet loss should be observed for this flow
 
 ### PF-1.4.6: Inner IPV6 GUE Pass-through (Negative)
@@ -172,7 +172,7 @@ Verification:
 -  The outer header destination UDP port (6081) matches a configured decap port
 -  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
 -  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer destination IP address and forward the packets as standard IP traffic
--  ATE Port 2 receives 1,000,000 packets structured as RX-Flow-type#8 (original GUE encapsulated packets, outer TTL decremented by DUT)
+-  ATE Port 2 receives 1000 packets structured as RX-Flow-type#8 (original GUE encapsulated packets, outer TTL decremented by DUT)
 -  No packet loss should be observed
 
   ## Canonical OpenConfig for GUEv1 Decapsulation configuration
