@@ -11,13 +11,11 @@ platform_exceptions:  {
   }
   deviations:  {
     explicit_interface_in_default_vrf:  true
-    aggregate_atomic_update:  true
     static_protocol_name:  "static"
     interface_enabled:  true
-    skip_set_rp_match_set_options:  true
     skip_prefix_set_mode:  true
-    table_connections_unsupported:  true
-    skip_bgp_send_community_type:  true
+    enable_table_connections: true
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions:  {
