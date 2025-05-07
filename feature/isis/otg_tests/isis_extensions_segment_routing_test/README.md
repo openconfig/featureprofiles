@@ -1,4 +1,4 @@
-# RT-2.15 IS-IS Extensions for Segment Routing
+# RT-2.15: IS-IS Extensions for Segment Routing
 
 ## Summary
 
