@@ -714,6 +714,122 @@ func getDecapFlows(decapEntries []string) []gosnappi.Flow {
 
 }
 
+// getDecapFlows returns the ipv4inipv4 and ipv6inipv4 flows.
+// func getDecapFlowsForBatch(decapEntries, innerV4Dst, innerV6Dst []string) []gosnappi.Flow {
+func getDecapFlowsForBatch(dfa ...*DecapFlowAttr) []gosnappi.Flow {
+
+	var dInV4 = trafficflowAttr{
+		withInnerHeader: true, // flow type
+		withNativeV6:    false,
+		withInnerV6:     false,
+		outerSrc:        v4DefaultSrc,                    // source IP address
+		outerDst:        []string{v4BGPDefaultStart},     // destination IP address
+		srcPort:         []string{lagName2 + ".IPv4"},    // source OTG port
+		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
+		srcMac:          otgSrc2.MAC,                     // source MAC address
+		dstMac:          dutSrc2.MAC,                     // destination MAC address
+		topo:            gosnappi.NewConfig(),
+	}
+
+	flows := []gosnappi.Flow{}
+
+	for i, f := range dfa {
+		j := i * 2
+		// create ipv4inipv4 flow
+		if len(f.innerV4Dst) > 0 {
+			dInV4.withInnerV6 = false
+			dInV4.outerDst = f.outerIP
+			dInV4.outerSrc = getOuterSrcForDscp(f.dscp)
+			dInV4.innerDst = f.innerV4Dst //encapVrfAIPv4Enries
+			dInV4.innerSrc = otgSrc2.IPv4
+			dInV4.innerDscp = f.dscp
+			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("v4inv4flow%d: %s", j, dscpToString(f.dscp)), f.dscp))
+		}
+		// create ipv6inipv4 flow
+		if len(f.innerV6Dst) > 0 {
+			dInV4.withInnerV6 = true
+			dInV4.outerSrc = getOuterSrcForDscp(f.dscp)
+			dInV4.innerDst = f.innerV6Dst //encapVrfAIPv6Enries
+			dInV4.innerSrc = otgSrc2.IPv6
+			dInV4.innerDscp = f.dscp
+			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("v6inv4flow%d: %s", j+1, dscpToString(f.dscp)), f.dscp))
+		}
+	}
+	return flows
+
+}
+
+func getOuterSrcForDscp(dscp uint32) string {
+	switch dscp {
+	case dscpEncapA1:
+		return ipv4OuterSrc111
+	case dscpEncapA2:
+		return ipv4OuterSrc222
+	case dscpEncapB1:
+		return ipv4OuterSrc111
+	case dscpEncapB2:
+		return ipv4OuterSrc222
+	default:
+		return ipv4OuterSrc111
+	}
+}
+
+func dscpToString(dscp uint32) string {
+	switch dscp {
+	case dscpEncapA1:
+		return "dscpEncapA1"
+	case dscpEncapA2:
+		return "dscpEncapA2"
+	case dscpEncapB1:
+		return "dscpEncapB1"
+	case dscpEncapB2:
+		return "dscpEncapB2"
+	default:
+		return "dscpEncapA1"
+	}
+}
+
+func getEncapFlowsForBatch(efa ...*EncapFlowAttr) []gosnappi.Flow {
+
+	// encap flow attribute
+	var enFa = trafficflowAttr{
+		withInnerHeader: false, // flow type
+		withNativeV6:    false,
+		withInnerV6:     false,
+		outerSrc:        v4DefaultSrc,                    // source IP address
+		outerDst:        []string{v4BGPDefaultStart},     // destination IP address
+		srcPort:         []string{lagName1 + ".IPv4"},    // source OTG port
+		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
+		srcMac:          otgSrc1.MAC,                     // source MAC address
+		dstMac:          dutSrc1.MAC,                     // destination MAC address
+		topo:            gosnappi.NewConfig(),
+	}
+
+	flows := []gosnappi.Flow{}
+
+	for i, f := range efa {
+		j := i * 2
+		if len(f.outerV4Dst) > 0 {
+			enFa.withNativeV6 = false
+			enFa.srcPort = []string{lagName1 + ".IPv4"}
+			enFa.outerSrc = v4DefaultSrc
+			enFa.outerDst = f.outerV4Dst
+			flows = append(flows, enFa.createTrafficFlow(fmt.Sprintf("ipv4flow%d: %s", j, dscpToString(f.dscp)), f.dscp))
+
+		}
+
+		if len(f.outerV6Dst) > 0 {
+			enFa.withNativeV6 = true
+			enFa.srcPort = []string{lagName1 + ".IPv6"}
+			enFa.outerSrc = innerSrcIPv6Start
+			enFa.outerDst = f.outerV6Dst
+			flows = append(flows, enFa.createTrafficFlow(fmt.Sprintf("ipv6flow%d: %s", j, dscpToString(f.dscp)), f.dscp))
+		}
+	}
+
+	return flows
+}
+
 // getEncapFlows returns ipv4 and ipv6 flows. These flows are used to simulate clusterfacing traffic.
 func getEncapFlows() []gosnappi.Flow {
 

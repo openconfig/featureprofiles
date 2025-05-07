@@ -90,6 +90,7 @@ var (
 	vipIPs              = iputil.GenerateIPs(V4VIPIPBlock, L1Nhg)
 	vipFrr1IPs          = iputil.GenerateIPs(VipFrr1IPBlock, L1Nhg)
 	vipFrr2IPs          = iputil.GenerateIPs(VipFrr2IPBlock, L1Nhg)
+	addressPerPrefix    = 1
 )
 
 // IPPool for IPs
@@ -253,6 +254,7 @@ type routesParam struct {
 	nextHopWeight []int
 	backupNHG     int
 	tunnelSrcIP   string //
+	addrPerSubnet int
 }
 
 // BuildVRFConfig creates scale new scale VRF configurations.
@@ -814,6 +816,12 @@ func GetFibSegmentGribiEntries2(routeParams *routesParam, dut *ondatra.DUTDevice
 	return pairedEntries
 }
 
+// isCIDR checks if the input string is a valid CIDR (e.g., "192.168.0.0/24").
+func isCIDR(s string) bool {
+	_, _, err := net.ParseCIDR(s)
+	return err == nil
+}
+
 func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice, batchCount int) []PairedEntries {
 	var pairedEntries []PairedEntries
 
@@ -921,14 +929,20 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 			}
 
 			// Generate IPv4 entry
-			ipCIDR := EnsureCIDR(ip, 32) // Ensure that the IPv4 address has a mask length of 32
+			ipCIDR := ip // for variable length prefix
+			if !isCIDR(ip) {
+				ipCIDR = EnsureCIDR(ip, 32) // Ensure that the IPv4 address has a mask length of 32
+				pe.V4Prefixes = append(pe.V4Prefixes, ip)
+			} else { // for variable length prefix
+				pe.V4Prefixes = append(pe.V4Prefixes, iputil.GenerateIPs(ip, routeParams.addrPerSubnet)...)
+			}
+
 			ipv4Entry := fluent.IPv4Entry().
 				WithPrefix(ipCIDR).
 				WithNetworkInstance(routeParams.prefixVRF).
 				WithNextHopGroup(nhgID).
 				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
 			pe.V4Entries = append(pe.V4Entries, ipv4Entry)
-			pe.V4Prefixes = append(pe.V4Prefixes, ip)
 
 			// Generate IPv6 entries for this batch
 			if len(routeParams.ipv6Entries) > 0 {
@@ -1106,8 +1120,24 @@ func TestChains(t *testing.T) {
 		tunnelSrcIP:   ipv4OuterSrc111,
 	}
 
-	gribiInfo = GetFibSegmentGribiEntries(&level3PrimaryA, dut, batches)
-	LogGribiInfo(t, "level3PrimaryA", gribiInfo)
+	encapEntriesA := GetFibSegmentGribiEntries(&level3PrimaryA, dut, batches)
+	LogGribiInfo(t, "level3PrimaryA", encapEntriesA)
+
+	level3PrimaryB := routesParam{
+		ipEntries:     encapVrfBIPv4Enries,
+		ipv6Entries:   encapVrfBIPv6Enries,
+		prefixVRF:     vrfEncapB,
+		nextHops:      tunnelDestIPs,
+		nextHopVRF:    vrfTransit,
+		nextHopType:   "encap",
+		startNHIndex:  lastNhIndex + 1, // not used
+		numUniqueNHGs: 200,             //encapNhgcount,
+		numNHPerNHG:   8,
+		nextHopWeight: generateNextHopWeights(16, 8),
+		tunnelSrcIP:   ipv4OuterSrc111,
+	}
+
+	encapEntriesB := GetFibSegmentGribiEntries(&level3PrimaryB, dut, batches)
 
 	level1Frr1 := routesParam{
 		ipEntries:     vipFrr1IPs, // 512 VIP prefixes
@@ -1153,7 +1183,22 @@ func TestChains(t *testing.T) {
 	decapWanPE := GetFibSegmentGribiEntries(&decapWan, dut, batches)
 	LogGribiInfo(t, "decapWan", decapWanPE)
 
-	configBatches := CombinePairedEntries(dut, batches, &level1Primary, &level2Primary, &level3PrimaryA, &level1Frr1, &level2Frr1, &decapWan)
+	decapWanVarPrefix := routesParam{
+		ipEntries:     getVariableLenSubnets(12, "102.51.100.1/22", "107.51.105.1/24", "112.51.110.1/26", "117.51.115.1/28"),
+		addrPerSubnet: 1,
+		prefixVRF:     niDecapTeVrf,
+		nextHops:      []string{}, // not used for decap
+		nextHopVRF:    deviations.DefaultNetworkInstance(dut),
+		nextHopType:   "decap",
+		numUniqueNHGs: 48,
+		numNHPerNHG:   1,
+		nextHopWeight: generateNextHopWeights(1, 1),
+	}
+
+	decapWanVp := GetFibSegmentGribiEntries(&decapWanVarPrefix, dut, batches)
+	LogGribiInfo(t, "decapWanVp", decapWanVp)
+
+	configBatches := CombinePairedEntries(dut, batches, &level1Primary, &level2Primary, &level3PrimaryA, &level3PrimaryB, &level1Frr1, &level2Frr1, &decapWan, &decapWanVarPrefix)
 	// configBatches := CombinePairedEntries(dut, batches, &level1Primary) //, &level2Primary)
 
 	client.StartSending(ctx, t)
@@ -1184,25 +1229,33 @@ func TestChains(t *testing.T) {
 	if err := awaitTimeout(ctx, client, t, aftProgTimeout); err != nil {
 		t.Fatalf("Could not program entries, got err: %v", err)
 	}
-	// t.Logf("waiting for %d minutes", 5)
-	// time.Sleep(5 * time.Minute)
 
-	// // Inject 5000 IPv4Entry-ies and 5000 IPv6Entry-ies to each of the 4 encap VRFs.
-	// pushEncapEntries(t, defaultIpv4Entries, args)
-	// validateTrafficFlows(t, args, getEncapFlows(), false, true)
+	t.Logf("Validating encap traffic")
+	validateTrafficFlows(t, tcArgs, getEncapFlowsForBatch(&EncapFlowAttr{encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1}), false, true)
 
-	// // Inject mixed length prefixes (48 entries) in the DECAP_TE_VRF.
-	// decapEntries := pushDecapEntries(t, args)
-	// validateTrafficFlows(t, args, getDecapFlows(decapEntries), false, true)
+	t.Logf("Validating variable length prefix decap traffic")
+	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(
+		&DecapFlowAttr{decapWanVp[0].V4Prefixes, encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1}),
+		false, true) //&DecapFlowAttr{decapWanPE[0].V4Prefixes, encapEntriesB[0].V4Prefixes, encapEntriesB[0].V6Prefixes, dscpEncapB1}),
 
-	// // Install decapIPv4ScaleCount entries with fixed prefix length of /32 in DECAP_TE_VRF.
-	// decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
-	// pushDecapScaleEntries(t, args, decapScaleEntries)
-	// // Send traffic and verify packets are decapped then encapsulated and then forwarded to peer.
+	t.Logf("Validating fixed length prefix decap traffic")
+	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(
+		&DecapFlowAttr{decapWanPE[0].V4Prefixes, encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1},
+		&DecapFlowAttr{decapWanPE[0].V4Prefixes, encapEntriesB[0].V4Prefixes, encapEntriesB[0].V6Prefixes, dscpEncapB1}),
+		false, true)
+}
 
-	//test traffic for a particular batch
-	validateTrafficFlows(t, tcArgs, getDecapFlows(decapWanPE[0].V4Prefixes), false, true)
+type DecapFlowAttr struct {
+	outerIP    []string
+	innerV4Dst []string
+	innerV6Dst []string
+	dscp       uint32
+}
 
+type EncapFlowAttr struct {
+	outerV4Dst []string
+	outerV6Dst []string
+	dscp       uint32
 }
 
 func CombinePairedEntries(dut *ondatra.DUTDevice, batchCount int, routeParams ...*routesParam) [][]fluent.GRIBIEntry {
@@ -1377,6 +1430,22 @@ func generateIPv4Subnets(seedBlock string, subNets uint32) []string {
 		i = i + uint32(incrSize)
 	}
 	return entries
+}
+
+func getVariableLenSubnets(subNets uint32, seedBlocks ...string) []string {
+	variableLenSubnets := []string{}
+	for _, seedBlock := range seedBlocks {
+		variableLenSubnets = append(variableLenSubnets, generateIPv4Subnets(seedBlock, subNets)...)
+	}
+	return variableLenSubnets
+}
+
+func getPrefixesForSubnets(subNets []string, prefixPerSn int) []string {
+	prefixes := []string{}
+	for _, sn := range subNets {
+		prefixes = append(prefixes, iputil.GenerateIPs(sn, prefixPerSn)...)
+	}
+	return prefixes
 }
 
 func pushDecapEntries(t *testing.T, args *testArgs) []string {
