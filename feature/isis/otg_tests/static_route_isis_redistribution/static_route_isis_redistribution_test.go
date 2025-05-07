@@ -385,8 +385,11 @@ func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string, ta
 func verifyPrefix(t *testing.T, ts *isissession.TestSession, shouldBePresent bool) {
 
 	t.Run("Verify Route on OTG", func(t *testing.T) {
-		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
 			prefix, present := v.Val()
+			if !shouldBePresent {
+				return !present
+			}
 			return present && prefix.GetPrefix() == v4Route
 		}).Await(t)
 		if shouldBePresent {
@@ -554,6 +557,11 @@ func TestStaticToISISRedistribution(t *testing.T) {
 			configureOTGFlows(t, ts.ATETop, ts)
 			advertiseRoutesWithISIS(t, ts)
 			ts.PushAndStart(t)
+			adj := ts.MustAdjacency(t)
+			t.Logf("ISIS adjacency established with ID: %s", adj)
+
+			otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv4")
+			otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
 		})
 	})
 
@@ -652,8 +660,12 @@ func TestStaticToISISRedistribution(t *testing.T) {
 	}}
 
 	for _, tc := range cases {
+		if deviations.MatchTagSetConditionUnsupported(ts.DUT) && tc.TagSetCondition {
+			t.Skipf("Skipping test case %s due to match tag set condition not supported", tc.desc)
+		}
 
 		dni := deviations.DefaultNetworkInstance(ts.DUT)
+
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Run(fmt.Sprintf("Configure Policy Type %s", tc.policyStmtType.String()), func(t *testing.T) {
 				rpl, err := configureRoutePolicy(ts.DUT, tc.RplName, tc.RplStatement, tc.PrefixSetCondition,
@@ -664,9 +676,6 @@ func TestStaticToISISRedistribution(t *testing.T) {
 				}
 				gnmi.Update(t, ts.DUT, gnmi.OC().RoutingPolicy().Config(), rpl)
 			})
-			if deviations.MatchTagSetConditionUnsupported(ts.DUT) && tc.TagSetCondition {
-				t.Skipf("Skipping test case %s due to match tag set condition not supported", tc.desc)
-			}
 
 			if tc.TagSetCondition {
 				if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
@@ -688,13 +697,6 @@ func TestStaticToISISRedistribution(t *testing.T) {
 				getAndVerifyIsisImportPolicy(t, ts.DUT, tc.metricPropogation, tc.RplName, tc.protoAf.String())
 			})
 
-			t.Run("Verify ISIS adjacency", func(t *testing.T) {
-				adj := ts.MustAdjacency(t)
-				t.Logf("ISIS adjacency established with ID: %s", adj)
-
-				otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv4")
-				otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
-			})
 			tc.verifyRouteFunc(t, ts)
 
 			if tc.verifyTrafficStats {
