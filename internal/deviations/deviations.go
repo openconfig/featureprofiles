@@ -1342,3 +1342,8 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
+
+// UpperAndClearThresholdsConfigUnsupported returns true if config for UsedThresholdUpper and UsedThresholdUpperClear is unsupported
+func UpperAndClearThresholdsConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUpperAndClearThresholdsConfigUnsupported()
+}
