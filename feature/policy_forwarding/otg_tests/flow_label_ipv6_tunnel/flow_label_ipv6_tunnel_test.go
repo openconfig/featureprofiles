@@ -47,6 +47,7 @@ var (
 	}
 	atePort1 = attrs.Attributes{
 		Desc:    "atePort1",
+		Name:    "atePort1",
 		IPv6:    "2001:DB2::2",
 		IPv6Len: ipv6PrefixLen,
 		MAC:     "02:00:01:01:01:01",
@@ -58,6 +59,7 @@ var (
 	}
 	atePort2 = attrs.Attributes{
 		Desc:    "atePort2",
+		Name:    "atePort2",
 		IPv6:    "2001:DB2::6",
 		IPv6Len: ipv6PrefixLen,
 		MAC:     "02:00:02:01:01:01",
@@ -189,27 +191,14 @@ func configureForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureOTG configures the OTG with the atePort1 and atePort2.
-func configureOTG(t *testing.T) gosnappi.Config {
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 
 	top := gosnappi.NewConfig()
-	port1 := top.Ports().Add().SetName("port1")
-	port2 := top.Ports().Add().SetName("port2")
-
-	// Port1 Configuration.
-	iDut1Dev := top.Devices().Add().SetName(atePort1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	iDut1Eth.Connection().SetPortName(port1.Name())
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
-
-	// Port2 Configuration.
-	iDut2Dev := top.Devices().Add().SetName(atePort2.Name)
-	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	iDut2Eth.Connection().SetPortName(port2.Name())
-	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(atePort2.Name + ".IPv6")
-	iDut2Ipv6.SetAddress(atePort2.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(atePort2.IPv6Len))
-
+	p1 := ate.Port(t, "port1")
+	p2 := ate.Port(t, "port2")
+	atePort1.AddToOTG(top, p1, &dutSrc)
+	atePort2.AddToOTG(top, p2, &dutDst)
 	return top
 }
 
@@ -281,7 +270,7 @@ func TestFlowLabelIPv6Tunnel(t *testing.T) {
 	configureForwardingPolicy(t, dut)
 
 	t.Log("Configure OTG")
-	top := configureOTG(t)
+	top := configureOTG(t, ate)
 	createTrafficFlows(t, top, ate, dut)
 
 	t.Log("Push config to the OTG device")
