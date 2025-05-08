@@ -161,31 +161,31 @@ func TestDecapGre(t *testing.T) {
 			Description: "GRE Decapsulation of IPv4 traffic",
 			testFunc:    testGreDecapIPv4,
 		},
-		// {
-		// 	Name:        "Testcase-GreDecapIPv6Traffic",
-		// 	Description: "GRE Decapsulation of IPv6 traffic",
-		// 	testFunc:    testGreDecapIPv6,
-		// },
+		{
+			Name:        "Testcase-GreDecapIPv6Traffic",
+		 	Description: "GRE Decapsulation of IPv6 traffic",
+		 	testFunc:    testGreDecapIPv6,
+		},
 		{
 			Name:        "Testcase-GreDecapIPv4MPLSTraffic",
 			Description: "GRE Decapsulation of IPv4-over-MPLS traffic",
 			testFunc:    testGreDecapIPv4MPLS,
 		},
-		// {
-		// 	Name:        "Testcase-GreDecapIPv6MPLSTraffic",
-		// 	Description: "GRE Decapsulation of IPv6-over-MPLS traffic",
-		// 	testFunc:    testGreDecapIPv6MPLS,
-		// },
-		// {
-		// 	Name:        "Testcase-GreDecapMultiLabelMPLSTraffic",
-		// 	Description: "GRE Decapsulation of multi-label MPLS traffic",
-		// 	testFunc:    testGreDecapMultiLabelMPLS,
-		// },
-		// {
-		// 	Name:        "Testcase-GrePassthroughTraffic",
-		// 	Description: "GRE Pass-through (Negative)",
-		// 	testFunc:    testGrePassthrough,
-		// },
+		{
+		 	Name:        "Testcase-GreDecapIPv6MPLSTraffic",
+		 	Description: "GRE Decapsulation of IPv6-over-MPLS traffic",
+		 	testFunc:    testGreDecapIPv6MPLS,
+		},
+		{
+			Name:        "Testcase-GreDecapMultiLabelMPLSTraffic",
+		 	Description: "GRE Decapsulation of multi-label MPLS traffic",
+		 	testFunc:    testGreDecapMultiLabelMPLS,
+		},
+		{
+			Name:        "Testcase-GrePassthroughTraffic",
+			Description: "GRE Pass-through (Negative)",
+		 	testFunc:    testGrePassthrough,
+		},
 	}
 
 	// Run the test cases.
