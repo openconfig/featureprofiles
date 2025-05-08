@@ -104,7 +104,9 @@ func TestNtpServerConfigurability(t *testing.T) {
 			ntp.SetEnabled(true)
 			for _, address := range testCase.addresses {
 				server := ntp.GetOrCreateServer(address)
-				server.SetSourceAddress(dutlo0Attrs.IPv4)
+				if !deviations.NtpSourceAddressUnsupported(dut) {
+					server.SetSourceAddress(dutlo0Attrs.IPv4)
+				}
 				if testCase.vrf != "" {
 					server.SetNetworkInstance(testCase.vrf)
 				}

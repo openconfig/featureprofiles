@@ -1347,3 +1347,8 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
 }
+
+// NtpSourceAddressUnsupported returns true if NTP source address is not supported
+func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
+}
