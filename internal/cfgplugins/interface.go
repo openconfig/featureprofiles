@@ -15,7 +15,9 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"math"
+	"sync"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -33,6 +35,28 @@ const (
 	targetFrequencyToleranceMHz   = 100000
 )
 
+var (
+	opmode uint16
+	once   sync.Once
+)
+
+// Temporary code for assigning opmode 1 maintained until opmode is Initialized in all .go file
+func init() {
+	opmode = 1
+}
+
+// Initialize assigns OpMode with value received through operationalMode flag.
+func Initialize(operationalMode uint16) {
+	once.Do(func() {
+		if operationalMode != 0 {
+			opmode = operationalMode
+		} else {
+			fmt.Sprintln("Please specify the vendor-specific operational-mode flag")
+			return
+		}
+	})
+}
+
 // InterfaceConfig configures the interface with the given port.
 func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
@@ -41,17 +65,21 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
-	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
-	gnmi.Update(t, dut, gnmi.OC().Component(ocComponent).Name().Config(), ocComponent)
-	gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
-		Frequency:         ygot.Uint64(targetFrequencyMHz),
-	})
+	if deviations.ExplicitDcoConfig(dut) {
+		transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
+		gnmi.Replace(t, dut, gnmi.OC().Component(transceiverName).Config(), &oc.Component{
+			Name: ygot.String(transceiverName),
+			Transceiver: &oc.Component_Transceiver{
+				ModuleFunctionalType: oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC,
+			},
+		})
+	}
+	oc := components.OpticalChannelComponentFromPort(t, dut, dp)
+	ConfigOpticalChannel(t, dut, oc, targetFrequencyMHz, targetOutputPowerdBm, opmode)
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
-func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, targetOutputPowerdBm float64, targetFrequencyMHz uint64, targetOutputPowerTolerancedBm float64, targetFrequencyToleranceMHz float64) {
 	t.Helper()
 	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
@@ -78,11 +106,13 @@ func ToggleInterface(t *testing.T, dut *ondatra.DUTDevice, intf string, isEnable
 
 // ConfigOpticalChannel configures the optical channel.
 func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
-	gnmi.Update(t, dut, gnmi.OC().Component(och).Name().Config(), och)
-	gnmi.Replace(t, dut, gnmi.OC().Component(och).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		OperationalMode:   ygot.Uint16(operationalMode),
-		Frequency:         ygot.Uint64(frequency),
-		TargetOutputPower: ygot.Float64(targetOpticalPower),
+	gnmi.Replace(t, dut, gnmi.OC().Component(och).Config(), &oc.Component{
+		Name: ygot.String(och),
+		OpticalChannel: &oc.Component_OpticalChannel{
+			OperationalMode:   ygot.Uint16(operationalMode),
+			Frequency:         ygot.Uint64(frequency),
+			TargetOutputPower: ygot.Float64(targetOpticalPower),
+		},
 	})
 }
 
@@ -105,11 +135,19 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			},
 		})
 	} else {
+		t.Logf(" otnIndex:%v, ethIndex: %v", otnIndex, ethIndex)
+		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
+			Description:        ygot.String("ETH Logical Channel"),
+			Index:              ygot.Uint32(ethIndex),
+			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
+			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		})
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				0: {
 					Index:          ygot.Uint32(0),
@@ -117,13 +155,6 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					Description:    ygot.String("OTN to Optical Channel"),
 					Allocation:     ygot.Float64(400),
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-				},
-				1: {
-					Index:          ygot.Uint32(1),
-					LogicalChannel: ygot.Uint32(ethIndex),
-					Description:    ygot.String("OTN to ETH"),
-					Allocation:     ygot.Float64(400),
-					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 				},
 			},
 		})
@@ -159,6 +190,7 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress:            ingress,
 		Assignment:         assignment,
+		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 	}
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G

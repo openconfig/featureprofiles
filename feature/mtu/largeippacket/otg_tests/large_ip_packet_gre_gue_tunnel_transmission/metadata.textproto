@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "f7590954-4818-4d9b-9f98-574b1d40f52d"
+plan_id: "MTU-1.4"
+description: "Large IP Packet through GRE/GUE tunnel Transmission"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    gre_gue_tunnel_interface_oc_unsupported: true
+  }
+}

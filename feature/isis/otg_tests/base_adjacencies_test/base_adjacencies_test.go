@@ -449,19 +449,29 @@ func TestAuthentication(t *testing.T) {
 			ts := isissession.MustNew(t).WithISIS()
 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 				level := isis.GetOrCreateLevel(2)
-				level.Enabled = ygot.Bool(true)
 				auth := level.GetOrCreateAuthentication()
 				auth.Enabled = ygot.Bool(true)
 				auth.AuthMode = tc.mode
 				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 				auth.AuthPassword = ygot.String(password)
 				for _, intf := range isis.Interface {
-					intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
-					if tc.enabled {
-						intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
-						intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
-						intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+					if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
+						intf.GetOrCreateAuthentication().Enabled = ygot.Bool(tc.enabled)
+						if tc.enabled {
+							intf.GetAuthentication().AuthPassword = ygot.String("google")
+							intf.GetAuthentication().AuthMode = tc.mode
+							intf.GetAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+						}
+
+					} else {
+						intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
+						if tc.enabled {
+							intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
+							intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
+							intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+						}
 					}
+
 				}
 			})
 			if tc.enabled {
@@ -692,9 +702,10 @@ func TestISISHelloTimer(t *testing.T) {
 				timers1.SetHelloMultiplier(tc.helloMultiplier)
 			}
 
-			timers2 := intf.GetOrCreateLevel(uint8(level2)).GetOrCreateTimers()
-			timers2.SetHelloInterval(tc.helloInterval)
-			timers2.SetHelloMultiplier(tc.helloMultiplier)
+			intfLeveL2 := intf.GetOrCreateLevel(uint8(level2))
+			intfLeveL2.Enabled = ygot.Bool(true)
+			intfLeveL2.GetOrCreateTimers().SetHelloInterval(tc.helloInterval)
+			intfLeveL2.GetOrCreateTimers().SetHelloMultiplier(tc.helloMultiplier)
 
 			gnmi.Update(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
 				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).Isis().Interface(intfName).Config(), intf)
