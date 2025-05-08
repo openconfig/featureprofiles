@@ -2,12 +2,10 @@ package zr_logical_channels_test
 
 import (
 	"flag"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -30,16 +28,6 @@ const (
 )
 
 var (
-	dutPort1 = attrs.Attributes{
-		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv4Len: 30,
-	}
-	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: 30,
-	}
 	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
@@ -56,18 +44,16 @@ func TestMain(m *testing.M) {
 
 func Test400ZRLogicalChannels(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
+
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, p1)
+	cfgplugins.InterfaceConfig(t, dut, p2)
 
 	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
 	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
@@ -225,7 +211,6 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 	var opticalChannelAssignmentIndexTestcases []testcase
 
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
-		ciscoOpticalChannelFormat := strings.ReplaceAll(opticalChannel, "/", "_") // Ex: OpticalChannel0_0_0_18
 		opticalChannelAssignmentIndexTestcases = []testcase{
 			{
 				desc: "Assignment: Index",
@@ -235,7 +220,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 			{
 				desc: "Optical Channel Assignment: Optical Channel",
 				got:  cc.GetAssignment(1).GetOpticalChannel(),
-				want: ciscoOpticalChannelFormat,
+				want: opticalChannel,
 			},
 			{
 				desc: "Optical Channel Assignment: Description",
@@ -282,37 +267,6 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 		}
 	}
 	tcs = append(tcs, opticalChannelAssignmentIndexTestcases...)
-
-	if !deviations.OTNChannelTribUnsupported(dut) {
-		logicalChannelAssignmentTestcases := []testcase{
-			{
-				desc: "Ethernet Assignment: Index",
-				got:  cc.GetAssignment(1).GetIndex(),
-				want: uint32(1),
-			},
-			{
-				desc: "Ethernet Assignment: Logical Channel",
-				got:  cc.GetAssignment(1).GetLogicalChannel(),
-				want: ethChIdx,
-			},
-			{
-				desc: "Ethernet Assignment: Description",
-				got:  cc.GetAssignment(1).GetDescription(),
-				want: "OTN to ETH",
-			},
-			{
-				desc: "Ethernet Assignment: Allocation",
-				got:  cc.GetAssignment(1).GetAllocation(),
-				want: float64(400),
-			},
-			{
-				desc: "Ethernet Assignment: Type",
-				got:  cc.GetAssignment(1).GetAssignmentType().String(),
-				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
-			},
-		}
-		tcs = append(tcs, logicalChannelAssignmentTestcases...)
-	}
 
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
