@@ -1,7 +1,7 @@
-# PF-1.22 ECMP hashing for GUE flows with IPv4|UDP outer header on decapsulation node
+# PF-1.22 Static GUEv1 Decapsulation and EMCP test for IPv4 and IPv6 payload
 ## Summary
-This test ensures that only the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes. 
-Comprehensive static GUEv1 Decapsulation to IPv4 or IPv6 payload test is documented in [#4178](https://github.com/openconfig/featureprofiles/pull/4178).
+This is to test the functionality of decapsulation of static GUEv1 to IPv4 or IPv6 payload and ensures that only the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes. 
+Comprehensive static GUEv1 Decapsulation over decap subnet range, decap TTL and DSCP behavior test is documented in [#4178](https://github.com/openconfig/featureprofiles/pull/4178).
 
 ## Topology
 ```mermaid
@@ -122,7 +122,18 @@ B7 <-- EBGP --> N4;
 | **10**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v6 address        | H4v6 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
 |          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
-
+| **11**| **Overall** | **Payload o IPv4\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
+|          | Inner       | IPv6\|TCP         | H1v4 address        | H4v4 address        | 14   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | ATE2-port-Address IPv4 addr  | 5996 | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
+| **12**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
+|          | Inner       | IPv6\|TCP         | H1v6 address        | H4v6 address        | 14   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | ATE2-port-Address IPv4 addr | 5996 | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
+| **13**| **Overall** | **Payload o IPv4\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
+|          | Inner       | IPv6\|TCP         | H1v4 address        | H4v4 address        | 14   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address  | 5996  | 6085                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
+| **14**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
+|          | Inner       | IPv6\|TCP         | H1v6 address        | H4v6 address        | 14   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
+|          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address  | 5996  | 6085                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
 
 ### Flow types
 
@@ -149,7 +160,7 @@ B7 <-- EBGP --> N4;
 - Repeat each test with the each ATE Flow-type or explicitly mentioned flow-type
 - Conduct each of the following test, using a single flow-type with 1024 flows
 
-### PF-1.22.1: [Baseline] GUE decap and Load-balance test
+### PF-1.22.1: GUE Decapsulation over ipv4 decap address and Load-balance test
 - Configure the DUT and ATE as stated above
 - Initiate a single flow-type and follow the below stated and applicable verification steps
 - L4 source port of outer header(GUEv1 encap header) should be randomized for each flow-type that's running
@@ -157,7 +168,7 @@ B7 <-- EBGP --> N4;
 - Validations:
 -  The outer header destination IP of the traffic is the DUT-DECAP-Address and the destination port of the traffic (UDP 6080) matches the configured UDP decap port criteria
 -  Therefore, DUT will decapsulate the outer header and perform a lookup based on the inner IP address
--  The following validations are applicable as per the flow-type that is being tested
+-  The following traffic distribution validations are applicable as per the flow-type that is being tested
     - Flow#1 for H3 should be load-balanced across the bundle members via ATE3
     - Flow#2 for H2 should be load-balanced via ATE2 and ATE3
         - Traffic via ATE3 should be load-balanced across the bundle members 
@@ -178,7 +189,28 @@ B7 <-- EBGP --> N4;
         - Traffic forwarded towards ATE4 (via LAG2) should be load-balanced across the LAG members
     - No packet loss should be observed
 
-### PF-1.22.2: Randomize the L4 source port field in immediate next header to outer header and verify load-balance behavior
+### PF-1.22.2: GUE Decapsulation over non-matching ipv4 decap address [Negative]
+- Configure the DUT and ATE as stated above
+- Repeat the test for flow-type#11 and flow-type#12 (one at a time)
+- Validations:
+-  The outer header destination UDP port (6080) matches a configured decap port
+-  The outer header destination IP of the traffic does not matches the locally configured decapsulation address(DUT-DECAP-Address), therefore it does not match the decapsulation criteria for the destination IP
+-  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer destination IP address and forward the packets as standard IP traffic
+-  ATE Port 2 receives 1000000 packets
+-  No packet loss should be observed
+
+### PF-1.22.3: GUE Decapsulation over non-matching UDP decap port [Negative]
+- Configure the DUT and ATE as stated above
+- Repeat the test for flow-type#13 and flow-type#14 (one at a time)
+- Validations:
+-  The outer header destination IP of the traffic matches a configured decap IP address
+-  The outer header destination UDP port (6085) of the traffic does not matches the locally configured decapsulation port(6080), therefore it does not match the decapsulation criteria for the destination port
+-  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
+-  The DUT decapsulation counters should not increment for this flow
+-  The drop counters will reflect the packets to 1000000
+-  100% packet loss should be observed on ATE Port 2
+
+### PF-1.22.4: Randomize the L4 source port field in immediate next header to outer header and verify load-balance behavior
 - Configure the DUT and ATE as stated above
 - L4 source port of inner/middle header(immediate next header to outer header) should be randomized for each flow-type thats running
 - Initiate a flow-type and follow the below stated and applicable verification steps
@@ -187,7 +219,7 @@ B7 <-- EBGP --> N4;
     - Flow validations are same as captured in sub-test#PF-1.22.1
     - Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field 
 
-### PF-1.22.3: Randomize the L4 source port field and SIP in immediate next header to outer header (middle header) and verify load-balance behavior [Applicable to Packet#1 and Packet#6]
+### PF-1.22.5: Randomize the L4 source port field and SIP in immediate next header to outer header (middle header) and verify load-balance behavior [Applicable to Packet#1 and Packet#6]
 - Configure the DUT and ATE as stated above
 - L4 source port of middle header(immediate next header to outer header) should be randomized for each flow-type that's running
 - SIP(immediate next header to outer header) should be randomized between ATE1LO[1-10] addresses for each flow-type that's running
@@ -199,7 +231,7 @@ B7 <-- EBGP --> N4;
     -  No packet loss should be observed
     -  Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field
 
-### PF-1.22.4: Randomize the L4 source port field and SIP in immediate next header to outer header (inner header) and verify load-balance behavior [NA to Packet#1 and Packet#6]
+### PF-1.22.6: Randomize the L4 source port field and SIP in immediate next header to outer header (inner header) and verify load-balance behavior [NA to Packet#1 and Packet#6]
 - Configure the DUT and ATE as stated above
 - L4 source port of inner header should be randomized for each flow-type that's running
 - SIP of inner header should be randomized between the v4/v6 prefixes advertised by H1 for each flow-type that's running
