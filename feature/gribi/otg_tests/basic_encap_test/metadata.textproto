@@ -22,7 +22,6 @@ platform_exceptions:  {
     vendor: JUNIPER
   }
   deviations:  {
-    ttl_copy_unsupported: true
   }
 }
 platform_exceptions:  {
@@ -45,7 +44,6 @@ platform_exceptions:  {
     interface_enabled: true
     explicit_interface_in_default_vrf: true
     static_protocol_name: "static"
-    ttl_copy_unsupported: true
   }
 }
 tags:  TAGS_DATACENTER_EDGE

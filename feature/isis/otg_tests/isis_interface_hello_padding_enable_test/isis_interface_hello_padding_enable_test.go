@@ -74,7 +74,6 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	// Level configs.
 	level := isis.GetOrCreateLevel(2)
 	level.LevelNumber = ygot.Uint8(2)
-	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
 	// Authentication configs.
 	auth := level.GetOrCreateAuthentication()
@@ -89,6 +88,7 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 		intfName += ".0"
 	}
 	intf := isis.GetOrCreateInterface(intfName)
+	intf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 
 	// Interface timers.
 	isisIntfTimers := intf.GetOrCreateTimers()
@@ -112,14 +112,16 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevelTimers.HelloInterval = ygot.Uint32(5)
 	isisIntfLevelTimers.HelloMultiplier = ygot.Uint8(3)
 
-	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
-	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v6Metric)
 	if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
 		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
 		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
 	}
+	if !deviations.ISISInterfaceAfiUnsupported(ts.DUT) {
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	}
+	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
+	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v6Metric)
 }
 
 // configureOTG configures isis and traffic on OTG.
@@ -398,7 +400,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 		t.Run("Traffic checks", func(t *testing.T) {
 			t.Logf("Starting traffic")
 			otg.StartTraffic(t)
-			time.Sleep(time.Second * 15)
+			time.Sleep(time.Second * 30)
 			t.Logf("Stop traffic")
 			otg.StopTraffic(t)
 
