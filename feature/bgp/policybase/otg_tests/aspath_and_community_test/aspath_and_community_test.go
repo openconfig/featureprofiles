@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6 string, aspathMatch []string, communityMatch, aspathSetName, communitySetName string, commMatchSetOptions, aspMatchSetOptions oc.E_RoutingPolicy_MatchSetOptionsType) {
+func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6 string, aspathMatch []string, communityMatch, aspathSetName, communitySetName string, commMatchSetOptions oc.E_BgpPolicy_MatchSetOptionsType, aspMatchSetOptions oc.E_RoutingPolicy_MatchSetOptionsType) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	pdef1 := rp.GetOrCreatePolicyDefinition(ImpPolicy)
