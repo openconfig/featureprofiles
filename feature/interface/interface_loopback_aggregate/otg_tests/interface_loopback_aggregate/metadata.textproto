@@ -15,14 +15,6 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    interface_loopback_mode_raw_gnmi: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: JUNIPER
   }
   deviations: {
