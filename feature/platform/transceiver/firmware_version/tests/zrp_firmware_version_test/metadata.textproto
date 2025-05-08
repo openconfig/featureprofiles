@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "aa5d6c79-e7e8-4783-bb30-e1331a4e956f"
+plan_id: "TRANSCEIVER-3 (400ZR_PLUS)"
+description: "Telemetry: 400ZR_PLUS Optics firmware version streaming"
+testbed: TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}
