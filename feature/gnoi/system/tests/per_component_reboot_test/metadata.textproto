@@ -1,4 +1,4 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "7c282986-8100-416a-9364-1893ae9df055"
@@ -13,5 +13,14 @@ platform_exceptions: {
     gnoi_fabric_component_reboot_unsupported: true
     gnoi_subcomponent_path: true
     gnoi_subcomponent_reboot_status_unsupported: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
   }
 }
