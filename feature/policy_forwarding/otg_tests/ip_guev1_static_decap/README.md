@@ -1,4 +1,4 @@
-# PF-1.4: Static GUEv1 Decapsulation to IPv4 or IPv6 payload
+# PF-1.4: Static GUEv1 Decapsulation over decap subnet range, decap TTL and DSCP behavior test
 
 ## Summary
 
@@ -6,7 +6,7 @@ This is to test the functionality of decapsulation of static GUEv1 to IPv4 or IP
 
 The tests validate that the DUT performs the following action-
 
- - Decapsulate the outer (UDPoIPv4) headers of GUE packets destined to the locally configured decap IPv4 address/addresses and matching UDP port. 
+ - Decapsulate the outer (UDPoIPv4) headers of GUE packets destined to the locally configured decap IPv4 over DECAP subnet range and matching UDP port. 
  - Decapsulate the packet only if it matches the locally configured decap IPv4 address/addresses and matching UDP port port/port-range.
  - Post decapsulation the DUT should 
 	- Maintain the inner TTL (do not copy outer TTL to the inner TTL)
@@ -14,7 +14,7 @@ The tests validate that the DUT performs the following action-
  - Post decapsulation, the inner TTL value will be decremented before egressing to next-hop
  - Traffic not subject to match criteria will be forwared using the traditional IP forwarding.
 
- Comprehensive ECMP hashing test for GUE flows with IPv4|UDP outer header on decapsulation node is documented in [#4135](https://github.com/openconfig/featureprofiles/pull/4135)
+ Comprehensive GUEv1 decapsulation and ECMP hashing test for GUE flows with IPv4|UDP outer header on decapsulation node is documented in [#4135](https://github.com/openconfig/featureprofiles/pull/4135)
 
 ## Procedure
 
@@ -103,7 +103,7 @@ Traffic:
      -  Keep the frame size Internet Mix.
    
   
-### PF-1.4.1: GUE Decapsulation of inner IPv4 traffic using non-default and configured GUE UDP port
+### PF-1.4.1: GUE Decapsulation of inner IPv4 traffic over DECAP subnet range
 -  Push DUT configuration
 -  Initiate traffic flow type#1
 Verification:
@@ -118,7 +118,7 @@ Verification:
 -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#2
 -  No packet loss should be observed
 
-### PF-1.4.2: GUE Decapsulation of inner IPv6 traffic using non-default and configured GUE UDP port
+### PF-1.4.2: GUE Decapsulation of inner IPv6 traffic over DECAP subnet range
 -  Push DUT configuration.
 -  Initiate traffic flow type#2
 Verification:
