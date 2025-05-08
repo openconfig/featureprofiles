@@ -16,8 +16,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     missing_value_for_defaults: true
-    skip_set_rp_match_set_options: true
-    bgp_community_set_refs_unsupported: true
     bgp_community_member_is_a_string: true
     skip_bgp_send_community_type: true
   }
@@ -45,5 +43,14 @@ platform_exceptions: {
     explicit_interface_in_default_vrf:  true
     interface_enabled:  true
     skip_bgp_send_community_type: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_rib_oc_path_unsupported:  true
+    bgp_aspathset_unsupported: true
   }
 }

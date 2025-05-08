@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	log "github.com/golang/glog"
@@ -26,6 +27,7 @@ import (
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // RunTests initializes the appropriate binding and runs the tests.
@@ -42,6 +44,7 @@ func RunTests(m *testing.M) {
 	if err := initMetadata(); err != nil {
 		log.Errorf("Unable to initialize test metadata: %v", err)
 	}
+	ygnmi.WithDatapointValidator(datapointValidator)
 	ondatra.RunTests(m, binding.New)
 }
 
@@ -68,14 +71,17 @@ func initMetadata() error {
 func testbedPathFromMetadata() (string, error) {
 	testbed := metadata.Get().Testbed
 	testbedToFile := map[mpb.Metadata_Testbed]string{
-		mpb.Metadata_TESTBED_DUT:                "dut.testbed",
-		mpb.Metadata_TESTBED_DUT_DUT_4LINKS:     "dutdut.testbed",
-		mpb.Metadata_TESTBED_DUT_ATE_2LINKS:     "atedut_2.testbed",
-		mpb.Metadata_TESTBED_DUT_ATE_4LINKS:     "atedut_4.testbed",
-		mpb.Metadata_TESTBED_DUT_ATE_9LINKS_LAG: "atedut_9_lag.testbed",
-		mpb.Metadata_TESTBED_DUT_DUT_ATE_2LINKS: "dutdutate.testbed",
-		mpb.Metadata_TESTBED_DUT_ATE_8LINKS:     "atedut_8.testbed",
-		mpb.Metadata_TESTBED_DUT_400ZR:          "dut_400zr.testbed",
+		mpb.Metadata_TESTBED_DUT:                   "dut.testbed",
+		mpb.Metadata_TESTBED_DUT_DUT_4LINKS:        "dutdut.testbed",
+		mpb.Metadata_TESTBED_DUT_ATE_2LINKS:        "atedut_2.testbed",
+		mpb.Metadata_TESTBED_DUT_ATE_4LINKS:        "atedut_4.testbed",
+		mpb.Metadata_TESTBED_DUT_ATE_9LINKS_LAG:    "atedut_9_lag.testbed",
+		mpb.Metadata_TESTBED_DUT_DUT_ATE_2LINKS:    "dutdutate.testbed",
+		mpb.Metadata_TESTBED_DUT_ATE_8LINKS:        "atedut_8.testbed",
+		mpb.Metadata_TESTBED_DUT_400ZR:             "dut_400zr.testbed",
+		mpb.Metadata_TESTBED_DUT_400ZR_PLUS:        "dut_400zr_plus.testbed",
+		mpb.Metadata_TESTBED_DUT_400ZR_100G_4LINKS: "dut_400zr_100g_4links.testbed",
+		mpb.Metadata_TESTBED_DUT_400FR_100G_4LINKS: "dut_400fr_100g_4links.testbed",
 	}
 	testbedFile, ok := testbedToFile[testbed]
 	if !ok {
@@ -86,4 +92,22 @@ func testbedPathFromMetadata() (string, error) {
 		return "", err
 	}
 	return filepath.Join(rootPath, "topologies", testbedFile), nil
+}
+
+// datapointValidator is a ygnmi.ValidateFn that validates the timestamp of an input datapoint.
+// It is called for each gNMI datapoint (<timestamp, path, value> tuple) received by any test that
+// uses the ONDATRA gnmi library.
+func datapointValidator(dp *ygnmi.DataPoint) error {
+	// Validate the timestamp
+	if !dp.Timestamp.IsZero() {
+		ns := dp.Timestamp.UnixNano()
+		if len(strconv.FormatInt(ns, 10)) != 19 {
+			return fmt.Errorf("datapoint timestamp %v does not have nanosecond accuracy", dp.Timestamp)
+		}
+		if dp.RecvTimestamp.Before(dp.Timestamp) {
+			return fmt.Errorf("datapoint receive timestamp %v is before notification timestamp %v", dp.RecvTimestamp, dp.Timestamp)
+		}
+	}
+
+	return nil
 }
