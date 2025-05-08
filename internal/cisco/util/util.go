@@ -810,6 +810,10 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	time.Sleep(35 * time.Second)
 	// update dut interface after enabling the interface
 	dutInterfaces = getAllInterfaces(t, dut)
+	t.Logf("DUT interface list: %v", dutInterfaces)
+	time.Sleep(35 * time.Second)
+	// update dut interface after enabling the interface
+	dutInterfaces = getAllInterfaces(t, dut)
 
 	// Get only enabled interfaces of DUT
 	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)
