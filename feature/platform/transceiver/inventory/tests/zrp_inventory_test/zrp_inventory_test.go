@@ -201,10 +201,6 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 	for _, p := range dut.Ports() {
 		tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 		gnmi.Update(t, dut, gnmi.OC().Component(p.Name()).Name().Config(), p.Name())
-				setConfigLeaf := gnmi.OC().Component(tr)
-		gnmi.Update(t, dut, setConfigLeaf.Config(), &oc.Component{
-			Name: ygot.String(tr),
-		})
 		gnmi.Update(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), true)
 	}
 	// Wait for channels to be up.
