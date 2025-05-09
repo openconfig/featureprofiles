@@ -312,6 +312,7 @@ func parseTrapStats(t *testing.T, output string) ([]trapStats, error) {
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
+	// TODO: Add traffic drop check for other vendors
 	if dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
