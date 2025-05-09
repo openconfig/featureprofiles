@@ -229,7 +229,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
 // Additionally, it configures LocalPreference, ASPathprepend and MED as part of the BGP policy.
-func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
+func configureBGPPolicy(d *oc.Root, dut *ondatra.DUTDevice) (*oc.RoutingPolicy, error) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
 	pset.GetOrCreatePrefix(ipPrefixSet, prefixSubnetRange)
@@ -287,7 +287,9 @@ func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	}
 	actions6 := stmt.GetOrCreateActions()
 	actions6.GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
-	actions6.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	if !deviations.BgpSetMedV7Unsupported(dut) {
+		actions6.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
 	actions6.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	return rp, nil
@@ -609,7 +611,7 @@ func TestEstablish(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	d := &oc.Root{}
-	rpl, err := configureBGPPolicy(d)
+	rpl, err := configureBGPPolicy(d, dut)
 	if err != nil {
 		t.Fatalf("Failed to configure BGP Policy: %v", err)
 	}
@@ -721,7 +723,7 @@ func TestBGPPolicy(t *testing.T) {
 			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			d := &oc.Root{}
 			t.Log("Configure BGP Policy with BGP actions on the neighbor")
-			rpl, err := configureBGPPolicy(d)
+			rpl, err := configureBGPPolicy(d, dut)
 			if err != nil {
 				t.Fatalf("Failed to configure BGP Policy: %v", err)
 			}
