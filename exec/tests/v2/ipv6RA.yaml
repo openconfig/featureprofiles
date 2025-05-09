@@ -1,0 +1,15 @@
+name: IPv6_RA
+owners: 
+  - suredhar
+priority: 4
+testbeds: 
+  - 8201-1DUT-1ATE-9PORTS
+tests:
+- name: IPv6_RA
+  path: feature/cisco/interface/ip/ipv6_ND/otg_tes/
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 21000
+  owners: 
+  - suredhar
