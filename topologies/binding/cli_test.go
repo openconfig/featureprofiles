@@ -276,11 +276,11 @@ func TestCLI(t *testing.T) {
 	}
 	t.Log("Test is ready.")
 
-	output, err := f.cli.SendCommand(context.Background(), "xyzzy")
+	res, err := f.cli.RunCommand(context.Background(), "xyzzy")
 	if err != nil {
 		t.Fatalf("Could not execute command: %v", err)
 	}
-	got := strings.Split(output, "\n")
+	got := strings.Split(res.Output(), "\n")
 	want := []string{"exec command: xyzzy", "exec stderr", ""}
 	if diff := cmp.Diff(want, got, cmpSortStrings); diff != "" {
 		t.Errorf("Command output -want, +got:\n%s", diff)

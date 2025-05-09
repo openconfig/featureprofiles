@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -144,7 +145,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
 	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+	eth1.Connection().SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
 		SetPrefix(uint32(atePort1.IPv4Len))
@@ -152,7 +153,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
 	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
+	eth2.Connection().SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
 		SetPrefix(uint32(atePort2.IPv4Len))
@@ -316,8 +317,17 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// Verify the above entries are active through AFT Telemetry.
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+		lastValue, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			return v.IsPresent()
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
+		}
+
+		ipv4, _ := lastValue.Val()
+		if got, want := ipv4.GetPrefix(), ateDstNetCIDR[ip]; got != want {
+			t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
 
@@ -346,8 +356,17 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
 		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
-			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
+		lastValue, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			return v.IsPresent()
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
+		}
+
+		ipv4, _ := lastValue.Val()
+		if got, want := ipv4.GetPrefix(), ateDstNetCIDR[ip]; got != want {
+			t.Fatalf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
 

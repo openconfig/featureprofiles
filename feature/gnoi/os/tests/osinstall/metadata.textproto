@@ -7,9 +7,19 @@ description: "Software Upgrade"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
+    vendor: NOKIA
   }
   deviations: {
-    sw_version_unsupported: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    interface_enabled: true
   }
 }

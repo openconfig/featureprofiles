@@ -13,6 +13,8 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     gribi_mac_override_with_static_arp: true
     interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true    
   }
 }
 platform_exceptions: {
@@ -20,9 +22,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-    explicit_interface_ref_definition: true
     static_protocol_name: "static"
     interface_enabled: true
   }

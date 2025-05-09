@@ -29,7 +29,7 @@ Validate link operational status of Static LAG and LACP.
 *   /interfaces/interface/aggregation/config/min-links
 *   TODO: /lacp/config/system-priority
 *   /lacp/interfaces/interface/config/name
-*   TODO: /lacp/interfaces/interface/config/interval
+*   /lacp/interfaces/interface/config/interval
 *   /lacp/interfaces/interface/config/lacp-mode
 *   TODO: /lacp/interfaces/interface/config/system-id-mac
 *   TODO: /lacp/interfaces/interface/config/system-priority
@@ -40,8 +40,24 @@ Validate link operational status of Static LAG and LACP.
 *   TODO: /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts
 *   TODO:
     /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
-*   TODO: /lacp/interfaces/interface/members/member/state/oper-key
-*   TODO: /lacp/interfaces/interface/members/member/state/partner-id
-*   TODO: /lacp/interfaces/interface/members/member/state/system-id
-*   TODO: /lacp/interfaces/interface/members/member/state/port-num
+*   /lacp/interfaces/interface/name
+*   /lacp/interfaces/interface/state/name
+*   /lacp/interfaces/interface/members/member/interface
+*   /lacp/interfaces/interface/members/member/state/interface
+*   /lacp/interfaces/interface/members/member/state/oper-key
+*   /lacp/interfaces/interface/members/member/state/partner-key
+*   /lacp/interfaces/interface/members/member/state/partner-id
+*   /lacp/interfaces/interface/members/member/state/system-id
+*   /lacp/interfaces/interface/members/member/state/port-num
 *   /interfaces/interface/ethernet/state/aggregate-id
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

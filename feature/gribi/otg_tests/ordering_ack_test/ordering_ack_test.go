@@ -150,7 +150,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
 	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+	eth1.Connection().SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
 		SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
 		SetPrefix(uint32(ateSrc.IPv4Len))
@@ -158,7 +158,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
 	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
+	eth2.Connection().SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
 		SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
 		SetPrefix(uint32(ateDst.IPv4Len))
@@ -185,10 +185,10 @@ func testTraffic(
 	flowipv4.TxRx().Port().
 		SetTxName(ate.Port(t, "port1").ID()).
 		SetRxName(ate.Port(t, "port2").ID())
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().Increment().SetStart(ateDstNetStartIp).SetCount(ateDstNetAddressCount)

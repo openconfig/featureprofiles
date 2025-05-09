@@ -43,7 +43,7 @@ const (
 	minimumMinTime           = 1
 	minimumAvgTime           = 1
 	minimumMaxTime           = 1
-	//StdDeviation would be 0 if we only send 1 ping.
+	// StdDeviation would be 0 if we only send 1 ping.
 	minimumStdDev = 1
 )
 
@@ -178,6 +178,7 @@ func TestGNOIPing(t *testing.T) {
 			Destination: ipv4Addrs[0].GetIp(),
 			Source:      ipv4Addrs[0].GetIp(),
 			L3Protocol:  tpb.L3Protocol_IPV4,
+			Count:       10,
 		},
 		expectedReply: commonExpectedIPv4Reply,
 		expectedStats: commonExpectedReplyStats,
@@ -469,7 +470,7 @@ func TestGNOIPing(t *testing.T) {
 				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.MaxTime, tc.expectedStats.MaxTime)
 			}
 			if summary.StdDev < tc.expectedStats.StdDev && !StdDevZero {
-				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.StdDev, tc.expectedStats.StdDev)
+				t.Errorf("Ping Standard Deviation: got %v, want >= %v", summary.StdDev, tc.expectedStats.StdDev)
 			}
 		})
 	}

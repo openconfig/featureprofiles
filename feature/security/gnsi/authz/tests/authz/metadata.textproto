@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "a5c2d46c-976b-41bd-9fae-3341ce5c1b29"
+plan_id:  "Authz"
+description:  "General Authz (1-4) tests"
+testbed:  TESTBED_DUT_ATE_2LINKS

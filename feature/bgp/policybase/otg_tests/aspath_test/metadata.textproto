@@ -1,0 +1,39 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "f4387453-37e8-4c2b-99c3-24b13cc51fd1"
+plan_id: "RT-7.3"
+description: "BGP Policy AS Path Set"
+testbed: TESTBED_DUT_ATE_2LINKS
+tags: [TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+    default_network_instance: "default"
+    skip_setting_disable_metric_propagation: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    community_member_regex_unsupported: true
+    default_route_policy_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    static_protocol_name: "static"
+    explicit_interface_in_default_vrf: true
+  }
+}

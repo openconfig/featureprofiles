@@ -3,16 +3,8 @@
 
 uuid: "e98e61ec-03cd-4bff-8094-2fc69491962a"
 plan_id: "gNOI-2.1"
-description: "Packet-based Link Qualification"
-testbed: TESTBED_DUT_DUT_4LINKS
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    skip_plq_packets_count_check: true
-  }
-}
+description: "Packet-based Link Qualification on 100G and 400G links"
+testbed: TESTBED_DUT_400ZR_100G_4LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -21,6 +13,8 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     link_qual_wait_after_delete_required: true
+    skip_plq_interface_oper_status_check: true
+    default_network_instance: "default"
   }
 }
 platform_exceptions: {
@@ -29,6 +23,16 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    explicit_port_speed: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    skip_plq_interface_oper_status_check: true
+    plq_reflector_stats_unsupported: true
+    plq_generator_capabilities_max_mtu: 512
+    plq_generator_capabilities_max_pps: 40000000
   }
 }

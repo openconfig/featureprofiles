@@ -2,10 +2,10 @@
 #
 # Create test certificate authority content for feature
 # profile test cases.
-
+#
 # The list of directories of CA contents, also the count of CAs built
 # in each directory.
-DIRS=(01 02 10 1000)
+DIRS=(01 02 10 1000 20000)
 
 # The types of signatures to support for the CA Certs.
 TYPES=(rsa ecdsa)
@@ -20,13 +20,16 @@ RSAKEYLEN=2048
 LIFETIME=3650
 
 # Create RSA and ECDSA CA keys, and associated certificates.
-for d in ${DIRS[@]} ; do 
+for d in ${DIRS[@]} ; do
   if [ ! -d ca-${d} ] ; then
     mkdir ca-${d}
   fi
+  # Create a CA key and certificate for each of the DIRS count of
+  # keys / certs. Do this for each of the TYPES key types.
   for k in $(seq 1 ${d}); do
-    OFFSET=$(printf  "%04i" ${k})
+    OFFSET=$(printf  "%05i" ${k})
     for t in ${TYPES[@]}; do
+      # Generate the appropriate key type keys.
       case ${t} in
         rsa)
           openssl genrsa -out ca-${d}/ca-${OFFSET}-${t}-key.pem ${RSAKEYLEN}
@@ -36,8 +39,9 @@ for d in ${DIRS[@]} ; do
             -out ca-${d}/ca-${OFFSET}-${t}-key.pem -genkey
           ;;
       esac
-      # Create a cert with the fresh key.
+      # Create a cert with the fresh key, require it to be a CA certificate.
       openssl req -new -x509 -nodes -days ${LIFETIME} \
+        -addext basicConstraints=critical,CA:TRUE \
         -key ca-${d}/ca-${OFFSET}-${t}-key.pem \
         -out ca-${d}/ca-${OFFSET}-${t}-cert.pem \
         -subj "/CN=CA ${OFFSET}/C=AQ/ST=NZ/L=NZ/O=OpenConfigFeatureProfiles"
@@ -49,6 +53,11 @@ done
 for d in ${DIRS[@]}; do
   for t in ${TYPES[@]}; do
     cat ca-${d}/ca-*-${t}-cert.pem > ca-${d}/trust_bundle_${d}_${t}.pem
+    CERTS=""
+    for cf in ca-${d}/ca-*-${t}-cert.pem; do
+      CERTS="${CERTS} -certfile ${cf}"
+    done
+    openssl crl2pkcs7 -nocrl ${CERTS} -out ca-${d}/trust_bundle_${d}_${t}.p7b
   done
 done
 
@@ -56,55 +65,46 @@ done
 # Two client and Two server certificates are all that are required per type.
 #   * Create keys per type for each client/server certificate to create.
 #   * Create CSRs per type for each client/server certificate to create.
-#   * Use the CA + extensions config to create the client certificates.
+#   * Use the CA + extensions config to create the client/server certificates.
 #
-# Repeat for the server certificate creation.
 for  d in ${DIRS[@]}; do
   if [ ! -d ca-${d} ] ; then
     mkdir ca-${d}
   fi
   for t in ${TYPES[@]}; do
-    OFFSET=$(printf "%04i" ${d})
+    OFFSET=$(printf "%05i" ${d})
     # Create both client and server cert keys for each type.
+    # use a/b here to signal the required 2 client or server certs/keys.
     for g in a b; do
-      case ${t} in
-        rsa)
-          openssl genrsa -out ca-${d}/client-${t}-${g}-key.pem ${RSAKEYLEN}
-          openssl genrsa -out ca-${d}/server-${t}-${g}-key.pem ${RSAKEYLEN}
-          ;;
-        ecdsa)
-          openssl ecparam -name ${CURVE} \
-            -out ca-${d}/client-${t}-${g}-key.pem -genkey
-          openssl ecparam -name ${CURVE} \
-            -out ca-${d}/server-${t}-${g}-key.pem -genkey
-          ;;
-      esac
+      for cs in client server; do
+        case ${t} in
+          rsa)
+            openssl genrsa -out ca-${d}/${cs}-${t}-${g}-key.pem ${RSAKEYLEN}
+            ;;
+          ecdsa)
+            openssl ecparam -name ${CURVE} \
+              -out ca-${d}/${cs}-${t}-${g}-key.pem -genkey
+            ;;
+        esac
+      done
+    done
 
-      # Create the client and server requests.
-      openssl req -new -key ca-${d}/client-${t}-${g}-key.pem \
-        -out ca-${d}/client-${t}-${g}-req.pem \
-        -config client_cert.cnf
-      openssl req -new -key ca-${d}/server-${t}-${g}-key.pem \
-        -out ca-${d}/server-${t}-${g}-req.pem \
-        -config server_cert.cnf
-
-      # Create the client and server complete certificates.
-      openssl x509 -req -in ca-${d}/client-${t}-${g}-req.pem \
-        -CA ca-${d}/ca-${OFFSET}-${t}-${g}-cert.pem \
-        -CAkey ca-${d}/ca-${OFFSET}-${t}-${g}-key.pem \
-        -out ca-${d}/client-${t}-${g}-cert.pem \
-        -CAcreateserial \
-        -days ${LIFETIME} \
-        -sha256 \
-        -extfile client_cert_ext.cnf
-      openssl x509 -req -in ca-${d}/server-${t}-${g}-req.pem \
-        -CA ca-${d}/ca-${OFFSET}-${t}-${g}-cert.pem \
-        -CAkey ca-${d}/ca-${OFFSET}-${t}-${g}-key.pem \
-        -out ca-${d}/server-${t}-${g}-cert.pem \
-        -CAcreateserial \
-        -days ${LIFETIME} \
-        -sha256 \
-        -extfile server_cert_ext.cnf
+    # Create the client and server requests, for both A and B (the 2 required certs)
+    for cs in client server; do
+      for g in a b ; do
+        openssl req -new -key ca-${d}/${cs}-${t}-${g}-key.pem \
+          -out ca-${d}/${cs}-${t}-${g}-req.pem \
+          -config ${cs}_cert.cnf
+        # Create the client and server complete certificates.
+        openssl x509 -req -in ca-${d}/${cs}-${t}-${g}-req.pem \
+          -CA ca-${d}/ca-${OFFSET}-${t}-cert.pem \
+          -CAkey ca-${d}/ca-${OFFSET}-${t}-key.pem \
+          -out ca-${d}/${cs}-${t}-${g}-cert.pem \
+          -CAcreateserial \
+          -days ${LIFETIME} \
+          -sha256 \
+          -extfile ${cs}_cert_ext.cnf
+       done
     done
   done
 done
