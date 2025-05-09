@@ -255,6 +255,7 @@ type routesParam struct {
 	backupNHG     int
 	tunnelSrcIP   string //
 	addrPerSubnet int
+	segment       string
 }
 
 // BuildVRFConfig creates scale new scale VRF configurations.
@@ -908,16 +909,16 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 						WithIndex(nhID).
 						WithNextHopNetworkInstance(routeParams.nextHopVRF)
 					if routeParams.nextHopType == "encap" {
-						nhEntry.WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)]).
+						nhEntry.WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[((nhgIndex-1)*routeParams.numNHPerNHG+j)%len(batchNextHops)]).
 							WithEncapsulateHeader(fluent.IPinIP)
 					} else if routeParams.nextHopType == "decap" {
 						nhEntry.WithDecapsulateHeader(fluent.IPinIP)
 					} else if routeParams.nextHopType == "decapEncap" {
 						nhEntry.WithDecapsulateHeader(fluent.IPinIP).
 							WithEncapsulateHeader(fluent.IPinIP).
-							WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[j%len(batchNextHops)])
+							WithIPinIP(routeParams.tunnelSrcIP, batchNextHops[((nhgIndex-1)*routeParams.numNHPerNHG+j)%len(batchNextHops)])
 					} else if routeParams.nextHopType == "default" {
-						nhEntry.WithIPAddress(batchNextHops[j%len(batchNextHops)])
+						nhEntry.WithIPAddress(batchNextHops[((nhgIndex-1)*routeParams.numNHPerNHG+j)%len(batchNextHops)])
 					}
 					pe.NHs = append(pe.NHs, nhEntry)
 
@@ -1001,7 +1002,7 @@ func LogGribiInfo(t *testing.T, segment string, gribiInfo []PairedEntries) {
 	}
 }
 
-func TestChains(t *testing.T) {
+func TestChains2(t *testing.T) {
 	// initial setting
 	dut := ondatra.DUT(t, "dut")
 	peer := ondatra.DUT(t, "peer")
@@ -1130,8 +1131,7 @@ func TestChains(t *testing.T) {
 		nextHops:      tunnelDestIPs,
 		nextHopVRF:    vrfTransit,
 		nextHopType:   "encap",
-		startNHIndex:  lastNhIndex + 1, // not used
-		numUniqueNHGs: 200,             //encapNhgcount,
+		numUniqueNHGs: 200, //encapNhgcount,
 		numNHPerNHG:   8,
 		nextHopWeight: generateNextHopWeights(16, 8),
 		tunnelSrcIP:   ipv4OuterSrc111,
@@ -1211,11 +1211,6 @@ func TestChains(t *testing.T) {
 	// only program the first batch
 	entries := configBatches[0]
 
-	// t.Logf("Printing entries for batch 0 with %d entries", len(entries))
-	// for i, entry := range entries {
-	// 	t.Logf("Entry %d: %v", i, entry)
-	// }
-
 	// Program backup entries first
 	t.Logf("Programming backup entries")
 	client.Modify().AddEntry(t, backUpFluentEntries...)
@@ -1231,18 +1226,734 @@ func TestChains(t *testing.T) {
 	}
 
 	t.Logf("Validating encap traffic")
-	validateTrafficFlows(t, tcArgs, getEncapFlowsForBatch(&EncapFlowAttr{encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1}), false, true)
+	validateTrafficFlows(t, tcArgs, getEncapFlowsForBatch(0, "encpA", &EncapFlowAttr{encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1}), false, true)
 
 	t.Logf("Validating variable length prefix decap traffic")
-	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(
-		&DecapFlowAttr{decapWanVp[0].V4Prefixes, encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1}),
+	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(0, "dcapV",
+		&DecapFlowAttr{decapWanVp[0].V4Prefixes, encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1},
+		&DecapFlowAttr{decapWanVp[0].V4Prefixes, encapEntriesB[0].V4Prefixes, encapEntriesB[0].V6Prefixes, dscpEncapB1}),
 		false, true) //&DecapFlowAttr{decapWanPE[0].V4Prefixes, encapEntriesB[0].V4Prefixes, encapEntriesB[0].V6Prefixes, dscpEncapB1}),
 
 	t.Logf("Validating fixed length prefix decap traffic")
-	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(
+	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(0, "dcapF",
 		&DecapFlowAttr{decapWanPE[0].V4Prefixes, encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1},
 		&DecapFlowAttr{decapWanPE[0].V4Prefixes, encapEntriesB[0].V4Prefixes, encapEntriesB[0].V6Prefixes, dscpEncapB1}),
 		false, true)
+}
+
+func TestChains(t *testing.T) {
+	// initial setting
+	dut := ondatra.DUT(t, "dut")
+	peer := ondatra.DUT(t, "peer")
+	otg := ondatra.ATE(t, "ate")
+
+	ctx := context.Background()
+	gribic := dut.RawAPIs().GRIBI(t)
+	client := fluent.NewClient()
+	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
+		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+
+	client.Start(ctx, t)
+	// cleanup all existing gRIBI entries at the end of the test
+	// defer gribi.FlushAll(client)
+	// // cleanup all existing gRIBI entries in the begining of the test
+	if err := gribi.FlushAll(client); err != nil {
+		t.Error(err)
+	}
+	// Wait for the gribi entries get flushed
+	time.Sleep(300 * time.Second)
+	defer client.Stop(t)
+
+	// configureNetworkInstance(t, dut)
+	// t.Log("Configure DUT & PEER devices")
+	configureDevices(t, dut, peer)
+	// t.Log("Configure TGEN OTG")
+	topo := configureOTG(t, otg)
+	t.Log("OTG CONFIG: ", topo)
+	tcArgs := &testArgs{
+		dut:    dut,
+		peer:   peer,
+		ate:    otg,
+		topo:   topo,
+		client: client,
+		ctx:    ctx,
+	}
+	t.Run("Verify default BGP traffic", func(t *testing.T) {
+		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
+		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
+	})
+	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
+	peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
+
+	// add static route on peer for the tunnel destination for encap, decap+encap traffic
+	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
+	t.Log("Program base gRIBI entries")
+
+	//modular configuration begins below
+
+	batches := 2
+	//  single encap tunnel case, 3 decap (1 fixed, 1 variable, one frr2backup), 1 decapEncap (frr1backup) cases
+	// gp := NewGribiProfile(batches, true, true, dut,
+	// 	&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1},
+	// 	&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 1, numNHPerNHG: 1},
+	// 	&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 1, numNHPerNHG: 1},
+	// 	&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 1, numNHPerNHG: 1},
+	// 	&routesParam{segment: "Frr1Level1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1},
+	// 	&routesParam{segment: "Frr1Level2", numUniqueNHGs: 1, numNHPerNHG: 1},
+	// 	&routesParam{segment: "DecapWan", numUniqueNHGs: 1, numNHPerNHG: 1},
+	// 	&routesParam{segment: "DecapWanVar", numUniqueNHGs: 1, numNHPerNHG: 1},
+	// )
+
+	// case 100*8=800 encap, 1 decap, 1 decapEncap, 1 frr2backup, 1 frr1backup
+	gp := NewGribiProfile(batches, true, true, dut,
+		&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1}, //primary path
+		&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 1, numNHPerNHG: 1},
+		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 100, numNHPerNHG: 8},
+		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 100, numNHPerNHG: 8},
+		&routesParam{segment: "Frr1Level1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
+		&routesParam{segment: "Frr1Level2", numUniqueNHGs: 1, numNHPerNHG: 1},
+		&routesParam{segment: "DecapWan", numUniqueNHGs: 1, numNHPerNHG: 1},
+		&routesParam{segment: "DecapWanVar", numUniqueNHGs: 1, numNHPerNHG: 1},
+	)
+
+	client.StartSending(ctx, t)
+	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
+		t.Fatalf("Await got error during session negotiation for client: %v", err)
+	}
+	electionID := gribi.BecomeLeader(t, client)
+	t.Logf("Election ID: %v", electionID)
+
+	gp.pushBatchConfig(t, ctx, client, []int{0})
+	gp.pushBatchConfig(t, ctx, client, []int{1})
+
+	t.Logf("Validating encap traffic")
+	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1})
+
+	t.Logf("Validating variable length prefix decap traffic")
+	testDecapTrafficFlows(t, tcArgs, gp, []int{0, 1})
+}
+
+func testEncapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int) {
+	flows := []gosnappi.Flow{}
+	for _, batch := range batchSet {
+		if gp.EncapEntriesA != nil && len(gp.EncapEntriesA[batch].V4Prefixes) > 0 {
+			flows = append(flows, getEncapFlowsForBatch(batch, "encpA", &EncapFlowAttr{gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1})...)
+		}
+		if gp.EncapEntriesB != nil && len(gp.EncapEntriesB[batch].V4Prefixes) > 0 {
+			flows = append(flows, getEncapFlowsForBatch(batch, "encpB", &EncapFlowAttr{gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+		}
+		if gp.EncapEntriesC != nil && len(gp.EncapEntriesC[batch].V4Prefixes) > 0 {
+			flows = append(flows, getEncapFlowsForBatch(batch, "encpC", &EncapFlowAttr{gp.EncapEntriesC[batch].V4Prefixes, gp.EncapEntriesC[batch].V6Prefixes, dscpEncapA1})...)
+		}
+		if gp.EncapEntriesD != nil && len(gp.EncapEntriesD[batch].V4Prefixes) > 0 {
+			flows = append(flows, getEncapFlowsForBatch(batch, "encpD", &EncapFlowAttr{gp.EncapEntriesD[batch].V4Prefixes, gp.EncapEntriesD[batch].V6Prefixes, dscpEncapB1})...)
+		}
+	}
+	validateTrafficFlows(t, tcArgs, flows, false, true)
+}
+
+func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int) {
+	flows := []gosnappi.Flow{}
+	for _, batch := range batchSet {
+		if gp.DecapWanEntries != nil && len(gp.DecapWanEntries[batch].V4Prefixes) > 0 {
+			flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+				&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1},
+				&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+		}
+		if gp.DecapWanVarEntries != nil && len(gp.DecapWanVarEntries[batch].V4Prefixes) > 0 {
+			flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
+				&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1},
+				&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+		}
+	}
+	validateTrafficFlows(t, tcArgs, flows, false, true)
+}
+
+type coniguredBatches struct {
+	m          sync.Mutex
+	conBatches []int
+}
+
+func (c *coniguredBatches) useBatch(batchSet []int) {
+	c.m.Lock()
+	defer c.m.Unlock()
+	for _, b := range batchSet {
+		exists := false
+		for _, existing := range c.conBatches {
+			if existing == b {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			c.conBatches = append(c.conBatches, b)
+		}
+	}
+}
+
+func (c *coniguredBatches) getBatches() []int {
+	c.m.Lock()
+	defer c.m.Unlock()
+	return c.conBatches
+}
+
+func (c *coniguredBatches) freeBatch(batchSet []int) {
+	c.m.Lock()
+	defer c.m.Unlock()
+	for _, b := range batchSet {
+		for i, existing := range c.conBatches {
+			if existing == b {
+				c.conBatches = append(c.conBatches[:i], c.conBatches[i+1:]...)
+				break
+			}
+		}
+	}
+}
+
+func (gp *GribiProfile) pushBatchConfig(t *testing.T, ctx context.Context, client *fluent.GRIBIClient, batchSet []int) {
+	if len(batchSet) > gp.batches {
+		t.Error("batchSet is greater than total configuration batches")
+	} else {
+		// only program the first batch
+		entries := []fluent.GRIBIEntry{}
+		for _, batch := range batchSet {
+			entries = append(entries, gp.ConmbinedPairedEntries[batch]...)
+		}
+		if gp.useBackups {
+			t.Logf("Programming backup entries")
+			client.Modify().AddEntry(t, gp.backUpFluentEntries...)
+			if err := awaitTimeout(ctx, client, t, 1*time.Minute); err != nil {
+				t.Fatalf("Could not program entries, got err: %v", err)
+			}
+		}
+		// Program the entries
+		t.Logf("Programming %d entries", len(entries))
+		client.Modify().AddEntry(t, entries...)
+		if err := awaitTimeout(ctx, client, t, aftProgTimeout); err != nil {
+			t.Fatalf("Could not program entries, got err: %v", err)
+		}
+		gp.usedBatches.useBatch(batchSet)
+	}
+}
+
+func (gp *GribiProfile) DeleteBatchConfig(t *testing.T, ctx context.Context, client *fluent.GRIBIClient, batchSet []int) {
+	if len(batchSet) > gp.batches {
+		t.Error("batchSet is greater than total configuration batches")
+	} else {
+		// only program the first batch
+		entries := []fluent.GRIBIEntry{}
+		for _, batch := range batchSet {
+			entries = append(entries, gp.ConmbinedPairedEntries[batch]...)
+		}
+		// Program the entries
+		t.Logf("Deleting %d entries", len(entries))
+		client.Modify().DeleteEntry(t, entries...)
+		gp.usedBatches.freeBatch(batchSet)
+	}
+}
+
+type GribiProfile struct {
+	PrimaryLevel1          *routesParam
+	PrimaryLevel2          *routesParam
+	PrimaryLevel3A         *routesParam
+	PrimaryLevel3B         *routesParam
+	PrimaryLevel3C         *routesParam
+	PrimaryLevel3D         *routesParam
+	Frr1Level1             *routesParam
+	Frr1Level2             *routesParam
+	DecapWan               *routesParam
+	DecapWanVar            *routesParam
+	backUpFluentEntries    []fluent.GRIBIEntry
+	batches                int
+	usedBatches            *coniguredBatches
+	PrimaryL1Entries       []PairedEntries
+	PrimaryL2Entries       []PairedEntries
+	Frr1L1Entries          []PairedEntries
+	Frr1L2Entries          []PairedEntries
+	EncapEntriesA          []PairedEntries
+	EncapEntriesB          []PairedEntries
+	EncapEntriesC          []PairedEntries
+	EncapEntriesD          []PairedEntries
+	DecapWanEntries        []PairedEntries
+	DecapWanVarEntries     []PairedEntries
+	ConmbinedPairedEntries [][]fluent.GRIBIEntry
+	useBackups             bool
+}
+
+func (gp *GribiProfile) GetNonEmptyRoutesParams() []*routesParam {
+	var nonEmptyParams []*routesParam
+
+	// Check each field in the GribiProfile for non-nil and non-empty ipEntries
+	if gp.PrimaryLevel1 != nil && len(gp.PrimaryLevel1.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel1)
+	}
+	if gp.PrimaryLevel2 != nil && len(gp.PrimaryLevel2.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel2)
+	}
+	if gp.PrimaryLevel3A != nil && len(gp.PrimaryLevel3A.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel3A)
+	}
+	if gp.PrimaryLevel3B != nil && len(gp.PrimaryLevel3B.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel3B)
+	}
+	if gp.PrimaryLevel3C != nil && len(gp.PrimaryLevel3C.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel3C)
+	}
+	if gp.PrimaryLevel3D != nil && len(gp.PrimaryLevel3D.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel3D)
+	}
+	if gp.Frr1Level1 != nil && len(gp.Frr1Level1.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.Frr1Level1)
+	}
+	if gp.Frr1Level2 != nil && len(gp.Frr1Level2.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.Frr1Level2)
+	}
+	if gp.DecapWan != nil && len(gp.DecapWan.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.DecapWan)
+	}
+	if gp.DecapWanVar != nil && len(gp.DecapWanVar.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.DecapWanVar)
+	}
+
+	return nonEmptyParams
+}
+
+//	func (g *GribiProfile) AddEntry(t *testing.T, entries ...fluent.GRIBIEntry) {
+//		client := fluent.NewClient()
+//		client.Connection().WithStub(dut.RawAPIs().GRIBI(t)).WithPersistence().WithInitialElectionID(1, 0).
+//			WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+//		client.Start(context.Background(), t)
+//		defer client.Stop(t)
+//		client.Modify().AddEntry(t, entries...)
+//	}
+func NewGribiProfile(batches int, frr1bkp bool, frr2bkp bool, dut *ondatra.DUTDevice, rp ...*routesParam) *GribiProfile {
+	gp := &GribiProfile{}
+	if frr1bkp || frr2bkp {
+		gp.useBackups = true
+	} else {
+		gp.useBackups = false
+	}
+
+	gp.batches = batches
+	gp.backUpFluentEntries = []fluent.GRIBIEntry{}
+
+	nhID := GlobalIDPool.NextNHID()
+	nhgDecapToDefault := GlobalIDPool.NextNHGID()
+	gp.backUpFluentEntries = append(gp.backUpFluentEntries,
+		fluent.NextHopEntry().WithIndex(nhID).WithDecapsulateHeader(fluent.IPinIP).WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
+	gp.backUpFluentEntries = append(gp.backUpFluentEntries,
+		fluent.NextHopGroupEntry().WithID(nhgDecapToDefault).AddNextHop(nhID, 1).WithNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
+
+	// backup used in FRR1 case
+	nhgRedirectToVrfR := GlobalIDPool.NextNHGID()
+	nhID = GlobalIDPool.NextNHID()
+	// build backup NHG and NH.
+	gp.backUpFluentEntries = append(gp.backUpFluentEntries,
+		fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithNextHopNetworkInstance(VRFR),
+	)
+	gp.backUpFluentEntries = append(gp.backUpFluentEntries,
+		fluent.NextHopGroupEntry().WithID(nhgRedirectToVrfR).AddNextHop(nhID, 1).WithNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
+
+	for _, p := range rp {
+		if p.segment == "PrimaryLevel1" {
+			if p.ipEntries == nil {
+				p.ipEntries = vipIPs
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "default"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = L1Nhg
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = L1NhPerNHG
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(64, 8)
+			}
+			gp.PrimaryLevel1 = p
+			gp.PrimaryL1Entries = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "PrimaryLevel2" {
+			// ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6800 in final
+			// prefixVRF:     vrfTransit,
+			// nextHops:      vipIPs, // VIP addresses
+			// nextHopVRF:    deviations.DefaultNetworkInstance(dut),
+			// nextHopType:   "default",
+			// numUniqueNHGs: L2Nhg, // 256
+			// numNHPerNHG:   2,     // each prefix uses a NHG with 2 NHs
+			// nextHopWeight: generateNextHopWeights(256, L2NhPerNHG),
+			// backupNHG:     int(nhgRedirectToVrfR),
+			if p.ipEntries == nil {
+				p.ipEntries = tunnelDestIPs
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = vrfTransit
+			}
+			if p.nextHops == nil {
+				p.nextHops = vipIPs
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "default"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = L2Nhg
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 2
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(256, L2NhPerNHG)
+			}
+			if p.backupNHG == 0 && frr1bkp {
+				p.backupNHG = int(nhgRedirectToVrfR)
+			}
+			gp.PrimaryLevel2 = p
+			gp.PrimaryL2Entries = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "PrimaryLevel3A" {
+			// ipEntries:     encapVrfAIPv4Enries,
+			// ipv6Entries:   encapVrfAIPv6Enries,
+			// prefixVRF:     vrfEncapA,
+			// nextHops:      tunnelDestIPs,
+			// nextHopVRF:    vrfTransit,
+			// nextHopType:   "encap",
+			// startNHIndex:  lastNhIndex + 1, // not used
+			// numUniqueNHGs: 200,             //encapNhgcount,
+			// numNHPerNHG:   8,
+			// nextHopWeight: generateNextHopWeights(16, 8),
+			// tunnelSrcIP:   ipv4OuterSrc111,
+			if p.ipEntries == nil {
+				p.ipEntries = encapVrfAIPv4Enries
+			}
+			if p.ipv6Entries == nil {
+				p.ipv6Entries = encapVrfAIPv6Enries
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = vrfEncapA
+			}
+			if p.nextHops == nil {
+				p.nextHops = tunnelDestIPs
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = vrfTransit
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "encap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = 200
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 8
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(16, 8)
+			}
+			if p.tunnelSrcIP == "" {
+				p.tunnelSrcIP = ipv4OuterSrc111
+			}
+			gp.PrimaryLevel3A = p
+			gp.EncapEntriesA = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "PrimaryLevel3B" {
+			// ipEntries:     encapVrfBIPv4Enries,
+			// ipv6Entries:   encapVrfBIPv6Enries,
+			// prefixVRF:     vrfEncapB,
+			// nextHops:      tunnelDestIPs,
+			// nextHopVRF:    vrfTransit,
+			// nextHopType:   "encap",
+			// numUniqueNHGs: 200, //encapNhgcount,
+			// numNHPerNHG:   8,
+			// nextHopWeight: generateNextHopWeights(16, 8),
+			// tunnelSrcIP:   ipv4OuterSrc111,
+			if p.ipEntries == nil {
+				p.ipEntries = encapVrfBIPv4Enries
+			}
+			if p.ipv6Entries == nil {
+				p.ipv6Entries = encapVrfBIPv6Enries
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = vrfEncapB
+			}
+			if p.nextHops == nil {
+				p.nextHops = tunnelDestIPs
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = vrfTransit
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "encap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = 200
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 8
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(16, 8)
+			}
+			if p.tunnelSrcIP == "" {
+				p.tunnelSrcIP = ipv4OuterSrc111
+			}
+			gp.PrimaryLevel3B = p
+			gp.EncapEntriesB = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "PrimaryLevel3C" {
+			// ipEntries:     encapVrfCIPv4Enries,
+			// ipv6Entries:   encapVrfCIPv6Enries,
+			// prefixVRF:     vrfEncapC,
+			// nextHops:      tunnelDestIPs,
+			// nextHopVRF:    vrfTransit,
+			// nextHopType:   "encap",
+			// numUniqueNHGs: 200, //encapNhgcount,
+			// numNHPerNHG:   8,
+			// nextHopWeight: generateNextHopWeights(16, 8),
+			// tunnelSrcIP:   ipv4OuterSrc222,
+			if p.ipEntries == nil {
+				p.ipEntries = encapVrfCIPv4Enries
+			}
+			if p.ipv6Entries == nil {
+				p.ipv6Entries = encapVrfCIPv6Enries
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = vrfEncapC
+			}
+			if p.nextHops == nil {
+				p.nextHops = tunnelDestIPs
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = vrfTransit
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "encap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = 200
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 8
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(16, 8)
+			}
+			if p.tunnelSrcIP == "" {
+				p.tunnelSrcIP = ipv4OuterSrc222
+			}
+			gp.PrimaryLevel3C = p
+			gp.EncapEntriesC = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "PrimaryLevel3D" {
+			// ipEntries:     encapVrfDIPv4Enries,
+			// ipv6Entries:   encapVrfDIPv6Enries,
+			// prefixVRF:     vrfEncapD,
+			// nextHops:      tunnelDestIPs,
+			// nextHopVRF:    vrfTransit,
+			// nextHopType:   "encap",
+			// numUniqueNHGs: 200, //encapNhgcount,
+			// numNHPerNHG:   8,
+			// nextHopWeight: generateNextHopWeights(16, 8),
+			// tunnelSrcIP:   ipv4OuterSrc222,
+			if p.ipEntries == nil {
+				p.ipEntries = encapVrfDIPv4Enries
+			}
+			if p.ipv6Entries == nil {
+				p.ipv6Entries = encapVrfDIPv6Enries
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = vrfEncapD
+			}
+			if p.nextHops == nil {
+				p.nextHops = tunnelDestIPs
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = vrfTransit
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "encap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = 200
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 8
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(16, 8)
+			}
+			if p.tunnelSrcIP == "" {
+				p.tunnelSrcIP = ipv4OuterSrc222
+			}
+			gp.PrimaryLevel3D = p
+			gp.EncapEntriesD = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "Frr1Level1" {
+			// ipEntries:     vipFrr1IPs, // 512 VIP prefixes
+			// prefixVRF:     deviations.DefaultNetworkInstance(dut),
+			// nextHops:      peerNHIP, // peer or otg prefixes
+			// nextHopVRF:    deviations.DefaultNetworkInstance(dut),
+			// nextHopType:   "default",
+			// numUniqueNHGs: L1Nhg,      // 512
+			// numNHPerNHG:   L1NhPerNHG, //8
+			// nextHopWeight: generateNextHopWeights(64, 8),
+			if p.ipEntries == nil {
+				p.ipEntries = vipFrr1IPs
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHops == nil {
+				// p.nextHops = peerNHIP
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "default"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = L1Nhg
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = L1NhPerNHG
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(64, 8)
+			}
+			gp.Frr1Level1 = p
+			gp.Frr1L1Entries = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "Frr1Level2" {
+			// ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6800 in final
+			// prefixVRF:     VRFR,
+			// nextHops:      vipFrr1IPs, // VIP addresses. Tunnel Dest IPs are same as VIPs
+			// nextHopVRF:    deviations.DefaultNetworkInstance(dut),
+			// nextHopType:   "decapEncap",
+			// numUniqueNHGs: L2Nhg,      // 256
+			// numNHPerNHG:   L2NhPerNHG, // 8
+			// nextHopWeight: generateNextHopWeights(256, L2NhPerNHG),
+			// backupNHG:     int(nhgDecapToDefault),
+			// tunnelSrcIP:   ipv4OuterSrc222,
+			if p.ipEntries == nil {
+				p.ipEntries = tunnelDestIPs
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = VRFR
+			}
+			if p.nextHops == nil {
+				p.nextHops = vipFrr1IPs
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "decapEncap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = L2Nhg
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = L2NhPerNHG
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(256, L2NhPerNHG)
+			}
+			if p.backupNHG == 0 && frr2bkp {
+				p.backupNHG = int(nhgDecapToDefault)
+			}
+			if p.tunnelSrcIP == "" {
+				p.tunnelSrcIP = ipv4OuterSrc222
+			}
+			gp.Frr1Level2 = p
+			gp.Frr1L2Entries = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "DecapWan" {
+			// ipEntries:     iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount),
+			// prefixVRF:     niDecapTeVrf,
+			// nextHops:      []string{}, // not used for decap
+			// nextHopVRF:    deviations.DefaultNetworkInstance(dut),
+			// nextHopType:   "decap",
+			// numUniqueNHGs: 1000, //encapNhgcount,
+			// numNHPerNHG:   1,
+			// nextHopWeight: generateNextHopWeights(1, 1),
+			if p.ipEntries == nil {
+				p.ipEntries = iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = niDecapTeVrf
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "decap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = 1000
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 1
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(1, 1)
+			}
+			gp.DecapWan = p
+			gp.DecapWanEntries = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+		if p.segment == "DecapWanVar" {
+			// ipEntries:     getVariableLenSubnets(12, "102.51.100.1/22", "107.51.105.1/24", "112.51.110.1/26", "117.51.115.1/28"),
+			// addrPerSubnet: 1,
+			// prefixVRF:     niDecapTeVrf,
+			// nextHops:      []string{}, // not used for decap
+			// nextHopVRF:    deviations.DefaultNetworkInstance(dut),
+			// nextHopType:   "decap",
+			// numUniqueNHGs: 48,
+			// numNHPerNHG:   1,
+			// nextHopWeight: generateNextHopWeights(1, 1),
+			if p.ipEntries == nil {
+				p.ipEntries = getVariableLenSubnets(12, "102.51.100.1/22", "107.51.105.1/24", "112.51.110.1/26", "117.51.115.1/28")
+			}
+			if p.addrPerSubnet == 0 {
+				p.addrPerSubnet = 1
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = niDecapTeVrf
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = deviations.DefaultNetworkInstance(dut)
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "decap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = 48
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 1
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(1, 1)
+			}
+			gp.DecapWanVar = p
+			gp.DecapWanVarEntries = GetFibSegmentGribiEntries(p, dut, batches)
+		}
+	}
+	gp.ConmbinedPairedEntries = CombinePairedEntries(dut, gp.batches, gp.GetNonEmptyRoutesParams()...)
+	gp.usedBatches = &coniguredBatches{conBatches: []int{}}
+	return gp
 }
 
 type DecapFlowAttr struct {

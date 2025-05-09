@@ -716,7 +716,7 @@ func getDecapFlows(decapEntries []string) []gosnappi.Flow {
 
 // getDecapFlows returns the ipv4inipv4 and ipv6inipv4 flows.
 // func getDecapFlowsForBatch(decapEntries, innerV4Dst, innerV6Dst []string) []gosnappi.Flow {
-func getDecapFlowsForBatch(dfa ...*DecapFlowAttr) []gosnappi.Flow {
+func getDecapFlowsForBatch(batch int, name string, dfa ...*DecapFlowAttr) []gosnappi.Flow {
 
 	var dInV4 = trafficflowAttr{
 		withInnerHeader: true, // flow type
@@ -743,7 +743,7 @@ func getDecapFlowsForBatch(dfa ...*DecapFlowAttr) []gosnappi.Flow {
 			dInV4.innerDst = f.innerV4Dst //encapVrfAIPv4Enries
 			dInV4.innerSrc = otgSrc2.IPv4
 			dInV4.innerDscp = f.dscp
-			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("v4inv4flow%d: %s", j, dscpToString(f.dscp)), f.dscp))
+			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("b%d4in4%s%d:%s", batch, name, j, dscpToString(f.dscp)), f.dscp))
 		}
 		// create ipv6inipv4 flow
 		if len(f.innerV6Dst) > 0 {
@@ -752,7 +752,7 @@ func getDecapFlowsForBatch(dfa ...*DecapFlowAttr) []gosnappi.Flow {
 			dInV4.innerDst = f.innerV6Dst //encapVrfAIPv6Enries
 			dInV4.innerSrc = otgSrc2.IPv6
 			dInV4.innerDscp = f.dscp
-			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("v6inv4flow%d: %s", j+1, dscpToString(f.dscp)), f.dscp))
+			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("b%d6in4%s%d:%s", batch, name, j+1, dscpToString(f.dscp)), f.dscp))
 		}
 	}
 	return flows
@@ -789,7 +789,7 @@ func dscpToString(dscp uint32) string {
 	}
 }
 
-func getEncapFlowsForBatch(efa ...*EncapFlowAttr) []gosnappi.Flow {
+func getEncapFlowsForBatch(batch int, name string, efa ...*EncapFlowAttr) []gosnappi.Flow {
 
 	// encap flow attribute
 	var enFa = trafficflowAttr{
@@ -814,7 +814,7 @@ func getEncapFlowsForBatch(efa ...*EncapFlowAttr) []gosnappi.Flow {
 			enFa.srcPort = []string{lagName1 + ".IPv4"}
 			enFa.outerSrc = v4DefaultSrc
 			enFa.outerDst = f.outerV4Dst
-			flows = append(flows, enFa.createTrafficFlow(fmt.Sprintf("ipv4flow%d: %s", j, dscpToString(f.dscp)), f.dscp))
+			flows = append(flows, enFa.createTrafficFlow(fmt.Sprintf("b%dipv4%s%d:%s", batch, name, j, dscpToString(f.dscp)), f.dscp))
 
 		}
 
@@ -823,7 +823,7 @@ func getEncapFlowsForBatch(efa ...*EncapFlowAttr) []gosnappi.Flow {
 			enFa.srcPort = []string{lagName1 + ".IPv6"}
 			enFa.outerSrc = innerSrcIPv6Start
 			enFa.outerDst = f.outerV6Dst
-			flows = append(flows, enFa.createTrafficFlow(fmt.Sprintf("ipv6flow%d: %s", j, dscpToString(f.dscp)), f.dscp))
+			flows = append(flows, enFa.createTrafficFlow(fmt.Sprintf("b%dipv6%s%d:%s", batch, name, j, dscpToString(f.dscp)), f.dscp))
 		}
 	}
 
