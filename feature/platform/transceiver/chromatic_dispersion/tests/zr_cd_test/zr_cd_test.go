@@ -95,15 +95,13 @@ func verifyAllCDValues(t *testing.T, dut1 *ondatra.DUTDevice, p1StreamInstant, p
 
 func TestCDValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
+
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 

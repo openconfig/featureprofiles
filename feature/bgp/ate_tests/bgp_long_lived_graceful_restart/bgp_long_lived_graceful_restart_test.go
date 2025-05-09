@@ -268,8 +268,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
@@ -291,7 +290,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+			t.Fatalf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
 }
@@ -655,6 +654,7 @@ func setBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions5 := stmt1.GetOrCreateActions()
 	actions5.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED)
+	actions5.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	actions5.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(100)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 

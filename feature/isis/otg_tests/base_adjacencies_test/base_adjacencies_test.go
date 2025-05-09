@@ -286,7 +286,7 @@ func TestBasic(t *testing.T) {
 		// There are about 3 RPCs executed in quick succession in this block.
 		// Increasing the wait-time value to accommodate this.
 
-		deadline = time.Now().Add(time.Second * 30)
+		deadline = time.Now().Add(time.Second * 60)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
@@ -449,19 +449,36 @@ func TestAuthentication(t *testing.T) {
 			ts := isissession.MustNew(t).WithISIS()
 			ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 				level := isis.GetOrCreateLevel(2)
-				level.Enabled = ygot.Bool(true)
 				auth := level.GetOrCreateAuthentication()
 				auth.Enabled = ygot.Bool(true)
 				auth.AuthMode = tc.mode
 				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 				auth.AuthPassword = ygot.String(password)
+
+				if deviations.ISISExplicitLevelAuthenticationConfig(ts.DUT) {
+					auth.DisableCsnp = ygot.Bool(false)
+					auth.DisableLsp = ygot.Bool(false)
+					auth.DisablePsnp = ygot.Bool(false)
+				}
+
 				for _, intf := range isis.Interface {
-					intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
-					if tc.enabled {
-						intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
-						intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
-						intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+					if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
+						intf.GetOrCreateAuthentication().Enabled = ygot.Bool(tc.enabled)
+						if tc.enabled {
+							intf.GetAuthentication().AuthPassword = ygot.String("google")
+							intf.GetAuthentication().AuthMode = tc.mode
+							intf.GetAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+						}
+
+					} else {
+						intf.GetOrCreateLevel(2).GetOrCreateHelloAuthentication().Enabled = ygot.Bool(tc.enabled)
+						if tc.enabled {
+							intf.GetLevel(2).GetHelloAuthentication().AuthPassword = ygot.String("google")
+							intf.GetLevel(2).GetHelloAuthentication().AuthMode = tc.mode
+							intf.GetLevel(2).GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
+						}
 					}
+
 				}
 			})
 			if tc.enabled {
@@ -585,7 +602,7 @@ func TestTraffic(t *testing.T) {
 	ts.MustAdjacency(t)
 
 	gnmi.Watch(t, otg, gnmi.OTG().IsisRouter("devIsis").Counters().Level2().InLsp().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		val, present := v.Val()
 		return present && val >= 1
 	}).Await(t)
@@ -692,9 +709,10 @@ func TestISISHelloTimer(t *testing.T) {
 				timers1.SetHelloMultiplier(tc.helloMultiplier)
 			}
 
-			timers2 := intf.GetOrCreateLevel(uint8(level2)).GetOrCreateTimers()
-			timers2.SetHelloInterval(tc.helloInterval)
-			timers2.SetHelloMultiplier(tc.helloMultiplier)
+			intfLeveL2 := intf.GetOrCreateLevel(uint8(level2))
+			intfLeveL2.Enabled = ygot.Bool(true)
+			intfLeveL2.GetOrCreateTimers().SetHelloInterval(tc.helloInterval)
+			intfLeveL2.GetOrCreateTimers().SetHelloMultiplier(tc.helloMultiplier)
 
 			gnmi.Update(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
 				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).Isis().Interface(intfName).Config(), intf)
