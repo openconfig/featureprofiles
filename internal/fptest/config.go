@@ -172,13 +172,13 @@ func CopyDeviceConfig(t testing.TB, dut *ondatra.DUTDevice, config *oc.Root) *oc
 		t.Fatalf("Cannot copy baseConfig: %v", err)
 	}
 
-	copy := o.(*oc.Root)
+	copyConfig := o.(*oc.Root)
 
 	if *setEthernetFromState {
-		setEthernetFromBase(t, config, copy)
+		setEthernetFromBase(t, config, copyConfig)
 	}
 
-	return copy
+	return copyConfig
 }
 
 func pruneUnsupportedPaths(config *oc.Root) {

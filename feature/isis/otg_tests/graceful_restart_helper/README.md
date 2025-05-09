@@ -1,4 +1,4 @@
-# RT-2.15: IS-IS Graceful Restart Helper
+# RT-2.16: IS-IS Graceful Restart Helper
 
 ## Summary
 
@@ -220,7 +220,7 @@
         }
         ```
 
-### RT-2.15.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2494]
+### RT-2.16.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2494]
 #### GR helper
 
 *   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
