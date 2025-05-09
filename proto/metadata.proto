@@ -740,6 +740,10 @@ message Metadata {
     // Device does not support BGP OC distance
     bool bgp_distance_oc_path_unsupported = 267;
 
+        // Device does not support ntp source address
+        bool ntp_source_address_unsupported = 268;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
