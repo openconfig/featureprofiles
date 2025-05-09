@@ -28,6 +28,7 @@ platform_exceptions:  {
     interface_enabled: true
     missing_value_for_defaults: true
     missing_isis_interface_afi_safi_enable: true
+    no_fallback_route_in_transit_vrf: true
   }
 }
 

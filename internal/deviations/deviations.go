@@ -1347,3 +1347,8 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
 }
+
+// NoFallbackRouteInTransitVrf returns true if fallback route (0/0 or 0::0/) not supported in transit network instances.
+func NoFallbackRouteInTransitVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoFallbackRouteInTransitVrf()
+}
