@@ -15,6 +15,7 @@
 package sshpasswordlogindisallowed_test
 
 import (
+  "fmt"
 	"context"
 	"os"
 
@@ -41,6 +42,7 @@ const (
 	userPrincipal   = "my_principal"
 	command         = "show version"
 	maxSSHRetryTime = 30 // Unit is seconds.
+	passwordVersion = "v1.0"
 )
 
 func TestMain(m *testing.M) {
@@ -48,6 +50,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+    passwordVersion := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
 	recordStartTime := timestamppb.New(time.Now())
@@ -72,13 +75,12 @@ func TestCredentialz(t *testing.T) {
 	// Setup user and password.
 	credz.SetupUser(t, dut, username)
 	password := credz.GeneratePassword()
-	credz.RotateUserPassword(t, dut, username, password, "v1.0", uint64(time.Now().Unix()))
-
-	credz.RotateTrustedUserCA(t, dut, dir)
+	credz.RotateUserPassword(t, dut, username, password, passwordVersion, uint64(time.Now().Unix()))
+	credz.RotateTrustedUserCA(t, dut, dir, passwordVersion, uint64(time.Now().Unix()))
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 	})
-	credz.RotateAuthorizedPrincipal(t, dut, username, userPrincipal)
+	credz.RotateAuthorizedPrincipal(t, dut, username, userPrincipal, passwordVersion, uint64(time.Now().Unix()))
 
 	t.Run("auth should fail ssh password authentication disallowed", func(t *testing.T) {
 		var startingRejectCounter, startingLastRejectTime uint64
@@ -206,5 +208,11 @@ func TestCredentialz(t *testing.T) {
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 			cpb.AuthenticationType_AUTHENTICATION_TYPE_KBDINTERACTIVE,
 		})
+        // Cleanup user password after test.
+        credz.RotateUserPassword(t, dut, username, "", "", 0)
+        // Cleanup user principal after test.
+        credz.RotateAuthorizedPrincipal(t, dut, username, "", "", 0)
+	// Cleanup user ca.
+	credz.RotateTrustedUserCA(t, dut, "", "", 0)
 	})
 }
