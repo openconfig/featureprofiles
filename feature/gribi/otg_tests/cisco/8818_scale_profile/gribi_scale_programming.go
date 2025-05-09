@@ -841,6 +841,11 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 	if routeParams.numUniqueNHs == 0 {
 		routeParams.numUniqueNHs = routeParams.numUniqueNHGs * routeParams.numNHPerNHG
 	}
+	// avoid divide by zero and ensure that each batch gets at least one NHG
+	// routeParams.numUniqueNHGs should be greater than batchCount or equal to it
+	if routeParams.numUniqueNHGs < batchCount {
+		routeParams.numUniqueNHGs = batchCount
+	}
 
 	// prefixToNHGRatio := len(routeParams.ipEntries) / routeParams.numUniqueNHGs
 	// prefixToNHGRatio := int(math.Ceil(float64(len(routeParams.ipEntries)) / float64(routeParams.numUniqueNHGs)))
@@ -1306,14 +1311,14 @@ func TestChains(t *testing.T) {
 
 	// case 100*8=800 encap, 1 decap, 1 decapEncap, 1 frr2backup, 1 frr1backup
 	gp := NewGribiProfile(batches, true, true, dut,
-		&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1}, //primary path
-		&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 1, numNHPerNHG: 1},
+		&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 2, numNHPerNHG: 1}, //primary path
+		&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 100, numNHPerNHG: 8},
 		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 100, numNHPerNHG: 8},
 		&routesParam{segment: "Frr1Level1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
-		&routesParam{segment: "Frr1Level2", numUniqueNHGs: 1, numNHPerNHG: 1},
-		&routesParam{segment: "DecapWan", numUniqueNHGs: 1, numNHPerNHG: 1},
-		&routesParam{segment: "DecapWanVar", numUniqueNHGs: 1, numNHPerNHG: 1},
+		&routesParam{segment: "Frr1Level2", numUniqueNHGs: 2, numNHPerNHG: 1},
+		&routesParam{segment: "DecapWan", numUniqueNHGs: 2, numNHPerNHG: 1},
+		&routesParam{segment: "DecapWanVar", numUniqueNHGs: 2, numNHPerNHG: 1},
 	)
 
 	client.StartSending(ctx, t)
