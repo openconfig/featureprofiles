@@ -114,12 +114,6 @@ func TestRouteSummaryWithISIS(t *testing.T) {
 	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 		global := isis.GetOrCreateGlobal()
 		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
-
-		if deviations.ISISSingleTopologyRequired(ts.DUT) {
-			afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
-			afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
-			afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
-		}
 	})
 	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(false)
 

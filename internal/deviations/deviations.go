@@ -210,11 +210,6 @@ func ISISExplicitLevelAuthenticationConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisExplicitLevelAuthenticationConfig()
 }
 
-// ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
-func ISISSingleTopologyRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisSingleTopologyRequired()
-}
-
 // ISISMultiTopologyUnsupported returns if device skips isis multi-topology check.
 func ISISMultiTopologyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMultiTopologyUnsupported()

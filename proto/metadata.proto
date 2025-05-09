@@ -80,8 +80,6 @@ message Metadata {
     bool isis_multi_topology_unsupported = 6;
     // Disable isis level1 under interface mode on the device if value is true.
     bool isis_interface_level1_disable_required = 7;
-    // Set isis af ipv6 single topology on the device if value is true.
-    bool isis_single_topology_required = 8;
     // Don't set isis instance enable flag on the device if value is true.
     bool isis_instance_enabled_required = 10;
     // Set and validate isis interface address family enable on the device if
@@ -741,7 +739,7 @@ message Metadata {
     bool bgp_distance_oc_path_unsupported = 267;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
+    reserved 84, 8, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
 
   message PlatformExceptions {
