@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -186,6 +187,10 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 		// for transceiver disable, the input needs to be the transceiver name instead of the interface name
 		tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 		gnmi.Update(t, dut, gnmi.OC().Component(p.Name()).Name().Config(), p.Name())
+		setConfigLeaf := gnmi.OC().Component(tr)
+		gnmi.Update(t, dut, setConfigLeaf.Config(), &oc.Component{
+			Name: ygot.String(tr),
+		})
 		gnmi.Update(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), false)
 	}
 	t.Logf("Interfaces are down: %v, %v", dp1.Name(), dp2.Name())
