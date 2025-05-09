@@ -290,7 +290,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+			t.Fatalf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
 }
