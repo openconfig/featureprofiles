@@ -667,8 +667,7 @@ message Metadata {
     string default_bgp_instance_name = 246;
     // Arista does not support ETHChannel rate-class
     bool channel_assignment_rate_class_parameters_unsupported = 247;
-
-    // Arista: b/346557012  
+    // Arista: b/346557012
     // Devices that do not support qos scheduler ingress policer.
     bool qos_scheduler_ingress_policer_unsupported = 248;
 
@@ -719,6 +718,7 @@ message Metadata {
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
+
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;

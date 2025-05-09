@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, aspathMatch []string, communityMatch string, aspathSetName string, communitySetName string, commMatchSetOptions oc.E_BgpPolicy_MatchSetOptionsType, aspMatchSetOptions oc.E_RoutingPolicy_MatchSetOptionsType) {
+func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6 string, aspathMatch []string, communityMatch, aspathSetName, communitySetName string, commMatchSetOptions oc.E_BgpPolicy_MatchSetOptionsType, aspMatchSetOptions oc.E_RoutingPolicy_MatchSetOptionsType) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	pdef1 := rp.GetOrCreatePolicyDefinition(ImpPolicy)
@@ -73,10 +73,13 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 
-	aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
-	aspathSet.SetAsPathSetMember(aspathMatch)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+	if !deviations.BgpAspathsetUnsupported(dut) {
+		aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
+		aspathSet.SetAsPathSetMember(aspathMatch)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {
@@ -153,7 +156,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 			{100, 1}, {200, 2}, {300, 3},
 		},
 		{
-			{100, 1},
+			{101, 1},
 		},
 		{
 			{109, 1},
