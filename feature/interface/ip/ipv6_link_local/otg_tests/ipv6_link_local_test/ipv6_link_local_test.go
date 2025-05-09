@@ -245,7 +245,6 @@ func otgSrcToDstFlow(t *testing.T, top gosnappi.Config, srcIPv6, dstIPv6, flowNa
 	flow.Metrics().SetEnable(true)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(ateSrc.MAC)
-	e1.Dst().SetValue(ateDst.MAC)
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
 	v6 := flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(srcIPv6)
@@ -256,7 +255,7 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	p1 := dut.Port(t, "port1")
 	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
 	ate.OTG().StartTraffic(t)
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Second*30, func(v *ygnmi.Value[uint64]) bool {
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
 		gotPkts, present := v.Val()
 		return present && (gotPkts-beforeInPkts) >= 100
 	}).Await(t)

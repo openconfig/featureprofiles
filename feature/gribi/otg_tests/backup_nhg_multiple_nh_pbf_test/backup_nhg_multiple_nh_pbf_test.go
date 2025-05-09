@@ -260,9 +260,6 @@ func TestBackup(t *testing.T) {
 	// Flush past entries before running the tc
 	client.FlushAll(t)
 
-	if deviations.SkipPbfWithDecapEncapVrf(dut) {
-		t.Skip("Skipping test as PBF with decap / encap vrf is not supported")
-	}
 	t.Logf("Name: IPv4BackUpSwitchWithVrfPolicyW")
 	t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path with vrf policy W")
 
