@@ -526,3 +526,71 @@ func TestParameters(t *testing.T) {
 		})
 	}
 }
+// TestBGPMartianIPNeighbor is to verify BGP session establishment with Martian IP.
+// Verification is done through BGP adjacency implicitly.
+func TestBgpMartianIPNeighbor(t *testing.T) {
+	ateIP := ateAttrs.IPv4
+	dutIP := dutAttrs.IPv4
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+
+	// Configure Network instance type on DUT
+	t.Log("Configure Network Instance")
+	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	nbrPath := statePath.Neighbor(ateIP)
+
+	cases := []struct {
+		name    string
+		dutConf *oc.NetworkInstance_Protocol
+		ateConf gosnappi.Config
+	}{
+		{
+			name:    "Test the eBGP session establishment: Global AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+		},
+		{
+			name:    "Test the eBGP session establishment: Neighbor AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+		},
+		{
+			name:    "Test the iBGP session establishment: Global AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
+		},
+		{
+			name:    "Test the iBGP session establishment: Neighbor AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Log("Clear BGP Configs on DUT")
+			bgpClearConfig(t, dut)
+			t.Log("Configure BGP Configs on DUT")
+			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
+			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+			t.Log("Configure BGP on ATE")
+			ate.OTG().PushConfig(t, tc.ateConf)
+			ate.OTG().StartProtocols(t)
+			t.Log("Verify BGP session state : ESTABLISHED")
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*100, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			stateDut := gnmi.Get(t, dut, statePath.State())
+			wantState := tc.dutConf.Bgp
+			if deviations.MissingValueForDefaults(dut) {
+				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName = 0
+				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
+				wantState.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
+			}
+			confirm.State(t, wantState, stateDut)
+			t.Log("Clear BGP Configs on ATE")
+			ate.OTG().StopProtocols(t)
+		})
+	}
+}
