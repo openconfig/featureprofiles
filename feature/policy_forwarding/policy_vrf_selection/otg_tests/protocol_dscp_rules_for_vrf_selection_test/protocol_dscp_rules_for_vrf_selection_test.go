@@ -348,7 +348,7 @@ func testTrafficFlows(t *testing.T, args *testArgs, expectPass bool, flows ...go
 		t.Log("Expecting traffic to fail for the flows")
 	}
 
-	top := args.ate.OTG().FetchConfig(t)
+	top := args.ate.OTG().GetConfig(t)
 	otgutils.LogFlowMetrics(t, args.ate.OTG(), top)
 	for _, flow := range flows {
 		t.Run(flow.Name(), func(t *testing.T) {
