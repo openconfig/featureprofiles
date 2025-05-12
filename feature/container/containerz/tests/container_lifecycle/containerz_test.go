@@ -355,8 +355,7 @@ func TestRetrieveLogs(t *testing.T) {
 	t.Run("LogsFromNonExistentInstance", func(t *testing.T) {
 		nonExistentInstanceName := "test-instance-log-does-not-exist"
 		// Ensure it really doesn't exist
-		err := baseCli.RemoveContainer(ctx, nonExistentInstanceName, true)
-		if err != nil && status.Code(err) != codes.NotFound {
+		if err := baseCli.RemoveContainer(ctx, nonExistentInstanceName, true); err != nil && status.Code(err) != codes.NotFound {
 			t.Logf("Pre-check RemoveContainer for %s failed (continuing): %v", nonExistentInstanceName, err)
 		}
 
@@ -641,8 +640,7 @@ func TestStopContainer(t *testing.T) {
 		// Allow time for the first stop to fully process.
 		time.Sleep(5 * time.Second)
 		// Attempt to stop it again.
-		err := localStartedCli.StopContainer(ctx, instanceName, true)
-		if err != nil {
+		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
 			s, _ := status.FromError(err)
 			if s.Code() == codes.NotFound {
 				t.Logf("Second StopContainer() for %s returned NotFound, which is acceptable: %v", instanceName, err)
