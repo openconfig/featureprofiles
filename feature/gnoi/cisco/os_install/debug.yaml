@@ -1,0 +1,79 @@
+"show logging":
+  type: "logging"
+  errorPatterns:
+    - "HW_PROG_ERROR"
+    - "Traceback"
+    - "HA-HA_WD-4-MEMORY_LIMIT_EXCEEDED"
+    - "SSHD"
+"show telemetry model-driven trace all":
+  type: "logging"
+  errorPatterns:
+    - "FAILURE"
+"show grpc trace all":
+  type: "logging"
+  errorPatterns:
+    - "HW_PROG_ERROR"
+    - "Traceback"
+    - "EMS-SYSTEM"
+"show install fixes active":
+  type: "command"
+  errorPatterns:
+    - "RIB ACK"
+    - "Invalid"
+"show install history all":
+  type: "command"
+  errorPatterns:
+    - "FAIL"
+"show install history all errors global":
+  type: "command"
+  errorPatterns:
+    - "FAIL"
+"show install active all":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show install request verbose":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show install available all":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show platform":
+  type: "command"
+  errorPatterns:
+    - "SHUT DOWN"
+"show tech-support install":
+  type: "show-tech"
+"show context location all":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show insight database entry all":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show processes blocked location all":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show reboot history detail":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show redundancy":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show version":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show running-config":
+  type: "command"
+  errorPatterns:
+    - "FAILURE"
+"show tech-support spi":
+  type: "show-tech"
+

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument('xunit_file', help="XUnit Result File")
     parser.add_argument('--version',  default='', help="OS Version")
     parser.add_argument('--workspace',  default='', help="Workspace")
-    parser.add_argument('--dev',  default=False, help="Development")
+    parser.add_argument('--dev', action='store_true', help="Use development database")
     args = parser.parse_args()
 
     if args.dev:

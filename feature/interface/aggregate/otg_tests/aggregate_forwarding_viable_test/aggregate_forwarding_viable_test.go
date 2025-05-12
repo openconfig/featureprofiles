@@ -552,6 +552,7 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
 	tc.ate.OTG().StartTraffic(t)

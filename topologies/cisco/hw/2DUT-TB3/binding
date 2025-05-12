@@ -11,9 +11,13 @@ duts {
   # }
   options {
     insecure: false 
-    skip_verify: true
+    skip_verify: false
     username: "cafyauto"
     password: "cisco123"
+    mutual_tls: true
+    trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    cert_file: "$CERT_FILE"
+    key_file:  "$KEY_FILE"
   }
 
   # Options specific to gNMI.  Remove if not needed.
@@ -46,8 +50,6 @@ duts {
     name: "FourHundredGigE0/0/0/31"  # Change this to the actual port name.
     speed: S_400GB   
   }
-
-
   ports {
     id: "dut1_ate_port1"
     name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.

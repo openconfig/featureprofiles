@@ -279,7 +279,7 @@ func TestNotificationDeletePort(t *testing.T) {
 func TestNotificationRPFO(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	rps := findComponentsByTypeNoLogs(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-	rpStandby, rpActive := components.FindStandbyRP(t, dut, rps)
+	rpStandby, rpActive := components.FindStandbyControllerCard(t, dut, rps)
 	t.Logf("RPs: %v", rps)
 
 	activeChan := make(chan bool)

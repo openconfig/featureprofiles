@@ -1,0 +1,22 @@
+name: bootz 
+owners: 
+  - khrasool
+testbeds:
+  - 8800-FOC2330PAZK
+  - 8201-FOC2448P0MP
+tests:
+- name: BootZ
+  path: feature/system/bootz/tests
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
+
+- name: Boot_Config
+  path: feature/system/bootz/tests
+  args:
+    - '-test.run="(?:TestBootConfig)"'
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 36000

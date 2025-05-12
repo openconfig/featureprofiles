@@ -118,20 +118,20 @@ def _release_all(tbs):
         _release_helper(tb)
     logger.info(f"Testbeds {[tb['hw'] for tb in tbs]} released by user {getpass.getuser()}")
 
-def _trylock(testbeds, user, wait=False, reason=""):
+def _trylock(testbeds, user, wait=False, best_effort=False, reason=""):
     while True:
         locked = []
         for tb in testbeds:        
             if _trylock_helper(tb, user, reason):
                 locked.append(tb)
-            else:
+            elif not best_effort:
                 for tb in locked:
                     _release_helper(tb)
                 break
         
-        if len(locked) == len(testbeds):
+        if best_effort or len(locked) == len(testbeds):
             logger.info(f"Testbeds {[tb['hw'] for tb in locked]} locked by user {getpass.getuser()} with reason '{reason}'")
-            return testbeds
+            return locked
         else: 
             if wait:
                 time.sleep(randint(1,3))
@@ -143,21 +143,44 @@ def _release(testbeds):
 
 def _get_actual_testbeds(ids, json_output=False):
     testbeds = {}
+    r_testbeds = {}
     for id in ids.split(","):
         tb = _get_testbed(id, json_output)
         hw = tb.get('hw', id)
         if type(hw) != list: hw = [hw]
         for h in hw:
             testbeds[h] = _get_testbed(h, json_output)
+            r_testbeds[h] = tb
     return testbeds.values()
 
-def _get_testbeds(ids, json_output=False):
-    testbeds = []
+def _get_actual_locked(ids, locked_tbs, json_output=False):
+    locked_tbs_map = {}
+    if not locked_tbs:
+        return locked_tbs_map.values()
+    
+    for tb in locked_tbs:
+        locked_tbs_map[tb['id']] = tb
+    
     for id in ids.split(","):
         tb = _get_testbed(id, json_output)
-        testbeds.append(tb)
-    return testbeds
-    
+        hw = tb.get('hw', id)
+        if type(hw) != list: hw = [hw]
+        all_locked = True
+        for h in hw:
+            if not h in locked_tbs_map:
+                all_locked = False
+                break
+        if all_locked:
+            locked_tbs_map[id] = tb
+        else:
+            for h in hw:
+                if not h in ids:
+                    _release_helper(_get_testbed(h, json_output))
+                    del locked_tbs_map[h]
+
+    return list(locked_tbs_map.values())
+            
+
 def _is_valid_file(parser, arg):
     if not os.path.exists(arg):
         parser.error("File %s does not exist" % arg)
@@ -179,6 +202,7 @@ if __name__ == "__main__":
     lock_parser = command_subparser.add_parser('lock', help='lock a testbed')
     lock_parser.add_argument('id', help='testbed id')
     lock_parser.add_argument('-w', '--wait',  default=False, action='store_true', help='wait until testbed is available')
+    lock_parser.add_argument('-b', '--best-effort',  default=False, action='store_true', help='lock as many testbeds as possible')
     lock_parser.add_argument('-r', '--reason',  default="", help='reason for locking')
     lock_parser.add_argument('-u', '--user',  default=getpass.getuser(), help='requestor username')
 
@@ -222,17 +246,23 @@ with open(args.testbeds_file, 'r') as fp:
 if args.command == 'show':
     _show(available_only=args.available, json_output=args.json)
 elif args.command == 'lock':
+    if args.wait and args.best_effort:
+        print("Error: --wait (-w) and --best-effort (-b) are mutually exclusive")
+        exit(1)
+
     tbs = _get_actual_testbeds(args.id, json_output=args.json)
-    if _trylock(tbs, args.user, args.wait, args.reason):
+    locked_tbs = _trylock(tbs, args.user, args.wait, args.best_effort, args.reason)
+    needed_testbeds = _get_actual_locked(args.id, locked_tbs, json_output=args.json)
+    if needed_testbeds:
         if args.json:
-            print(json.dumps({'status': 'ok', 'testbeds': _get_testbeds(args.id)}))
+            print(json.dumps({'status': 'ok', 'testbeds': needed_testbeds}))
         else:
-            print(f"Success. Testbed(s) reserved.")
+            print(f"Success. {len(needed_testbeds)}/{len(tbs)} testbeds reserved.")
     else:
         if args.json:
             print(json.dumps({'status': 'fail'}))
         else:
-            print(f"Not all testbeds are available.")
+            print(f"No testbeds available.")
 elif args.command == 'release':
     tbs = _get_actual_testbeds(args.id, json_output=args.json)
     _release(tbs)

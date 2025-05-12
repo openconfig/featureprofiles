@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "9c064cd0-3cf8-3816-78ed-8bea51570869"
+plan_id: "gNOI-4.1-FT"
+description: "Software Force Transfer Upgrade"
+testbed: TESTBED_DUT_ATE_2LINKS

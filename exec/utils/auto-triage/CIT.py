@@ -1,5 +1,5 @@
 from FireX import FireX
-from Vectorstore import Vectorstore
+# from Vectorstore import Vectorstore
 
 class CIT:
     def __init__(self, db):
@@ -8,7 +8,7 @@ class CIT:
     def process_run(self, xunit_root, version='', workspace=''):
         firex = FireX(xunit_root)
         
-        vectorstore = Vectorstore()
+        # vectorstore = Vectorstore()
     
         group = firex.get_group()
 
@@ -24,12 +24,13 @@ class CIT:
         print("Successfully Inserted Metadata into MongoDB")
         
         # Create FAISS Index
-        datapoints = self.db.get_datapoints()
-        vectorstore.create_index(datapoints)
-        print("Successfully Created FAISS Index")
+        # datapoints = self.db.get_datapoints()
+        # vectorstore.create_index(datapoints)
+        # print("Successfully Created FAISS Index")
         
         # Add Testsuite Data
-        documents = firex.get_testsuites(vectorstore, self.db, run_info)
+        #documents = firex.get_testsuites(vectorstore, self.db, run_info)
+        documents = firex.get_testsuites(self.db, run_info)
         print("Successfully Created Documents")
 
         # Insert FireX run metadata into MongoDB "data" collection

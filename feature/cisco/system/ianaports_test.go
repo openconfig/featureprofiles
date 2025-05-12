@@ -60,7 +60,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("Assign a GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -98,7 +98,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("GRPC Server Port Update Test", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -111,7 +111,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("GRPC Server Port Replace Test", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -153,7 +153,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("Assign a Non-Default GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -183,7 +183,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()

@@ -183,12 +183,12 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 
 // tgnOptions are optional parameters to a validate traffic function.
 type tgnOptions struct {
-	drop, mpls, ipv4, ttl bool
-	trafficTimer          int
-	fps                   uint64
-	fpercent              float64
-	frameSize             uint32
-	event                 eventType
+	drop, mpls, ipv4, ipv6, udp, ttl bool
+	trafficTimer                     int
+	fps                              uint64
+	fpercent                         float64
+	frameSize                        uint32
+	event                            eventType
 }
 
 // configureATE configures ports on the ATE.
@@ -306,10 +306,23 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 			} else {
 				hdrIpv4 = ondatra.NewIPv4Header()
 			}
-			hdrIpv4.WithSrcAddress(dutSrc.IPv4).DstAddressRange().WithMin(dst).WithCount(dstCount).WithStep("0.0.0.1")
+			hdrIpv4.WithSrcAddress(dutSrc.IPv4).DstAddressRange().WithMin(dst).WithCount(dstCount).WithStep("0.0.0.1") // Multicast IP
 			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdrIpv4}
+
+			if opt.udp {
+				hdrUdp := ondatra.NewUDPHeader()
+				header = append(header, hdrUdp)
+			}
+		}
+		if opt.ipv6 {
+
+			hdrIpv6 := ondatra.NewIPv6Header()
+			hdrIpv6.WithSrcAddress("1::1")
+			hdrIpv6.DstAddressRange().WithMin("2::2").WithCount(10000).WithStep("::1")
+			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdrIpv6}
 		}
 	}
+
 	flow = args.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
@@ -339,8 +352,8 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*tgnOptions) uint64 {
 	t.Helper()
 	args.ate.Traffic().Start(t, flow)
-	// run traffic for 30 seconds, before introducing fault
-	time.Sleep(time.Duration(30) * time.Second)
+	// run traffic for 32 seconds, before introducing fault
+	time.Sleep(time.Duration(32) * time.Second)
 
 	// Set configs if needed for the trigger scenario
 	for _, op := range opts {
@@ -358,7 +371,7 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 		}
 	}
 
-	time.Sleep(60 * time.Second) // sleep if any trigger config was performed
+	time.Sleep(32 * time.Second) // sleep if any trigger config was performed
 	args.ate.Traffic().Stop(t)
 
 	// remove the trigger configs before further check
