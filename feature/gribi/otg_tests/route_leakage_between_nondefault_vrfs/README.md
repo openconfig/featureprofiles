@@ -300,6 +300,12 @@ C[ATE:PORT2] <--IPv4-IPv6--> D[DUT:PORT2];
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+
 paths:
     /network-instances/network-instance/config/name:
     /network-instances/network-instance/config/description:
