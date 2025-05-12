@@ -3,6 +3,8 @@ package container_lifecycle_test
 import (
 	"context"
 	"flag"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,68 +60,195 @@ func containerzClient(ctx context.Context, t *testing.T) *client.Client {
 	return client.NewClientFromStub(dut.RawAPIs().GNOI(t).Containerz())
 }
 
-func startContainer(ctx context.Context, t *testing.T) *client.Client {
-	cli := containerzClient(ctx, t)
+// StartContainerOptions holds parameters for starting a container.
+type StartContainerOptions struct {
+	ImageName           string
+	ImageTag            string
+	TarPath             string
+	InstanceName        string
+	Command             string
+	Ports               []string
+	RemoveExistingImage bool
+	PollForRunningState bool
+	PollTimeout         time.Duration
+	PollInterval        time.Duration
+}
 
-	// Call RemoveContainer here to make sure no other container is using the instanceName name or that instanceName
-	// is a leftover from a previous failed test.
-	if err := cli.RemoveContainer(ctx, instanceName, true); err != nil {
+// withDefaults returns a new StartContainerOptions with default values applied
+// for fields that were zero-valued in the original options.
+func (o StartContainerOptions) withDefaults() StartContainerOptions {
+	res := o // Create a copy
+
+	if res.ImageName == "" {
+		res.ImageName = imageName
+	}
+	if res.ImageTag == "" {
+		res.ImageTag = "latest"
+	}
+	if res.TarPath == "" {
+		res.TarPath = *containerTar
+	}
+	if res.InstanceName == "" {
+		res.InstanceName = instanceName
+	}
+	if res.Command == "" {
+		res.Command = "./cntrsrv"
+	}
+	if len(res.Ports) == 0 {
+		res.Ports = []string{"60061:60061"} // Default port
+	}
+	if res.PollTimeout == 0 {
+		res.PollTimeout = 30 * time.Second
+	}
+	if res.PollInterval == 0 {
+		res.PollInterval = 5 * time.Second // Also used for fixed sleep if not polling
+	}
+	// Boolean fields (RemoveExistingImage, PollForRunningState) default to false (their zero value).
+	return res
+}
+
+// deployAndStartContainer sets up and starts a container according to the provided options.
+// It ensures the image is present (pushing it if necessary) and the container is started.
+func deployAndStartContainer(ctx context.Context, t *testing.T, cli *client.Client, opts StartContainerOptions) error {
+	// Mark as test helper
+	t.Helper()
+
+	// Apply default values for any unspecified options.
+	opts = opts.withDefaults()
+
+	// 1. Remove existing container instance to ensure a clean start.
+	t.Logf("Attempting to remove existing container instance %s before start.", opts.InstanceName)
+	if err := cli.RemoveContainer(ctx, opts.InstanceName, true); err != nil {
 		if status.Code(err) != codes.NotFound {
-			t.Fatalf("failed to remove container: %v", err)
+			t.Logf("Pre-start removal of container %s failed: %v", opts.InstanceName, err)
+		} else {
+			t.Logf("Container instance %s was not found or successfully removed.", opts.InstanceName)
 		}
 	}
 
-	progCh, err := cli.PushImage(ctx, imageName, "latest", *containerTar, false)
-	if err != nil {
-		t.Fatalf("unable to push image: %v", err)
+	// 2. Optionally remove existing image before push.
+	if opts.RemoveExistingImage {
+		t.Logf("Attempting to remove existing image %s:%s before push.", opts.ImageName, opts.ImageTag)
+		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, false); err != nil {
+			s, _ := status.FromError(err)
+			if s.Code() != codes.NotFound && err.Error() != client.ErrNotFound.Error() {
+				t.Logf("Pre-push removal of image %s:%s failed (continuing with push): %v", opts.ImageName, opts.ImageTag, err)
+			} else {
+				t.Logf("Image %s:%s was not found or successfully removed before push.", opts.ImageName, opts.ImageTag)
+			}
+		}
 	}
 
+	// 3. Push the image.
+	t.Logf("Pushing image %s:%s from %s.", opts.ImageName, opts.ImageTag, opts.TarPath)
+	progCh, err := cli.PushImage(ctx, opts.ImageName, opts.ImageTag, opts.TarPath, false)
+	if err != nil {
+		t.Fatalf("Initial call to PushImage for %s:%s failed: %v", opts.ImageName, opts.ImageTag, err)
+	}
 	for prog := range progCh {
-		switch {
-		case prog.Error != nil:
-			t.Fatalf("failed to push image: %v", prog.Error)
-		case prog.Finished:
-			t.Logf("Pushed %s/%s\n", prog.Image, prog.Tag)
-		default:
-			t.Logf(" %d bytes pushed", prog.BytesReceived)
+		if prog.Error != nil {
+			t.Fatalf("Error during push of image %s:%s: %v", opts.ImageName, opts.ImageTag, prog.Error)
+		}
+		if prog.Finished {
+			t.Logf("Successfully pushed image %s:%s.", prog.Image, prog.Tag)
+		} else {
+			t.Logf("Push progress for %s:%s: %d bytes received.", opts.ImageName, opts.ImageTag, prog.BytesReceived)
 		}
 	}
 
-	// Verify the image exists after push
-	t.Logf("Verifying image %s:latest exists after push", imageName)
-	imgListCh, err := cli.ListImage(ctx, 0, nil) // List all images
+	// 4. Verify the image exists after push.
+	t.Logf("Verifying image %s:%s exists after push.", opts.ImageName, opts.ImageTag)
+	imgListCh, err := cli.ListImage(ctx, 0, map[string][]string{"name": {opts.ImageName}, "tag": {opts.ImageTag}})
 	if err != nil {
-		t.Fatalf("Failed to list images after push: %v", err)
+		t.Fatalf("Failed to list images after push for %s:%s: %v", opts.ImageName, opts.ImageTag, err)
 	}
 	foundImage := false
 	for img := range imgListCh {
 		if img.Error != nil {
-			t.Fatalf("Error received during ListImage iteration: %v", img.Error)
+			t.Fatalf("Error received during ListImage iteration for %s:%s: %v", opts.ImageName, opts.ImageTag, img.Error)
 		}
-		if img.ImageName == imageName {
+		if img.ImageName == opts.ImageName && img.ImageTag == opts.ImageTag {
 			foundImage = true
 			break
 		}
 	}
 	if !foundImage {
-		t.Fatalf("Image %s:latest not found after successful push.", imageName)
+		t.Fatalf("Image %s:%s not found after successful push.", opts.ImageName, opts.ImageTag)
 	}
-	t.Logf("Image %s:latest verified.", imageName)
+	t.Logf("Image %s:%s verified successfully after push.", opts.ImageName, opts.ImageTag)
 
-	ret, err := cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instanceName, client.WithPorts([]string{"60061:60061"}))
+	// 5. Start the container.
+	t.Logf("Starting container %s with image %s:%s, command '%s', ports %v.", opts.InstanceName, opts.ImageName, opts.ImageTag, opts.Command, opts.Ports)
+	startResp, err := cli.StartContainer(ctx, opts.ImageName, opts.ImageTag, opts.Command, opts.InstanceName, client.WithPorts(opts.Ports))
 	if err != nil {
-		t.Fatalf("unable to start container: %v", err)
+		t.Fatalf("Unable to start container %s: %v", opts.InstanceName, err)
+	}
+	t.Logf("StartContainer called for %s, response: %s", opts.InstanceName, startResp)
+
+	// 6. Wait for container to be running or fixed sleep.
+	if opts.PollForRunningState {
+		t.Logf("Polling for container %s to reach RUNNING state (timeout: %v, interval: %v).", opts.InstanceName, opts.PollTimeout, opts.PollInterval)
+		startTime := time.Now()
+		for time.Since(startTime) < opts.PollTimeout {
+			listContCh, listErr := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {opts.InstanceName}})
+			if listErr != nil {
+				return fmt.Errorf("unable to list container %s state during polling: %w", opts.InstanceName, listErr)
+			}
+			containerIsRunning := false
+			for info := range listContCh {
+				if info.Error != nil {
+					return fmt.Errorf("error message received while listing container %s during polling: %w", opts.InstanceName, info.Error)
+				}
+				if (info.Name == opts.InstanceName || info.Name == "/"+opts.InstanceName) && info.State == cpb.ListContainerResponse_RUNNING.String() {
+					t.Logf("Container %s confirmed RUNNING.", opts.InstanceName)
+					containerIsRunning = true
+					break
+				}
+			}
+			if containerIsRunning {
+				return nil
+			}
+			time.Sleep(opts.PollInterval)
+		}
+		return fmt.Errorf("container %s did not reach RUNNING state within %v", opts.InstanceName, opts.PollTimeout)
+	}
+	// Original behavior: fixed sleep. Use PollInterval as the sleep duration for simplicity.
+	t.Logf("Waiting for %v for container %s to stabilize (fixed sleep, no polling).", opts.PollInterval, opts.InstanceName)
+	time.Sleep(opts.PollInterval)
+	return nil
+}
+
+// startContainer sets up and starts the default test container.
+// It returns the client. It calls t.Fatalf on failure.
+func startContainer(ctx context.Context, t *testing.T) *client.Client {
+	t.Helper()
+	cli := containerzClient(ctx, t)
+
+	opts := StartContainerOptions{
+		// Defaults will be used for ImageName, ImageTag, TarPath, InstanceName, Command, Ports.
+		RemoveExistingImage: false,
+		PollForRunningState: false,
+		PollInterval:        5 * time.Second,
 	}
 
-	t.Logf("Started %s", ret)
-
-	time.Sleep(5 * time.Second)
+	if err := deployAndStartContainer(ctx, t, cli, opts); err != nil {
+		t.Fatalf("Failed to start default container: %v", err)
+	}
 	return cli
 }
 
-func stopContainer(ctx context.Context, t *testing.T, cli *client.Client) {
-	if err := cli.StopContainer(ctx, instanceName, true); err != nil {
-		t.Logf("container already stopping: %v", err)
+func stopContainer(ctx context.Context, t *testing.T, cli *client.Client, instNameToStop string) {
+	t.Helper()
+	t.Logf("Attempting to stop container %s", instNameToStop)
+	if err := cli.StopContainer(ctx, instNameToStop, true); err != nil {
+		s, _ := status.FromError(err)
+		if s.Code() == codes.NotFound {
+			t.Logf("StopContainer: Container %s not found (may have already been stopped and removed): %v", instNameToStop, err)
+		} else {
+			t.Logf("StopContainer for %s encountered an issue: %v", instNameToStop, err)
+		}
+	} else {
+		t.Logf("Container %s stopped successfully.", instNameToStop)
 	}
 }
 
@@ -127,70 +256,41 @@ func stopContainer(ctx context.Context, t *testing.T, cli *client.Client) {
 // possible deploy and start a container via containerz.
 func TestDeployAndStartContainer(t *testing.T) {
 	ctx := context.Background()
-	cli := containerzClient(ctx, t)
 
 	// Positive test: Deploy and start a container successfully.
 	t.Run("SuccessfulDeployAndStart", func(t *testing.T) {
-		// Ensure clean state for this sub-test
-		if err := cli.RemoveContainer(ctx, instanceName, true); err != nil {
-			if status.Code(err) != codes.NotFound {
-				t.Logf("Pre-test removal of %s failed (continuing): %v", instanceName, err)
-			}
-		}
-		// Remove image if it exists to ensure push is tested.
-		if err := cli.RemoveImage(ctx, imageName, "latest", false); err != nil {
-			if status.Code(err) != codes.NotFound && err.Error() != client.ErrNotFound.Error() {
-				t.Logf("Pre-test removal of image %s:latest failed (continuing): %v", imageName, err)
-			}
-		}
-
-		// Use a modified startContainer logic for this specific sub-test to avoid defer conflicts.
-		progCh, err := cli.PushImage(ctx, imageName, "latest", *containerTar, false)
-		if err != nil {
-			t.Fatalf("unable to push image: %v", err)
-		}
-		for prog := range progCh {
-			if prog.Error != nil {
-				t.Fatalf("failed to push image: %v", prog.Error)
-			}
+		cli := containerzClient(ctx, t)
+		opts := StartContainerOptions{
+			InstanceName:        instanceName,
+			ImageName:           imageName,
+			ImageTag:            "latest",
+			TarPath:             *containerTar,
+			Command:             "./cntrsrv",
+			Ports:               []string{"60061:60061"},
+			RemoveExistingImage: true,
+			PollForRunningState: true,
+			PollTimeout:         30 * time.Second,
+			PollInterval:        5 * time.Second,
 		}
 
-		_, err = cli.StartContainer(ctx, imageName, "latest", "./cntrsrv", instanceName, client.WithPorts([]string{"60061:60061"}))
-		if err != nil {
-			t.Fatalf("unable to start container: %v", err)
+		if err := deployAndStartContainer(ctx, t, cli, opts); err != nil {
+			t.Fatalf("Failed to deploy and start container %s: %v", opts.InstanceName, err)
 		}
-		defer stopContainer(ctx, t, cli)
-
-		for i := 0; i < 5; i++ {
-			ch, err := cli.ListContainer(ctx, true, 0, map[string][]string{
-				"name": {instanceName},
-			})
-			if err != nil {
-				t.Fatalf("unable to list container state for %s: %v", instanceName, err)
-			}
-
-			for info := range ch {
-				if info.Error != nil {
-					t.Fatalf("unable to list containers: %v", info.Error)
-				}
-				if info.State == cpb.ListContainerResponse_RUNNING.String() {
-					t.Logf("Container %s successfully started and running.", instanceName)
-					return
-				}
-			}
-			time.Sleep(5 * time.Second)
-		}
-		t.Fatalf("Container %s was not started.", instanceName)
+		defer stopContainer(ctx, t, cli, opts.InstanceName)
+		t.Logf("Container %s successfully started and running (verified by deployAndStartContainer).", opts.InstanceName)
 	})
 
 	// Negative Test: Attempt to start container with a non-existent image
 	t.Run("StartWithNonExistentImage", func(t *testing.T) {
 		nonExistentImageName := "non-existent-image"
-		_, err := cli.StartContainer(ctx, nonExistentImageName, "latest", "./cmd", "test-non-existent-img", client.WithPorts([]string{"60061:60061"}))
-		if err == nil {
+		instanceName := "test-non-existent-img"
+		cli := containerzClient(ctx, t) // Get client for this subtest.
+		if _, err := cli.StartContainer(ctx, nonExistentImageName, "latest", "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
 			t.Errorf("Expected error when starting container with non-existent image %s, but got nil", nonExistentImageName)
 			// Attempt to clean up if it somehow started
-			cli.RemoveContainer(ctx, "test-non-existent-img", true)
+			if removeErr := cli.RemoveContainer(ctx, instanceName, true); removeErr != nil {
+				t.Logf("Cleanup: Failed to remove container: %s after unexpected start: %v", instanceName, removeErr)
+			}
 		} else {
 			t.Logf("Got expected error when starting with non-existent image: %v", err)
 		}
@@ -202,10 +302,13 @@ func TestDeployAndStartContainer(t *testing.T) {
 		// If not, this test might give a false positive for "image not found" instead of "tag not found".
 		// For simplicity, we assume 'imageName' ("cntrsrv") with 'latest' tag was pushed.
 		nonExistentTag := "non-existent-tag"
-		_, err := cli.StartContainer(ctx, imageName, nonExistentTag, "./cmd", "test-non-existent-tag", client.WithPorts([]string{"60061:60061"}))
-		if err == nil {
+		instanceName := "test-non-existent-tag"
+		cli := containerzClient(ctx, t)
+		if _, err := cli.StartContainer(ctx, imageName, nonExistentTag, "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
 			t.Errorf("Expected error when starting container %s with non-existent tag %s, but got nil", imageName, nonExistentTag)
-			cli.RemoveContainer(ctx, "test-non-existent-tag", true)
+			if removeErr := cli.RemoveContainer(ctx, instanceName, true); removeErr != nil {
+				t.Logf("Cleanup: Failed to remove container: %s after unexpected start: %v", instanceName, removeErr)
+			}
 		} else {
 			t.Logf("Got expected error when starting with non-existent tag: %v", err)
 		}
@@ -221,7 +324,7 @@ func TestRetrieveLogs(t *testing.T) {
 	// Positive Test: Retrieve logs from a running container
 	t.Run("SuccessfulLogRetrieval", func(t *testing.T) {
 		localStartedCli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, localStartedCli) // Stops 'instanceName'
+		defer stopContainer(ctx, t, localStartedCli, instanceName) // Stops default 'instanceName'
 
 		logCh, err := localStartedCli.Logs(ctx, instanceName, false)
 		if err != nil {
@@ -262,7 +365,6 @@ func TestRetrieveLogs(t *testing.T) {
 			// Case 1: Logs() itself returns an error
 			t.Logf("Got expected error when retrieving logs for non-existent instance %s: %v", nonExistentInstanceName, err)
 			s, _ := status.FromError(err)
-			// Docker daemon might return Unknown for "No such container" when accessed via an API like containerz.
 			if s.Code() != codes.NotFound && s.Code() != codes.Unknown {
 				t.Errorf("Expected codes.NotFound or codes.Unknown for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
 			}
@@ -279,8 +381,7 @@ func TestRetrieveLogs(t *testing.T) {
 
 		t.Logf("cli.Logs for non-existent instance %s returned nil error, expecting error via channel.", nonExistentInstanceName)
 
-		// Define a timeout for receiving from the channel.
-		// This prevents the test from hanging indefinitely if the channel never sends.
+		// Timeout for receiving from the channel.
 		const channelReadTimeout = 10 * time.Second
 		timer := time.NewTimer(channelReadTimeout)
 		defer timer.Stop()
@@ -298,7 +399,6 @@ func TestRetrieveLogs(t *testing.T) {
 					if s.Code() != codes.NotFound && s.Code() != codes.Unknown {
 						t.Errorf("Expected codes.NotFound or codes.Unknown from channel for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
 					}
-					// Test considers this path as having found the expected error.
 				} else {
 					// An actual log message was received, which is an error for this test case.
 					t.Errorf("Received unexpected log message '%s' for non-existent instance %s when expecting an error.", msg.Msg, nonExistentInstanceName)
@@ -314,61 +414,33 @@ func TestRetrieveLogs(t *testing.T) {
 	t.Run("LogsFromStoppedInstance", func(t *testing.T) {
 		stoppedInstanceName := "test-instance-for-stopped-logs"
 		localImageName := imageName
-		localImageTag := "latest"
 
-		// 1. Ensure clean state for this specific container instance.
-		err := baseCli.RemoveContainer(ctx, stoppedInstanceName, true)
-		if err != nil && status.Code(err) != codes.NotFound {
-			t.Fatalf("Pre-test removal of container %s failed: %v", stoppedInstanceName, err)
-		}
 		defer func() {
 			if err := baseCli.RemoveContainer(ctx, stoppedInstanceName, true); err != nil && status.Code(err) != codes.NotFound {
 				t.Logf("Cleanup: Failed to remove container %s: %v", stoppedInstanceName, err)
 			}
 		}()
 
-		// 2. Ensure the image exists. Push if not.
-		foundImage := false
-		imgListCh, listErr := baseCli.ListImage(ctx, 0, map[string][]string{"name": {localImageName}, "tag": {localImageTag}})
-		if listErr == nil {
-			for img := range imgListCh {
-				if img.Error == nil && img.ImageName == localImageName && img.ImageTag == localImageTag {
-					foundImage = true
-					break
-				}
-				if img.Error != nil {
-					t.Logf("Error listing image during check for %s:%s: %v", localImageName, localImageTag, img.Error)
-				}
-			}
-		} else {
-			t.Logf("Could not list images to check for %s:%s (will attempt push): %v", localImageName, localImageTag, listErr)
+		opts := StartContainerOptions{
+			InstanceName:        stoppedInstanceName,
+			ImageName:           localImageName,
+			ImageTag:            "latest",
+			TarPath:             *containerTar,
+			Command:             "./cntrsrv",
+			Ports:               []string{"60062:60062"},
+			RemoveExistingImage: false,
+			PollForRunningState: true,
+			PollTimeout:         30 * time.Second,
+			PollInterval:        3 * time.Second,
 		}
 
-		if !foundImage {
-			t.Logf("Image %s:%s not found for subtest, attempting to push.", localImageName, localImageTag)
-			if remErr := baseCli.RemoveImage(ctx, localImageName, localImageTag, false); remErr != nil && status.Code(remErr) != codes.NotFound && remErr.Error() != client.ErrNotFound.Error() {
-				t.Logf("Pre-push removal of image %s:%s failed (continuing with push): %v", localImageName, localImageTag, remErr)
-			}
-			progCh, pushErr := baseCli.PushImage(ctx, localImageName, localImageTag, *containerTar, false)
-			if pushErr != nil {
-				t.Fatalf("Failed to push image %s:%s for stopped log test: %v", localImageName, localImageTag, pushErr)
-			}
-			for prog := range progCh {
-				if prog.Error != nil {
-					t.Fatalf("Error during push of %s:%s for stopped log test: %v", localImageName, localImageTag, prog.Error)
-				}
-			}
-			t.Logf("Successfully pushed %s:%s for stopped log test.", localImageName, localImageTag)
-		}
-
-		// 3. Start the container.
-		if _, err = baseCli.StartContainer(ctx, localImageName, localImageTag, "./cntrsrv", stoppedInstanceName, client.WithPorts([]string{"60062:60062"})); err != nil {
-			t.Fatalf("Failed to start container %s for stopped log test: %v", stoppedInstanceName, err)
+		if err := deployAndStartContainer(ctx, t, baseCli, opts); err != nil {
+			t.Fatalf("Failed to set up container %s for stopped log test: %v", stoppedInstanceName, err)
 		}
 		t.Logf("Container %s started for stopped log test.", stoppedInstanceName)
 
-		// 4. Stop the container.
-		if err = baseCli.StopContainer(ctx, stoppedInstanceName, true); err != nil {
+		// Stop the container.
+		if err := baseCli.StopContainer(ctx, stoppedInstanceName, true); err != nil {
 			t.Fatalf("Failed to stop container %s for stopped log test: %v", stoppedInstanceName, err)
 		}
 		t.Logf("Container %s stopped.", stoppedInstanceName)
@@ -468,14 +540,14 @@ func TestListContainers(t *testing.T) {
 	t.Run("ListFindsSpecificRunningContainer", func(t *testing.T) {
 		// startContainer will ensure 'instanceName' with 'imageName:latest' is running.
 		localStartedCli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, localStartedCli)
+		defer stopContainer(ctx, t, localStartedCli, instanceName)
 
 		listCh, err := localStartedCli.ListContainer(ctx, true, 0, nil)
 		if err != nil {
 			t.Fatalf("ListContainer() failed: %v", err)
 		}
 
-		wantImg := imageName + ":latest" // e.g., "cntrsrv:latest"
+		wantImg := imageName + ":latest"
 		foundWantImgAndInstance := false
 		var listedContainersForDebug []string
 
@@ -485,8 +557,7 @@ func TestListContainers(t *testing.T) {
 				continue
 			}
 			listedContainersForDebug = append(listedContainersForDebug, cnt.Name+":"+cnt.ImageName)
-			// Note: Docker prepends "/" to container names. Adjust if your runtime doesn't.
-			if cnt.ImageName == wantImg && (cnt.Name == "/"+instanceName || cnt.Name == instanceName) {
+			if cnt.ImageName == wantImg && strings.TrimPrefix(cnt.Name, "/") == instanceName {
 				foundWantImgAndInstance = true
 			}
 		}
@@ -527,9 +598,7 @@ func TestStopContainer(t *testing.T) {
 				continue
 			}
 			// Check if the specific instanceName is still listed.
-			// Note: Docker prepends "/" to container names. Adjust if your runtime doesn't.
-			t.Logf("%s %s %s", cntr.Name, cntr.ImageName, cntr.State)
-			if (cntr.Name == "/"+instanceName || cntr.Name == instanceName) && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
+			if strings.TrimPrefix(cntr.Name, "/") == instanceName && cntr.State != cpb.ListContainerResponse_STOPPED.String() {
 				foundContainers = append(foundContainers, cntr.Name+":"+cntr.ImageName)
 			}
 		}
@@ -551,8 +620,7 @@ func TestStopContainer(t *testing.T) {
 		// Allow time for removal to settle if it happened.
 		time.Sleep(5 * time.Second)
 
-		err := baseCli.StopContainer(ctx, nonExistentInstance, true)
-		if err == nil {
+		if err := baseCli.StopContainer(ctx, nonExistentInstance, true); err == nil {
 			t.Errorf("StopContainer() for non-existent instance %s succeeded, but expected an error (e.g., NotFound)", nonExistentInstance)
 		} else {
 			t.Logf("Got expected error when stopping non-existent instance %s: %v", nonExistentInstance, err)
@@ -605,7 +673,8 @@ func TestVolumes(t *testing.T) {
 				t.Logf("Pre-test RemoveVolume for %s failed (continuing): %v", volumeName, err)
 			}
 		}
-		time.Sleep(1 * time.Second) // Give a moment for removal to settle.
+		// Allow time for removal to settle.
+		time.Sleep(5 * time.Second)
 
 		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, nil)
 		if err != nil {
@@ -668,10 +737,8 @@ func TestVolumes(t *testing.T) {
 		// Ensure it's truly non-existent.
 		if err := cli.RemoveVolume(ctx, nonExistentVolumeName, true); err != nil {
 			if status.Code(err) != codes.NotFound {
-				// Log if the pre-check removal itself had an unexpected error (not NotFound)
 				t.Logf("Pre-check RemoveVolume for %q encountered an unexpected error (continuing test): %v", nonExistentVolumeName, err)
 			} else {
-				// NotFound is an expected outcome for the pre-check if the volume didn't exist.
 				t.Logf("Pre-check RemoveVolume for %q confirmed it was not found.", nonExistentVolumeName)
 			}
 		} else {
@@ -680,8 +747,7 @@ func TestVolumes(t *testing.T) {
 		}
 		time.Sleep(1 * time.Second)
 
-		err := cli.RemoveVolume(ctx, nonExistentVolumeName, true)
-		if err == nil {
+		if err := cli.RemoveVolume(ctx, nonExistentVolumeName, true); err == nil {
 			t.Logf("RemoveVolume(%q) for a non-existent volume succeeded (no-op), which is acceptable.", nonExistentVolumeName)
 		} else {
 			// An error was returned. It should be codes.NotFound.
@@ -704,7 +770,7 @@ func TestUpgrade(t *testing.T) {
 	// Positive Test: Successful upgrade
 	t.Run("SuccessfulUpgrade", func(t *testing.T) {
 		cli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, cli)
+		defer stopContainer(ctx, t, cli, instanceName)
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
 		progCh, err := cli.PushImage(ctx, imageName, "upgrade", *containerUpgradeTar, false)
@@ -758,11 +824,10 @@ func TestUpgrade(t *testing.T) {
 	// Negative Test: Upgrade to a non-existent image
 	t.Run("UpgradeToNonExistentImage", func(t *testing.T) {
 		cli := startContainer(ctx, t) // Starts 'instanceName' with 'imageName:latest'
-		defer stopContainer(ctx, t, cli)
+		defer stopContainer(ctx, t, cli, instanceName)
 
 		nonExistentImage := "non-existent-image-for-upgrade"
-		_, err := cli.UpdateContainer(ctx, nonExistentImage, "latest", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"}))
-		if err == nil {
+		if _, err := cli.UpdateContainer(ctx, nonExistentImage, "latest", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err == nil {
 			t.Errorf("UpdateContainer to non-existent image %s succeeded, expected error", nonExistentImage)
 		} else {
 			t.Logf("Got expected error when upgrading to non-existent image %s: %v", nonExistentImage, err)
@@ -777,12 +842,11 @@ func TestUpgrade(t *testing.T) {
 	// Negative Test: Upgrade to an existing image but non-existent tag.
 	t.Run("UpgradeToNonExistentTag", func(t *testing.T) {
 		cli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, cli)
+		defer stopContainer(ctx, t, cli, instanceName)
 
 		nonExistentTag := "non-existent-tag-for-upgrade"
 		// Ensure the base image 'imageName:latest' exists from startContainer.
-		_, err := cli.UpdateContainer(ctx, imageName, nonExistentTag, "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"}))
-		if err == nil {
+		if _, err := cli.UpdateContainer(ctx, imageName, nonExistentTag, "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err == nil {
 			t.Errorf("UpdateContainer to image %s with non-existent tag %s succeeded, expected error", imageName, nonExistentTag)
 		} else {
 			t.Logf("Got expected error when upgrading to image %s with non-existent tag %s: %v", imageName, nonExistentTag, err)
@@ -801,8 +865,7 @@ func TestUpgrade(t *testing.T) {
 			t.Logf("Pre-test removal of %s failed (continuing): %v", nonExistentInstance, err)
 		}
 
-		_, err := baseCli.UpdateContainer(ctx, imageName, "latest", "./cntrsrv", nonExistentInstance, false, client.WithPorts([]string{"60061:60061"}))
-		if err == nil {
+		if _, err := baseCli.UpdateContainer(ctx, imageName, "latest", "./cntrsrv", nonExistentInstance, false, client.WithPorts([]string{"60061:60061"})); err == nil {
 			t.Errorf("UpdateContainer for non-existent instance %s succeeded, expected error", nonExistentInstance)
 		} else {
 			t.Logf("Got expected error when upgrading non-existent instance %s: %v", nonExistentInstance, err)
