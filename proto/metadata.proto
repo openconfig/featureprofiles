@@ -748,6 +748,7 @@ message Metadata {
 
     // StaticLspNextHopsNotSupported for devices that do not support static lsp next-hops.
     // yang path "/network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/
+    // issues/417176906
     bool use_old_oc_path_static_lsp_nh = 269;
 
     // Reserved field numbers and identifiers.

@@ -148,7 +148,7 @@ func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, in
 	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
 	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-	if deviations.StaticLspNextHopsNotSupported(dut) {
+	if deviations.UseOldOCPathStaticLspNh(dut) {
 		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
 		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
 	} else {
