@@ -560,7 +560,7 @@ func TestBgpKeepAliveHoldTimerPeerGroupConfiguration(t *testing.T) {
 	}
 	cases := []testCase{{
 		name:            "BGP Timers Updated Configuration Peer Group",
-		desc:            "BGP configuration with values of 10 and 30 for peer groups"	,
+		desc:            "BGP configuration with values of 10 and 30 for peer groups",
 		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
 		wantEstablished: true,
 		bgpTimers:       tenThirty,
