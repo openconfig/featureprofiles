@@ -105,7 +105,7 @@ var moreSkipReasons = map[string]string{
 	"Election - Ensure that a client with mismatched parameters is rejected": "b/233111738",
 }
 
-func shouldSkip(tt *compliance.TestSpec) string {
+func shouldSkip(tt *compliance.TestSpec, dut *ondatra.DUTDevice) string {
 	switch {
 	case *skipFIBACK && tt.In.RequiresFIBACK:
 		return "This RequiresFIBACK test is skipped by --skip_fiback"
@@ -121,6 +121,11 @@ func shouldSkip(tt *compliance.TestSpec) string {
 		return "This RequiresMPLS test is skipped by --skip_mpls"
 	case *skipIPv6 && tt.In.RequiresIPv6:
 		return "This RequiresIPv6 test is skipped by --skip_ipv6"
+	}
+	if (tt.In.ShortName == "Error: Missing NextHopGroup for the IPv4Entry" ||
+		tt.In.ShortName == "Error: Empty NextHopGroup for the IPv4Entry") &&
+		deviations.UnreferencedAftFibAckUnsupported(dut) {
+		return "This test is skipped by unreferenced_aft_fiback_unsupported deviation"
 	}
 	return moreSkipReasons[tt.In.ShortName]
 }
@@ -152,7 +157,7 @@ func TestCompliance(t *testing.T) {
 
 	for _, tt := range compliance.TestSuite {
 		t.Run(tt.In.ShortName, func(t *testing.T) {
-			if reason := shouldSkip(tt); reason != "" {
+			if reason := shouldSkip(tt, dut); reason != "" {
 				t.Skip(reason)
 			}
 			compliance.SetDefaultNetworkInstanceName(deviations.DefaultNetworkInstance(dut))
