@@ -1626,8 +1626,8 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 		if ipLayer != nil && packetCheckCount <= 3 {
 			packetCheckCount++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if ipPacket.TTL != correspondingTTL {
-				t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
+			if ipPacket.TTL != correspondingTTL-1 {
+				t.Errorf("After Decap TTL is not as expected: %d", ipPacket.TTL)
 			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
