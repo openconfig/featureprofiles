@@ -146,7 +146,7 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
-	// tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
+	tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
 	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
 	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -198,11 +198,10 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 
 	time.Sleep(3 * waitInterval)
 	//  power on interface transceiver.
-	for _, p := range dut.Ports() {
-		tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-		gnmi.Update(t, dut, gnmi.OC().Component(p.Name()).Name().Config(), p.Name())
-		gnmi.Update(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), true)
-	}
+	gnmi.Update(t, dut, gnmi.OC().Component(dp1.Name()).Name().Config(), dp1.Name())
+	gnmi.Update(t, dut, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
+	gnmi.Update(t, dut, gnmi.OC().Component(dp2.Name()).Name().Config(), dp2.Name())
+	gnmi.Update(t, dut, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
 	// Wait for channels to be up.
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
