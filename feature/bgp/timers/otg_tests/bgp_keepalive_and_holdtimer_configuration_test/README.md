@@ -15,20 +15,22 @@ BGP Keepalive and HoldTimer Configuration Test
 *  Modify BGP timer values on iBGP peers to 10/30 and on the eBGP peering to 5/15.
 *  Verify that the sessions are established after soft reset.
 
-
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+The below yaml defines the OC paths intended to be covered by this test.
+OC paths used for test setup are not listed here.
 
 ```yaml
 paths:
   ## Config Paths ##
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval:
 
   ## State Paths ##
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/keepalive-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval:
 
 rpcs:
   gnmi:
@@ -37,7 +39,7 @@ rpcs:
       on_change: true
     gNMI.Set:
 ```
-   
+
 ## Minimum DUT platform requirement
 
 vRX
