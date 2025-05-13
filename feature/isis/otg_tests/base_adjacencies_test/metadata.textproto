@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     isis_multi_topology_unsupported: true
+    isis_explicit_level_authentication_config: true
     isis_interface_level1_disable_required: true
     missing_isis_interface_afi_safi_enable: true
     isis_restart_suppress_unsupported: true
