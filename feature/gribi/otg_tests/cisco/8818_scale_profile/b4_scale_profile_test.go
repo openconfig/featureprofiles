@@ -440,6 +440,6 @@ func validateTraffic(t *testing.T, tRes *TestResources) {
 	validateTrafficFlows(t, tcArgs, getDecapFlows(decapScaleEntries), false, true)
 }
 
-func TestTest(t *testing.T) {
+func TestModularGribiProfile(t *testing.T) {
 	testCompactModularChain(t)
 }

@@ -215,6 +215,7 @@ func buildGRIBIProgramming(dut *ondatra.DUTDevice, egressIPs []string, param Sca
 		if idx%tunnelNHGRatio == 0 {
 			nhgID = idPool.NextNHGID()
 			nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
+
 			// Build NHs and link NHs to NHG.
 			for i := 0; i < param.V4TunnelNHGSplitCount; i++ {
 				vip := v4VIPAddrs.NextIP()
