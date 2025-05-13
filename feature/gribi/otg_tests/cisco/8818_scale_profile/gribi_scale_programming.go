@@ -148,7 +148,6 @@ type VRFConfig struct {
 	NHs       []fluent.GRIBIEntry
 	NHGs      []fluent.GRIBIEntry
 	V4Entries []fluent.GRIBIEntry
-	Pairs     []PairedEntries
 }
 
 // Param TE holds scale parameters.
