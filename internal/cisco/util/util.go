@@ -166,11 +166,11 @@ func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // GNMIWithText applies the cisco text config using gnmi
 func GNMIWithText(ctx context.Context, t testing.TB, dut *ondatra.DUTDevice, config string) {
-	r := &gpb.SetRequest{
-		Update: []*gpb.Update{
+	r := &gnmipb.SetRequest{
+		Update: []*gnmipb.Update{
 			{
-				Path: &gpb.Path{Origin: "cli"},
-				Val:  &gpb.TypedValue{Value: &gpb.TypedValue_AsciiVal{AsciiVal: config}},
+				Path: &gnmipb.Path{Origin: "cli"},
+				Val:  &gnmipb.TypedValue{Value: &gnmipb.TypedValue_AsciiVal{AsciiVal: config}},
 			},
 		},
 	}
@@ -1122,12 +1122,12 @@ func StartScaledStreams(t *testing.T, dut *ondatra.DUTDevice, numStreams int) *G
 }
 
 // startGNMISubscription starts a single gNMI subscription in a goroutine.
-func (manager *GNMIStreamManager) startGNMISubscription(t *testing.T, gnmiClient gpb.GNMIClient, streamID int) {
+func (manager *GNMIStreamManager) startGNMISubscription(t *testing.T, gnmiClient gnmipb.GNMIClient, streamID int) {
 	defer manager.wg.Done()
 
 	// Define the subscription path
-	path := &gpb.Path{
-		Elem: []*gpb.PathElem{
+	path := &gnmipb.Path{
+		Elem: []*gnmipb.PathElem{
 			{Name: "system"},
 			{Name: "state"},
 			{Name: "current-datetime"},
@@ -1142,18 +1142,18 @@ func (manager *GNMIStreamManager) startGNMISubscription(t *testing.T, gnmiClient
 	}
 
 	// Create the SubscribeRequest
-	subReq := &gpb.SubscribeRequest{
-		Request: &gpb.SubscribeRequest_Subscribe{
-			Subscribe: &gpb.SubscriptionList{
-				Subscription: []*gpb.Subscription{
+	subReq := &gnmipb.SubscribeRequest{
+		Request: &gnmipb.SubscribeRequest_Subscribe{
+			Subscribe: &gnmipb.SubscriptionList{
+				Subscription: []*gnmipb.Subscription{
 					{
 						Path:           path,
-						Mode:           gpb.SubscriptionMode_SAMPLE,
+						Mode:           gnmipb.SubscriptionMode_SAMPLE,
 						SampleInterval: uint64(2 * time.Second.Nanoseconds()), // 2 seconds
 					},
 				},
-				Mode:     gpb.SubscriptionList_STREAM,
-				Encoding: gpb.Encoding_JSON_IETF,
+				Mode:     gnmipb.SubscriptionList_STREAM,
+				Encoding: gnmipb.Encoding_JSON_IETF,
 			},
 		},
 	}
