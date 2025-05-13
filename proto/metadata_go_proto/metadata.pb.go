@@ -999,10 +999,18 @@ type Metadata_Deviations struct {
 	// SkipTransceiverDescription for devices that do not support transceiver/description leaf
 	// Nokia b/394622453
 	SkipTransceiverDescription bool `protobuf:"varint,265,opt,name=skip_transceiver_description,json=skipTransceiverDescription,proto3" json:"skip_transceiver_description,omitempty"`
+	// Devices that do not support containerz config via OpenConfig.
+	ContainerzOcUnsupported bool `protobuf:"varint,266,opt,name=containerz_oc_unsupported,json=containerzOcUnsupported,proto3" json:"containerz_oc_unsupported,omitempty"`
+	// Device does not support BGP OC distance
+	BgpDistanceOcPathUnsupported bool `protobuf:"varint,267,opt,name=bgp_distance_oc_path_unsupported,json=bgpDistanceOcPathUnsupported,proto3" json:"bgp_distance_oc_path_unsupported,omitempty"`
+	// Devices that do not support ISIS MPLS
+	IsisMplsUnsupported bool `protobuf:"varint,268,opt,name=isis_mpls_unsupported,json=isisMplsUnsupported,proto3" json:"isis_mpls_unsupported,omitempty"`
 	// UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
-	UnsupportedQosOutputServicePolicy bool `protobuf:"varint,266,opt,name=unsupported_qos_output_service_policy,json=unsupportedQosOutputServicePolicy,proto3" json:"unsupported_qos_output_service_policy,omitempty"`
+	UnsupportedQosOutputServicePolicy bool `protobuf:"varint,269,opt,name=unsupported_qos_output_service_policy,json=unsupportedQosOutputServicePolicy,proto3" json:"unsupported_qos_output_service_policy,omitempty"`
 	// InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
-	InterfaceOutputQueueNonStandardName bool `protobuf:"varint,267,opt,name=interface_output_queue_non_standard_name,json=interfaceOutputQueueNonStandardName,proto3" json:"interface_output_queue_non_standard_name,omitempty"`
+	InterfaceOutputQueueNonStandardName bool `protobuf:"varint,270,opt,name=interface_output_queue_non_standard_name,json=interfaceOutputQueueNonStandardName,proto3" json:"interface_output_queue_non_standard_name,omitempty"`
+	// MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+	MplsExpIngressClassifierUnsupported bool `protobuf:"varint,271,opt,name=mpls_exp_ingress_classifier_unsupported,json=mplsExpIngressClassifierUnsupported,proto3" json:"mpls_exp_ingress_classifier_unsupported,omitempty"`
 	unknownFields                       protoimpl.UnknownFields
 	sizeCache                           protoimpl.SizeCache
 }
@@ -2682,6 +2690,27 @@ func (x *Metadata_Deviations) GetSkipTransceiverDescription() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetContainerzOcUnsupported() bool {
+	if x != nil {
+		return x.ContainerzOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpDistanceOcPathUnsupported() bool {
+	if x != nil {
+		return x.BgpDistanceOcPathUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisMplsUnsupported() bool {
+	if x != nil {
+		return x.IsisMplsUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetUnsupportedQosOutputServicePolicy() bool {
 	if x != nil {
 		return x.UnsupportedQosOutputServicePolicy
@@ -2692,6 +2721,13 @@ func (x *Metadata_Deviations) GetUnsupportedQosOutputServicePolicy() bool {
 func (x *Metadata_Deviations) GetInterfaceOutputQueueNonStandardName() bool {
 	if x != nil {
 		return x.InterfaceOutputQueueNonStandardName
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMplsExpIngressClassifierUnsupported() bool {
+	if x != nil {
+		return x.MplsExpIngressClassifierUnsupported
 	}
 	return false
 }
@@ -2752,7 +2788,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ғ\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe4\x95\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -2764,7 +2800,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa6\x8a\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb8\x8c\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3003,9 +3039,13 @@ const file_metadata_proto_rawDesc = "" +
 	"'gre_gue_tunnel_interface_oc_unsupported\x18\x86\x02 \x01(\bR\"greGueTunnelInterfaceOcUnsupported\x12>\n" +
 	"\x1bload_interval_not_supported\x18\x87\x02 \x01(\bR\x18loadIntervalNotSupported\x12Z\n" +
 	"*skip_optical_channel_output_power_interval\x18\x88\x02 \x01(\bR%skipOpticalChannelOutputPowerInterval\x12A\n" +
-	"\x1cskip_transceiver_description\x18\x89\x02 \x01(\bR\x1askipTransceiverDescription\x12Q\n" +
-	"%unsupported_qos_output_service_policy\x18\x8a\x02 \x01(\bR!unsupportedQosOutputServicePolicy\x12V\n" +
-	"(interface_output_queue_non_standard_name\x18\x8b\x02 \x01(\bR#interfaceOutputQueueNonStandardNameJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1cskip_transceiver_description\x18\x89\x02 \x01(\bR\x1askipTransceiverDescription\x12;\n" +
+	"\x19containerz_oc_unsupported\x18\x8a\x02 \x01(\bR\x17containerzOcUnsupported\x12G\n" +
+	" bgp_distance_oc_path_unsupported\x18\x8b\x02 \x01(\bR\x1cbgpDistanceOcPathUnsupported\x123\n" +
+	"\x15isis_mpls_unsupported\x18\x8c\x02 \x01(\bR\x13isisMplsUnsupported\x12Q\n" +
+	"%unsupported_qos_output_service_policy\x18\x8d\x02 \x01(\bR!unsupportedQosOutputServicePolicy\x12V\n" +
+	"(interface_output_queue_non_standard_name\x18\x8e\x02 \x01(\bR#interfaceOutputQueueNonStandardName\x12U\n" +
+	"'mpls_exp_ingress_classifier_unsupported\x18\x8f\x02 \x01(\bR#mplsExpIngressClassifierUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
