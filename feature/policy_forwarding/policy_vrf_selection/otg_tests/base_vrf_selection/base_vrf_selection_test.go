@@ -421,7 +421,7 @@ func contains(item gosnappi.Flow, items []gosnappi.Flow) bool {
 // verifyTraffic confirms that every traffic flow has the expected amount of loss (0% or 100%)
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows, passFlows []gosnappi.Flow) {
 	t.Helper()
-	topo := ate.OTG().FetchConfig(t)
+	topo := ate.OTG().GetConfig(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), topo)
 	for _, flow := range flows {
 		t.Logf("*** Verifying %v traffic on OTG ... ", flow.Name())
