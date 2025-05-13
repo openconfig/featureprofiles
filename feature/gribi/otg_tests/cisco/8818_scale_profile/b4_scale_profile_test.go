@@ -441,5 +441,5 @@ func validateTraffic(t *testing.T, tRes *TestResources) {
 }
 
 func TestTest(t *testing.T) {
-	TestChains(t)
+	testCompactModularChain(t)
 }

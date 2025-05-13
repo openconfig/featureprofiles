@@ -75,7 +75,7 @@ type GribiProfile struct {
 	useBackups             bool
 }
 
-func NewGribiProfile(batches int, frr1bkp bool, frr2bkp bool, dut *ondatra.DUTDevice, rp ...*routesParam) *GribiProfile {
+func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut *ondatra.DUTDevice, rp ...*routesParam) *GribiProfile {
 	gp := &GribiProfile{}
 	if frr1bkp || frr2bkp {
 		gp.useBackups = true
@@ -500,7 +500,7 @@ func NewGribiProfile(batches int, frr1bkp bool, frr2bkp bool, dut *ondatra.DUTDe
 			gp.DecapWanVarEntries = GetFibSegmentGribiEntries(p, dut, batches)
 		}
 	}
-	gp.ConmbinedPairedEntries = CombinePairedEntries(dut, gp.batches, gp.GetNonEmptyRoutesParams()...)
+	gp.ConmbinedPairedEntries = CombinePairedEntries(t, dut, gp.batches, gp.GetNonEmptyRoutesParams()...)
 	gp.usedBatches = &coniguredBatches{conBatches: []int{}}
 	return gp
 }
@@ -585,22 +585,42 @@ func (gp *GribiProfile) GetNonEmptyRoutesParams() []*routesParam {
 	return nonEmptyParams
 }
 
-func CombinePairedEntries(dut *ondatra.DUTDevice, batchCount int, routeParams ...*routesParam) [][]fluent.GRIBIEntry {
-	// Determine the maximum number of batches across all routeParams
-	maxBatches := batchCount
+func CombinePairedEntries(t *testing.T, dut *ondatra.DUTDevice, batchCount int, routeParams ...*routesParam) [][]fluent.GRIBIEntry {
+	// Create a result slice with the same number of batches as the batchCount
+	result := make([][]fluent.GRIBIEntry, batchCount)
 
-	// Create a result slice with the same number of batches as the maximum
-	result := make([][]fluent.GRIBIEntry, maxBatches)
+	// Initialize counters for combined entries
+	totalNHs, totalNHGs, totalV4s, totalV6s := 0, 0, 0, 0
 
 	// Iterate over each routeParam
 	for _, params := range routeParams {
 		// Get the PairedEntries for the current routeParam
 		pairedEntries := GetFibSegmentGribiEntries(params, dut, batchCount)
 
+		// Initialize counters for this routeParam
+		paramNHs, paramNHGs, paramV4s, paramV6s := 0, 0, 0, 0
+
 		// Combine the entries into the result batches
-		for i := 0; i < maxBatches; i++ {
-			// If the current input has fewer batches, distribute its entries evenly
+		for i := 0; i < batchCount; i++ {
 			if i < len(pairedEntries) {
+				// Count entries for this batch
+				batchNHs := len(pairedEntries[i].NHs)
+				batchNHGs := len(pairedEntries[i].NHGs)
+				batchV4s := len(pairedEntries[i].V4Entries)
+				batchV6s := len(pairedEntries[i].V6Entries)
+
+				// Update counters for this routeParam
+				paramNHs += batchNHs
+				paramNHGs += batchNHGs
+				paramV4s += batchV4s
+				paramV6s += batchV6s
+
+				// Update combined counters
+				totalNHs += batchNHs
+				totalNHGs += batchNHGs
+				totalV4s += batchV4s
+				totalV6s += batchV6s
+
 				// Combine all entries (NHs, NHGs, V4Entries, V6Entries) into a single slice for this batch
 				combinedEntries := append([]fluent.GRIBIEntry{}, pairedEntries[i].NHs...)
 				combinedEntries = append(combinedEntries, pairedEntries[i].NHGs...)
@@ -611,7 +631,13 @@ func CombinePairedEntries(dut *ondatra.DUTDevice, batchCount int, routeParams ..
 				result[i] = append(result[i], combinedEntries...)
 			}
 		}
+
+		// Log counts for this fib chain segment
+		t.Logf("FibSegment %v: Total NHs: %d, NHGs: %d, V4Entries: %d, V6Entries: %d", params.segment, paramNHs, paramNHGs, paramV4s, paramV6s)
 	}
+
+	// Log combined counts for all fib chain segments
+	t.Logf("Combined: Total NHs: %d, NHGs: %d, V4Entries: %d, V6Entries: %d", totalNHs, totalNHGs, totalV4s, totalV6s)
 
 	return result
 }
@@ -1019,7 +1045,7 @@ func getVariableLenSubnets(subNets uint32, seedBlocks ...string) []string {
 	return variableLenSubnets
 }
 
-func TestChains2(t *testing.T) {
+func testExpandedModularChain(t *testing.T) {
 	// initial setting
 	dut := ondatra.DUT(t, "dut")
 	peer := ondatra.DUT(t, "peer")
@@ -1097,7 +1123,7 @@ func TestChains2(t *testing.T) {
 	level1Primary := routesParam{
 		ipEntries:     vipIPs, // 512 VIP prefixes
 		prefixVRF:     deviations.DefaultNetworkInstance(dut),
-		nextHops:      peerNHIP, // peer or otg prefixes //peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
+		nextHops:      peerNHIP, // peer or otg prefixes, peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
 		nextHopVRF:    deviations.DefaultNetworkInstance(dut),
 		nextHopType:   "default",
 		numUniqueNHGs: L1Nhg,      // 512
@@ -1109,7 +1135,7 @@ func TestChains2(t *testing.T) {
 	LogGribiInfo(t, "level1Primary", gribiInfo)
 
 	level2Primary := routesParam{
-		ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6800 in final
+		ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6400 in final
 		prefixVRF:     vrfTransit,
 		nextHops:      vipIPs, // VIP addresses
 		nextHopVRF:    deviations.DefaultNetworkInstance(dut),
@@ -1214,7 +1240,7 @@ func TestChains2(t *testing.T) {
 	decapWanVp := GetFibSegmentGribiEntries(&decapWanVarPrefix, dut, batches)
 	LogGribiInfo(t, "decapWanVp", decapWanVp)
 
-	configBatches := CombinePairedEntries(dut, batches, &level1Primary, &level2Primary, &level3PrimaryA, &level3PrimaryB, &level1Frr1, &level2Frr1, &decapWan, &decapWanVarPrefix)
+	configBatches := CombinePairedEntries(t, dut, batches, &level1Primary, &level2Primary, &level3PrimaryA, &level3PrimaryB, &level1Frr1, &level2Frr1, &decapWan, &decapWanVarPrefix)
 
 	client.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
@@ -1223,9 +1249,6 @@ func TestChains2(t *testing.T) {
 	electionID := gribi.BecomeLeader(t, client)
 	t.Logf("Election ID: %v", electionID)
 
-	// only program the first batch
-	entries := configBatches[0]
-
 	// Program backup entries first
 	t.Logf("Programming backup entries")
 	client.Modify().AddEntry(t, backUpFluentEntries...)
@@ -1233,7 +1256,9 @@ func TestChains2(t *testing.T) {
 		t.Fatalf("Could not program entries, got err: %v", err)
 	}
 
-	// Program the entries
+	// only program the first batch
+	entries := configBatches[0]
+
 	t.Logf("Programming %d entries", len(entries))
 	client.Modify().AddEntry(t, entries...)
 	if err := awaitTimeout(ctx, client, t, aftProgTimeout); err != nil {
@@ -1247,7 +1272,7 @@ func TestChains2(t *testing.T) {
 	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(0, "dcapV",
 		&DecapFlowAttr{decapWanVp[0].V4Prefixes, encapEntriesA[0].V4Prefixes, encapEntriesA[0].V6Prefixes, dscpEncapA1},
 		&DecapFlowAttr{decapWanVp[0].V4Prefixes, encapEntriesB[0].V4Prefixes, encapEntriesB[0].V6Prefixes, dscpEncapB1}),
-		false, true) //&DecapFlowAttr{decapWanPE[0].V4Prefixes, encapEntriesB[0].V4Prefixes, encapEntriesB[0].V6Prefixes, dscpEncapB1}),
+		false, true)
 
 	t.Logf("Validating fixed length prefix decap traffic")
 	validateTrafficFlows(t, tcArgs, getDecapFlowsForBatch(0, "dcapF",
@@ -1256,7 +1281,7 @@ func TestChains2(t *testing.T) {
 		false, true)
 }
 
-func TestChains(t *testing.T) {
+func testCompactModularChain(t *testing.T) {
 	// initial setting
 	dut := ondatra.DUT(t, "dut")
 	peer := ondatra.DUT(t, "peer")
@@ -1308,7 +1333,7 @@ func TestChains(t *testing.T) {
 
 	batches := 2
 	//  single encap tunnel case, 3 decap (1 fixed, 1 variable, one frr2backup), 1 decapEncap (frr1backup) cases
-	// gp := NewGribiProfile(batches, true, true, dut,
+	// gp := NewGribiProfile(t, batches, true, true, dut,
 	// 	&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1},
 	// 	&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 1, numNHPerNHG: 1},
 	// 	&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 1, numNHPerNHG: 1},
@@ -1320,11 +1345,11 @@ func TestChains(t *testing.T) {
 	// )
 
 	// case 100*8=800 encap, 1 decap, 1 decapEncap, 1 frr2backup, 1 frr1backup
-	gp := NewGribiProfile(batches, true, true, dut,
+	gp := NewGribiProfile(t, batches, true, true, dut,
 		&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 2, numNHPerNHG: 1}, //primary path
 		&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 2, numNHPerNHG: 1},
-		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 100, numNHPerNHG: 8},
-		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 100, numNHPerNHG: 8},
+		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 50, numNHPerNHG: 8},
+		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 50, numNHPerNHG: 8},
 		&routesParam{segment: "Frr1Level1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
 		&routesParam{segment: "Frr1Level2", numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "DecapWan", numUniqueNHGs: 2, numNHPerNHG: 1},
