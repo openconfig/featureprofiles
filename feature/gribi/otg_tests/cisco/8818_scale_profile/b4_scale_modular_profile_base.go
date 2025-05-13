@@ -877,18 +877,19 @@ func GetFibSegmentGribiEntries(t *testing.T, routeParams *routesParam, dut *onda
 
 	// If nextHops are fewer than the batch size, allow all batches to reuse the same nextHops
 	if len(routeParams.nextHops) < batchSize {
-		t.Logf("NextHops are fewer than the batch size (%d < %d), reusing the same nextHops for all batches", len(routeParams.nextHops), batchSize)
+		t.Logf("%s: NextHops are fewer than the batch size (%d < %d), reusing the same nextHops for all batches", routeParams.segment, len(routeParams.nextHops), batchSize)
 		nextHopsPerBatch = len(routeParams.nextHops)
 	}
+	// undo if needed
+	// if routeParams.numUniqueNHs == 0 {
+	// 	t.Logf("numUniqueNHs is not set, calculating it based on numUniqueNHGs and numNHPerNHG")
+	// 	routeParams.numUniqueNHs = routeParams.numUniqueNHGs * routeParams.numNHPerNHG
+	// }
 
-	if routeParams.numUniqueNHs == 0 {
-		t.Logf("numUniqueNHs is not set, calculating it based on numUniqueNHGs and numNHPerNHG")
-		routeParams.numUniqueNHs = routeParams.numUniqueNHGs * routeParams.numNHPerNHG
-	}
 	// avoid divide by zero and ensure that each batch gets at least one NHG
 	// routeParams.numUniqueNHGs should be greater than batchCount or equal to it
 	if routeParams.numUniqueNHGs < batchCount {
-		t.Logf("numUniqueNHGs is less than batchCount (%d < %d), setting numUniqueNHGs to batchCount", routeParams.numUniqueNHGs, batchCount)
+		t.Logf("%s: numUniqueNHGs is less than batchCount (%d < %d), setting numUniqueNHGs to batchCount", routeParams.segment, routeParams.numUniqueNHGs, batchCount)
 		routeParams.numUniqueNHGs = batchCount
 	}
 
@@ -905,7 +906,6 @@ func GetFibSegmentGribiEntries(t *testing.T, routeParams *routesParam, dut *onda
 		// Calculate the batch-specific nextHops
 		var batchNextHops []string
 		if len(routeParams.nextHops) < batchSize {
-			t.Logf("NextHops are fewer than the batch size (%d < %d), reusing the same nextHops for all batches", len(routeParams.nextHops), batchSize)
 			batchNextHops = routeParams.nextHops // Reuse the same nextHops for all batches
 		} else {
 			batchNextHops = routeParams.nextHops[batch*nextHopsPerBatch : (batch+1)*nextHopsPerBatch]
@@ -1348,12 +1348,12 @@ func testCompactModularChain(t *testing.T) {
 	// )
 
 	batches := 2
-	// case 50*8=400 encap, 1 decap, 1 decapEncap, 1 frr2backup, 1 frr1backup
+	// case 100*8*2vrf=1600 encap, 1 decap, 1 decapEncap, 1 frr2backup, 1 frr1backup
 	gp := NewGribiProfile(t, batches, true, true, dut,
 		&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 2, numNHPerNHG: 1}, //primary path
 		&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 2, numNHPerNHG: 1},
-		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 50, numNHPerNHG: 8},
-		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 50, numNHPerNHG: 8},
+		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 100, numNHPerNHG: 8},
+		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 100, numNHPerNHG: 8},
 		&routesParam{segment: "Frr1Level1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
 		&routesParam{segment: "Frr1Level2", numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "DecapWan", numUniqueNHGs: 2, numNHPerNHG: 1},
