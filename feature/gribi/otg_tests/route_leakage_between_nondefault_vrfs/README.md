@@ -309,11 +309,9 @@ rpcs:
 paths:
     /network-instances/network-instance/config/name:
     /network-instances/network-instance/config/description:
-    /network-instances/network-instance/interfaces/interface/config:
     
     /network-instances/network-instance/state/name:
     /network-instances/network-instance/state/description:
-    /network-instances/network-instance/interfaces/interface/state:
 ```
 
 ## Minimum DUT platform requirement
