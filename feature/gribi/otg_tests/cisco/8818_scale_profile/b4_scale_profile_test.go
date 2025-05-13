@@ -443,3 +443,7 @@ func validateTraffic(t *testing.T, tRes *TestResources) {
 func TestModularGribiProfile(t *testing.T) {
 	testCompactModularChain(t)
 }
+
+func TestExpandedModularChain(t *testing.T) {
+	testExpandedModularChain(t)
+}

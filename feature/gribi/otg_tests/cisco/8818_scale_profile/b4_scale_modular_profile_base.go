@@ -30,7 +30,6 @@ var (
 	tunnelDestIPs = iputil.GenerateIPs(V4TunnelIPBlock, encapNhCount)
 	vipIPs        = iputil.GenerateIPs(V4VIPIPBlock, L1Nhg)
 	vipFrr1IPs    = iputil.GenerateIPs(VipFrr1IPBlock, L1Nhg)
-	vipFrr2IPs    = iputil.GenerateIPs(VipFrr2IPBlock, L1Nhg)
 )
 
 // PairedEntries holds NHs, NHGs and IPv4 entries for the VRF.
@@ -130,7 +129,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.nextHopWeight = generateNextHopWeights(64, 8)
 			}
 			gp.PrimaryLevel1 = p
-			gp.PrimaryL1Entries = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.PrimaryL1Entries = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "PrimaryLevel2" {
 			// ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6800 in final
@@ -170,7 +169,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.backupNHG = int(nhgRedirectToVrfR)
 			}
 			gp.PrimaryLevel2 = p
-			gp.PrimaryL2Entries = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.PrimaryL2Entries = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "PrimaryLevel3A" {
 			// ipEntries:     encapVrfAIPv4Enries,
@@ -215,7 +214,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.tunnelSrcIP = ipv4OuterSrc111
 			}
 			gp.PrimaryLevel3A = p
-			gp.EncapEntriesA = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.EncapEntriesA = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "PrimaryLevel3B" {
 			// ipEntries:     encapVrfBIPv4Enries,
@@ -259,7 +258,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.tunnelSrcIP = ipv4OuterSrc111
 			}
 			gp.PrimaryLevel3B = p
-			gp.EncapEntriesB = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.EncapEntriesB = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "PrimaryLevel3C" {
 			// ipEntries:     encapVrfCIPv4Enries,
@@ -303,7 +302,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.tunnelSrcIP = ipv4OuterSrc222
 			}
 			gp.PrimaryLevel3C = p
-			gp.EncapEntriesC = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.EncapEntriesC = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "PrimaryLevel3D" {
 			// ipEntries:     encapVrfDIPv4Enries,
@@ -347,7 +346,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.tunnelSrcIP = ipv4OuterSrc222
 			}
 			gp.PrimaryLevel3D = p
-			gp.EncapEntriesD = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.EncapEntriesD = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "Frr1Level1" {
 			// ipEntries:     vipFrr1IPs, // 512 VIP prefixes
@@ -383,7 +382,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.nextHopWeight = generateNextHopWeights(64, 8)
 			}
 			gp.Frr1Level1 = p
-			gp.Frr1L1Entries = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.Frr1L1Entries = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "Frr1Level2" {
 			// ipEntries:     tunnelDestIPs, // 1600 tunnel prefixes - will be 6800 in final
@@ -427,7 +426,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.tunnelSrcIP = ipv4OuterSrc222
 			}
 			gp.Frr1Level2 = p
-			gp.Frr1L2Entries = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.Frr1L2Entries = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "DecapWan" {
 			// ipEntries:     iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount),
@@ -460,7 +459,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.nextHopWeight = generateNextHopWeights(1, 1)
 			}
 			gp.DecapWan = p
-			gp.DecapWanEntries = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.DecapWanEntries = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 		if p.segment == "DecapWanVar" {
 			// ipEntries:     getVariableLenSubnets(12, "102.51.100.1/22", "107.51.105.1/24", "112.51.110.1/26", "117.51.115.1/28"),
@@ -497,7 +496,7 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 				p.nextHopWeight = generateNextHopWeights(1, 1)
 			}
 			gp.DecapWanVar = p
-			gp.DecapWanVarEntries = GetFibSegmentGribiEntries(p, dut, batches)
+			gp.DecapWanVarEntries = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
 	}
 	gp.ConmbinedPairedEntries = CombinePairedEntries(t, dut, gp.batches, gp.GetNonEmptyRoutesParams()...)
@@ -595,7 +594,7 @@ func CombinePairedEntries(t *testing.T, dut *ondatra.DUTDevice, batchCount int, 
 	// Iterate over each routeParam
 	for _, params := range routeParams {
 		// Get the PairedEntries for the current routeParam
-		pairedEntries := GetFibSegmentGribiEntries(params, dut, batchCount)
+		pairedEntries := GetFibSegmentGribiEntries(t, params, dut, batchCount)
 
 		// Initialize counters for this routeParam
 		paramNHs, paramNHGs, paramV4s, paramV6s := 0, 0, 0, 0
@@ -664,11 +663,11 @@ func (c *coniguredBatches) useBatch(batchSet []int) {
 	}
 }
 
-func (c *coniguredBatches) getBatches() []int {
-	c.m.Lock()
-	defer c.m.Unlock()
-	return c.conBatches
-}
+// func (c *coniguredBatches) getBatches() []int {
+// 	c.m.Lock()
+// 	defer c.m.Unlock()
+// 	return c.conBatches
+// }
 
 func (c *coniguredBatches) freeBatch(batchSet []int) {
 	c.m.Lock()
@@ -866,7 +865,7 @@ func EnsureCIDR(ipStr string, mask int) string {
 	}
 }
 
-func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice, batchCount int) []PairedEntries {
+func GetFibSegmentGribiEntries(t *testing.T, routeParams *routesParam, dut *ondatra.DUTDevice, batchCount int) []PairedEntries {
 	var pairedEntries []PairedEntries
 
 	// Calculate the batch size dynamically based on the total number of ipEntries and batchCount
@@ -878,15 +877,18 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 
 	// If nextHops are fewer than the batch size, allow all batches to reuse the same nextHops
 	if len(routeParams.nextHops) < batchSize {
+		t.Logf("NextHops are fewer than the batch size (%d < %d), reusing the same nextHops for all batches", len(routeParams.nextHops), batchSize)
 		nextHopsPerBatch = len(routeParams.nextHops)
 	}
 
 	if routeParams.numUniqueNHs == 0 {
+		t.Logf("numUniqueNHs is not set, calculating it based on numUniqueNHGs and numNHPerNHG")
 		routeParams.numUniqueNHs = routeParams.numUniqueNHGs * routeParams.numNHPerNHG
 	}
 	// avoid divide by zero and ensure that each batch gets at least one NHG
 	// routeParams.numUniqueNHGs should be greater than batchCount or equal to it
 	if routeParams.numUniqueNHGs < batchCount {
+		t.Logf("numUniqueNHGs is less than batchCount (%d < %d), setting numUniqueNHGs to batchCount", routeParams.numUniqueNHGs, batchCount)
 		routeParams.numUniqueNHGs = batchCount
 	}
 
@@ -903,6 +905,7 @@ func GetFibSegmentGribiEntries(routeParams *routesParam, dut *ondatra.DUTDevice,
 		// Calculate the batch-specific nextHops
 		var batchNextHops []string
 		if len(routeParams.nextHops) < batchSize {
+			t.Logf("NextHops are fewer than the batch size (%d < %d), reusing the same nextHops for all batches", len(routeParams.nextHops), batchSize)
 			batchNextHops = routeParams.nextHops // Reuse the same nextHops for all batches
 		} else {
 			batchNextHops = routeParams.nextHops[batch*nextHopsPerBatch : (batch+1)*nextHopsPerBatch]
@@ -1131,7 +1134,7 @@ func testExpandedModularChain(t *testing.T) {
 		nextHopWeight: generateNextHopWeights(64, 8),
 	}
 
-	gribiInfo := GetFibSegmentGribiEntries(&level1Primary, dut, batches)
+	gribiInfo := GetFibSegmentGribiEntries(t, &level1Primary, dut, batches)
 	LogGribiInfo(t, "level1Primary", gribiInfo)
 
 	level2Primary := routesParam{
@@ -1146,7 +1149,7 @@ func testExpandedModularChain(t *testing.T) {
 		backupNHG:     int(nhgRedirectToVrfR),
 	}
 
-	gribiInfo = GetFibSegmentGribiEntries(&level2Primary, dut, batches)
+	gribiInfo = GetFibSegmentGribiEntries(t, &level2Primary, dut, batches)
 	LogGribiInfo(t, "level2Primary", gribiInfo)
 
 	level3PrimaryA := routesParam{
@@ -1163,7 +1166,7 @@ func testExpandedModularChain(t *testing.T) {
 		tunnelSrcIP:   ipv4OuterSrc111,
 	}
 
-	encapEntriesA := GetFibSegmentGribiEntries(&level3PrimaryA, dut, batches)
+	encapEntriesA := GetFibSegmentGribiEntries(t, &level3PrimaryA, dut, batches)
 	LogGribiInfo(t, "level3PrimaryA", encapEntriesA)
 
 	level3PrimaryB := routesParam{
@@ -1179,7 +1182,7 @@ func testExpandedModularChain(t *testing.T) {
 		tunnelSrcIP:   ipv4OuterSrc111,
 	}
 
-	encapEntriesB := GetFibSegmentGribiEntries(&level3PrimaryB, dut, batches)
+	encapEntriesB := GetFibSegmentGribiEntries(t, &level3PrimaryB, dut, batches)
 
 	level1Frr1 := routesParam{
 		ipEntries:     vipFrr1IPs, // 512 VIP prefixes
@@ -1192,7 +1195,7 @@ func testExpandedModularChain(t *testing.T) {
 		nextHopWeight: generateNextHopWeights(64, 8),
 	}
 
-	gribiInfo = GetFibSegmentGribiEntries(&level1Frr1, dut, batches)
+	gribiInfo = GetFibSegmentGribiEntries(t, &level1Frr1, dut, batches)
 	LogGribiInfo(t, "level1Frr1", gribiInfo)
 
 	level2Frr1 := routesParam{
@@ -1208,7 +1211,7 @@ func testExpandedModularChain(t *testing.T) {
 		tunnelSrcIP:   ipv4OuterSrc222,
 	}
 
-	gribiInfo = GetFibSegmentGribiEntries(&level2Frr1, dut, batches)
+	gribiInfo = GetFibSegmentGribiEntries(t, &level2Frr1, dut, batches)
 	LogGribiInfo(t, "level2Frr1", gribiInfo)
 
 	decapWan := routesParam{
@@ -1222,7 +1225,7 @@ func testExpandedModularChain(t *testing.T) {
 		nextHopWeight: generateNextHopWeights(1, 1),
 	}
 
-	decapWanPE := GetFibSegmentGribiEntries(&decapWan, dut, batches)
+	decapWanPE := GetFibSegmentGribiEntries(t, &decapWan, dut, batches)
 	LogGribiInfo(t, "decapWan", decapWanPE)
 
 	decapWanVarPrefix := routesParam{
@@ -1237,7 +1240,7 @@ func testExpandedModularChain(t *testing.T) {
 		nextHopWeight: generateNextHopWeights(1, 1),
 	}
 
-	decapWanVp := GetFibSegmentGribiEntries(&decapWanVarPrefix, dut, batches)
+	decapWanVp := GetFibSegmentGribiEntries(t, &decapWanVarPrefix, dut, batches)
 	LogGribiInfo(t, "decapWanVp", decapWanVp)
 
 	configBatches := CombinePairedEntries(t, dut, batches, &level1Primary, &level2Primary, &level3PrimaryA, &level3PrimaryB, &level1Frr1, &level2Frr1, &decapWan, &decapWanVarPrefix)
@@ -1331,8 +1334,8 @@ func testCompactModularChain(t *testing.T) {
 
 	//modular configuration begins below
 
-	batches := 2
-	//  single encap tunnel case, 3 decap (1 fixed, 1 variable, one frr2backup), 1 decapEncap (frr1backup) cases
+	// batches := 1
+	// single encap tunnel case, 3 decap (1 fixed, 1 variable, one frr2backup), 1 decapEncap (frr1backup) cases
 	// gp := NewGribiProfile(t, batches, true, true, dut,
 	// 	&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 1, numNHPerNHG: 1},
 	// 	&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 1, numNHPerNHG: 1},
@@ -1344,7 +1347,8 @@ func testCompactModularChain(t *testing.T) {
 	// 	&routesParam{segment: "DecapWanVar", numUniqueNHGs: 1, numNHPerNHG: 1},
 	// )
 
-	// case 100*8=800 encap, 1 decap, 1 decapEncap, 1 frr2backup, 1 frr1backup
+	batches := 2
+	// case 50*8=400 encap, 1 decap, 1 decapEncap, 1 frr2backup, 1 frr1backup
 	gp := NewGribiProfile(t, batches, true, true, dut,
 		&routesParam{segment: "PrimaryLevel1", nextHops: peerNHIP, numUniqueNHGs: 2, numNHPerNHG: 1}, //primary path
 		&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 2, numNHPerNHG: 1},
