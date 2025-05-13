@@ -734,11 +734,20 @@ message Metadata {
     // Nokia b/394622453
     bool skip_transceiver_description = 265;
 
+    // Devices that do not support containerz config via OpenConfig.
+    bool containerz_oc_unsupported = 266;
+
+    // Device does not support BGP OC distance
+    bool bgp_distance_oc_path_unsupported = 267;
+
+    // Devices that do not support ISIS MPLS
+    bool isis_mpls_unsupported = 268;
+
     // UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
-    bool unsupported_qos_output_service_policy = 266;
+    bool unsupported_qos_output_service_policy = 269;
 
     // InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
-    bool interface_output_queue_non_standard_name = 267;
+    bool interface_output_queue_non_standard_name = 270;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
