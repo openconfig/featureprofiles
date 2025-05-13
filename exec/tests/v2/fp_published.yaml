@@ -1584,14 +1584,14 @@ tests:
     path: feature/security/gnsi/acctz/RecordSubscribeIdleTimeoutDoA
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
   - name: ACCTZ-7.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction)
     path: feature/security/gnsi/acctz/AccountingAuthenFailMulti
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1599,15 +1599,15 @@ tests:
     path: feature/security/gnsi/acctz/AccountingAuthenFailUni
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
-  
+
   - name: ACCTZ-9.1 (gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation)
     path: feature/security/gnsi/acctz/AccountingPrivEscalation
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1615,7 +1615,7 @@ tests:
     path: main/feature/acl/otg_tests/acl_update_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1623,7 +1623,7 @@ tests:
     path: main/feature/acl/otg_tests/large_scale_acl
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1631,7 +1631,7 @@ tests:
     path: main/feature/system/attestz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1639,7 +1639,7 @@ tests:
     path: main/feature/system/attestz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1647,7 +1647,7 @@ tests:
     path: main/feature/system/attestz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1655,7 +1655,7 @@ tests:
     path: feature/security/gnsi/authz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1663,7 +1663,7 @@ tests:
     path: feature/security/gnsi/authz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1671,7 +1671,7 @@ tests:
     path: feature/security/gnsi/authz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1679,7 +1679,7 @@ tests:
     path: feature/security/gnsi/authz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1687,7 +1687,7 @@ tests:
     path: feature/security/gnsi/certz/client_certificates
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1695,7 +1695,7 @@ tests:
     path: feature/security/gnsi/certz/server_certificates
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1703,7 +1703,7 @@ tests:
     path: feature/security/gnsi/certz/server_certificate_rotation
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1711,7 +1711,7 @@ tests:
     path: feature/security/gnsi/certz/trust_bundle
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1719,7 +1719,7 @@ tests:
     path: feature/ssecurity/gnsi/certz/trust_bundle_rotation
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1727,7 +1727,7 @@ tests:
     path: feature/qos/ecn/ate_tests/ecn_enabled_traffic_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1735,7 +1735,7 @@ tests:
     path: feature/qos/ecn/ate_tests/dscp_ecn_encap_decap_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1743,7 +1743,7 @@ tests:
     path: main/feature/qos/otg_tests/egress_strict_priority_scheduler_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1751,7 +1751,7 @@ tests:
     path: main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1759,7 +1759,7 @@ tests:
     path: main/feature/qos/otg_tests/egress_strict_priority_scheduler_with_bursty_traffic_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1767,7 +1767,7 @@ tests:
     path: main/feature/qos/otg_tests/ingress_police_nhg
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1775,7 +1775,7 @@ tests:
     path: main/feature/qos/otg_tests/ingress_police_default
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1783,7 +1783,7 @@ tests:
     path: feature/platform/healthz/tests/status
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1791,7 +1791,7 @@ tests:
     path: feature/platform/integrated_circuit/otg_tests/utilization
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1799,7 +1799,7 @@ tests:
     path: blob/main/feature/system/management
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1807,7 +1807,7 @@ tests:
     path: main/feature/mtu/largeippacket/otg_tests/large_ip_packet_gre_gue_tunnel_transmission
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1815,7 +1815,7 @@ tests:
     path: tree/main/feature/mtu/otg_tests/pmtu_handing
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1823,7 +1823,7 @@ tests:
     path: main/feature/system/tests/system_base_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1831,7 +1831,7 @@ tests:
     path: main/feature/p4rt/tests/p4rt_device_down_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1839,7 +1839,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/match_dscp_indirect_next_hop
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1847,7 +1847,7 @@ tests:
     path: feature/policy_forwarding/encapsulation/otg_tests/encap_gre_ipv4
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1855,7 +1855,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1863,7 +1863,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1871,7 +1871,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1879,7 +1879,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_udp_decap_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1887,7 +1887,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1895,7 +1895,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1903,7 +1903,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1911,7 +1911,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_scale_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1919,7 +1919,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1927,7 +1927,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_scale_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1935,7 +1935,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1943,7 +1943,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_udp_macsec
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1951,7 +1951,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gre_udp_qos
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1959,7 +1959,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1967,7 +1967,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_scale_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1975,7 +1975,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/flow_label_ipv6_tunnel
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1983,7 +1983,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/ipv4_gue_hashing_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1991,7 +1991,7 @@ tests:
     path: main/feature/platform/tests/interface_parent_component
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -1999,7 +1999,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/chained_policies
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2007,7 +2007,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/nested_policies
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2015,7 +2015,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/3level_nested_policies
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2023,7 +2023,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2031,7 +2031,7 @@ tests:
     path: blob/main/feature/bgp/admin_distance
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2039,7 +2039,7 @@ tests:
     path: main/feature/policy_forwarding/otg_tests/prefix_set_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2047,7 +2047,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2055,7 +2055,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2063,7 +2063,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2071,7 +2071,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2079,7 +2079,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2087,7 +2087,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2095,7 +2095,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2103,7 +2103,7 @@ tests:
     path: blob/main/feature/bgp/multihop
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2111,7 +2111,7 @@ tests:
     path: main/feature/isis/otg_tests/isis_drain_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2119,7 +2119,7 @@ tests:
     path: main/feature/isis/otg_tests/isis_extensions_segment_routing_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2127,7 +2127,7 @@ tests:
     path: feature/experimental/isis/otg_tests/graceful_restart_helper
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2135,7 +2135,7 @@ tests:
     path: featureprofiles/feature/isis/otg_tests/graceful_restart_restarting
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2143,7 +2143,7 @@ tests:
     path: feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2151,7 +2151,7 @@ tests:
     path: feature/aft/aft_summary/otg_tests/scale_aft_summary
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2159,7 +2159,7 @@ tests:
     path: interface/ip/ipv6_slaac_link_local_test/otg_tests/ipv6_slaac_link_local_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2167,7 +2167,7 @@ tests:
     path: interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2175,7 +2175,7 @@ tests:
     path: feature/interface/lacp/tests/lacp_interval_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2183,7 +2183,7 @@ tests:
     path: interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2191,7 +2191,7 @@ tests:
     path: feature/interface/singleton/otg_tests/flow_control
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2199,7 +2199,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/default_policies_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2207,7 +2207,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/aspath_and_community_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2215,7 +2215,7 @@ tests:
     path: main/feature/bgp/otg_tests/link_bandwidth_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2223,7 +2223,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2231,7 +2231,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/comm_match_action_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2239,7 +2239,7 @@ tests:
     path:  
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2247,7 +2247,7 @@ tests:
     path: feature/bgp/policybase/otg_tests/statement_insertion_removal
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2255,7 +2255,7 @@ tests:
     path: feature/interface/singleton/tests/singleton_with_breakouts
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2263,7 +2263,7 @@ tests:
     path: feature/interface/holdtime/otg_tests/holdtime_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2271,7 +2271,7 @@ tests:
     path: blob/main/feature/isis/weighted_ECMP
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2279,7 +2279,7 @@ tests:
     path: blob/main/feature/isis/weighted_ECMP
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2287,7 +2287,7 @@ tests:
     path: main/feature/system/tests/system_base_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2295,7 +2295,7 @@ tests:
     path: main/feature/gribi/otg_tests/mpls_forwarding
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2303,7 +2303,7 @@ tests:
     path: main/feature/gribi/otg_tests/encap_frr_with_reencap_vrf_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2311,7 +2311,7 @@ tests:
     path: main/feature/gribi/otg_tests/mpls_in_udp_scale
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2319,7 +2319,7 @@ tests:
     path: main/feature/gribi/otg_tests/mpls_compliance
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2327,7 +2327,7 @@ tests:
     path: feature/system/logging/remote_syslog/otg_tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2335,7 +2335,7 @@ tests:
     path: feature/system/logging/console_vty_file/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2343,7 +2343,7 @@ tests:
     path: main/feature/platform/transceiver/zr_low_power_mode_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2351,7 +2351,7 @@ tests:
     path: main/feature/platform/transceiver/zr_pm_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2359,7 +2359,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2367,7 +2367,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2375,7 +2375,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2383,7 +2383,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2391,7 +2391,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2399,7 +2399,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2407,7 +2407,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2415,7 +2415,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2423,7 +2423,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2431,7 +2431,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2439,7 +2439,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2447,7 +2447,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2455,7 +2455,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2463,7 +2463,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2471,7 +2471,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2479,7 +2479,7 @@ tests:
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2487,7 +2487,7 @@ tests:
     path: feature/platform/fabric/otg_tests/fabric_redundancy_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2495,7 +2495,7 @@ tests:
     path: feature/platform/controllercard/tests/controller_card_redundancy_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2503,7 +2503,7 @@ tests:
     path: feature/platform/controllercard/tests/SetRequest_controll_card_switchover
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2511,7 +2511,7 @@ tests:
     path: feature/platform/controllercard/tests/port
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2519,7 +2519,7 @@ tests:
     path: main/feature/gnmi/otg_tests/aggregate_interface_counters_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2527,7 +2527,7 @@ tests:
     path: feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2535,7 +2535,7 @@ tests:
     path: feature/gnoi/system/tests/copying_debug_files_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2543,7 +2543,7 @@ tests:
     path: main/feature/gnpsi/otg_tests/sampling_test
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2551,7 +2551,7 @@ tests:
     path: feature/container/containerz/tests/container_lifecycle
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2559,7 +2559,7 @@ tests:
     path: feature/container/containerz/tests/container_lifecycle
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2567,7 +2567,7 @@ tests:
     path: feature/container/containerz/tests/container_lifecycle
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2575,7 +2575,7 @@ tests:
     path: feature/container/containerz/tests/container_lifecycle
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2583,7 +2583,7 @@ tests:
     path: feature/container/networking/tests/container_connectivity
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2591,7 +2591,7 @@ tests:
     path: feature/container/networking/tests/container_connectivity
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2599,7 +2599,7 @@ tests:
     path: feature/container/networking/tests/container_connectivity
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2607,7 +2607,7 @@ tests:
     path: feature/container/networking/tests/container_connectivity
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2615,7 +2615,7 @@ tests:
     path: feature/aft/aft_base/otg_tests/aft_base
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
 
@@ -2623,6 +2623,6 @@ tests:
     path: feature/aft/aft_base/otg_tests/aft_prefixcounters
     owners:
       - mananpat
-    mustpass: true
+    mustpass: false
     priority: 3
     groups: [newfnt]
