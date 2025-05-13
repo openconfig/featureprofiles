@@ -1346,17 +1346,4 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 // StaticLspNextHopsNotSupported returns true if devices do not support lsp next-hops
 func StaticLspNextHopsNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticLspNextHops()
-// BGPDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
-func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
-}
-
-// IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
-func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
-}
-
-// UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
-func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
 }

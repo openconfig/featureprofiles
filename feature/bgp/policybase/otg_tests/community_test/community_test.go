@@ -78,9 +78,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 			}
 		}
 		communitySet.SetCommunityMember(cs)
-		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-			communitySet.SetMatchSetOptions(matchSetOptions)
-		}
+		communitySet.SetMatchSetOptions(matchSetOptions)
 	}
 	var communitySetCLIConfig string
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {
@@ -277,8 +275,6 @@ func TestCommunitySet(t *testing.T) {
 				configureFlow(t, bs, prefixesV6[index], "ipv6", index)
 			}
 			bs.PushAndStartATE(t)
-			otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
-			otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 
 			// Verify BGP session after its reset with OTG push config & start
 			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
