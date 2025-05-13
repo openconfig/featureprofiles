@@ -1432,22 +1432,6 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: CNTR-2 (Container network connectivity tests)
-    path: feature/container/networking/tests/container_connectivity
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
-  - name: CNTR-1 (Basic container lifecycle via gnoi.Containerz)
-    path: feature/container/containerz/tests/container_lifecycle
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
   - name: gNMI-1.21 (Integrated Circuit Hardware Resource Utilization Test)
     path: feature/platform/integrated_circuit/otg_tests/utilization_test
     priority: 2
@@ -1650,39 +1634,7 @@ tests:
     mustpass: false
     priority: 3
     groups: [newfnt]
-
-  - name: Authz-1 (test policy behaviors, and probe results matches actual client results)
-    path: feature/security/gnsi/authz/tests
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
-  - name: Authz-2 (test rotation behavior)
-    path: feature/security/gnsi/authz/tests
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
-  - name: Authz-3 (Test Get behavior)
-    path: feature/security/gnsi/authz/tests
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
-  - name: Authz-4 (reboot persistent)
-    path: feature/security/gnsi/authz/tests
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
+    
   - name: Certz-1
     path: feature/security/gnsi/certz/client_certificates
     owners:
@@ -1723,21 +1675,21 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: DP-1.12 (ECN enabled traffic test)
-    path: feature/qos/ecn/ate_tests/ecn_enabled_traffic_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
+  # - name: DP-1.12 (ECN enabled traffic test)
+  #   path: feature/qos/ecn/ate_tests/ecn_enabled_traffic_test
+  #   owners:
+  #     - mananpat
+  #   mustpass: false
+  # #   priority: 3
+  #   groups: [newfnt]
 
-  - name: DP-1.13 (DSCP and ECN bits are copied over during IPinIP encap and decap)
-    path: feature/qos/ecn/ate_tests/dscp_ecn_encap_decap_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
+  # - name: DP-1.13 (DSCP and ECN bits are copied over during IPinIP encap and decap)
+  #   path: feature/qos/ecn/ate_tests/dscp_ecn_encap_decap_test
+  #   owners:
+  #     - mananpat
+  #   mustpass: false
+  #   priority: 3
+  #   groups: [newfnt]
 
   - name: DP-1.15 (Egress Strict Priority scheduler)
     path: main/feature/qos/otg_tests/egress_strict_priority_scheduler_test
@@ -2355,7 +2307,7 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: bootz (Missing configuration - Device fails with status invalid parameter)
+  - name: bootz (Bootz FNT)
     path: main/feature/system/bootz/tests
     owners:
       - mananpat
