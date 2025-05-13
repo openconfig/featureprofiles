@@ -42,6 +42,51 @@ $ docker rmi cntrsrv:latest
 
 This is the tarball that will be used during tests.
 
+### Build docker volume sshfs plugin tarball
+
+The `TestPlugins` test suite validates the lifecycle of containerz plugins, specifically using the `vieux/docker-volume-sshfs` plugin as an example. To run these tests, you need to build the plugin's `rootfs.tar.gz` tarball.
+
+Follow these steps:
+
+1.  **Clone the `docker-volume-sshfs` repository:**
+    If you haven't already, clone the repository from GitHub:
+    ```bash
+    git clone https://github.com/vieux/docker-volume-sshfs.git
+    cd docker-volume-sshfs
+    ```
+
+2.  **Update the `Makefile`:**
+    Open the `Makefile` in the `docker-volume-sshfs` directory and add the following target. This target is specifically designed to create a `rootfs.tar.gz` that includes the `config.json` manifest at the root, as expected by the `containerz` plugin system.
+
+    ```makefile
+    # ... (other Makefile content) ...
+
+    package-plugin-tarball: rootfs
+    	@echo "### Creating rootfs.tar.gz for containerz"
+    	@tar -czf rootfs.tar.gz -C ./plugin/rootfs . -C ../ config.json
+    	@echo "### rootfs.tar.gz created in project root."
+
+    # ... (ensure there's a blank line after this if it's not the end of the file) ...
+    ```
+    *   The `-C ./plugin/rootfs .` part adds all files from the `plugin/rootfs` directory to the archive.
+    *   The `-C ../ config.json` part adds the `config.json` file (which is in the parent directory of `plugin/rootfs`, i.e., the project root) to the archive's root.
+
+3.  **Build the plugin tarball:**
+    Run the new make target from the root of the `docker-volume-sshfs` directory:
+    ```bash
+    make package-plugin-tarball
+    ```
+    This command will create a `rootfs.tar.gz` file in the `docker-volume-sshfs` project root directory.
+
+4.  **Provide the path to the test:**
+    When running your Go tests, you'll need to provide the absolute path to this generated `rootfs.tar.gz` file using the `--plugin_tar` flag. For example:
+    ```bash
+    go test -v ./feature/container/containerz/tests/container_lifecycle/... --plugin_tar=/path/to/your/docker-volume-sshfs/rootfs.tar.gz
+    ```
+    Replace `/path/to/your/docker-volume-sshfs/` with the actual path to where you cloned and built the plugin.
+
+By following these steps, you'll have the necessary `rootfs.tar.gz` for the `vieux/docker-volume-sshfs` plugin, allowing the `TestPlugins` suite to execute correctly.
+
 ## CNTR-1.1: Deploy and Start a Container
 
 Using the
