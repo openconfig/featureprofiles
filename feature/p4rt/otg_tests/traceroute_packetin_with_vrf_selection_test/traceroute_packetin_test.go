@@ -173,14 +173,7 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 			TTL:      0x1,
 			TTLMask:  0xFF,
 			Priority: 1,
-		},
-			{
-				Type:     actionType,
-				IsIpv4:   0x1,
-				TTL:      0x0,
-				TTLMask:  0xFF,
-				Priority: 1,
-			}}
+		}}
 	}
 	actionType := pb.Update_INSERT
 	if delete {
@@ -192,14 +185,7 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 		TTL:      0x1,
 		TTLMask:  0xFF,
 		Priority: 1,
-	},
-		{
-			Type:     actionType,
-			IsIpv6:   0x1,
-			TTL:      0x0,
-			TTLMask:  0xFF,
-			Priority: 1,
-		}}
+	}}
 }
 
 // GetPacketTemplate returns expected packets in PacketIn.
@@ -240,6 +226,7 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 			innerIPHdr := flow.Packet().Add().Ipv4()
 			innerIPHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 			innerIPHdr.Dst().SetValue(flowValues.InnHdrDstIP)
+			innerIPHdr.Priority().Dscp().Phb().SetValue(flowValues.inrHdrDscp)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -247,6 +234,7 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 			innerIpv6Hdr := flow.Packet().Add().Ipv6()
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
+			innerIpv6Hdr.TrafficClass().SetValue(flowValues.inrHdrDscp << 2)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
