@@ -85,7 +85,45 @@ Follow these steps:
     ```
     Replace `/path/to/your/docker-volume-sshfs/` with the actual path to where you cloned and built the plugin.
 
-By following these steps, you'll have the necessary `rootfs.tar.gz` for the `vieux/docker-volume-sshfs` plugin, allowing the `TestPlugins` suite to execute correctly.
+5.  **Creating Runtime Configuration for SSHFS Plugin Test:**
+    
+    The TestPlugin test, particularly for the sshfs plugin (CNTR-1.7), requires SSH credentials and specific options to be provided at runtime. This is done by creating a dedicated runtime configuration JSON file (e.g., test_sshfs_config.json).
+
+    This file is based on the plugin's original config.json. For the vieux/docker-volume-sshfs plugin, config.json can be found at the root of its [GitHub repository](https://github.com/vieux/docker-volume-sshfs/blob/master/config.json).
+
+**Prepare test_sshfs_config.json:**
+    
+Start with the structure of the original config.json from the sshfs plugin tarball.
+Create a new file (e.g., in your test environment at testdata/test_sshfs_config.json).
+
+In this new file, modify the env array to include the following entries. These should be added alongside any existing entries (like the default DEBUG variable):
+
+
+    // ... existing "DEBUG" entry if present in your base config.json's "env" array ...
+    {
+        "name": "SSH_HOST",
+        "settable": [ "value" ],
+        "value": "localhost"
+    },
+    {
+        "name": "SSH_USER",
+        "settable": [ "value" ],
+        "value": "testuser"
+    },
+    {
+        "name": "SSH_PASSWORD",
+        "settable": [ "value" ],
+        "value": "testpass"
+    },
+    {
+        "name": "SSHFS_OPTS",
+        "settable": [ "value" ],
+        "value": "allow_other,reconnect"
+    }
+    // ...
+Ensure these are correctly placed within the JSON env array. The rest of the test_sshfs_config.json file (like description, entrypoint, interface, mounts, etc.) should mirror the original config.json.
+
+By following these steps, you'll have the necessary `rootfs.tar.gz` and `test_sshfs_config.json` for the `vieux/docker-volume-sshfs` plugin, allowing the `TestPlugin` to execute correctly.
 
 ## CNTR-1.1: Deploy and Start a Container
 

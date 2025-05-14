@@ -1,18 +1,14 @@
 package container_lifecycle_test
 
 import (
-	"compress/gzip"
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"archive/tar"
-	"encoding/json"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"path/filepath"
@@ -30,6 +26,7 @@ var (
 	containerTar        = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
 	pluginTar           = flag.String("plugin_tar", "/tmp/rootfs.tar.gz", "The plugin tarball (e.g., for vieux/docker-volume-sshfs rootfs.tar.gz).")
+	pluginConfig        = flag.String("plugin_config", "/tmp/test_sshfs_config.json", "The plugin config.")
 )
 
 const (
@@ -882,123 +879,6 @@ func TestUpgrade(t *testing.T) {
 	})
 }
 
-// createPluginRuntimeConfig extracts the manifest from a plugin tarball,
-// modifies it with the provided SSH credentials, and saves it as a temporary
-// runtime configuration file.
-func createPluginRuntimeConfig(t *testing.T, pluginTarPath, sshHost, sshUser, sshPassword string) (string, error) {
-	t.Helper()
-
-	// Check if the plugin tarball exists.
-	if _, err := os.Stat(pluginTarPath); os.IsNotExist(err) {
-		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", pluginTarPath)
-	}
-
-	// --- Extract the plugin manifest (config.json) from the tarball ---
-	pluginTarFile, err := os.Open(pluginTarPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open plugin tarball %q: %w", pluginTarPath, err)
-	}
-	defer pluginTarFile.Close()
-
-	var streamForTar io.Reader = pluginTarFile
-	// Ensure we are at the start of the file.
-	if _, err := pluginTarFile.Seek(0, 0); err != nil {
-		return "", fmt.Errorf("failed to seek plugin tarball %q: %w", pluginTarPath, err)
-	}
-
-	// Check if the file is gzipped by looking at the extension.
-	if strings.HasSuffix(pluginTarPath, ".gz") {
-		gzStream, err := gzip.NewReader(pluginTarFile)
-		if err != nil {
-			return "", fmt.Errorf("failed to create gzip reader for %q: %w", pluginTarPath, err)
-		}
-		defer gzStream.Close()
-		streamForTar = gzStream
-	}
-
-	tarReader := tar.NewReader(streamForTar)
-	var manifestConfigBytes []byte
-	foundManifest := false
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return "", fmt.Errorf("failed to read tar/gzip header from plugin tarball %q: %w", pluginTarPath, err)
-		}
-		// We are looking for the config.json file at the root of the tarball.
-		if header.Typeflag == tar.TypeReg && header.Name == "config.json" {
-			manifestConfigBytes, err = io.ReadAll(tarReader)
-			if err != nil {
-				return "", fmt.Errorf("failed to read config.json from plugin tarball: %w", err)
-			}
-			foundManifest = true
-			break
-		}
-	}
-	if !foundManifest {
-		return "", fmt.Errorf("config.json not found at the root of the plugin tarball %q", pluginTarPath)
-	}
-
-	// Unmarshal the original manifest config. This will be the base for our runtime config.
-	var originalManifestConfig map[string]interface{}
-	if err := json.Unmarshal(manifestConfigBytes, &originalManifestConfig); err != nil {
-		return "", fmt.Errorf("failed to unmarshal config.json from plugin tarball: %w", err)
-	}
-
-	// --- Create the runtime config file for StartPlugin ---
-	// Create a temporary directory for the config file.
-	configDir := t.TempDir()
-	configFile := filepath.Join(configDir, "sshfs_runtime_config.json")
-
-	// Start with the original manifest and update environment variable values.
-	runtimeManifestConfig := make(map[string]interface{})
-	for k, v := range originalManifestConfig {
-		runtimeManifestConfig[k] = v
-	}
-	envArrayInterface, ok := runtimeManifestConfig["env"]
-	if !ok {
-		return "", fmt.Errorf("original config.json's 'env' field is missing")
-	}
-	envArray, ok := envArrayInterface.([]interface{})
-	if !ok {
-		return "", fmt.Errorf("original config.json's 'env' field is not an array")
-	}
-
-	envVarsToSet := map[string]string{
-		"SSH_HOST":     sshHost,
-		"SSH_USER":     sshUser,
-		"SSH_PASSWORD": sshPassword,
-		"SSHFS_OPTS":   "allow_other,reconnect",
-	}
-
-	for i, item := range envArray {
-		envEntry, ok := item.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("item in original 'env' array is not a map: %v", item)
-		}
-		name, ok := envEntry["name"].(string)
-		if !ok {
-			return "", fmt.Errorf("env entry 'name' is not a string: %v", envEntry)
-		}
-		if valueToSet, shouldSet := envVarsToSet[name]; shouldSet {
-			envEntry["value"] = valueToSet
-			envArray[i] = envEntry
-		}
-	}
-	runtimeManifestConfig["env"] = envArray
-	configBytes, err := json.MarshalIndent(runtimeManifestConfig, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal SSHFS runtime config JSON: %w", err)
-	}
-	if err := os.WriteFile(configFile, configBytes, 0644); err != nil {
-		return "", fmt.Errorf("failed to write SSHFS runtime config file %q: %w", configFile, err)
-	}
-	t.Logf("Created SSHFS runtime config file: %s with host %s", configFile, sshHost)
-	return configFile, nil
-}
-
 // pushPluginImage handles deploying a plugin tarball as a gNOI Containerz image.
 func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, pluginTarPath, pluginName, pluginImageTag string) error {
 	t.Helper()
@@ -1049,12 +929,6 @@ func TestPlugins(t *testing.T) {
 		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", *pluginTar)
 	}
 
-	// Create the runtime configuration file once.
-	runtimeConfigFile, err := createPluginRuntimeConfig(t, *pluginTar, sshHost, sshUser, sshPassword)
-	if err != nil {
-		t.Fatalf("Failed to create plugin runtime config: %v", err)
-	}
-
 	t.Run("SuccessfulPluginCompleteLifecycle", func(t *testing.T) {
 		pluginName := "sshfs-plugin-positive"
 		pluginInstance := "sshfs-instance-positive"
@@ -1079,9 +953,9 @@ func TestPlugins(t *testing.T) {
 			t.Fatalf("Failed to push plugin image %s:%s: %v", pluginName, pluginImageTag, err)
 		}
 
-		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, runtimeConfigFile)
-		if err = cli.StartPlugin(ctx, pluginName, pluginInstance, runtimeConfigFile); err != nil {
-			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, runtimeConfigFile, err)
+		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, *pluginConfig)
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
+			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, *pluginConfig, err)
 		}
 		t.Logf("StartPlugin call succeeded for instance %q", pluginInstance)
 
@@ -1178,7 +1052,7 @@ func TestPlugins(t *testing.T) {
 		}
 
 		// First start (should succeed).
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, runtimeConfigFile); err != nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
 			t.Fatalf("Initial StartPlugin for %s, instance %s failed: %v", pluginName, pluginInstance, err)
 		}
 		t.Logf("Successfully started plugin %s instance %s for the first time.", pluginName, pluginInstance)
@@ -1186,7 +1060,7 @@ func TestPlugins(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		// Second start (should fail).
-		if err = cli.StartPlugin(ctx, pluginName, pluginInstance, runtimeConfigFile); err == nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err == nil {
 			t.Errorf("Second StartPlugin for already started instance %s succeeded, expected error", pluginInstance)
 		} else {
 			t.Logf("Got expected error when starting already started instance %s: %v", pluginInstance, err)
