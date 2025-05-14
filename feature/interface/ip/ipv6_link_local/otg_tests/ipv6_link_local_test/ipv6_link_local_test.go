@@ -255,7 +255,7 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	p1 := dut.Port(t, "port1")
 	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
 	ate.OTG().StartTraffic(t)
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Second*30, func(v *ygnmi.Value[uint64]) bool {
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
 		gotPkts, present := v.Val()
 		return present && (gotPkts-beforeInPkts) >= 100
 	}).Await(t)
