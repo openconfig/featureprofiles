@@ -14,48 +14,45 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	spb "github.com/openconfig/gnoi/system"
+
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/networkinstance"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	DUT1_BASE_IPv4                = "190.0.1.1"
-	DUT2_BASE_IPv4                = "190.0.1.2"
-	DUT1_BASE_IPv6                = "190:0:1::1"
-	DUT2_BASE_IPv6                = "190:0:1::2"
-	REDIS_STATIC_ROUTE_BASE_IPv4  = "10.10.10.10"
-	LOCAL_STATIC_ROUTE_BASE_IPv4  = "20.20.20.20"
-	UNRSLV_STATIC_ROUTE_BASE_IPv4 = "30.30.30.30"
-	REDIS_STATIC_ROUTE_BASE_IPv6  = "10:10:10::10"
-	LOCAL_STATIC_ROUTE_BASE_IPv6  = "20:20:20::20"
-	UNRSLV_STATIC_ROUTE_BASE_IPv6 = "30:30:30::30"
-	nonDefaultVRF                 = "vrfStatic"
-	ipv4PrefixLen                 = 30
-	ipv4LBPrefixLen               = 32
-	ipv6PrefixLen                 = 126
-	ipv6LBPrefixLen               = 128
-	ProtocolBGP                   = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	ProtocolISIS                  = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
-	ProtocolSTATIC                = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
-	AddressFamilyV4               = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
-	AddressFamilyV6               = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
-)
-
-const (
-	active_rp  = "0/RP0/CPU0"
-	standby_rp = "0/RP1/CPU0"
+	DUT1_BASE_IPv4                    = "190.0.1.1"
+	DUT2_BASE_IPv4                    = "190.0.1.2"
+	DUT1_BASE_IPv6                    = "190:0:1::1"
+	DUT2_BASE_IPv6                    = "190:0:1::2"
+	REDIS_STATIC_ROUTE_BASE_IPv4      = "10.10.10.10"
+	LOCAL_STATIC_ROUTE_BASE_IPv4      = "20.20.20.20"
+	UNRSLV_STATIC_ROUTE_BASE_IPv4     = "30.30.30.30"
+	LOCAL_STATIC_ROUTE_VRF_BASE_IPv4  = "40.40.40.40"
+	UNRSLV_STATIC_ROUTE_VRF_BASE_IPv4 = "50.50.50.50"
+	REDIS_STATIC_ROUTE_BASE_IPv6      = "10:10:10::10"
+	LOCAL_STATIC_ROUTE_BASE_IPv6      = "20:20:20::20"
+	UNRSLV_STATIC_ROUTE_BASE_IPv6     = "30:30:30::30"
+	LOCAL_STATIC_ROUTE_VRF_BASE_IPv6  = "40:40:40::40"
+	UNRSLV_STATIC_ROUTE_VRF_BASE_IPv6 = "50:50:50::50"
+	nonDefaultVRF                     = "vrfStatic"
+	defaultVRF                        = "DEFAULT"
+	ipv4PrefixLen                     = 30
+	ipv4LBPrefixLen                   = 32
+	ipv6PrefixLen                     = 126
+	ipv6LBPrefixLen                   = 128
+	ProtocolBGP                       = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	ProtocolISIS                      = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	ProtocolSTATIC                    = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
+	AddressFamilyV4                   = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+	AddressFamilyV6                   = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
 )
 
 var (
@@ -110,7 +107,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	var portName string
 	count := 5
 	DUTAreaAddress := "47.0001"
-	vrf := *ciscoFlags.DefaultNetworkInstance
 
 	if dut.ID() == "dut1" {
 		DUTSysID = "0000.0000.0001"
@@ -127,7 +123,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		portName := "port11"
 		connectedPort = dut.Port(t, portName).Name()
 		portName = "port12"
-		// unresolvedPort = dut.Port(t, portName).Name()
 		unresolvedPort = "FourHundredGigE0/0/0/3"
 		baseIPv4 = DUT2_BASE_IPv4
 		loopbackIPv4 = "2.2.2.2"
@@ -148,16 +143,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	var ipv4 bool
 	if dut.ID() == "dut1" {
 		ipv4 = true
-		configBulkStaticRoute(t, dut, redisV4Prefix, connectedPort, count, ipv4, vrf)
+		configBulkStaticRoute(t, dut, redisV4Prefix, connectedPort, count, ipv4, defaultVRF)
 		ipv4 = false
-		configBulkStaticRoute(t, dut, redisV6Prefix, connectedPort, count, ipv4, vrf)
+		configBulkStaticRoute(t, dut, redisV6Prefix, connectedPort, count, ipv4, defaultVRF)
 	} else {
 		ipv4 = true
-		configBulkStaticRoute(t, dut, localV4Prefix, connectedPort, count, ipv4, vrf)
-		configBulkStaticRoute(t, dut, unrslvV4Prefix, unresolvedPort, count, ipv4, vrf)
+		configBulkStaticRoute(t, dut, localV4Prefix, connectedPort, count, ipv4, defaultVRF)
+		configBulkStaticRoute(t, dut, unrslvV4Prefix, unresolvedPort, count, ipv4, defaultVRF)
 		ipv4 = false
-		configBulkStaticRoute(t, dut, localV6Prefix, connectedPort, count, ipv4, vrf)
-		configBulkStaticRoute(t, dut, unrslvV6Prefix, unresolvedPort, count, ipv4, vrf)
+		configBulkStaticRoute(t, dut, localV6Prefix, connectedPort, count, ipv4, defaultVRF)
+		configBulkStaticRoute(t, dut, unrslvV6Prefix, unresolvedPort, count, ipv4, defaultVRF)
 	}
 }
 
@@ -409,7 +404,6 @@ func getInterfaceNameList(t *testing.T, dut *ondatra.DUTDevice) []string {
 func configBulkStaticRoute(t *testing.T, dut *ondatra.DUTDevice,
 	prefix, nextHop string, count int, ipv4 bool, vrf string) {
 
-	fmt.Printf("Debug: configBulkStaticRoute NI:%v\n", vrf)
 	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
 	sr := static.GetOrCreateStatic(prefix)
@@ -439,76 +433,45 @@ func configBulkStaticRoute(t *testing.T, dut *ondatra.DUTDevice,
 	}
 }
 
-func configBulkStaticRouteVRF(t *testing.T, dut *ondatra.DUTDevice,
-	prefix, nextHop string, count int, ipv4 bool, vrf string) {
+// func configBulkStaticRouteVRF(t *testing.T, dut *ondatra.DUTDevice,
+// 	prefix, nextHop string, count int, ipv4 bool, vrf string) {
 
-	fmt.Printf("Debug: configBulkStaticRouteVRF NI:%v\n", vrf)
-	fmt.Printf("Debug: configBulkStaticRouteVRF ciscoFlag:%v\n", *ciscoFlags.NonDefaultNetworkInstance)
-	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
-	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("0")
-	nh.GetOrCreateInterfaceRef().Interface = ygot.String(nextHop)
+// 	fmt.Printf("Debug: configBulkStaticRouteVRF NI:%v\n", vrf)
+// 	fmt.Printf("Debug: configBulkStaticRouteVRF ciscoFlag:%v\n", *ciscoFlags.NonDefaultNetworkInstance)
+// 	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
+// 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
+// 	sr := static.GetOrCreateStatic(prefix)
+// 	nh := sr.GetOrCreateNextHop("0")
+// 	nh.GetOrCreateInterfaceRef().Interface = ygot.String(nextHop)
 
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).
-		Protocol(ProtocolSTATIC, "DEFAULT").Config(), static)
+// 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).
+// 		Protocol(ProtocolSTATIC, "DEFAULT").Config(), static)
 
-	for i := 0; i < count; i++ {
-		tempV4Prefix := prefix
-		if ipv4 == true {
-			prefix = getNewStaticIPv4(prefix[:11]) + "/32"
-			nextHop = tempV4Prefix[:11]
-		} else {
-			prefix = getNewStaticIPv6(prefix[:12]) + "/128"
-			nextHop = tempV4Prefix[:12]
-		}
-		st := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
-		sr := st.GetOrCreateStatic(prefix)
-		nh := sr.GetOrCreateNextHop(strconv.Itoa(i + 1))
-		nh.NextHop = oc.UnionString(nextHop)
-		nh.Recurse = ygot.Bool(true)
+// 	for i := 0; i < count; i++ {
+// 		tempV4Prefix := prefix
+// 		if ipv4 == true {
+// 			prefix = getNewStaticIPv4(prefix[:11]) + "/32"
+// 			nextHop = tempV4Prefix[:11]
+// 		} else {
+// 			prefix = getNewStaticIPv6(prefix[:12]) + "/128"
+// 			nextHop = tempV4Prefix[:12]
+// 		}
+// 		st := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
+// 		sr := st.GetOrCreateStatic(prefix)
+// 		nh := sr.GetOrCreateNextHop(strconv.Itoa(i + 1))
+// 		nh.NextHop = oc.UnionString(nextHop)
+// 		nh.Recurse = ygot.Bool(true)
 
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).
-			Protocol(ProtocolSTATIC, "DEFAULT").Config(), st)
-	}
-}
-
-// func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string, delete bool) {
-// 	t.Logf("*** Configuring static route in DEFAULT network-instance ...")
-// 	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
-// 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "STATIC")
-// 	if v4Prefix != "" {
-// 		sr := static.GetOrCreateStatic(v4Prefix)
-// 		nh := sr.GetOrCreateNextHop("0")
-// 		nh.NextHop = oc.UnionString(v4NextHop)
-// 		if delete {
-// 			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
-// 				Protocol(ProtocolSTATIC, "STATIC").Static(v4Prefix).Config())
-
-//			} else {
-//				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
-//					Protocol(ProtocolSTATIC, "STATIC").Config(), static)
-//			}
-//		}
-//		if v6Prefix != "" {
-//			sr := static.GetOrCreateStatic(v6Prefix)
-//			nh := sr.GetOrCreateNextHop("0")
-//			nh.NextHop = oc.UnionString(v6NextHop)
-//			if delete {
-//				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
-//					Protocol(ProtocolSTATIC, "STATIC").Static(v6Prefix).Config())
-//			} else {
-//				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
-//					Protocol(ProtocolSTATIC, "STATIC").Config(), static)
-//			}
-//		}
-//	}
+// 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).
+// 			Protocol(ProtocolSTATIC, "DEFAULT").Config(), st)
+// 	}
+// }
 
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, noRecurse, recurse bool,
-	interfaceName, prefix, nextHop string) (*oc.NetworkInstance_Protocol,
+	interfaceName, prefix, nextHop, vrf string) (*oc.NetworkInstance_Protocol,
 	*networkinstance.NetworkInstance_ProtocolPath) {
 
-	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
+	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
 	path := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
 		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
@@ -536,7 +499,7 @@ func configStaticRouteWithAttributes(t *testing.T, dut *ondatra.DUTDevice, recur
 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
 
 	sr := static.GetOrCreateStatic(prefix)
-	sr.SetSetTag(oc.UnionString(strconv.Itoa(int(tag))))
+	sr.SetSetTag(oc.UnionUint32((tag)))
 
 	nh := sr.GetOrCreateNextHop("0")
 	nh.SetNextHop(oc.UnionString(nextHop))
@@ -568,25 +531,25 @@ func configStaticRouteBFD(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
 	return static, path
 }
 
-func configStaticRouteVRF(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
-	interfaceName, prefix, nextHop, srcVRF, dstVRF string) (*oc.NetworkInstance_Protocol,
-	*networkinstance.NetworkInstance_ProtocolPath) {
+// func configStaticRouteVRF(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
+// 	interfaceName, prefix, nextHop, srcVRF, dstVRF string) (*oc.NetworkInstance_Protocol,
+// 	*networkinstance.NetworkInstance_ProtocolPath) {
 
-	ni := oc.NetworkInstance{Name: ygot.String(srcVRF)}
-	path := gnmi.OC().NetworkInstance(srcVRF).
-		Protocol(ProtocolSTATIC, "DEFAULT")
-	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("0")
-	nh.SetNextHop(oc.UnionString(nextHop))
-	nh.SetRecurse(recurse)
+// 	ni := oc.NetworkInstance{Name: ygot.String(srcVRF)}
+// 	path := gnmi.OC().NetworkInstance(srcVRF).
+// 		Protocol(ProtocolSTATIC, "DEFAULT")
+// 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
+// 	sr := static.GetOrCreateStatic(prefix)
+// 	nh := sr.GetOrCreateNextHop("0")
+// 	nh.SetNextHop(oc.UnionString(nextHop))
+// 	nh.SetRecurse(recurse)
 
-	if interfaceName != "" {
-		nh.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceName)
-	}
+// 	if interfaceName != "" {
+// 		nh.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceName)
+// 	}
 
-	return static, path
-}
+// 	return static, path
+// }
 
 func configRouterISIS(t *testing.T, dut *ondatra.DUTDevice, DUTAreaAddress,
 	DUTSysID string, ifaceNameList []string) {
@@ -764,11 +727,11 @@ func getNewIPv4(ip string) string {
 	return newIP.String()
 }
 
-func getNewIPv6(ip string) string {
+func getScaleNewIPv4(ip string) string {
 
 	newIP := net.ParseIP(ip)
-	newIP = newIP.To16()
-	newIP[1] += 1
+	newIP = newIP.To4()
+	newIP[3] += 1
 
 	return newIP.String()
 }
@@ -781,6 +744,24 @@ func getNewStaticIPv4(ip string) string {
 	newIP[1] += 1
 	newIP[2] += 1
 	newIP[3] += 1
+
+	return newIP.String()
+}
+
+func getNewIPv6(ip string) string {
+
+	newIP := net.ParseIP(ip)
+	newIP = newIP.To16()
+	newIP[1] += 1
+
+	return newIP.String()
+}
+
+func getScaleNewIPv6(ip string) string {
+
+	newIP := net.ParseIP(ip)
+	newIP = newIP.To16()
+	newIP[15] += 1
 
 	return newIP.String()
 }
@@ -813,18 +794,23 @@ func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
 		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
 }
 
+func gnmiOptsForSample(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(interval),
+	)
+}
+
 func showRouteCLI(t *testing.T, dut *ondatra.DUTDevice, cliHandle binding.CLIClient,
 	ipAf, prefix string, static ...string) (binding.CommandResult, error) {
 
 	if len(static) > 0 {
 		cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, static[0])
-		// cliHandle := dut.RawAPIs().CLI(t)
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 
 		return cliHandle.RunCommand(ctx, cli)
 	} else {
 		cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, prefix)
-		// cliHandle := dut.RawAPIs().CLI(t)
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 
 		return cliHandle.RunCommand(ctx, cli)
@@ -836,251 +822,31 @@ func showRouteVRFCLI(t *testing.T, dut *ondatra.DUTDevice, cliHandle binding.CLI
 
 	if len(static) > 0 {
 		cli := fmt.Sprintf("show route vrf %s %s unicast %s\n", vrf, ipAf, static[0])
-		// cliHandle := dut.RawAPIs().CLI(t)
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 
 		return cliHandle.RunCommand(ctx, cli)
 	} else {
 		cli := fmt.Sprintf("show route vrf %s %s unicast %s\n", vrf, ipAf, prefix)
-		// cliHandle := dut.RawAPIs().CLI(t)
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 
 		return cliHandle.RunCommand(ctx, cli)
 	}
 }
 
-func extractPrefixes(output string) []string {
+func extractPrefixes(input, ipAf string) []string {
 
-	regex := regexp.MustCompile(`\b\d{1,3}(\.\d{1,3}){3}/\d{1,2}\b`)
-	matches := regex.FindAllString(output, -1)
+	var matches []string
+
+	if ipAf == "ipv4" {
+		regex := regexp.MustCompile(`\b\d{1,3}(\.\d{1,3}){3}/\d{1,2}\b`)
+		matches = regex.FindAllString(input, -1)
+	} else {
+		regex := regexp.MustCompile(`(?m)^S\s+([0-9a-fA-F:]+(::)?[0-9a-fA-F]*)/\d{1,3}`)
+		tempMatches := regex.FindAllStringSubmatch(input, -1)
+		for _, match := range tempMatches {
+			matches = append(matches, match[0][5:])
+		}
+	}
 
 	return matches
-}
-
-func ProcessRestart(t *testing.T, dut *ondatra.DUTDevice, processName string) {
-
-	waitForRestart := true
-	pid := system.FindProcessIDByName(t, dut, processName)
-	if pid == 0 {
-		t.Fatalf("process %s not found on device", processName)
-	}
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	killProcessRequest := &spb.KillProcessRequest{
-		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
-		Name:    processName,
-		Pid:     uint32(pid),
-		Restart: true,
-	}
-	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
-	time.Sleep(30 * time.Second)
-
-	if waitForRestart {
-		gnmi.WatchAll(
-			t,
-			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-			gnmi.OC().System().ProcessAny().State(),
-			time.Minute,
-			func(p *ygnmi.Value[*oc.System_Process]) bool {
-				val, ok := p.Val()
-				if !ok {
-					return false
-				}
-				return val.GetName() == processName && val.GetPid() != pid
-			},
-		)
-	}
-}
-
-func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
-
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-
-	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
-	}
-	Resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
-		Method:  spb.RebootMethod_COLD,
-		Delay:   0,
-		Message: "Reboot chassis without delay",
-		Force:   true,
-	})
-	if err != nil {
-		t.Fatalf("Reboot failed %v", err)
-	}
-	t.Logf("Reload Response %v ", Resp)
-
-	startReboot := time.Now()
-	time.Sleep(5 * time.Second)
-	const maxRebootTime = 30
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-		time.Sleep(90 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			break
-		}
-
-		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-		}
-	}
-	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
-	return nil
-}
-
-func RPFO(t *testing.T, dut *ondatra.DUTDevice) {
-
-	var supervisors []string
-	active_state := gnmi.OC().Component(active_rp).Name().State()
-	active := gnmi.Get(t, dut, active_state)
-	standby_state := gnmi.OC().Component(standby_rp).Name().State()
-	standby := gnmi.Get(t, dut, standby_state)
-	supervisors = append(supervisors, active, standby)
-
-	// find active and standby RP
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
-	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
-
-	// make sure standby RP is reach
-	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
-	}
-	// gnoiClient := dut.RawAPIs().GNOI(t)
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
-	}
-	//useNameOnly := deviations.GNOISubcomponentPath(dut)
-	useNameOnly := false
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
-	want := rpStandbyBeforeSwitch
-	got := ""
-	if useNameOnly {
-		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-	} else {
-		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
-	}
-	if got != want {
-		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
-	}
-
-	startSwitchover := time.Now()
-	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-		}
-	}
-	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
-
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
-	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
-
-	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
-		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
-	}
-	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
-		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
-	}
-
-	t.Log("Validate OC Switchover time/reason.")
-	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
-	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
-	}
-
-	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
-		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
-		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
-}
-
-func FlapBulkInterfaces(t *testing.T, dut *ondatra.DUTDevice, intfList []string) {
-
-	var flapDuration time.Duration = 2
-	var adminState bool
-
-	adminState = false
-	SetInterfaceStateScale(t, dut, intfList, adminState)
-	time.Sleep(flapDuration * time.Second)
-	adminState = true
-	SetInterfaceStateScale(t, dut, intfList, adminState)
-}
-
-func SetInterfaceStateScale(t *testing.T, dut *ondatra.DUTDevice, intfList []string,
-	adminState bool) {
-
-	var intfType oc.E_IETFInterfaces_InterfaceType
-	batchConfig := &gnmi.SetBatch{}
-
-	for i := 0; i < len(intfList); i++ {
-		if intfList[i][:6] == "Bundle" {
-			intfType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-		} else {
-			intfType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		}
-		j := &oc.Interface{
-			Enabled: ygot.Bool(adminState),
-			Name:    ygot.String(intfList[i]),
-			Type:    intfType,
-		}
-		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intfList[i]).Config(), j)
-	}
-	batchConfig.Set(t, dut)
-}
-
-func DelAddMemberPort(t *testing.T, dut *ondatra.DUTDevice,
-	dutPorts []string, bundlePort ...[]string) {
-
-	batchConfig := &gnmi.SetBatch{}
-
-	if len(bundlePort) > 0 {
-		for i := 0; i < len(bundlePort); i++ {
-			BE := generateBundleMemberInterfaceConfig(dutPorts[i], bundlePort[i][0])
-			pathb1m1 := gnmi.OC().Interface(dutPorts[i])
-			gnmi.BatchReplace(batchConfig, pathb1m1.Config(), BE)
-		}
-	} else {
-		for i := 0; i < len(dutPorts); i++ {
-			pathb1m1 := gnmi.OC().Interface(dutPorts[i])
-			gnmi.BatchDelete(batchConfig, pathb1m1.Config())
-		}
-	}
-	batchConfig.Set(t, dut)
 }
