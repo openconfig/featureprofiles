@@ -57,10 +57,9 @@ Procedure:
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
 
 # Telemetry Parameter coverage
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
 
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type:
