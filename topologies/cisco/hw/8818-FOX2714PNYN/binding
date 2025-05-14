@@ -38,11 +38,6 @@
 ## Management Virtual IP:
 # ipv4 virtual vrf mgmt address 10.85.72.52/24
 
-options {
-  username: "cisco"
-  password: "cisco"
-}
-
 duts {
   id: "dut"
   vendor: CISCO
@@ -52,10 +47,14 @@ duts {
     gnmi_set_file: "$BASE_CONF_PATH"
   }
   options {
-    insecure: false 
-    skip_verify: true
-    username: "cisco"
-    password: "cisco"
+    insecure: false
+    skip_verify: false 
+    mutual_tls: true
+    username: "cafyauto"
+    password: "cisco123"
+    trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    cert_file: "$CERT_FILE"
+    key_file:  "$KEY_FILE"
   }
 
   # Options specific to gNMI.  Remove if not needed.

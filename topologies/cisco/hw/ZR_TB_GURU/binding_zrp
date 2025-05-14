@@ -6,8 +6,8 @@ options {
 duts {
   id: "dut"
   vendor: CISCO
-  hardware_model: "CISCO-8804"
-  name: "sf-8804"  # Change this to the device hostname.
+  hardware_model: "CISCO-8202"
+  name: "GURU_ZRP_TB"   # This is external testbed used by gusomaso from account team, dont use without checking
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
@@ -20,19 +20,19 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.23.242.63:57777"
+    target: "172.20.160.22:57400"
   }
   gnmi {
-    target: "10.23.242.63:57777"
+    target: "172.20.160.22:57400"
   }
   gribi{
-    target: "10.23.242.63:57777"
+    target: "172.20.160.22:57400"
   }
   ssh{
-    target: "10.23.242.63:22"
+    target: "172.20.160.22:22"
   }
   p4rt{
-    target: "10.23.242.63:57777"
+    target: "172.20.160.22:57400"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -40,14 +40,14 @@ duts {
 
   ports {
     id: "port1"
-    name: "FourHundredGigE0/0/0/18"  # Change this to the actual port name.
-    pmd: PMD_400GBASE_ZR
+    name: "FourHundredGigE0/0/0/4"  # Change this to the actual port name.
+    pmd: PMD_400GBASE_ZR_PLUS
     speed: S_400GB
   }
   ports {
     id: "port2"
-    name: "FourHundredGigE0/0/0/19"  # Change this to the actual port name.
-    pmd: PMD_400GBASE_ZR
+    name: "FourHundredGigE0/0/0/6"  # Change this to the actual port name.
+    pmd: PMD_400GBASE_ZR_PLUS
     speed: S_400GB
   }
 }

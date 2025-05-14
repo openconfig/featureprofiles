@@ -55,6 +55,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 1448
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/otg_tests/base_leader_election_test
     owners:
@@ -85,6 +86,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    internal: false
+    pr: 4082
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -131,7 +134,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2962  
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -176,6 +178,14 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+  - name: PLT-1.1 (Interface breakout Test)
+    path: feature/interface/singleton/tests/singleton_with_breakouts
+    priority: 0
+    testbeds: 
+    - 8808-36FH_FOX2613PHWL_BREAKOUT
+    owners:
+      - arvbaska
+    groups: [ancx]
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
     owners:
@@ -309,6 +319,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
+
     pr: 3015
   - name: RT-5.7 (Aggregate Not Viable All)
     path: feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test
@@ -341,8 +352,8 @@ tests:
       - arvbaska
     mustpass: true
     priority: 39
-    pr: 1380
-    internal: true
+    pr: 4002
+    internal: false 
     groups: [Common]    
   - name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection)
     path: feature/policy_forwarding/policy_vrf_selection/otg_tests/protocol_dscp_rules_for_vrf_selection_test
@@ -385,7 +396,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 65
-    pr: 3536
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
     groups: [ancx,P0]
@@ -404,6 +414,8 @@ tests:
     priority: 37
     skip: false
     timeout: 4200
+    internal: false
+    pr: 4040
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
     path: feature/system/gnmi/metadata/tests/annotation_test
     owners:
@@ -429,6 +441,8 @@ tests:
     groups: [ancx,P2]
   - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation)
     path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
+    testbeds:
+      - 8808-1DUT
     owners:
       - arvbaska
     mustpass: true
@@ -493,6 +507,8 @@ tests:
     groups: [ancx,P1]
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
+    testbeds:
+      - 8201-32FH_FLM254206E7
     owners:
       - arvbaska
     mustpass: true
@@ -597,7 +613,7 @@ tests:
     mustpass: true
     priority: 1002
     testbeds:
-      - 2DUT-TB2
+      - 8808-2DUT
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
@@ -621,6 +637,10 @@ tests:
     mustpass: true
     priority: 52
     groups: [ancx,P1]
+  - name: RT-7.11 (BGP always compare MED)
+    path: feature/bgp/policybase/otg_tests/import_export_multi_test
+    mustpass: true
+    priority: 52
   - name: RT-1.14 (BGP Long-Lived Graceful Restart)
     path: feature/bgp/ate_tests/bgp_long_lived_graceful_restart
     owners:
@@ -657,6 +677,8 @@ tests:
       - 8201-32FH_FLM254206E7
   - name: gNOI-3.3 (Supervisor Switchover)
     path: feature/gnoi/system/tests/supervisor_switchover_test
+    testbeds:
+      - 8808-1DUT
     owners:
       - arvbaska
     mustpass: true
@@ -668,6 +690,8 @@ tests:
     groups: [ancx,P2]
   - name: gNOI-3.2 (Per-Component Reboot)
     path: feature/gnoi/system/tests/per_component_reboot_test
+    testbeds:
+      - 8808-1DUT
     owners:
       - arvbaska
     mustpass: true
@@ -771,14 +795,16 @@ tests:
     owners:
       - kjahed
     mustpass: true
-    pr: 3573
+    pr: 1476
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNMI-1.15 (Set Requests)
     path: feature/system/gnmi/set/tests/gnmi_set_test
     owners:
       - mbagherz
     mustpass: true
     internal: true
-    branch: liawalsh/gnmi-container-replace-fix
+    pr: 1476
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
@@ -808,7 +834,7 @@ tests:
     groups: [ancx,P0]
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
-  - name: AUTHZFP (Authz Functional Tests with spiffe id)
+  - name: AUTHZ (Authz Functional Tests with spiffe id)
     path: feature/security/gnsi/authz/tests/authz
     args:
       - '-test_infra_id="cafyauto"'
@@ -989,6 +1015,8 @@ tests:
     owners:
       - mananpat
     mustpass: true
+    pr: 3639
+    internal: false
   - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
     path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
     owners:
@@ -1013,6 +1041,8 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7    
   - name: TE-16.2 (DCGate - encap FRR test)
+    testbeds:
+          - 8808-FOX2508P0JU_MGMT_GRPC
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
@@ -1030,7 +1060,6 @@ tests:
       - arvbaska
     mustpass: true
     priority: 3
-    internal: false
   - name: TE-11.31 (DCGate - Backup NHG Actions with PBF)
     path: feature/gribi/otg_tests/backup_nhg_action_pbf
     owners:
@@ -1097,7 +1126,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-1 (Telemetry 400ZR Chromatic Dispersion(CD) telemetry values streaming)
-    path: feature/platform/transceiver/tests/zr_cd_test
+    path: feature/platform/transceiver/chromatic_dispersion/tests/zr_cd_test
     priority: 2
     owners:
       - mananpat
@@ -1106,28 +1135,32 @@ tests:
   - name: TRANSCEIVER-1_ZRP (Telemetry 400ZRP Chromatic Dispersion(CD) telemetry values streaming)
     path: feature/platform/transceiver/chromatic_dispersion/tests/zrp_cd_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-3 (Telemetry 400ZR Optics firmware version streaming)
-    path: feature/platform/transceiver/tests/zr_firmware_version_test
+    path: feature/platform/transceiver/firmware_version/tests/zr_firmware_version_test
     priority: 2
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-3_ZRP (Telemetry 400ZRP Optics firmware version streaming)
-    path: platform/transceiver/firmware_version/tests/zrp_firmware_version_test
+    path: feature/platform/transceiver/firmware_version/tests/zrp_firmware_version_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-4 (Telemetry 400ZR RX input and TX output power telemetry values streaming)
-    path: feature/platform/transceiver/tests/zr_input_output_power_test
+    path: feature/platform/transceiver/input_output_power/tests/zr_input_output_power_test
     priority: 2
     owners:
       - mananpat
@@ -1136,13 +1169,15 @@ tests:
   - name: TRANSCEIVER-4_ZRP (Telemetry 400ZRP RX input and TX output power telemetry values streaming)
     path: feature/platform/transceiver/input_output_power/tests/zrp_input_output_power_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-5 (Configuration 400ZR channel frequency, output TX launch power and operational mode setting)
-    path: feature/platform/transceiver/tests/zr_tunable_parameters_test
+    path: feature/platform/transceiver/tunable_parameters/tests/zr_tunable_parameters_test
     priority: 2
     owners:
       - mananpat
@@ -1151,13 +1186,15 @@ tests:
   - name: TRANSCEIVER-5_ZRP (Configuration 400ZRP channel frequency, output TX launch power and operational mode setting)
     path: feature/platform/transceiver/tunable_parameters/tests/zrp_tunable_parameters_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-7 (Telemetry 400ZR Optics inventory info streaming)
-    path: feature/platform/transceiver/tests/zr_inventory_test
+    path: feature/platform/transceiver/inventory/tests/zr_inventory_test
     priority: 2
     owners:
       - mananpat
@@ -1166,13 +1203,16 @@ tests:
   - name: TRANSCEIVER-7_ZRP (Telemetry 400ZRP Optics inventory info streaming)
     path: feature/platform/transceiver/inventory/tests/zrp_inventory_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
+    pr: 4188
   - name: TRANSCEIVER-8 (Telemetry 400ZR Optics module temperature streaming.)
-    path: feature/platform/transceiver/tests/zr_temperature_test
+    path: feature/platform/transceiver/temperature/tests/zr_temperature_test
     priority: 2
     owners:
       - mananpat
@@ -1181,29 +1221,34 @@ tests:
   - name: TRANSCEIVER-8_ZRP (Telemetry 400ZRP Optics module temperature streaming.)
     path: feature/platform/transceiver/temperature/tests/zrp_temperature_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-9 (Telemetry 400ZR TX laser bias current telemetry values streaming.)
-    path: feature/platform/transceiver/tests/zr_laser_bias_current_test
+    path: feature/platform/transceiver/laser_bias_current/tests/zr_laser_bias_current_test
     priority: 2
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
+    internal: false
   - name: TRANSCEIVER-9_ZRP (Telemetry 400ZRP TX laser bias current telemetry values streaming.)
     path: feature/platform/transceiver/laser_bias_current/tests/zrp_laser_bias_current_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
-    pr: 1510
+    internal: false
   - name: TRANSCEIVER-10 (Telemetry 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
-    path: feature/platform/transceiver/tests/zr_fec_uncorrectable_frames_test
+    path: feature/platform/transceiver/fec_uncorrectable_frames/tests/zr_fec_uncorrectable_frames_test
     priority: 2
     owners:
       - mananpat
@@ -1212,29 +1257,36 @@ tests:
   - name: TRANSCEIVER-10_ZRP (Telemetry 400ZRP Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
     path: feature/platform/transceiver/fec_uncorrectable_frames/tests/zrp_fec_uncorrectable_frames_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-11 (Telemetry 400ZR Optics logical channels provisioning and related telemetry)
-    path: feature/platform/transceiver/tests/zr_logical_channels_test
+    path: feature/platform/transceiver/logical_channels/tests/zr_logical_channels_test
     priority: 2
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
+    internal: false
+    pr: 4028
   - name: TRANSCEIVER-11_ZRP (Telemetry 400ZRP Optics logical channels provisioning and related telemetry)
     path: feature/platform/transceiver/logical_channels/tests/zrp_logical_channels_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
     groups: [zrp]
-    pr: 1436
+    internal: false
+    pr: 4028
   - name: TRANSCEIVER-12 (Telemetry 400ZR Transceiver Supply Voltage streaming.)
-    path: feature/platform/transceiver/tests/zr_supply_voltage_test
+    path: feature/platform/transceiver/supply_voltage/tests/zr_supply_voltage_test
     priority: 2
     owners:
       - mananpat
@@ -1243,6 +1295,8 @@ tests:
   - name: TRANSCEIVER-12_ZRP (Telemetry 400ZRP Transceiver Supply Voltage streaming.)
     path: feature/platform/transceiver/supply_voltage/tests/zrp_supply_voltage_test
     priority: 2
+    args:
+      - '-operational_mode="6003"'    
     owners:
       - mananpat
     mustpass: true
