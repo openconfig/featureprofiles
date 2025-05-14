@@ -1343,6 +1343,16 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
 
+// BGPDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
+func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
+}
+
+// IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
+func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
+}
+
 // TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
 func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
