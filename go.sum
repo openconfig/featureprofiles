@@ -41,8 +41,8 @@ github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx2
 github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 h1:Y8rTum6LZ8oP/2aC+OaaP76OCjHbunKMkim81mzNCH0=
 github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298/go.mod h1:+3MuSIeC3qmdSesR12cTLeb47R/Vvo+bHdB6hC5HShk=
 github.com/cenkalti/backoff/v4 v4.1.1/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
-github.com/cenkalti/backoff/v4 v4.1.3 h1:cFAlzYUlVYDysBEH2T5hyJZMh3+5+WCBvSnK6Q8UtC4=
-github.com/cenkalti/backoff/v4 v4.1.3/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
+github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
+github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.4.1 h1:iKLQ0xPNFxR/2hzXZMrBo8f1j86j5WHzznCCQxV/b8g=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
@@ -290,8 +290,8 @@ github.com/openconfig/containerz v0.0.0-20250408205203-029560584812/go.mod h1:0a
 github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64 h1:pS4NcCl49ker3FYRkvY+erNUw1CgL/lB8gnDQbax6Yk=
 github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64/go.mod h1:FDF5sbP9BbP2IM6EUopcAWfGJ5OPZ4VV2EYQ9vvqLjA=
 github.com/openconfig/gnmi v0.10.0/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=
-github.com/openconfig/gnmi v0.11.0 h1:H7pLIb/o3xObu3+x0Fv9DCK7TH3FUh7mNwbYe+34hFw=
-github.com/openconfig/gnmi v0.11.0/go.mod h1:9oJSQPPCpNvfMRj8e4ZoLVAw4wL8HyxXbiDlyuexCGU=
+github.com/openconfig/gnmi v0.14.1 h1:qKMuFvhIRR2/xxCOsStPQ25aKpbMDdWr3kI+nP9bhMs=
+github.com/openconfig/gnmi v0.14.1/go.mod h1:whr6zVq9PCU8mV1D0K9v7Ajd3+swoN6Yam9n8OH3eT0=
 github.com/openconfig/gnoi v0.6.1-0.20250206212518-26d177339690 h1:YX11RRu3kF5jnB9yipAkjlENi5aq2EwHVZ/g7lgdDss=
 github.com/openconfig/gnoi v0.6.1-0.20250206212518-26d177339690/go.mod h1:oaXjN+j2dKD4S1yk/gb7XrHham+Cp6tRVdQm9pp+Hgw=
 github.com/openconfig/gnoigo v0.0.0-20250408191134-9985281d2e03 h1:MC0S99f68ob/FuypMCobxSkeT5YGpbpwLg4Wr/XcCF0=
@@ -309,8 +309,9 @@ github.com/openconfig/gribi v1.9.0 h1:FOkhM/9c7DEHjS5FtlQqvp+mZYiSiME+SHNIB/u6tY
 github.com/openconfig/gribi v1.9.0/go.mod h1:bzoH3ROsWt/3TeNHukKGjsSMSAgY7VwOKtyzMegZL4E=
 github.com/openconfig/gribigo v0.0.0-20240829231637-69cf06726cc3 h1:6w4kOXdXXLv3eASi3iXe3a0uHnhtrXmUx7fUqDt2FzA=
 github.com/openconfig/gribigo v0.0.0-20240829231637-69cf06726cc3/go.mod h1:SVfLdNTmy/dIfScQFpljYKs0NGQ2n37h4GlZ9fVS+fA=
-github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 h1:t6SvvdfWCMlw0XPlsdxO8EgO+q/fXnTevDjdYREKFwU=
 github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70/go.mod h1:OmTWe7RyZj2CIzIgy4ovEBzCLBJzRvWSZmn7u02U9gU=
+github.com/openconfig/grpctunnel v0.1.0 h1:EN99qtlExZczgQgp5ANnHRC/Rs62cAG+Tz2BQ5m/maM=
+github.com/openconfig/grpctunnel v0.1.0/go.mod h1:G04Pdu0pml98tdvXrvLaU+EBo3PxYfI9MYqpvdaEHLo=
 github.com/openconfig/kne v0.1.18 h1:8D9SexWhj6knxfvEficyVj0F13GIvF1pQz7TKwVDSUI=
 github.com/openconfig/kne v0.1.18/go.mod h1:VMKjKI9FoVTLh4uN94uoaFZCp1CDkml2Ms2qOi1B2WM=
 github.com/openconfig/lemming v0.4.1-0.20240731191322-a759a5e931a6 h1:MeZOAM3KyyJwCNRskjCuz9N1VXB20TPiOkyNYuZcbP8=
@@ -362,8 +363,9 @@ github.com/prometheus/common v0.42.0 h1:EKsfXEYo4JpWMHH5cg+KOUWeuJSov1Id8zGR8eeI
 github.com/prometheus/common v0.42.0/go.mod h1:xBwqVerjNdUDjgODMpudtOMwlOwf2SaTr1yjz4b7Zbc=
 github.com/prometheus/procfs v0.9.0 h1:wzCHvIvM5SxWqYvwgVL7yJY8Lz3PKn49KQtpgMYJfhI=
 github.com/prometheus/procfs v0.9.0/go.mod h1:+pB4zwohETzFnmlpe6yd2lSc+0/46IYZRB/chUwxUZY=
-github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a h1:AKJY61V2SQtJ2a2PdeswKk0NM1qF77X+julRNYRxPOk=
 github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a/go.mod h1:KjY0wibdYKc4DYkerHSbguaf3JeIPGhNJBp2BNiFH78=
+github.com/protocolbuffers/txtpbfmt v0.0.0-20240823084532-8e6b51fa9bef h1:ej+64jiny5VETZTqcc1GFVAPEtaSk6U1D0kKC2MS5Yc=
+github.com/protocolbuffers/txtpbfmt v0.0.0-20240823084532-8e6b51fa9bef/go.mod h1:jgxiZysxFPM+iWKwQwPR+y+Jvo54ARd4EisXxKYpB5c=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
