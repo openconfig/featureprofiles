@@ -1410,7 +1410,7 @@ func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevic
 		if len(responses) > 0 {
 			summary := responses[len(responses)-1]
 			if summary.Received == 0 {
-				if IPv4 == true {
+				if IPv4 {
 					t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv4)
 				} else {
 					t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv6)
