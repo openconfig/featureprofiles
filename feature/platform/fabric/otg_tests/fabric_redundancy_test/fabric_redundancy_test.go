@@ -248,8 +248,11 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 		lastReboofdimeKey := strings.Join([]string{fabric, "last-reboot-time"}, ":")
 		powerAdminStateConfigKey := strings.Join([]string{fabric, "config/power-admin-state"}, ":")
 		powerAdminStateStateKey := strings.Join([]string{fabric, "state/power-admin-state"}, ":")
-
 		/* fabricLeafOrValuePresent: Key: fabric:leaf, Value: []any{isLeafPresent, leafValue} */
+		if deviations.ConfigLeafCreateRequired(dut) {
+		     gnmi.Replace(t, dut, powerAdminState.Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+		     time.Sleep(10 * time.Second)
+		}
 		fabricLeafOrValuePresent[descriptionKey] = []any{gnmi.Lookup(t, dut, description.State()).IsPresent()}
 		fabricLeafOrValuePresent[hardwareVersionKey] = []any{gnmi.Lookup(t, dut, hardwareVersion.State()).IsPresent()}
 		fabricLeafOrValuePresent[idKey] = []any{gnmi.Lookup(t, dut, id.State()).IsPresent()}

@@ -1352,3 +1352,9 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
+
+//
+// Config Leaf Create required before GNMI get 
+func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
+        return lookupDUTDeviations(dut).ConfigLeafCreateRequired()
+}
