@@ -74,11 +74,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/ebgp-multihop/state/multihop-ttl:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/ebgp-multihop/state/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/ebgp-multihop/state/multihop-ttl:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
 
 rpcs:
   gnmi:
