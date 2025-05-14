@@ -18,7 +18,7 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v1.17.1
 	github.com/openconfig/containerz v0.0.0-20250408205203-029560584812
 	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
-	github.com/openconfig/gnmi v0.11.0
+	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnoi v0.6.1-0.20250206212518-26d177339690
 	github.com/openconfig/gnoigo v0.0.0-20250408191134-9985281d2e03
 	github.com/openconfig/gnsi v1.8.0
@@ -35,7 +35,7 @@ require (
 	github.com/openconfig/ygot v0.29.20
 	github.com/p4lang/p4runtime v1.4.1
 	github.com/pborman/uuid v1.2.1
-	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
+	github.com/protocolbuffers/txtpbfmt v0.0.0-20240823084532-8e6b51fa9bef
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6-0.20201009195203-85dd5c8bc61c
 	github.com/spf13/viper v1.19.0
@@ -68,7 +68,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.1.3 // indirect
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
-	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
@@ -123,7 +123,7 @@ require (
 	github.com/openconfig/attestz v0.2.0 // indirect
 	github.com/openconfig/bootz v0.3.1 // indirect
 	github.com/openconfig/gnpsi v0.3.2 // indirect
-	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
+	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
