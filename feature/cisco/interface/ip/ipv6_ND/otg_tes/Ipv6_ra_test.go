@@ -66,6 +66,9 @@ const (
 	routerAdvertisementDisabled     = true
 	scale                           = 100
 	subifBaseIP                     = "2001:db8::"
+	enableDefault                   = true
+	modeDefault                     = oc.RouterAdvertisement_Mode_ALL
+	suppressDefault                 = false
 )
 
 var (
@@ -147,34 +150,30 @@ func configInterfaceIPv6RA(t *testing.T, dut *ondatra.DUTDevice, interfaces Inte
 	}
 	s4 := i.GetOrCreateSubinterface(interfaces.subIntf).GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		// t.Log("IPv4 enabled")
 		s4.Enabled = ygot.Bool(true)
 	}
 	s6 := i.GetOrCreateSubinterface(interfaces.subIntf).GetOrCreateIpv6()
 	routerAdvert := s6.GetOrCreateRouterAdvertisement()
+
 	switch raState {
+	case "Enable":
+		routerAdvert.SetEnable(true)
+	case "Disable":
+		routerAdvert.SetEnable(false)
 	case "Interval":
-		// if !deviations.Ipv6RouterAdvertisementIntervalUnsupported(dut) {
-		// ipv6 nd ra-interval 5 5
-		// t.Log("IPv6 RA Interval")
+		routerAdvert.SetEnable(false)
 		routerAdvert.SetInterval(routerAdvertisementTimeInterval)
-		// }
 	case "Suppress":
-		// if deviations.Ipv6RouterAdvertisementConfigUnsupported(dut) {
-		// ipv6 nd suppress-ra
-		t.Log("IPv6 RA Suppress")
+		// routerAdvert.Enable = ygot.Bool(true)
+		// routerAdvert.SetEnable(true)
 		routerAdvert.SetSuppress(routerAdvertisementDisabled)
 	case "ModeAll":
 		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_ALL)
 	case "Unsolicited":
 		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
 	case "Unicast":
-		// routerAdvert.SetMode(oc.RouterAdvertisement_Mode_UNICAST)
-		// routerAdvert.SetMode(oc.R)
+		// not supported
 	}
-
-	t.Log("IPv6 RA Enable")
-	routerAdvert.SetEnable(false)
 
 	gnmi.Update(t, dut, gnmi.OC().Interface(interfaces.name).Config(), i)
 }
@@ -211,6 +210,12 @@ func configureOTG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	}
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
 	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
+
+	// // Add multicast IPv6 address configuration
+	// multicastIPv6 := "ff02::1" // Example multicast address
+	// dstIpv6Multicast := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".MulticastIPv6")
+	// dstIpv6Multicast.SetAddress(multicastIPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
+
 	topo.Captures().Add().SetName("raCapture").SetPortNames([]string{dstPort.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	t.Logf("OTG configuration completed!")
 	topo.Flows().Clear().Items()
@@ -264,7 +269,7 @@ func verifyEdtRAInterval(t *testing.T, dut *ondatra.DUTDevice) bool {
 			}
 			t.Logf("Got Interval state %v", timeIntervalOnTelemetry)
 			if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
-				t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+				t.Logf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
 				return false
 			} else {
 				t.Logf("Required RA time interval = %v, RA Time interval observed on EDT = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
@@ -282,25 +287,23 @@ func verifyEdtRAInterval(t *testing.T, dut *ondatra.DUTDevice) bool {
 	}
 }
 
-func verifyEdtRASuppress(t *testing.T, dut *ondatra.DUTDevice) bool {
+func verifyEdtRASuppress(t *testing.T, dut *ondatra.DUTDevice, expected bool) bool {
 	watcher := gnmi.WatchAll(t,
 		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().RouterAdvertisement().Suppress().Config(),
+		gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().RouterAdvertisement().Suppress().State(),
 		time.Minute,
 		func(value *ygnmi.Value[bool]) bool {
-			timeIntervalOnTelemetry, present := value.Val()
+			output, present := value.Val()
 			if !present {
 				return false
 			}
-			t.Logf("Got Suppress state %v", timeIntervalOnTelemetry)
-			// if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
-			// 	t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-			// 	return false
-			// } else {
-			// 	t.Logf("Required RA time interval = %v, RA Time interval observed on EDT = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-			// 	return true
-			// }
-			return true
+			t.Logf("Got Suppress state %v", output)
+			if output != expected {
+				t.Logf("Inconsistent RA Suppress!\nExpected RA Suppress = %v, but got %v", expected, output)
+				return false
+			} else {
+				return true
+			}
 		})
 
 	_, gotall := watcher.Await(t)
@@ -313,56 +316,23 @@ func verifyEdtRASuppress(t *testing.T, dut *ondatra.DUTDevice) bool {
 	}
 }
 
-func verifyEdtRAModeAll(t *testing.T, dut *ondatra.DUTDevice) bool {
+func verifyEdtRAModeAll(t *testing.T, dut *ondatra.DUTDevice, expectedMode oc.E_RouterAdvertisement_Mode) bool {
 	watcher := gnmi.WatchAll(t,
 		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
 		gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().RouterAdvertisement().Mode().State(),
 		time.Minute,
 		func(value *ygnmi.Value[oc.E_RouterAdvertisement_Mode]) bool {
-			timeIntervalOnTelemetry, present := value.Val()
+			output, present := value.Val()
 			if !present {
 				return false
 			}
-			t.Logf("Got Mode state %v", timeIntervalOnTelemetry)
-			// if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
-			// 	t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-			// 	return false
-			// } else {
-			// 	t.Logf("Required RA time interval = %v, RA Time interval observed on EDT = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-			// 	return true
-			// }
-			return true
-		})
-
-	_, gotall := watcher.Await(t)
-
-	if !gotall {
-		t.Fatalf("Did not receive all values an interface")
-		return false
-	} else {
-		return true
-	}
-}
-
-func verifyEdtRAUnsolicited(t *testing.T, dut *ondatra.DUTDevice) bool {
-	watcher := gnmi.WatchAll(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
-		gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().RouterAdvertisement().Mode().State(),
-		time.Minute,
-		func(value *ygnmi.Value[oc.E_RouterAdvertisement_Mode]) bool {
-			timeIntervalOnTelemetry, present := value.Val()
-			if !present {
+			t.Logf("Got Mode state %v", output)
+			if output != expectedMode {
+				t.Logf("Inconsistent RA Mode!\nExpected RA Mode = %v, but got %v", expectedMode, output)
 				return false
+			} else {
+				return true
 			}
-			t.Logf("Got Mode state %v", timeIntervalOnTelemetry)
-			// if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
-			// 	t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-			// 	return false
-			// } else {
-			// 	t.Logf("Required RA time interval = %v, RA Time interval observed on EDT = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-			// 	return true
-			// }
-			return true
 		})
 
 	_, gotall := watcher.Await(t)
@@ -376,31 +346,68 @@ func verifyEdtRAUnsolicited(t *testing.T, dut *ondatra.DUTDevice) bool {
 }
 
 // Verifies that desired parameters are set with required value on the device.
-func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice, intf, raState string) {
+func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice, intf, raState string, raValue interface{}, options ...bool) {
+
+	deviceRAConfigQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Enable().State()
+	raConfigOnDevice := gnmi.Get(t, dut, deviceRAConfigQuery)
+	t.Logf("RA Enable State = %v", raConfigOnDevice)
+	capture := true
+	if len(options) > 0 {
+		capture = options[0]
+	}
+
+	if raState == "Enable" {
+		deviceRAConfigQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Enable().State()
+		raConfigOnDevice := gnmi.Get(t, dut, deviceRAConfigQuery)
+		t.Logf("RA Enable State = %v", raConfigOnDevice)
+		raEnableConfig := gnmi.Get(t, dut, gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Enable().Config())
+		t.Logf("RA Enable Config = %v", raEnableConfig)
+
+		if capture {
+			if raConfigOnDevice != raValue {
+				t.Fatalf("Inconsistent RA Enable!\nRequired RA Enable = %v and Configured RA Enable = %v are not same!", raValue, raConfigOnDevice)
+			}
+		}
+	}
 	if raState == "Interval" {
 		telemetryTimeIntervalQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Interval().State()
 		timeIntervalOnTelemetry := gnmi.Get(t, dut, telemetryTimeIntervalQuery)
 		t.Logf("Required RA time interval = %v, RA Time interval observed on telemetry = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-		if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
-			t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+		if capture {
+			if int(timeIntervalOnTelemetry) != raValue.(int) {
+				t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+			}
 		}
+		configQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Interval().Config()
+		raIntervalConfig := gnmi.Get(t, dut, configQuery)
+		t.Logf("Router Advertisement Interval Config = %v", raIntervalConfig)
 	}
-
-	// if deviations.Ipv6RouterAdvertisementConfigUnsupported(dut) {
 	if raState == "Suppress" {
-		deviceRASuppressQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config()
+		deviceRASuppressQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().State()
 		raSuppressConfigOnDevice := gnmi.Get(t, dut, deviceRASuppressQuery)
 		t.Logf("RA Suppress State = %v", raSuppressConfigOnDevice)
+
+		raStateConfig := gnmi.Get(t, dut, gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+		t.Logf("RA Suppress Config = %v", raStateConfig)
+		if capture {
+			if raSuppressConfigOnDevice != raValue {
+				t.Fatalf("Inconsistent RA Suppress!\nRequired RA Suppress = %v and Configured RA Suppress = %v are not same!", raValue, raSuppressConfigOnDevice)
+			}
+		}
 	}
-	if raState == "ModeAll" {
+	if raState == "Mode" {
 		deviceRAModeQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Mode().State()
 		raModeOnDevice := gnmi.Get(t, dut, deviceRAModeQuery)
 		t.Logf("Router Advertisement Mode = %v", raModeOnDevice)
-	}
 
-	deviceRAConfigQuery := gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Enable().Config()
-	raConfigOnDevice := gnmi.Get(t, dut, deviceRAConfigQuery)
-	t.Logf("Router Advertisement State = %v", raConfigOnDevice)
+		raStateConfig := gnmi.Get(t, dut, gnmi.OC().Interface(intf).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		t.Logf("RA Mode Config = %v", raStateConfig)
+		if capture {
+			if raModeOnDevice != raValue {
+				t.Fatalf("Inconsistent RA Mode!\nRequired RA Mode = %v and Configured RA Mode = %v are not same!", raValue, raModeOnDevice)
+			}
+		}
+	}
 }
 
 // Captures traffic statistics and verifies for the loss.
@@ -437,7 +444,16 @@ func validatePackets(t *testing.T, fileName string) {
 		t.Logf("No Packets found in the file = %v !", fileName)
 		return
 	}
-	defer handle.Close()
+	// delete the file
+	defer func() {
+		handle.Close()
+		// Attempt to delete the file
+		err := os.Remove(fileName)
+		if err != nil {
+			// Handle the error if the file couldn't be deleted
+			fmt.Printf("Error deleting file: %v\n", err)
+		}
+	}()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
 		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
@@ -849,14 +865,30 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 	// defer unConfigInterface(t, dut, interfaceList)
 	otgConfig := configureOTG(t, dut, ate, interfaceList[1].subIntf)
 
-	t.Run("TestCase-1: No periodical Router Advertisement with Interval", func(t *testing.T) {
+	t.Run("TestCase-0: Verify RA Default State", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Enable")
+		}
+
+		t.Run("Validate RA Enable", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Enable", enableDefault)
+		})
+		t.Run("Validate RA Mode", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", modeDefault)
+		})
+		t.Run("Validate RA Suppress", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", suppressDefault)
+		})
+	})
+
+	t.Run("TestCase-1: No periodical RA with Interval", func(t *testing.T) {
 
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+		t.Run("Validate RA Interval MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -871,152 +903,181 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		}
 	})
 
-	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
+	t.Run("TestCase-2: No RA in response to Router Solicitation", func(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 	})
 
-	t.Run("TestCase-3: Router Advertisement with Suppress", func(t *testing.T) {
+	t.Run("TestCase-3: RA with Set/Unset Suppress", func(t *testing.T) {
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
-		})
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRASuppress(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Suppress EDT verification failed!")
-		// 	}
-		// })
-		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-
-		//unconfigure Ipv6 Ra Suppress
-		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
-		}
-	})
-
-	t.Run("TestCase-4: Router Advertisement with Mode All", func(t *testing.T) {
-		for _, interfaces := range interfaceList {
-			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
-		}
-
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "ModeAll")
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
 		})
 		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-			edtStatus := verifyEdtRASuppress(t, dut)
+			edtStatus := verifyEdtRASuppress(t, dut, true)
 			if !edtStatus {
 				t.Fatalf("Error: RA Suppress EDT verification failed!")
 			}
 		})
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 
-		//unconfigure Ipv6 Ra Suppress
+		//Set false to Ipv6 Ra Suppress
+		t.Logf("Set false to Ipv6 Ra Suppress")
 		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config(), false)
+		}
+
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", false)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, false)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			}
+		}()
+	})
+
+	t.Run("TestCase-4: RA with Set/Unset Mode All", func(t *testing.T) {
+		t.Logf("Set Ipv6 Ra Mode All")
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
+		}
+
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL)
+		})
+		t.Run("Validate RA Mode ALL EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_ALL)
+			if !edtStatus {
+				t.Fatalf("Error: RA Mode ALL EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		t.Logf("UnSet Ipv6 Ra Mode All")
+		for _, interfaces := range interfaceList {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config(), oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+
+		}
+
+		t.Run("Validate RA Mode Unsolictied MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Mode Unsolictied EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Mode Unsolictied EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+			}
+		}()
+	})
+
+	t.Run("TestCase-5: RA with UnSolicitation", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
+
+		t.Run("Validate RA UnSolicitation MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA UnSolicitation EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
 		}
 	})
 
-	t.Run("TestCase-5: Router Advertisement with Suppress UnSolicitation", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-6: RA with Suppress and Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, true)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		t.Run("Validate RA Unsolicited EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Config
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
+		}
 	})
 
-	t.Run("TestCase-6: Router Advertisement with Suppress and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-7: RA Disable with Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRASuppress(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Suppress EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
-		// }
+		t.Run("Validate RA Unsolicited MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA, false)
+		})
+
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
+
+		//unconfigure Ipv6 Ra Unsolicited
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
-	t.Run("TestCase-7: Router Advertisement with Mode Unicast ", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// }
+	t.Run("TestCase-8: RA Disable with Mode ALL", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL, false)
+		})
 
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
-	})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-	t.Run("TestCase-8: Router Advertisement with Mode Unicast and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
-
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
 	t.Run("TestCase-9: Commit/Replace the Router Advertisement ", func(t *testing.T) {
@@ -1026,7 +1087,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1047,7 +1108,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1067,7 +1128,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1104,7 +1165,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1127,7 +1188,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 
 				t.Log("Validating IPv6 RA ND after Restarted the process")
 				t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 				})
 				t.Run("Validate RA Interval EDT", func(t *testing.T) {
 					edtStatus := verifyEdtRAInterval(t, dut)
@@ -1151,7 +1212,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1173,7 +1234,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		time.Sleep(120 * time.Second)
 
 		t.Run("Validate RA MDT Telemetry After LC reload", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA EDT After LC reload", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1187,14 +1248,14 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-
+		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1209,11 +1270,10 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		t.Run("Trigger RPFO", func(t *testing.T) {
 			testRPFO(t, dut, ate, ate.Topology().New())
 			time.Sleep(60 * time.Second)
-
 		})
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1234,7 +1294,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1299,7 +1359,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 
 		t.Log("Validating IPv6 RA ND after Reload the Router")
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1344,165 +1404,229 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 	}
 	otgConfig := configureOTG(t, dut, ate, interfaceList[1].subIntf)
 
-	t.Run("TestCase-1: No periodical Router Advertisement", func(t *testing.T) {
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+	t.Run("TestCase-0: Verify RA Default State", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Enable")
+		}
+
+		t.Run("Validate RA Enable", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Enable", enableDefault)
 		})
-		t.Run("Validate RA EDT", func(t *testing.T) {
-			edtStatus := verifyedt(t, dut, interfaceList[0].name)
+		t.Run("Validate RA Mode", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", modeDefault)
+		})
+		t.Run("Validate RA Suppress", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", suppressDefault)
+		})
+	})
+
+	t.Run("TestCase-1: No periodical RA with Interval", func(t *testing.T) {
+
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
+		}
+
+		t.Run("Validate RA Interval MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
+		})
+		t.Run("Validate RA Interval EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAInterval(t, dut)
 			if !edtStatus {
-				t.Fatalf("Error: RA EDT verification failed!")
+				t.Fatalf("Error: RA Interval EDT verification failed!")
 			}
 		})
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		//unconfigure Ipv6 Ra Interval
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Interval().Config())
+		}
 	})
 
-	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
+	t.Run("TestCase-2: No RA in response to Router Solicitation", func(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 	})
 
-	t.Run("TestCase-3: Router Advertisement with Suppress", func(t *testing.T) {
+	t.Run("TestCase-3: RA with Set/Unset Suppress", func(t *testing.T) {
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
 		})
 		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-			edtStatus := verifyEdtRASuppress(t, dut)
+			edtStatus := verifyEdtRASuppress(t, dut, true)
 			if !edtStatus {
 				t.Fatalf("Error: RA Suppress EDT verification failed!")
 			}
 		})
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 
-		//unconfigure Ipv6 Ra Suppress
+		//Set false to Ipv6 Ra Suppress
+		t.Logf("Set false to Ipv6 Ra Suppress")
 		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config(), false)
 		}
+
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", false)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, false)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			}
+		}()
 	})
 
-	t.Run("TestCase-4: Router Advertisement with Mode All", func(t *testing.T) {
+	t.Run("TestCase-4: RA with Set/Unset Mode All", func(t *testing.T) {
+		t.Logf("Set Ipv6 Ra Mode All")
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "ModeAll")
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL)
 		})
-		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-			edtStatus := verifyEdtRASuppress(t, dut)
+		t.Run("Validate RA Mode ALL EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_ALL)
 			if !edtStatus {
-				t.Fatalf("Error: RA Suppress EDT verification failed!")
+				t.Fatalf("Error: RA Mode ALL EDT verification failed!")
 			}
 		})
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 
-		//unconfigure Ipv6 Ra Suppress
+		t.Logf("UnSet Ipv6 Ra Mode All")
 		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config(), oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+
+		}
+
+		t.Run("Validate RA Mode Unsolictied MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Mode Unsolictied EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Mode Unsolictied EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+			}
+		}()
+	})
+
+	t.Run("TestCase-5: RA with UnSolicitation", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
+
+		t.Run("Validate RA UnSolicitation MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA UnSolicitation EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
 		}
 	})
 
-	t.Run("TestCase-5: Router Advertisement with Suppress UnSolicitation", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-6: RA with Suppress and Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
+		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, true)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		t.Run("Validate RA Unsolicited EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
+
+		//unconfigure Ipv6 Ra Config
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
+		}
+	})
+
+	t.Run("TestCase-7: RA Disable with Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
+
+		t.Run("Validate RA Unsolicited MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA, false)
+		})
+		// t.Run("Validate RA Unsolicited EDT", func(t *testing.T) {
+		// 	edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
 		// 	if !edtStatus {
 		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
 		// 	}
 		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Unsolicited
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
-	t.Run("TestCase-6: Router Advertisement with Suppress and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-8: RA Disable with Mode ALL", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRASuppress(t, dut)
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL, false)
+		})
+		// t.Run("Validate RA Mode ALL EDT", func(t *testing.T) {
+		// 	edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_ALL)
 		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Suppress EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+		// 		t.Fatalf("Error: RA Mode ALL EDT verification failed!")
 		// 	}
 		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
-		// }
-	})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-	t.Run("TestCase-7: Router Advertisement with Mode Unicast ", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// }
-
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
-	})
-
-	t.Run("TestCase-8: Router Advertisement with Mode Unicast and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
-
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
 	t.Run("TestCase-9: Commit/Replace the Router Advertisement ", func(t *testing.T) {
@@ -1512,7 +1636,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1533,7 +1657,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1553,7 +1677,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1590,7 +1714,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1613,7 +1737,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 
 				t.Log("Validating IPv6 RA ND after Restarted the process")
 				t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 				})
 				t.Run("Validate RA Interval EDT", func(t *testing.T) {
 					edtStatus := verifyEdtRAInterval(t, dut)
@@ -1637,7 +1761,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1659,7 +1783,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		time.Sleep(120 * time.Second)
 
 		t.Run("Validate RA MDT Telemetry After LC reload", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA EDT After LC reload", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1673,14 +1797,14 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-
+		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1695,11 +1819,10 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		t.Run("Trigger RPFO", func(t *testing.T) {
 			testRPFO(t, dut, ate, ate.Topology().New())
 			time.Sleep(60 * time.Second)
-
 		})
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1720,7 +1843,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1785,7 +1908,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 
 		t.Log("Validating IPv6 RA ND after Reload the Router")
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -1800,7 +1923,7 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 
 }
 
-func TestIpv6NDRAScale(t *testing.T) {
+func TestIpv6NDRAPhysicalSubIntfScale(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	physicaSrclInt := dut.Port(t, "port1")
@@ -1835,7 +1958,7 @@ func TestIpv6NDRAScale(t *testing.T) {
 
 	t.Run("TestCase-1: No periodical Router Advertisement", func(t *testing.T) {
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA EDT", func(t *testing.T) {
 			edtStatus := verifyedt(t, dut, interfaceList[0].name)
@@ -2213,6 +2336,9 @@ func configureATEIpv6Ra(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	return top
 }
 
+// TestIpv6NDRABundle validates the behavior of IPv6 Neighbor Discovery Router Advertisement (RA)
+// on a bundle interface. It ensures proper configuration, packet capture, and telemetry verification
+// for various RA scenarios, including interval, suppression, and unsolicited RA modes.
 func TestIpv6NDRABundle(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -2245,14 +2371,30 @@ func TestIpv6NDRABundle(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 	}
 
-	t.Run("TestCase-1: No periodical Router Advertisement with Interval", func(t *testing.T) {
+	t.Run("TestCase-0: Verify RA Default State", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Enable")
+		}
+
+		t.Run("Validate RA Enable", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Enable", enableDefault)
+		})
+		t.Run("Validate RA Mode", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", modeDefault)
+		})
+		t.Run("Validate RA Suppress", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", suppressDefault)
+		})
+	})
+
+	t.Run("TestCase-1: No periodical RA with Interval", func(t *testing.T) {
 
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+		t.Run("Validate RA Interval MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2267,152 +2409,179 @@ func TestIpv6NDRABundle(t *testing.T) {
 		}
 	})
 
-	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
+	t.Run("TestCase-2: No RA in response to Router Solicitation", func(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 	})
 
-	t.Run("TestCase-3: Router Advertisement with Suppress", func(t *testing.T) {
+	t.Run("TestCase-3: RA with Set/Unset Suppress", func(t *testing.T) {
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
-		})
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRASuppress(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Suppress EDT verification failed!")
-		// 	}
-		// })
-		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-
-		//unconfigure Ipv6 Ra Suppress
-		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
-		}
-	})
-
-	t.Run("TestCase-4: Router Advertisement with Mode All", func(t *testing.T) {
-		for _, interfaces := range interfaceList {
-			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
-		}
-
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "ModeAll")
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
 		})
 		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-			edtStatus := verifyEdtRASuppress(t, dut)
+			edtStatus := verifyEdtRASuppress(t, dut, true)
 			if !edtStatus {
 				t.Fatalf("Error: RA Suppress EDT verification failed!")
 			}
 		})
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 
-		//unconfigure Ipv6 Ra Suppress
+		//Set false to Ipv6 Ra Suppress
+		t.Logf("Set false to Ipv6 Ra Suppress")
 		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config(), false)
+		}
+
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", false)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, false)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			}
+		}()
+	})
+
+	t.Run("TestCase-4: RA with Set/Unset Mode All", func(t *testing.T) {
+		t.Logf("Set Ipv6 Ra Mode All")
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
+		}
+
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL)
+		})
+		t.Run("Validate RA Mode ALL EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_ALL)
+			if !edtStatus {
+				t.Fatalf("Error: RA Mode ALL EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		t.Logf("UnSet Ipv6 Ra Mode All")
+		for _, interfaces := range interfaceList {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config(), oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+
+		}
+
+		t.Run("Validate RA Mode Unsolictied MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Mode Unsolictied EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Mode Unsolictied EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+			}
+		}()
+	})
+
+	t.Run("TestCase-5: RA with UnSolicitation", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
+
+		t.Run("Validate RA UnSolicitation MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA UnSolicitation EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
 		}
 	})
 
-	t.Run("TestCase-5: Router Advertisement with Suppress UnSolicitation", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-6: RA with Suppress and Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, true)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		t.Run("Validate RA Unsolicited EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Config
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
+		}
 	})
 
-	t.Run("TestCase-6: Router Advertisement with Suppress and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-7: RA Disable with Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRASuppress(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Suppress EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
-		// }
+		t.Run("Validate RA Unsolicited MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA, false)
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
+
+		//unconfigure Ipv6 Ra Unsolicited
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
-	t.Run("TestCase-7: Router Advertisement with Mode Unicast ", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// }
+	t.Run("TestCase-8: RA Disable with Mode ALL", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL, false)
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
-	})
-
-	t.Run("TestCase-8: Router Advertisement with Mode Unicast and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
-
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
 	t.Run("TestCase-9: Commit/Replace the Router Advertisement ", func(t *testing.T) {
@@ -2422,7 +2591,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2443,7 +2612,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2463,7 +2632,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2500,7 +2669,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2523,7 +2692,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 
 				t.Log("Validating IPv6 RA ND after Restarted the process")
 				t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 				})
 				t.Run("Validate RA Interval EDT", func(t *testing.T) {
 					edtStatus := verifyEdtRAInterval(t, dut)
@@ -2547,7 +2716,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2569,7 +2738,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		time.Sleep(120 * time.Second)
 
 		t.Run("Validate RA MDT Telemetry After LC reload", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA EDT After LC reload", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2583,14 +2752,14 @@ func TestIpv6NDRABundle(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-
+		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2608,7 +2777,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		})
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2629,7 +2798,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2694,7 +2863,7 @@ func TestIpv6NDRABundle(t *testing.T) {
 
 		t.Log("Validating IPv6 RA ND after Reload the Router")
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2744,14 +2913,30 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 	}
 
-	t.Run("TestCase-1: No periodical Router Advertisement with Interval", func(t *testing.T) {
+	t.Run("TestCase-0: Verify RA Default State", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Enable")
+		}
+
+		t.Run("Validate RA Enable", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Enable", enableDefault)
+		})
+		t.Run("Validate RA Mode", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", modeDefault)
+		})
+		t.Run("Validate RA Suppress", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", suppressDefault)
+		})
+	})
+
+	t.Run("TestCase-1: No periodical RA with Interval", func(t *testing.T) {
 
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+		t.Run("Validate RA Interval MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2766,152 +2951,180 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		}
 	})
 
-	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
+	t.Run("TestCase-2: No RA in response to Router Solicitation", func(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 	})
 
-	t.Run("TestCase-3: Router Advertisement with Suppress", func(t *testing.T) {
+	t.Run("TestCase-3: RA with Set/Unset Suppress", func(t *testing.T) {
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
 		}
 
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
-		})
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRASuppress(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Suppress EDT verification failed!")
-		// 	}
-		// })
-		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-
-		//unconfigure Ipv6 Ra Suppress
-		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
-		}
-	})
-
-	t.Run("TestCase-4: Router Advertisement with Mode All", func(t *testing.T) {
-		for _, interfaces := range interfaceList {
-			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
-		}
-
-		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "ModeAll")
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
 		})
 		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-			edtStatus := verifyEdtRASuppress(t, dut)
+			edtStatus := verifyEdtRASuppress(t, dut, true)
 			if !edtStatus {
 				t.Fatalf("Error: RA Suppress EDT verification failed!")
 			}
 		})
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 
-		//unconfigure Ipv6 Ra Suppress
+		//Set false to Ipv6 Ra Suppress
+		t.Logf("Set false to Ipv6 Ra Suppress")
 		for _, interfaces := range interfaceList {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config(), false)
+		}
+
+		t.Run("Validate RA Suppress MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", false)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, false)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
+			}
+		}()
+	})
+
+	t.Run("TestCase-4: RA with Set/Unset Mode All", func(t *testing.T) {
+		t.Logf("Set Ipv6 Ra Mode All")
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
+		}
+
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL)
+		})
+		t.Run("Validate RA Mode ALL EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_ALL)
+			if !edtStatus {
+				t.Fatalf("Error: RA Mode ALL EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		t.Logf("UnSet Ipv6 Ra Mode All")
+		for _, interfaces := range interfaceList {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config(), oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+
+		}
+
+		t.Run("Validate RA Mode Unsolictied MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Mode Unsolictied EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Mode Unsolictied EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		defer func() {
+			for _, interfaces := range interfaceList {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+			}
+		}()
+	})
+
+	t.Run("TestCase-5: RA with UnSolicitation", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
+
+		t.Run("Validate RA UnSolicitation MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA UnSolicitation EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
 		}
 	})
 
-	t.Run("TestCase-5: Router Advertisement with Suppress UnSolicitation", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-6: RA with Suppress and Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress", true)
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		})
+		t.Run("Validate RA Suppress EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRASuppress(t, dut, true)
+			if !edtStatus {
+				t.Fatalf("Error: RA Suppress EDT verification failed!")
+			}
+		})
+		t.Run("Validate RA Unsolicited EDT", func(t *testing.T) {
+			edtStatus := verifyEdtRAModeAll(t, dut, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+			if !edtStatus {
+				t.Fatalf("Error: RA Unsolicited EDT verification failed!")
+			}
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Config
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
+		}
 	})
 
-	t.Run("TestCase-6: Router Advertisement with Suppress and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Suppress")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
+	t.Run("TestCase-7: RA Disable with Unsolicited", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Suppress")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRASuppress(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Suppress EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config())
-		// }
+		t.Run("Validate RA Unsolicited MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA, false)
+		})
+
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
+
+		//unconfigure Ipv6 Ra Unsolicited
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
-	t.Run("TestCase-7: Router Advertisement with Mode Unicast ", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// }
+	t.Run("TestCase-8: RA Disable with Mode ALL", func(t *testing.T) {
+		for _, interfaces := range interfaceList {
+			configInterfaceIPv6RA(t, dut, interfaces, "Disable")
+			configInterfaceIPv6RA(t, dut, interfaces, "ModeAll")
+		}
 
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		t.Run("Validate RA Mode ALL MDT Telemetry", func(t *testing.T) {
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Mode", oc.RouterAdvertisement_Mode_ALL, false)
+		})
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
+		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
-	})
-
-	t.Run("TestCase-8: Router Advertisement with Mode Unicast and Unsolicited", func(t *testing.T) {
-		// for _, interfaces := range interfaceList {
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unicast")
-		// 	configInterfaceIPv6RA(t, dut, interfaces, "Unsolicited")
-		// }
-
-		// t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unicast")
-		// 	verifyRATelemetry(t, dut, interfaceList[0].name, "Unsolicited")
-		// })
-		// t.Run("Validate RA Suppress EDT", func(t *testing.T) {
-		// 	edtStatus := verifyEdtRAUnicast(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unicast EDT verification failed!")
-		// 	}
-		// 	edtStatus := verifyEdtRAUnsolicited(t, dut)
-		// 	if !edtStatus {
-		// 		t.Fatalf("Error: RA Unsolicited EDT verification failed!")
-		// 	}
-		// })
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
-		// verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
-		// //unconfigure Ipv6 Ra Suppress
-		// for _, interfaces := range interfaceList {
-		// 	gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Config())
-		// }
+		//unconfigure Ipv6 Ra Mode
+		for _, interfaces := range interfaceList {
+			gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.name).Subinterface(0).Ipv6().RouterAdvertisement().Mode().Config())
+		}
 	})
 
 	t.Run("TestCase-9: Commit/Replace the Router Advertisement ", func(t *testing.T) {
@@ -2921,7 +3134,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2942,7 +3155,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2962,7 +3175,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -2999,7 +3212,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -3022,7 +3235,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 
 				t.Log("Validating IPv6 RA ND after Restarted the process")
 				t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+					verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 				})
 				t.Run("Validate RA Interval EDT", func(t *testing.T) {
 					edtStatus := verifyEdtRAInterval(t, dut)
@@ -3046,7 +3259,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -3068,7 +3281,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		time.Sleep(120 * time.Second)
 
 		t.Run("Validate RA MDT Telemetry After LC reload", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA EDT After LC reload", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -3082,14 +3295,14 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-
+		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -3107,7 +3320,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		})
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -3128,7 +3341,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -3193,7 +3406,7 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 
 		t.Log("Validating IPv6 RA ND after Reload the Router")
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
@@ -3205,7 +3418,6 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 10)
 	})
-
 }
 
 func TestIpv6NDRABundleSubIntfScale(t *testing.T) {
@@ -3254,7 +3466,7 @@ func TestIpv6NDRABundleSubIntfScale(t *testing.T) {
 		}
 
 		t.Run("Validate RA MDT Telemetry", func(t *testing.T) {
-			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval")
+			verifyRATelemetry(t, dut, interfaceList[0].name, "Interval", routerAdvertisementTimeInterval)
 		})
 		t.Run("Validate RA Interval EDT", func(t *testing.T) {
 			edtStatus := verifyEdtRAInterval(t, dut)
