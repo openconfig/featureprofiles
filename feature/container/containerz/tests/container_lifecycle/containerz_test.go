@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"path/filepath"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"path/filepath"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -26,7 +27,7 @@ var (
 	containerTar        = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
 	pluginTar           = flag.String("plugin_tar", "/tmp/rootfs.tar.gz", "The plugin tarball (e.g., for vieux/docker-volume-sshfs rootfs.tar.gz).")
-	pluginConfig        = flag.String("plugin_config", "/tmp/test_sshfs_config.json", "The plugin config.")
+	pluginConfig        = flag.String("plugin_config", "testdata/test_sshfs_config.json", "The plugin config.")
 )
 
 const (
@@ -910,7 +911,7 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 }
 
 // TestUpgrade implements CNTR-1.7 validating lifecycle of the SSHFS volume plugin via containerz.
-// Prerequisites for running this test locally with --containerz_addr="localhost:<port>":
+// Prerequisites for running this test:
 // 1. Build the rootfs.tar.gz for vieux/docker-volume-sshfs as per the README.
 // 2. Set the --plugin_tar flag to the path of the generated rootfs.tar.gz.
 func TestPlugins(t *testing.T) {

@@ -85,45 +85,25 @@ Follow these steps:
     ```
     Replace `/path/to/your/docker-volume-sshfs/` with the actual path to where you cloned and built the plugin.
 
-5.  **Creating Runtime Configuration for SSHFS Plugin Test:**
-    
-    The TestPlugin test, particularly for the sshfs plugin (CNTR-1.7), requires SSH credentials and specific options to be provided at runtime. This is done by creating a dedicated runtime configuration JSON file (e.g., test_sshfs_config.json).
+5.  **SSHFS Plugin Test: Runtime Configuration:**
 
-    This file is based on the plugin's original config.json. For the vieux/docker-volume-sshfs plugin, config.json can be found at the root of its [GitHub repository](https://github.com/vieux/docker-volume-sshfs/blob/master/config.json).
+    The `TestPlugin` test for the `vieux/docker-volume-sshfs` plugin (CNTR-1.7) requires a runtime configuration JSON file that includes SSH credentials and specific options.
 
-**Prepare test_sshfs_config.json:**
-    
-Start with the structure of the original config.json from the sshfs plugin tarball.
-Create a new file (e.g., in your test environment at testdata/test_sshfs_config.json).
+    A default configuration file, `test_sshfs_config.json`, is now provided in the `testdata/` directory (i.e., at `feature/container/containerz/tests/container_lifecycle/testdata/test_sshfs_config.json`). This file is pre-configured for a local SSH server setup with the following default environment variables:
+    *   `SSH_HOST`: `localhost`
+    *   `SSH_USER`: `testuser`
+    *   `SSH_PASSWORD`: `testpass`
+    *   `SSHFS_OPTS`: `allow_other,reconnect`
 
-In this new file, modify the env array to include the following entries. These should be added alongside any existing entries (like the default DEBUG variable):
+    **Customization:**
+    If you want to customize your local SSH testing environment (e.g., with a different hostname, user, password, or SSH options), you can:
+    *   Copy the provided `testdata/test_sshfs_config.json` to a new location.
+    *   Modify the `env` section in your copied file with your specific credentials and options. The file should still be based on the original `config.json` from the `vieux/docker-volume-sshfs` plugin.
+    *   Update the test flag to point to your custom configuration file.
 
+    The JSON structure (like `description`, `entrypoint`, `interface`, `mounts`, etc.) should mirror the original `config.json` from the plugin, with the `env` array modified as needed. The provided `test_sshfs_config.json` already includes these base settings along with the test-specific environment variables:
 
-    // ... existing "DEBUG" entry if present in your base config.json's "env" array ...
-    {
-        "name": "SSH_HOST",
-        "settable": [ "value" ],
-        "value": "localhost"
-    },
-    {
-        "name": "SSH_USER",
-        "settable": [ "value" ],
-        "value": "testuser"
-    },
-    {
-        "name": "SSH_PASSWORD",
-        "settable": [ "value" ],
-        "value": "testpass"
-    },
-    {
-        "name": "SSHFS_OPTS",
-        "settable": [ "value" ],
-        "value": "allow_other,reconnect"
-    }
-    // ...
-Ensure these are correctly placed within the JSON env array. The rest of the test_sshfs_config.json file (like description, entrypoint, interface, mounts, etc.) should mirror the original config.json.
-
-By following these steps, you'll have the necessary `rootfs.tar.gz` and `test_sshfs_config.json` for the `vieux/docker-volume-sshfs` plugin, allowing the `TestPlugin` to execute correctly.
+    By using this provided configuration file (or a customized version), you'll have the necessary runtime settings for the `vieux/docker-volume-sshfs` plugin, allowing the `TestPlugin` (CNTR-1.7) to execute correctly.
 
 ## CNTR-1.1: Deploy and Start a Container
 
@@ -167,7 +147,7 @@ than the current running container image.
 ## CNTR-1.7: Start a plugin on the DUT
 
 This test validates the complete lifecycle of the `vieux/docker-volume-sshfs` plugin on the DUT.
-Using the tarball from 'Build docker volume sshfs plugin tarball', the test installs and activates the plugin via `gnoi.Containerz.StartPlugin`, then verifies its presence and state using `gnoi.Containerz.ListPlugin`.
+Using the tarball from 'Build docker volume sshfs plugin tarball', the test installs and activates the plugin via `gnoi.Containerz.StartPlugin`, then verifies its presence and state using `gnoi.Containerz.ListPlugins`.
 Subsequently, the plugin is stopped using `gnoi.Containerz.StopPlugin` and removed with `gnoi.Containerz.RemovePlugin`.
 
 ## OpenConfig Path and RPC Coverage
@@ -187,7 +167,7 @@ rpcs:
     containerz.Containerz.ListVolume:
     containerz.Containerz.UpdateContainer:
     containerz.Containerz.StartPlugin:
-    containerz.Containerz.ListPlugin:
+    containerz.Containerz.ListPlugins:
     containerz.Containerz.StopPlugin:
     containerz.Containerz.RemovePlugin:
 ```
