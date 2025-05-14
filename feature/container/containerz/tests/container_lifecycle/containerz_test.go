@@ -882,41 +882,41 @@ func TestUpgrade(t *testing.T) {
 	})
 }
 
-// setupAndDeployPlugin handles the boilerplate of preparing and deploying a plugin.
-// It extracts the manifest, creates a runtime config, and pushes the plugin image.
-// It returns the path to the runtime config file or an error.
-func setupAndDeployPlugin(ctx context.Context, t *testing.T, cli *client.Client,
-	pluginTarPath, pluginName, sshHost, sshUser, sshPassword string) (string, error) {
+// createPluginRuntimeConfig extracts the manifest from a plugin tarball,
+// modifies it with the provided SSH credentials, and saves it as a temporary
+// runtime configuration file.
+func createPluginRuntimeConfig(t *testing.T, pluginTarPath, sshHost, sshUser, sshPassword string) (string, error) {
 	t.Helper()
 
-	pluginImageTag := "latest" // Define pluginImageTag here as it's used in this function
-	// Check if the plugin tarball exists
-	if _, err := os.Stat(*pluginTar); os.IsNotExist(err) {
-		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", *pluginTar)
+	// Check if the plugin tarball exists.
+	if _, err := os.Stat(pluginTarPath); os.IsNotExist(err) {
+		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", pluginTarPath)
 	}
+
 	// --- Extract the plugin manifest (config.json) from the tarball ---
 	pluginTarFile, err := os.Open(pluginTarPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open plugin tarball %q: %w", pluginTarPath, err)
 	}
 	defer pluginTarFile.Close()
+
 	var streamForTar io.Reader = pluginTarFile
-	var tarReader *tar.Reader
 	// Ensure we are at the start of the file.
-	pluginTarFile.Seek(0, 0)
+	if _, err := pluginTarFile.Seek(0, 0); err != nil {
+		return "", fmt.Errorf("failed to seek plugin tarball %q: %w", pluginTarPath, err)
+	}
 
 	// Check if the file is gzipped by looking at the extension.
-	if strings.HasSuffix(*pluginTar, ".gz") {
+	if strings.HasSuffix(pluginTarPath, ".gz") {
 		gzStream, err := gzip.NewReader(pluginTarFile)
 		if err != nil {
 			return "", fmt.Errorf("failed to create gzip reader for %q: %w", pluginTarPath, err)
 		}
 		defer gzStream.Close()
 		streamForTar = gzStream
-	} else {
-		streamForTar = pluginTarFile
 	}
-	tarReader = tar.NewReader(streamForTar)
+
+	tarReader := tar.NewReader(streamForTar)
 	var manifestConfigBytes []byte
 	foundManifest := false
 	for {
@@ -940,15 +940,17 @@ func setupAndDeployPlugin(ctx context.Context, t *testing.T, cli *client.Client,
 	if !foundManifest {
 		return "", fmt.Errorf("config.json not found at the root of the plugin tarball %q", pluginTarPath)
 	}
+
 	// Unmarshal the original manifest config. This will be the base for our runtime config.
 	var originalManifestConfig map[string]interface{}
 	if err := json.Unmarshal(manifestConfigBytes, &originalManifestConfig); err != nil {
 		return "", fmt.Errorf("failed to unmarshal config.json from plugin tarball: %w", err)
 	}
+
 	// --- Create the runtime config file for StartPlugin ---
-	// Create a temporary directory for the config file
+	// Create a temporary directory for the config file.
 	configDir := t.TempDir()
-	configFile := filepath.Join(configDir, "sshfs_config.json")
+	configFile := filepath.Join(configDir, "sshfs_runtime_config.json")
 
 	// Start with the original manifest and update environment variable values.
 	runtimeManifestConfig := make(map[string]interface{})
@@ -988,18 +990,24 @@ func setupAndDeployPlugin(ctx context.Context, t *testing.T, cli *client.Client,
 	runtimeManifestConfig["env"] = envArray
 	configBytes, err := json.MarshalIndent(runtimeManifestConfig, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal SSHFS config JSON: %w", err)
+		return "", fmt.Errorf("failed to marshal SSHFS runtime config JSON: %w", err)
 	}
 	if err := os.WriteFile(configFile, configBytes, 0644); err != nil {
-		return "", fmt.Errorf("failed to write SSHFS config file %q: %w", configFile, err)
+		return "", fmt.Errorf("failed to write SSHFS runtime config file %q: %w", configFile, err)
 	}
-	t.Logf("Created SSHFS config file: %s with host %s", configFile, sshHost)
-	// --- Deploy the plugin tarball first ---
+	t.Logf("Created SSHFS runtime config file: %s with host %s", configFile, sshHost)
+	return configFile, nil
+}
+
+// pushPluginImage handles deploying a plugin tarball as a gNOI Containerz image.
+func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, pluginTarPath, pluginName, pluginImageTag string) error {
+	t.Helper()
 	t.Logf("Attempting to deploy plugin tarball %q as %s:%s", pluginTarPath, pluginName, pluginImageTag)
+	// The 'true' argument indicates this is a plugin image.
 	progCh, err := cli.PushImage(ctx, pluginName, pluginImageTag, pluginTarPath, true)
 
 	if err != nil {
-		t.Fatalf("PushImage (for plugin %q) failed: %v", pluginName, err)
+		return fmt.Errorf("PushImage (for plugin %q) failed: %w", pluginName, err)
 	}
 
 	// Monitor push progress.
@@ -1007,8 +1015,7 @@ func setupAndDeployPlugin(ctx context.Context, t *testing.T, cli *client.Client,
 	for prog := range progCh {
 		switch {
 		case prog.Error != nil:
-			t.Fatalf("PushImage (for plugin %q) reported error: %v", pluginName, prog.Error)
-			return "", fmt.Errorf("PushImage (for plugin %q) reported error: %w", pluginName, prog.Error)
+			return fmt.Errorf("PushImage (for plugin %q) reported error: %w", pluginName, prog.Error)
 		case prog.Finished:
 			t.Logf("Successfully pushed plugin %s:%s", pluginName, pluginImageTag)
 			pushFinished = true
@@ -1017,12 +1024,12 @@ func setupAndDeployPlugin(ctx context.Context, t *testing.T, cli *client.Client,
 		}
 	}
 	if !pushFinished {
-		return "", fmt.Errorf("PushImage (for plugin %q) did not report finishing", pluginName)
+		return fmt.Errorf("PushImage (for plugin %q) did not report finishing", pluginName)
 	}
-	return configFile, nil
+	return nil
 }
 
-// TestPlugins validates starting and stopping the SSHFS volume plugin via containerz.
+// TestUpgrade implements CNTR-1.7 validating lifecycle of the SSHFS volume plugin via containerz.
 // Prerequisites for running this test locally with --containerz_addr="localhost:<port>":
 // 1. Build the rootfs.tar.gz for vieux/docker-volume-sshfs as per the README.
 // 2. Set the --plugin_tar flag to the path of the generated rootfs.tar.gz.
@@ -1037,34 +1044,44 @@ func TestPlugins(t *testing.T) {
 		pluginImageTag = "latest"
 	)
 
-	t.Run("SuccessfulStart", func(t *testing.T) {
+	// Check if the plugin tarball exists (as it's needed for config extraction).
+	if _, err := os.Stat(*pluginTar); os.IsNotExist(err) {
+		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", *pluginTar)
+	}
+
+	// Create the runtime configuration file once.
+	runtimeConfigFile, err := createPluginRuntimeConfig(t, *pluginTar, sshHost, sshUser, sshPassword)
+	if err != nil {
+		t.Fatalf("Failed to create plugin runtime config: %v", err)
+	}
+
+	t.Run("SuccessfulPluginCompleteLifecycle", func(t *testing.T) {
 		pluginName := "sshfs-plugin-positive"
 		pluginInstance := "sshfs-instance-positive"
 
 		defer func() {
 			fullInstanceName := pluginInstance + ":" + pluginImageTag
-			t.Logf("Cleanup (Positive_SuccessfulStart): Stopping and removing plugin instance %s", fullInstanceName)
+			t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Stopping and removing plugin instance %s", fullInstanceName)
 			if err := cli.StopPlugin(ctx, fullInstanceName); err != nil {
-				t.Logf("Cleanup (Positive_SuccessfulStart): Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
+				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
 			}
 			if err := cli.RemovePlugin(ctx, fullInstanceName); err != nil {
-				t.Logf("Cleanup (Positive_SuccessfulStart): Error removing plugin %q (ignoring): %v", fullInstanceName, err)
+				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error removing plugin %q (ignoring): %v", fullInstanceName, err)
 			}
-			t.Logf("Cleanup (Positive_SuccessfulStart): Removing plugin image %s:%s", pluginName, pluginImageTag)
+			t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Removing plugin image %s:%s", pluginName, pluginImageTag)
 			if err := cli.RemoveImage(ctx, pluginName, pluginImageTag, true); err != nil {
-				t.Logf("Cleanup (Positive_SuccessfulStart): Error removing plugin image %q:%s (ignoring): %v", pluginName, pluginImageTag, err)
+				t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Error removing plugin image %q:%s (ignoring): %v", pluginName, pluginImageTag, err)
 			}
 		}()
 
-		configFile, err := setupAndDeployPlugin(ctx, t, cli, *pluginTar, pluginName, sshHost, sshUser, sshPassword)
-		if err != nil {
-			t.Fatalf("Failed to setup and deploy plugin: %v", err)
+		// Push the plugin image for this specific test case.
+		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+			t.Fatalf("Failed to push plugin image %s:%s: %v", pluginName, pluginImageTag, err)
 		}
 
-		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, configFile)
-		err = cli.StartPlugin(ctx, pluginName, pluginInstance, configFile)
-		if err != nil {
-			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, configFile, err)
+		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, runtimeConfigFile)
+		if err = cli.StartPlugin(ctx, pluginName, pluginInstance, runtimeConfigFile); err != nil {
+			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, runtimeConfigFile, err)
 		}
 		t.Logf("StartPlugin call succeeded for instance %q", pluginInstance)
 
@@ -1117,13 +1134,16 @@ func TestPlugins(t *testing.T) {
 			t.Fatalf("Failed to write dummy config file: %v", err)
 		}
 
-		err := cli.StartPlugin(ctx, pluginName, pluginInstance, dummyConfigFile)
-		if err == nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, dummyConfigFile); err == nil {
 			t.Errorf("StartPlugin with non-existent image %q succeeded, expected error", pluginName)
 			// Attempt cleanup if it somehow started.
 			fullInstanceName := pluginInstance + ":" + pluginImageTag
-			_ = cli.StopPlugin(ctx, fullInstanceName)
-			_ = cli.RemovePlugin(ctx, fullInstanceName)
+			if err = cli.StopPlugin(ctx, fullInstanceName); err != nil {
+				t.Logf("Cleanup StartWithNonExistentPluginImage: Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
+			}
+			if err = cli.RemovePlugin(ctx, fullInstanceName); err != nil {
+				t.Logf("Cleanup StartWithNonExistentPluginImage: Error removing plugin %q (ignoring): %v", fullInstanceName, err)
+			}
 		} else {
 			t.Logf("Got expected error when starting with non-existent image %q: %v", pluginName, err)
 			s, ok := status.FromError(err)
@@ -1139,26 +1159,26 @@ func TestPlugins(t *testing.T) {
 
 		defer func() {
 			fullInstanceName := pluginInstance + ":" + pluginImageTag
-			t.Logf("Cleanup (StartAlreadyStartedInstance): Stopping and removing plugin instance %s", fullInstanceName)
+			t.Logf("Cleanup StartAlreadyStartedInstance: Stopping and removing plugin instance %s", fullInstanceName)
 			if err := cli.StopPlugin(ctx, fullInstanceName); err != nil {
-				t.Logf("Cleanup (StartAlreadyStartedInstance): Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
+				t.Logf("Cleanup StartAlreadyStartedInstance: Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
 			}
 			if err := cli.RemovePlugin(ctx, fullInstanceName); err != nil {
-				t.Logf("Cleanup (StartAlreadyStartedInstance): Error removing plugin %q (ignoring): %v", fullInstanceName, err)
+				t.Logf("Cleanup StartAlreadyStartedInstance: Error removing plugin %q (ignoring): %v", fullInstanceName, err)
 			}
-			t.Logf("Cleanup (StartAlreadyStartedInstance): Removing plugin image %s:%s", pluginName, pluginImageTag)
+			t.Logf("Cleanup StartAlreadyStartedInstance: Removing plugin image %s:%s", pluginName, pluginImageTag)
 			if err := cli.RemoveImage(ctx, pluginName, pluginImageTag, true); err != nil {
-				t.Logf("Cleanup (StartAlreadyStartedInstance): Error removing plugin image %q (ignoring): %v", pluginName, err)
+				t.Logf("Cleanup StartAlreadyStartedInstance: Error removing plugin image %q:%s (ignoring): %v", pluginName, pluginImageTag, err)
 			}
 		}()
 
-		configFile, err := setupAndDeployPlugin(ctx, t, cli, *pluginTar, pluginName, sshHost, sshUser, sshPassword)
-		if err != nil {
-			t.Fatalf("Initial setupAndDeployPlugin for %s failed: %v", pluginName, err)
+		// Push the plugin image for this specific test case.
+		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+			t.Fatalf("Failed to push plugin image %s:%s for StartAlreadyStartedInstance: %v", pluginName, pluginImageTag, err)
 		}
 
 		// First start (should succeed).
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, configFile); err != nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, runtimeConfigFile); err != nil {
 			t.Fatalf("Initial StartPlugin for %s, instance %s failed: %v", pluginName, pluginInstance, err)
 		}
 		t.Logf("Successfully started plugin %s instance %s for the first time.", pluginName, pluginInstance)
@@ -1166,13 +1186,12 @@ func TestPlugins(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		// Second start (should fail).
-		err = cli.StartPlugin(ctx, pluginName, pluginInstance, configFile)
-		if err == nil {
+		if err = cli.StartPlugin(ctx, pluginName, pluginInstance, runtimeConfigFile); err == nil {
 			t.Errorf("Second StartPlugin for already started instance %s succeeded, expected error", pluginInstance)
 		} else {
 			t.Logf("Got expected error when starting already started instance %s: %v", pluginInstance, err)
 			s, ok := status.FromError(err)
-			if !ok || s.Code() != codes.Unknown {
+			if !ok || s.Code() != codes.Unknown { // Assuming Unknown is the expected error code.
 				t.Errorf("Expected gRPC status codes.Unknown for already started instance, got: %v (status code: %s)", err, s.Code())
 			}
 		}

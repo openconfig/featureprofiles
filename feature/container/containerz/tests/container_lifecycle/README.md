@@ -126,6 +126,12 @@ Using the same container started as part of CNTR-1.1, validate that the containe
 can be upgraded to the new version of the image identified by a different tag
 than the current running container image. 
 
+## CNTR-1.7: Start a plugin on the DUT
+
+This test validates the complete lifecycle of the `vieux/docker-volume-sshfs` plugin on the DUT.
+Using the tarball from 'Build docker volume sshfs plugin tarball', the test installs and activates the plugin via `gnoi.Containerz.StartPlugin`, then verifies its presence and state using `gnoi.Containerz.ListPlugin`.
+Subsequently, the plugin is stopped using `gnoi.Containerz.StopPlugin` and removed with `gnoi.Containerz.RemovePlugin`.
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the RPCs intended to be covered by this test.
@@ -142,4 +148,8 @@ rpcs:
     containerz.Containerz.RemoveVolume:
     containerz.Containerz.ListVolume:
     containerz.Containerz.UpdateContainer:
+    containerz.Containerz.StartPlugin:
+    containerz.Containerz.ListPlugin:
+    containerz.Containerz.StopPlugin:
+    containerz.Containerz.RemovePlugin:
 ```
