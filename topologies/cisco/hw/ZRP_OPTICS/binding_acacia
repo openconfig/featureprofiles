@@ -1,0 +1,53 @@
+options {
+  username: "cisco"
+  password: "cisco123"
+}
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8804"
+  name: "sf-8804"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  options {
+    insecure: false
+    skip_verify: true
+    username: "cisco"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.23.242.63:57777"
+  }
+  gnmi {
+    target: "10.23.242.63:57777"
+  }
+  gribi{
+    target: "10.23.242.63:57777"
+  }
+  ssh{
+    target: "10.23.242.63:22"
+  }
+  p4rt{
+    target: "10.23.242.63:57777"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+
+  ports {
+    id: "port1"
+    name: "FourHundredGigE0/0/0/18"  # Change this to the actual port name.
+    pmd: PMD_400GBASE_ZR
+    speed: S_400GB
+  }
+  ports {
+    id: "port2"
+    name: "FourHundredGigE0/0/0/19"  # Change this to the actual port name.
+    pmd: PMD_400GBASE_ZR
+    speed: S_400GB
+  }
+}
