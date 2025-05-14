@@ -6,7 +6,6 @@ import (
 	"net"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/interfaces"
-	"github.com/openconfig/ondatra/gnmi/oc/platform"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -347,7 +345,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, IPv4 bool) {
 
 	batchConfig := &gnmi.SetBatch{}
 
-	if IPv4 == true {
+	if IPv4 {
 		if dut.ID() == "dut1" {
 			gnmi.BatchReplace(batchConfig, path1.Config(), configInterfaceIPv4DUT(i1, &dut1Port1))
 			gnmi.BatchReplace(batchConfig, path2.Config(), configInterfaceIPv4DUT(i2, &dut1Port2))
@@ -640,14 +638,14 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 	var FourHundredGigELC5List []string
 	var FourHundredGigELC6List []string
 	var FourHundredGigELC7List []string
-	var HundredGigELC0List []string
-	var HundredGigELC1List []string
-	var HundredGigELC2List []string
-	var HundredGigELC3List []string
-	var HundredGigELC4List []string
-	var HundredGigELC5List []string
-	var HundredGigELC6List []string
-	var HundredGigELC7List []string
+	// var HundredGigELC0List []string
+	// var HundredGigELC1List []string
+	// var HundredGigELC2List []string
+	// var HundredGigELC3List []string
+	// var HundredGigELC4List []string
+	// var HundredGigELC5List []string
+	// var HundredGigELC6List []string
+	// var HundredGigELC7List []string
 
 	// Interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 	// batchConfig := &gnmi.SetBatch{}
@@ -681,23 +679,23 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 			FourHundredGigELC6List = append(FourHundredGigELC6List, intf.GetName())
 		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/7" {
 			FourHundredGigELC7List = append(FourHundredGigELC7List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/0" {
-			HundredGigELC0List = append(HundredGigELC0List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/1" {
-			HundredGigELC1List = append(HundredGigELC1List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/2" {
-			HundredGigELC2List = append(HundredGigELC2List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/3" {
-			HundredGigELC3List = append(HundredGigELC3List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/4" {
-			HundredGigELC4List = append(HundredGigELC4List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/5" {
-			HundredGigELC5List = append(HundredGigELC5List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/6" {
-			HundredGigELC6List = append(HundredGigELC6List, intf.GetName())
-		} else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/7" {
-			HundredGigELC7List = append(HundredGigELC7List, intf.GetName())
-		}
+		} //else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/0" {
+		// 	HundredGigELC0List = append(HundredGigELC0List, intf.GetName())
+		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/1" {
+		// 	HundredGigELC1List = append(HundredGigELC1List, intf.GetName())
+		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/2" {
+		// 	HundredGigELC2List = append(HundredGigELC2List, intf.GetName())
+		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/3" {
+		// 	HundredGigELC3List = append(HundredGigELC3List, intf.GetName())
+		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/4" {
+		// 	HundredGigELC4List = append(HundredGigELC4List, intf.GetName())
+		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/5" {
+		// 	HundredGigELC5List = append(HundredGigELC5List, intf.GetName())
+		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/6" {
+		// 	HundredGigELC6List = append(HundredGigELC6List, intf.GetName())
+		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/7" {
+		// 	HundredGigELC7List = append(HundredGigELC7List, intf.GetName())
+		// }
 	}
 	sort.SliceStable(FourHundredGigELC0List, func(i, j int) bool {
 		return len(FourHundredGigELC0List[i]) < len(FourHundredGigELC0List[j])
@@ -724,15 +722,12 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 		return len(FourHundredGigELC7List[i]) < len(FourHundredGigELC7List[j])
 	})
 
-	var FourHundredGigEList []InterfaceLCList
-	// var HundredGigEList []InterfaceLCList
-
-	FourHundredGigEList = []InterfaceLCList{{FourHundredGigELC0List, FourHundredGigELC1List}, {FourHundredGigELC2List, FourHundredGigELC3List},
+	FourHundredGigEList := []InterfaceLCList{{FourHundredGigELC0List, FourHundredGigELC1List}, {FourHundredGigELC2List, FourHundredGigELC3List},
 		{FourHundredGigELC4List, FourHundredGigELC5List}, {FourHundredGigELC6List, FourHundredGigELC7List}}
-	// HundredGigEList = []InterfaceLCList{{HundredGigELC0List, HundredGigELC1List}, {HundredGigELC2List, HundredGigELC3List},
+	// HundredGigEList := []InterfaceLCList{{HundredGigELC0List, HundredGigELC1List}, {HundredGigELC2List, HundredGigELC3List},
 	// 	{HundredGigELC4List, HundredGigELC5List}, {HundredGigELC6List, HundredGigELC7List}}
 
-	if IPv4 == true {
+	if IPv4 {
 		for i := 0; i < MAX_LC_COUNT/2; i++ {
 			configInterfaceIPv4PhyScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
 			configInterfaceIPv4PhySubScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
@@ -749,31 +744,32 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 	}
 }
 
-func findBreakoutPort(intf string) bool {
+// func findBreakoutPort(intf string) bool {
 
-	breakoutPortList := [8]string{"0/28", "0/29", "0/30", "0/31", "0/32", "0/33", "0/34", "0/35"}
+// 	breakoutPortList := [8]string{"0/28", "0/29", "0/30", "0/31", "0/32", "0/33", "0/34", "0/35"}
 
-	for _, bIntf := range breakoutPortList {
-		if strings.HasSuffix(intf, bIntf) == true {
-			return true
-		}
-	}
-	return false
-}
-func doBreakoutPort(t *testing.T, dut *ondatra.DUTDevice, intf string) (*platform.ComponentPath,
-	*oc.Component, *platform.Component_Port_BreakoutModePath, *oc.Component_Port_BreakoutMode) {
+// 	for _, bIntf := range breakoutPortList {
+// 		if strings.HasSuffix(intf, bIntf) == true {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
-	intfHW := gnmi.Get(t, dut, gnmi.OC().Interface(intf).HardwarePort().State())
-	bmode := &oc.Component_Port_BreakoutMode{}
-	bmp := gnmi.OC().Component(intfHW).Port().BreakoutMode()
-	cp := gnmi.OC().Component(intfHW)
-	group := bmode.GetOrCreateGroup(0)
-	group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-	group.NumBreakouts = ygot.Uint8(4)
-	comp := &oc.Component{Name: ygot.String(intfHW)}
+// func doBreakoutPort(t *testing.T, dut *ondatra.DUTDevice, intf string) (*platform.ComponentPath,
+// 	*oc.Component, *platform.Component_Port_BreakoutModePath, *oc.Component_Port_BreakoutMode) {
 
-	return cp, comp, bmp, bmode
-}
+// 	intfHW := gnmi.Get(t, dut, gnmi.OC().Interface(intf).HardwarePort().State())
+// 	bmode := &oc.Component_Port_BreakoutMode{}
+// 	bmp := gnmi.OC().Component(intfHW).Port().BreakoutMode()
+// 	cp := gnmi.OC().Component(intfHW)
+// 	group := bmode.GetOrCreateGroup(0)
+// 	group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+// 	group.NumBreakouts = ygot.Uint8(4)
+// 	comp := &oc.Component{Name: ygot.String(intfHW)}
+
+// 	return cp, comp, bmp, bmode
+// }
 
 func configInterfaceIPv4PhyScale(t *testing.T, FourHundredGigEList InterfaceLCList, baseIP BaseIPAddress,
 	dut *ondatra.DUTDevice) {
@@ -811,7 +807,7 @@ func configInterfaceIPv4PhyScale(t *testing.T, FourHundredGigEList InterfaceLCLi
 		gnmi.BatchReplace(batchConfig, pathLC2.Config(), objIPv4)
 		pathLC2, objStaticARP = configInterfaceStaticARPScale(objIPv4, dutScalePort)
 		gnmi.BatchReplace(batchConfig, pathLC2.Config(), objStaticARP)
-		pathLC1, objProxyARP = configInterfaceProxyARPScale(objIPv4, dutScalePort.Subinterface)
+		pathLC2, objProxyARP = configInterfaceProxyARPScale(objIPv4, dutScalePort.Subinterface)
 		gnmi.BatchReplace(batchConfig, pathLC2.Config(), objProxyARP)
 	}
 	batchConfig.Set(t, dut)
@@ -1342,7 +1338,7 @@ func getNewStaticIPv6(ip string) string {
 }
 func getNeighbor(ip string, ipv4 bool) string {
 
-	if ipv4 == true {
+	if ipv4 {
 		newIP := net.ParseIP(ip)
 		newIP = newIP.To4()
 		newIP[3] += 1
@@ -1359,7 +1355,7 @@ func getNeighbor(ip string, ipv4 bool) string {
 
 func getStaticNeighbor(ip string, ipv4 bool) string {
 
-	if ipv4 == true {
+	if ipv4 {
 		newIP := net.ParseIP(ip)
 		newIP = newIP.To4()
 		newIP[3] += 10
@@ -1378,16 +1374,15 @@ func getStaticNeighbor(ip string, ipv4 bool) string {
 func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevice, IPv4 bool) {
 
 	pingRequest := &spb.PingRequest{}
-	ports := [4]string{dut1.Port(t, "port1").Name(), dut1.Port(t, "port2").Name(),
-		"Bundle-Ether100", "Bundle-Ether101"}
+	portsCount := 4
 	gnoiClient, err := dut1.RawAPIs().BindingDUT().DialGNOI(context.Background())
 
 	if err != nil {
 		t.Fatalf("Error dialing gNOI: %v", err)
 	}
-	for i := 0; i < len(ports); i++ {
+	for i := 0; i < portsCount; i++ {
 
-		if IPv4 == true {
+		if IPv4 {
 			if dut1.ID() == "dut1" {
 				pingRequest.Destination = dut2IntfAttrib[i].attrib.IPv4
 			} else {
@@ -1406,7 +1401,7 @@ func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevic
 		}
 		responses, err := fetchResponses(pingClient)
 		if err != nil {
-			if IPv4 == true {
+			if IPv4 {
 				t.Logf("Failed to handle gnoi ping client stream: %v\n", err.Error())
 			} else {
 				t.Logf("Failed to handle gnoi ping client stream: %v for Destination %s", err, dut2IntfAttrib[i].attrib.IPv6)
@@ -1433,7 +1428,7 @@ func pingScaleNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUT
 	var destIP []string
 	var wg sync.WaitGroup
 
-	if IPv4 == true {
+	if IPv4 {
 		InterfacesIPv4 = gnmi.GetAll(t, dut1, gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4().State())
 		for _, intf := range InterfacesIPv4 {
 			for ip := range intf.Address {

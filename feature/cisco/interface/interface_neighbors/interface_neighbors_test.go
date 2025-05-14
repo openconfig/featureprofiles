@@ -1307,6 +1307,10 @@ func updateIPv4InterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, reset bool, fl
 		dutIntfAttrib = dut2IntfAttrib
 		monitorDut = ondatra.DUT(t, "dut2")
 	}
+	/* EDT Validation: Subscribe the path to monitor the change.
+		   Update Neighbor interface attributes (address change)
+	       Verify if update event received within 5 sec timeout.
+	*/
 	path := gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv4().NeighborAny().State()
 	_, ok := gnmi.WatchAll(t, gnmiOptsForOnChange(t, monitorDut), path, 5*time.Second,
 		func(v *ygnmi.Value[*oc.Interface_Subinterface_Ipv4_Neighbor]) bool {
