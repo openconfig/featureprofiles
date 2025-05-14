@@ -66,4 +66,11 @@ Procedure:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
 ```
