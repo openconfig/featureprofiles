@@ -1063,10 +1063,10 @@ func TestPlugins(t *testing.T) {
 			fullInstanceName := pluginInstance + ":" + pluginImageTag
 			t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Stopping and removing plugin instance %s", fullInstanceName)
 			if err := cli.StopPlugin(ctx, fullInstanceName); err != nil {
-				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
+				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error stopping plugin %q err: %v", fullInstanceName, err)
 			}
 			if err := cli.RemovePlugin(ctx, fullInstanceName); err != nil {
-				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error removing plugin %q (ignoring): %v", fullInstanceName, err)
+				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error removing plugin %q err: %v", fullInstanceName, err)
 			}
 			t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Removing plugin image %s:%s", pluginName, pluginImageTag)
 			if err := cli.RemoveImage(ctx, pluginName, pluginImageTag, true); err != nil {
@@ -1191,7 +1191,7 @@ func TestPlugins(t *testing.T) {
 		} else {
 			t.Logf("Got expected error when starting already started instance %s: %v", pluginInstance, err)
 			s, ok := status.FromError(err)
-			if !ok || s.Code() != codes.Unknown { // Assuming Unknown is the expected error code.
+			if !ok || s.Code() != codes.Unknown {
 				t.Errorf("Expected gRPC status codes.Unknown for already started instance, got: %v (status code: %s)", err, s.Code())
 			}
 		}
