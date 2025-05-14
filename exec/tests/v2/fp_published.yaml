@@ -1243,7 +1243,6 @@ tests:
     mustpass: true
     timeout: 4200
     internal: false
-    pr: 4041
   - name: TRANSCEIVER-9_ZRP (Telemetry 400ZRP TX laser bias current telemetry values streaming.)
     path: feature/platform/transceiver/laser_bias_current/tests/zrp_laser_bias_current_test
     priority: 2
@@ -1255,7 +1254,6 @@ tests:
     timeout: 4200
     groups: [zrp]
     internal: false
-    pr: 4041
   - name: TRANSCEIVER-10 (Telemetry 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
     path: feature/platform/transceiver/fec_uncorrectable_frames/tests/zr_fec_uncorrectable_frames_test
     priority: 2
