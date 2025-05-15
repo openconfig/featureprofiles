@@ -35,7 +35,9 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlagCisco   = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
+	operationalModeFlagArista  = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlagDefault = flag.Int("operational_mode", 1, "default operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -65,7 +67,14 @@ func TestZRTemperatureState(t *testing.T) {
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
 	intUpdateTime := 2 * time.Minute
-	operationalMode = uint16(*operationalModeFlag)
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		operationalMode = uint16(*operationalModeFlagCisco)
+	case ondatra.ARISTA:
+		operationalMode = uint16(*operationalModeFlagArista)
+	default:
+		operationalMode = uint16(*operationalModeFlagDefault)
+	}
 	cfgplugins.Initialize(operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
