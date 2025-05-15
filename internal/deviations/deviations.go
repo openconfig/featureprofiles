@@ -1352,3 +1352,13 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
+
+// Devices that do not propagate IGP metric through redistribution
+func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
+}
+
+// SkipBgpPeerGroupSendCommunityType return true if device needs to skip setting BGP send-community-type for peer group
+func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
+}
