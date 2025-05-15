@@ -28,7 +28,9 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlagCisco   = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
+	operationalModeFlagArista  = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlagDefault = flag.Int("operational_mode", 1, "default operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -50,7 +52,14 @@ func Test400ZRLogicalChannels(t *testing.T) {
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	operationalMode = uint16(*operationalModeFlag)
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		operationalMode = uint16(*operationalModeFlagCisco)
+	case ondatra.ARISTA:
+		operationalMode = uint16(*operationalModeFlagArista)
+	default:
+		operationalMode = uint16(*operationalModeFlagDefault)
+	}
 	cfgplugins.Initialize(operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, p1)
 	cfgplugins.InterfaceConfig(t, dut, p2)
