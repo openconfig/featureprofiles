@@ -1353,11 +1353,12 @@ func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
 
-// Config Leaf Create required before GNMI get 
+// Config Leaf Create required before GNMI get
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
-// data size reduction required for large data  
+
+// data size reduction required for large data
 func MetadataSizeAdjustRequired(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetMetadataSizeAdjustRequired()
+	return lookupDUTDeviations(dut).GetMetadataSizeAdjustRequired()
 }
