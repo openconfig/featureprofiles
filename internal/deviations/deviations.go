@@ -1352,3 +1352,8 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
+
+// TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
+func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
+}
