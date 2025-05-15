@@ -94,6 +94,8 @@ const (
 	v6DefaultSrc             = "20:20:20::20"
 	dutPeerBundleIPv4Range   = "88.1.1.0/24"
 	dutPeerBundleIPv6Range   = "2001:DB8:1::/64"
+	bundleSubIntIPv4Range    = "192.192.0.0/16"
+	bundleSubIntIPv6Range    = "2001:C0C0::0/112"
 	v4TunnelCount            = 1024
 	v4TunnelNHGCount         = 256
 	v4TunnelNHGSplitCount    = 2
@@ -197,6 +199,9 @@ var (
 		EgressNHGSplitCount:   egressNHGSplitCount,
 		V4ReEncapNHGCount:     v4ReEncapNHGCount,
 	}
+
+	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
+	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
 )
 
 type PbrRule struct {
@@ -904,6 +909,11 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	aggID1, aggID2 := configureDUTInterfaces(t, dut)
 	t.Log("Configure DUT-PEER dynamic Bundle Interface")
 	bundleMap := util.ConfigureBundleIntfDynamic(t, dut, peer, 4)
+	bundleList := maps.Keys(bundleMap)
+	if len(bundleList) > 0 {
+		bundleList = bundleList[1:] // Remove the first element
+	}
+	nextBundleSubIntfIPv4, nextBundleSubIntfIPv6 = util.CreateBundleSubInterfaces(t, dut, peer, bundleList, 2000, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
 	bundleIntfList = maps.Keys(bundleMap)
 	t.Log("Configure BGP for DUT-PEER")
 	configureDeviceBGP(t, dut, peer, bundleIntfList)

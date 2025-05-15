@@ -331,16 +331,16 @@ func TestGoogleBaseConfPush(t *testing.T) {
 
 func TestGribiScaleProfile(t *testing.T) {
 	// t.Skip()
-	resources := initializeTestResources(t)
-	log_collector.Start(context.Background(), t, resources.DUT.Device)
+	// resources := initializeTestResources(t)
+	// log_collector.Start(context.Background(), t, resources.DUT.Device)
 
 	t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
 		configureBaseProfile(t)
 	})
 
-	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
-		log_collector.CollectRouterLogs(resources.ctx, t, resources.DUT.Device, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
-	})
+	// t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
+	// 	log_collector.CollectRouterLogs(resources.ctx, t, resources.DUT.Device, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
+	// })
 
 }
 

@@ -253,6 +253,124 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
+// configureDUTSubIfs configures 16 DUT subinterfaces on the target device
+// func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port) {
+// 	for i := 0; i < 16; i++ {
+// 		index := uint32(i)
+// 		vlanID := uint16(i)
+// 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+// 			vlanID = uint16(i) + 1
+// 		}
+// 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
+// 		createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4, 31)
+// 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+// 			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), index)
+// 		}
+// 	}
+// }
+
+// createSubifDUT creates a single L3 subinterface
+func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) {
+	i := d.GetOrCreateInterface(interfaceName)
+	i.Name = ygot.String(interfaceName) // Explicitly set the name field
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	s := i.GetOrCreateSubinterface(index)
+
+	if vlanID != 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
+	}
+
+	// Configure IPv4
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4Addr)
+	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+
+	// Configure IPv6
+	s6 := s.GetOrCreateIpv6()
+	a1 := s6.GetOrCreateAddress(ipv6Addr)
+	a1.PrefixLength = ygot.Uint8(uint8(ipv6PrefixLen))
+
+	// Push the configuration
+	gnmi.Replace(t, dut, gnmi.OC().Interface(interfaceName).Config(), i)
+}
+
+func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) *oc.Interface {
+	// Get or create the interface
+	i := d.GetOrCreateInterface(interfaceName)
+	i.Name = ygot.String(interfaceName) // Explicitly set the name field
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	// Get or create the subinterface
+	s := i.GetOrCreateSubinterface(index)
+
+	// Configure VLAN if applicable
+	if vlanID != 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
+	}
+
+	// Configure IPv4
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4Addr)
+	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+
+	// Configure IPv6
+	s6 := s.GetOrCreateIpv6()
+	a1 := s6.GetOrCreateAddress(ipv6Addr)
+	a1.PrefixLength = ygot.Uint8(uint8(ipv6PrefixLen))
+
+	// Return the interface configuration
+	return i
+}
+
+// createSubInterfaces creates subinterfaces for the given links, configuring both DUT and Peer interfaces.
+// It assigns /31 for IPv4 and /127 for IPv6 addresses.
+func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6 net.IP) (net.IP, net.IP) {
+	t.Helper()
+	d := oc.Root{}
+	d1 := oc.Root{}
+	t.Logf("Creating subinterfaces for %d links", len(links))
+
+	// Create batch configurations for DUT and Peer
+	// dutBatchConfig := &gnmi.SetBatch{}
+	// peerBatchConfig := &gnmi.SetBatch{}
+
+	for _, link := range links {
+		for subIntID := 1; subIntID <= subIntCount; subIntID++ {
+			// Generate DUT subinterface config
+			createSubifDUT(t, &d, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			// gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Config(), dutConfig)
+			nextIPv4 = incrementIP(nextIPv4, 1)
+			nextIPv6 = incrementIPv6(nextIPv6)
+
+			// Generate Peer subinterface config
+			createSubifDUT(t, &d1, peer, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			// gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Interface(link).Config(), peerConfig)
+			nextIPv4 = incrementIP(nextIPv4, 1)
+			nextIPv6 = incrementIPv6(nextIPv6)
+		}
+	}
+
+	// Push batch configurations to DUT and Peer
+	// dutBatchConfig.Set(t, dut)
+	// peerBatchConfig.Set(t, peer)
+
+	return nextIPv4, nextIPv6
+}
+
 // GetSubInterface returns subinterface
 func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *oc.Interface_Subinterface {
 	s := &oc.Interface_Subinterface{}
@@ -978,7 +1096,7 @@ func createBundles(t *testing.T, dut, peer *ondatra.DUTDevice, bundleMap map[str
 	peerBatchConfig.Set(t, peer)
 }
 
-// Function to increment the ip address by `increment` times
+// Function to increment the ipv4 address by `increment` times
 func incrementIP(ip net.IP, increment int) net.IP {
 	ip = ip.To4()
 	if ip == nil {
