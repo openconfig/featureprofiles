@@ -46,7 +46,7 @@ var (
 type baseConfig struct {
 	m          sync.Mutex
 	configured bool
-	modified   bool
+	// modified   bool
 }
 
 func newBaseConfig() *baseConfig {
@@ -63,16 +63,17 @@ func (b *baseConfig) setConfigured(c bool) {
 	defer b.m.Unlock()
 	b.configured = c
 }
-func (b *baseConfig) isModified() bool {
-	b.m.Lock()
-	defer b.m.Unlock()
-	return b.modified
-}
-func (b *baseConfig) setModified(c bool) {
-	b.m.Lock()
-	defer b.m.Unlock()
-	b.modified = c
-}
+
+// func (b *baseConfig) isModified() bool {
+// 	b.m.Lock()
+// 	defer b.m.Unlock()
+// 	return b.modified
+// }
+// func (b *baseConfig) setModified(c bool) {
+// 	b.m.Lock()
+// 	defer b.m.Unlock()
+// 	b.modified = c
+// }
 
 // PairedEntries holds NHs, NHGs and IPv4 entries for the VRF.
 type PairedEntries struct {
@@ -1181,6 +1182,7 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	})
 	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
 	tcArgs.primaryPaths, _ = getDUTBundleIPAddrList(peerBundleIPMap)
+	tcArgs.frr1Paths = tcArgs.primaryPaths //todo: fix it with a method that provides frr1 chain paths
 	_, tcArgs.activeRp = components.FindStandbyControllerCard(t, dut, components.FindComponentsByType(t, dut, controlcardType))
 
 	// add static route on peer for the tunnel destination for encap, decap+encap traffic
@@ -1539,6 +1541,74 @@ func testEncapScale(t *testing.T) {
 		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG),
 			numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: nhg, numNHPerNHG: nhsPerNHG, nextHopWeight: generateNextHopWeights(64, nhsPerNHG)},
+	)
+
+	tcArgs.client.StartSending(tcArgs.ctx, t)
+	if err := awaitTimeout(tcArgs.ctx, tcArgs.client, t, time.Minute); err != nil {
+		t.Fatalf("Await got error during session negotiation for client: %v", err)
+	}
+	electionID := gribi.BecomeLeader(t, tcArgs.client)
+	t.Logf("Election ID: %v", electionID)
+
+	// configure leftover NHGs
+	if nh_leftover > 0 {
+		remaingNhGp := NewGribiProfile(t, 1, false, false, tcArgs.dut,
+			&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 2, numNHPerNHG: 1},
+			&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 1, numNHPerNHG: 1},
+			&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 1, numNHPerNHG: nh_leftover, nextHopWeight: generateNextHopWeights(64, nh_leftover)},
+		)
+		remaingNhGp.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0})
+	}
+
+	gp.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0, 1})
+
+	t.Logf("Validating encap traffic")
+	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1})
+
+}
+
+// testEncapScale tests the scale of (16k-already in use) encap next hop entries
+func testDecapScale(t *testing.T) {
+	// initial setting
+	if gArgs == nil && !bConfig.isConfigured() {
+		gArgs = configureBaseInfra(t, bConfig)
+	}
+	tcArgs := gArgs
+
+	// cleanup all existing gRIBI entries at the end of the test
+	defer func(ta *testArgs) {
+		if *flush_after {
+			t.Log("Flushing all gRIBI entries at the end of the test")
+			gribi.FlushAll(ta.client)
+		}
+	}(tcArgs)
+
+	// cleanup all existing gRIBI entries in the begining of the test
+	if *flush_before {
+		t.Log("Flushing all gRIBI entries at the beginning of the test")
+		if err := gribi.FlushAll(tcArgs.client); err != nil {
+			t.Error(err)
+		}
+		// Wait for the gribi entries get flushed
+		time.Sleep(300 * time.Second)
+	}
+	defer tcArgs.client.Stop(t)
+
+	batches := 2
+
+	// distribute the available resource IDs to NHGs such that it can be divided in batches.
+	// remaining resource IDs will be used to configure using a single NHG with nhs count = nh_leftover
+	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	nhsPerNHG := 1
+	nhg, nh_leftover, _ := DivideAndAdjust(gridRsrc.AvailableResourceIDs, nhsPerNHG, batches)
+	t.Logf("Possible NHG: %d, leftover: %d with available %d resource IDs", nhg, nh_leftover, gridRsrc.AvailableResourceIDs)
+
+	gp := NewGribiProfile(t, batches, false, false, tcArgs.dut,
+		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 2, numNHPerNHG: 1},
+		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, batches), //have as minimum VipIPs
+			numUniqueNHGs: 2, numNHPerNHG: 1},
+		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 2, numNHPerNHG: 1, nextHopWeight: generateNextHopWeights(64, 2)},
+		&routesParam{segment: "DecapWan", numUniqueNHGs: 2, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)},
 	)
 
 	tcArgs.client.StartSending(tcArgs.ctx, t)

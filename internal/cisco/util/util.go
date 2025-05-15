@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/system"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gribigo/client"
@@ -1902,18 +1901,18 @@ func ParallelRPFO(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
 // CMDViaGNMI runs a command on the DUT via GNMI and returns the output
 func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
 	gnmiC := dut.RawAPIs().GNMI(t)
-	getRequest := &gpb.GetRequest{
-		Prefix: &gpb.Path{
+	getRequest := &gnmipb.GetRequest{
+		Prefix: &gnmipb.Path{
 			Origin: "cli",
 		},
-		Path: []*gpb.Path{
+		Path: []*gnmipb.Path{
 			{
-				Elem: []*gpb.PathElem{{
+				Elem: []*gnmipb.PathElem{{
 					Name: cmd,
 				}},
 			},
 		},
-		Encoding: gpb.Encoding_ASCII,
+		Encoding: gnmipb.Encoding_ASCII,
 	}
 	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
