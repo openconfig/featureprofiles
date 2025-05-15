@@ -857,7 +857,6 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
 
 	var pmd100GFRPorts []string
-	pmd100GFRPorts = []string{}
 	for _, p := range topo.Ports().Items() {
 		port := ate.Port(t, p.Name())
 		if port.PMD() == ondatra.PMD100GBASEFR {
