@@ -30,12 +30,12 @@ const (
 )
 
 var (
-	frequencies         = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
-	targetOutputPowers  = []float64{-13, -9}             // 400ZR OIF Tx power range
+	frequencies                = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
+	targetOutputPowers         = []float64{-13, -9}             // 400ZR OIF Tx power range
 	operationalModeFlagCisco   = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
 	operationalModeFlagArista  = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
 	operationalModeFlagDefault = flag.Int("operational_mode", 1, "default operational-mode for the channel")
-	operationalMode     uint16
+	operationalMode            uint16
 )
 
 func TestMain(m *testing.M) {
