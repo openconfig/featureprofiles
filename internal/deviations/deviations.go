@@ -1343,7 +1343,7 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
 
-// BGPDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
+// BgpDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
 func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
 }
@@ -1352,3 +1352,19 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
+
+// AutoNegotiateUnsupported returns true if there's no OC support for auto-negotiate
+func AutoNegotiateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAutoNegotiateUnsupported()
+}
+
+// DuplexModeUnsupported returns true if there's no OC support for duplex-mode
+func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDuplexModeUnsupported()
+}
+
+// PortSpeedUnsupported returns true if there's no OC support for port-speed
+func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
+}
+
