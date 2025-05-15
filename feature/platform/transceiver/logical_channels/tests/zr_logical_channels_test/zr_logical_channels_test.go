@@ -31,7 +31,7 @@ var (
 	operationalModeFlagCisco   = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
 	operationalModeFlagArista  = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
 	operationalModeFlagDefault = flag.Int("operational_mode", 1, "default operational-mode for the channel")
-	operationalMode     uint16
+	operationalMode            uint16
 )
 
 type testcase struct {
