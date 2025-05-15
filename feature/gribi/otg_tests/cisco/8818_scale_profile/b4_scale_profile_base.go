@@ -22,8 +22,10 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,14 +38,25 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	ospb "github.com/openconfig/gnoi/os"
+	spb "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo"
+	gnpsipb "github.com/openconfig/gnpsi/proto/gnpsi"
+	certzpb "github.com/openconfig/gnsi/certz"
+	gribis "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	ondatra_binding "github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/exp/maps"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -802,12 +815,14 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
-	t.Logf("Flow Configuration: %v", flows)
-	t.Logf("OTG Configuration: %v", args.topo)
+	// t.Logf("Flow Configuration: %v", flows)
+	// t.Logf("OTG Configuration: %v", args.topo)
 	otg.PushConfig(t, args.topo)
+	time.Sleep(30 * time.Second) // time for otg ARP to settle
 	otg.StartProtocols(t)
 	t.Log("Verify BGP establsihed after OTG start protocols")
 	otgutils.WaitForARP(t, otg, args.topo, "IPv4")
+	otgutils.WaitForARP(t, otg, args.topo, "IPv6")
 	cfgplugins.VerifyDUTBGPEstablished(t, args.peer)
 	if capture {
 		startCapture(t, args.ate)
@@ -1065,6 +1080,8 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
 	time.Sleep(30 * time.Second)
 	otg.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, otg.OTG(), topo, "IPv4")
+	otgutils.WaitForARP(t, otg.OTG(), topo, "IPv6")
 	return topo
 }
 
@@ -1111,13 +1128,14 @@ func configureBaseProfile(t *testing.T) {
 
 	client.Start(ctx, t)
 	// cleanup all existing gRIBI entries at the end of the test
-	defer gribi.FlushAll(client)
+	// defer gribi.FlushAll(client)
 	// cleanup all existing gRIBI entries in the begining of the test
 	if err := gribi.FlushAll(client); err != nil {
 		t.Error(err)
 	}
+	client.Await(ctx, t)
 	// Wait for the gribi entries get flushed
-	time.Sleep(300 * time.Second)
+	// time.Sleep(300 * time.Second)
 	defer client.Stop(t)
 
 	// configureNetworkInstance(t, dut)
@@ -1125,7 +1143,7 @@ func configureBaseProfile(t *testing.T) {
 	configureDevices(t, dut, peer)
 	// t.Log("Configure TGEN OTG")
 	topo := configureOTG(t, otg)
-	t.Log("OTG CONFIG: ", topo)
+	// t.Log("OTG CONFIG: ", topo)
 	tcArgs := &testArgs{
 		dut:    dut,
 		peer:   peer,
@@ -1145,4 +1163,319 @@ func configureBaseProfile(t *testing.T) {
 	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	t.Log("Program base gRIBI entries")
 	BaseGRIBIProgramming(t, tcArgs, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
+}
+
+// configureBaseProfile configures DUT,PEER,TGEN baseconfig
+func ReconnectconfigureBaseProfile(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	peer := ondatra.DUT(t, "peer")
+	otg := ondatra.ATE(t, "ate")
+
+	ctx := context.Background()
+	gribic1 := dut.RawAPIs().GRIBI(t)
+	client1 := fluent.NewClient()
+	client1.Connection().WithStub(gribic1).WithPersistence().WithInitialElectionID(1, 0).
+		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+
+	client1.Start(ctx, t)
+	// cleanup all existing gRIBI entries at the end of the test
+	// defer gribi.FlushAll(client)
+	// cleanup all existing gRIBI entries in the begining of the test
+	if err := gribi.FlushAll(client1); err != nil {
+		t.Error(err)
+	}
+	client1.Await(ctx, t)
+	// Wait for the gribi entries get flushed
+	time.Sleep(300 * time.Second)
+	defer client1.Stop(t)
+
+	// t.Log("Configure TGEN OTG")
+	topo := configureOTG(t, otg)
+	// t.Log("OTG CONFIG: ", topo)
+	tcArgs := &testArgs{
+		dut:    dut,
+		peer:   peer,
+		ate:    otg,
+		topo:   topo,
+		client: client1,
+		ctx:    ctx,
+	}
+	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
+	peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
+
+	// add static route on peer for the tunnel destination for encap, decap+encap traffic
+	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
+	t.Log("Program base gRIBI entries")
+	BaseGRIBIProgramming(t, tcArgs, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
+}
+
+type DUTResources struct {
+	Device      *ondatra.DUTDevice
+	GNMI        gnmipb.GNMIClient
+	GNSI        ondatra_binding.GNSIClients
+	GNOI        gnoigo.Clients
+	GNPSI       gnpsipb.GNPSIClient
+	CLI         ondatra_binding.CLIClient
+	P4RT        p4pb.P4RuntimeClient
+	Console     ondatra_binding.ConsoleClient
+	OSC         ospb.OSClient
+	SC          spb.SystemClient
+	GRIBI       gribis.GRIBIClient
+	FluentGRIBI *fluent.GRIBIClient
+	LCs         []string
+	DualSup     bool
+}
+type OTGResources struct {
+	Device *ondatra.ATEDevice
+	GNMI   gnmipb.GNMIClient
+}
+
+// TestResources holds common resources used across tests.
+type TestResources struct {
+	DUT    DUTResources
+	PEER   DUTResources
+	OTG    OTGResources
+	LogDir string
+	// dualSup         bool
+	// reader          io.ReadCloser
+	ctx             context.Context
+	CommandPatterns map[string]map[string]interface{}
+}
+
+var (
+	testResources *TestResources
+	once          sync.Once
+)
+
+// TODO complete this ReconnectClients
+// Try to move to utils
+
+// CheckBootTime is a method of TestResources that checks the boot time for DUT and PEER
+func (tRes *TestResources) ReconnectClients(t *testing.T, maxRebootTime uint64) {
+	// t.Log("Reconnect CLI")
+	// reconnectCLI(t, tRes.DUT.CLI, "DUT", maxRebootTime)
+	// reconnectCLI(t, tRes.PEER.CLI, "PEER", maxRebootTime)
+
+	// t.Log("Reconnect FluentGRIBI")
+	// reconnectFluentGribi(t, tRes.DUT.FluentGRIBI, "DUT", maxRebootTime)
+	// reconnectFluentGribi(t, tRes.PEER.FluentGRIBI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gNOI")
+	reconnectGnoi(t, tRes.DUT.GNOI, "DUT", maxRebootTime)
+	reconnectGnoi(t, tRes.PEER.GNOI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gNMI")
+	reconnectGnmi(t, tRes.DUT.GNMI, "DUT", maxRebootTime)
+	reconnectGnmi(t, tRes.PEER.GNMI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gNSI")
+	reconnectGnsi(t, tRes.DUT.GNSI, "DUT", maxRebootTime)
+	reconnectGnsi(t, tRes.PEER.GNSI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect P4RT")
+	reconnectP4RT(t, tRes.DUT.P4RT, "DUT", maxRebootTime)
+	reconnectP4RT(t, tRes.PEER.P4RT, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gRIBI")
+	reconnectGribi(t, tRes.DUT.GRIBI, "DUT", maxRebootTime)
+	reconnectGribi(t, tRes.PEER.GRIBI, "PEER", maxRebootTime)
+}
+
+// reconnectGnoi attempts to reconnect to a device using the gNOI client and waits until the device is ready.
+// It periodically checks the device's system time to determine its availability.
+//
+// Parameters:
+//   - t: The testing context used for logging and error reporting.
+//   - gnoiClient: The gNOI client used to communicate with the device.
+//   - deviceName: The name of the device being checked.
+//   - maxRebootTime: The maximum allowed reboot time (in minutes) before the function fails the test.
+//
+// Behavior:
+//   - Logs the elapsed time since the reboot started.
+//   - Continuously attempts to fetch the device's system time using the gNOI client.
+//   - If the service is unavailable, waits for 30 seconds before retrying.
+//   - If the device becomes available, logs a success message and exits the loop.
+//   - If the elapsed time exceeds maxRebootTime, the function fails the test with a fatal error.
+//   - Logs the total time taken for the device to become ready.
+func reconnectGnoi(t *testing.T, gnoiClient gnoigo.Clients, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		response, err := gnoiClient.System().Time(ctx, &spb.TimeRequest{})
+
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching %s device time: %v", deviceName, err)
+		}
+
+		// Check if the error code indicates that the service is unavailable
+		if status.Code(err) == codes.Unavailable {
+			// If the service is unavailable, wait for 30 seconds before retrying
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if response != nil {
+			// If the device time is fetched successfully, log the success message
+			t.Logf("%s device time fetched successfully: %v", deviceName, response)
+			break
+		} else {
+			t.Logf("Error: %s device time response is nil despite no error", deviceName)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s gnoi ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+// reconnectGnmi attempts to reconnect to a device using the gNMI client and waits until the device is ready.
+// It periodically checks the device's capabilities to determine its availability.
+//
+// Parameters:
+//   - t: The testing context used for logging and error reporting.
+//   - gnmiClient: The gNMI client used to communicate with the device.
+//   - deviceName: The name of the device being checked.
+//   - maxRebootTime: The maximum allowed reboot time (in minutes) before the function fails the test.
+//
+// Behavior:
+//   - Logs the elapsed time since the reboot started.
+//   - Continuously attempts to fetch the device's capabilities using the gNMI client.
+//   - If the service is unavailable, waits for 30 seconds before retrying.
+//   - If the device becomes available, logs a success message and exits the loop.
+//   - If the elapsed time exceeds maxRebootTime, the function fails the test with a fatal error.
+//   - Logs the total time taken for the device to become ready.
+func reconnectGnmi(t *testing.T, gnmiClient gnmipb.GNMIClient, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		// Example of fetching capabilities from the repository code base
+		_, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
+
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching %s device capabilities: %v", deviceName, err)
+		}
+
+		// Check if the error code indicates that the service is unavailable
+		if status.Code(err) == codes.Unavailable {
+			// If the service is unavailable, wait for 30 seconds before retrying
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			// If the capabilities are fetched successfully, log the success message
+			t.Logf("%s device capabilities fetched successfully", deviceName)
+			break
+		} else {
+			t.Logf("Error: %s device capabilities response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s gNMI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+func reconnectGnsi(t *testing.T, gnsiClient ondatra_binding.GNSIClients, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		// Example of fetching GNSI certificates from the repository code base
+		_, err := gnsiClient.Certz().GetProfileList(ctx, &certzpb.GetProfileListRequest{})
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching %s GNSI certificates: %v", deviceName, err)
+		}
+
+		if status.Code(err) == codes.Unavailable {
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			t.Logf("%s GNSI certificates fetched successfully", deviceName)
+			break
+		} else {
+			t.Logf("Error: %s GNSI response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s GNSI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+func reconnectP4RT(t *testing.T, p4rtClient p4pb.P4RuntimeClient, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		_, err := p4rtClient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
+
+		if err != nil {
+			t.Logf("Error fetching %s P4RT capabilities: %v", deviceName, err)
+		}
+
+		if status.Code(err) == codes.Unavailable {
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			t.Logf("%s P4RT capabilities fetched successfully", deviceName)
+			break
+		} else {
+			t.Logf("Error: %s P4RT response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s P4RT ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+func reconnectGribi(t *testing.T, gribiClient gribis.GRIBIClient, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+
+		// Use GribiGet logic to validate the connection
+		getReq := gribis.GetRequest{
+			NetworkInstance: &gribis.GetRequest_All{},
+			Aft:             gribis.AFTType_ALL,
+		}
+		getStream, err := gribiClient.Get(ctx, &getReq)
+
+		if err != nil {
+			t.Logf("Error fetching %s gRIBI capabilities: %v", deviceName, err)
+		}
+
+		if status.Code(err) == codes.Unavailable {
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			_, recvErr := getStream.Recv()
+			if recvErr == io.EOF {
+				t.Logf("%s gRIBI capabilities fetched successfully", deviceName)
+				break
+			} else if recvErr != nil {
+				t.Logf("Error: %s gRIBI response failed with error: %v", deviceName, recvErr)
+				time.Sleep(30 * time.Second)
+			}
+		} else {
+			t.Logf("Error: %s gRIBI response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s gRIBI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
 }

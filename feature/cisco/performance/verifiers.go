@@ -131,75 +131,91 @@ func CollectRouterLogs(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 
 	var collectedErrors []string
 
+	var wg sync.WaitGroup
+	var mu sync.Mutex // To protect access to `collectedErrors`
+
 	for command, details := range commandPatterns {
-		commandType := details["type"].(string)
-		showLoggingFile := filepath.Join(localLogDirectory, fmt.Sprintf("%d-%s-%s", count, dut.Name(), strings.ReplaceAll(command, " ", "_")))
-		var cmd string
+		wg.Add(1)
+		go func(command string, details map[string]interface{}) {
+			defer wg.Done()
 
-		switch commandType {
-		case "logging":
-			lastLogLine := getLastLogLine(dut.Name(), command)
-			if lastLogLine != "" {
-				cmd = fmt.Sprintf("%s | begin %s | file %s", command, lastLogLine, showLoggingFile)
-			} else {
+			commandType := details["type"].(string)
+			showLoggingFile := filepath.Join(localLogDirectory, fmt.Sprintf("%d-%s-%s", count, dut.Name(), strings.ReplaceAll(command, " ", "_")))
+			var cmd string
+
+			switch commandType {
+			case "logging":
+				lastLogLine := getLastLogLine(dut.Name(), command)
+				if lastLogLine != "" {
+					cmd = fmt.Sprintf("%s | begin %s | file %s", command, lastLogLine, showLoggingFile)
+				} else {
+					cmd = fmt.Sprintf("%s | file %s", command, showLoggingFile)
+				}
+			case "command":
 				cmd = fmt.Sprintf("%s | file %s", command, showLoggingFile)
+			case "show-tech":
+				cmd = fmt.Sprintf("%s file %s", command, showLoggingFile)
+			default:
+				mu.Lock()
+				collectedErrors = append(collectedErrors, fmt.Sprintf("Unknown command type %s for command %s", commandType, command))
+				mu.Unlock()
+				return
 			}
-		case "command":
-			cmd = fmt.Sprintf("%s | file %s", command, showLoggingFile)
-		case "show-tech":
-			cmd = fmt.Sprintf("%s file %s", command, showLoggingFile)
-		default:
-			collectedErrors = append(collectedErrors, fmt.Sprintf("Unknown command type %s for command %s", commandType, command))
-			continue
-		}
 
-		if _, err := executeSSHCommand(ctx, sshClient, cmd, t); err != nil {
-			collectedErrors = append(collectedErrors, fmt.Sprintf("Error executing command %s: %v", command, err))
-			continue
-		}
-		if commandType == "show-tech" {
-			showLoggingFile += ".tgz"
-		}
+			if _, err := executeSSHCommand(ctx, sshClient, cmd, t); err != nil {
+				mu.Lock()
+				collectedErrors = append(collectedErrors, fmt.Sprintf("Error executing command %s: %v", command, err))
+				mu.Unlock()
+				return
+			}
+			if commandType == "show-tech" {
+				showLoggingFile += ".tgz"
+			}
 
-		dutOutDir := filepath.Join(logDir, "debug_files", fmt.Sprintf("%v_%s_%s", count, dut.ID(), testName))
+			dutOutDir := filepath.Join(logDir, "debug_files", fmt.Sprintf("%v_%s_%s", count, dut.ID(), testName))
 
-		for dutID, target := range targets.targetInfo {
-			if dutID == dut.Name() {
-				t.Logf("copy specific file from: %s device: %s to: %s", showLoggingFile, dut.Name(), dutOutDir)
-				if err := copySpecificFile(t, target, dutOutDir, showLoggingFile); err != nil {
-					collectedErrors = append(collectedErrors, fmt.Sprintf("Error copying file for command %s: %v", command, err))
-					continue
+			for dutID, target := range targets.targetInfo {
+				if dutID == dut.ID() {
+					t.Logf("copy specific file from: %s device: %s to: %s", showLoggingFile, dut.Name(), dutOutDir)
+					if err := copySpecificFile(t, target, dutOutDir, showLoggingFile); err != nil {
+						mu.Lock()
+						collectedErrors = append(collectedErrors, fmt.Sprintf("Error copying file for command %s: %v", command, err))
+						mu.Unlock()
+						return
+					}
 				}
 			}
-		}
 
-		localLogPath := filepath.Join(dutOutDir, filepath.Base(showLoggingFile))
-		logContent, err := os.ReadFile(localLogPath)
-		if err != nil {
-			collectedErrors = append(collectedErrors, fmt.Sprintf("Error reading log file for command %s: %v", command, err))
-			continue
-		}
-
-		if commandType == "logging" {
-			if gotLastLogLine, err := GetLastLogLine(string(logContent)); err != nil {
-				t.Logf("File Empty, Failed to get last log line: %v", err)
+			localLogPath := filepath.Join(dutOutDir, filepath.Base(showLoggingFile))
+			logContent, err := os.ReadFile(localLogPath)
+			if err != nil {
+				mu.Lock()
+				collectedErrors = append(collectedErrors, fmt.Sprintf("Error reading log file for command %s: %v", command, err))
+				mu.Unlock()
+				return
+			}
+			if commandType == "logging" {
+				if gotLastLogLine, err := GetLastLogLine(string(logContent)); err != nil {
+					t.Logf("File Empty, Failed to get last log line: %v", err)
+				} else {
+					storeLastLogLine(dut.Name(), command, gotLastLogLine)
+				}
+			}
+			if errorPatterns, ok := details["errorPatterns"].([]interface{}); ok {
+				// Check for error patterns in the log content
+				matched := CheckForErrorPatterns(errorPatterns, string(logContent))
+				fmt.Printf("Matched Error Patterns: %v\n", matched)
+				if len(matched) > 0 {
+					mu.Lock()
+					collectedErrors = append(collectedErrors, fmt.Sprintf("Count: %d Error patterns matched for command %s", len(matched), command))
+					mu.Unlock()
+				}
 			} else {
-				storeLastLogLine(dut.Name(), command, gotLastLogLine)
+				fmt.Println("Error: 'errorPatterns' is not a list of interfaces.")
 			}
-		}
-		if errorPatterns, ok := details["errorPatterns"].([]interface{}); ok {
-
-			// Check for error patterns in the log content
-			matched := CheckForErrorPatterns(errorPatterns, string(logContent))
-			fmt.Printf("Matched Error Patterns: %v\n", matched)
-			if len(matched) > 0 {
-				collectedErrors = append(collectedErrors, fmt.Sprintf("Count: %d Error patterns matched for command %s", len(matched), command))
-			}
-		} else {
-			fmt.Println("Error: 'errorPatterns' is not a list of interfaces.")
-		}
-
+		}(command, details)
 	}
+	wg.Wait() // Wait for all goroutines to finish
 
 	target := targets.targetInfo[dut.Name()]
 

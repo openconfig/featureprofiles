@@ -14,3 +14,5 @@ tests:
     controller: 1.13.0-9
     hw: 1.13.0-5
     gnmi: 1.14.14
+  args:
+  - '-logDir ($test_log_directory_path)'
