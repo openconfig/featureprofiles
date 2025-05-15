@@ -1367,4 +1367,3 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
-
