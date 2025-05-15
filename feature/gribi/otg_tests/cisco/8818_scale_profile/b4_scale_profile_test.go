@@ -447,3 +447,7 @@ func TestModularGribiProfile(t *testing.T) {
 func TestExpandedModularChain(t *testing.T) {
 	testExpandedModularChain(t)
 }
+
+func TestEncapScale(t *testing.T) {
+	testEncapScale(t)
+}

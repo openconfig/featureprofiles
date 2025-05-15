@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
@@ -28,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gribigo/client"
@@ -1605,4 +1607,35 @@ func EnableVxrInternalPxeBoot(ctx context.Context, t *testing.T, dut *ondatra.DU
 	} else {
 		t.Fatal("Error Not a VXR platform")
 	}
+}
+
+// CMDViaGNMI runs a command on the DUT via GNMI and returns the output
+func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	gnmiC := dut.RawAPIs().GNMI(t)
+	getRequest := &gpb.GetRequest{
+		Prefix: &gpb.Path{
+			Origin: "cli",
+		},
+		Path: []*gpb.Path{
+			{
+				Elem: []*gpb.PathElem{{
+					Name: cmd,
+				}},
+			},
+		},
+		Encoding: gpb.Encoding_ASCII,
+	}
+	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	resp, err := gnmiC.Get(ctx, getRequest)
+	if err != nil {
+		t.Fatalf("running cmd (%s) via GNMI is failed: %v", cmd, err)
+	}
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
+	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+
 }
