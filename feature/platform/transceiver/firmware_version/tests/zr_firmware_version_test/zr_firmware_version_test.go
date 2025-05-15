@@ -81,7 +81,7 @@ func TestZRFirmwareVersionState(t *testing.T) {
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
 
-	switch dut.Vendor() {
+	switch dut1.Vendor() {
 	case ondatra.CISCO:
 		operationalMode = uint16(*operationalModeFlagCisco)
 	case ondatra.ARISTA:
