@@ -38,7 +38,9 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlagCisco   = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
+	operationalModeFlagArista  = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlagDefault = flag.Int("operational_mode", 1, "default operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -74,7 +76,14 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	)
 
 	ports := []string{"port1", "port2"}
-	operationalMode = uint16(*operationalModeFlag)
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		operationalMode = uint16(*operationalModeFlagCisco)
+	case ondatra.ARISTA:
+		operationalMode = uint16(*operationalModeFlagArista)
+	default:
+		operationalMode = uint16(*operationalModeFlagDefault)
+	}
 	cfgplugins.Initialize(operationalMode)
 
 	for i, port := range ports {
