@@ -1600,15 +1600,19 @@ func testDecapScale(t *testing.T) {
 	// remaining resource IDs will be used to configure using a single NHG with nhs count = nh_leftover
 	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
 	nhsPerNHG := 1
-	nhg, nh_leftover, _ := DivideAndAdjust(gridRsrc.AvailableResourceIDs, nhsPerNHG, batches)
+
+	// reserve resource IDs for encap that will be used for decaped traffic to pass through the encap primary path
+	reserveForEncap := batches
+
+	nhg, nh_leftover, _ := DivideAndAdjust(gridRsrc.AvailableResourceIDs-reserveForEncap, nhsPerNHG, batches)
 	t.Logf("Possible NHG: %d, leftover: %d with available %d resource IDs", nhg, nh_leftover, gridRsrc.AvailableResourceIDs)
 
 	gp := NewGribiProfile(t, batches, false, false, tcArgs.dut,
 		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, batches), //have as minimum VipIPs
 			numUniqueNHGs: 2, numNHPerNHG: 1},
-		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 2, numNHPerNHG: 1, nextHopWeight: generateNextHopWeights(64, 2)},
-		&routesParam{segment: "DecapWan", numUniqueNHGs: 2, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)},
+		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 2, numNHPerNHG: 1, nextHopWeight: generateNextHopWeights(64, 2)}, // 2 nhs consumed by encap tunnels
+		&routesParam{segment: "DecapWan", numUniqueNHGs: 2, numNHPerNHG: nhsPerNHG, ipEntries: iputil.GenerateIPs(IPBlockDecap, nhg*nhsPerNHG), nextHopWeight: generateNextHopWeights(64, nhsPerNHG)},
 	)
 
 	tcArgs.client.StartSending(tcArgs.ctx, t)
@@ -1633,4 +1637,6 @@ func testDecapScale(t *testing.T) {
 	t.Logf("Validating encap traffic")
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1})
 
+	t.Logf("Validating decap traffic")
+	testDecapTrafficFlows(t, tcArgs, gp, []int{0, 1})
 }

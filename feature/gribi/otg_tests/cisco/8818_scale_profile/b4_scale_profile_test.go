@@ -451,3 +451,7 @@ func TestExpandedModularChain(t *testing.T) {
 func TestEncapScale(t *testing.T) {
 	testEncapScale(t)
 }
+
+func TestDecapScal(t *testing.T) {
+	testDecapScale(t)
+}
