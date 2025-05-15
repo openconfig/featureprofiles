@@ -39,11 +39,6 @@ func TestMain(m *testing.M) {
 
 func TestOpticalPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	switch dut.Vendor() {
