@@ -27,6 +27,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    data_size_adjust_required: true
+    metadata_size_adjust_required: true
   }
 }
