@@ -1353,6 +1353,7 @@ func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
 
+<<<<<<< HEAD
 // AutoNegotiateUnsupported returns true if there's no OC support for auto-negotiate
 func AutoNegotiateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAutoNegotiateUnsupported()
@@ -1366,4 +1367,14 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 // PortSpeedUnsupported returns true if there's no OC support for port-speed
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
+}
+
+// Devices that do not propagate IGP metric through redistribution
+func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
+}
+
+// SkipBgpPeerGroupSendCommunityType return true if device needs to skip setting BGP send-community-type for peer group
+func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
 }
