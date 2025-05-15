@@ -1359,5 +1359,5 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 }
 // data size reduction required for large data  
 func MetadataSizeAdjustRequired(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetMeatadataSizeAdjustRequired()
+        return lookupDUTDeviations(dut).GetMetadataSizeAdjustRequired()
 }
