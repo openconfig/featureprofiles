@@ -4,6 +4,18 @@
 
 Load balancing across members of a LACP-controlled LAG
 
+## Testbed type
+
+*   [`featureprofiles/topologies/atedut_9.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_9.testbed)
+
+## Topology
+
+```mermaid
+graph LR;
+A[ATE] <-- (Port 1) --> B[DUT];
+B[DUT] <-- LACP LAG (Port 2-9) --> C[ATE];
+```
+
 ## Procedure
 
 *   Connect ATE port-1 to DUT port-1
