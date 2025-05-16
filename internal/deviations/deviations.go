@@ -1346,6 +1346,7 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 // StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
 func StaticMplsLspUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticMplsLspUnsupported()
+}
 
 // BGPDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
 func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
