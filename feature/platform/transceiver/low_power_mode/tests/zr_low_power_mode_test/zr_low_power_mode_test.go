@@ -90,14 +90,6 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 
 func TestLowPowerMode(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		operationalMode = uint16(*operationalModeFlagCisco)
-	case ondatra.ARISTA:
-		operationalMode = uint16(*operationalModeFlagArista)
-	default:
-		operationalMode = uint16(*operationalModeFlagDefault)
-	}
 	cfgplugins.Initialize(operationalModeFlag, dut)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
