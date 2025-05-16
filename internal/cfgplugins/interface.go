@@ -63,15 +63,27 @@ func GetOperationalModeFlag(dut *ondatra.DUTDevice) uint16 {
 }
 
 // Initialize assigns OpMode with value received through operationalMode flag.
-func Initialize(operationalMode uint16) {
+func Initialize(t *testing.T, operationalModeFlag *int, dut *ondatra.DUTDevice) uint16 {
 	once.Do(func() {
-		if operationalMode != 0 {
-			opmode = operationalMode
+		t.Helper()
+		opModeFlagValue := uint16(*operationalModeFlag)
+		if opModeFlagValue == 0 {
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				opmode = 5003
+			case ondatra.ARISTA:
+				opmode = 1
+			case ondatra.JUNIPER:
+				opmode = 1
+			case ondatra.NOKIA:
+				opmode = 1083
+			}
 		} else {
-			fmt.Sprintln("Please specify the vendor-specific operational-mode flag")
-			return
+			opmode = opModeFlagValue
 		}
 	})
+	fmt.Printf("Vendor %s, OperationalMode set to %d", dut.Vendor(), opmode)
+	return opmode
 }
 
 // InterfaceConfig configures the interface with the given port.
