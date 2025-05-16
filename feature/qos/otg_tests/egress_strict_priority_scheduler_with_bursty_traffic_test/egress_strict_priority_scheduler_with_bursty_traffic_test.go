@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -46,147 +47,8 @@ var (
 	ateTxP2 = attrs.Attributes{Name: "ate2", MAC: "00:01:01:01:01:02", IPv4: "198.51.100.6", IPv4Len: 30, IPv6: "2001:db8::6", IPv6Len: 126}
 	ateRxP3 = attrs.Attributes{Name: "ate3", MAC: "00:01:01:01:01:03", IPv4: "198.51.100.10", IPv4Len: 30, IPv6: "2001:db8::a", IPv6Len: 126}
 
-	mplsLabel         uint32  = 1001
-	tolerance         float32 = 5.0
-	tcamProfileConfig         = `
-hardware counter feature traffic-policy in
-!
-hardware tcam
-  profile ancx
-    feature acl port ip
-        sequence 45
-        key size limit 160
-        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control ttl
-        action count drop mirror
-        packet ipv4 forwarding bridged
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet ipv4 non-vxlan forwarding routed decap
-        packet ipv4 vxlan eth ipv4 forwarding routed decap
-        packet ipv4 vxlan forwarding bridged decap
-    feature acl port ip egress mpls-tunnelled-match
-        sequence 95
-    feature acl port ipv6
-        sequence 25
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-ops-3b l4-src-port src-ipv6-high src-ipv6-low tcp-control
-        action count drop mirror
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-        packet ipv6 forwarding routed multicast
-        packet ipv6 ipv6 forwarding routed decap
-    feature acl port ipv6 egress
-        sequence 105
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
-        action count drop mirror
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-    feature acl port mac
-        sequence 55
-        key size limit 160
-        key field dst-mac ether-type src-mac
-        action count drop mirror
-        packet ipv4 forwarding bridged
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet ipv4 non-vxlan forwarding routed decap
-        packet ipv4 vxlan forwarding bridged decap
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-        packet ipv6 forwarding routed decap
-        packet ipv6 forwarding routed multicast
-        packet ipv6 ipv6 forwarding routed decap
-        packet mpls forwarding bridged decap
-        packet mpls ipv4 forwarding mpls
-        packet mpls ipv6 forwarding mpls
-        packet mpls non-ip forwarding mpls
-        packet non-ip forwarding bridged
-    feature acl vlan ipv6 egress
-        sequence 20
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
-        action count drop mirror
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-    feature counter lfib
-        sequence 85
-    feature forwarding-destination mpls
-        sequence 100
-    feature mirror ip
-        sequence 80
-        key size limit 160
-        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
-        action count mirror set-policer
-        packet ipv4 forwarding bridged
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 non-vxlan forwarding routed decap
-    feature mpls
-        sequence 5
-        key size limit 160
-        action drop redirect set-ecn
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet mpls ipv4 forwarding mpls
-        packet mpls ipv6 forwarding mpls
-        packet mpls non-ip forwarding mpls
-    feature mpls pop ingress
-        sequence 90
-    feature pbr mpls
-        sequence 65
-        key size limit 160
-        key field mpls-inner-ip-tos
-        action count drop redirect
-        packet mpls ipv4 forwarding mpls
-        packet mpls ipv6 forwarding mpls
-        packet mpls non-ip forwarding mpls
-    feature qos ip
-        sequence 75
-        key size limit 160
-        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
-        action set-dscp set-policer set-tc
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet ipv4 non-vxlan forwarding routed decap
-    feature qos ipv6
-        sequence 70
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
-        action set-dscp set-policer set-tc
-        packet ipv6 forwarding routed
-    feature traffic-policy port ipv4
-        sequence 45
-        key size limit 160
-        key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
-        action count drop redirect set-dscp set-tc
-        packet ipv4 forwarding routed
-    feature traffic-policy port ipv4 egress
-        key size limit 160
-        key field dscp dst-ip-label ip-frag ip-protocol l4-dst-port-label l4-src-port-label src-ip-label
-        action count drop
-        packet ipv4 forwarding routed
-    feature traffic-policy port ipv6
-        sequence 25
-        key size limit 160
-        key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
-        action count drop redirect set-dscp set-tc
-        packet ipv6 forwarding routed
-    feature traffic-policy port ipv6 egress
-        key size limit 160
-        key field dscp dst-ipv6-label ipv6-next-header l4-dst-port-label l4-src-port-label src-ipv6-label
-        action count drop
-        packet ipv6 forwarding routed
-    feature tunnel vxlan
-        sequence 50
-        key size limit 160
-        packet ipv4 vxlan eth ipv4 forwarding routed decap
-        packet ipv4 vxlan forwarding bridged decap
-  system profile ancx
-!
-    `
+	mplsLabel uint32  = 1001
+	tolerance float32 = 5.0
 )
 
 func TestMain(m *testing.M) {
@@ -446,7 +308,9 @@ func verifyEgressStrictPrioritySchedulerBurstTrafficIPv4(t *testing.T, dut *onda
 
 		ate.OTG().StopTraffic(t)
 
-		time.Sleep(5 * time.Second)
+		for flowName, _ := range trafficFlows {
+			waitForTraffic(t, ate.OTG(), flowName, 10)
+		}
 
 		t.Logf("Printing aggregated flow metrics from OTG: \n")
 		otgutils.LogFlowMetrics(t, ate.OTG(), top)
@@ -1658,12 +1522,12 @@ func ConfigureDUTIntfIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		desc:      "DUT input intf port2",
 		intfName:  dp2.Name(),
 		ipAddr:    dutIngressPort2AteP2.IPv4,
-		prefixLen: dutIngressPort1AteP1.IPv4Len,
+		prefixLen: dutIngressPort2AteP2.IPv4Len,
 	}, {
 		desc:      "DUT output intf port3",
 		intfName:  dp3.Name(),
 		ipAddr:    dutEgressPort3AteP3.IPv4,
-		prefixLen: dutIngressPort1AteP1.IPv4Len,
+		prefixLen: dutEgressPort3AteP3.IPv4Len,
 	}}
 
 	// Configure the interfaces.
@@ -1717,12 +1581,12 @@ func ConfigureDUTIntfIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 		desc:      "DUT input intf port2",
 		intfName:  dp2.Name(),
 		ipAddr:    dutIngressPort2AteP2.IPv6,
-		prefixLen: dutIngressPort1AteP1.IPv6Len,
+		prefixLen: dutIngressPort2AteP2.IPv6Len,
 	}, {
 		desc:      "DUT output intf port3",
 		intfName:  dp3.Name(),
 		ipAddr:    dutEgressPort3AteP3.IPv6,
-		prefixLen: dutIngressPort1AteP1.IPv6Len,
+		prefixLen: dutEgressPort3AteP3.IPv6Len,
 	}}
 
 	// Configure the interfaces.
@@ -2652,7 +2516,7 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 	cliClient := dut.RawAPIs().CLI(t)
 	output, err := cliClient.RunCommand(context.Background(), cliCommand)
 	if err != nil {
-		t.Errorf("Failed to execute CLI command '%s': %v", cliCommand, err)
+		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
 	}
 	t.Logf("Received from cli: %s", output.Output())
 	return output.Output()
@@ -2716,6 +2580,147 @@ func buildCliSetRequest(config string) *gpb.SetRequest {
 }
 
 func configureTcamProfile(t *testing.T, dut *ondatra.DUTDevice) {
+
+	tcamProfileConfig := `
+hardware counter feature traffic-policy in
+!
+hardware tcam
+  profile ancx
+    feature acl port ip
+        sequence 45
+        key size limit 160
+        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control ttl
+        action count drop mirror
+        packet ipv4 forwarding bridged
+        packet ipv4 forwarding routed
+        packet ipv4 forwarding routed multicast
+        packet ipv4 mpls ipv4 forwarding mpls decap
+        packet ipv4 mpls ipv6 forwarding mpls decap
+        packet ipv4 non-vxlan forwarding routed decap
+        packet ipv4 vxlan eth ipv4 forwarding routed decap
+        packet ipv4 vxlan forwarding bridged decap
+    feature acl port ip egress mpls-tunnelled-match
+        sequence 95
+    feature acl port ipv6
+        sequence 25
+        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-ops-3b l4-src-port src-ipv6-high src-ipv6-low tcp-control
+        action count drop mirror
+        packet ipv6 forwarding bridged
+        packet ipv6 forwarding routed
+        packet ipv6 forwarding routed multicast
+        packet ipv6 ipv6 forwarding routed decap
+    feature acl port ipv6 egress
+        sequence 105
+        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
+        action count drop mirror
+        packet ipv6 forwarding bridged
+        packet ipv6 forwarding routed
+    feature acl port mac
+        sequence 55
+        key size limit 160
+        key field dst-mac ether-type src-mac
+        action count drop mirror
+        packet ipv4 forwarding bridged
+        packet ipv4 forwarding routed
+        packet ipv4 forwarding routed multicast
+        packet ipv4 mpls ipv4 forwarding mpls decap
+        packet ipv4 mpls ipv6 forwarding mpls decap
+        packet ipv4 non-vxlan forwarding routed decap
+        packet ipv4 vxlan forwarding bridged decap
+        packet ipv6 forwarding bridged
+        packet ipv6 forwarding routed
+        packet ipv6 forwarding routed decap
+        packet ipv6 forwarding routed multicast
+        packet ipv6 ipv6 forwarding routed decap
+        packet mpls forwarding bridged decap
+        packet mpls ipv4 forwarding mpls
+        packet mpls ipv6 forwarding mpls
+        packet mpls non-ip forwarding mpls
+        packet non-ip forwarding bridged
+    feature acl vlan ipv6 egress
+        sequence 20
+        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
+        action count drop mirror
+        packet ipv6 forwarding bridged
+        packet ipv6 forwarding routed
+    feature counter lfib
+        sequence 85
+    feature forwarding-destination mpls
+        sequence 100
+    feature mirror ip
+        sequence 80
+        key size limit 160
+        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
+        action count mirror set-policer
+        packet ipv4 forwarding bridged
+        packet ipv4 forwarding routed
+        packet ipv4 forwarding routed multicast
+        packet ipv4 non-vxlan forwarding routed decap
+    feature mpls
+        sequence 5
+        key size limit 160
+        action drop redirect set-ecn
+        packet ipv4 mpls ipv4 forwarding mpls decap
+        packet ipv4 mpls ipv6 forwarding mpls decap
+        packet mpls ipv4 forwarding mpls
+        packet mpls ipv6 forwarding mpls
+        packet mpls non-ip forwarding mpls
+    feature mpls pop ingress
+        sequence 90
+    feature pbr mpls
+        sequence 65
+        key size limit 160
+        key field mpls-inner-ip-tos
+        action count drop redirect
+        packet mpls ipv4 forwarding mpls
+        packet mpls ipv6 forwarding mpls
+        packet mpls non-ip forwarding mpls
+    feature qos ip
+        sequence 75
+        key size limit 160
+        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
+        action set-dscp set-policer set-tc
+        packet ipv4 forwarding routed
+        packet ipv4 forwarding routed multicast
+        packet ipv4 mpls ipv4 forwarding mpls decap
+        packet ipv4 mpls ipv6 forwarding mpls decap
+        packet ipv4 non-vxlan forwarding routed decap
+    feature qos ipv6
+        sequence 70
+        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
+        action set-dscp set-policer set-tc
+        packet ipv6 forwarding routed
+    feature traffic-policy port ipv4
+        sequence 45
+        key size limit 160
+        key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
+        action count drop redirect set-dscp set-tc
+        packet ipv4 forwarding routed
+    feature traffic-policy port ipv4 egress
+        key size limit 160
+        key field dscp dst-ip-label ip-frag ip-protocol l4-dst-port-label l4-src-port-label src-ip-label
+        action count drop
+        packet ipv4 forwarding routed
+    feature traffic-policy port ipv6
+        sequence 25
+        key size limit 160
+        key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
+        action count drop redirect set-dscp set-tc
+        packet ipv6 forwarding routed
+    feature traffic-policy port ipv6 egress
+        key size limit 160
+        key field dscp dst-ipv6-label ipv6-next-header l4-dst-port-label l4-src-port-label src-ipv6-label
+        action count drop
+        packet ipv6 forwarding routed
+    feature tunnel vxlan
+        sequence 50
+        key size limit 160
+        packet ipv4 vxlan eth ipv4 forwarding routed decap
+        packet ipv4 vxlan forwarding bridged decap
+  system profile ancx
+!
+    `
+
 	if dut.Vendor() != ondatra.ARISTA || strings.ToLower(dut.Model()) == "ceos" {
 		t.Logf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
 		return
@@ -2763,5 +2768,19 @@ func configureMplsExpClassifierCLI(t *testing.T, dut *ondatra.DUTDevice, classif
 	gpbSetRequest := buildCliSetRequest(qosMapCmd)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("Failed to set QoS Exp mappings from CLI: %v", err)
+	}
+}
+
+func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
+	transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
+	_, ok := gnmi.Watch(t, otg, transmitPath, timeout, func(val *ygnmi.Value[bool]) bool {
+		transmitState, present := val.Val()
+		return present && !transmitState
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Traffic for flow %s did not stop within the timeout of %d", flowName, timeout)
+	} else {
+		t.Logf("Traffic for flow %s has stopped", flowName)
 	}
 }
