@@ -36,7 +36,6 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
-    skip_setting_disable_metric_propagation: true
     routing_policy_tag_set_embedded: true
     }
  }   
