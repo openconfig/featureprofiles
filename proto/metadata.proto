@@ -740,6 +740,12 @@ message Metadata {
     // Devices does not support static mpls lsp
     bool static_mpls_lsp_unsupported = 267;
 
+    // Device does not support BGP OC distance
+    bool bgp_distance_oc_path_unsupported = 268;
+
+    // Devices that do not support ISIS MPLS
+    bool isis_mpls_unsupported = 269;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
