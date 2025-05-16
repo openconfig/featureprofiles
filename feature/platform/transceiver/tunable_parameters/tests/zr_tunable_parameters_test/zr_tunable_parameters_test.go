@@ -23,10 +23,7 @@ const (
 )
 
 var (
-	operationalModeFlagCisco   = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
-	operationalModeFlagArista  = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
-	operationalModeFlagDefault = flag.Int("operational_mode", 1, "default operational-mode for the channel")
-	operationalMode            uint16
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 )
 
 func TestMain(m *testing.M) {
@@ -38,15 +35,7 @@ func Test400ZRTunableFrequency(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		operationalMode = uint16(*operationalModeFlagCisco)
-	case ondatra.ARISTA:
-		operationalMode = uint16(*operationalModeFlagArista)
-	default:
-		operationalMode = uint16(*operationalModeFlagDefault)
-	}
-	cfgplugins.Initialize(operationalMode)
+	cfgplugins.Initialize(operationalModeFlag, dut)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)
