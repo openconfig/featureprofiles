@@ -28,7 +28,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config//hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/hold-time:
 
   ## State Paths ##
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/keepalive-interval:
