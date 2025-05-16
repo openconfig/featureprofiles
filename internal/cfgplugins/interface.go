@@ -16,7 +16,6 @@ package cfgplugins
 
 import (
 	"fmt"
-	"flag"
 	"math"
 	"sync"
 	"testing"
