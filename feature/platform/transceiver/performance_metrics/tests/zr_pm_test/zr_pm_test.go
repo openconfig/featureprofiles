@@ -32,10 +32,9 @@ const (
 )
 
 var (
-	frequencies         = []uint64{191400000, 196100000}
-	targetOpticalPowers = []float64{-9, -13}
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
-	operationalMode     uint16
+	frequencies                = []uint64{191400000, 196100000}
+	targetOpticalPowers        = []float64{-9, -13}
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 )
 
 func TestMain(m *testing.M) {
@@ -47,8 +46,7 @@ func TestPM(t *testing.T) {
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
+	cfgplugins.Initialize(operationalModeFlag, dut)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 

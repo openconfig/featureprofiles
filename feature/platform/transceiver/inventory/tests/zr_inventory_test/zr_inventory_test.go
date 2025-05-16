@@ -21,8 +21,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
-	operationalMode     uint16
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 )
 
 func TestMain(m *testing.M) {
@@ -63,9 +62,7 @@ func TestInventory(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
+	cfgplugins.Initialize(operationalModeFlag, dut)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 
