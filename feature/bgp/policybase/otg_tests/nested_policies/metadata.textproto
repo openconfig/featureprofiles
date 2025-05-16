@@ -25,6 +25,7 @@ platform_exceptions: {
   deviations: {
     skip_setting_statement_for_policy: true
     skip_checking_attribute_index: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
