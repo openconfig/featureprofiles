@@ -654,7 +654,9 @@ func setBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions5 := stmt1.GetOrCreateActions()
 	actions5.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED)
-	actions5.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		actions5.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
 	actions5.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(100)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
