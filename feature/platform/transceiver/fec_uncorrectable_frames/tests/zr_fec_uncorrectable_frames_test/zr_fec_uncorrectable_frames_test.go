@@ -76,15 +76,7 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	)
 
 	ports := []string{"port1", "port2"}
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		operationalMode = uint16(*operationalModeFlagCisco)
-	case ondatra.ARISTA:
-		operationalMode = uint16(*operationalModeFlagArista)
-	default:
-		operationalMode = uint16(*operationalModeFlagDefault)
-	}
-	cfgplugins.Initialize(operationalMode)
+	cfgplugins.Initialize(operationalModeFlag, dut)
 
 	for i, port := range ports {
 		dp := dut.Port(t, port)
