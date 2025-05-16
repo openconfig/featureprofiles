@@ -32,10 +32,8 @@ const (
 var (
 	frequencies                = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
 	targetOutputPowers         = []float64{-13, -9}             // 400ZR OIF Tx power range
-	operationalModeFlagCisco   = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
-	operationalModeFlagArista  = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
-	operationalModeFlagDefault = flag.Int("operational_mode", 1, "default operational-mode for the channel")
-	operationalMode            uint16
+	operationalMode     uint16
+	operationalModeFlag *uint16
 )
 
 func TestMain(m *testing.M) {
@@ -101,14 +99,10 @@ func TestCDValue(t *testing.T) {
 
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
-
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		operationalMode = uint16(*operationalModeFlagCisco)
-	case ondatra.ARISTA:
-		operationalMode = uint16(*operationalModeFlagArista)
-	default:
-		operationalMode = uint16(*operationalModeFlagDefault)
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		operationalMode = cfgplugins.GetOperationalModeFlag(dut1)
 	}
 	cfgplugins.Initialize(operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
