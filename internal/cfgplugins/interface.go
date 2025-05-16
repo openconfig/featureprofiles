@@ -16,6 +16,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"flag"
 	"math"
 	"sync"
 	"testing"
@@ -43,6 +44,22 @@ var (
 // Temporary code for assigning opmode 1 maintained until opmode is Initialized in all .go file
 func init() {
 	opmode = 1
+}
+
+// GetOperationalModeFlag returns the vendor specific operational mode flag.
+func GetOperationalModeFlag(dut *ondatra.DUTDevice) uint16 {
+	var operationalModeFlag *int
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		operationalModeFlag = flag.Int("operational_mode", 5003, "vendor-specific operational-mode for the channel")
+	case ondatra.ARISTA:
+		operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	case ondatra.JUNIPER:
+		operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	case ondatra.NOKIA:
+		operationalModeFlag = flag.Int("operational_mode", 1083, "vendor-specific operational-mode for the channel")
+	}
+	return uint16(*operationalModeFlag)	
 }
 
 // Initialize assigns OpMode with value received through operationalMode flag.
