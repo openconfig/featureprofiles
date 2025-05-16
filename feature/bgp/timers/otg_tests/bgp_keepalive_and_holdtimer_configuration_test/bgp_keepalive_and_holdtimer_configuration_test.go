@@ -529,43 +529,35 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 		bgpTimers:       defaultTimer,
 		bgpConfigType:   bgpConfigTypeNeighbor,
 	}, {
-		name:            "BGP Timers Updated Configuration",
+		name:            "BGP Timers Updated Configuration 10/30",
 		desc:            "BGP configuration with values of 10 and 30",
 		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
 		wantEstablished: true,
 		bgpTimers:       tenThirty,
 		bgpConfigType:   bgpConfigTypeNeighbor,
 	}, {
-		name:            "BGP Timers Updated Configuration",
+		name:            "BGP Timers Updated Configuration 5/15",
 		desc:            "BGP configuration with values of 5 and 15",
 		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
 		wantEstablished: true,
 		bgpTimers:       fiveFifteen,
 		bgpConfigType:   bgpConfigTypeNeighbor,
-	}}
-	otgConfig, dut, ate := configureDUTATE(t)
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			tc.run(t, otgConfig, dut, ate)
-		})
-	}
-}
-
-// TestBgpKeepAliveHoldTimerPeerGroupConfiguration verifies that BGP keepalive and hold timers can be configured correctly on peer groups.
-func TestBgpKeepAliveHoldTimerPeerGroupConfiguration(t *testing.T) {
-	tenThirty := bgpTimers{
-		keepAliveTimer: 10,
-		holdTimer:      30,
-	}
-	cases := []testCase{{
-		name:            "BGP Timers Updated Configuration Peer Group",
+	}, {
+		name:            "BGP Timers Updated Configuration Peer Group 10/30",
 		desc:            "BGP configuration with values of 10 and 30 for peer groups",
 		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
 		wantEstablished: true,
 		bgpTimers:       tenThirty,
 		bgpConfigType:   bgpConfigTypePeerGroup,
-	}}
+	}, {
+		name:            "BGP Timers Updated Configuration Peer Group 5/15",
+		desc:            "BGP configuration with values of 5 and 15 for peer groups",
+		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
+		wantEstablished: true,
+		bgpTimers:       fiveFifteen,
+		bgpConfigType:   bgpConfigTypePeerGroup,
+	},
+	}
 	otgConfig, dut, ate := configureDUTATE(t)
 	for _, tc := range cases {
 		tc := tc

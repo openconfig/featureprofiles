@@ -6,14 +6,16 @@ BGP Keepalive and HoldTimer Configuration Test
 
 ## Procedure
 
-*   Establish eBGP sessions as follows between ATE and DUT
-    * The DUT has eBGP peering with ATE port 1 and ATE port 2.
-    * Enable an Accept-route all import-policy/export-policy under the BGP peer-group AFI/SAFI.
-    * The first pair is called the "source" pair, and the second the "destination" pair
+1   Establish eBGP sessions as follows between ATE and DUT
+* The DUT has eBGP peering with ATE port 1 and ATE port 2.
+* Enable an Accept-route all import-policy/export-policy under the BGP peer-group AFI/SAFI.
+* The first pair is called the "source" pair, and the second the "destination" pair
 
-*  Validate BGP session state on DUT using telemetry.
-*  Modify BGP timer values on iBGP peers to 10/30 and on the eBGP peering to 5/15.
-*  Verify that the sessions are established after soft reset.
+2  Validate BGP session state on DUT using telemetry.
+3  Modify BGP timer values on iBGP peers to 10/30 and on the eBGP peering to 5/15.
+4  Verify that the sessions are established after soft reset.
+5  Repeat Step 3 by modifying BGP timers at peer-group level to 10/30(keepalive-interval/hold-time) and on eBGP peering to 5/15(keepalive-interval/hold-time) and verify the timers
+
 
 ## OpenConfig Path and RPC Coverage
 
@@ -26,11 +28,13 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config//hold-time:
 
   ## State Paths ##
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/keepalive-interval:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/hold-time:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/hold-time:
 
 rpcs:
   gnmi:
@@ -43,3 +47,4 @@ rpcs:
 ## Minimum DUT platform requirement
 
 vRX
+
