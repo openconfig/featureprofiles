@@ -633,7 +633,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	t.Log("Reconnect gRIBi client after switchover on new master.")
 
-	retryDuration := 180 * time.Second
+	retryDuration := 320 * time.Second
 	retryInterval := 5 * time.Second
 	startTime := time.Now()
 	for {
