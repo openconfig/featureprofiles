@@ -1337,3 +1337,18 @@ func SkipOpticalChannelOutputPowerInterval(dut *ondatra.DUTDevice) bool {
 func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTransceiverDescription()
 }
+
+// ContainerzOCUnsupported returns true if devices cannot configure containerz via OpenConfig
+func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
+}
+
+// BGPDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
+func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
+}
+
+// IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
+func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
+}

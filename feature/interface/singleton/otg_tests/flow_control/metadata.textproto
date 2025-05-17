@@ -1,6 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-plan_id: "RT-5.8"
-description: "IPv6 link local"
+uuid: "5233cc06-d1aa-4156-bd07-acc1c753f97a"
+plan_id: "RT-5.13"
+description: "Flow control test"
 testbed: TESTBED_DUT_ATE_2LINKS
