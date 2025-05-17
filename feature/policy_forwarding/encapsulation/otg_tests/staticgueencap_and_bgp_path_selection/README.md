@@ -206,10 +206,6 @@ Use # Health-1.1: Generic Health Check. If errors identified then the test Must 
         EBGP peering and the corresponding routing policies, static routes for
         GUE encapsulation, and policies to selectively apply Traffic Class (TZ)
         marking to the GUE encapsulation header based on the tunnel destination.
-    *   The DUT MUST have static routes for the Pseudo Protocol nex-hops
-        `$ATE2_PPNH1.v6/128` and `$ATE2_PPNH2.v6/128`. The former will point at
-        `$ATE2_INTERNAL_TE11.v4/32` as the Next-hop and the latter will point at
-        `$ATE2_INTERNAL_TE10.v4/32` as the Next-hop.
     *   Initiate Flow-Set #1 and Flow-Set #2
     *   Initiate Flow-Set #5
 
