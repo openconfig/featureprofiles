@@ -544,6 +544,7 @@ Inflight**
                                                     "dst-ip": "outer_ipv4_dst",
                                                     "src-ip": "outer_ipv4_src",
                                                     "dscp": "outer_dscp",
+                                                    "tz": "outer_tz",
                                                     "ip-ttl": "outer_ip_ttl",
                                                     "dst-udp-port": "outer_dst_udp_port"
                                                 }
@@ -608,47 +609,7 @@ Inflight**
     }
 }
 ```
-## Canonical OpenConfig for DSCP rewrite configuration
-```json
-{
-  "network-instances": {
-    "network-instance": [
-      {
-        "policy-forwarding": {
-          "policies": {
-            "policy": [
-              {
-                "rules": {
-                  "rule": [
-                    {
-                      "ipv4": {
-                        "config": {
-                          "source-address": "<value>",
-                          "source-address-prefix-set": "<value>",
-                          "destination-address": "<value>",
-                          "destination-address-prefix-set": "<value>",
-                          "dscp": "<value>"
-                        }
-                      },
-                      "ipv6": {
-                          "source-address": "<value>",
-                          "source-address-prefix-set": "<value>",
-                          "destination-address": "<value>",
-                          "destination-address-prefix-set": "<value>",
-                          "dscp": "<value>"
-                        },
-                      }
-                    ]                  
-                  }
-                }
-              ]
-            }
-         }
-       }
-     ]
-   }
-}
-```
+
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
@@ -675,6 +636,7 @@ paths:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dst-ip:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/src-ip:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dscp:
+/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/tz:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/ttl:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dst-udp-port:
 
