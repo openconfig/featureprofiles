@@ -208,14 +208,16 @@ Use # Health-1.1: Generic Health Check. If errors identified then the test Must 
         marking to the GUE encapsulation header based on the tunnel destination.
     *   Initiate Flow-Set #1 and Flow-Set #2
     *   Initiate Flow-Set #5
+    *   Send 50000 packets per flow @1000pps
 
 *   **Expectations:**
 
-    *   Flow-Set #1 and Flow-Set #2 are expected to achieve 100% success and be
-        routed over the connection between `DUT_Port2` <> `ATE2_Port1`. Since no
-        encapsulation is performed on the DUT in this scenario, the TZ bits are
-        expected to be `00`.
-    *   Flow-Set #5 must also achieve 100% success, with flows routing through
+    *   Flow-Set #1 and Flow-Set #2 are expected to achieve 100% success (zero
+        packet loss) and be routed over the connection between `DUT_Port2` <>
+        `ATE2_Port1`. Since no encapsulation is performed on the DUT in this
+        scenario, the TZ bits are expected to be `00`.
+    *   Flow-Set #5 must also achieve 100% success (zero
+        packet loss), with flows routing through
         the connection between `ATE2_Port1` --> `DUT_Port2` --> `ATE1_Port1`.
     *   Execute post-test health checks and compare the results with the
         baseline. Verify that there are no drops, core dumps, or other issues.
@@ -228,9 +230,10 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path**
 
     *   The baseline test (RT-3.52.1) is running, with flows active in
         Flow-Set #1, Flow-Set #2, and Flow-Set #5
-    *   The DUT receives `$ATE2_INTERNAL_TE11.v4/32` and
-        `$ATE2_INTERNAL_TE10.v4/32` from `$ATE2_Port3`, while advertising
-        `$DUT_TE11.v4/32` and `$DUT_TE10.v4/32` to `$ATE2_Port3` via EBGP
+    *   The DUT receives `$ATE2_INTERNAL_TE11.v4/30` and
+        `$ATE2_INTERNAL_TE10.v4/30` from `$ATE2_Port3`, while advertising
+        `$DUT_TE11.v4/32`, `$DUT_TE10.v4/32`, `$DUT_TE11.v4/30` and
+        `$DUT_TE10.v4/30` to `$ATE2_Port3` via EBGP
 
 *   **Test Steps:**
 
@@ -244,29 +247,33 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path**
         `$ATE2_PPNH1.v6/128` to `$ATE2_INTERNAL_TE11.v4/32`
 
 *   **Expectations:**
-
+  
     *   Routes to prefixes `$ATE2_INTERNAL6.v4/24` and `$ATE2_INTERNAL6.v6/64`,
-        learned from `$ATE2_C.IBGP.v6/128`, should have a local preference of
-        200 and be installed in the FIB Other prefixes from ATE2 will continue
-        to be learnt via the IBGP peering between `$ATE2_PORT1.IBGP.v[46]` and
-        `$DUT_lo0.v[46]` with the default local preference of 100 and also be in
-        the DUT's FIB. Traffic these prefixes MUST be successful.
+        learned from `$ATE2_C.IBGP.v6/128`, should have a local preference of 200
+        and be installed in the FIB. Other prefixes from ATE2 will continue to be
+        learnt via the IBGP peering between `$ATE2_PORT1.IBGP.v[46]` and
+        `$DUT_lo0.v[46]` with the default local preference of 100 and also be in the
+        DUT's FIB. Traffic to these prefixes MUST be 100% successful (zero losses).
     *   Flows destined for `$ATE2_INTERNAL6.v4/24` and `$ATE2_INTERNAL6.v6/64`
-        should be GUE-encapsulated with tunnel destination
-        `$ATE2_INTERNAL_TE11.v4` and routed over the EBGP peering between
-        `$ATE2_Port3` and `$DUT_Port4`, and these flows must be successful
+        should be GUE-encapsulated with tunnel destination `$ATE2_INTERNAL_TE11.v4`
+        and routed over the EBGP peering between `$ATE2_Port3` and `$DUT_Port4`, and
+        these flows must be 100% successful (zero loss). Inshort, change in path due
+        to higher local preference on the received routes from `$ATE2_C.IBGP.v6/128`
+        should cause zero packet loss
     *   The outer header TTL should be 127 upon arrival at `ATE2_Port1` (before
         decapsulation)
-    *   The outer header DSCP bits should be inner header DSCP bits + TZ = 11
-        when received at `ATE2_Port1` (before decapsulation).
-    *   The DUT should accurately stream data regarding the number of
-        packets/bytes encapsulated
-    *   Unencapsulated flows from ATE2 to `ATE1_Port1` must have 100% success,
-        routing via the IBGP peering between `$ATE2_IBGP.v[46]` and
+    *   The outer header DSCP bits should be inner header DSCP bits + TZ = 11 when
+        received at `ATE2_Port1` (before decapsulation).
+    *   The DUT should accurately stream data regarding the number of packets/bytes
+        encapsulated
+    *   Unencapsulated flows from ATE2 to `ATE1_Port1` must have 100% success (Zero
+        loss), routing via the IBGP peering between `$ATE2_IBGP.v[46]` and
         `$DUT_lo0.v[46]`
     *   Post-test health checks should be performed and compared against the
-        baseline. Verify the absence of drops or core dumps. If any, the test
-        Must fail
+        baseline. Verify the absence of drops or core dumps. If any, the test Must
+        fail
+
+
 
 
 
