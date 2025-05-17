@@ -34,56 +34,47 @@ outer_ip-ttl =        "64"
 ### TE-18.3.1 Scale
 
 #### Scale targets
-
 * Flow scale
   * 20,000 IPv4/IPv6 destinations
-  * 1,000 vlans
-  * Inner IP address space should be reused for each network-instance.
-  * gRIBI client update rate `flow_r` = 1 update per second
-  * Each gRIBI update include ip entries in batches of `flow_q` = 200
-  * DUT packet forwarding updated within 1 second after adding entries
+  * 1,024 vlans
+  * 1024 network instances
+  * gRIBI client update rate `flow_r` = 100 updates (Modify requests) per second, 60 operations per update/
+  * DUT packet forwarding updated within 1 second after adding entries (after FIB_PROGRAMMED response)
 
-* Scheduler (policer) scale
-  * 1,000 policer rates
-  * 20,000 policer-policies / token buckets instantiations
-  * Update policer-policies at 1 per `sched_r` = 60 seconds
-  * Update policer-policies in a batch of `sched_q` = 1,000
-  * Policer-policies changes should take effect within `sched_r` / 2 time
+#### Scale profile A (one VRF) - 1 Network instance, 32 VLANs in the network instance, 20k gRIBI NHG, 20k gRIBI exact match prefixes, 1 NH per NHG, same MPLS label across 20k prefixes
+* 1 network-instance (VRF) with 32 VLANs
+* Create 20K gRIBI NHG with 1 NH per NHG with the same MPLS label. 
+* Each NH has a unique dst IP to encapsulate with.
+* Create 1 unique gRIBI exact match prefix which points to 1 NHG and repeat this 20k times, resulting in 20K total prefixes, pointing to 20k NHG.
+* 1 MPLS label across all NHs.
 
-#### Scale profile A - many vlans
+#### Scale profile B (lots of VRFs)- 1000 Network instances, 1 VLAN per Network instance, 20k gRIBI exact match prefixes, 1000 MPLS labels, 20 NHGs sharing one MPLS label but each with a different outer encap IP.
+* 1000 network instances (VRFs)
+* 1 VLAN per VRF.
+* Create 20K gRIBI NHG with 1 NH per NHG, 20 NHG per VRF. 1 MPLS label per VRF.
+* Create 1 unique gRIBI exact match prefix which points to 1 NHG.
+* Every NH has a unique src/dst IP
 
-* 20 ip destinations * 1,000 vlans = 20,000 'flows'
-* Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
-* The 20 ip destinations are split evenly between the 20 policers
-* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+#### Scale profile C (Multiple NHs per NHG)- Scale Profile A, but 8 NH per NHG
+* 1 network-instance (VRF)
+* Create 2.5K gRIBI NHG. Each NHG has 8 NH per NHG with the same MPLS label.
+* Each NH has a unique encap src/dst IP, so 8 IPs per NHG, and 20K IPs in total.
+* Create 1 unique gRIBI exact match prefix which points to 1 NHG and repeat this 2.5k times, resulting in 2.5K total prefixes, pointing to 2.5k NHG.
+* 1 MPLS label across all NHs.
+* Expectation on NH unviability, is that one of the other 7 NHs within the same NHG will be chosen (without gRIBI client intervention). If all NHs become unviable, NHG action becomes a DROP. 
+* If an unviable NH becomes viable again, it is re-included into the h/w ECMP set without gRIBI client intervention. 
 
-#### Scale profile B - many destinations, few vlans
+#### Scale profile D - Scale Profile A + gRIBI RPC scaling tests
+* Use Scale Profile A
+* gRIBI client sends 60 AFT ops in a gRIBI Modify call (50% ADD and 50% DEL operations) at a rate of 100 qps. 
+* gRIBI control plane server should be able to handle this update rate.
+* Ensure traffic is not dropped due to control plane load.
 
-* 200 ip destinations * 100 vlans = 20,000 'flows'
-* Each ingress vlan has 4 policer-policies = 4,000 'token buckets'
-* The 200 ip destinations are split evenly between the 4 policers
-* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+#### Procedure - VRF Scale
 
-#### Procedure - Flow Scale
-
-* For each scale profile, create the following subsets TE-18.1.5.n
-  * Configure ATE flows to send 100 pps per flow and wait for ARP
-  * Send traffic for q flows (destination IP prefixes) for 2 seconds
-  * At traffic start time, gRIBI client to send `flow_q` aft entries and their
-    related NHG and NH at rate `flow_r`
-  * Validate RIB_AND_FIB_ACK with FIB_PROGRAMMED is received from DUT within
-    1 second
-  * Measure packet loss.  Target packet loss <= 50%.
-  * Repeat adding 200 flows until 20,000 flows have been added
-  * Once reaching 20,000 flows, perform 1 iteration of modifying the first
-    `flow_q` flows to use different NH,NHG
-
-#### Procedure - Policer + Flow Scale
-
-* For each scale profile, create the following subsets TE-18.1.6.n
-  * Program all 20,000 flows
-  * Every `sched_r` interval use gnmi.Set to replace `sched_q` scheduler policies
-  * Verify packet loss changes for all flows within `sched_r` / 2 time
+* For each scale profile, create the following subsets TE-18.3.1.n
+  * Generate traffic stream for policy forwarding NHG and gRIBI NHG
+  * Observe that MPLS over GRE and MPLS over UDP encapsulation are working properly.
 
 #### OpenConfig Path and RPC Coverage
 
