@@ -1352,3 +1352,8 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
+
+// StaticLspNextHopsNotSupported returns true if devices do not support lsp next-hops
+func StaticLspNextHopsNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticLspNextHops()
+}
