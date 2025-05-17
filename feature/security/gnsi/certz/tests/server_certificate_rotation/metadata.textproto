@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "884b6f4f-92d2-4645-b50b-ca44c842037b"
+plan_id:  "# CERTZ-3"
+description:  "gNSI Server Certificate Rotation"
+testbed:  TESTBED_DUT_ATE_2LINKS
