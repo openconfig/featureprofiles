@@ -17,7 +17,7 @@ The goal of this test is to:
 
 3.  Validate that encapsulated traffic has its TOS bits copied from the inner
     header to the outer header, and that depending on the tunnel destination IP,
-    the implementation marks the TZ bits (LSB bit \#1 and 2 of the DSCP header)
+    the implementation marks the TZ bits [`LSB bits "2" (or Z bit) and "3" (or T bit) of the TOS header`]
     as either TZ=11 or TZ=10.
 
 4.  Confirm that the TTL value for the outer IP header created during GUE
@@ -186,27 +186,7 @@ tables above, the DUT requires the following configurations:
 
 
 ### Following Health checks to be run Pre and Post every sub test
-
-*   No system/kernel/process/component coredumps
-*   No high CPU spike or usage on control or forwarding plane
-*   No high memory utilization or usage on control or forwarding plane
-*   No processes/daemons high CPU/Memory utilization
-*   No generic drop counters
-    *   QUEUE drops
-    *   Interfaces
-    *   VOQ
-    *   Fabric drops
-    *   ASIC drops
-*   No flow control frames tx/rx
-*   No CRC or Layer 1 errors on interfaces
-*   No config commit errors
-*   No system level alarms
-*   In spec hardware should be in proper state
-    *   No hardware errors
-    *   Major Alarms
-*   No HW component or SW processes crash
-*   Openconfig-paths for the above are
-    covered in the `OpenConfig Path and RPC Coverage` section below
+Use # Health-1.1: Generic Health Check. If errors identified then the test Must fail.
 
 **RT-3.52.1: Baseline**
 
