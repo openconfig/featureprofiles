@@ -714,7 +714,7 @@ message Metadata {
     // Devices that do not support SR IGP configuration
     // Cisco b/390502067
     bool sr_igp_config_unsupported = 260;
-
+  
     // Cisco: b/404301960
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
@@ -743,6 +743,14 @@ message Metadata {
     // Devices that do not support ISIS MPLS
     bool isis_mpls_unsupported = 268;
 
+    // Devices that do not support policy forwarding on next-hop
+    bool policy_forwarding_to_next_hop_unsupported = 269;
+
+    // Devices that do not support policy forwarding encapsulate gre action
+    bool policy_forwarding_gre_encapsulation_unsupported = 270;
+
+    // Devices that do not support qos classifier dscp remark action
+    bool qos_classifier_dscp_remark_unsupported = 271;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
