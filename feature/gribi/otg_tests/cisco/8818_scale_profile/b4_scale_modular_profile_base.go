@@ -761,14 +761,25 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 	flows := []gosnappi.Flow{}
 	for _, batch := range batchSet {
 		if gp.DecapWanEntries != nil && len(gp.DecapWanEntries[batch].V4Prefixes) > 0 {
-			flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
-				&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1},
-				&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+			if gp.EncapEntriesA != nil && len(gp.EncapEntriesA[batch].V4Prefixes) > 0 {
+				flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+					&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1})...)
+			}
+			if gp.EncapEntriesB != nil && len(gp.EncapEntriesB[batch].V4Prefixes) > 0 {
+				flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+					&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+			}
 		}
+
 		if gp.DecapWanVarEntries != nil && len(gp.DecapWanVarEntries[batch].V4Prefixes) > 0 {
-			flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
-				&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1},
-				&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+			if gp.EncapEntriesA != nil && len(gp.EncapEntriesA[batch].V4Prefixes) > 0 {
+				flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
+					&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1})...)
+			}
+			if gp.EncapEntriesB != nil && len(gp.EncapEntriesB[batch].V4Prefixes) > 0 {
+				flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
+					&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+			}
 		}
 	}
 	validateTrafficFlows(t, tcArgs, flows, false, true)
@@ -1599,13 +1610,17 @@ func testDecapScale(t *testing.T) {
 	// distribute the available resource IDs to NHGs such that it can be divided in batches.
 	// remaining resource IDs will be used to configure using a single NHG with nhs count = nh_leftover
 	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	// available resource IDs for decap = 4k- already used by other clients
+	availableForDecap := 4096 - gridRsrc.ClientUsages["eth_intf_ma_lc"]
+
 	nhsPerNHG := 1
 
 	// reserve resource IDs for encap that will be used for decaped traffic to pass through the encap primary path
-	reserveForEncap := batches
+	// reserveForEncap := batches
+	// reserveForEncap := 2
 
-	nhg, nh_leftover, _ := DivideAndAdjust(gridRsrc.AvailableResourceIDs-reserveForEncap, nhsPerNHG, batches)
-	t.Logf("Possible NHG: %d, leftover: %d with available %d resource IDs", nhg, nh_leftover, gridRsrc.AvailableResourceIDs)
+	nhg, nh_leftover, _ := DivideAndAdjust(availableForDecap, nhsPerNHG, batches)
+	t.Logf("Possible NHG: %d, leftover: %d with available %d resource IDs", nhg, nh_leftover, availableForDecap)
 
 	gp := NewGribiProfile(t, batches, false, false, tcArgs.dut,
 		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 2, numNHPerNHG: 1},
@@ -1638,5 +1653,6 @@ func testDecapScale(t *testing.T) {
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1})
 
 	t.Logf("Validating decap traffic")
-	testDecapTrafficFlows(t, tcArgs, gp, []int{0, 1})
+	testDecapTrafficFlows(t, tcArgs, gp, []int{0})
+	testDecapTrafficFlows(t, tcArgs, gp, []int{1})
 }

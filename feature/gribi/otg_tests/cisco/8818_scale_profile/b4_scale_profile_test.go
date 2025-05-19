@@ -452,6 +452,6 @@ func TestEncapScale(t *testing.T) {
 	testEncapScale(t)
 }
 
-func TestDecapScal(t *testing.T) {
+func TestDecapScale(t *testing.T) {
 	testDecapScale(t)
 }
