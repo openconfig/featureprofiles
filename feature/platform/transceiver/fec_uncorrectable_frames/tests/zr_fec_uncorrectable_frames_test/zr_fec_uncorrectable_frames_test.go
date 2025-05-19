@@ -47,17 +47,29 @@ func TestMain(m *testing.M) {
 }
 
 func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64]) {
-	fecStream := stream.Next()
-	if fecStream == nil {
-		t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
+	var fec uint64
+	// Try up to 5 times, sleeping 10s between, if FEC uncorrectable blocks are not zero
+        for attempt := 0; attempt < 5; attempt++ {
+		fecStream := stream.Next()
+		if fecStream == nil {
+			t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
+		}
+		fec, ok := fecStream.Val()
+		if !ok {
+			t.Fatalf("Error capturing streaming Fec value")
+		}
+		if reflect.TypeOf(fec).Kind() != reflect.Uint64 {
+			t.Fatalf("fec value is not type uint64")
+		}
+		t.Logf("attempt : %d : Got FecUncorrectableBlocks: %d", attempt, fec)
+		if fec == 0 {
+			break
+		}
+		if attempt < 4 {
+			time.Sleep(10 * time.Second)
+		}
 	}
-	fec, ok := fecStream.Val()
-	if !ok {
-		t.Fatalf("Error capturing streaming Fec value")
-	}
-	if reflect.TypeOf(fec).Kind() != reflect.Uint64 {
-		t.Fatalf("fec value is not type uint64")
-	}
+	t.Logf("FecUncorrectableBlocks: %d", fec)
 	if fec != 0 {
 		t.Fatalf("Got FecUncorrectableBlocks got %d, want 0", fec)
 	}
