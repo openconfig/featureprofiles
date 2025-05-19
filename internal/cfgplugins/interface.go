@@ -60,11 +60,11 @@ func Initialize(t testing.TB, dut *ondatra.DUTDevice, initialOperationalMode uin
 			case ondatra.JUNIPER:
 				opmode = 1
 				t.Logf("cfgplugins.Initialize: Juniper DUT, setting opmode to default: %d", opmode)
-			case ondatra.NOKIA: // Ensure ondatra.NOKIA is a valid constant
+			case ondatra.NOKIA:
 				opmode = 1083
 				t.Logf("cfgplugins.Initialize: Nokia DUT, setting opmode to default: %d", opmode)
 			default:
-				opmode = 1 // Or 0, or another sensible global default
+				opmode = 1
 				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", dut.Vendor(), opmode)
 			}
 		} else {
