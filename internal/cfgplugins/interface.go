@@ -46,26 +46,37 @@ func init() {
 }
 
 // Initialize assigns OpMode with value received through operationalMode flag.
-func Initialize(t *testing.T, operationalModeFlag *int, dut *ondatra.DUTDevice) uint16 {
+func Initialize(t testing.TB, dut *ondatra.DUTDevice, initialOperationalMode uint16) {
 	once.Do(func() {
 		t.Helper()
-		opModeFlagValue := uint16(*operationalModeFlag)
-		if opModeFlagValue == 0 {
+		if initialOperationalMode == 0 { // '0' signals to use vendor-specific default
 			switch dut.Vendor() {
 			case ondatra.CISCO:
 				opmode = 5003
+				t.Logf("cfgplugins.Initialize: Cisco DUT, setting opmode to default: %d", opmode)
 			case ondatra.ARISTA:
 				opmode = 1
+				t.Logf("cfgplugins.Initialize: Arista DUT, setting opmode to default: %d", opmode)
 			case ondatra.JUNIPER:
 				opmode = 1
-			case ondatra.NOKIA:
+				t.Logf("cfgplugins.Initialize: Juniper DUT, setting opmode to default: %d", opmode)
+			case ondatra.NOKIA: // Ensure ondatra.NOKIA is a valid constant
 				opmode = 1083
+				t.Logf("cfgplugins.Initialize: Nokia DUT, setting opmode to default: %d", opmode)
+			default:
+				opmode = 1 // Or 0, or another sensible global default
+				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", dut.Vendor(), opmode)
 			}
 		} else {
-			opmode = opModeFlagValue
+			opmode = initialOperationalMode
+			t.Logf("cfgplugins.Initialize: Using provided initialOperationalMode: %d", opmode)
 		}
+		t.Logf("cfgplugins.Initialize: Initialization complete. Final opmode set to: %d", opmode)
 	})
-	fmt.Printf("Vendor %s, OperationalMode set to %d", dut.Vendor(), opmode)
+}
+
+// GetOpMode returns the opmode value after the Initialize function has been called
+func GetOpMode() uint16 {
 	return opmode
 }
 
