@@ -12,7 +12,7 @@ Validate gRIBI FIB_FAILED functionality.
 
 *   Establish BGP session between ATE Port1 --- DUT Port1. Inject unique BGP routes to exhaust FIB on DUT.
 
-*   Continuously injecting the following gRIB structure until FIB FAILED is received. 
+*   Continuously injecting the following gRIBI structure until FIB FAILED is received. 
     Each DstIP and VIP should be unique and of /32. All the NHG and NH should be unique (of unique ID).
     DstIP/32 -> NHG -> NH {next-hop:} -> VIP/32 -> NHG -> NH {next-hop: AtePort2Ip}
     

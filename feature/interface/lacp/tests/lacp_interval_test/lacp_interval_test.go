@@ -103,7 +103,7 @@ func (tc *testCase) clearAggregate(t *testing.T) {
 	}
 }
 
-func (tc *testCase) setupAggregateAtomically(t *testing.T) {
+func (tc *testCase) setupAggregateAtomically(t *testing.T, dutPorts []*ondatra.Port, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 
 	if tc.lagType == lagTypeLACP {
@@ -114,7 +114,7 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	agg.GetOrCreateAggregation().LagType = tc.lagType
 	agg.Type = ieee8023adLag
 
-	for _, port := range tc.dut1Ports {
+	for _, port := range dutPorts {
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
 		i.Type = ethernetCsmacd
@@ -123,21 +123,10 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 			i.Enabled = ygot.Bool(true)
 		}
 	}
-	for _, port := range tc.dut2Ports {
-		i := d.GetOrCreateInterface(port.Name())
-		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
-		i.Type = ethernetCsmacd
-
-		if deviations.InterfaceEnabled(tc.dut2) {
-			i.Enabled = ygot.Bool(true)
-		}
-	}
 
 	p := gnmi.OC()
-	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", tc.dut1), p.Config(), d)
-	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", tc.dut2), p.Config(), d)
-	gnmi.Update(t, tc.dut1, p.Config(), d)
-	gnmi.Update(t, tc.dut2, p.Config(), d)
+	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", dut), p.Config(), d)
+	gnmi.Update(t, dut, p.Config(), d)
 }
 
 // sortPorts sorts the ports by the testbed port ID.
@@ -203,10 +192,12 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	}
 
 	d := gnmi.OC()
+	aggPath := d.Interface(tc.aggID)
 
 	if deviations.AggregateAtomicUpdate(tc.dut1) {
 		tc.clearAggregate(t)
-		tc.setupAggregateAtomically(t)
+		tc.setupAggregateAtomically(t, tc.dut1Ports, tc.dut1)
+		tc.setupAggregateAtomically(t, tc.dut2Ports, tc.dut2)
 	}
 
 	lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
@@ -220,13 +211,17 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	// TODO - to remove this sleep later
 	time.Sleep(5 * time.Second)
 
-	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
-	aggPath := d.Interface(tc.aggID)
-	tc.configDstAggregateDUT(agg, &dut1Src)
-	tc.configDstAggregateDUT(agg, &dut2Src)
-	fptest.LogQuery(t, tc.aggID, aggPath.Config(), agg)
-	gnmi.Replace(t, tc.dut1, aggPath.Config(), agg)
-	gnmi.Replace(t, tc.dut2, aggPath.Config(), agg)
+	// Configure DUT1's aggregate interface
+	agg1 := &oc.Interface{Name: ygot.String(tc.aggID)}
+	tc.configDstAggregateDUT(agg1, &dut1Src)
+	fptest.LogQuery(t, tc.aggID+" on DUT1", aggPath.Config(), agg1)
+	gnmi.Replace(t, tc.dut1, aggPath.Config(), agg1)
+
+	// Configure DUT2's aggregate interface
+	agg2 := &oc.Interface{Name: ygot.String(tc.aggID)}
+	tc.configDstAggregateDUT(agg2, &dut2Src)
+	fptest.LogQuery(t, tc.aggID+" on DUT2", aggPath.Config(), agg2)
+	gnmi.Replace(t, tc.dut2, aggPath.Config(), agg2)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut1) {
 		fptest.AssignToNetworkInstance(t, tc.dut1, tc.aggID, deviations.DefaultNetworkInstance(tc.dut1), 0)
