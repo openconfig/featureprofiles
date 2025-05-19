@@ -15,6 +15,8 @@
 package decap_gre_ipv4_test
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -25,10 +27,10 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -135,7 +137,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst1, otgPort2.IPv6)
 
 	// Configure Static Route: MPLS label binding
-	cfgplugins.ConfigureStaticMPLSLabel(t, dut, "lsp1", LBL1, dut.Port(t, "port2").Name(), otgPort2.IPv4)
+	configureStaticMPLSCLI(t, dut)
 
 	// Configure Static Route: IPV4-DST2 --> ATE Port 2
 	configStaticRoute(t, dut, IPv4Dst2, otgPort2.IPv4)
@@ -144,7 +146,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst2, otgPort2.IPv6)
 
 	// Policy Based Forwading Rule-1
-	cfgplugins.ConfigureGRETunnel(t, dut, strings.Split(decapDesIpv4IP, "/")[0], decapGrpName)
+	// configureGRETunnel(t, dut)
 
 	// Test cases.
 	type testCase struct {
@@ -161,8 +163,8 @@ func TestDecapGre(t *testing.T) {
 		},
 		{
 			Name:        "Testcase-GreDecapIPv6Traffic",
-			Description: "GRE Decapsulation of IPv6 traffic",
-			testFunc:    testGreDecapIPv6,
+		 	Description: "GRE Decapsulation of IPv6 traffic",
+		 	testFunc:    testGreDecapIPv6,
 		},
 		{
 			Name:        "Testcase-GreDecapIPv4MPLSTraffic",
@@ -170,19 +172,19 @@ func TestDecapGre(t *testing.T) {
 			testFunc:    testGreDecapIPv4MPLS,
 		},
 		{
-			Name:        "Testcase-GreDecapIPv6MPLSTraffic",
-			Description: "GRE Decapsulation of IPv6-over-MPLS traffic",
-			testFunc:    testGreDecapIPv6MPLS,
+		 	Name:        "Testcase-GreDecapIPv6MPLSTraffic",
+		 	Description: "GRE Decapsulation of IPv6-over-MPLS traffic",
+		 	testFunc:    testGreDecapIPv6MPLS,
 		},
 		{
 			Name:        "Testcase-GreDecapMultiLabelMPLSTraffic",
-			Description: "GRE Decapsulation of multi-label MPLS traffic",
-			testFunc:    testGreDecapMultiLabelMPLS,
+		 	Description: "GRE Decapsulation of multi-label MPLS traffic",
+		 	testFunc:    testGreDecapMultiLabelMPLS,
 		},
 		{
 			Name:        "Testcase-GrePassthroughTraffic",
 			Description: "GRE Pass-through (Negative)",
-			testFunc:    testGrePassthrough,
+		 	testFunc:    testGrePassthrough,
 		},
 	}
 
@@ -232,21 +234,116 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 
 // Congigure Static Routes on DUT
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
-	b := &gnmi.SetBatch{}
+	s := &oc.Root{}
+	ni := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	nh := static.GetOrCreateStatic(prefix).GetOrCreateNextHop("0")
 	if nexthop == "Null0" {
-		nexthop = "DROP"
+		nh.SetNextHop(oc.UnionString("DROP"))
+	} else {
+		nh.NextHop = oc.UnionString(nexthop)
 	}
-	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nexthop),
+
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
+}
+
+// Configure static MPLS label binding (LBL1) towards ATE Port 2
+func configureStaticMPLSCLI(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.StaticMplsLspUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			gnmiClient := dut.RawAPIs().GNMI(t)
+
+			jsonConfig := fmt.Sprintf(`
+				mpls ip
+				mpls static top-label %v %s %s pop payload-type ipv4
+				`, LBL1, dut.Port(t, "port2").Name(), otgPort2.IPv4,
+			)
+
+			gpbSetRequest := buildCliConfigRequest(jsonConfig)
+
+			if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+				t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+			}
+		default:
+			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+	} else {
+		d := &oc.Root{}
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp("lsp1")
+		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(LBL1))
+		staticMplsCfg.GetOrCreateEgress().SetNextHop(otgPort2.IPv4)
+		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+	}
+}
+
+// GRE traffic with destination DECAP-DST using destination-address-prefix-set and decapsulate.
+// Adding deviation, currently gre decapsulation is not supported, using CLI.
+func configureGRETunnel(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.GreDecapsulationUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			jsonConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, decapGrpName, strings.Split(decapDesIpv4IP, "/")[0])
+			gpbSetRequest := buildCliConfigRequest(jsonConfig)
+			if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+				t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+			}
+		default:
+			t.Errorf("Deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+	} else {
+		d := &oc.Root{}
+		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		npf := ni1.GetOrCreatePolicyForwarding()
+		np := npf.GetOrCreatePolicy("PBR-MAP")
+		np.PolicyId = ygot.String("PBR-MAP")
+		np.Type = oc.Policy_Type_PBR_POLICY
+
+		npRule := np.GetOrCreateRule(10)
+		ip := npRule.GetOrCreateIpv4()
+		ip.DestinationAddressPrefixSet = ygot.String(decapDesIpv4IP)
+		npAction := npRule.GetOrCreateAction()
+		npAction.DecapsulateGre = ygot.Bool(true)
+
+		port := dut.Port(t, "port1")
+		ingressPort := port.Name()
+		t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+
+		intf := npf.GetOrCreateInterface(ingressPort)
+		intf.ApplyForwardingPolicy = ygot.String("PBR-MAP")
+		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	}
+}
+
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{
+			{
+				Path: &gpb.Path{
+					Origin: "cli",
+					Elem:   []*gpb.PathElem{},
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_AsciiVal{
+						AsciiVal: config,
+					},
+				},
+			},
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	b.Set(t, dut)
+	return gpbSetRequest
 }
 
 // Configuration on OTG
@@ -686,7 +783,7 @@ func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 // TO-DO: Curently PolicyForwarding not supported in DUT. Adding deviation to check the PF counters.
 // Currently added the workaround through CLI, to check the number of packets on the DUT.
 func validateDUTPkts(t *testing.T, dut *ondatra.DUTDevice) {
-	if deviations.GreDecapsulationOCUnsupported(dut) {
+	if deviations.GreDecapsulationUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			port1 := dut.Port(t, "port1")
