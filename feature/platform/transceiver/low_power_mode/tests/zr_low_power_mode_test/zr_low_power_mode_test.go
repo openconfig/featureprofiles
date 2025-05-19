@@ -33,11 +33,7 @@ import (
 )
 
 const (
-	intUpdateTime                 = 2 * time.Minute
-	targetOutputPowerdBm          = -10
-	targetOutputPowerTolerancedBm = 1
-	targetFrequencyMHz            = 193100000
-	targetFrequencyToleranceMHz   = 100000
+	intUpdateTime = 2 * time.Minute
 )
 
 var (
@@ -195,7 +191,7 @@ func TestLowPowerMode(t *testing.T) {
 				"max":  opMax,
 			}
 			validateOutputPower(t, powerStreamMap)
-			cfgplugins.ValidateInterfaceConfig(t, dut, dp, targetOutputPowerdBm, targetFrequencyMHz, targetOutputPowerTolerancedBm, targetFrequencyToleranceMHz)
+			cfgplugins.ValidateInterfaceConfig(t, dut, dp)
 		})
 	}
 }
