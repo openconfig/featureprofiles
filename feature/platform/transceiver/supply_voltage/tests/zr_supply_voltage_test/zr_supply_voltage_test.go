@@ -36,7 +36,9 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
+	operationalModeFlag  = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
+	operationalModeValue uint16
+	operationalMode      uint16
 )
 
 func TestMain(m *testing.M) {
@@ -63,7 +65,9 @@ func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64
 func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	cfgplugins.Initialize(operationalModeFlag, dut)
+	operationalModeValue = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(t, dut, operationalModeValue)
+	operationalMode = cfgplugins.GetOpMode()
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
