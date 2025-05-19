@@ -328,13 +328,14 @@ func (tc *testCase) bgpTimersConfig(t *testing.T, dut *ondatra.DUTDevice) *oc.Ne
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 
-	if tc.bgpConfigType == bgpConfigTypeNeighbor {
+	switch tc.bgpConfigType {
+	case bgpConfigTypeNeighbor:
 		for _, nbr := range bgpNbrs {
 			bgpNeighbor := bgp.GetOrCreateNeighbor(nbr.neighborip)
 			bgpNeighbor.GetOrCreateTimers().SetKeepaliveInterval(tc.bgpTimers.keepAliveTimer)
 			bgpNeighbor.GetOrCreateTimers().SetHoldTime(tc.bgpTimers.holdTimer)
 		}
-	} else {
+	case bgpConfigTypePeerGroup:
 		for _, peerGrp := range bgpPeerGroups {
 			bgp.GetOrCreatePeerGroup(peerGrp).GetOrCreateTimers().SetKeepaliveInterval(tc.bgpTimers.keepAliveTimer)
 			bgp.GetOrCreatePeerGroup(peerGrp).GetOrCreateTimers().SetHoldTime(tc.bgpTimers.holdTimer)
@@ -418,7 +419,8 @@ func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 func (tc *testCase) verifyBGPTimers(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP timers")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	if tc.bgpConfigType == bgpConfigTypeNeighbor {
+	switch tc.bgpConfigType {
+	case bgpConfigTypeNeighbor:
 		for _, nbr := range bgpNbrs {
 			timerPath := bgpPath.Neighbor(nbr.neighborip).Timers()
 			gotBgptimers := bgpTimers{
@@ -429,7 +431,7 @@ func (tc *testCase) verifyBGPTimers(t *testing.T, dut *ondatra.DUTDevice) {
 				t.Errorf("BGP timers: got %v, want %v", gotBgptimers, want)
 			}
 		}
-	} else {
+	case bgpConfigTypePeerGroup:
 		for _, peerGrp := range bgpPeerGroups {
 			timerPath := bgpPath.PeerGroup(peerGrp).Timers()
 			gotBgptimers := bgpTimers{
@@ -441,6 +443,7 @@ func (tc *testCase) verifyBGPTimers(t *testing.T, dut *ondatra.DUTDevice) {
 			}
 		}
 	}
+
 }
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
