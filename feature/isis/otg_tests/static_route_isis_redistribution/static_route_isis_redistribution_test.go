@@ -674,7 +674,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 					fmt.Println("Error configuring route policy:", err)
 					return
 				}
-				gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().Config(), rpl)
+				gnmi.Update(t, ts.DUT, gnmi.OC().RoutingPolicy().Config(), rpl)
 			})
 
 			if tc.TagSetCondition {
