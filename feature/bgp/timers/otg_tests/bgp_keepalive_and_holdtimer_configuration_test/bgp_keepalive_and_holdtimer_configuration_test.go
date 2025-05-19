@@ -340,6 +340,8 @@ func (tc *testCase) bgpTimersConfig(t *testing.T, dut *ondatra.DUTDevice) *oc.Ne
 			bgp.GetOrCreatePeerGroup(peerGrp).GetOrCreateTimers().SetKeepaliveInterval(tc.bgpTimers.keepAliveTimer)
 			bgp.GetOrCreatePeerGroup(peerGrp).GetOrCreateTimers().SetHoldTime(tc.bgpTimers.holdTimer)
 		}
+	default:
+		t.Errorf("incorrect config type: %v", tc.bgpConfigType)
 	}
 	return niProto
 }
@@ -442,6 +444,8 @@ func (tc *testCase) verifyBGPTimers(t *testing.T, dut *ondatra.DUTDevice) {
 				t.Errorf("BGP timers: got %v, want %v", gotBgptimers, want)
 			}
 		}
+	default:
+		t.Errorf("incorrect config type: %v", tc.bgpConfigType)
 	}
 
 }
