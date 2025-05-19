@@ -203,7 +203,9 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	cfgplugins.Initialize(operationalMode)
+	operationalModeValue = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(t, dut, operationalModeValue)
+	operationalMode = cfgplugins.GetOpMode()
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)
