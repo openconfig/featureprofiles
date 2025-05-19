@@ -737,8 +737,11 @@ message Metadata {
     // Devices that do not support containerz config via OpenConfig.
     bool containerz_oc_unsupported = 266;
 
+    // Devices does not support static mpls lsp
+    bool static_mpls_lsp_oc_unsupported = 269;
+
     // Device doesnot support gre enacapsulation
-    bool gre_decapsulation_unsupported = 268;
+    bool gre_decapsulation_oc_unsupported = 270;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;

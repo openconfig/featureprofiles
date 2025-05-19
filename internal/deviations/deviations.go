@@ -1343,7 +1343,12 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
 
+// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
+
 // GreDecapsulationUnsupported returns true if decapsulation is not supported
-func GreDecapsulationUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGreDecapsulationUnsupported()
+func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
 }
