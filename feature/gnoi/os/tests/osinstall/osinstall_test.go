@@ -41,16 +41,12 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 )
 
-var packageReader = func(ctx context.Context) (io.ReadCloser, uint64, error) {
+var packageReader func(context.Context) (io.ReadCloser, error) = func(ctx context.Context) (io.ReadCloser, error) {
 	f, err := os.Open(*osFile)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	s, err := f.Stat()
-	if err != nil {
-		return nil, 0, err
-	}
-	return f, uint64(s.Size()), nil
+	return f, nil
 }
 
 var (
@@ -111,8 +107,6 @@ type testCase struct {
 	dualSup bool
 	reader  io.ReadCloser
 
-	packageSize uint64
-
 	osc ospb.OSClient
 	sc  spb.SystemClient
 }
@@ -131,17 +125,16 @@ func TestOSInstall(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
-	reader, packageSize, err := packageReader(ctx)
+	reader, err := packageReader(ctx)
 	if err != nil {
 		t.Fatalf("Error creating package reader: %s", err)
 	}
 
 	tc := testCase{
-		reader:      reader,
-		dut:         dut,
-		osc:         dut.RawAPIs().GNOI(t).OS(),
-		sc:          dut.RawAPIs().GNOI(t).System(),
-		packageSize: packageSize,
+		reader: reader,
+		dut:    dut,
+		osc:    dut.RawAPIs().GNOI(t).OS(),
+		sc:     dut.RawAPIs().GNOI(t).System(),
 	}
 	noReboot := deviations.OSActivateNoReboot(dut)
 	tc.fetchStandbySupervisorStatus(ctx, t)
@@ -240,7 +233,6 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool) 
 			TransferRequest: &ospb.TransferRequest{
 				Version:           *osVersion,
 				StandbySupervisor: standby,
-				PackageSize:       tc.packageSize,
 			},
 		},
 	}
