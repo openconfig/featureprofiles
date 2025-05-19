@@ -30,8 +30,8 @@ const (
 )
 
 var (
-	frequencies                = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
-	targetOutputPowers         = []float64{-13, -9}             // 400ZR OIF Tx power range
+	frequencies          = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
+	targetOutputPowers   = []float64{-13, -9}             // 400ZR OIF Tx power range
 	operationalModeFlag  = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
 	operationalModeValue uint16
 	operationalMode      uint16

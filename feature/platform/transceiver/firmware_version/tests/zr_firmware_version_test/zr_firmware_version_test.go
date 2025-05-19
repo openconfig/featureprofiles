@@ -42,7 +42,8 @@ func TestMain(m *testing.M) {
 var (
 	operationalModeFlag  = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
 	operationalModeValue uint16
-	operationalMode      uint16)
+	operationalMode      uint16
+)
 
 // Topology: dut:port1 <--> port2:dut
 
