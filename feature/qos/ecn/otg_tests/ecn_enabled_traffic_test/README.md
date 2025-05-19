@@ -69,7 +69,7 @@ minimum threshold.
         can be applied to the output side of interfaces.
 
         min-threshold | max-threshold | enable-ecn | drop  | weight  | max-drop-probability-percent
-        ------------- | ------------- | ---------- | ----- | ------- | ----------------------------
+                ------------- | ------------- | ---------- | ----- | ------- | ----------------------------
         80000         | 2^64-1        | true       | false | not set | 1
 
         *   Note: max-threshold is set to max uint64 value 2^64-1
@@ -79,7 +79,7 @@ minimum threshold.
     to trigger ECN bits to be set to 1.
 
     Traffic class | Interface1(line rate %) | Interface2(line rate %) | ECN bits
-    ------------- | ----------------------- | ----------------------- | --------
+        ------------- | ----------------------- | ----------------------- | --------
     NC1           | 51                      | 50                      | 1
 
 *   Verify that ECN bits are set with packet drop counter dropped-pkts
@@ -100,57 +100,47 @@ minimum threshold.
 *   Verify that ECN bits are NOT set and packet drop counter dropped-pkts is
     incremented.
 
-## Config parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   Classifiers
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-    *   /qos/classifiers/classifier/config/name
-    *   /qos/classifiers/classifier/config/type
-    *   /qos/classifiers/classifier/terms/term/actions/config/target-group
-    *   /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
-    *   qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
-    *   /qos/classifiers/classifier/terms/term/config/id
+```yaml
+paths:
+  /qos/classifiers/classifier/config/name:
+  /qos/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+  /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+  /qos/queues/queue/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/name:
+  /qos/interfaces/interface/output/scheduler-policy/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/queue-management-profile:
+  /qos/scheduler-policies/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
 
-*   Forwarding Groups
-
-    *   /qos/forwarding-groups/forwarding-group/config/name
-    *   /qos/forwarding-groups/forwarding-group/config/output-queue
-
-*   Queue
-
-    *   /qos/queues/queue/config/name
-
-*   Interfaces
-
-    *   /qos/interfaces/interface/input/classifiers/classifier/config/name
-    *   /qos/interfaces/interface/output/queues/queue/config/name
-    *   /qos/interfaces/interface/output/scheduler-policy/config/name
-    *   /qos/interfaces/interface/output/queues/queue/config/queue-management-profile
-
-*   Scheduler policy
-
-    *   /qos/scheduler-policies/scheduler-policy/config/name
-    *   /qos/scheduler-policies/scheduler
-        -policy/schedulers/scheduler/config/priority
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight
-
-*   ECN
-
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent
-
-## Telemetry parameter coverage
-
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
