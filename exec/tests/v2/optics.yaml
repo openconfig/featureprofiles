@@ -2,7 +2,7 @@ name: optics
 owners: 
   - mananpat
 testbeds:
-  - 8818-FOX2714PNYN_ZR_OPTICS
+  - 8808_FOX2730P191_ZR_OPTICS
 tests:
 - name: optics (zr_optics_qualification)
   path: feature/cisco/zr/
