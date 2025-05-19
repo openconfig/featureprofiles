@@ -45,7 +45,7 @@ func init() {
 }
 
 // Initialize assigns OpMode with value received through operationalMode flag.
-func Initialize(t testing.TB, dut *ondatra.DUTDevice, initialOperationalMode uint16) {
+func Initialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) {
 	once.Do(func() {
 		t.Helper()
 		if initialOperationalMode == 0 { // '0' signals to use vendor-specific default
@@ -64,7 +64,7 @@ func Initialize(t testing.TB, dut *ondatra.DUTDevice, initialOperationalMode uin
 				t.Logf("cfgplugins.Initialize: Nokia DUT, setting opmode to default: %d", opmode)
 			default:
 				opmode = 1
-				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", dut.Vendor(), opmode)
+				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", opmode)
 			}
 		} else {
 			opmode = initialOperationalMode
