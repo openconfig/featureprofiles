@@ -539,12 +539,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "PF-1.22"
-  description: "ECMP hashing for GUE flows with IPv4|UDP outer header"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/ipv4_gue_hashing_test/README.md"
-  exec: " "
-}
-test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
@@ -1568,6 +1562,12 @@ test: {
 test: {
   id: "TUN-2.8"
   description: "ECMP hashing based on outer header of MPLSoUDP packets"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing for GUE flows with IPv4 and IPv6 outer and inner headers"
   readme: ""
   exec: " "
 }
