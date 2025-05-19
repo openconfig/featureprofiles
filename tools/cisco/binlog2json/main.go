@@ -73,9 +73,9 @@ type PolicyOutput struct {
 	ConfigMode   map[string]map[string]string            `json:"config_mode"`
 	VerifyMode   map[string]map[string]string            `json:"verify_mode"`
 	Inband       string                                  `json:"inband,omitempty"`
-	IPv4         string                                  `json:"ipv4,omitempty"`
+	IPv4         map[string]string                       `json:"ipv4,omitempty"`
 	LogLink      string                                  `json:"log_link"`
-	Outband      string                                  `json:"outband"`
+	Outband      map[string]string                       `json:"outband"`
 	Result       string                                  `json:"result"`
 	SimHw        SimHw                                   `json:"sim_hw,omitempty"`
 	Users        map[string]UserResult                   `json:"users"`
@@ -841,10 +841,10 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 						ConfigMode:   map[string]map[string]string{"non_cli": {"result": "pass"}},
 						VerifyMode:   map[string]map[string]string{"non_cli": {"result": "pass"}},
 						LogLink:      logURL,
-						Outband:      "pass",
+						Outband:      map[string]string{"result": "pass"},
 						Result:       "pass",
 						Users:        make(map[string]UserResult),
-						IPv4:         "pass",
+						IPv4:         map[string]string{"result": "pass"},
 						SimHw:        SimHw{Sim: &ResultWrapper{}, Hw: &ResultWrapper{}},
 						Verification: defaultVerificationEntries(),
 					}
@@ -927,7 +927,7 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 		if po.SimHw.Hw.Result == "fail" {
 			po.SimHw.Hw = nil
 		}
-		// drop skipped users
+		// drop skipped usersx
 		for u, ur := range po.Users {
 			if ur.Result == "skip" {
 				delete(po.Users, u)
