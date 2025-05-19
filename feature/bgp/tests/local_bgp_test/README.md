@@ -31,6 +31,7 @@ paths:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/description:
 
 rpcs:
   gnmi:

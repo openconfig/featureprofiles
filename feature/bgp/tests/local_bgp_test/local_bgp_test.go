@@ -49,12 +49,13 @@ const (
 	dutAS = 64500
 	ateAS = 64501
 
-	keepAlive   = 25
-	holdTime    = keepAlive * 3 // Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
-	peerGrpName = "BGP-PEER-GROUP"
-	policyName  = "ALLOW"
-	dutRID      = "192.0.2.21"
-	ateRID      = "192.0.2.31"
+	keepAlive          = 25
+	holdTime           = keepAlive * 3 // Should be 3x keepAlive, see RFC 4271 - A Border Gateway Protocol 4, Sec. 10
+	peerGrpName        = "BGP-PEER-GROUP"
+	descriptionPeerGrp = "Desciption for BGP-PEER-GROUP"
+	policyName         = "ALLOW"
+	dutRID             = "192.0.2.21"
+	ateRID             = "192.0.2.31"
 )
 
 func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -74,7 +75,7 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
-	pg.PeerGroupName = ygot.String(peerGrpName)
+	pg.SetDescription(descriptionPeerGrp)
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
 		rpl.ImportPolicy = []string{policyName}
@@ -459,6 +460,10 @@ func TestParameters(t *testing.T) {
 				wantState1.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName = 0
 				wantState1.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
 				wantState1.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
+			}
+			bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+			if description := gnmi.Get(t, dut, bgpPath.PeerGroup(peerGrpName).Description().State()); description != descriptionPeerGrp {
+				t.Errorf("Peer group description: got %v, want %v", description, descriptionPeerGrp)
 			}
 			confirm.State(t, wantState1, stateDut)
 		})
