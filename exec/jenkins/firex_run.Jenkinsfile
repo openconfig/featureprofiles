@@ -3,7 +3,7 @@ import groovy.transform.Field
 @Field 
 def image_path, image_lineup, image_efr, image_version
 
-def testbeds, testbeds_override, testbeds_locked
+def testbeds, testbeds_override, testbeds_exclude, testbeds_locked
 def ts_internal, ts_absolute, ts_firex, ts_to_run
 def firex_id
 
@@ -113,10 +113,17 @@ pipeline {
         persistentString(name: 'Run Reason', defaultValue: '', description: '', trim: true)
 
         separator(sectionHeader: "Other")
+        persistentBoolean(name: 'Must reserve all testbeds', defaultValue: false, description: 'By default, the pipeline will reserve those testbeds that are available and modify the run list accordingly. Set to true to wait for all testbeds to be available.')
         persistentBoolean(name: 'Decomission testbeds', defaultValue: false, description: 'Decomission testbeds after each test. This option makes sure the TB is "recycled" between each test. For sim runs, this ensures that a new sim is brought up for each test.')
         persistentString(name: 'Number of FireX workers', defaultValue: '', description: 'The number of FireX workers to launch. This is the number of tests that can execute in parallel (subject to testbed availability). Defaults to the number of testbeds.', trim: true)
         persistentString(name: 'Extra FireX Args', defaultValue: '', description: '', trim: true)
-        
+
+        separator(sectionHeader: "OTG Keysight Elastic Network Generator image options for more information check - https://ixia-c.dev/tests-chassis-app/")
+        persistentString(name: 'otg_keng_controller', defaultValue: '', description: 'Specify keng-controller version - https://github.com/orgs/open-traffic-generator/packages/container/package/keng-controller \n by default it uses 1.3.0-2', trim: true)
+        persistentString(name: 'otg_keng_layer23_hw_server', defaultValue: '', description: 'Specify keng layer23 hw server version - https://github.com/orgs/open-traffic-generator/packages/container/package/keng-layer23-hw-server \n by default it uses 1.3.0-4', trim: true)
+        persistentString(name: 'otg_gnmi_server', defaultValue: '', description: 'Specify otg-gnmi-server version - https://github.com/orgs/open-traffic-generator/packages/container/package/otg-gnmi-server \n by deafult it uses 1.13.15', trim: true)
+        persistentString(name: 'otg_controller_command', defaultValue: '', description: 'Command line args for controller e.g. --controller_command=[--grpc-max-msg-size 500]. the delimiter for each line is ", " for example: \n["--command, 500, --command1 asd"] \nres: \n- "--command"\n- "500"\n- "--command1 asd"', trim: true)
+
     }
 
     stages {        
@@ -347,8 +354,19 @@ pipeline {
                         error "Could not find any testbeds."
                     }
                     
-                    lockTestbeds(testbeds)
-                    testbeds_locked = true
+                    testbeds_locked = lockTestbeds(testbeds)
+                    if (testbeds_locked.size() == 0) {
+                        error "No testbeds available."
+                    }
+
+                    testbeds_exclude = []
+                    for (tb in testbeds) {
+                        if(!testbeds_locked.contains(tb)) {
+                            testbeds_exclude.add(tb)
+                        }
+                    }
+
+                    echo "Excluding unavailable testbeds ${testbeds_exclude.join(',')}"
                 }
             }
         }
@@ -417,7 +435,19 @@ pipeline {
                                     firex_cmd_parts.add("--comps ${params['XR Components']}")
                                 }
                             }
-
+                            if(params['otg_keng_controller']){
+                                firex_cmd_parts.add("--otg_keng_controller ${params['otg_keng_controller']}")
+                            }
+                            if(params['otg_keng_layer23_hw_server']){
+                                firex_cmd_parts.add("--otg_keng_layer23_hw_server ${params['otg_keng_layer23_hw_server']}")
+                            }
+                            if(params['otg_gnmi_server']){
+                                firex_cmd_parts.add("--otg_gnmi_server ${params['otg_gnmi_server']}")
+                            }
+                            if(params['otg_controller_command']){
+                                firex_cmd_parts.add("--otg_controller_command ${params['otg_controller_command']}")
+                            }
+                              
                             firex_cmd_parts.add("--collect_debug_files ${params['Collect Debug Files']}")
                             firex_cmd_parts.add("--collect_dut_info ${params['Collect DUT Info']}")
                             firex_cmd_parts.add("--test_verbose ${params['Verbose Mode']}")
@@ -491,6 +521,10 @@ pipeline {
                                 firex_cmd_parts.add("--reason '${params['Run Reason']}'")
                             }
 
+                            if(testbeds_exclude.size() > 0) {
+                                firex_cmd_parts.add("--testbeds_exclude ${testbeds_exclude.join(',')}")
+                            }
+
                             firex_cmd = firex_cmd_parts.join(' ')
                             firex_cmd += ' ' + params['Extra FireX Args']
                             sh "${firex_cmd}"   
@@ -523,8 +557,8 @@ pipeline {
         always {
             script {
                 withEnv(['JENKINS_NODE_COOKIE=dontkill']) {
-                    if(testbeds_locked) {
-                        releaseTestbeds(testbeds)
+                    if(testbeds_locked.size() > 0) {
+                        releaseTestbeds(testbeds_locked)
                     }
                 }
             }
@@ -631,7 +665,25 @@ def parseTestbeds(String testbeds_list) {
 }
 
 def lockTestbeds(List testbeds) {
-    sh "/auto/tftpboot-ottawa/b4/bin/tblock lock -w -r '${env.BUILD_URL}' '${testbeds.join(',')}'"
+    def lockMode = '-b'
+    if (params['Must reserve all testbeds']) {
+        lockMode = '-w'
+    }
+
+    def out = sh(
+        script: "/auto/tftpboot-ottawa/b4/bin/tblock -j lock ${lockMode} -r '${env.BUILD_URL}' '${testbeds.join(',')}'",
+        returnStdout: true
+    ).trim()
+
+    def jsonObj = readJSON text: out
+    if(jsonObj['status'] != 'ok') {
+        error "No testbeds available"
+    }
+
+    def locked = jsonObj['testbeds'].collect { it['id'] }
+    testbeds = testbeds.findAll { tb -> locked.contains(tb) }
+    echo "Locked testbeds ${testbeds.join(',')}"
+    return testbeds
 }
 
 def releaseTestbeds(List testbeds) {

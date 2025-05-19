@@ -1,12 +1,12 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# 1 DUT, 2 port, 400ZR optics
+# 1 DUT, 2 port, 400ZRP optics
 
 duts {
   id: "dut"
   vendor: CISCO
-  hardware_model: "CISCO-8818"
+  hardware_model: "CISCO-8804"
   ports {
     id: "port1"
     speed: S_400GB
