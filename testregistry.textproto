@@ -1136,11 +1136,6 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
 }
 test: {
-  id: "RT-9.3"
-  description: "Static MAC address"
-  readme: ""
-}
-test: {
   id: "Replay-1.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
