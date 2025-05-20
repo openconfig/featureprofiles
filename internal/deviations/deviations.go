@@ -1352,3 +1352,8 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
+
+// NtpSourceAddressUnsupported returns true if NTP source address is not supported
+func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
+}

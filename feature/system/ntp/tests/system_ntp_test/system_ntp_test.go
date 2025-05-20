@@ -21,6 +21,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -92,37 +93,66 @@ func TestNtpServerConfigurability(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
-			if testCase.vrf != "" && deviations.NtpNonDefaultVrfUnsupported(dut) {
-				t.Skip("NTP non default vrf unsupported")
-			}
-			ntpPath := gnmi.OC().System().Ntp()
-
-			d := &oc.Root{}
-
-			ntp := d.GetOrCreateSystem().GetOrCreateNtp()
-			ntp.SetEnabled(true)
-			for _, address := range testCase.addresses {
-				server := ntp.GetOrCreateServer(address)
-				server.SetSourceAddress(dutlo0Attrs.IPv4)
-				if testCase.vrf != "" {
-					server.SetNetworkInstance(testCase.vrf)
+		// NTP source address is not supported, CLI is used to configure NTP source interface.
+		if deviations.NtpSourceAddressUnsupported(dut) {
+			t.Run(testCase.description, func(t *testing.T) {
+				if testCase.vrf != "" && deviations.NtpNonDefaultVrfUnsupported(dut) {
+					t.Skip("NTP non default vrf unsupported")
 				}
-			}
-
-			gnmi.Replace(t, dut, ntpPath.Config(), ntp)
-
-			ntpState := gnmi.Get(t, dut, ntpPath.State())
-			for _, address := range testCase.addresses {
-				ntpServer := ntpState.GetServer(address)
-				if ntpServer == nil {
-					t.Errorf("Missing NTP server from NTP state: %s", address)
+				for _, address := range testCase.addresses {
+					if testCase.vrf != "" {
+						ntpServer := fmt.Sprintf("ntp server vrf %s %s version 4 source %s ", testCase.vrf, address, loopbackIntfName)
+						helpers.GnmiCLIConfig(t, dut, ntpServer)
+					} else {
+						ntpServer := fmt.Sprintf("ntp server %s version 4 source %s ", address, loopbackIntfName)
+						helpers.GnmiCLIConfig(t, dut, ntpServer)
+					}
 				}
-				if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != "" && got != want {
-					t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, want)
+				ntpPath := gnmi.OC().System().Ntp()
+				ntpState := gnmi.Get(t, dut, ntpPath.State())
+				for _, address := range testCase.addresses {
+					ntpServer := ntpState.GetServer(address)
+					if ntpServer == nil {
+						t.Errorf("Missing NTP server from NTP state: %s", address)
+					}
+					if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != "" && got != want {
+						t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, want)
+					}
 				}
-			}
-		})
+			})
+		} else {
+			t.Run(testCase.description, func(t *testing.T) {
+				if testCase.vrf != "" && deviations.NtpNonDefaultVrfUnsupported(dut) {
+					t.Skip("NTP non default vrf unsupported")
+				}
+				ntpPath := gnmi.OC().System().Ntp()
+
+				d := &oc.Root{}
+
+				ntp := d.GetOrCreateSystem().GetOrCreateNtp()
+				ntp.SetEnabled(true)
+				for _, address := range testCase.addresses {
+					server := ntp.GetOrCreateServer(address)
+					server.SetSourceAddress(dutlo0Attrs.IPv4)
+					if testCase.vrf != "" {
+						server.SetNetworkInstance(testCase.vrf)
+					}
+				}
+
+				gnmi.Replace(t, dut, ntpPath.Config(), ntp)
+
+				ntpState := gnmi.Get(t, dut, ntpPath.State())
+				for _, address := range testCase.addresses {
+					ntpServer := ntpState.GetServer(address)
+					if ntpServer == nil {
+						t.Errorf("Missing NTP server from NTP state: %s", address)
+					}
+					if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != "" && got != want {
+						t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, want)
+					}
+				}
+			})
+		}
 	}
 }
 
