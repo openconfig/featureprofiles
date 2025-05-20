@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	operationalModeFlag  = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
-	operationalMode      uint16
+	operationalModeFlag = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {

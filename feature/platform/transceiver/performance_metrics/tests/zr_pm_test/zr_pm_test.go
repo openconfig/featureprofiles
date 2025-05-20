@@ -32,10 +32,10 @@ const (
 )
 
 var (
-	frequencies          = []uint64{191400000, 196100000}
-	targetOpticalPowers  = []float64{-9, -13}
-	operationalModeFlag  = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
-	operationalMode      uint16
+	frequencies         = []uint64{191400000, 196100000}
+	targetOpticalPowers = []float64{-9, -13}
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {

@@ -28,8 +28,8 @@ const (
 )
 
 var (
-	operationalModeFlag  = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
-	operationalMode      uint16
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
 )
 
 type testcase struct {
