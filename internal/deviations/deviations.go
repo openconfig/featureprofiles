@@ -1367,7 +1367,8 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
+
 // Config Leaf Create required before GNMI get
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
