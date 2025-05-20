@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64]) {
 	var fec uint64
 	// Try up to 5 times, sleeping 10s between, if FEC uncorrectable blocks are not zero
-        for attempt := 0; attempt < 5; attempt++ {
+	for attempt := 0; attempt < 5; attempt++ {
 		fecStream := stream.Next()
 		if fecStream == nil {
 			t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
