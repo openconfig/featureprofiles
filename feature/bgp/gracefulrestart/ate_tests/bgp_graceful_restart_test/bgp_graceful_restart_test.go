@@ -184,7 +184,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, test str
 	pg := bgp.GetOrCreatePeerGroup(peerv4GrpName)
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerv4GrpName)
-	
+
 	if test == "GRUnderNeighbor" {
 		bgpgr := g.GetOrCreateGracefulRestart()
 		bgpgr.Enabled = ygot.Bool(true)
@@ -496,117 +496,116 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	testCaseBgpGracefulRestart := []string{"GRUnderNeighbor", "GRUnderPeerGroup"}
 	for _, test := range testCaseBgpGracefulRestart {
- t.Run(fmt.Sprintf("Test BGP Graceful Restart with Speaker under %v", test), func(t *testing.T) {
-	// Configure interface on the DUT
-	t.Logf("configureDut")
-		t.Log("Start DUT interface Config")
-		configureDUT(t, dut)
-		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	 
-	// Configure BGP+Neighbors on the DUT
-	t.Logf("configureBGP")
-		t.Log("Configure BGP with Graceful Restart option under Global Bgp")
-		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-		nbrList := buildNbrList(ateAS)
-		dutConf := bgpWithNbr(dutAS, nbrList, dut,test)
-		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
-	
-	// ATE Configuration.
-	var allFlows []*ondatra.Flow
-	t.Logf("configureATE")
-		t.Log("Start ATE Config")
-		allFlows = configureATE(t, ate)
+		t.Run(fmt.Sprintf("Test BGP Graceful Restart with Speaker under %v", test), func(t *testing.T) {
+			// Configure interface on the DUT
+			t.Logf("configureDut")
+			t.Log("Start DUT interface Config")
+			configureDUT(t, dut)
+			configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	// Verify Port Status
-	t.Logf	("verifyDUTPorts")
-		t.Log("Verifying port status")
-		verifyPortsUp(t, dut.Device)
-		
-	t.Logf("VerifyBGPParameters")
-		t.Log("Check BGP parameters")
-		checkBgpStatus(t, dut)
-	
-	// Starting ATE Traffic
-	t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
-		t.Log("Send Traffic with GR timer enabled. Traffic should pass")
-		sendTraffic(t, ate, allFlows, trafficDuration)
-		verifyNoPacketLoss(t, ate, allFlows)
-	})
-	 
-	// Configure an ACL to block BGP
-	d := &oc.Root{}
-	ifName := dut.Port(t, "port2").Name()
-	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
-	t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
-		t.Log("Configure Acl to block BGP on port 179")
-		const stopDuration = 45 * time.Second
-		t.Log("Starting traffic")
-		ate.Traffic().Start(t, allFlows...)
-		startTime := time.Now()
-		t.Log("Trigger Graceful Restart on ATE")
-		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-		aclConf := configACLInterface(t, iFace, ifName)
-		gnmi.Replace(t, dut, aclConf.Config(), iFace)
-		replaceDuration := time.Since(startTime)
-		time.Sleep(grTimer - stopDuration - replaceDuration)
-		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
-		ate.Traffic().Stop(t)
-		t.Log("Traffic stopped")
-		verifyNoPacketLoss(t, ate, allFlows)
-	})
+			// Configure BGP+Neighbors on the DUT
+			t.Logf("configureBGP")
+			t.Log("Configure BGP with Graceful Restart option under Global Bgp")
+			dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+			nbrList := buildNbrList(ateAS)
+			dutConf := bgpWithNbr(dutAS, nbrList, dut, test)
+			gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+			fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(ateDst.IPv4)
-	t.Logf("VerifyBGPNOTEstablished")
-		t.Log("Waiting for BGP neighbor to Not be in Established state after applying ACL DENY policy..")
-		_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-			currState, ok := val.Val()
-			return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
-		}).Await(t)
-		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Errorf("BGP session did not go Down as expected")
-		}
-	 
-	t.Log("Wait till LLGR/Stale timer expires to delete long live routes.....")
-	time.Sleep(time.Second * grRestartTime)
-	time.Sleep(time.Second * grStaleRouteTime)
+			// ATE Configuration.
+			var allFlows []*ondatra.Flow
+			t.Logf("configureATE")
+			t.Log("Start ATE Config")
+			allFlows = configureATE(t, ate)
 
-	t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
-		t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
-		sendTraffic(t, ate, allFlows, trafficDuration)
-		confirmPacketLoss(t, ate, allFlows)
-	})
+			// Verify Port Status
+			t.Logf("verifyDUTPorts")
+			t.Log("Verifying port status")
+			verifyPortsUp(t, dut.Device)
 
-	t.Logf("RemoveAclInterface")
-		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-		aclPath := configACLInterface(t, iFace, ifName)
-		gnmi.Replace(t, dut, aclPath.Config(), iFace)
-	 
+			t.Logf("VerifyBGPParameters")
+			t.Log("Check BGP parameters")
+			checkBgpStatus(t, dut)
 
-	t.Logf("VerifyBGPEstablished") 
-		t.Logf("Waiting for BGP neighbor to establish...")
-		_, ok = gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-			currState, ok := val.Val()
-			return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-		}).Await(t)
-		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Errorf("BGP session not Established as expected")
-		}
-	 
-	t.Run("VerifyTrafficPassBGPRestored", func(t *testing.T) {
-		status := gnmi.Get(t, dut, nbrPath.SessionState().State())
-		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
-			t.Errorf("Get(BGP peer %s status): got %d, want %d", ateDst.IPv4, status, want)
-		}
-		sendTraffic(t, ate, allFlows, trafficDuration)
-		verifyNoPacketLoss(t, ate, allFlows)
-	})
-})
- bgpClearConfig(t, dut)
-}
+			// Starting ATE Traffic
+			t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
+				t.Log("Send Traffic with GR timer enabled. Traffic should pass")
+				sendTraffic(t, ate, allFlows, trafficDuration)
+				verifyNoPacketLoss(t, ate, allFlows)
+			})
+
+			// Configure an ACL to block BGP
+			d := &oc.Root{}
+			ifName := dut.Port(t, "port2").Name()
+			iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
+			t.Run("VerifyTrafficPasswithGRTimerWithAclApplied", func(t *testing.T) {
+				t.Log("Configure Acl to block BGP on port 179")
+				const stopDuration = 45 * time.Second
+				t.Log("Starting traffic")
+				ate.Traffic().Start(t, allFlows...)
+				startTime := time.Now()
+				t.Log("Trigger Graceful Restart on ATE")
+				ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
+				gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
+				aclConf := configACLInterface(t, iFace, ifName)
+				gnmi.Replace(t, dut, aclConf.Config(), iFace)
+				replaceDuration := time.Since(startTime)
+				time.Sleep(grTimer - stopDuration - replaceDuration)
+				t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
+				ate.Traffic().Stop(t)
+				t.Log("Traffic stopped")
+				verifyNoPacketLoss(t, ate, allFlows)
+			})
+
+			statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+			nbrPath := statePath.Neighbor(ateDst.IPv4)
+			t.Logf("VerifyBGPNOTEstablished")
+			t.Log("Waiting for BGP neighbor to Not be in Established state after applying ACL DENY policy..")
+			_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+				currState, ok := val.Val()
+				return ok && currState != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+			}).Await(t)
+			if !ok {
+				fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+				t.Errorf("BGP session did not go Down as expected")
+			}
+
+			t.Log("Wait till LLGR/Stale timer expires to delete long live routes.....")
+			time.Sleep(time.Second * grRestartTime)
+			time.Sleep(time.Second * grStaleRouteTime)
+
+			t.Run("VerifyTrafficFailureAfterGRexpired", func(t *testing.T) {
+				t.Log("Send Traffic Again after GR timer has expired. This traffic should fail!")
+				sendTraffic(t, ate, allFlows, trafficDuration)
+				confirmPacketLoss(t, ate, allFlows)
+			})
+
+			t.Logf("RemoveAclInterface")
+			t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
+			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
+			aclPath := configACLInterface(t, iFace, ifName)
+			gnmi.Replace(t, dut, aclPath.Config(), iFace)
+
+			t.Logf("VerifyBGPEstablished")
+			t.Logf("Waiting for BGP neighbor to establish...")
+			_, ok = gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+				currState, ok := val.Val()
+				return ok && currState == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+			}).Await(t)
+			if !ok {
+				fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+				t.Errorf("BGP session not Established as expected")
+			}
+
+			t.Run("VerifyTrafficPassBGPRestored", func(t *testing.T) {
+				status := gnmi.Get(t, dut, nbrPath.SessionState().State())
+				if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; status != want {
+					t.Errorf("Get(BGP peer %s status): got %d, want %d", ateDst.IPv4, status, want)
+				}
+				sendTraffic(t, ate, allFlows, trafficDuration)
+				verifyNoPacketLoss(t, ate, allFlows)
+			})
+		})
+		bgpClearConfig(t, dut)
+	}
 }
