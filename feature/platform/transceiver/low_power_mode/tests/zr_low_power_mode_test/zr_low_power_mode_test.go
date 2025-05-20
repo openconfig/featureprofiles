@@ -41,8 +41,7 @@ const (
 )
 
 var (
-	operationalModeFlag  = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
-	operationalModeValue uint16
+	operationalModeFlag  = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
 	operationalMode      uint16
 )
 
@@ -92,9 +91,8 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 
 func TestLowPowerMode(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	operationalModeValue = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(t, dut, operationalModeValue)
-	operationalMode = cfgplugins.GetOpMode()
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	samplingInterval := 10 * time.Second
