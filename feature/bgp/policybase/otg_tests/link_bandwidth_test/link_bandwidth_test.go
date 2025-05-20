@@ -688,10 +688,8 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		for name, community := range extCommunitySet {
 			rp := root.GetOrCreateRoutingPolicy()
 			pdef := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
-			stmt, err := pdef.NewExtCommunitySet(name)
-			if err != nil {
-				t.Fatalf("NewExtCommunitySet failed: %v", err)
-			}
+			stmt := pdef.GetOrCreateExtCommunitySet(name)
+			stmt.SetExtCommunitySetName(name)
 			stmt.SetExtCommunityMember([]string{community})
 			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 		}
