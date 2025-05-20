@@ -7,20 +7,20 @@ skip-verify: false
 tls-mutual: true
 log-file: /auto/b4ws/krinata2/featureprofiles/internal/cisco/util/gnmisubscribe.log
 calculate-latency: true
-tls-key: ../../security/cert/keys/clients/cafyauto.key.pem
-tls-cert: ../../security/cert/keys/clients/cafyauto.cert.pem
-tls-ca: ../../security/cert/keys/CA/ca.cert.pem
+tls-key: /auto/b4ws/krinata2/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.key.pem
+tls-cert: /auto/b4ws/krinata2/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.cert.pem
+tls-ca: /auto/b4ws/krinata2/featureprofiles/internal/cisco/security/cert/keys/CA/ca.cert.pem
 targets:
   10.85.72.52:
     subscriptions:
       - orion_subscription
     timeout: 30s
     outputs:
-      - prometheusoutput
+      - orionprometheus
 outputs:
-  prometheusoutput:
+  orionprometheus:
     type: prometheus
-    listen: localhost:9804
+    listen: ott-ucs1-b4:9804
     export-timestamps: false
     strings-as-labels: true
     append-subscription-name: false
