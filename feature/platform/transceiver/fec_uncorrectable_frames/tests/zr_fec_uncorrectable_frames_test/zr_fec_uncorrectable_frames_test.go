@@ -39,7 +39,6 @@ const (
 
 var (
 	operationalModeFlag  = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
-	operationalModeValue uint16
 	operationalMode      uint16
 )
 
@@ -75,9 +74,8 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	)
 
 	ports := []string{"port1", "port2"}
-	operationalModeValue = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(t, dut, operationalModeValue)
-	operationalMode = cfgplugins.GetOpMode()
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.Initialize(t, dut, operationalMode)
 
 	for i, port := range ports {
 		dp := dut.Port(t, port)
