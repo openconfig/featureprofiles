@@ -44,7 +44,7 @@ Test the normal session establishment and termination:
 
     And include the following session parameters for all cases:
 
-    *   Explicitly specified Router ID.
+    *   Explicitly specified Router ID with Martian IP and regular IP.
     *   Explicit holdtime interval and keepalive interval.
     *   Explicit connect retry interval.
 
