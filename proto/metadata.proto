@@ -743,6 +743,15 @@ message Metadata {
     // Devices that do not support ISIS MPLS
     bool isis_mpls_unsupported = 268;
 
+    // UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
+    bool unsupported_qos_output_service_policy = 269;
+
+    // InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
+    bool interface_output_queue_non_standard_name = 270;
+
+    // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+    bool mpls_exp_ingress_classifier_unsupported = 271;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
