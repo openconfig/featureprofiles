@@ -1,3 +1,8 @@
+# gnmic based yaml file for subscription in large scale testbed 8818-DUT-PEER.
+# The username, password, and certificates are present in auto path accessible from ott-ucs1-b4 server.
+# To use for other hosts, modify the relevant fields and target information.
+# command to run:
+# gnmic --config /auto/b4ws/krinata2/featureprofiles/internal/cisco/util/pictor_subs.yaml subscribe
 username: cafyauto
 password: cisco123
 port: 8818
