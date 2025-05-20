@@ -45,7 +45,7 @@ func init() {
 }
 
 // Initialize assigns OpMode with value received through operationalMode flag.
-func Initialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) {
+func Initialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) uint16 {
 	once.Do(func() {
 		t.Helper()
 		if initialOperationalMode == 0 { // '0' signals to use vendor-specific default
@@ -72,6 +72,7 @@ func Initialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uin
 		}
 		t.Logf("cfgplugins.Initialize: Initialization complete. Final opmode set to: %d", opmode)
 	})
+	return GetOpMode()
 }
 
 // GetOpMode returns the opmode value after the Initialize function has been called
