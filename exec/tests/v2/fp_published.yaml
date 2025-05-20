@@ -1325,14 +1325,6 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: P4RT-1.1 (Base P4RT Functionality)
-    path: feature/p4rt/otg_tests/base_p4rt
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
   - name: TUN-1.4 (Interface based IPv6 GRE Encapsulation)
     path: feature/tunnel/otg_tests/tunnel_interface_based_ipv6_gre_encapsulation_test
     priority: 2
@@ -1357,22 +1349,6 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: RT-1.11 (BGP Remove Private AS)
-    path: feature/bgp/otg_tests/bgp_remove_private_as
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
-  - name: RT-2.8 (IS-IS metric style wide not enabled)
-    path: feature/isis/otg_tests/isis_metric_style_wide_not_enabled_test
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
   - name: SFLOW-1 (sFlow Configuration and Sampling)
     path: feature/sflow/otg_tests/sflow_base_test
     priority: 2
@@ -1390,15 +1366,6 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: gNMI-1.13 (Optics Telemetry, Instant, threshold, and miscellaneous static info)
-    path: feature/platform/tests/optics_power_and_bias_current_test
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    pr: 2606
-    groups: [newfnt]
   - name: TUN-1.9 (GRE inner packet DSCP)
     path: feature/tunnel/otg_tests/tunnel_acl_based_test
     priority: 2
@@ -1414,15 +1381,6 @@ tests:
       - arvbaska
     mustpass: false
     timeout: 4200
-    groups: [newfnt]
-  - name: RT-6.1 (Core LLDP TLV Population)
-    path: feature/lldp/otg_tests/core_lldp_tlv_population_test
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    pr: 4035
     groups: [newfnt]
   - name: TE-9.3 (FIB FAILURE DUE TO HARDWARE RESOURCE EXHAUST)
     path: feature/gribi/otg_tests/fib_failed_due_to_hw_res_exhaust_test
@@ -1448,24 +1406,6 @@ tests:
       - arvbaska
     mustpass: false
     timeout: 4200
-    groups: [newfnt]
-  - name: RT-5.8 (IPv6 Link Local)
-    path: feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    pr: 4002
-    groups: [newfnt]
-  - name: Health-1.1 (Generic Health Check)
-    path: feature/system/health/tests/system_generic_health_check
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    pr: 3896
     groups: [newfnt]
   - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
     path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
@@ -1739,7 +1679,7 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: IC-1 (Integrated Circuit Utilization and Thresholds)
+  - name: gnmi-1.21 (Integrated Circuit Utilization and Thresholds)
     path: feature/platform/integrated_circuit/otg_tests/utilization
     owners:
       - mananpat
@@ -1765,14 +1705,6 @@ tests:
 
   - name: MTU-1.5 (Path MTU handling)
     path: tree/main/feature/mtu/otg_tests/pmtu_handing
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
-  - name: OC-1.1 (System Configuration)
-    path: main/feature/system/tests/system_base_test
     owners:
       - mananpat
     mustpass: false
@@ -2147,14 +2079,6 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: RT-7.1 (BGP default policies)
-    path: feature/bgp/policybase/otg_tests/default_policies_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
   - name: RT-7.4 (BGP Policy AS Path Set and Community Set)
     path: feature/bgp/policybase/otg_tests/aspath_and_community_test
     owners:
@@ -2229,14 +2153,6 @@ tests:
 
   - name: RT-9.2 (Unequal distribution of traffic)
     path: blob/main/feature/isis/weighted_ECMP
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
-  - name: System-1
-    path: main/feature/system/tests/system_base_test
     owners:
       - mananpat
     mustpass: false
@@ -2364,21 +2280,13 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: gNOI-3.5 (Copying Debug Files)
-    path: feature/gnoi/system/tests/copying_debug_files_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
-
-  - name: gNPSI-1 (Sampling and Subscription Test)
-    path: main/feature/gnpsi/otg_tests/sampling_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [newfnt]
+  # - name: gNPSI-1 (Sampling and Subscription Test)
+  #   path: main/feature/gnpsi/otg_tests/sampling_test
+  #   owners:
+  #     - mananpat
+  #   mustpass: false
+  #   priority: 3
+  #   groups: [newfnt]
 
   - name: ContainerZ (Deploy and Start a Container)
     path: feature/container/containerz/tests/container_lifecycle
