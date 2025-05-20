@@ -17,6 +17,7 @@ package bgp_graceful_restart_test
 import (
 	"testing"
 	"time"
+	"fmt"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
