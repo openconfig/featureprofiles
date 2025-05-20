@@ -295,7 +295,6 @@ C[ATE:PORT2] <--IPv4-IPv6--> D[DUT:PORT2];
           }
   }
 ```
-### IPv4 ACL
 
 ## OpenConfig Path and RPC Coverage
 
