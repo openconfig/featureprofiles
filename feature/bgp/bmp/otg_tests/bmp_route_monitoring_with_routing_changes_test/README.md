@@ -174,7 +174,7 @@ and
 3)  Withdraw All Prefixes: Configure ATE Port 1 to simultaneously withdraw all three prefixes.
 4)  Validate Multiple Withdrawals: Confirm that the BMP monitoring station receives separate BMP Route Monitoring messages for the withdrawal of each prefix, each containing the correct NLRI and indicating a withdrawal. Verify the sequence of messages if there's an expectation.
 
-### BMP-1.2.8: Verify multiple prefix updates monitoring for IPv4
+### BMP-1.2.8: Verify multiple prefix updates monitoring for IPv6
 
 1)  Advertise Multiple Prefixes: Configure ATE Port 1 to simultaneously advertise the IPv6 prefixes 2001:db8:5::/48, 2001:db8:6::/48, and 2001:db8:7::/48.
 2)  Validate Multiple Advertisements: Confirm that the BMP monitoring station receives separate BMP Route Monitoring messages for each of the advertised prefixes, each containing the correct NLRI and associated attributes.
