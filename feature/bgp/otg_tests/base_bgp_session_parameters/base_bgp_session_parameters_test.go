@@ -502,7 +502,7 @@ func TestParameters(t *testing.T) {
 			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: dutAttrs.IPv4}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal, noAuth),
 		},
-			{
+		{
 			name:    "Test the eBGP session establishment with martian IP as Router ID: Global AS",
 			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: martianIP}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
