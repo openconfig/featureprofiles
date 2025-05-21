@@ -2342,7 +2342,7 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: gNMI-1.23 (Telemetry: Aggregate Interface Counters)
+  - name: gNMI-1.23 (Telemetry Aggregate Interface Counters)
     path: main/feature/gnmi/otg_tests/aggregate_interface_counters_test
     owners:
       - mananpat
