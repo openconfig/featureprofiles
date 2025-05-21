@@ -1367,3 +1367,9 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
+
+// MatchLinkBandwidthRegexDiffPrefix returns true if the "link-bandwidth:" is
+// not used for matching the prefix extended community.
+func MatchLinkBandwidthRegexDiffPrefix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchLinkBandwidthRegexDiffPrefix()
+}

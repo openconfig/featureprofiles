@@ -131,6 +131,12 @@ var (
 		"linkbw_any": "^link-bandwidth:.*",
 	}
 
+	extCommunitySetArista = map[string]string{
+		"linkbw_1M":  "link-bandwidth:23456:1M",
+		"linkbw_2G":  "link-bandwidth:23456:2G",
+		"linkbw_any": "^lbw:.*:.*$",
+	}
+
 	communitySet = map[string]string{
 		"regex_match_comm100": "^100:.*$",
 	}
@@ -665,10 +671,19 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	var communitySetCLIConfig string
 	var extCommunitySetCLIConfig string
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		extCommunitySet = extCommunitySetCisco
+	case ondatra.JUNIPER:
+		extCommunitySet = extCommunitySetJuniper
+	case ondatra.ARISTA:
+		extCommunitySet = extCommunitySetArista
+	}
+
 	if deviations.BgpExtendedCommunitySetUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			extCommunitySet = extCommunitySetCisco
 			for name, community := range extCommunitySet {
 				if name == "linkbw_any" && deviations.CommunityMemberRegexUnsupported(dut) {
 					communitySetCLIConfig = fmt.Sprintf("community-set %v \n dfa-regex '%v' \n end-set", name, community)
@@ -682,9 +697,6 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("Unsupported vendor %s for native command support for deviation 'BgpExtendedCommunitySetUnsupported'", dut.Vendor())
 		}
 	} else {
-		if dut.Vendor() == ondatra.JUNIPER {
-			extCommunitySet = extCommunitySetJuniper
-		}
 		for name, community := range extCommunitySet {
 			rp := root.GetOrCreateRoutingPolicy()
 			pdef := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
@@ -725,31 +737,20 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure routing Policy not_match_100_set_linkbw_1M.
 	rpNotMatch := root.GetOrCreateRoutingPolicy()
 	pdef2 := rpNotMatch.GetOrCreatePolicyDefinition("not_match_100_set_linkbw_1M")
-	pdef2Stmt1, err := pdef2.AppendNewStatement("regex_match_comm100_rm_lbw")
+
+	pdef2Stmt1, err := pdef2.AppendNewStatement("regex_match_comm100_add_lbw")
 	if err != nil {
-		t.Fatalf("AppendNewStatement regex_match_comm100_rm_lbw failed: %v", err)
+		t.Fatalf("AppendNewStatement regex_match_comm100_add_lbw failed: %v", err)
 	}
 	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		ref := pdef2Stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
-		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_any"})
-		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REMOVE)
+		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_1M"})
+		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REPLACE)
 		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
 	}
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			name1, community1 := "regex_match_comm100_deviation1", "^100:.*$"
-			rpDev1 := root.GetOrCreateRoutingPolicy()
-			pdefDev1 := rpDev1.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
-			stmtDev1, err := pdefDev1.NewCommunitySet(name1)
-			if err != nil {
-				t.Fatalf("NewCommunitySet failed: %v", err)
-			}
-			cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-			cs = append(cs, oc.UnionString(community1))
-			stmtDev1.SetCommunityMember(cs)
-			stmtDev1.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_INVERT)
-			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpDev1)
 			ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions()
 			ref1.SetCommunitySet("regex_match_comm100_deviation1")
 		}
@@ -762,36 +763,11 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		pdef2Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	}
 
-	pdef2Stmt2, err := pdef2.AppendNewStatement("regex_match_comm100_add_lbw")
-	if err != nil {
-		t.Fatalf("AppendNewStatement regex_match_comm100_add_lbw failed: %v", err)
-	}
-	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
-		ref := pdef2Stmt2.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
-		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_1M"})
-		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
-		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
-	}
-	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions()
-			ref1.SetCommunitySet("regex_match_comm100_deviation1")
-		}
-	} else {
-		ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-		ref1.SetCommunitySet("regex_match_comm100")
-		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
-	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		pdef2Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
-	}
-
-	pdef2Stmt3, err := pdef2.AppendNewStatement("accept_all_routes")
+	pdef2Stmt2, err := pdef2.AppendNewStatement("accept_all_routes")
 	if err != nil {
 		t.Fatalf("AppendNewStatement accept_all_routes failed: %v", err)
 	}
-	pdef2Stmt3.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	pdef2Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	if deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		switch dut.Vendor() {
