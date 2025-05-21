@@ -102,6 +102,59 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
      *   Start traffic from ATE Port1 towards ATE Port2. Confirm there is zero packet loss. Stop traffic.
 *   Revert ATE configurtion blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
+
+## Canonical OpenConfig for keepalive-interval and hold-time at neighbour and peer-group level for BGP
+
+```json
+{
+  "network-instances": {
+    "network-instance": {
+      "DEFAULT": {
+        "protocols": {
+          "protocol": {
+            "BGP": {
+              "BGP": {
+                "bgp": {
+                  "peer-groups": {
+                    "peer-group": {
+                      "BGP-PEER-GROUP-V4": {
+                        "afi-safis": {
+                          "afi-safi": {
+                            "IPV4_UNICAST": {
+                              "graceful-restart": {
+                                "state": {
+                                  "enabled": true
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "BGP-PEER-GROUP-V6": {
+                        "afi-safis": {
+                          "afi-safi": {
+                            "IPV6_UNICAST": {
+                              "graceful-restart": {
+                                "state": {
+                                  "enabled": true
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
 ## Config Parameter Coverage
 
 For prefixes:
