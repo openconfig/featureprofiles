@@ -2173,7 +2173,7 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: RT-7.7 (RT-7.7: BGP Link Bandwidth Community - Set Bandwidth)
+  - name: RT-7.7 (BGP Link Bandwidth Community - Set Bandwidth)
     path:  
     owners:
       - mananpat
