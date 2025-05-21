@@ -734,8 +734,29 @@ message Metadata {
     // Nokia b/394622453
     bool skip_transceiver_description = 265;
 
+    // Devices that do not support containerz config via OpenConfig.
+    bool containerz_oc_unsupported = 266;
+
+    // Device does not support BGP OC distance
+    bool bgp_distance_oc_path_unsupported = 267;
+
+    // Devices that do not support ISIS MPLS
+    bool isis_mpls_unsupported = 268;
+
+    // Devices that do not support oc path for auto-negotiate
+    // Nokia b/417843274
+    bool auto_negotiate_unsupported = 269;
+
+    // Devices that do not support oc path for duplex-mode
+    // Nokia b/417843274
+    bool duplex_mode_unsupported = 270;
+
+    // Devices that do not support oc path for port-speed
+    // Nokia b/417843274
+    bool port_speed_unsupported = 271;
+
     // Devices that do not support policy forwarding on next-hop
-    bool policy_forwarding_to_next_hop_unsupported = 266;
+    bool policy_forwarding_to_next_hop_unsupported = 272;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;

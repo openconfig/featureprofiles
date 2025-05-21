@@ -1338,6 +1338,36 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipTransceiverDescription()
 }
 
+// ContainerzOCUnsupported returns true if devices cannot configure containerz via OpenConfig
+func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
+}
+
+// BgpDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
+func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
+}
+
+// IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
+func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
+}
+
+// AutoNegotiateUnsupported returns true if there's no OC support for auto-negotiate
+func AutoNegotiateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAutoNegotiateUnsupported()
+}
+
+// DuplexModeUnsupported returns true if there's no OC support for duplex-mode
+func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDuplexModeUnsupported()
+}
+
+// PortSpeedUnsupported returns true if there's no OC support for port-speed
+func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
+}
+
 // PolicyForwardingToNextHopUnsupported returns true if policy forwarding to next hop is not supported on vendors
 func PolicyForwardingToNextHopUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopUnsupported()
