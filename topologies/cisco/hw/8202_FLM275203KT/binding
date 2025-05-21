@@ -1,0 +1,132 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+###################################### DUT FLM275203KT ######################################
+#router static
+# address-family ipv4 unicast
+# 0.0.0.0/0 [1/0] via 5.18.0.1
+# 5.0.0.0/8 [1/0] via 5.18.0.1
+# 223.255.254.0/24 [1/0] via 5.18.0.1
+
+# interface MgmtEth0/RP0/CPU0/0
+#  ipv4 address 5.18.11.12 255.255.0.0
+
+#telnet: 
+#RP0 -  telnet 10.85.84.47 2007
+
+##Exec server:
+#ssh ott-ucs4-b4
+
+## Consoe server:
+# telnet 10.85.84.47
+# Pass1: lab
+# Pass2: lab
+
+# Username: cafyauto
+# Password: cisco123
+
+## Management interface RP0:
+# ipv4 address 5.18.11.12
+
+options {
+  username: "cafyauto"
+  password: "cisco123"
+}
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8202"
+  name: "8202_DUT"  # Change this to the device hostname.
+
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.225:48202"
+  }
+  gnmi {
+    target: "10.85.84.225:48202"
+  }
+  gribi{
+    target: "10.85.84.225:48202"
+  }
+  ssh{
+    target: "10.85.84.225:48022"
+  }
+  p4rt{
+    target: "10.85.84.225:48202"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+   id: "dut_ate_port1"
+    name: "TenGigE0/0/0/20/0"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port2"
+    name: "TenGigE0/0/0/20/1"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port3"
+    name: "TenGigE0/0/0/20/2"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port4"
+    name: "TenGigE0/0/0/20/3"  # Change this to the actual port name.
+    speed: S_10GB  
+  }       
+}
+
+ates {
+  id: "ate"
+  name: "10.85.84.155"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+   #linux
+    target: "10.85.84.119"
+    skip_verify: true
+    username: "admin"
+    password: "Admin@123"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+  id: "dut_ate_port1"
+  name: "10/33" # Change this to the actual port name.
+  speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port2"
+    name: "10/34" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port3"
+    name: "10/35" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port4"
+    name: "10/36" # Change this to the actual port name.
+   speed: S_10GB  
+  }   
+}

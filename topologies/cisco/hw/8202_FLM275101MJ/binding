@@ -1,0 +1,325 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+###################################### DUT FLM275101MJ ######################################
+#router static
+# address-family ipv4 unicast
+# 5.0.0.0/8 [1/0] via 5.18.0.1
+# 223.255.254.0/24 [1/0] via 5.18.0.1
+
+# interface MgmtEth0/RP0/CPU0/0
+#  ipv4 address 5.18.17.176 255.255.0.0
+#  ipv6 address 2001:420:2841:3030::3031/116
+# !
+
+#telnet: R1
+# telnet 10.85.84.47 2009
+
+##Exec server:
+#ssh ott-ucs4-b4
+
+## Consoe server:
+# telnet 10.85.84.47
+# Pass1: lab
+# Pass2: lab
+
+# Username: cafyauto
+# Password: cisco123
+
+options {
+  username: "cafyauto"
+  password: "cisco123"
+}
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8202"
+  name: "8202_DUT"  # Change this to the device hostname.
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+   gnoi{
+     target: "10.85.84.225:47202"
+   }
+   gnmi {
+     target: "10.85.84.225:47202"
+   }
+   gribi{
+     target: "10.85.84.225:47202"
+   }
+   p4rt{
+     target: "10.85.84.225:47202"
+   }
+   ssh{
+     target: "10.85.84.225:47022"
+   }
+   # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "dut_ate_port1"
+    name: "Te0/0/0/0/0"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port2"
+    name: "Te0/0/0/0/1"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port3"
+    name: "Te0/0/0/0/2" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port4"
+    name: "Te0/0/0/0/3"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port5"
+    name: "Te0/0/0/1/0"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port6"
+    name: "Te0/0/0/1/1"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port7"
+    name: "Te0/0/0/1/2"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port8"
+   name: "Te0/0/0/1/3"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port9"
+   name: "TenGigE0/0/0/20/0"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port11"
+   name: "TenGigE0/0/0/20/1"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port11"
+   name: "TenGigE0/0/0/20/2"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port12"
+   name: "TenGigE0/0/0/20/3"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port13"
+   name: "TenGigE0/0/0/31/0"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port14"
+   name: "TenGigE0/0/0/31/1"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port15"
+   name: "TenGigE0/0/0/31/2"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port16"
+   name: "TenGigE0/0/0/31/3"  # Change this to the actual port name.
+   speed: S_10GB  
+  }
+}
+
+duts {
+  id: "peer"
+  vendor: CISCO
+  hardware_model: "CISCO-8202"
+  name: "8202_PEER"  # Change this to the device hostname.
+
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.225:48202"
+  }
+  gnmi {
+    target: "10.85.84.225:48202"
+  }
+  gribi{
+    target: "10.85.84.225:48202"
+  }
+  ssh{
+    target: "10.85.84.225:48022"
+  }
+  p4rt{
+    target: "10.85.84.225:48202"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+   id: "peer_ate_port1"
+    name: "TenGigE0/0/0/20/0"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "peer_ate_port2"
+    name: "TenGigE0/0/0/20/1"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "peer_ate_port3"
+    name: "TenGigE0/0/0/20/2"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "peer_ate_port4"
+    name: "TenGigE0/0/0/20/3"  # Change this to the actual port name.
+    speed: S_10GB  
+  }       
+}
+
+ates {
+  id: "ate"
+  name: "10.85.84.155"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+   #linux
+    target: "10.85.84.119"
+    skip_verify: true
+    username: "admin"
+    password: "Admin@123"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "dut_ate_port1"
+    name: "9/29"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port2"
+    name: "9/30"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port3"
+    name: "9/31"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port4"
+    name: "9/32"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port5"
+    name: "3/13" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port6"
+    name: "3/14"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port7"
+    name: "3/15"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port8"
+   name: "3/16"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+    ports {
+    id: "dut_ate_port9"
+    name: "10/33"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port10"
+    name: "10/34"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port11"
+    name: "10/35"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port12"
+    name: "10/36"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port13"
+    name: "9/37" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port14"
+    name: "9/38" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut_ate_port15"
+    name: "9/39" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+   id: "dut_ate_port16"
+    name: "9/40" # Change this to the actual port name.
+   speed: S_10GB  
+  }   
+  ports {
+  id: "peer_ate_port1"
+  name: "10/33" # Change this to the actual port name.
+  speed: S_10GB  
+  }
+  ports {
+    id: "peer_ate_port2"
+    name: "10/34" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "peer_ate_port3"
+    name: "10/35" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+   id: "peer_ate_port4"
+    name: "10/36" # Change this to the actual port name.
+   speed: S_10GB  
+  }   
+}
