@@ -166,6 +166,7 @@ For prefixes:
 Parameters:
 
 *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/graceful-restart/config/enabled
 *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time
