@@ -1367,3 +1367,8 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
+
+// data size reduction required for large data to accomodate encoding overhead
+func MetadataSizeAdjustRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMetadataSizeAdjustRequired()
+}
