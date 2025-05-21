@@ -57,13 +57,6 @@ Test the normal session establishment and termination:
         "state": {
           "router-id": "240.0.0.100"
         }
-      },
-    }
-  }
-}
-  "network-instances": {
-    "network-instance": {
-      "DEFAULT": {
         "protocols": {
           "protocol": {
             "BGP": {
