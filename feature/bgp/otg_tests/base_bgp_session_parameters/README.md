@@ -69,7 +69,6 @@ Test the normal session establishment and termination:
                           "last-established": 1747804639000000000
                         }
                       },
-                      }
                     }
                   }
                 }
