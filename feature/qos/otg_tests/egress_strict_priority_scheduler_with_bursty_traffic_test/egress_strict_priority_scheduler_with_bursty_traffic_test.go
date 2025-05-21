@@ -308,7 +308,7 @@ func verifyEgressStrictPrioritySchedulerBurstTrafficIPv4(t *testing.T, dut *onda
 
 		ate.OTG().StopTraffic(t)
 
-		for flowName, _ := range trafficFlows {
+		for flowName := range trafficFlows {
 			waitForTraffic(t, ate.OTG(), flowName, 10)
 		}
 
