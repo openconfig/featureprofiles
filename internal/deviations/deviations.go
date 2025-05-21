@@ -1369,6 +1369,6 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // PolicyForwardingToNextHopUnsupported returns true if policy forwarding to next hop is not supported on vendors
-func PolicyForwardingToNextHopUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopUnsupported()
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
 }

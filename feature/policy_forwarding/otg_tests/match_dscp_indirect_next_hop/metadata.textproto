@@ -12,6 +12,6 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
-    policy_forwarding_to_next_hop_unsupported: true
+    policy_forwarding_to_next_hop_oc_unsupported: true
   }
 }

@@ -154,3 +154,8 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	}
 	return gpbSetRequest, nil
 }
+
+func BuildCliConfigRequest(config string) *gpb.SetRequest {
+	req, _ := buildCliConfigRequest(config)
+	return req
+}

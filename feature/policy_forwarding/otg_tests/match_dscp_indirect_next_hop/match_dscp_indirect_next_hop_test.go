@@ -19,21 +19,22 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -126,6 +127,11 @@ var (
 	interval             = 20 * time.Second
 )
 
+type ipAddr struct {
+	address string
+	prefix  uint32
+}
+
 // configureDUT configures all the interfaces and BGP on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
@@ -152,40 +158,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(p3).Config(), i3)
 
 	t.Log("Configure Static Routes IPV4-DST1/IPV6-DST1 towards ATE port 3")
-	configureDUTStatic(t, dut)
+	configureDUTStaticRoutes(t, dut)
 
 	t.Log("PF action is to redirect to BGP-announced next-hops (IPV-NH-V4/IPV-NH-V6)")
 	configTrafficPolicy(t, dut, trafficPolicyName)
-}
-
-func buildCliConfigRequest(config string) *gpb.SetRequest {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Origin: "cli",
-					Elem:   []*gpb.PathElem{},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_AsciiVal{
-						AsciiVal: config,
-					},
-				},
-			},
-		},
-	}
-	return gpbSetRequest
 }
 
 func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 
 	interfaceName := dut.Port(t, "port1").Name()
 
-	if deviations.PolicyForwardingToNextHopUnsupported(dut) {
+	if deviations.PolicyForwardingToNextHopOcUnsupported(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		config := trafficPolicyConf(dut, interfaceName)
 		t.Logf("Push the CLI config:%s", dut.Vendor())
-		gpbSetRequest := buildCliConfigRequest(config)
+		gpbSetRequest := helpers.BuildCliConfigRequest(config)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
@@ -236,25 +223,42 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 	}
 }
 
-func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
+func (ip *ipAddr) cidr(t *testing.T) string {
+	_, net, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.address, ip.prefix))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return net.String()
+}
+
+func configureDUTStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	staticPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	prefix := ipAddr{address: ipv4Dst, prefix: 24}
+	b := &gnmi.SetBatch{}
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefix.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(ateP3.IPv4),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
 
-	dutOcRoot := &oc.Root{}
-	networkInstance := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	networkInstanceProtocolStatic := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	networkInstanceProtocolStatic.SetEnabled(true)
-
-	ipv4StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic(fmt.Sprintf("%s/24", ipv4Dst))
-	ipv4StaticRouteNextHop := ipv4StaticRoute.GetOrCreateNextHop("0")
-	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString(ateP3.IPv4))
-
-	ipv6StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic(fmt.Sprintf("%s/48", ipv6Dst))
-	ipv6StaticRouteNextHop := ipv6StaticRoute.GetOrCreateNextHop("0")
-	ipv6StaticRouteNextHop.SetNextHop(oc.UnionString(ateP3.IPv6))
-
-	gnmi.Update(t, dut, staticPath.Config(), networkInstanceProtocolStatic)
+	prefixV6 := ipAddr{address: ipv6Dst, prefix: 48}
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefixV6.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(ateP3.IPv6),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
 }
 
 func trafficPolicyConf(dut *ondatra.DUTDevice, interfaceName string) string {
