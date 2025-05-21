@@ -22,85 +22,103 @@ B --EBGP--> C[Port2:ATE];
 ```
 
 
-2) Connect DUT port 1 to ATE port 1
-3) Connect DUT port 2 to ATE port 2 (simulating BMP station)
-4) Configure IPv4 addresses on the interfaces
+2)   Establish Topology: Set up the physical connections as described in the topology diagram.
+
+*   Connect ATE Port 1 to DUT Port 1.
+*   Connect ATE Port 2 to DUT Port 2 (simulating the BMP monitoring station).
+
+3) Interface Configuration: Configure IPv4 and IPV6 addresses on all involved interfaces on both the ATE and the DUT.
+
+4) Establish eBGP Session: Configure and establish an external BGP (eBGP) peering session between the IP addresses of ATE Port 1 and DUT Port 1.
 5) Establish eBGP session between ATE port-1 and DUT port-1
 6) Configure BMP on the DUT with the following parameters:
 
     • statistics-timeout: 60 seconds
+        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout
 
     • connection-mode: active
+        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode
 
     • local-address: 172.16.1.1
+        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address
 
     • station-address: 10.23.15.58
+        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address
 
     • station-port: 7039
+        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port
 
     • route-monitoring: post-policy
+        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type
 
     • exclude-noneligible: true
+        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible
 
 ### Tests
 
-### BMP-1.1.1: Verify BMP session establishment [TODO: https://github.com/openconfig/featureprofiles/issues/3961]
+### BMP-1.1.1: Verify BMP session establishment
 
 1)  Configure BMP station on ATE port-2 with address 10.23.15.58 and port 7039
-2)  Verify that the DUT initiates a BMP session to the station (connection-mode: active)
+2)  Verify that the DUT initiates a BMP session to the station (connection-mode: active), following this path:
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode
 3)  Confirm the connection is established using the configured local-address (172.16.1.1), following this path:
-    *  /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/state/local-address
+    *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address
 4)  Validate that the DUT connects to the correct station-address (10.23.15.58) and port (7039), following those paths:
-    * /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/address
-    * /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/port
+    * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address
+    * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port
 5)  Check the session-state telemetry path to confirm the session is established
-    * /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/session-state
+    * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status
 
 
-### BMP-1.1.2: Verify statistics reporting [TODO: https://github.com/openconfig/featureprofiles/issues/3963]
+### BMP-1.1.2: Verify statistics reporting
 
 1)  Verify that the DUT sends statistics reports at the configured interval (60 seconds), using path:
-    *   /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/state/statistics-timeout
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/statistics-timeout
 2)  Confirm that multiple consecutive reports are sent at the expected intervals, using path:
-    *   /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/statistics-messages-sent
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics
 
-### BMP-1.1.3: Verify route monitoring with post-policy and exclude-noneligible [TODO: https://github.com/openconfig/featureprofiles/issues/3962]
+### BMP-1.1.3: Verify route monitoring with post-policy and exclude-noneligible
 
-1)  Configure an import policy on the DUT to reject prefixes matching 172.16.0.0/16
-2)  Have ATE port-1 advertise prefixes 192.0.2.0/24 and 172.16.0.0/16 to the DUT
-3)  Verify that the BMP station receives route monitoring messages for 192.0.2.0/24, using those paths:
+1)  Configure an import policy on the DUT to reject prefixes matching 172.16.0.0/16 and 2001:DB8::/32
+2)  Have ATE port-1 advertise prefixes 192.0.2.0/24 and 172.16.0.0/16 for IPv4 and 2001:DB8:1::/48 and 2001:DB8::/32 for IPv6 to the DUT
+3)  Verify that the BMP station receives route monitoring messages for 192.0.2.0/24  2001:DB8:1::/48, using those paths:
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/prefix
-    *   /network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/route-monitoring-message
-s-sent
-4)  Verify that the BMP station does not receive route monitoring messages for 172.16.0.0/16 (excluded by policy)
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/neighbors/neighbor/adj-rib-in-post/routes/route/prefix
+4)  Verify that the BMP station does not receive route monitoring messages for 172.16.0.0/16 and 2001:DB8::/32 (excluded by policy)
 
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
   ## Config paths
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/config/statistics-timeout: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/config/connection-mode: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/config/local-address: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/config/address: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/config/port: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/config/route-monitoring-policy: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/config/exclude-noneligible: # TODO: new OC leaf to be added
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/name:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible:
+
 
   ## state paths
-  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/prefix:
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/state/statistics-timeout: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/state/connection-mode: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/state/local-address: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/address: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/port: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/route-monitoring-policy: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/exclude-noneligible: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/session-state: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/messages-sent: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/statistics-messages-sent: # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/statistics-messages-sent:  # TODO: new OC leaf to be added
-  #/network-instances/network-instance/protocols/protocol/bgp/monitoring/bmp/stations/station/state/route-monitoring-messages-sent:  # TODO: new OC leaf to be added
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/statistics-timeout:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/idle-time:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-count:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/uptime:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/flap-count:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/policy-type:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/exclude-non-eligible:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/total:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics:
 
 rpcs:
   gnmi:
