@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
-	
+
 	"github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
@@ -22,7 +22,6 @@ import (
 	binlogpb "google.golang.org/grpc/binarylog/grpc_binarylog_v1"
 	"google.golang.org/protobuf/proto"
 )
-
 
 type RawTest struct {
 	TestName string          `json:"test_name"`
@@ -63,7 +62,7 @@ type VerificationEntry struct {
 }
 
 type UserResult struct {
-    Result string `json:"result"`
+	Result string `json:"result"`
 }
 
 // PolicyOutput is the final structure per policy
@@ -75,7 +74,7 @@ type PolicyOutput struct {
 	Inband       string                                  `json:"inband,omitempty"`
 	IPv4         map[string]string                       `json:"ipv4,omitempty"`
 	LogLink      string                                  `json:"log_link"`
-	Outband      map[string]string                       `json:"outband"`
+	Outband      map[string]string                       `json:"out_of_band"`
 	Result       string                                  `json:"result"`
 	SimHw        SimHw                                   `json:"sim_hw,omitempty"`
 	Users        map[string]UserResult                   `json:"users"`
@@ -113,7 +112,7 @@ type PostingResult struct {
 	Failed  int `json:"fail"`
 	Errored int `json:"error"`
 	Total   int `json:"total"`
-} 
+}
 
 var allUsers = []string{"admin", "deny-all", "gribi-modify", "gnmi-set", "gnoi-ping", "gnoi-time", "gnsi-probe", "read-only"}
 
@@ -332,7 +331,7 @@ func sanitizeTestName(name string) string {
 		return r
 	}, name)
 }
-func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) ([]byte, error){
+func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) ([]byte, error) {
 	var currentTestName string
 	testCaseRequestsNew := make(map[string][]map[string]interface{})
 	clientHeaderCallID := make(map[uint64]*binlogpb.ClientHeader)
@@ -414,6 +413,7 @@ func rpcsTestCaseWise(entries []*binlogpb.GrpcLogEntry) ([]byte, error){
 	fmt.Println("Data written to output.json")
 	return data, nil
 }
+
 // initConfigOpEntry initializes an empty ConfigOpEntry
 func initConfigOpEntry() ConfigOpEntry {
 	return ConfigOpEntry{
@@ -490,7 +490,7 @@ func parseBindingInfo(filePath string) (model string) {
 
 // usernameFromTestCase extracts the certificate username suffix from a test-case string.
 func usernameFromTestCase(tcName string) string {
-	if(strings.Contains(tcName, "TestAuthz4")) {
+	if strings.Contains(tcName, "TestAuthz4") {
 		tcName = tcName[:len(tcName)-1]
 	}
 	tcName = strings.TrimSuffix(tcName, "/")
@@ -576,7 +576,7 @@ func parseSlotInfo(filePath string) (string, map[string]string) {
 			nextLine := strings.TrimSpace(lines[i+1])
 			pidStart := strings.Index(nextLine, `PID:`)
 			if pidStart != -1 {
-				slotInfo["pid"] = strings.TrimSpace(nextLine[pidStart+4:pidStart+10])
+				slotInfo["pid"] = strings.TrimSpace(nextLine[pidStart+4 : pidStart+10])
 			}
 
 			// Extract serial number
@@ -594,24 +594,24 @@ func parseSlotInfo(filePath string) (string, map[string]string) {
 }
 
 func extractTestDetailsURL(path string) (string, string) {
-    // Read the JSON file and extract test_details_url and testbed name
+	// Read the JSON file and extract test_details_url and testbed name
 	raw, err := os.ReadFile(path)
-    if err != nil {
-        log.Printf("Error reading file %s: %v", path, err)
-        return "", ""
-    }
+	if err != nil {
+		log.Printf("Error reading file %s: %v", path, err)
+		return "", ""
+	}
 
-    var data map[string]any
-    if err := json.Unmarshal(raw, &data); err != nil {
-        log.Printf("Error unmarshalling JSON: %v", err)
-        return "", ""
-    }
+	var data map[string]any
+	if err := json.Unmarshal(raw, &data); err != nil {
+		log.Printf("Error unmarshalling JSON: %v", err)
+		return "", ""
+	}
 
-    // Extract test_details_url and testbed name
-    testDetailsURL, _ := data["test_details_url"].(string)
-    testbedName, _ := data["testbeds"].([]any)[0].(string)
+	// Extract test_details_url and testbed name
+	testDetailsURL, _ := data["test_details_url"].(string)
+	testbedName, _ := data["testbeds"].([]any)[0].(string)
 
-    return testDetailsURL, testbedName
+	return testDetailsURL, testbedName
 }
 
 func statusString(raw any) string {
@@ -667,7 +667,7 @@ func extractPolicyName(request map[string]any) string {
 }
 
 func recordVerification(e TestCaseEntry, po *PolicyOutput, policy string, testCaseName string) {
-	if testCaseName == "TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_closing_stream"{
+	if testCaseName == "TestAuthz2/Authz-2.2,_Test_Rollback_When_Connection_Closed/Verification_of_Policy_for_read_only_to_allow_gRIBI_Get_and_to_deny_gNMI_Get_after_closing_stream" {
 		policy = "gribi-get"
 	}
 	st := statusString(e.Status)
@@ -727,7 +727,7 @@ func recordVerification(e TestCaseEntry, po *PolicyOutput, policy string, testCa
 			rec("gnmi", "get", st == "pass")
 		}
 
-		if e.RPC == "gRIBI" && e.Type == "Get"{
+		if e.RPC == "gRIBI" && e.Type == "Get" {
 			rec("gribi", "get", st != "pass")
 		}
 
@@ -919,7 +919,7 @@ func generateJsonForVioletDB(jsonData []byte, firexID string) ([]byte, error) {
 		cleanupConfigPhase(&po.ConfigOp.Rotate)
 		cleanupConfigPhase(&po.ConfigOp.Finalize)
 		cleanupConfigPhase(&po.ConfigOp.Probe)
-		
+
 		// remove failed sim/hw entries
 		if po.SimHw.Sim.Result == "fail" {
 			po.SimHw.Sim = nil
