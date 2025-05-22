@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
 	operationalMode     uint16
 )
 
@@ -49,9 +49,9 @@ func Test400ZRLogicalChannels(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+
 	cfgplugins.InterfaceConfig(t, dut, p1)
 	cfgplugins.InterfaceConfig(t, dut, p2)
 
