@@ -75,7 +75,7 @@ func TestZrUncorrectableFrames(t *testing.T) {
 
 	ports := []string{"port1", "port2"}
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(t, dut, operationalMode)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 
 	for i, port := range ports {
 		dp := dut.Port(t, port)
