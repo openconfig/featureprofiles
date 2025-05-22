@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
 	operationalMode     uint16
 )
 
@@ -64,13 +64,8 @@ func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64
 func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
-
-	cfgplugins.Initialize(operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
