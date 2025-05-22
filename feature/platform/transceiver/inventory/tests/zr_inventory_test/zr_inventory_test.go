@@ -64,7 +64,7 @@ func TestInventory(t *testing.T) {
 	dp2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(t, dut, operationalMode)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 
