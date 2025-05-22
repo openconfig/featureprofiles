@@ -1367,3 +1367,8 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
+
+// PolicyForwardingToNextHopUnsupported returns true if policy forwarding to next hop is not supported on vendors
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
+}

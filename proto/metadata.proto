@@ -755,6 +755,9 @@ message Metadata {
     // Nokia b/417843274
     bool port_speed_unsupported = 271;
 
+    // Devices that do not support policy forwarding on next-hop
+    bool policy_forwarding_to_next_hop_oc_unsupported = 272;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
