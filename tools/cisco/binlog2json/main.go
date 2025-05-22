@@ -114,8 +114,6 @@ type PostingResult struct {
 	Total   int `json:"total"`
 }
 
-var allUsers = []string{"admin", "deny-all", "gribi-modify", "gnmi-set", "gnoi-ping", "gnoi-time", "gnsi-probe", "read-only"}
-
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <log_file>\n", os.Args[0])
@@ -305,6 +303,10 @@ func handleRequest(testCaseRequests map[string][]map[string]interface{},
 	if method == "Rotate" {
 		var rotateReq authzpb.RotateAuthzRequest
 		err = proto.Unmarshal(mm, &rotateReq)
+		if err != nil {
+			log.Printf("Error unmarshalling RotateRequest: %v", err)
+			return
+		}
 		uploadRequest := rotateReq.GetUploadRequest()
 		finalizeRequest := rotateReq.GetFinalizeRotation()
 		if uploadRequest != nil {
