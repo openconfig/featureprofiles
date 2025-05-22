@@ -743,9 +743,21 @@ message Metadata {
     // Devices that do not support ISIS MPLS
     bool isis_mpls_unsupported = 268;
 
+    // Devices that do not support oc path for auto-negotiate
+    // Nokia b/417843274
+    bool auto_negotiate_unsupported = 269;
+
+    // Devices that do not support oc path for duplex-mode
+    // Nokia b/417843274
+    bool duplex_mode_unsupported = 270;
+
+    // Devices that do not support oc path for port-speed
+    // Nokia b/417843274
+    bool port_speed_unsupported = 271;
+
     // Set-Med-Action is not supported for BGP
     // Cisco b/414333771
-    bool bgp_set_med_action_unsupported = 269;
+    bool bgp_set_med_action_unsupported = 272;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
