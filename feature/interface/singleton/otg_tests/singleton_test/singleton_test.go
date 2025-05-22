@@ -534,7 +534,7 @@ func (tc *testCase) testMTU(t *testing.T) {
 	}{
 		{"IPv4", true, tc.configureIPv4FlowHeader, tc.waitOTGIPv4NeighborEntry},
 		{"IPv4-DF", false, tc.configureIPv4DfFlowHeader, tc.waitOTGIPv4NeighborEntry},
-		{"IPv6", false, tc.configureIPv6FlowHeader, tc.waitOTGIPv6NeighborEntry},
+		{"IPv6", true, tc.configureIPv6FlowHeader, tc.waitOTGIPv6NeighborEntry},
 	} {
 		t.Run(c.ipName, func(t *testing.T) {
 			t.Run("PacketLargerThanMTU", func(t *testing.T) {
@@ -604,13 +604,20 @@ func (tc *testCase) configureInterface(t *testing.T, i *oc.Interface, a *attrs.A
 	_ = i.GetOrCreateSubinterface(0)
 }
 
-func (tc *testCase) configInterfaceDUTUnnumbered(i *oc.Interface, a *attrs.Attributes) {
+func (tc *testCase) configInterfaceDUTUnnumbered(t *testing.T, dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attributes) {
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
+	if dut.Vendor() == ondatra.JUNIPER {
+		s4.Address = nil
+	}
 	unnumebered := s4.GetOrCreateUnnumbered()
 	unnumebered.SetEnabled(true)
 	refInterface := unnumebered.GetOrCreateInterfaceRef()
 	refInterface.SetInterface(lb)
+	if dut.Vendor() == ondatra.JUNIPER {
+		subif := uint32(0)
+		refInterface.SetSubinterface(subif)
+	}
 }
 
 func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
@@ -620,7 +627,7 @@ func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
 	tc.duti1 = &oc.Interface{Name: ygot.String(p1.Name())}
 	tc.configureInterface(t, tc.duti1, &dutSrc)
 	tc.configureDUTLoopback(t, tc.dut)
-	tc.configInterfaceDUTUnnumbered(tc.duti1, &dutSrc)
+	tc.configInterfaceDUTUnnumbered(t, tc.dut, tc.duti1, &dutSrc)
 	di1 := d.Interface(p1.Name())
 	fptest.LogQuery(t, p1.String(), di1.Config(), tc.duti1)
 	gnmi.Replace(t, tc.dut, di1.Config(), tc.duti1)
