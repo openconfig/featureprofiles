@@ -5,7 +5,6 @@ simulation:
     partition: regression
     pending_timeout: 3600
     cluster: rch-slurm-m1 
-    location_hint: rch
   vxr_sim_config:
     default:
        ConfigEnableNgdp: 'true'
