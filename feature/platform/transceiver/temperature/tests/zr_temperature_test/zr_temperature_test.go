@@ -66,7 +66,7 @@ func TestZRTemperatureState(t *testing.T) {
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
 	intUpdateTime := 2 * time.Minute
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(t, dut1, operationalMode)
+	cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
