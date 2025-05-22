@@ -72,7 +72,7 @@ func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationa
 		}
 		t.Logf("cfgplugins.Initialize: Initialization complete. Final opmode set to: %d", opmode)
 	})
-	return GetOpMode()
+	return InterfaceGetOpMode()
 }
 
 // GetOpMode returns the opmode value after the Initialize function has been called
