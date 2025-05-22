@@ -39,7 +39,7 @@ func TestOpticalPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(t, dut, operationalMode)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
