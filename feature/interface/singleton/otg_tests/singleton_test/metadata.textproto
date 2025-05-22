@@ -13,6 +13,7 @@ platform_exceptions: {
     ip_neighbor_missing: true
     ipv4_missing_enabled: true
     interface_counters_update_delayed: true
+    interface_unnumbered_unsupported: true
   }
 }
 platform_exceptions: {

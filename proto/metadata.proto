@@ -755,6 +755,9 @@ message Metadata {
     // Nokia b/417843274
     bool port_speed_unsupported = 271;
 
+    // InterfaceUnnumberedUnsupported returns true if the device does not support unnumbered interface config in OpenConfig.
+    bool interface_unnumbered_unsupported = 272;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
