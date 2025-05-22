@@ -1367,3 +1367,8 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
+
+// InterfaceUnnumberedUnsupported returns true if there's no OC support for interface unnunbered type
+func InterfaceUnnumberedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceUnnumberedUnsupported()
+}

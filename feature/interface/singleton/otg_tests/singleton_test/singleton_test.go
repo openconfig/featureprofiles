@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -605,12 +606,15 @@ func (tc *testCase) configureInterface(t *testing.T, i *oc.Interface, a *attrs.A
 }
 
 func (tc *testCase) configInterfaceDUTUnnumbered(i *oc.Interface, a *attrs.Attributes) {
+	// Skip unnumbered config if DUT doesn't support it to avoid RPC errors.
+
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	unnumebered := s4.GetOrCreateUnnumbered()
-	unnumebered.SetEnabled(true)
-	refInterface := unnumebered.GetOrCreateInterfaceRef()
+	unnumbered := s4.GetOrCreateUnnumbered()
+	unnumbered.SetEnabled(true)
+	refInterface := unnumbered.GetOrCreateInterfaceRef()
 	refInterface.SetInterface(lb)
+
 }
 
 func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
@@ -620,7 +624,14 @@ func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
 	tc.duti1 = &oc.Interface{Name: ygot.String(p1.Name())}
 	tc.configureInterface(t, tc.duti1, &dutSrc)
 	tc.configureDUTLoopback(t, tc.dut)
-	tc.configInterfaceDUTUnnumbered(tc.duti1, &dutSrc)
+	// Skip interface unnumbered config if DUT doesn't support.
+	if deviations.InterfaceUnnumberedUnsupported(tc.dut) {
+		ntpServer := fmt.Sprintf("interface %s.%s\n ipv4 point-to-point\n ipv4 unnumbered Loopback0", tc.duti1.GetName(), "0")
+		helpers.GnmiCLIConfig(t, tc.dut, ntpServer)
+		return
+	} else {
+		tc.configInterfaceDUTUnnumbered(tc.duti1, &dutSrc)
+	}
 	di1 := d.Interface(p1.Name())
 	fptest.LogQuery(t, p1.String(), di1.Config(), tc.duti1)
 	gnmi.Replace(t, tc.dut, di1.Config(), tc.duti1)
