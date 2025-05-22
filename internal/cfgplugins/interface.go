@@ -76,7 +76,7 @@ func Initialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uin
 }
 
 // GetOpMode returns the opmode value after the Initialize function has been called
-func GetOpMode() uint16 {
+func InterfaceGetOpMode() uint16 {
 	return opmode
 }
 
