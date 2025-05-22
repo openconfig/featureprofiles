@@ -20,7 +20,6 @@ import (
 	"os"
 	"testing"
 	"time"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/ondatra/gnmi"
 
@@ -43,6 +42,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+	hostCertificateVersion1 := fmt.Sprintf("%s-%d", hostCertificateVersion, time.Now().Unix())
+	time.Sleep(5 * time.Second)
+	hostCertificateVersion2 := fmt.Sprintf("%s-%d", hostCertificateVersion, time.Now().Unix())
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
 
@@ -62,10 +64,10 @@ func TestCredentialz(t *testing.T) {
 	credz.CreateSSHKeyPair(t, dir, "ca")
 	credz.CreateSSHKeyPair(t, dir, "dut")
 
-	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, uint64(hostCertificateCreatedOn))
+	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion1, uint64(hostCertificateCreatedOn))
 	dutKey := credz.GetDutPublicKey(t, dut)
 	credz.CreateHostCertificate(t, dir, dutKey)
-	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion, uint64(hostCertificateCreatedOn))
+	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion2, uint64(hostCertificateCreatedOn))
 
 	t.Run("dut should return signed host certificate", func(t *testing.T) {
 		certificateContents, err := os.ReadFile(fmt.Sprintf("%s/dut-cert.pub", dir))
@@ -85,8 +87,8 @@ func TestCredentialz(t *testing.T) {
 				User: "admin",
 				Auth: []ssh.AuthMethod{},
 				HostKeyCallback: func(hostname string, remote net.Addr, gotHostKey ssh.PublicKey) error {
-					if !cmp.Equal(gotHostKey, wantHostKey) {
-						t.Fatalf("Host presented key (cert) that does not match expected host certificate. got: %v, want: %v", gotHostKey, wantHostKey)
+					if !cmp.Equal(gotHostKey.Marshal(), wantHostKey.Marshal()) {
+						t.Fatalf("Host presented key (cert) does not match expected. got: %x, want: %x", gotHostKey.Marshal(), wantHostKey.Marshal())
 					}
 					return nil
 				},
@@ -99,18 +101,22 @@ func TestCredentialz(t *testing.T) {
 		// Verify host certificate telemetry values.
 		sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
 		gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
-		if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
+		if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion2) {
 			t.Fatalf(
 				"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
-				gotHostCertificateVersion, hostCertificateVersion,
+				gotHostCertificateVersion, hostCertificateVersion2,
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(0, int64(hostCertificateCreatedOn))) {
 			t.Fatalf(
 				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
 				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
 			)
 		}
+	})
+	t.Cleanup(func() {
+		// Remove host artifacts from the dut.
+		credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
 	})
 }
