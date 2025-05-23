@@ -189,10 +189,11 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
-	bundleIntfList  = []string{}
-	dutBundleIPMap  = map[string]BundleIPAddress{}
-	peerBundleIPMap = map[string]BundleIPAddress{}
-	gribiScaleVal   = ScaleParam{
+	bundleIntfList         = []string{}
+	dutBundleIPMap         = map[string]BundleIPAddress{}
+	peerBundleIPMap        = map[string]BundleIPAddress{}
+	peerBundlesubIntfIPMap = map[string]util.LinkIPs{}
+	gribiScaleVal          = ScaleParam{
 		V4TunnelCount:         v4TunnelCount,
 		V4TunnelNHGCount:      v4TunnelNHGCount,
 		V4TunnelNHGSplitCount: v4TunnelNHGSplitCount,
@@ -909,14 +910,15 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	aggID1, aggID2 := configureDUTInterfaces(t, dut)
 	t.Log("Configure DUT-PEER dynamic Bundle Interface")
 	bundleMap := util.ConfigureBundleIntfDynamic(t, dut, peer, 4)
-	bundleList := maps.Keys(bundleMap)
-	if len(bundleList) > 0 {
-		bundleList = bundleList[1:] // Remove the first element
-	}
-	nextBundleSubIntfIPv4, nextBundleSubIntfIPv6 = util.CreateBundleSubInterfaces(t, dut, peer, bundleList, 2000, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
-	bundleIntfList = maps.Keys(bundleMap)
+	bundleIntfList := maps.Keys(bundleMap)
 	t.Log("Configure BGP for DUT-PEER")
 	configureDeviceBGP(t, dut, peer, bundleIntfList)
+	t.Log("Configure sub Interface for Dynamic Bundle DUT-PEER")
+	if len(bundleIntfList) > 2 {
+		bundleList := bundleIntfList[1:]
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, peerBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, bundleList, 20, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+
+	}
 	t.Log("Configure ISIS for DUT-PEER")
 	configureDeviceISIS(t, dut, peer, bundleIntfList)
 	t.Log("Configure Fallback in Encap VRF")

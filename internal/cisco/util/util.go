@@ -336,39 +336,83 @@ func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName st
 	return i
 }
 
+// LinkIPs holds the IPv4/IPv6 addresses for DUT and Peer for a interface link.
+type LinkIPs struct {
+	DutIPv4  string `json:"dut_ipv4"`
+	DutIPv6  string `json:"dut_ipv6"`
+	PeerIPv4 string `json:"peer_ipv4"`
+	PeerIPv6 string `json:"peer_ipv6"`
+}
+
 // createSubInterfaces creates subinterfaces for the given links, configuring both DUT and Peer interfaces.
 // It assigns /31 for IPv4 and /127 for IPv6 addresses.
-func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6 net.IP) (net.IP, net.IP) {
+func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6 net.IP) (net.IP, net.IP, map[string]LinkIPs) {
 	t.Helper()
-	d := oc.Root{}
-	d1 := oc.Root{}
 	t.Logf("Creating subinterfaces for %d links", len(links))
 
-	// Create batch configurations for DUT and Peer
-	// dutBatchConfig := &gnmi.SetBatch{}
-	// peerBatchConfig := &gnmi.SetBatch{}
+	// Calculate the number of subinterfaces per link and the remainder
+	subIntPerLink := subIntCount / len(links)
+	remainder := subIntCount % len(links)
 
-	for _, link := range links {
-		for subIntID := 1; subIntID <= subIntCount; subIntID++ {
+	// Create batch configurations for DUT and Peer
+	dutBatchConfig := &gnmi.SetBatch{}
+	peerBatchConfig := &gnmi.SetBatch{}
+	subIntfIPMap := make(map[string]LinkIPs)
+
+	for i, link := range links {
+		// Determine the number of subinterfaces for this link
+		subIntForThisLink := subIntPerLink
+		if i < remainder {
+			subIntForThisLink++ // Distribute the remainder among the first few links
+		}
+
+		t.Logf("Creating %d subinterfaces for link %s", subIntForThisLink, link)
+
+		for subIntID := 1; subIntID <= subIntForThisLink; subIntID++ {
 			// Generate DUT subinterface config
-			createSubifDUT(t, &d, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
-			// gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Config(), dutConfig)
+			// createSubifDUT(t, &d, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			dutIPv4 := nextIPv4
+			dutIPv6 := nextIPv6
+			dutConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Config(), dutConfig)
 			nextIPv4 = incrementIP(nextIPv4, 1)
 			nextIPv6 = incrementIPv6(nextIPv6)
 
+			peerIPv4 := nextIPv4
+			peerIPv6 := nextIPv6
 			// Generate Peer subinterface config
-			createSubifDUT(t, &d1, peer, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
-			// gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Interface(link).Config(), peerConfig)
+			// createSubifDUT(t, &d1, peer, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			peerConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Interface(link).Config(), peerConfig)
+			// Save peer subinterface IPv4 address
+			subIntfIPMap[fmt.Sprintf("%s.%d", link, subIntID)] = LinkIPs{
+				DutIPv4:  dutIPv4.String(),
+				DutIPv6:  dutIPv6.String(),
+				PeerIPv4: peerIPv4.String(),
+				PeerIPv6: peerIPv6.String(),
+			}
 			nextIPv4 = incrementIP(nextIPv4, 1)
 			nextIPv6 = incrementIPv6(nextIPv6)
 		}
 	}
 
 	// Push batch configurations to DUT and Peer
-	// dutBatchConfig.Set(t, dut)
-	// peerBatchConfig.Set(t, peer)
+	dutBatchConfig.Set(t, dut)
+	peerBatchConfig.Set(t, peer)
 
-	return nextIPv4, nextIPv6
+	// Measure time taken for DUT batch configuration
+	// startTime := time.Now()
+	// dutBatchConfig.Set(t, dut)
+	// duration := time.Since(startTime)
+	// t.Logf("Time taken for dutBatchConfig.Set with subIntCount=%d: %v", subIntCount, duration)
+
+	// Measure time taken for Peer batch configuration
+	// startTime = time.Now()
+	// peerBatchConfig.Set(t, peer)
+	// duration = time.Since(startTime)
+	// t.Logf("Time taken for peerBatchConfig.Set with subIntCount=%d: %v", subIntCount, duration)
+
+	return nextIPv4, nextIPv6, subIntfIPMap
 }
 
 // GetSubInterface returns subinterface
