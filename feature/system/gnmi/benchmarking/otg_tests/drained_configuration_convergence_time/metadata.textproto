@@ -39,3 +39,11 @@ platform_exceptions: {
     isis_instance_enabled_required: true      
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    bgp_set_med_action_unsupported: true
+  }
+}
