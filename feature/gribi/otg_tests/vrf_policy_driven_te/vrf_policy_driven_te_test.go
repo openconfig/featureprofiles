@@ -483,9 +483,9 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 		ni: niEncapTeVrfA}
 	pfRule14 := &policyFwRule{SeqId: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		ni: niEncapTeVrfA}
-	pfRule15 := &policyFwRule{SeqId: 15, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule15 := &policyFwRule{SeqId: 15, family: "ipv4", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		ni: niEncapTeVrfB}
-	pfRule16 := &policyFwRule{SeqId: 16, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule16 := &policyFwRule{SeqId: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		ni: niEncapTeVrfB}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
@@ -696,6 +696,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
+	}
 	for _, pName := range portNameList {
 		if deviations.ExplicitPortSpeed(dut) {
 			fptest.SetPortSpeed(t, dut.Port(t, pName))
@@ -720,6 +723,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	if deviations.ISISSingleTopologyRequired(dut) {
 		afv6 := globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
@@ -734,6 +738,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, intfName := range intfList {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			intfName = intfName + ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -1049,6 +1056,10 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 	}
 
 	// Programming AFT entries for backup NHG
+	decapNH := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP)
+	if deviations.DecapNHWithNextHopNIUnsupported(args.dut) {
+		decapNH.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut))
+	}
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
@@ -1057,11 +1068,8 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(1000).AddNextHop(1000, 1),
 
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1001).AddNextHop(1001, 1),
+		decapNH,
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithID(1001).AddNextHop(1001, 1),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(1002).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
@@ -1229,7 +1237,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 
-	// Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+	// Install an 0/0 route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(60).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
@@ -1303,11 +1311,8 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 	// header and specifies the DEFAULT network instance.This IPv4Entry should be installed
 	// into the DECAP_TE_VRF.
 
-	args.client.Modify().AddEntry(t,
-		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
-			WithPrefix(prefWithMask).WithNextHopGroup(1001).
-			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-	)
+	args.client.Modify().AddEntry(t, fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).WithPrefix(prefWithMask).WithNextHopGroup(1001).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
@@ -1626,8 +1631,8 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 		if ipLayer != nil && packetCheckCount <= 3 {
 			packetCheckCount++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if ipPacket.TTL != correspondingTTL {
-				t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
+			if ipPacket.TTL != (correspondingTTL - 1) {
+				t.Errorf("Decap TTL doesnt match; got:%d, want:%d", ipPacket.TTL, (correspondingTTL - 1))
 			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -2203,7 +2208,7 @@ func TestGribiDecap(t *testing.T) {
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(dutAS, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.State()))
 
 	otg := ate.OTG()
 	var otgConfig gosnappi.Config
