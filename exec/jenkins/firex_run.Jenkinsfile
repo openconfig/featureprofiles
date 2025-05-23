@@ -343,33 +343,33 @@ pipeline {
             }
         }
 
-        stage('Lock Testbeds') {
-            steps {
-                script {
-                    if(testbeds.size() == 0) {
-                        testbeds = extractTestbedsFromSuites(ts_to_run)
-                    }
+        // stage('Lock Testbeds') {
+        //     steps {
+        //         script {
+        //             if(testbeds.size() == 0) {
+        //                 testbeds = extractTestbedsFromSuites(ts_to_run)
+        //             }
                     
-                    if(testbeds.size() == 0) {
-                        error "Could not find any testbeds."
-                    }
+        //             if(testbeds.size() == 0) {
+        //                 error "Could not find any testbeds."
+        //             }
                     
-                    testbeds_locked = lockTestbeds(testbeds)
-                    if (testbeds_locked.size() == 0) {
-                        error "No testbeds available."
-                    }
+        //             testbeds_locked = lockTestbeds(testbeds)
+        //             if (testbeds_locked.size() == 0) {
+        //                 error "No testbeds available."
+        //             }
 
-                    testbeds_exclude = []
-                    for (tb in testbeds) {
-                        if(!testbeds_locked.contains(tb)) {
-                            testbeds_exclude.add(tb)
-                        }
-                    }
+        //             testbeds_exclude = []
+        //             for (tb in testbeds) {
+        //                 if(!testbeds_locked.contains(tb)) {
+        //                     testbeds_exclude.add(tb)
+        //                 }
+        //             }
 
-                    echo "Excluding unavailable testbeds ${testbeds_exclude.join(',')}"
-                }
-            }
-        }
+        //             echo "Excluding unavailable testbeds ${testbeds_exclude.join(',')}"
+        //         }
+        //     }
+        // }
 
         stage('Start') {
             failFast true
