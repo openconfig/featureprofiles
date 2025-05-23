@@ -1,16 +1,15 @@
 package static_bgp_nexthop_test
 
 import (
-	"fmt"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -126,7 +125,8 @@ func TestMplsStaticLspBGPNextHop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	configureDUT(t, dut)
-	configureMplsStaticLsps(t, dut)
+	cfgplugins.NewStaticMPLSLabel(t, dut, lspV4Name, mplsLabelV4, "", bgpNHv4, "ipv4")
+	cfgplugins.NewStaticMPLSLabel(t, dut, lspV6Name, mplsLabelV6, "", bgpNHv6, "ipv6")
 	topo := configureATE(t, ate)
 	verifyPortsUp(t, dut.Device)
 	checkBgpStatus(t, dut)
@@ -343,20 +343,6 @@ func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 	return true
 }
 
-// Enable MPLS Forwarding
-func configureMplsStaticLsps(t *testing.T, dut *ondatra.DUTDevice) {
-	if deviations.StaticMplsLspUnsupported(dut) {
-		helpers.GnmiCLIConfig(t, dut, "mpls ip")
-		setStaticMplsIpv4 := fmt.Sprintf("mpls static top-label %v %s pop payload-type ipv4", mplsLabelV4, bgpNHv4)
-		helpers.GnmiCLIConfig(t, dut, setStaticMplsIpv4)
-		setStaticMplsIpv6 := fmt.Sprintf("mpls static top-label %v %s pop payload-type ipv6", mplsLabelV6, bgpNHv6)
-		helpers.GnmiCLIConfig(t, dut, setStaticMplsIpv6)
-	} else {
-		configureMplsStaticLsp(t, dut, lspV4Name, mplsLabelV4, bgpNHv4)
-		configureMplsStaticLsp(t, dut, lspV6Name, mplsLabelV6, bgpNHv6)
-	}
-}
-
 // configreRoutePolicy adds route-policy config
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
@@ -458,16 +444,4 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
-}
-
-// Configure Static Lsp
-func configureMplsStaticLsp(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) {
-	d := &oc.Root{}
-	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-
-	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
