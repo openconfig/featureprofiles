@@ -12,6 +12,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/openconfig/featureprofiles/feature/cisco/performance"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -553,7 +554,7 @@ func TestZRRPFO(t *testing.T) {
 	}
 
 	// Do RPFO
-	// utils.Dorpfo(context.Background(), t, true)
+	utils.Dorpfo(context.Background(), t, true)
 
 	// Wait for streaming telemetry to report the channels as up.
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
