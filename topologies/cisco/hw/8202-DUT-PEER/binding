@@ -76,9 +76,7 @@ duts {
     username: "cafyauto"
     password: "cisco123"
   }
-  config{
-    gnmi_set_file: "/nobackup/krinata2/FP/new_tb/topologies/cisco/hw/8202-DUT-PEER/DUT-8202_FLM275101MJ_baseconfig.proto"
-  }
+
   # Options specific to gNMI.  Remove if not needed.
    gnoi{
      target: "10.85.84.225:47202"
@@ -184,9 +182,7 @@ duts {
   vendor: CISCO
   hardware_model: "CISCO-8202"
   name: "8202_PEER"  # Change this to the device hostname.
-  config{
-    gnmi_set_file: "/nobackup/krinata2/FP/new_tb/topologies/cisco/hw/8202-DUT-PEER/PEER-8202_FLM275203KT_baseconfig.proto"
-  }
+
   options {
     insecure: false 
     skip_verify: true
