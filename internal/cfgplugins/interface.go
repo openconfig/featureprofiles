@@ -39,11 +39,6 @@ var (
 	once   sync.Once
 )
 
-// Temporary code for assigning opmode 1 maintained until opmode is Initialized in all .go file
-func init() {
-	opmode = 1
-}
-
 // Initialize assigns OpMode with value received through operationalMode flag.
 func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) uint16 {
 	once.Do(func() {
