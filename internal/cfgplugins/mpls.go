@@ -27,15 +27,22 @@ import (
 )
 
 // Configure static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on device
-func ConfigureStaticMPLSLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string) {
+func NewStaticMPLSLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string, protocolType string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
+		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cliConfig := fmt.Sprintf(`
-				mpls ip
-				mpls static top-label %v %s %s pop payload-type ipv4
-				`, incomingLabel, intfName, nextHopIP,
-			)
+			if intfName != "" {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s %s pop payload-type %s
+					`, incomingLabel, intfName, nextHopIP, protocolType)
+			} else {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s pop payload-type %s
+					`, incomingLabel, nextHopIP, protocolType)
+			}
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())

@@ -135,7 +135,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst1, otgPort2.IPv6)
 
 	// Configure Static Route: MPLS label binding
-	cfgplugins.ConfigureStaticMPLSLabel(t, dut, "lsp1", LBL1, dut.Port(t, "port2").Name(), otgPort2.IPv4)
+	cfgplugins.NewStaticMPLSLabel(t, dut, "lsp1", LBL1, dut.Port(t, "port2").Name(), otgPort2.IPv4, "ipv4")
 
 	// Configure Static Route: IPV4-DST2 --> ATE Port 2
 	configStaticRoute(t, dut, IPv4Dst2, otgPort2.IPv4)
@@ -144,7 +144,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst2, otgPort2.IPv6)
 
 	// Policy Based Forwading Rule-1
-	cfgplugins.ConfigureGRETunnel(t, dut, strings.Split(decapDesIpv4IP, "/")[0], decapGrpName)
+	cfgplugins.NewConfigureGRETunnel(t, dut, strings.Split(decapDesIpv4IP, "/")[0], decapGrpName)
 
 	// Test cases.
 	type testCase struct {

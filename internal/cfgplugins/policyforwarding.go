@@ -14,7 +14,7 @@ import (
 )
 
 // Configure GRE decapsulated. Adding deviation when device doesn't support OC
-func ConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string, decapGrpName string) {
+func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string, decapGrpName string) {
 	if deviations.GreDecapsulationOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
