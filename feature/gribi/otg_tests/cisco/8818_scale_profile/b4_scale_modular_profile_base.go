@@ -1903,7 +1903,13 @@ func testDcGateScale(t *testing.T) {
 	electionID := gribi.BecomeLeader(t, tcArgs.client)
 	t.Logf("Election ID: %v", electionID)
 
+	clearOfaPerformance(t, tcArgs.dut, "iptnlnh", "0/0/CPU0")
+	clearOfaPerformance(t, tcArgs.dut, "iptnlencap", "0/0/CPU0")
+	clearOfaPerformance(t, tcArgs.dut, "iptnldecap", "0/0/CPU0")
 	gp.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	getOfaPerformance(t, tcArgs.dut, "iptnlnh", "0/0/CPU0")
+	getOfaPerformance(t, tcArgs.dut, "iptnlencap", "0/0/CPU0")
+	getOfaPerformance(t, tcArgs.dut, "iptnldecap", "0/0/CPU0")
 
 	// configure leftover NHGs
 	if nhLeftover > 0 {
