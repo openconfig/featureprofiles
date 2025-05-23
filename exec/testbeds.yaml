@@ -262,9 +262,9 @@ testbeds:
       peer: topologies/cisco/hw/8202-DUT-PEER/PEER-8202_FLM275203KT_baseconfig.proto
     otg:
       host: ott-ucs4-b4
-      controller_port: 48202
-      gnmi_port: 58202
-      rest_port: 38202
+      controller_port: 49202
+      gnmi_port: 59202
+      rest_port: 39202
 
   8202_FLM275203KT:
     hw: 8202-FLM275203KT
@@ -275,22 +275,22 @@ testbeds:
       dut: topologies/cisco/hw/8202_FLM275203KT/DUT-8202_FLM275203KT_baseconfig.proto
     otg:
       host: ott-ucs4-b4
-      controller_port: 48203
-      gnmi_port: 58203
-      rest_port: 38203
+      controller_port: 49203
+      gnmi_port: 59203
+      rest_port: 39203
 
   8202_FLM275101MJ:
     hw: 8202-FLM275101MJ
     owner: arvbaska
-    testbed: topologies/cisco/hw/8202-DUT-PEER/testbed
-    binding: topologies/cisco/hw/8202-DUT-PEER/binding
+    testbed: topologies/cisco/hw/8202_FLM275101MJ/testbed
+    binding: topologies/cisco/hw/8202_FLM275101MJ/binding
     baseconf:
       dut: topologies/cisco/hw/8202_FLM275101MJ/DUT-8202_FLM275101MJ_baseconfig.proto
     otg:
       host: ott-ucs4-b4
-      controller_port: 48202
-      gnmi_port: 58202
-      rest_port: 38202
+      controller_port: 49202
+      gnmi_port: 59202
+      rest_port: 39202
   
   8800-FOC2330PAZK:
     hw: 8800-FOC2330PAZK
