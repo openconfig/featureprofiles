@@ -12,7 +12,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/openconfig/featureprofiles/feature/cisco/performance"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -123,7 +122,7 @@ func appendToTableIfNotNil(t *testing.T, table *tablewriter.Table, portName, lea
 //   - The operational status of the interface. If any critical data is missing, oc.Interface_OperStatus_UNSET is returned.
 func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface], terminalDeviceData *ygnmi.Value[*oc.TerminalDevice_Channel], portName string) oc.E_Interface_OperStatus {
 	if interfaceData == nil {
-		t.Errorf("Data not received for port %v.", portName)
+		t.Errorf("Interface Data not received for port %v.", portName)
 		return oc.Interface_OperStatus_UNSET
 	}
 	interfaceValue, ok := interfaceData.Val()
@@ -337,10 +336,60 @@ func getLineCardFromPort(t *testing.T, dut *ondatra.DUTDevice, port string) stri
 	return LC
 }
 
+// showRunningConfig gets the running config from the router
+func validateControllerConfig(t testing.TB, dut *ondatra.DUTDevice) {
+	portNameParts := strings.Split(strings.ToLower(dut.Port(t, "port1").Name()), "gige")
+	var portName string
+	if len(portNameParts) > 1 {
+		portName = portNameParts[1]
+	}
+	runningConfig, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), fmt.Sprintf("show running-config controller optics %s", portName))
+	if err != nil {
+		t.Fatalf("'show running-config controller optics' failed: %v", err)
+	}
+
+	// Convert output into lines
+	lines := strings.Split(runningConfig.Output(), "\n")
+
+	// Variables to store extracted values
+	var xponderValue, dacRateValue string
+
+	// Iterate over each line to check for keywords
+	for _, line := range lines {
+		if strings.Contains(line, "xponder") {
+			parts := strings.Fields(line)
+			if len(parts) > 1 {
+				xponderValue = parts[1]
+			}
+			fmt.Println("Found xponder:", line)
+		}
+		if strings.Contains(line, "DAC-Rate") {
+			parts := strings.Fields(line)
+			if len(parts) > 1 {
+				dacRateValue = parts[1]
+			}
+			fmt.Println("Found DAC-Rate:", line)
+		}
+	}
+
+	// Final check
+	if xponderValue != "" && dacRateValue != "" {
+		fmt.Println("Both xponder and DAC-Rate found!")
+	} else {
+		t.Fatalf("One or both keywords missing.")
+	}
+}
+
 func TestZRProcessRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	configureOTN(t, dut)
+	validateControllerConfig(t, dut)
+
+	// Make sure interface is admin up
+	for _, p := range dut.Ports() {
+		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+	}
 
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
@@ -350,8 +399,8 @@ func TestZRProcessRestart(t *testing.T) {
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
 		interfaceStreams[portName] = samplestream.New(t, dut, gnmi.OC().Interface(portName).State(), samplingInterval)
-		otnStreams[portName].Close()
-		interfaceStreams[portName].Close()
+		defer otnStreams[portName].Close()
+		defer interfaceStreams[portName].Close()
 	}
 
 	// Verify the leaves
@@ -364,6 +413,11 @@ func TestZRProcessRestart(t *testing.T) {
 	err := performance.RestartProcess(t, dut, "invmgr")
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// Make sure interface is admin up
+	for _, p := range dut.Ports() {
+		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 	}
 
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
@@ -388,8 +442,8 @@ func TestZRShutPort(t *testing.T) {
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
 		interfaceStreams[portName] = samplestream.New(t, dut, gnmi.OC().Interface(portName).State(), samplingInterval)
-		otnStreams[portName].Close()
-		interfaceStreams[portName].Close()
+		defer otnStreams[portName].Close()
+		defer interfaceStreams[portName].Close()
 	}
 
 	// Verify the leaves
@@ -442,8 +496,8 @@ func TestZRLCReload(t *testing.T) {
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
 		interfaceStreams[portName] = samplestream.New(t, dut, gnmi.OC().Interface(portName).State(), samplingInterval)
-		otnStreams[portName].Close()
-		interfaceStreams[portName].Close()
+		defer otnStreams[portName].Close()
+		defer interfaceStreams[portName].Close()
 	}
 
 	// Verify the leaves
@@ -488,8 +542,8 @@ func TestZRRPFO(t *testing.T) {
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
 		interfaceStreams[portName] = samplestream.New(t, dut, gnmi.OC().Interface(portName).State(), samplingInterval)
-		otnStreams[portName].Close()
-		interfaceStreams[portName].Close()
+		defer otnStreams[portName].Close()
+		defer interfaceStreams[portName].Close()
 	}
 
 	// Verify the leaves
@@ -499,7 +553,7 @@ func TestZRRPFO(t *testing.T) {
 	}
 
 	// Do RPFO
-	utils.Dorpfo(context.Background(), t, true)
+	// utils.Dorpfo(context.Background(), t, true)
 
 	// Wait for streaming telemetry to report the channels as up.
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
