@@ -5,7 +5,6 @@ simulation:
     partition: regression
     pending_timeout: 3600
     cluster: rch-slurm-m1 
-    location_hint: rch
   vxr_sim_config:
     default:
        ConfigEnableNgdp: 'true'
@@ -35,7 +34,7 @@ devices:
       load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
       windows: /auto/b4ws/images/ixia/IxNetworkWeb_KVM_OTG_9.30.2309.34.qcow2
 
-  8818-DUT:
+  dut:
     platform: spitfire_d
     lcc_type: '8818'
     dual_rp: true
@@ -52,7 +51,7 @@ devices:
       - 57400
       - 179
 
-  8818-PEER:
+  peer:
     platform: spitfire_d
     lcc_type: '8818'
     linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
