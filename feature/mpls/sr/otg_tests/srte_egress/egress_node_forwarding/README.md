@@ -80,20 +80,97 @@ Verify that:
 *  DUT will perform IPv4 lookup for the destination and forward IPv4 traffic.
 *  DUT will POP MPLS label, and perform IPv6 lookup for the destination and forward IPv6 traffic.
 
+```
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
+        "mpls": {
+          "global": {
+            "config": {
+              "enabled": true
+            },
+            "reserved-label-blocks": {
+              "reserved-label-block": [
+                {
+                  "config": {
+                    "local-id": "srlb",
+                    "lower-bound": 16
+                  },
+                  "local-id": "srlb"
+                },
+                {
+                  "config": {
+                    "local-id": "isis-sr",
+                    "lower-bound": 400000,
+                    "upper-bound": 465000
+                  },
+                  "local-id": "isis-sr"
+                },
+              ]
+            }
+          },
+        },
+        "name": "default",
+        "protocols": {
+          "protocol": [
+            {
+            {
+              "identifier": "openconfig-policy-types:ISIS",
+              "isis": {
+                  "segment-routing": {
+                    "config": {
+                      "enabled": true,
+                      "srgb": "isis-sr",
+                      "srlb": "srlb"
+                    }
+                  },
+                },
+              },
+            }
+          ]
+        },
+        "segment-routing": {
+          "srgbs": {
+            "srgb": [
+              {
+                "config": {
+                  "dataplane-type": "MPLS",
+                  "local-id": "isis-sr",
+                  "mpls-label-blocks": [
+                    "isis-sr"
+                  ]
+                },
+                "local-id": "isis-sr"
+              }
+            ]
+          },
+          "srlbs": {
+            "srlb": [
+              {
+                "config": {
+                  "dataplane-type": "MPLS",
+                  "local-id": "srlb",
+                  "mpls-label-block": "srlb"
+                },
+                "local-id": "srlb"
+              }
+            ]
+          }
+        },
+      },
+    ]
+  },
+}
+```
 ## OpenConfig Path and RPC Coverage
 
-```yaml
+```
 paths:
-  # srgb definition
-  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/local-id:
-  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/lower-bound:
-  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound:
-  # sr config
-  /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
-  /network-instances/network-instance/segment-routing/srgbs/srgb/config/local-id:
-  /network-instances/network-instance/segment-routing/srgbs/srgb/config/mpls-label-blocks:
-  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled:
-  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srgb:
   # telemetry
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/in-pkts:
