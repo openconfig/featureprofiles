@@ -607,17 +607,13 @@ func (tc *testCase) configureInterface(t *testing.T, i *oc.Interface, a *attrs.A
 func (tc *testCase) configInterfaceDUTUnnumbered(t *testing.T, dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attributes) {
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if dut.Vendor() == ondatra.JUNIPER {
-		s4.Address = nil
-	}
+	s4.Address = nil
 	unnumebered := s4.GetOrCreateUnnumbered()
 	unnumebered.SetEnabled(true)
 	refInterface := unnumebered.GetOrCreateInterfaceRef()
 	refInterface.SetInterface(lb)
-	if dut.Vendor() == ondatra.JUNIPER {
-		subif := uint32(0)
-		refInterface.SetSubinterface(subif)
-	}
+	subif := uint32(0)
+	refInterface.SetSubinterface(subif)
 }
 
 func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
