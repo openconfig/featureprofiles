@@ -97,42 +97,42 @@ duts {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "dut_ate_port1"
-    name: "Te0/0/0/0/0"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/0/0"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port2"
-    name: "Te0/0/0/0/1"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/0/1"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port3"
-    name: "Te0/0/0/0/2" # Change this to the actual port name.
+    name: "TenGigE0/0/0/0/2" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port4"
-    name: "Te0/0/0/0/3"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/0/3"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port5"
-    name: "Te0/0/0/1/0"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/1/0"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port6"
-    name: "Te0/0/0/1/1"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/1/1"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port7"
-    name: "Te0/0/0/1/2"  # Change this to the actual port name.
+    name: "TenGigE0/0/0/1/2"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port8"
-   name: "Te0/0/0/1/3"  # Change this to the actual port name.
+   name: "TenGigE0/0/0/1/3"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
