@@ -1368,6 +1368,11 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
 
+// BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
+func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
+}
+
 // TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
 func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
