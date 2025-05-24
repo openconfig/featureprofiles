@@ -820,7 +820,9 @@ func redistributeStaticRoutePolicyWithMED(t *testing.T, dut *ondatra.DUTDevice, 
 	policyStatementAction := policyStatement.GetOrCreateActions()
 	policyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(medValue))
-	policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	if !deviations.BgpSetMedV7Unsupported(dut) {
+		policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	}
 
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 
@@ -1508,7 +1510,7 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.5 redistribute-ipv4-route-policy-as-prepend",
 			setup: func() { redistributeStaticRoutePolicyWithASN(t, dut, isV4) },
 			validate: func() {
-				validatePrefixASN(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", []uint32{64512, 65499, 65499, 65499})
+				validatePrefixASN(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", []uint32{65499, 65499, 65499, 64512})
 			},
 		},
 		// 1.27.6
