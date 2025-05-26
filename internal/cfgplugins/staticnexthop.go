@@ -167,7 +167,7 @@ type StaticNextHopGroupParams struct {
 	OuterTTLDef      uint8
 
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
-	// MplsLabelStack: oc.UnionUint32(100),
+	
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
