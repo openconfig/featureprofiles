@@ -4,8 +4,10 @@
 # This DUT-PEER testbed provides 16 links between dut - ate, and 4 links between the peer & ate.
 
 # dut port definitions
-dut {
+duts {
   id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8202"
   ports {
     id: "dut_ate_port1"
     speed: S_10GB
@@ -72,9 +74,12 @@ dut {
   }
 }
 
+
 # peer port definitions
-dut {
+duts {
   id: "peer"
+  vendor: CISCO
+  hardware_model: "CISCO-8202"
   ports {
     id: "peer_ate_port1"
     speed: S_10GB
@@ -92,6 +97,7 @@ dut {
     speed: S_10GB
   }
 }
+
 
 ates {
   id: "ate"

@@ -4,7 +4,7 @@
 # This DUT-ATE testbed provides 16 links between dut - ate
 
 # dut port definitions
-dut {
+duts {
   id: "dut"
   ports {
     id: "dut_ate_port1"

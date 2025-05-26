@@ -111,22 +111,22 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
   id: "dut_ate_port1"
-  name: "10/33" # Change this to the actual port name.
+  name: "9/25" # Change this to the actual port name.
   speed: S_10GB  
   }
   ports {
     id: "dut_ate_port2"
-    name: "10/34" # Change this to the actual port name.
+    name: "9/26" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
     id: "dut_ate_port3"
-    name: "10/35" # Change this to the actual port name.
+    name: "9/27" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
    id: "dut_ate_port4"
-    name: "10/36" # Change this to the actual port name.
+    name: "9/28" # Change this to the actual port name.
    speed: S_10GB  
   }   
 }
