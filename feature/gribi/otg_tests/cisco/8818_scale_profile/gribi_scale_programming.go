@@ -42,7 +42,9 @@ const (
 	// V4TunnelIPBlock tunnel IP block
 	V4TunnelIPBlock = "200.200.200.1/16"
 	// V4VIPIPBlock vip IP block
-	V4VIPIPBlock        = "100.100.100.1/22"
+	V4VIPIPBlock        = "100.100.100.1/16"
+	VipFrr1IPBlock      = "100.101.100.1/16"
+	VipFrr2IPBlock      = "100.102.100.1/16"
 	tunnelSrcIP         = "18.18.18.18"
 	encapNhCount        = 1600
 	encapNhgcount       = 100  // 200
@@ -162,9 +164,11 @@ type ScaleParam struct {
 type routesParam struct {
 	ipEntries     []string
 	ipv6Entries   []string
+	prefixVRF     string
 	numUniqueNHs  int
-	nextHops      []string
+	nextHops      []string //set of next hop prefixes
 	nextHopVRF    string
+	nextHopType   string // default, encap, decap, decapEncap
 	startNHIndex  int
 	numUniqueNHGs int
 	numNHPerNHG   int
@@ -172,6 +176,8 @@ type routesParam struct {
 	nextHopWeight []int
 	backupNHG     int
 	tunnelSrcIP   string
+	addrPerSubnet int    // number of addresses per subnet for variable length prefixes
+	segment       string // name of the segment of fibchain
 }
 
 // BuildVRFConfig creates scale new scale VRF configurations.
