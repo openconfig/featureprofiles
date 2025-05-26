@@ -1999,3 +1999,8 @@ func QosFt(dut *ondatra.DUTDevice) string {
 func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetSystemMountPointStateFt()
 }
+
+// TrafficPolicyToNextHopOCUnsupported returns true if traffic policy parameters are unsupported
+func TrafficPolicyToNextHopOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTrafficPolicyToNexthopUnsupported()
+}
