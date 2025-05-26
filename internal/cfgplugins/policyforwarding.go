@@ -3,8 +3,6 @@ package cfgplugins
 import (
 	"fmt"
 	"testing"
-
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
@@ -12,6 +10,11 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/ondatra/gnmi"
+)
+
+const (
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 )
 
 // OcPolicyForwardingParams holds parameters for generating the OC Policy Forwarding config.
