@@ -737,24 +737,6 @@ message Metadata {
 
     // Devices that do not support containerz config via OpenConfig.
     bool containerz_oc_unsupported = 266;
-    
-    // Arista b/390507780
-    bool qos_shaper_config_unsupported = 267;
-
-    // Arista b/390507780
-    bool qos_shaper_state_unsupported = 268;
-
-    // Arista b/393178770
-    bool ethernet_over_mplsogre_unsupported = 269;
-
-    // Arista b/390507408
-    bool sflow_unsupported = 270;
-
-    // Arista b/390507402
-    bool mpls_unsupported = 271;
-
-    // Arista b/390507399
-    bool macsec_unsupported = 272;
 
     // Arista b/390506900
     bool gue_gre_decap_unsupported = 273;
@@ -788,6 +770,24 @@ message Metadata {
     
     // Arista b/390507957
     bool next_hop_group_config_unsupported = 283;
+    
+       // Arista b/390507780
+    bool qos_shaper_config_unsupported = 284;
+
+    // Arista b/390507780
+    bool qos_shaper_state_unsupported = 285;
+
+    // Arista b/393178770
+    bool ethernet_over_mplsogre_unsupported = 286;
+
+    // Arista b/390507408
+    bool sflow_unsupported = 287;
+
+    // Arista b/390507402
+    bool mpls_unsupported = 288;
+
+    // Arista b/390507399
+    bool macsec_unsupported = 289;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
