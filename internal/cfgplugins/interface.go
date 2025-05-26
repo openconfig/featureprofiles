@@ -18,6 +18,7 @@ import (
 	"math"
 	"sync"
 	"testing"
+	"fmt"
 
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
