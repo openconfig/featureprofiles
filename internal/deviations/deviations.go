@@ -1343,87 +1343,87 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
 
-// NextHopGroupConfigUnsupported returns true if devices do not support next-hop-group config
-func NextHopGroupConfigUnsupported(dut *ondatra.DUTDevice) bool {
+// NextHopGroupOCUnsupported returns true if devices do not support next-hop-group config
+func NextHopGroupOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNextHopGroupConfigUnsupported()
 }
 
-// QosShaperConfigUnsupported returns true if qos shaper config is unsupported
-func QosShaperConfigUnsupported(dut *ondatra.DUTDevice) bool {
+// QosShaperOCUnsupported returns true if qos shaper config is unsupported
+func QosShaperOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosShaperConfigUnsupported()
 }
 
-// EthernetOverMPLSogreUnsupported returns true if ethernet over mplsogre is unsupported
-func EthernetOverMPLSogreUnsupported(dut *ondatra.DUTDevice) bool {
+// EthernetOverMPLSogreOCUnsupported returns true if ethernet over mplsogre is unsupported
+func EthernetOverMPLSogreOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthernetOverMplsogreUnsupported()
 }
 
-// SflowUnsupported returns true if sflow is unsupported
-func SflowUnsupported(dut *ondatra.DUTDevice) bool {
+// SflowOCUnsupported returns true if sflow is unsupported
+func SflowOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowUnsupported()
 }
 
-// MplsUnsupported returns true if mpls is unsupported
-func MplsUnsupported(dut *ondatra.DUTDevice) bool {
+// MplsOCUnsupported returns true if mpls is unsupported
+func MplsOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsUnsupported()
 }
 
-// MacsecUnsupported returns true if macsec is unsupported
-func MacsecUnsupported(dut *ondatra.DUTDevice) bool {
+// MacsecOCUnsupported returns true if macsec is unsupported
+func MacsecOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMacsecUnsupported()
 }
 
-// GueGreDecapUnsupported returns true if gue gre decap is unsupported
-func GueGreDecapUnsupported(dut *ondatra.DUTDevice) bool {
+// GueGreDecapOCUnsupported returns true if gue gre decap is unsupported
+func GueGreDecapOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGueGreDecapUnsupported()
 }
 
-// MplsLabelClassificationUnsupported returns true if mpls label classification is unsupported
-func MplsLabelClassificationUnsupported(dut *ondatra.DUTDevice) bool {
+// MplsLabelClassificationOCUnsupported returns true if mpls label classification is unsupported
+func MplsLabelClassificationOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsLabelClassificationUnsupported()
 }
 
-// LocalProxyUnsupported returns true if local proxy is unsupported
-func LocalProxyUnsupported(dut *ondatra.DUTDevice) bool {
+// LocalProxyOCUnsupported returns true if local proxy is unsupported
+func LocalProxyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLocalProxyUnsupported()
 }
 
-// StaticMplsUnsupported returns true if static mpls is unsupported
-func StaticMplsUnsupported(dut *ondatra.DUTDevice) bool {
+// StaticMplsOCUnsupported returns true if static mpls is unsupported
+func StaticMplsOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticMplsUnsupported()
 }
 
-// QosClassificationUnsupported returns true if qos classification is unsupported
-func QosClassificationUnsupported(dut *ondatra.DUTDevice) bool {
+// QosClassificationOCUnsupported returns true if qos classification is unsupported
+func QosClassificationOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosClassificationUnsupported()
 }
 
-// PolicyForwardingUnsupported returns true if policy forwarding is unsupported
-func PolicyForwardingUnsupported(dut *ondatra.DUTDevice) bool {
+// PolicyForwardingOCUnsupported returns true if policy forwarding is unsupported
+func PolicyForwardingOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingUnsupported()
 }
 
-// InterfacePolicyForwardingUnsupported returns true if interface policy forwarding is unsupported
-func InterfacePolicyForwardingUnsupported(dut *ondatra.DUTDevice) bool {
+// InterfacePolicyForwardingOCUnsupported returns true if interface policy forwarding is unsupported
+func InterfacePolicyForwardingOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
 
-// QosShaperStateUnsupported returns true if qos shaper state is unsupported
-func QosShaperStateUnsupported(dut *ondatra.DUTDevice) bool {
+// QosShaperStateOCUnsupported returns true if qos shaper state is unsupported
+func QosShaperStateOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosShaperStateUnsupported()
 }
 
-// CfmUnsupported returns true if CFM is unsupported
-func CfmUnsupported(dut *ondatra.DUTDevice) bool {
+// CfmOCUnsupported returns true if CFM is unsupported
+func CfmOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCfmUnsupported()
 }
 
-// LabelRangeUnsupported returns true if label range is unsupported
-func LabelRangeUnsupported(dut *ondatra.DUTDevice) bool {
+// LabelRangeOCUnsupported returns true if label range is unsupported
+func LabelRangeOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLabelRangeUnsupported()
 }
 
-// StaticArpUnsupported returns true if static arp is unsupported
-func StaticArpUnsupported(dut *ondatra.DUTDevice) bool {
+// StaticArpOCUnsupported returns true if static arp is unsupported
+func StaticArpOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticArpUnsupported()
 }
