@@ -46,4 +46,7 @@ rpcs:
     gNMI.Get:
     gNMI.Subscribe:
 
+* /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/ip
+*/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address
+
 ```
