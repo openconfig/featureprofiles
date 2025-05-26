@@ -68,4 +68,5 @@ duts {
     name: "FourHundredGigE0/0/0/20"  # Change this to the actual port name.
     pmd: PMD_400GBASE_ZR
     speed: S_400GB
+  }
 }
