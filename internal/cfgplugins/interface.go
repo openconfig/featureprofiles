@@ -15,7 +15,6 @@
 package cfgplugins
 
 import (
-	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -46,15 +45,39 @@ func init() {
 }
 
 // Initialize assigns OpMode with value received through operationalMode flag.
-func Initialize(operationalMode uint16) {
+func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) uint16 {
 	once.Do(func() {
-		if operationalMode != 0 {
-			opmode = operationalMode
+		t.Helper()
+		if initialOperationalMode == 0 { // '0' signals to use vendor-specific default
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				opmode = 5003
+				t.Logf("cfgplugins.Initialize: Cisco DUT, setting opmode to default: %d", opmode)
+			case ondatra.ARISTA:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Arista DUT, setting opmode to default: %d", opmode)
+			case ondatra.JUNIPER:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Juniper DUT, setting opmode to default: %d", opmode)
+			case ondatra.NOKIA:
+				opmode = 1083
+				t.Logf("cfgplugins.Initialize: Nokia DUT, setting opmode to default: %d", opmode)
+			default:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", opmode)
+			}
 		} else {
-			fmt.Sprintln("Please specify the vendor-specific operational-mode flag")
-			return
+			opmode = initialOperationalMode
+			t.Logf("cfgplugins.Initialize: Using provided initialOperationalMode: %d", opmode)
 		}
+		t.Logf("cfgplugins.Initialize: Initialization complete. Final opmode set to: %d", opmode)
 	})
+	return InterfaceGetOpMode()
+}
+
+// GetOpMode returns the opmode value after the Initialize function has been called
+func InterfaceGetOpMode() uint16 {
+	return opmode
 }
 
 // InterfaceConfig configures the interface with the given port.

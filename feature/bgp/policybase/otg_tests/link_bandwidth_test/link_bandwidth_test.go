@@ -692,6 +692,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			if err != nil {
 				t.Fatalf("NewExtCommunitySet failed: %v", err)
 			}
+			stmt.SetExtCommunitySetName(name)
 			stmt.SetExtCommunityMember([]string{community})
 			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 		}
