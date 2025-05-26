@@ -148,8 +148,18 @@ func TestChassisReboot(t *testing.T) {
 						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
 						break
 					}
-					latestTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
-					if err != nil {
+					var latestTime time.Time
+					var err error
+					if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+						latestTime, err = time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+						if err != nil {
+							t.Fatalf("Failed parsing current-datetime: %s", err)
+						}
+					}); errMsg != nil && time.Since(start).Seconds() < rebootDelay {
+						t.Fatalf("Get request failed before reboot delay, %s", *errMsg)
+					}
+
+					if err != nil && time.Since(start).Seconds() < rebootDelay {
 						t.Fatalf("Failed parsing current-datetime: %s", err)
 					}
 					if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
