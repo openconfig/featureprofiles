@@ -1372,3 +1372,8 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
+
+// TrafficPolicyToNextHopOCUnsupported returns true if traffic policy parameters are unsupported
+func TrafficPolicyToNextHopOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTrafficPolicyToNexthopUnsupported()
+}

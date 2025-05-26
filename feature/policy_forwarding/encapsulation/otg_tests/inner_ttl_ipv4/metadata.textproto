@@ -1,0 +1,19 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "9ea131cf-202c-4a6c-b709-5ae7c5008af2"
+plan_id:  "PF"
+description:  "1.11 Rewrite the ingress innner packet TTL"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    tunnel_config_path_unsupported: true
+    traffic_policy_to_nexthop_unsupported: false
+    omit_l2_mtu: true
+  }
+}
