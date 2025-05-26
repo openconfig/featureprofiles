@@ -78,7 +78,7 @@ Traffic-policies
           set traffic class 3
  !
     `
-	// PolicyForwardingConfigDualStackArista configuration for policy-forwarding for dualstack.
+	// PolicyForwardingConfigDualStackArista configuration for policy-forwarding for the dualstack.
 	PolicyForwardingConfigDualStackArista = `
    Traffic-policies
     traffic-policy tp_cloud_id_3_22
