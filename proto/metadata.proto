@@ -755,9 +755,13 @@ message Metadata {
     // Nokia b/417843274
     bool port_speed_unsupported = 271;
 
+    // Set-Med-Action is not supported for BGP
+    // Cisco b/414333771
+    bool bgp_set_med_action_unsupported = 272;
+
     // Create/Replace config leaf required 
-    // Juniper b/
-    bool config_leaf_create_required = 272;
+    // Juniper b/419536104
+    bool config_leaf_create_required = 273;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
