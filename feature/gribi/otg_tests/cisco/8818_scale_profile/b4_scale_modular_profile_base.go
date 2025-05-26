@@ -1172,8 +1172,6 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
-	client.Start(ctx, t)
-
 	t.Log("Configure DUT & PEER devices")
 	configureDevices(t, dut, peer)
 	t.Log("Configure TGEN OTG")
@@ -1235,6 +1233,7 @@ func testExpandedModularChain(t *testing.T) {
 		gArgs = configureBaseInfra(t, bConfig)
 	}
 	tcArgs := gArgs
+	tcArgs.client.Start(tcArgs.ctx, t)
 
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
@@ -1449,6 +1448,7 @@ func testCompactModularChain(t *testing.T) {
 		gArgs = configureBaseInfra(t, bConfig)
 	}
 	tcArgs := gArgs
+	tcArgs.client.Start(tcArgs.ctx, t)
 
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
@@ -1521,6 +1521,7 @@ func testEncapScale(t *testing.T) {
 		gArgs = configureBaseInfra(t, bConfig)
 	}
 	tcArgs := gArgs
+	tcArgs.client.Start(tcArgs.ctx, t)
 
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
@@ -1567,14 +1568,13 @@ func testEncapScale(t *testing.T) {
 	// configure leftover NHGs
 	if nhLeftover > 0 {
 		remaingNhGp := NewGribiProfile(t, 1, false, false, tcArgs.dut,
-			&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 2, numNHPerNHG: 1},
-			&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 1, numNHPerNHG: 1},
 			&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 1, numNHPerNHG: nhLeftover, nextHopWeight: generateNextHopWeights(64, nhLeftover)},
 		)
 		remaingNhGp.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0})
 	}
 
 	gp.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0, 1})
+	time.Sleep(10 * time.Second)
 
 	t.Logf("Validating encap traffic")
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1})
@@ -1588,6 +1588,7 @@ func testDecapScale(t *testing.T) {
 		gArgs = configureBaseInfra(t, bConfig)
 	}
 	tcArgs := gArgs
+	tcArgs.client.Start(tcArgs.ctx, t)
 
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
@@ -1680,6 +1681,7 @@ func testDecapEncapScale(t *testing.T) {
 		gArgs = configureBaseInfra(t, bConfig)
 	}
 	tcArgs := gArgs
+	tcArgs.client.Start(tcArgs.ctx, t)
 
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
@@ -1815,7 +1817,7 @@ func parseOfaPerf(cliOutput string) (time.Duration, time.Duration, error) {
 }
 
 func getOfaPerformance(t *testing.T, dut *ondatra.DUTDevice, tunnelType string, location string) {
-	input := util.SshRunCommand(t, dut, fmt.Sprintf("show ofa performace %s location %s", tunnelType, location))
+	input := util.SshRunCommand(t, dut, fmt.Sprintf("show ofa performance %s location %s", tunnelType, location))
 	t.Log("command output using ssh\n", input)
 	// todo: use gnmi to get the output instead of ssh
 	// input := util.CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("show ofa performace %s location %s", tunnelType, location))
@@ -1837,6 +1839,7 @@ func testDcGateScale(t *testing.T) {
 		gArgs = configureBaseInfra(t, bConfig)
 	}
 	tcArgs := gArgs
+	tcArgs.client.Start(tcArgs.ctx, t)
 
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
@@ -1906,7 +1909,10 @@ func testDcGateScale(t *testing.T) {
 	clearOfaPerformance(t, tcArgs.dut, "iptnlnh", "0/0/CPU0")
 	clearOfaPerformance(t, tcArgs.dut, "iptnlencap", "0/0/CPU0")
 	clearOfaPerformance(t, tcArgs.dut, "iptnldecap", "0/0/CPU0")
+
 	gp.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	time.Sleep(10 * time.Second)
+
 	getOfaPerformance(t, tcArgs.dut, "iptnlnh", "0/0/CPU0")
 	getOfaPerformance(t, tcArgs.dut, "iptnlencap", "0/0/CPU0")
 	getOfaPerformance(t, tcArgs.dut, "iptnldecap", "0/0/CPU0")
