@@ -1060,7 +1060,6 @@ type Metadata_Deviations struct {
 	InterfacePolicyForwardingUnsupported bool `protobuf:"varint,289,opt,name=interface_policy_forwarding_unsupported,json=interfacePolicyForwardingUnsupported,proto3" json:"interface_policy_forwarding_unsupported,omitempty"`
 	unknownFields                        protoimpl.UnknownFields
 	sizeCache                            protoimpl.SizeCache
-
 }
 
 func (x *Metadata_Deviations) Reset() {
