@@ -212,45 +212,82 @@ func ConfigureOTG(t *testing.T) {
 }
 
 // PF-1.14.1: Generate DUT Configuration
-func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice) {
+func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	aggID = netutil.NextAggregateInterface(t, dut)
 	configureInterfaces(t, dut, custPorts, []*attrs.Attributes{&custIntfIPv4, &custIntfIPv6, &custIntfdualStack, &custIntfIPv4MultiCloud, &custIntfIPv4JumboMTU}, aggID)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv6)
-	configureInterfaceProperties(t, dut, aggID, &custIntfdualStack)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4MultiCloud)
-	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4JumboMTU)
+	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4, ocPFParams)
+	configureInterfaceProperties(t, dut, aggID, &custIntfIPv6, ocPFParams)
+	configureInterfaceProperties(t, dut, aggID, &custIntfdualStack, ocPFParams)
+	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4MultiCloud, ocPFParams)
+	configureInterfaceProperties(t, dut, aggID, &custIntfIPv4JumboMTU, ocPFParams)
 	aggID = netutil.NextAggregateInterface(t, dut)
 	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
-	EncapMPLSInGRE(t, dut)
 	configureStaticRoute(t, dut)
+	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
+	EncapMPLSInGRE(t, dut, pf, ni, ocPFParams, ocNHGParams)
+
 }
 
 func TestSetup(t *testing.T) {
 	t.Log("PF-1.14.1: Generate DUT Configuration")
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	ConfigureDut(t, dut)
+
+	// Get default parameters for OC Policy Forwarding
+	ocPFParams := GetDefaultOcPolicyForwardingParams()
+	ocNHGParams := GetDefaultStaticNextHopGroupParams()
+
+	// Pass ocPFParams to ConfigureDut
+	ConfigureDut(t, dut, ocPFParams, ocNHGParams)
 	ConfigureOTG(t)
 }
 
-func configureInterfaceProperties(t *testing.T, dut *ondatra.DUTDevice, aggID string, a *attrs.Attributes) {
+// GetDefaultStaticNextHopGroupParams provides default parameters for the generator.
+// matching the values in the provided JSON example.
+func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
+	return cfgplugins.StaticNextHopGroupParams{
+
+		StaticNHGName: "MPLS_in_GRE_Encap",
+		NHIPAddr1:     "nh_ip_addr_1",
+		NHIPAddr2:     "nh_ip_addr_2",
+		// TODO: b/417988636 - Set the MplsLabel to the correct value.
+		// MplsLabelStack: oc.UnionUint32(100),
+	}
+}
+
+// GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// matching the values in the provided JSON example.
+func GetDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
+	return cfgplugins.OcPolicyForwardingParams{
+		NetworkInstanceName: "DEFAULT",
+		InterfaceID:         "Agg1.10",
+		AppliedPolicyName:   "customer1",
+	}
+}
+
+func configureInterfaceProperties(t *testing.T, dut *ondatra.DUTDevice, aggID string, a *attrs.Attributes, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
+
 	if a.IPv4 != "" {
 		cfgplugins.InterfacelocalProxyConfig(t, dut, a, aggID)
 	}
 	cfgplugins.InterfaceQosClassificationConfig(t, dut, a, aggID)
-	cfgplugins.InterfacePolicyForwardingConfig(t, dut, a, aggID)
+	cfgplugins.InterfacePolicyForwardingConfig(t, dut, a, aggID, pf, ocPFParams)
 }
 
 // function should also include the OC config , within these deviations there should be a switch statement is needed
-func EncapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice) {
+// Modified to accept pf, ni, and ocPFParams
+func EncapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
-	cfgplugins.NextHopGroupConfig(t, dut, "v4")
-	cfgplugins.PolicyForwardingConfig(t, dut, "v4")
-	cfgplugins.NextHopGroupConfig(t, dut, "multicloudv4")
-	cfgplugins.PolicyForwardingConfig(t, dut, "multicloudv4")
+	cfgplugins.NextHopGroupConfig(t, dut, "v4", ni, ocNHGParams)
+	cfgplugins.PolicyForwardingConfig(t, dut, "v4", pf, ni, ocPFParams)
+	cfgplugins.NextHopGroupConfig(t, dut, "multicloudv4", ni, ocNHGParams)
+	cfgplugins.PolicyForwardingConfig(t, dut, "multicloudv4", pf, ni, ocPFParams)
+	if !deviations.PolicyForwardingOCUnsupported(dut) {
+		PushPolicyForwardingConfig(t, dut, ni)
+	}
 }
 
 // PF-1.14.2: Verify PF MPLSoGRE encapsulate action for IPv4 traffic.
@@ -401,4 +438,10 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 	b.Set(t, dut)
+}
+
+func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance) {
+	t.Helper()
+	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
+	gnmi.Replace(t, dut, niPath, ni)
 }
