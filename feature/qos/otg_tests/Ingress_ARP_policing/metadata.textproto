@@ -1,0 +1,18 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1e4df4df-cfbd-4c3a-8b14-4bca3c1ddae5"
+plan_id: "CPT-1.1"
+description: "Interface based ARP policer"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    tunnel_config_path_unsupported: true
+    interface_ref_interface_id_format: true
+  }
+}
