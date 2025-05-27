@@ -143,9 +143,11 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	d := &oc.Root{}
 	lldp := d.GetOrCreateLldp()
 	lldp.SystemDescription = ygot.String("DUT")
+	lldp.GetOrCreateInterface(p.Name())
+	gnmi.Replace(t, node, gnmi.OC().Lldp().Config(), lldp)
 
 	llint := lldp.GetOrCreateInterface(p.Name())
-	llint.SetName(portName)
+	llint.SetName(p.Name())
 
 	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
 
@@ -168,8 +170,10 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	// Device configuration + Ethernet configuration.
+	node := ondatra.ATE(t, "ate")
+	p = node.Port(t, portName)
 	config := gosnappi.NewConfig()
-	srcPort := config.Ports().Add().SetName(portName)
+	srcPort := config.Ports().Add().SetName(p.Id())
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	srcEth.Connection().SetPortName(srcPort.Name())
@@ -178,7 +182,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	lldp := config.Lldp().Add()
 	lldp.SystemName().SetValue(lldpSrc.systemName)
 	lldp.SetName(lldpSrc.otgName)
-	lldp.Connection().SetPortName(portName)
+	lldp.Connection().SetPortName(p.Name())
 	lldp.ChassisId().MacAddressSubtype().SetValue(lldpSrc.macAddress)
 	lldp.PortId().InterfaceNameSubtype().SetValue(lldpSrc.portName)
 
@@ -222,7 +226,7 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 
 	got := state.GetInterface(port.Name()).GetName()
 	want := conf.GetInterface(port.Name()).GetName()
-
+	t.Logf("LLDP Interface %s : %s : %s", port.Name(), got, want)
 	if lldpEnabled && got != want {
 		t.Errorf("LLDP interfaces/interface/state/name = %s, want %s", got, want)
 	}
@@ -259,7 +263,7 @@ func checkLLDPMetricsOTG(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnab
 // checkOTGLLDPNeighbor verifies OTG side lldp neighbor states
 func checkOTGLLDPNeighbor(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbor lldpNeighbors) {
 	otgutils.LogLLDPNeighborStates(t, otg, c)
-
+	t.Logf("OTG Expected LLDP Neighbor: %v", expLldpNeighbor)
 	lldpState := gnmi.Lookup(t, otg, gnmi.OTG().LldpInterface(lldpSrc.otgName).LldpNeighborDatabase().State())
 	v, isPresent := lldpState.Val()
 	if isPresent {
@@ -291,6 +295,7 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 	}
 	verifyNodeConfig(t, dut, nodePort, conf, true)
 	interfacePath := gnmi.OC().Lldp().Interface(nodePort.Name())
+	t.Logf("Interface Path for : %s", nodePort.Name())
 
 	// Ensure that DUT does not generate any LLDP messages irrespective of the
 	// configuration of lldp/interfaces/interface/config/enabled (TRUE or FALSE)
