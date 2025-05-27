@@ -97,8 +97,6 @@ var (
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
-
-	lb string
 )
 
 type testCase struct {
