@@ -1368,11 +1368,6 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
 
-// BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
-func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
-}
-
 // Config Leaf Create required before GNMI get
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
