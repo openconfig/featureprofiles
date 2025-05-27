@@ -1427,6 +1427,7 @@ func LabelRangeOCUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticArpOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticArpUnsupported()
 }
+
 // BgpDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
 func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()

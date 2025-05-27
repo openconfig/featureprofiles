@@ -1,12 +1,12 @@
 package cfgplugins
 
 import (
-	"testing"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+	"testing"
 )
 
 var (
@@ -167,7 +167,7 @@ type StaticNextHopGroupParams struct {
 	OuterTTLDef      uint8
 
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
-	
+
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
