@@ -1372,3 +1372,8 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
 }
+
+// BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
+func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
+}

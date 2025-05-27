@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "a5e734a1-486c-4da7-b37a-85eeb5971c60"
-plan_id: "TE-3.2"
-description: "Traffic Balancing According to Weights"
-testbed: TESTBED_DUT_ATE_9LINKS_LAG
+uuid: "a7283b91-2e40-40eb-8988-f87443e4585d"
+plan_id: "DP-1.12"
+description: "ECN enabled traffic test"
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -15,14 +15,17 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_in_default_vrf: true
     interface_enabled: true
-    auto_negotiate_unsupported: true
-    duplex_mode_unsupported: true
-    port_speed_unsupported: true
+    explicit_interface_in_default_vrf: true
+    qos_queue_requires_id: true
   }
 }
 platform_exceptions: {
@@ -32,5 +35,6 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    omit_l2_mtu: true
   }
 }
