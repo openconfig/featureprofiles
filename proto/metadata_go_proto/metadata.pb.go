@@ -1018,13 +1018,13 @@ type Metadata_Deviations struct {
 	// Cisco b/414333771
 	BgpSetMedActionUnsupported bool `protobuf:"varint,272,opt,name=bgp_set_med_action_unsupported,json=bgpSetMedActionUnsupported,proto3" json:"bgp_set_med_action_unsupported,omitempty"`
 	// Devices that do not support policy forwarding on next-hop
-	PolicyForwardingToNextHopUnsupported bool `protobuf:"varint,273,opt,name=policy_forwarding_to_next_hop_unsupported,json=policyForwardingToNextHopUnsupported,proto3" json:"policy_forwarding_to_next_hop_unsupported,omitempty"`
+	PolicyForwardingToNextHopOcUnsupported bool `protobuf:"varint,273,opt,name=policy_forwarding_to_next_hop_oc_unsupported,json=policyForwardingToNextHopOcUnsupported,proto3" json:"policy_forwarding_to_next_hop_oc_unsupported,omitempty"`
 	// Devices that do not support policy forwarding encapsulate gre action
-	PolicyForwardingGreEncapsulationUnsupported bool `protobuf:"varint,274,opt,name=policy_forwarding_gre_encapsulation_unsupported,json=policyForwardingGreEncapsulationUnsupported,proto3" json:"policy_forwarding_gre_encapsulation_unsupported,omitempty"`
+	PolicyForwardingGreEncapsulationOcUnsupported bool `protobuf:"varint,274,opt,name=policy_forwarding_gre_encapsulation_oc_unsupported,json=policyForwardingGreEncapsulationOcUnsupported,proto3" json:"policy_forwarding_gre_encapsulation_oc_unsupported,omitempty"`
 	// Devices that do not support qos classifier dscp remark action
-	QosClassifierDscpRemarkUnsupported bool `protobuf:"varint,275,opt,name=qos_classifier_dscp_remark_unsupported,json=qosClassifierDscpRemarkUnsupported,proto3" json:"qos_classifier_dscp_remark_unsupported,omitempty"`
-	unknownFields                      protoimpl.UnknownFields
-	sizeCache                          protoimpl.SizeCache
+	QosClassifierDscpRemarkOcUnsupported bool `protobuf:"varint,275,opt,name=qos_classifier_dscp_remark_oc_unsupported,json=qosClassifierDscpRemarkOcUnsupported,proto3" json:"qos_classifier_dscp_remark_oc_unsupported,omitempty"`
+	unknownFields                        protoimpl.UnknownFields
+	sizeCache                            protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2751,23 +2751,23 @@ func (x *Metadata_Deviations) GetBgpSetMedActionUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetPolicyForwardingToNextHopUnsupported() bool {
+func (x *Metadata_Deviations) GetPolicyForwardingToNextHopOcUnsupported() bool {
 	if x != nil {
-		return x.PolicyForwardingToNextHopUnsupported
+		return x.PolicyForwardingToNextHopOcUnsupported
 	}
 	return false
 }
 
-func (x *Metadata_Deviations) GetPolicyForwardingGreEncapsulationUnsupported() bool {
+func (x *Metadata_Deviations) GetPolicyForwardingGreEncapsulationOcUnsupported() bool {
 	if x != nil {
-		return x.PolicyForwardingGreEncapsulationUnsupported
+		return x.PolicyForwardingGreEncapsulationOcUnsupported
 	}
 	return false
 }
 
-func (x *Metadata_Deviations) GetQosClassifierDscpRemarkUnsupported() bool {
+func (x *Metadata_Deviations) GetQosClassifierDscpRemarkOcUnsupported() bool {
 	if x != nil {
-		return x.QosClassifierDscpRemarkUnsupported
+		return x.QosClassifierDscpRemarkOcUnsupported
 	}
 	return false
 }
@@ -2828,7 +2828,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xec\x97\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xfb\x97\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -2840,7 +2840,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xc0\x8e\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aώ\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3086,10 +3086,10 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1aauto_negotiate_unsupported\x18\x8d\x02 \x01(\bR\x18autoNegotiateUnsupported\x127\n" +
 	"\x17duplex_mode_unsupported\x18\x8e\x02 \x01(\bR\x15duplexModeUnsupported\x125\n" +
 	"\x16port_speed_unsupported\x18\x8f\x02 \x01(\bR\x14portSpeedUnsupported\x12C\n" +
-	"\x1ebgp_set_med_action_unsupported\x18\x90\x02 \x01(\bR\x1abgpSetMedActionUnsupported\x12X\n" +
-	")policy_forwarding_to_next_hop_unsupported\x18\x91\x02 \x01(\bR$policyForwardingToNextHopUnsupported\x12e\n" +
-	"/policy_forwarding_gre_encapsulation_unsupported\x18\x92\x02 \x01(\bR+policyForwardingGreEncapsulationUnsupported\x12S\n" +
-	"&qos_classifier_dscp_remark_unsupported\x18\x93\x02 \x01(\bR\"qosClassifierDscpRemarkUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1ebgp_set_med_action_unsupported\x18\x90\x02 \x01(\bR\x1abgpSetMedActionUnsupported\x12]\n" +
+	",policy_forwarding_to_next_hop_oc_unsupported\x18\x91\x02 \x01(\bR&policyForwardingToNextHopOcUnsupported\x12j\n" +
+	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\x92\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x12X\n" +
+	")qos_classifier_dscp_remark_oc_unsupported\x18\x93\x02 \x01(\bR$qosClassifierDscpRemarkOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
