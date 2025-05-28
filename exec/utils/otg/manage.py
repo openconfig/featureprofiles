@@ -138,11 +138,13 @@ def _replace_binding_placeholders(fp_repo_dir, baseconf_files, binding_file):
     data = data.replace('$CERT_FILE', cert_file)
     data = data.replace('$KEY_FILE', key_file)
     
+    for dut, baseconf_file in baseconf_files.items():
+        pattern = rf'(id:\s*"{re.escape(dut)}")'
+        replacement = rf'\1\n  config: {{\n    gnmi_set_file: "{baseconf_file}"\n  }}'
+        data = re.sub(pattern, replacement, data)
+
     with open(binding_file, 'w') as fp:
         fp.write(data)
-    
-    for dut, baseconf_file in baseconf_files.items():
-        check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + baseconf_file + "\"\\n  }|g' " + binding_file)
 
 def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_binding_file):
     otg_info = reserved_testbed['otg']

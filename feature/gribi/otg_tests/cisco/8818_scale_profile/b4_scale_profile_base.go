@@ -245,13 +245,16 @@ type trafficflowAttr struct {
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx        context.Context
-	client     *fluent.GRIBIClient
-	dut        *ondatra.DUTDevice
-	peer       *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	topo       gosnappi.Config
-	electionID gribi.Uint128
+	ctx          context.Context
+	client       *fluent.GRIBIClient
+	dut          *ondatra.DUTDevice
+	peer         *ondatra.DUTDevice
+	ate          *ondatra.ATEDevice
+	topo         gosnappi.Config
+	electionID   gribi.Uint128
+	primaryPaths []string
+	frr1Paths    []string
+	activeRp     string
 }
 
 // BundleIPAddress struct to store DUT-PEER bundle interface IPv4 and IPv6 address

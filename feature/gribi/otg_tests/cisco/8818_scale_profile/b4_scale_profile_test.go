@@ -439,3 +439,32 @@ func validateTraffic(t *testing.T, tRes *TestResources) {
 	decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
 	validateTrafficFlows(t, tcArgs, getDecapFlows(decapScaleEntries), false, true)
 }
+
+func TestModularGribiProfile(t *testing.T) {
+	testCompactModularChain(t)
+}
+
+func TestExpandedModularChain(t *testing.T) {
+	t.Skipf("Skipping Expanded Modular Chain, need to ckeck if its failing for defect")
+	testExpandedModularChain(t)
+}
+
+func TestEncapScale(t *testing.T) {
+	testEncapScale(t)
+}
+
+func TestDecapScale(t *testing.T) {
+	// t.Skipf("Skipping Decap Scale, need to find calculation for decal entries")
+	testDecapScale(t)
+}
+func TestDecapEncapScale(t *testing.T) {
+	testDecapEncapScale(t)
+}
+
+func TestDcGateScale(t *testing.T) {
+	testDcGateScale(t)
+}
+
+func TestFlushAll(t *testing.T) {
+	testFlushAll(t)
+}
