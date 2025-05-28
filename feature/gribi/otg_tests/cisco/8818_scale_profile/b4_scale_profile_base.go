@@ -189,7 +189,6 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 	bundleIntfList         = []string{}
-	dutBundleIPMap         = map[string]BundleIPAddress{}
 	peerBundleIPMap        = map[string]BundleIPAddress{}
 	bundleList             = []util.BundleLinks{}
 	primaryInterfaces      = []util.BundleLinks{}
@@ -982,39 +981,31 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		t.Log("Configure DUT-TGEN Bundle Interface")
 		aggID1, aggID2 := configureDUTInterfaces(t, dut)
 		t.Log("Configure DUT-PEER dynamic Bundle Interface")
-		bundleList := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
-		// var bundleNameList []string
-		// for _, bundle := range bundleList {
-		// 	bundleNameList = append(bundleNameList, bundle.Name)
-		// }
-		// configure IP addresses for bundle interfaces
-		// Bundles(bundleList).ConfigureBundleLinkIPs(t, dut, peer, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
-
-		configureDeviceBGP(t, dut, peer, bundleList[0])
-		t.Log("Configure sub Interface for Dynamic Bundle DUT-PEER")
-		// bundleNameListNew := []string{}
-		// if len(bundleNameList) > 2 {
-		// 	bundleNameListNew = bundleNameList[1:]
-		// }
-		bundleListNew := make([]util.BundleLinks, 0, len(bundleList)-1)
-		if len(bundleList) > 1 {
-			bundleListNew = bundleList[1:]
+		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
+		if len(bundleList) < 2 {
+			t.Fatalf("Expected at least 2 bundles (one for bgp/isis other for test), got %d", len(bundleList))
 		}
-		primaryIntfs, backupIntfs, err := splitPrimaryBackup(60, bundleListNew)
+		bundleBgpIsis := bundleListAll[0] // first interface is for BGP/ISIS
+		bundleList = bundleListAll[1:]    // rest of the interfaces are for test
+		configureDeviceBGP(t, dut, peer, bundleBgpIsis)
+		t.Log("Configure sub Interface for Dynamic Bundle DUT-PEER")
+		primaryIntfs, backupIntfs, err := splitPrimaryBackup(60, bundleList)
 		if err != nil {
 			t.Fatal(err)
 		}
-		primaryInterfaces = primaryIntfs
-		backupInterfaces = backupIntfs
-		if false { // use backupinterface for future
+		primaryInterfaces = primaryIntfs // interface for primary paths based on primaryPercent
+		backupInterfaces = backupIntfs   // interface for backup paths based on primaryPercent
+		if false {                       // use backupinterface for future test
 			t.Logf("Backup Interface List: %v", backupInterfaces)
 		}
 
 		primaryIntfsName := util.ExtractBundleLinkField(primaryInterfaces, "name")
 
 		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, peerBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, util.ToStringSlice(primaryIntfsName), primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
-		// Assume primaryInterface and backupInterface are []util.BundleLinks
-
+		if false { // use  for future test
+			t.Logf("peerBundlesubIntfIPMap: %v", peerBundlesubIntfIPMap)
+			t.Logf("backupSubIntfScale count: %v", backupSubIntfScale)
+		}
 		var pathInfo PathInfo
 
 		// Extract IP addresses (e.g., IntfV4Addr) for primary and backup
@@ -1046,7 +1037,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		}
 
 		t.Log("Configure ISIS for DUT-PEER")
-		configureDeviceISIS(t, dut, peer, bundleList[0])
+		configureDeviceISIS(t, dut, peer, bundleBgpIsis)
 		t.Log("Configure Fallback in Encap VRF")
 		t.Log("Configure WAN facing VRF selection Policy")
 		wanPBR := CreatePbrPolicy(dut, wanPolicy, false)
@@ -1072,36 +1063,36 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 	}
 }
 
-func configureBundleIPAddr(t *testing.T, dut, peer *ondatra.DUTDevice, bundlelist []string) (map[string]BundleIPAddress, map[string]BundleIPAddress) {
-	dutBundleIPMap := make(map[string]BundleIPAddress)
-	peerBundleIPMap := make(map[string]BundleIPAddress)
-	//Configure Bundle interface IPv4 address
-	for i, bundle := range bundlelist {
-		ipv4r, err := util.IncrementSubnetCIDR(dutPeerBundleIPv4Range, i)
-		ipv6r, err1 := util.IncrementSubnetCIDR(dutPeerBundleIPv6Range, i)
-		if err != nil || err1 != nil {
-			t.Errorf("Error in incrementing subnet")
-		}
-		dutIPv4, peerIPv4 := util.GetUsableIPs(ipv4r)
-		dutIPv6, peerIPv6 := util.GetUsableIPs(ipv6r)
-		dutConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, dutIPv4.String())
-		peerConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, peerIPv4.String())
-		helpers.GnmiCLIConfig(t, dut, dutConf)
-		helpers.GnmiCLIConfig(t, peer, peerConf)
-		//Configure Bundle interface IPv6 address
-		dutConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, dutIPv6.String())
-		peerConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, peerIPv6.String())
-		helpers.GnmiCLIConfig(t, dut, dutConf)
-		helpers.GnmiCLIConfig(t, peer, peerConf)
-		dutBundleIPMap[bundle] = BundleIPAddress{
-			ipv4: dutIPv4.String(),
-			ipv6: dutIPv6.String()}
-		peerBundleIPMap[bundle] = BundleIPAddress{
-			ipv4: peerIPv4.String(),
-			ipv6: peerIPv6.String()}
-	}
-	return dutBundleIPMap, peerBundleIPMap
-}
+// func configureBundleIPAddr(t *testing.T, dut, peer *ondatra.DUTDevice, bundlelist []string) (map[string]BundleIPAddress, map[string]BundleIPAddress) {
+// 	dutBundleIPMap := make(map[string]BundleIPAddress)
+// 	peerBundleIPMap := make(map[string]BundleIPAddress)
+// 	//Configure Bundle interface IPv4 address
+// 	for i, bundle := range bundlelist {
+// 		ipv4r, err := util.IncrementSubnetCIDR(dutPeerBundleIPv4Range, i)
+// 		ipv6r, err1 := util.IncrementSubnetCIDR(dutPeerBundleIPv6Range, i)
+// 		if err != nil || err1 != nil {
+// 			t.Errorf("Error in incrementing subnet")
+// 		}
+// 		dutIPv4, peerIPv4 := util.GetUsableIPs(ipv4r)
+// 		dutIPv6, peerIPv6 := util.GetUsableIPs(ipv6r)
+// 		dutConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, dutIPv4.String())
+// 		peerConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, peerIPv4.String())
+// 		helpers.GnmiCLIConfig(t, dut, dutConf)
+// 		helpers.GnmiCLIConfig(t, peer, peerConf)
+// 		//Configure Bundle interface IPv6 address
+// 		dutConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, dutIPv6.String())
+// 		peerConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, peerIPv6.String())
+// 		helpers.GnmiCLIConfig(t, dut, dutConf)
+// 		helpers.GnmiCLIConfig(t, peer, peerConf)
+// 		dutBundleIPMap[bundle] = BundleIPAddress{
+// 			ipv4: dutIPv4.String(),
+// 			ipv6: dutIPv6.String()}
+// 		peerBundleIPMap[bundle] = BundleIPAddress{
+// 			ipv4: peerIPv4.String(),
+// 			ipv6: peerIPv6.String()}
+// 	}
+// 	return dutBundleIPMap, peerBundleIPMap
+// }
 
 func getDUTBundleIPAddrList(deviceBundleMap map[string]BundleIPAddress) ([]string, []string) {
 	var v4list, v6list []string
