@@ -37,7 +37,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 * ATE Port 2 hosted prefixes:
   
-  * ATE-Port2 IPV4 address = ATE-P2-Address
+  * ATE-Port2 IPv4 address = ATE-P2-Address
   * Additional destination address = IPV4-DST1
   * Additional destination address = IPV6-DST1
 
