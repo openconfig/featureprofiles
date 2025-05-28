@@ -31,7 +31,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 * ATE Port 1 hosted prefixes:
   
-  * ATE-Port1 IPV4 address = ATE-P1-Address
+  * ATE-Port1 IPv4 address = ATE-P1-Address
   * Additional Source Address = IPV4-SRC1
   * Additional Source Address = IPV6-SRC1
 
