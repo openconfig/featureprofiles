@@ -54,19 +54,21 @@ func TestInterfaceParentComponent(t *testing.T) {
 		{
 			desc:    "Port1",
 			port:    "port1",
-			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]:PIC[0-9]:NPU[0-9])$",
 		},
 		{
 			desc:    "Port2",
 			port:    "port2",
-			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]:PIC[0-9]:NPU[0-9])$",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			dp := dut.Port(t, tc.port)
-			parent := checkParentComponent(t, dut, dp.Name())
+			//convert interface to hardware port to get the parent
+			hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+			parent := checkParentComponent(t, dut, hardwarePort)
 			t.Logf("Interface %s parent is %s", dp.Name(), parent)
 			if ok, err := regexp.MatchString(tc.pattern, parent); !ok || err != nil {
 				t.Errorf("Interface %s parent did not match pattern %s: %v", dp.Name(), tc.pattern, err)
