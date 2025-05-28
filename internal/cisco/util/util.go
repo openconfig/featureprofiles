@@ -1074,6 +1074,7 @@ func ToStringSlice(in []any) []string {
 		out[i] = fmt.Sprintf("%v", v)
 	}
 	return out
+}
 
 func ParallelReloadRouter(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) error {
 
@@ -1350,19 +1351,6 @@ func configureBundle(ocRoot *oc.Root, bundleName string, bundleIP net.IP, ipv6Ad
 	subIntfV6 := subIntf.GetOrCreateIpv6()
 	address6 := subIntfV6.GetOrCreateAddress(ipv6Addr.String())
 	address6.PrefixLength = ygot.Uint8(126)
-	// subIntf := bundle.GetOrCreateSubinterface(0)
-	// //  subIntf.Enabled = ygot.Bool(true)  // deviation
-	// subIntfV4 := subIntf.GetOrCreateIpv4()
-	// //  subIntfV4.Enabled = ygot.Bool(true)  // deviation
-	// address4 := subIntfV4.GetOrCreateAddress(bundleIP.String())
-	// address4.PrefixLength = ygot.Uint8(30)
-	// address4.Type = oc.IfIp_Ipv4AddressType_PRIMARY
-	// subIntfV6 := subIntf.GetOrCreateIpv6()
-	// //  subIntfV6.Enabled = ygot.Bool(true)  // deviation
-	// ipv6Address := fmt.Sprintf("2002::%s:%s", hex.EncodeToString(bundleIP[:2]), hex.EncodeToString(bundleIP[2:]))
-	// address6 := subIntfV6.GetOrCreateAddress(ipv6Address)
-	// address6.PrefixLength = ygot.Uint8(126)
-	// address6.Type = oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST
 }
 
 type Bundles []BundleLinks
