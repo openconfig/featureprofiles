@@ -183,7 +183,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		var weight string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n", aggIDs[1], aggIDs[2], aggIDs[3])
+			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n", aggIDs[0], aggIDs[1], aggIDs[2])
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
 		}
@@ -236,7 +236,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		var weight string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 200 \n address-family ipv6 unicast \n weight 200 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n", aggIDs[1], aggIDs[2], aggIDs[3])
+			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 200 \n address-family ipv6 unicast \n weight 200 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n", aggIDs[0], aggIDs[1], aggIDs[2])
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
 		}
