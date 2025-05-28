@@ -1173,9 +1173,9 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
 
 	t.Log("Configure DUT & PEER devices")
-	configureDevices(t, dut, peer)
+	configureDevices(t, dut, peer, "bundle")
 	t.Log("Configure TGEN OTG")
-	topo := configureOTG(t, otg)
+	topo := configureOTG(t, otg, dut, peer)
 	t.Log("OTG CONFIG: ", topo)
 
 	tcArgs := &testArgs{
