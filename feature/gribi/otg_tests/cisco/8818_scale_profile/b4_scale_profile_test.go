@@ -468,3 +468,7 @@ func TestDcGateScale(t *testing.T) {
 func TestFlushAll(t *testing.T) {
 	testFlushAll(t)
 }
+
+func TestDcGateTriggers(t *testing.T) {
+	testDcGateTriggers(t)
+}
