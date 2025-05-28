@@ -488,7 +488,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	}
 	// Configure set-med 100
 	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
-	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
 	stmt5.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	if deviations.CommunityMemberRegexUnsupported(dut) {
