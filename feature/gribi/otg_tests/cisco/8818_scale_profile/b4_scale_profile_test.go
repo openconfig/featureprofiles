@@ -427,7 +427,7 @@ func validateTraffic(t *testing.T, tRes *TestResources) {
 	ctx := context.Background()
 	client.Start(ctx, t)
 
-	topo := configureOTG(t, otg)
+	topo := configureOTG(t, otg, dut, peer)
 	tcArgs := &testArgs{
 		dut:    dut,
 		peer:   peer,

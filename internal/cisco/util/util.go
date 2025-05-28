@@ -253,22 +253,6 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
-// configureDUTSubIfs configures 16 DUT subinterfaces on the target device
-// func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port) {
-// 	for i := 0; i < 16; i++ {
-// 		index := uint32(i)
-// 		vlanID := uint16(i)
-// 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-// 			vlanID = uint16(i) + 1
-// 		}
-// 		dutIPv4 := fmt.Sprintf(`198.51.100.%d`, (4*i)+2)
-// 		createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4, 31)
-// 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-// 			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), index)
-// 		}
-// 	}
-// }
-
 // createSubifDUT creates a single L3 subinterface
 func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) {
 	i := d.GetOrCreateInterface(interfaceName)
@@ -344,6 +328,31 @@ type LinkIPs struct {
 	PeerIPv6 string `json:"peer_ipv6"`
 }
 
+// ExtractLinkIPsField returns a slice of the requested field from a map[string]LinkIPs.
+// field can be "dutipv4", "dutipv6", "peeripv4", or "peeripv6".
+func ExtractLinkIPsField(linkMap map[string]LinkIPs, field string) []string {
+	var result []string
+	var getField func(LinkIPs) string
+
+	switch strings.ToLower(field) {
+	case "dutipv4":
+		getField = func(l LinkIPs) string { return l.DutIPv4 }
+	case "dutipv6":
+		getField = func(l LinkIPs) string { return l.DutIPv6 }
+	case "peeripv4":
+		getField = func(l LinkIPs) string { return l.PeerIPv4 }
+	case "peeripv6":
+		getField = func(l LinkIPs) string { return l.PeerIPv6 }
+	default:
+		return result
+	}
+
+	for _, v := range linkMap {
+		result = append(result, getField(v))
+	}
+	return result
+}
+
 // createSubInterfaces creates subinterfaces for the given links, configuring both DUT and Peer interfaces.
 // It assigns /31 for IPv4 and /127 for IPv6 addresses.
 func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6 net.IP) (net.IP, net.IP, map[string]LinkIPs) {
@@ -399,18 +408,6 @@ func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondat
 	// Push batch configurations to DUT and Peer
 	dutBatchConfig.Set(t, dut)
 	peerBatchConfig.Set(t, peer)
-
-	// Measure time taken for DUT batch configuration
-	// startTime := time.Now()
-	// dutBatchConfig.Set(t, dut)
-	// duration := time.Since(startTime)
-	// t.Logf("Time taken for dutBatchConfig.Set with subIntCount=%d: %v", subIntCount, duration)
-
-	// Measure time taken for Peer batch configuration
-	// startTime = time.Now()
-	// peerBatchConfig.Set(t, peer)
-	// duration = time.Since(startTime)
-	// t.Logf("Time taken for peerBatchConfig.Set with subIntCount=%d: %v", subIntCount, duration)
 
 	return nextIPv4, nextIPv6, subIntfIPMap
 }
@@ -923,21 +920,81 @@ func RebootDevice(t *testing.T) {
 	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
 }
 
+// Convert []interface{} to []string
+func ToStringSlice(in []any) []string {
+	out := make([]string, len(in))
+	for i, v := range in {
+		out[i] = fmt.Sprintf("%v", v)
+	}
+	return out
+}
+
 type InterfacePhysicalLink struct {
 	Intf               *oc.Interface
 	IntfName           string
 	IntfV4Addr         string
+	IntfV6Addr         string
 	LineCardNumber     string
 	PeerIntfName       string
 	PeerV4Addr         string
+	PeerV6Addr         string
 	PeerIntf           *oc.Interface
 	PeerLineCardNumber string
+}
+
+type BundleLinks struct {
+	Name       string
+	IntfV4Addr string
+	IntfV6Addr string
+	PeerV4Addr string
+	PeerV6Addr string
+	Links      []InterfacePhysicalLink
+}
+
+// var bundles []BundleLinks
+
+// ExtractBundleLinkField returns a slice of the requested field from all InterfacePhysicalLink in all bundles.
+// field can be "intf", "intfv4addr", or "intfname".
+// ExtractBundleLinkField returns a slice of the requested field from all InterfacePhysicalLink in all bundles.
+// field can be any field in InterfacePhysicalLink or "name" for the bundle name.
+func ExtractBundleLinkField(bundles []BundleLinks, field string) []any {
+	var result []interface{}
+	switch strings.ToLower(field) {
+	case "name":
+		for _, bundle := range bundles {
+			result = append(result, bundle.Name)
+		}
+	case "intfv4addr":
+		for _, bundle := range bundles {
+			result = append(result, bundle.IntfV4Addr)
+		}
+	case "intfv6addr":
+		for _, bundle := range bundles {
+			result = append(result, bundle.IntfV6Addr)
+		}
+	case "peerv4addr":
+		for _, bundle := range bundles {
+			result = append(result, bundle.PeerV4Addr)
+		}
+	case "peerv6addr":
+		for _, bundle := range bundles {
+			result = append(result, bundle.PeerV6Addr)
+
+		}
+	case "peerlinecardnumber":
+		for _, bundle := range bundles {
+			for _, link := range bundle.Links {
+				result = append(result, link.PeerLineCardNumber)
+			}
+		}
+	}
+	return result
 }
 
 // Assumptions
 // dut is connected only to peer (no other lldp device in the topology)
 // no  bundle is configured before calling this function
-func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, memberCount int) map[string][]InterfacePhysicalLink {
+func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, memberCount int, ipv4Subnet, ipv6Subnet string) []BundleLinks {
 
 	if !enableLldp(t, dut) {
 		t.Fatalf("LLDP configuration for device %s failed", dut.Name())
@@ -1053,38 +1110,52 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	}
 
 	// Create the map with keys as bundle names and values as slices of InterfacePhysicalLink
-	bundleMap := make(map[string][]InterfacePhysicalLink)
+	// bundles := make([]BundleLinks, numBundles)
+	// for i := 0; i < numBundles; i++ {
+	// 	bundleName := fmt.Sprintf("Bundle-Ether%d", 100+i)
+	// 	bundleMap[bundleName] = []InterfacePhysicalLink{}
+	// }
+	var bundles []BundleLinks
 	for i := 0; i < numBundles; i++ {
 		bundleName := fmt.Sprintf("Bundle-Ether%d", 100+i)
-		bundleMap[bundleName] = []InterfacePhysicalLink{}
+		bundles = append(bundles, BundleLinks{Name: bundleName, Links: []InterfacePhysicalLink{}})
 	}
 
 	// Distribute the sortedLinkInfos into bundles in a round-robin fashion
 	for i, link := range sortedLinkInfos {
-		bundleName := fmt.Sprintf("Bundle-Ether%d", 100+(i%numBundles))
-		bundleMap[bundleName] = append(bundleMap[bundleName], link)
+		bundleIdx := i % numBundles
+		bundles[bundleIdx].Links = append(bundles[bundleIdx].Links, link)
 	}
 
 	t.Logf("Total Links: %d, Member Count: %d, Number of Bundles: %d\n", linkCount, memberCount, numBundles)
-	for bundleName, links := range bundleMap {
-		t.Logf("Bundle: %s\n", bundleName)
-		for _, link := range links {
+	for _, bundle := range bundles {
+		t.Logf("Bundle: %s\n", bundle.Name)
+		for _, link := range bundle.Links {
 			t.Logf("  DUT Interface: %v, DUT LC: %v, Peer Interface: %v, Peer LC: %v\n",
 				link.IntfName, link.LineCardNumber, link.PeerIntfName, link.PeerLineCardNumber)
 		}
 	}
 
 	// Create bundles in both DUT and Peer devices
-	createBundles(t, dut, peer, bundleMap)
+	Bundles(bundles).CreateBundles(t, dut, peer, ipv4Subnet, ipv6Subnet)
 
-	return bundleMap
+	return bundles
 }
 
-func configureBundle(ocRoot *oc.Root, bundleName string, bundleIP net.IP) {
+func configureBundle(ocRoot *oc.Root, bundleName string, bundleIP net.IP, ipv6Addr net.IP) {
 	bundle := ocRoot.GetOrCreateInterface(bundleName)
 	bundle.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 	bundle.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	bundle.Enabled = ygot.Bool(true)
+	// Configure subinterface 0 with IPv4 address
+	subIntf := bundle.GetOrCreateSubinterface(0)
+	subIntfV4 := subIntf.GetOrCreateIpv4()
+	address4 := subIntfV4.GetOrCreateAddress(bundleIP.String())
+	address4.PrefixLength = ygot.Uint8(30)
+	// Configure subinterface 0 with IPv6 address
+	subIntfV6 := subIntf.GetOrCreateIpv6()
+	address6 := subIntfV6.GetOrCreateAddress(ipv6Addr.String())
+	address6.PrefixLength = ygot.Uint8(126)
 	// subIntf := bundle.GetOrCreateSubinterface(0)
 	// //  subIntf.Enabled = ygot.Bool(true)  // deviation
 	// subIntfV4 := subIntf.GetOrCreateIpv4()
@@ -1100,41 +1171,60 @@ func configureBundle(ocRoot *oc.Root, bundleName string, bundleIP net.IP) {
 	// address6.Type = oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST
 }
 
-func createBundles(t *testing.T, dut, peer *ondatra.DUTDevice, bundleMap map[string][]InterfacePhysicalLink) {
+type Bundles []BundleLinks
+
+func (bundles Bundles) CreateBundles(t *testing.T, dut, peer *ondatra.DUTDevice, ipv4Subnet, ipv6Subnet string) {
 	dutBatchConfig := &gnmi.SetBatch{}
 	peerBatchConfig := &gnmi.SetBatch{}
-	ipAddress := net.IP{192, 192, 1, 0}
-	for bundleName, links := range bundleMap {
+	// ipAddress := net.IP{192, 192, 1, 0}
+	_, ipnet, err := net.ParseCIDR(ipv4Subnet)
+	if err != nil {
+		t.Fatalf("Failed to parse subnet: %v", err)
+	}
+	ipAddress := ipnet.IP
+
+	_, ipnet6, err := net.ParseCIDR(ipv6Subnet)
+	if err != nil {
+		t.Fatalf("Failed to parse IPv6 subnet: %v", err)
+	}
+	ipv6Addr := ipnet6.IP
+
+	for i, bundle := range bundles {
 		ipAddress = incrementIP(ipAddress, 1)
+		ipv6Addr = incrementIPv6(ipv6Addr)
+
 		// Create bundle interface on DUT
 		dutRoot := &oc.Root{}
-		configureBundle(dutRoot, bundleName, ipAddress)
+		configureBundle(dutRoot, bundle.Name, ipAddress, ipv6Addr)
+		bundles[i].IntfV4Addr = ipAddress.String()
+		bundles[i].IntfV6Addr = ipv6Addr.String()
 
 		// Add member interfaces to the bundle on DUT
-		for _, link := range links {
+		for _, link := range bundle.Links {
 			member := dutRoot.GetOrCreateInterface(link.IntfName)
-			member.GetOrCreateEthernet().AggregateId = ygot.String(bundleName)
+			member.GetOrCreateEthernet().AggregateId = ygot.String(bundle.Name)
 			member.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
 		}
-		// gnmi.Update(t, dut, gnmi.OC().Config(), dutRoot)
 		gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Config(), dutRoot)
 
-		// increment the ip
 		ipAddress = incrementIP(ipAddress, 1)
+		ipv6Addr = incrementIPv6(ipv6Addr)
 		// Create bundle interface on Peer
 		peerRoot := &oc.Root{}
-		configureBundle(peerRoot, bundleName, ipAddress)
+		configureBundle(peerRoot, bundle.Name, ipAddress, ipv6Addr)
+		bundles[i].PeerV4Addr = ipAddress.String()
+		bundles[i].PeerV6Addr = ipv6Addr.String()
 
 		// Add member interfaces to the bundle on Peer
-		for _, link := range links {
+		for _, link := range bundle.Links {
 			member := peerRoot.GetOrCreateInterface(link.PeerIntfName)
-			member.GetOrCreateEthernet().AggregateId = ygot.String(bundleName)
+			member.GetOrCreateEthernet().AggregateId = ygot.String(bundle.Name)
 			member.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		}
 		gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Config(), peerRoot)
-		// gnmi.Update(t, peer, gnmi.OC().Config(), peerRoot)
 		ipAddress = incrementIP(ipAddress, 2)
+		ipv6Addr = incrementIPv6(ipv6Addr)
+		ipv6Addr = incrementIPv6(ipv6Addr)
 	}
 	dutBatchConfig.Set(t, dut)
 	peerBatchConfig.Set(t, peer)
