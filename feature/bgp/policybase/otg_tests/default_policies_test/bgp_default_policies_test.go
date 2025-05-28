@@ -626,7 +626,7 @@ func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, a
 	deleteBGPPolicy(t, dut, []*bgpNbrList{ebgpNbrV4, ebgpNbrV6, ibgpNbrV4, ibgpNbrV6})
 	gnmi.BatchDelete(batchConfig, gnmi.OC().RoutingPolicy().Config())
 	batchConfig.Set(t, dut)
-	time.Sleep(20 * time.Second)
+	time.Sleep(40 * time.Second)
 
 	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpImportIPv4, maskLenExact, maskLen32, []string{ipv4Prefix1, ipv4Prefix2}, action, defaultStatementOnly))
 	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpImportIPv6, maskLenExact, maskLen128, []string{ipv6Prefix1, ipv6Prefix2}, action, defaultStatementOnly))
@@ -649,7 +649,7 @@ func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, a
 
 	batchConfig.Set(t, dut)
 
-	time.Sleep(20 * time.Second)
+	time.Sleep(40 * time.Second)
 }
 
 func testDefaultPolicyRejectRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
