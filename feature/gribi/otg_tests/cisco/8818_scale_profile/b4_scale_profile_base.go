@@ -204,8 +204,9 @@ var (
 
 	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
-	primarySubIntfScale         = 10
-	backupSubIntfScale          = 10
+	primarySubIntfScale         = 10 //todo increase // number of sub-interfaces on primary bundle interface
+	backupSubIntfScale          = 10 //todo increase // number of sub-interfaces on backup bundle interface
+	primaryPercent              = 60
 )
 
 type PbrRule struct {
@@ -989,7 +990,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		bundleList = bundleListAll[1:]    // rest of the interfaces are for test
 		configureDeviceBGP(t, dut, peer, bundleBgpIsis)
 		t.Log("Configure sub Interface for Dynamic Bundle DUT-PEER")
-		primaryIntfs, backupIntfs, err := splitPrimaryBackup(60, bundleList)
+		primaryIntfs, backupIntfs, err := splitPrimaryBackup(primaryPercent, bundleList)
 		if err != nil {
 			t.Fatal(err)
 		}
