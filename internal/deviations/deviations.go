@@ -1372,3 +1372,18 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
+
+// UnsupportedQoSOutputServicePolicy returns true if devices do not support qos output service-policy
+func UnsupportedQoSOutputServicePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedQosOutputServicePolicy()
+}
+
+// InterfaceOutputQueueNonStandardName returns true if devices have non-standard output queue names
+func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceOutputQueueNonStandardName()
+}
+
+// MplsExpIngressClassifierUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
+func MplsExpIngressClassifierUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierUnsupported()
+}
