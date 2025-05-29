@@ -1,7 +1,9 @@
 # PF-1.22 Static GUEv1 Decapsulation and EMCP test for IPv4 and IPv6 payload
 ## Summary
-This is to test the functionality of decapsulation of static GUEv1 to IPv4 or IPv6 payload and ensures that only the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes. 
-Comprehensive static GUEv1 Decapsulation over decap subnet range, decap TTL and DSCP behavior test is documented in [#4178](https://github.com/openconfig/featureprofiles/pull/4178).
+This is to test the functionality of decapsulation of GUEv1 to IPv4 or IPv6 payload and ensures that only
+the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes. 
+
+GUEv1 decapsulation matching destination-address-prefix-set and TTL and DSCP behavior test is documented in [#4178](https://github.com/openconfig/featureprofiles/pull/4178).
 
 ## Topology
 ```mermaid
