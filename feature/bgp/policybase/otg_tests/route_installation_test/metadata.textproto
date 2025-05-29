@@ -39,6 +39,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    bgp_set_med_v7_unsupported: true
+    bgp_set_med_action_unsupported: true
   }
 }
