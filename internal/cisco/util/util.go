@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
@@ -1976,6 +1977,7 @@ func ParallelRPFO(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
 	}
 }
 
+<<<<<<< HEAD
 func RPFO(t *testing.T, dut *ondatra.DUTDevice) {
 
 	var supervisors []string
@@ -2069,4 +2071,34 @@ func RPFO(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
+=======
+// CMDViaGNMI runs a command on the DUT via GNMI and returns the output
+func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	gnmiC := dut.RawAPIs().GNMI(t)
+	getRequest := &gnmipb.GetRequest{
+		Prefix: &gnmipb.Path{
+			Origin: "cli",
+		},
+		Path: []*gnmipb.Path{
+			{
+				Elem: []*gnmipb.PathElem{{
+					Name: cmd,
+				}},
+			},
+		},
+		Encoding: gnmipb.Encoding_ASCII,
+	}
+	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	resp, err := gnmiC.Get(ctx, getRequest)
+	if err != nil {
+		t.Fatalf("running cmd (%s) via GNMI is failed: %v", cmd, err)
+	}
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
+	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+>>>>>>> f9387c55482a6d4b34a79511471411c48ca1dc68
 }
