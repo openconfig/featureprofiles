@@ -1,4 +1,4 @@
-# PF-1.22 Static GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload
+# PF-1.22 GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload
 ## Summary
 This is to test the functionality of decapsulation of GUEv1 to IPv4 or IPv6 payload and ensures that only
 the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes. 
