@@ -428,7 +428,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop
 }
 
 // CreatePbrPolicy returns Policy map defined in pbrRules struct for cluster & wan policy
-func CreatePbrPolicy(dut *ondatra.DUTDevice, name string, cluster_facing bool) *oc.NetworkInstance_PolicyForwarding {
+func CreatePbrPolicy(t *testing.T, dut *ondatra.DUTDevice, name string, cluster_facing bool) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	pf := ni.GetOrCreatePolicyForwarding()
@@ -439,6 +439,18 @@ func CreatePbrPolicy(dut *ondatra.DUTDevice, name string, cluster_facing bool) *
 	}
 	for _, pbrRule := range pbrRules {
 		r, _ := p.NewRule(pbrRule.sequence)
+		t.Logf("Rule is: %v", r)
+		// sleep for 5 sec if rule is nill
+		if r == nil {
+			t.Errorf("Rule is nil for sequence %d in policy %s", pbrRule.sequence, name)
+			t.Logf("Sleep for 5 sec and check the pbr rule")
+			time.Sleep(5 * time.Second)
+			t.Logf("Rule after sleep %v", r)
+		}
+		// if rule is still nill after 5 sec sleep fail fatal
+		if r == nil {
+			t.Fatalf("Failed to create or get rule for sequence %d in policy %s", pbrRule.sequence, name)
+		}
 		l2 := r.GetOrCreateL2()
 		r4 := r.GetOrCreateIpv4()
 		if pbrRule.dscpSet != nil {
@@ -914,11 +926,11 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	configureDeviceISIS(t, dut, peer, bundleIntfList)
 	t.Log("Configure Fallback in Encap VRF")
 	t.Log("Configure WAN facing VRF selection Policy")
-	wanPBR := CreatePbrPolicy(dut, wanPolicy, false)
+	wanPBR := CreatePbrPolicy(t, dut, wanPolicy, false)
 	defaultNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, defaultNiPath.PolicyForwarding().Config(), wanPBR)
 	t.Log("Configure Cluster facing VRF selection Policy")
-	clusterPBR := CreatePbrPolicy(dut, clusterPolicy, true)
+	clusterPBR := CreatePbrPolicy(t, dut, clusterPolicy, true)
 	gnmi.Update(t, dut, defaultNiPath.PolicyForwarding().Config(), clusterPBR)
 	//Apply Cluster facing policy on DUT-TGEN Bundle1 interface
 	applyForwardingPolicy(t, aggID1, clusterPolicy, false)
