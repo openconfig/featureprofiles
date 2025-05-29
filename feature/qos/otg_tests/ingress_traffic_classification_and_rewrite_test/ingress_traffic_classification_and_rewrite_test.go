@@ -27,6 +27,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -41,22 +42,26 @@ import (
 )
 
 const (
-	ipv4PrefixLen    = 30
-	ipv6PrefixLen    = 126
-	mplsSwapLabel    = 24000
-	mplsSwapLabelTo  = 25000
-	mplsPopLabelv4   = 26000
-	mplsPopLabelv6   = 27000
-	mplsPushLabelV4  = 28000
-	mplsPushLabelV6  = 29000
-	ipv4DestAddr     = "203.1.1.1"
-	ipv6DestAddr     = "203:0:0:1::1"
-	frameSize        = 512
-	packetPerSecond  = 100
-	maxIpv6Tos       = 63
-	timeout          = 30
-	trafficSleepTime = 10
-	captureWait      = 10
+	ipv4PrefixLen        = 30
+	ipv6PrefixLen        = 126
+	mplsSwapLabel        = 24000
+	mplsSwapLabelTo      = 25000
+	mplsPopLabelv4       = 26000
+	mplsPopLabelv6       = 27000
+	mplsPushLabelV4      = 28000
+	mplsPushLabelV6      = 29000
+	ipv4DestAddr         = "203.1.1.1"
+	ipv4DestAddrWithCidr = "203.1.1.1/32"
+	ipv6DestAddr         = "203:0:0:1::1"
+	ipv6DestAddrWithCidr = "203:0:0:1::1/128"
+	frameSize            = 512
+	packetPerSecond      = 100
+	maxIpv6Tos           = 63
+	timeout              = 30
+	trafficSleepTime     = 10
+	captureWait          = 10
+	lspNextHopIndex      = 0
+	implicitNull         = 3
 )
 
 var (
@@ -410,19 +415,16 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		// 	inputClassifierType: oc.Input_Classifier_Type_MPLS,
 		// 	classifier:          "exp_based_classifier_mpls",
 	}}
-
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
 		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
-
 	t.Logf("qos input remark config: %v", classifierIntfs)
-	if deviations.QosRemarkUnsupported(dut) {
+	if deviations.QosRemarkOCUnsupported(dut) {
 		configureRemarkIpv4(t, dut)
 		configureRemarkIpv6(t, dut)
 		configureRemarkMpls(t, dut)
 	}
-
 }
 
 func configureRemarkMpls(t *testing.T, dut *ondatra.DUTDevice) {
@@ -432,10 +434,8 @@ func configureRemarkMpls(t *testing.T, dut *ondatra.DUTDevice) {
 		qos map exp 7 to traffic-class 6
 		qos map traffic-class 4 to exp 4
 		qos map traffic-class 6 to exp 6
-		`)
-
+	`)
 	gpbSetRequest := buildCliConfigRequest(jsonConfig)
-
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 	}
@@ -554,6 +554,14 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	ate.OTG().PushConfig(t, topo)
+
+	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "ipv6-traffic-tos0")
 	stopCapture(t, ate)
@@ -564,12 +572,19 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 	verifyIpv6DscpCapture(t, ate, "port2")
 
-	verfiy_classifier_packets(t, dut, "0")
-	verfiy_classifier_packets(t, dut, "1")
-	verfiy_classifier_packets(t, dut, "2")
-	verfiy_classifier_packets(t, dut, "3")
-	verfiy_classifier_packets(t, dut, "4")
-	verfiy_classifier_packets(t, dut, "6")
+	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+
+	compare_counters(t, intialpacket1, finalpacket1)
+	compare_counters(t, intialpacket2, finalpacket2)
+	compare_counters(t, intialpacket3, finalpacket3)
+	compare_counters(t, intialpacket4, finalpacket4)
+	compare_counters(t, intialpacket5, finalpacket5)
+	compare_counters(t, intialpacket6, finalpacket6)
 }
 
 func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
@@ -653,6 +668,14 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	ate.OTG().PushConfig(t, topo)
+
+	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "intf1-nc1-ipv4")
 	stopCapture(t, ate)
@@ -662,12 +685,19 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 	verifyIpv4DscpCapture(t, ate, "port2")
 
-	verfiy_classifier_packets(t, dut, "0")
-	verfiy_classifier_packets(t, dut, "1")
-	verfiy_classifier_packets(t, dut, "2")
-	verfiy_classifier_packets(t, dut, "3")
-	verfiy_classifier_packets(t, dut, "4")
-	verfiy_classifier_packets(t, dut, "6")
+	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+
+	compare_counters(t, intialpacket1, finalpacket1)
+	compare_counters(t, intialpacket2, finalpacket2)
+	compare_counters(t, intialpacket3, finalpacket3)
+	compare_counters(t, intialpacket4, finalpacket4)
+	compare_counters(t, intialpacket5, finalpacket5)
+	compare_counters(t, intialpacket6, finalpacket6)
 
 }
 
@@ -699,28 +729,8 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 	t.Logf("Configuring MPLS Swap Action with DUT")
 
-	gnmiClient := dut.RawAPIs().GNMI(t)
+	cfgplugins.NewStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo, lspNextHopIndex)
 
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig := fmt.Sprintf(`
-    mpls ip
-    mpls static top-label %v %s swap-label %v
-	`, mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo)
-
-		gpbSetRequest := buildCliConfigRequest(jsonConfig)
-
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	} else {
-		d := &oc.Root{}
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp("lsp-ingress-v4")
-		staticMplsCfg.GetOrCreateIngress().SetIncomingLabel(oc.UnionUint32(mplsSwapLabel))
-		staticMplsCfg.GetOrCreateIngress().SetNextHop(atePort2.IPv4)
-		staticMplsCfg.GetOrCreateIngress().SetPushLabel(oc.UnionUint32(mplsSwapLabelTo))
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
-	}
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "MplsSwap")
 	stopCapture(t, ate)
@@ -728,17 +738,8 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	verifyTrafficFlow(t, ate, "MplsSwap")
 	verifyMplsSwapPushCapture(t, ate, "port2", mplsSwapLabelTo, true)
 
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig1 := fmt.Sprintf(`
-		no mpls static top-label %v %s swap-label %v
-		`, mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo)
+	cfgplugins.RemoveStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo, lspNextHopIndex)
 
-		gpbSetRequest1 := buildCliConfigRequest(jsonConfig1)
-
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest1); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
 }
 
 func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
@@ -768,17 +769,7 @@ func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	t.Logf("Configuring MPLS POP Action for IPv4 with DUT")
 
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig := fmt.Sprintf(`
-   		mpls ip
-    	mpls static top-label %v %s pop payload-type ipv4 
-		`, mplsPopLabelv4, atePort2.IPv4)
-		gpbSetRequest := buildCliConfigRequest(jsonConfig)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
+	cfgplugins.NewStaticMplsLspPopLabel(t, dut, "lsp-pop", mplsPopLabelv4, "", atePort2.IPv4, "ipv4")
 
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "MplsPopV4")
@@ -787,15 +778,9 @@ func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	verifyTrafficFlow(t, ate, "MplsPopV4")
 
 	verifyMplsPopCapture(t, ate, "port2")
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig1 := fmt.Sprintf(`
-    	no mpls static top-label %v %s pop payload-type ipv4 
-		`, mplsPopLabelv4, atePort2.IPv4)
-		gpbSetRequest1 := buildCliConfigRequest(jsonConfig1)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest1); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
+
+	cfgplugins.RemoveStaticMplsLspPopLabel(t, dut, "lsp-pop", mplsPopLabelv4, "", atePort2.IPv4, "ipv4")
+
 }
 
 func rewriteIpv6MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
@@ -825,18 +810,7 @@ func rewriteIpv6MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 	t.Logf("Configuring MPLS POP Action for IPv6 with DUT")
 
-	gnmiClient := dut.RawAPIs().GNMI(t)
-
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig := fmt.Sprintf(`
-    mpls ip
-    mpls static top-label %v %s pop payload-type ipv6 
-	`, mplsPopLabelv6, atePort2.IPv6)
-		gpbSetRequest := buildCliConfigRequest(jsonConfig)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
+	cfgplugins.NewStaticMplsLspPopLabel(t, dut, "lsp-pop-v6", mplsPopLabelv6, "", atePort2.IPv6, "ipv6")
 
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "MplsPopV6")
@@ -845,15 +819,7 @@ func rewriteIpv6MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	verifyTrafficFlow(t, ate, "MplsPopV6")
 	verifyMplsPopCapture(t, ate, "port2")
 
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig1 := fmt.Sprintf(`
-    no mpls static top-label %v %s pop payload-type ipv6 
-	`, mplsPopLabelv6, atePort2.IPv6)
-		gpbSetRequest1 := buildCliConfigRequest(jsonConfig1)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest1); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
+	cfgplugins.RemoveStaticMplsLspPopLabel(t, dut, "lsp-pop-v6", mplsPopLabelv6, "", atePort2.IPv6, "ipv6")
 
 }
 
@@ -880,30 +846,9 @@ func rewriteIpv4MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	t.Logf("Configuring MPLS Push Action with DUT")
 
-	gnmiClient := dut.RawAPIs().GNMI(t)
+	cfgplugins.NewStaticMplsLspPushLabel(t, dut, "mpls-lsp-push", dp1.Name(), atePort2.IPv4, ipv4DestAddrWithCidr,
+		mplsPushLabelV4, lspNextHopIndex, "ipv4")
 
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig := fmt.Sprintf(`
-    	mpls ip
-		nexthop-group TestGrp type mpls
-   			entry 0 push label-stack %v nexthop %s
-		traffic-policies
-			traffic-policy MPLS_TRAFFIC_POLICY
-				match DA ipv4
-				destination prefix %s/32
-				actions
-					count
-					redirect next-hop group TestGrp
-				match ipv4-all-default ipv4
-				match ipv6-all-default ipv6
-		interface %s
-		traffic-policy input MPLS_TRAFFIC_POLICY
-		`, mplsPushLabelV4, atePort2.IPv4, ipv4DestAddr, dp1.Name())
-		gpbSetRequest := buildCliConfigRequest(jsonConfig)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "MplsPushV4")
 	stopCapture(t, ate)
@@ -912,19 +857,8 @@ func rewriteIpv4MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	verifyTrafficFlow(t, ate, "MplsPushV4")
 	verifyMplsSwapPushCapture(t, ate, "port2", mplsPushLabelV4, false)
 
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig1 := fmt.Sprintf(`
-		interface %s
-		no traffic-policy input MPLS_TRAFFIC_POLICY
-    	traffic-policies
-   		no traffic-policy MPLS_TRAFFIC_POLICY
-		no nexthop-group TestGrp type mpls
-		`, dp1.Name())
-		gpbSetRequest1 := buildCliConfigRequest(jsonConfig1)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest1); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
+	cfgplugins.RemoveStaticMplsLspPushLabel(t, dut, "mpls-lsp-push", dp1.Name())
+
 }
 
 func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
@@ -951,29 +885,9 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	t.Logf("Configuring MPLS Push Action with DUT")
 
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig := fmt.Sprintf(`
-		mpls ip
-		nexthop-group TestGrp type mpls
-			entry 0 push label-stack %v nexthop %s
-		traffic-policies
-			traffic-policy MPLS_TRAFFIC_POLICY
-				match DA ipv6
-				destination prefix %s/128
-				actions
-					count
-					redirect next-hop group TestGrp
-				match ipv4-all-default ipv4
-				match ipv6-all-default ipv6
-		interface %s
-		traffic-policy input MPLS_TRAFFIC_POLICY
-		`, mplsPushLabelV6, atePort2.IPv6, ipv6DestAddr, dp1.Name())
-		gpbSetRequest := buildCliConfigRequest(jsonConfig)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
+	cfgplugins.NewStaticMplsLspPushLabel(t, dut, "mpls-lsp-push-ipv6", dp1.Name(), atePort2.IPv6, ipv6DestAddrWithCidr,
+		mplsPushLabelV6, lspNextHopIndex, "ipv6")
+
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "MplsPushV6")
 	stopCapture(t, ate)
@@ -982,19 +896,8 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	verifyTrafficFlow(t, ate, "MplsPushV6")
 
 	verifyMplsSwapPushCapture(t, ate, "port2", mplsPushLabelV6, false)
-	if deviations.StaticMplsLspUnsupported(dut) {
-		jsonConfig1 := fmt.Sprintf(`
-		interface %s
-		no traffic-policy input MPLS_TRAFFIC_POLICY
-		traffic-policies
-			no traffic-policy MPLS_TRAFFIC_POLICY
-		no nexthop-group TestGrp type mpls
-		`, dp1.Name())
-		gpbSetRequest1 := buildCliConfigRequest(jsonConfig1)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest1); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
-	}
+
+	cfgplugins.RemoveStaticMplsLspPushLabel(t, dut, "mpls-lsp-push-ipv6", dp1.Name())
 }
 
 func trafficStartStop(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowName string) {
@@ -1182,18 +1085,25 @@ func contains(arr []int, target int) bool {
 	return false
 }
 
-func verfiy_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, termId string) {
+func verfiy_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
 	dp1 := dut.Port(t, "port1")
-	t.Logf("Waiting stats for")
 	const timeout = 10 * time.Second
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
-	if deviations.SkipVerifyClassifierMatchedpackets(dut) {
-		t.Logf("Skipping Classifier based matched packets verification")
+
+	_, ok := gnmi.WatchAll(t, dut, gnmi.OC().Qos().Interface(dp1.Name()).Input().ClassifierAny().Term(termId).MatchedPackets().State(), timeout, isPresent).Await(t)
+	if !ok {
+		t.Errorf("Unable to find matched packets")
+	}
+	matchpackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp1.Name()).Input().Classifier(classifier).Term(termId).MatchedPackets().State())
+	return matchpackets
+}
+
+func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64) {
+	t.Logf("Classifier counters Before Traffic %v", intialpacket)
+	t.Logf("Classifier counters After Traffic %v", finalpacket)
+	if finalpacket > intialpacket {
+		t.Logf("Pass : Classifier counters got incremented after start and stop traffic")
 	} else {
-		count, ok := gnmi.WatchAll(t, dut, gnmi.OC().Qos().Interface(dp1.Name()).Input().ClassifierAny().Term(termId).MatchedPackets().State(), timeout, isPresent).Await(t)
-		if !ok {
-			t.Errorf("Unable to find matched packets")
-		}
-		t.Log(count.Val())
+		t.Errorf("Fail : Classifier counters not incremented after start and stop traffic. Refer BUG ID 419618177")
 	}
 }
