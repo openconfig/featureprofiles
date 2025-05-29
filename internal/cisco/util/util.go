@@ -20,8 +20,15 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/system"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -31,10 +38,12 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 const (
@@ -46,6 +55,19 @@ const (
 	pLen6          = 126
 	PTBGP          = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	BGPAS          = 65000
+)
+
+// used by SupervisorSwitchover to test Supervisor Switchover
+const (
+	maxSwitchoverTime = 900
+	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+)
+
+const (
+	active_rp  = "0/RP0/CPU0"
+	standby_rp = "0/RP1/CPU0"
 )
 
 // FlapInterface flaps Interface and check State
@@ -88,6 +110,40 @@ func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName strin
 	} else {
 		t.Logf("Interface adminState set to :%v", adminState)
 	}
+}
+
+func FlapBulkInterfaces(t *testing.T, dut *ondatra.DUTDevice, intfList []string) {
+
+	var flapDuration time.Duration = 2
+	var adminState bool
+
+	adminState = false
+	SetInterfaceStateScale(t, dut, intfList, adminState)
+	time.Sleep(flapDuration * time.Second)
+	adminState = true
+	SetInterfaceStateScale(t, dut, intfList, adminState)
+}
+
+func SetInterfaceStateScale(t *testing.T, dut *ondatra.DUTDevice, intfList []string,
+	adminState bool) {
+
+	var intfType oc.E_IETFInterfaces_InterfaceType
+	batchConfig := &gnmi.SetBatch{}
+
+	for i := 0; i < len(intfList); i++ {
+		if intfList[i][:6] == "Bundle" {
+			intfType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		} else {
+			intfType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		}
+		j := &oc.Interface{
+			Enabled: ygot.Bool(adminState),
+			Name:    ygot.String(intfList[i]),
+			Type:    intfType,
+		}
+		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intfList[i]).Config(), j)
+	}
+	batchConfig.Set(t, dut)
 }
 
 // GetIPPrefix returns the ip range with prefix
@@ -487,6 +543,35 @@ func AddISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
+// addISISOC, configures ISIS on DUT
+func AddISISOCWithSysAreaID(t *testing.T, device *ondatra.DUTDevice, ifaceName, sysID, areaID, instanceName string) {
+	t.Helper()
+
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTISIS, instanceName)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaID, sysID)}
+	glob.LevelCapability = 2
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf := isis.GetOrCreateInterface(ifaceName)
+	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+	intf.Enabled = ygot.Bool(true)
+	intf.HelloPadding = 1
+	intf.Passive = ygot.Bool(false)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = 2
+
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, instanceName)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, instanceName)
+	gnmi.Update(t, device, dutNode.Config(), dutConf)
+}
+
 // addBGPOC, configures ISIS on DUT
 func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	t.Helper()
@@ -658,6 +743,112 @@ func ReloadLinecards(t *testing.T, lcList []string) {
 	t.Logf("It took %v minutes to reboot linecards.", time.Since(startTime).Minutes())
 }
 
+func ParallelReloadLineCards(t *testing.T, dut *ondatra.DUTDevice, wgg *sync.WaitGroup) error {
+
+	defer wgg.Done()
+
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	wg := sync.WaitGroup{}
+	relaunched := make([]string, 0)
+
+	for _, lc := range lcs {
+		t.Logf("Restarting LC %v\n", lc)
+		if empty := gnmi.Get(t, dut, gnmi.OC().Component(lc).Empty().State()); empty {
+			t.Logf("Linecard Component %s is empty, skipping", lc)
+		}
+		if removable := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); !removable {
+			t.Logf("Linecard Component %s is non-removable, skipping", lc)
+		}
+		oper := gnmi.Get(t, dut, gnmi.OC().Component(lc).OperStatus().State())
+
+		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+			t.Logf("Linecard Component %s is already INACTIVE, skipping", lc)
+		}
+
+		lineCardPath := components.GetSubcomponentPath(lc, false)
+		resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+			Method:  spb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Reboot line card without delay",
+			Subcomponents: []*tpb.Path{
+				lineCardPath,
+			},
+			Force: true,
+		})
+		if err == nil {
+			wg.Add(1)
+			relaunched = append(relaunched, lc)
+		} else {
+			t.Fatalf("Reboot failed %v", err)
+		}
+		t.Logf("Reboot response: \n%v\n", resp)
+	}
+
+	// wait for all line cards to be back up
+	for _, lc := range relaunched {
+		go func(lc string) {
+			defer wg.Done()
+			timeout := time.Minute * 30
+			t.Logf("Awaiting relaunch of linecard: %s", lc)
+			oper := gnmi.Await[oc.E_PlatformTypes_COMPONENT_OPER_STATUS](
+				t, dut,
+				gnmi.OC().Component(lc).OperStatus().State(),
+				timeout,
+				oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+			)
+			if val, ok := oper.Val(); !ok {
+				t.Errorf("Reboot timed out, received status: %s", val)
+				// check status if failed
+			}
+		}(lc)
+	}
+
+	wg.Wait()
+	t.Log("All linecards successfully relaunched")
+
+	return nil
+}
+
+func ParallelProcessRestart(t *testing.T, dut *ondatra.DUTDevice, processName string, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+
+	waitForRestart := true
+	pid := system.FindProcessIDByName(t, dut, processName)
+	if pid == 0 {
+		t.Fatalf("process %s not found on device", processName)
+	}
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	killProcessRequest := &spb.KillProcessRequest{
+		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
+		Name:    processName,
+		Pid:     uint32(pid),
+		Restart: true,
+	}
+	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+	time.Sleep(30 * time.Second)
+
+	if waitForRestart {
+		gnmi.WatchAll(
+			t,
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gnmipb.SubscriptionMode_ON_CHANGE)),
+			gnmi.OC().System().ProcessAny().State(),
+			time.Minute,
+			func(p *ygnmi.Value[*oc.System_Process]) bool {
+				val, ok := p.Val()
+				if !ok {
+					return false
+				}
+				return val.GetName() == processName && val.GetPid() != pid
+			},
+		)
+	}
+}
+
 // RebootDevice reboots the device gracefully and waits for the device to come back up.
 func RebootDevice(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -717,11 +908,60 @@ func RebootDevice(t *testing.T) {
 	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
 }
 
+func ParallelReloadRouter(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) error {
+
+	defer wg.Done()
+
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	Resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
+	t.Logf("Reload Response %v ", Resp)
+
+	startReboot := time.Now()
+	time.Sleep(5 * time.Second)
+	const maxRebootTime = 30
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(90 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+	return nil
+}
+
 type InterfacePhysicalLink struct {
 	Intf               *oc.Interface
 	IntfName           string
+	IntfV4Addr         string
 	LineCardNumber     string
 	PeerIntfName       string
+	PeerV4Addr         string
 	PeerIntf           *oc.Interface
 	PeerLineCardNumber string
 }
@@ -760,6 +1000,14 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	if !enableInterfaceLldp(t, peer, peerInterfaces) {
 		t.Fatalf("Failed to enable LLDP on all interfaces for device %s", peer.Name())
 	}
+	// Fixed sleep time for the LLDP convergence
+	time.Sleep(35 * time.Second)
+	// update dut interface after enabling the interface
+	dutInterfaces = getAllInterfaces(t, dut)
+	t.Logf("DUT interface list: %v", dutInterfaces)
+	time.Sleep(35 * time.Second)
+	// update dut interface after enabling the interface
+	dutInterfaces = getAllInterfaces(t, dut)
 
 	// Get only enabled interfaces of DUT
 	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)
@@ -850,7 +1098,6 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	}
 
 	t.Logf("Total Links: %d, Member Count: %d, Number of Bundles: %d\n", linkCount, memberCount, numBundles)
-
 	for bundleName, links := range bundleMap {
 		t.Logf("Bundle: %s\n", bundleName)
 		for _, link := range links {
@@ -1180,12 +1427,150 @@ func GetActiveGrpcStreams(t *testing.T, dut *ondatra.DUTDevice, expectedStreams 
 	return activeStreams
 }
 
+// incrementSubnetCIDR takes a CIDR and an increment index to generate the next subnet CIDR.
+func IncrementSubnetCIDR(cidr string, index int) (string, error) {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", fmt.Errorf("parsing CIDR failed: %v", err)
+	}
+
+	// Determine the number of bits for the subnet.
+	ones, bits := ipnet.Mask.Size()
+
+	// Calculate the new subnet based on the index and number of hosts.
+	subnetIncrement := big.NewInt(1)
+	subnetIncrement.Lsh(subnetIncrement, uint(bits-ones))
+	subnetIncrement.Mul(subnetIncrement, big.NewInt(int64(index)))
+
+	ipBigInt := big.NewInt(0).SetBytes(ip)
+	ipBigInt.Add(ipBigInt, subnetIncrement)
+
+	// Convert big.Int back to net.IP.
+	newIP := make(net.IP, len(ip))
+	if len(ip) == net.IPv4len {
+		ipBigInt.FillBytes(newIP[12:16]) // IPv4 addresses are the last 4 bytes of the IPv6 space.
+	} else {
+		newIP = ipBigInt.FillBytes(make([]byte, net.IPv6len))
+	}
+
+	return (&net.IPNet{IP: newIP, Mask: ipnet.Mask}).String(), nil
+}
+
+func incrementIPv6(ip net.IP) net.IP {
+	ip = ip.To16()
+	ipInt := big.NewInt(0).SetBytes(ip)
+
+	ipInt.Add(ipInt, big.NewInt(1))
+
+	ipBytes := ipInt.Bytes()
+	newIP := make(net.IP, net.IPv6len)
+	copy(newIP[net.IPv6len-len(ipBytes):], ipBytes)
+
+	return newIP
+}
+
+// getUsableIPs takes a subnet and returns the first and second usable IP addresses.
+func GetUsableIPs(cidr string) (net.IP, net.IP) {
+	_, subnet, _ := net.ParseCIDR(cidr)
+	if subnet.IP.To4() != nil {
+		// It's an IPv4 address
+		firstIP := incrementIP(subnet.IP, 1)
+		secondIP := incrementIP(firstIP, 1)
+		return firstIP, secondIP
+	} else {
+		// It's an IPv6 address
+		firstIP := incrementIPv6(subnet.IP)
+		secondIP := incrementIPv6(firstIP)
+		return firstIP, secondIP
+	}
+}
+
+// generateMAC is a placeholder for a function that generates a MAC address based on some logic.
+func generateMAC(vlanID int) string {
+	return fmt.Sprintf("00:1A:11:%02X:00:01", vlanID)
+}
+
+// generateSubnetAttributes calculates subnet attributes based on a base IPv4 and IPv6 address, VLAN ID, and an index.
+func GenerateSubnetAttributes(baseIPv4, baseIPv6 string, vlanID, index int) (attrs.Attributes, attrs.Attributes, error) {
+
+	newIPv4Subnet, err := IncrementSubnetCIDR(baseIPv4, index)
+	if err != nil {
+		return attrs.Attributes{}, attrs.Attributes{}, err
+	}
+
+	newIPv6Subnet, err := IncrementSubnetCIDR(baseIPv6, index)
+	if err != nil {
+		return attrs.Attributes{}, attrs.Attributes{}, err
+	}
+
+	dutIPv4, ateIPv4 := GetUsableIPs(newIPv4Subnet)
+	dutIPv6, ateIPv6 := GetUsableIPs(newIPv6Subnet)
+
+	dutMAC := generateMAC(vlanID)
+	ateMAC := generateMAC(vlanID)
+
+	dutAttrs := attrs.Attributes{
+		Name:    fmt.Sprintf("DUTport%d", vlanID),
+		IPv4:    dutIPv4.String(),
+		IPv6:    dutIPv6.String(),
+		MAC:     dutMAC,
+		Desc:    fmt.Sprintf("DUT Port %d", vlanID),
+		IPv4Len: 30,
+		IPv6Len: 126,
+	}
+
+	ateAttrs := attrs.Attributes{
+		Name:    fmt.Sprintf("ATEport%d", vlanID),
+		IPv4:    ateIPv4.String(),
+		IPv6:    ateIPv6.String(),
+		MAC:     ateMAC,
+		Desc:    fmt.Sprintf("ATE Port %d", vlanID),
+		IPv4Len: 30,
+		IPv6Len: 126,
+	}
+
+	return dutAttrs, ateAttrs, nil
+}
+
+func GnmiProtoSetConfigPush(t *testing.T, dut *ondatra.DUTDevice, configFilePath string, timeout time.Duration) {
+	b, err := os.ReadFile(configFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	setReq := &gnmipb.SetRequest{}
+
+	if err := prototext.Unmarshal(b, setReq); err != nil {
+		panic(err)
+	}
+
+	gNMIC := dut.RawAPIs().GNMI(t)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if _, err = gNMIC.Set(ctx, setReq); err != nil {
+		t.Fatalf("gnmi Set Config Push failed with unexpected error: %v", err)
+	}
+}
+
+// SwitchoverReady checks if the RP is ready for switchover.
+func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) bool {
+	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
+	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		ready, present := val.Val()
+		return present && ready
+	}).Await(t)
+	return ok
+}
+
 // GetVersion fetches the software version from the device and splits it into components.
 func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
-	// Simulate fetching the version string from the device.
+	// fetching the version string from the device.
 	path := gnmi.OC().System().SoftwareVersion()
 	versionString := gnmi.Get(t, dut, path.State())
+	return splitVersionString(t, versionString)
+}
 
+func splitVersionString(t *testing.T, versionString string) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
 	// Split the version string by '.' to get the parts.
 	parts := strings.Split(versionString, ".")
 	t.Logf("Debug: Split version string into parts: %v\n", parts)
@@ -1212,4 +1597,333 @@ func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersio
 	}
 
 	return majorVersion, minorVersion, runningVersion, labelVersion, nil
+}
+
+// SupervisorSwitchover does a SSO on the dut device and also checkes the interfaces are up after SSO
+func SupervisorSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
+
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
+	}
+
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
+
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+
+	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
+	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
+	if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
+		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.ID(), got, want)
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := rpStandbyBeforeSwitch
+	got := ""
+	if deviations.GNOISubcomponentPath(dut) {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+	}
+	if got, want := switchoverResponse.GetVersion(), ""; got == want {
+		t.Errorf("switchoverResponse.GetVersion(): got %v, want non-empty version", got)
+	}
+	if got := switchoverResponse.GetUptime(); got == 0 {
+		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
+	}
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeSwitch, 5*time.Minute)
+
+	t.Log("Validate OC Switchover time/reason.")
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+
+	swTime, swTimePresent := gnmi.Watch(t, dut, activeRP.LastSwitchoverTime().State(), 1*time.Minute, func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }).Await(t)
+	if !swTimePresent {
+		t.Errorf("activeRP.LastSwitchoverTime().Watch(t).IsPresent(): got %v, want %v", false, true)
+	} else {
+		st, _ := swTime.Val()
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", st)
+		// TODO: validate that last switchover time is correct
+	}
+
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+}
+
+// Helper function to run a command on the DUT and return the output
+func SshRunCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+	sshClient := dut.RawAPIs().CLI(t)
+
+	if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+		t.Logf("%s> %s", dut.ID(), cmd)
+		t.Log(result.Output())
+		return result.Output()
+	} else {
+		t.Logf("%s> %s", dut.ID(), cmd)
+		t.Log(err.Error())
+		return ""
+	}
+}
+
+// IsPlatformVXR checks if the platform is a VXR (true) or a HW (false)
+func IsPlatformVXR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) bool {
+	resp := config.CMDViaGNMI(ctx, t, dut, "show version")
+	t.Logf("Response: %s", resp)
+
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Platform is VXR")
+		return true
+	}
+	return false
+}
+
+// IsMajorVersionSame checks if the major version of the DUT is the same as the expected version.
+func IsMajorVersionSame(t *testing.T, dut *ondatra.DUTDevice, expectedVersion string) (b bool, e error) {
+	majorVersionDut, _, _, _, err := GetVersion(t, dut)
+	if err != nil {
+		return false, err
+	}
+	majorVersionExpected, _, _, _, err := splitVersionString(t, expectedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if majorVersionDut == majorVersionExpected {
+		return true, nil
+	}
+	return
+}
+
+// IsMinorVersionSame checks if the minor version of the DUT is the same as the expected version.
+func IsMinorVersionSame(t *testing.T, dut *ondatra.DUTDevice, expectedVersion string) (b bool, e error) {
+	_, minorVersionDut, _, _, err := GetVersion(t, dut)
+	if err != nil {
+		return false, err
+	}
+	_, minorVersionExpected, _, _, err := splitVersionString(t, expectedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if minorVersionDut == minorVersionExpected {
+		return true, nil
+	}
+	return
+}
+
+// EnableVxrInternalPxeBoot executes the command to initiate PXE boot on the device.
+// only applicable for VXR platform
+// reference: http://pyvxr.cisco.com/pyvxr/README.html#internal-pxe
+func EnableVxrInternalPxeBoot(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	if IsPlatformVXR(ctx, t, dut) {
+		t.Log("Platform is VXR and version differs, initiating PXE boot.")
+		sshClient := dut.RawAPIs().CLI(t)
+		removeBootDirCmd := "run rm -r /boot/efi/EFI"
+		removeBootDirCmdResult, err := sshClient.RunCommand(ctx, removeBootDirCmd)
+		if err != nil {
+			t.Error("failed to enable vxr internal PXE boot")
+		}
+		t.Logf("%s> %s\n%v", dut.Name(), removeBootDirCmd, removeBootDirCmdResult.Output())
+
+		treeBootDirCmd := "run tree /boot/efi/EFI"
+		treeBootDirCmdResult, err := sshClient.RunCommand(ctx, treeBootDirCmd)
+		if err != nil {
+			if strings.Contains(treeBootDirCmdResult.Output(), "BOOT") {
+				t.Fatal("failed to remove /boot/efi/EFI")
+			}
+		}
+		t.Logf("%s> %s\n%v", dut.Name(), treeBootDirCmd, treeBootDirCmdResult.Output())
+	} else {
+		t.Fatal("Error Not a VXR platform")
+	}
+}
+
+func ParallelRPFO(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+
+	var supervisors []string
+	active_state := gnmi.OC().Component(active_rp).Name().State()
+	active := gnmi.Get(t, dut, active_state)
+	standby_state := gnmi.OC().Component(standby_rp).Name().State()
+	standby := gnmi.Get(t, dut, standby_state)
+	supervisors = append(supervisors, active, standby)
+
+	// find active and standby RP
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
+	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+
+	// make sure standby RP is reach
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+	// gnoiClient := dut.RawAPIs().GNOI(t)
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	//useNameOnly := deviations.GNOISubcomponentPath(dut)
+	useNameOnly := false
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := rpStandbyBeforeSwitch
+	got := ""
+	if useNameOnly {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+	}
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	t.Log("Validate OC Switchover time/reason.")
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
+	}
+
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+}
+
+// CMDViaGNMI runs a command on the DUT via GNMI and returns the output
+func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	gnmiC := dut.RawAPIs().GNMI(t)
+	getRequest := &gnmipb.GetRequest{
+		Prefix: &gnmipb.Path{
+			Origin: "cli",
+		},
+		Path: []*gnmipb.Path{
+			{
+				Elem: []*gnmipb.PathElem{{
+					Name: cmd,
+				}},
+			},
+		},
+		Encoding: gnmipb.Encoding_ASCII,
+	}
+	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	resp, err := gnmiC.Get(ctx, getRequest)
+	if err != nil {
+		t.Fatalf("running cmd (%s) via GNMI is failed: %v", cmd, err)
+	}
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
+	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
 }

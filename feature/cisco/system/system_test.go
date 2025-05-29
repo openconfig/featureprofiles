@@ -218,7 +218,7 @@ func testGrpcListenAddress(t *testing.T) {
 	} else {
 
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show redundancy")
-		t.Logf(resp)
+		t.Log(resp)
 
 		if strings.Contains(resp, "Redundancy information for node 0/RP1/CPU0") {
 			activeRp = 1
@@ -411,7 +411,7 @@ func testGrpcListenAddress(t *testing.T) {
 		//Reload router
 		gnoiReboot(t, dut)
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show redundancy")
-		t.Logf(resp)
+		t.Log(resp)
 		activeRpAfterReboot := 0
 		if strings.Contains(resp, "Redundancy information for node 0/RP1/CPU0") {
 			activeRpAfterReboot = 1
@@ -421,7 +421,7 @@ func testGrpcListenAddress(t *testing.T) {
 			// this is required if RP mgmt address is used, ( instead of virtual ip )
 			t.Logf("switch RP to make RP %v as Active after reboot", activeRp)
 			resp := config.CMDViaGNMI(context.Background(), t, dut, "redundancy switchover force")
-			t.Logf(resp)
+			t.Log(resp)
 		}
 		gotafter := gnmi.Get(t, dut, path.State())[0]
 		if gotafter != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {

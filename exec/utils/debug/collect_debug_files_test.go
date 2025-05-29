@@ -88,10 +88,6 @@ var (
 	}
 
 	pipedCmdList = []string{
-		"show grpc trace all",
-		"show telemetry model-driven trace all",
-		"show cef global gribi aft internal location all",
-		"show logging",
 		"show version",
 		"show platform",
 		"show install fixes active",
@@ -101,6 +97,20 @@ var (
 		"show redundancy",
 		"show reboot history detail",
 		"show insight database entry all",
+	}
+
+	extendedPipedCmdList = []string{
+		"show grpc",
+		"show grpc trace all",
+		"show telemetry model-driven trace all",
+		"show cef global gribi aft internal location all",
+		"show logging",
+		"show gnoi statistics",
+		"show install history all",
+		"show install history all errors global",
+		"show install active all",
+		"show install request verbose",
+		"show install available all",
 	}
 )
 
@@ -137,6 +147,9 @@ func TestCollectDebugFiles(t *testing.T) {
 
 	if *cmds != "" {
 		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
+	}
+	if *collectTech {
+		pipedCmdList = append(pipedCmdList, extendedPipedCmdList...)
 	}
 
 	commands := []string{}
@@ -299,21 +312,21 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 	var bindingFile string
 
 	if bf == nil {
-		t.Logf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
-		return fmt.Errorf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
+		t.Logf("binding file not set correctly : [%s]", bf.Value.String())
+		return fmt.Errorf("binding file not set correctly : [%s]", bf.Value.String())
 	}
 
 	bindingFile = bf.Value.String()
 
 	in, err := os.ReadFile(bindingFile)
 	if err != nil {
-		t.Logf(fmt.Sprintf("Error reading binding file: [%v]", err))
-		return fmt.Errorf(fmt.Sprintf("Error reading binding file: [%v]", err))
+		t.Logf("Error reading binding file: [%v]", err)
+		return fmt.Errorf("Error reading binding file: [%v]", err)
 	}
 
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
-		return fmt.Errorf(fmt.Sprintf("Error unmarshalling binding file: [%v]", err))
+		return fmt.Errorf("Error unmarshalling binding file: [%v]", err)
 	}
 
 	for _, dut := range b.Duts {

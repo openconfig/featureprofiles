@@ -1,0 +1,470 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package setup is scoped only to be used for scripts in path
+// feature/experimental/system/gnmi/benchmarking/otg_tests/
+// Do not use elsewhere.
+package b4_scale_profile_test
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+	util "github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/iputil"
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
+)
+
+const (
+	nh1ID                     = 120
+	nhg1ID                    = 20
+	ipv4OuterDest             = "192.51.100.65"
+	innerV4DstIP              = "198.18.1.1"
+	innerV4SrcIP              = "198.18.0.255"
+	innerV6SrcIP              = "2001:DB8::198:1"
+	innerV6DstIP              = "2001:DB8:2:0:192::10"
+	transitVrfIP              = "203.0.113.1"
+	repairedVrfIP             = "203.0.113.100"
+	noMatchSrcIP              = "198.100.200.123"
+	decapMixPrefix1           = "192.51.128.0/22"
+	decapMixPrefix2           = "192.55.200.3/32"
+	IPinIPProtocolFieldOffset = 184
+	IPinIPProtocolFieldWidth  = 8
+	IPinIPpSrcDstIPOffset     = 236
+	IPinIPpSrcDstIPWidth      = 12
+	IPinIPpDscpOffset         = 120
+	IPinIPpDscpWidth          = 8
+)
+
+var (
+	logDir           = flag.String("logDir", "", "Firex path to copy the logs after each test case")
+	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
+)
+
+func initializeTestResources(t *testing.T) *TestResources {
+	once.Do(func() {
+		t.Helper() // Mark this function as a test helper
+		dut := ondatra.DUT(t, "dut")
+		peer := ondatra.DUT(t, "peer")
+		otg := ondatra.ATE(t, "ate")
+
+		var commandPatterns map[string]map[string]interface{}
+		if *debugCommandYaml == "" {
+			// Get the current working directory
+			currentDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current working directory: %v", err)
+			}
+
+			// Get the absolute path of the test file
+			absPath, err := filepath.Abs(currentDir)
+			if err != nil {
+				t.Fatalf("Failed to get absolute path: %v", err)
+			}
+			*debugCommandYaml = absPath + "/debug.yaml"
+		}
+
+		var err error
+		commandPatterns, err = log_collector.ParseYAML(*debugCommandYaml)
+		if err != nil {
+			t.Logf("Debug yaml parsing failed: Error : %v", err)
+		}
+		testResources = &TestResources{
+			DUT: DUTResources{
+				Device: dut,
+				GNMI:   dut.RawAPIs().GNMI(t),
+				GNSI:   dut.RawAPIs().GNSI(t),
+				// GNPSI:       dut.RawAPIs().GNPSI(t),
+				CLI:  dut.RawAPIs().CLI(t),
+				P4RT: dut.RawAPIs().P4RT(t),
+				// Console:     dut.RawAPIs().Console(t),
+				OSC:         dut.RawAPIs().GNOI(t).OS(),
+				SC:          dut.RawAPIs().GNOI(t).System(),
+				GRIBI:       dut.RawAPIs().GRIBI(t),
+				FluentGRIBI: fluent.NewClient(),
+			},
+			PEER: DUTResources{
+				Device: peer,
+				GNMI:   peer.RawAPIs().GNMI(t),
+				GNSI:   peer.RawAPIs().GNSI(t),
+				// GNPSI:       peer.RawAPIs().GNPSI(t),
+				CLI:  peer.RawAPIs().CLI(t),
+				P4RT: peer.RawAPIs().P4RT(t),
+				// Console:     peer.RawAPIs().Console(t),
+				OSC:         peer.RawAPIs().GNOI(t).OS(),
+				SC:          peer.RawAPIs().GNOI(t).System(),
+				GRIBI:       peer.RawAPIs().GRIBI(t),
+				FluentGRIBI: fluent.NewClient(),
+			},
+			OTG: OTGResources{
+				Device: otg,
+				GNMI:   otg.RawAPIs().GNMI(t),
+			},
+			LogDir:          *logDir,
+			ctx:             context.Background(),
+			CommandPatterns: commandPatterns,
+		}
+		// updation dual sup status
+		testResources.DUT.DualSup, err = utils.HasDualSUP(testResources.ctx, testResources.DUT.OSC)
+		if err != nil {
+			t.Logf("fetching dual sup info failed, Error:%v", err)
+		}
+		testResources.PEER.DualSup, err = utils.HasDualSUP(testResources.ctx, testResources.PEER.OSC)
+		if err != nil {
+			t.Logf("fetching dual sup info failed, Error:%v", err)
+		}
+		// get and update available LCs
+		testResources.DUT.LCs = util.GetLCList(t, testResources.DUT.Device)
+		testResources.PEER.LCs = util.GetLCList(t, testResources.PEER.Device)
+
+		// Start fluent connection
+		testResources.DUT.FluentGRIBI.Connection().WithStub(testResources.DUT.GRIBI).WithPersistence().WithInitialElectionID(1, 0).
+			WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+		testResources.DUT.FluentGRIBI.Start(testResources.ctx, t)
+
+		// start log collection
+		log_collector.Start(testResources.ctx, t, testResources.DUT.Device)
+	})
+	return testResources
+}
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
+func TestGoogleBaseConfPush(t *testing.T) {
+	t.Skip()
+	dut := ondatra.DUT(t, "dut")
+	// baseConf := "configpushfiles/google_conf.textproto"
+	// test := "configpushfiles/set1.textproto"
+	// // drainConf := "configpushfiles/google_drain_conf.textproto"
+	// // undrainConf := "configpushfiles/google_undrain_conf.textproto"
+	// // var dutConf string
+	// // cwd, err := os.Getwd()
+	// // if err != nil {
+	// // 	t.Fatalf("Failed to get current working directory: %v", err)
+	// // }
+	// // if strings.Contains(cwd, "/featureprofiles/") {
+	// // 	rootSrc := strings.Split(cwd, "featureprofiles")[0]
+	// // 	dutConf = rootSrc + "featureprofiles/topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto"
+	// // }
+	// cases := []struct {
+	// 	desc           string
+	// 	configFilePath string
+	// 	clientTimeout  time.Duration
+	// 	wantTime       time.Duration
+	// }{
+	// 	{
+	// 		desc:           "Initial Google config push",
+	// 		configFilePath: test,
+	// 		clientTimeout:  10 * time.Minute,
+	// 		wantTime:       5 * time.Minute,
+	// 	},
+	// {
+	// 	desc:           "Subsequent same google config push",
+	// 	configFilePath: baseConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       2 * time.Minute,
+	// },
+	// {
+	// 	desc:           "Drain config push",
+	// 	configFilePath: drainConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       5 * time.Minute,
+	// },
+	// {
+	// 	desc:           "Undrain config push",
+	// 	configFilePath: undrainConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       3 * time.Minute,
+	// },
+	// {
+	// 	desc:           "Initial DUT config",
+	// 	configFilePath: dutConf,
+	// 	clientTimeout:  10 * time.Minute,
+	// 	wantTime:       5 * time.Minute,
+	// },
+	// }
+	// for _, tc := range cases {
+	// 	t.Run(tc.desc, func(t *testing.T) {
+	// 		// Start the timer.
+	// 		start := time.Now()
+	// 		t.Log("Config Push start time: ", start)
+	// 		util.GnmiProtoSetConfigPush(t, dut, tc.configFilePath, tc.clientTimeout)
+	// 		// End the timer and calculate time requied to apply the config on DUT.
+	// 		elapsedTime := time.Since(start)
+	// 		t.Logf("Time taken for %v configuration replace: %v", tc.desc, elapsedTime)
+	// 		if elapsedTime > tc.wantTime {
+	// 			t.Errorf("Time taken for %v configuration replace is less than expected. Got: %v, Want: %v", tc.desc, elapsedTime, tc.wantTime)
+	// 		}
+	// 	})
+	// }
+	// t.Run("Config Push after LC reload", func(t *testing.T) {
+	// 	// })
+	t.Run("Config Push after chassis reboot followed by Switchover", func(t *testing.T) {
+		t.Logf("Doing chassis reboot")
+		currentTime := time.Now()
+		fmt.Println("Chasiss reboot request sent at:", currentTime)
+		gnoiClient := dut.RawAPIs().GNOI(t)
+		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+			Method:  spb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Reboot chassis without delay",
+			Force:   false,
+		})
+		if err != nil {
+			t.Fatalf("Reboot failed %v", err)
+		}
+		time.Sleep(350 * time.Second)
+		t.Logf("Check for cfgmgr LC restore config sessions started")
+		cliHandle := dut.RawAPIs().CLI(t)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		for {
+			showConfigSession, _ := cliHandle.RunCommand(ctx, "show configuration sessions detail")
+			fmt.Println(showConfigSession.Output())
+			// if err != nil {
+			// 	t.Error(err)
+			// }
+			currentTime2 := time.Now()
+			if strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
+				t.Logf("Cfgmgr restore session has started at: %v", currentTime2)
+				break
+			}
+		}
+		time.Sleep(5 * time.Second)
+		//Active RP0 Reload
+		useNameOnly := deviations.GNOISubcomponentPath(dut)
+		rebootSubComponentRequest := &spb.RebootRequest{
+			Method: spb.RebootMethod_COLD,
+			Subcomponents: []*tpb.Path{
+				components.GetSubcomponentPath("0/RP0/CPU0", useNameOnly),
+			},
+		}
+		t.Logf("Initiate Active RP0 reboot: %v", rebootSubComponentRequest)
+		currentTime3 := time.Now()
+		fmt.Println("Active RP0 reload done at:", currentTime3)
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+		if err != nil {
+			t.Fatalf("Failed to perform component reboot with unexpected err: %v", err)
+		}
+		t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+		time.Sleep(3 * time.Minute)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		// go func() {
+		// 	defer wg.Done()
+		// 	t.Log("Start Google config push")
+		// 	util.GnmiProtoSetConfigPush(t, dut, baseConf, 10*time.Minute)
+		// }()
+
+		go func() {
+			defer wg.Done()
+			t.Log("Check for cfgmgr LC restore config sessions & lock state")
+			cliHandle := dut.RawAPIs().CLI(t)
+			startTime := time.Now()
+			duration := 20 * time.Minute
+			var iter int
+			for time.Since(startTime) < duration {
+				iter = iter + 1
+				showConfigLock, err1 := cliHandle.RunCommand((context.Background()), "show configuration lock")
+				showConfigSession, err2 := cliHandle.RunCommand((context.Background()), "show configuration sessions detail")
+
+				fmt.Println(showConfigLock.Output())
+				fmt.Println(showConfigSession.Output())
+				time.Sleep(5 * time.Second)
+				if err1 != nil && err2 != nil {
+					t.Log(err)
+				}
+				if iter > 180 {
+					t.Errorf("Failed to get out of lock state")
+					break
+				}
+				if !strings.Contains(showConfigLock.Output(), "lock_subtree") && !strings.Contains(showConfigSession.Output(), "Client: cfgmgr-req-mgr") {
+					t.Logf("No config session is in lock state")
+					break
+				}
+			}
+
+		}()
+		wg.Wait() // Wait for all four goroutines to finish before exiting.
+
+		t.Logf("Check when Standby RP0 is ready")
+		if ok := util.SwitchoverReady(t, dut, "0/RP0/CPU0", 10*time.Minute); !ok {
+			t.Logf("Controller %q did not become switchover-ready before test.", "0/RP0/CPU0")
+		}
+		t.Logf("Collect show configuration inconsistency replica log")
+		cliHandle1 := dut.RawAPIs().CLI(t)
+		showConfigReplica, err := cliHandle1.RunCommand((context.Background()), "show configuration inconsistency replica location 0/RP0/CPU0")
+		fmt.Println(showConfigReplica.Output())
+		if err != nil {
+			t.Log(err)
+		}
+	})
+}
+
+func TestGribiScaleProfile(t *testing.T) {
+	// t.Skip()
+	resources := initializeTestResources(t)
+	log_collector.Start(context.Background(), t, resources.DUT.Device)
+
+	t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
+		configureBaseProfile(t)
+	})
+
+	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
+		log_collector.CollectRouterLogs(resources.ctx, t, resources.DUT.Device, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
+	})
+
+}
+
+func TestTrigger(t *testing.T) {
+	tRes := initializeTestResources(t)
+	processes := []string{"bgp", "ifmgr", "db_writer", "isis"}
+
+	// Define a slice of test triggers with a duration for each
+	triggers := []struct {
+		name                  string
+		fn                    func(ctx context.Context, t *testing.T)
+		duration              time.Duration
+		reprogrammingRequired bool
+		reconnectClient       bool
+	}{
+		{"RPFO", func(ctx context.Context, t *testing.T) {
+			utils.Dorpfo(ctx, t, false)
+		}, 1 * time.Minute, false, true},
+
+		{"LC-Reboot", func(ctx context.Context, t *testing.T) {
+			utils.DoAllAvailableLcParallelReboot(t, tRes.DUT.Device)
+		}, 5 * time.Minute, false, false},
+
+		{"ProcessRestartParllel", func(ctx context.Context, t *testing.T) {
+			utils.DoProcessesRestart(ctx, t, tRes.DUT.Device, processes, true)
+		}, 5 * time.Minute, false, false},
+
+		{"ProcessRestartSequential", func(ctx context.Context, t *testing.T) {
+			utils.DoProcessesRestart(ctx, t, tRes.DUT.Device, processes, false)
+		}, 5 * time.Minute, false, false},
+
+		{"gNOI-REBOOT", func(ctx context.Context, t *testing.T) {
+			utils.GnoiReboot(t, tRes.DUT.Device)
+		}, 5 * time.Minute, true, true},
+
+		{"LC-Shut-Unshut", func(ctx context.Context, t *testing.T) {
+			utils.DoShutUnshutAllAvailableLcParallel(t, tRes.DUT.Device)
+		}, 5 * time.Minute, false, false},
+	}
+
+	// Iterate over each trigger and run it as a subtest
+	for _, trigger := range triggers {
+		t.Run(trigger.name, func(t *testing.T) {
+			trigger.fn(tRes.ctx, t)
+			time.Sleep(trigger.duration) // Use the duration specified in the trigger
+
+			// Collect logs after each trigger
+			t.Run("LogCollectionAfterTrigger", func(t *testing.T) {
+				log_collector.CollectRouterLogs(tRes.ctx, t, tRes.DUT.Device, tRes.LogDir, "LogCollectionAfterTrigger"+trigger.name, tRes.CommandPatterns)
+			})
+
+			if trigger.reconnectClient {
+				t.Run("Reconnect clients", func(t *testing.T) {
+					t.Skip()
+					tRes.ReconnectClients(t, 30)
+				})
+			}
+
+			// If reprogramming is required, run the Reprogramming function
+			if trigger.reprogrammingRequired {
+				t.Run("Reprogramming", func(t *testing.T) {
+					configureBaseProfile(t)
+				})
+			}
+			t.Run("verify traffic", func(t *testing.T) {
+				t.Logf("verify traffic")
+				validateTraffic(t, tRes)
+			})
+
+			// Collect logs after gribi programing
+			t.Run("LogCollectionAfterTrafficValidation", func(t *testing.T) {
+				log_collector.CollectRouterLogs(tRes.ctx, t, tRes.DUT.Device, tRes.LogDir, "LogCollectionAfterTrafficValidation"+trigger.name, tRes.CommandPatterns)
+			})
+		})
+	}
+}
+
+func validateTraffic(t *testing.T, tRes *TestResources) {
+	t.Logf("verify traffic")
+	dut := tRes.DUT.Device
+	peer := tRes.PEER.Device
+	otg := tRes.OTG.Device
+	client := tRes.DUT.FluentGRIBI
+	ctx := context.Background()
+	client.Start(ctx, t)
+
+	topo := configureOTG(t, otg)
+	tcArgs := &testArgs{
+		dut:    dut,
+		peer:   peer,
+		ate:    otg,
+		topo:   topo,
+		client: client,
+		ctx:    ctx,
+	}
+	decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
+	validateTrafficFlows(t, tcArgs, getDecapFlows(decapScaleEntries), false, true)
+}
+
+func TestModularGribiProfile(t *testing.T) {
+	testCompactModularChain(t)
+}
+
+func TestExpandedModularChain(t *testing.T) {
+	t.Skipf("Skipping Expanded Modular Chain, need to ckeck if its failing for defect")
+	testExpandedModularChain(t)
+}
+
+func TestEncapScale(t *testing.T) {
+	testEncapScale(t)
+}
+
+func TestDecapScale(t *testing.T) {
+	// t.Skipf("Skipping Decap Scale, need to find calculation for decal entries")
+	testDecapScale(t)
+}
+func TestDecapEncapScale(t *testing.T) {
+	testDecapEncapScale(t)
+}
+
+func TestDcGateScale(t *testing.T) {
+	testDcGateScale(t)
+}
+
+func TestFlushAll(t *testing.T) {
+	testFlushAll(t)
+}

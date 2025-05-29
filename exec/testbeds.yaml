@@ -17,14 +17,25 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/binding_mtls
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/baseconfig_mtls_zr_optics.proto
 
-  8808-36FH_FOX2613PHWL:
+  8808-36FH_FOX2613PHWL: &8808-36FH_FOX2613PHWL_DEFAULTS
     hw: 8808-36FH_FOX2613PHWL
     owner: wdolaast
     testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs4-b4
+      controller_port: 40057
+      gnmi_port: 50057
+      rest_port: 30057
+
+  8808-36FH_FOX2613PHWL_BREAKOUT:
+    << : *8808-36FH_FOX2613PHWL_DEFAULTS
+    testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/breakout.testbed
+    binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/breakout.binding
+    baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/breakout.proto
+    otg:
+      host: ott-ucs4-b4
       controller_port: 40057
       gnmi_port: 50057
       rest_port: 30057
@@ -153,12 +164,12 @@ testbeds:
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40059
       gnmi_port: 50059
       rest_port: 30059
 
-  8818-FOX2714PNYN:
+  8818-FOX2714PNYN: &8818-FOX2714PNYN_DEFAULTS
     hw: 8818-FOX2714PNYN
     owner: arvbaska
     testbed: topologies/cisco/hw/8818-FOX2714PNYN/testbed
@@ -216,14 +227,71 @@ testbeds:
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding
     baseconf:
-      dut1: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto
-      dut2: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig.proto
+      dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto
+      peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
 
+  8818-DUT-PEER-MTLS:
+    hw:
+      - 8818-FOX2714PNYN
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
+    binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls
+    baseconf:
+      dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
+      peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 48818
+      gnmi_port: 58818
+      rest_port: 38818
+
+  8202-DUT-PEER:
+    hw:
+      - 8202-FLM275101MJ
+      - 8202-FLM275203KT
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8202-DUT-PEER/testbed
+    binding: topologies/cisco/hw/8202-DUT-PEER/binding
+    baseconf:
+      dut: topologies/cisco/hw/8202-DUT-PEER/DUT-8202_FLM275101MJ_baseconfig.proto
+      peer: topologies/cisco/hw/8202-DUT-PEER/PEER-8202_FLM275203KT_baseconfig.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 49202
+      gnmi_port: 59202
+      rest_port: 39202
+
+  8202-FLM275203KT:
+    hw: 8202-FLM275203KT
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8202_FLM275203KT/testbed
+    binding: topologies/cisco/hw/8202_FLM275203KT/binding
+    baseconf:
+      dut: topologies/cisco/hw/8202_FLM275203KT/DUT-8202_FLM275203KT_baseconfig.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 49203
+      gnmi_port: 59203
+      rest_port: 39203
+
+  8202-FLM275101MJ:
+    hw: 8202-FLM275101MJ
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8202_FLM275101MJ/testbed
+    binding: topologies/cisco/hw/8202_FLM275101MJ/binding
+    baseconf:
+      dut: topologies/cisco/hw/8202_FLM275101MJ/DUT-8202_FLM275101MJ_baseconfig.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 49202
+      gnmi_port: 59202
+      rest_port: 39202
+  
   8800-FOC2330PAZK:
     hw: 8800-FOC2330PAZK
     owner: khrasool
@@ -238,7 +306,7 @@ testbeds:
     binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
     baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
 
-  8808_FOX2730P191:
+  8808_FOX2730P191: &8808_FOX2730P191_DEFAULTS
     hw: 8808_FOX2730P191
     owner: mananpat
     testbed: topologies/cisco/hw/8808_FOX2730P191/testbed
@@ -249,6 +317,12 @@ testbeds:
       controller_port: 40062
       gnmi_port: 50062
       rest_port: 30062
+
+  8808_FOX2730P191_ZR_OPTICS:
+    <<: *8808_FOX2730P191_DEFAULTS
+    testbed: topologies/cisco/hw/8808_FOX2730P191_ZR_OPTICS/testbed
+    binding: topologies/cisco/hw/8808_FOX2730P191_ZR_OPTICS/binding
+    baseconf: topologies/cisco/hw/8808_FOX2730P191_ZR_OPTICS/base_config.proto
   
   8808_FOX2731P4L7:
     hw: 8808_FOX2731P4L7
@@ -374,7 +448,19 @@ testbeds:
   8818-18LC:
     sim: true
     topology: topologies/cisco/pyvxr/8818-18LC/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8818-18LC/basefp.conf    
+    baseconf: topologies/cisco/pyvxr/8818-18LC/basefp.conf
+  8808-2DUT-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-2DUT-ATE/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp.conf
+      dut2: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp_peer.conf    
+  8818-DUT-PEER_SIM:
+    sim: true
+    topology: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/DUT_baseconfig.proto
+      peer: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/PEER_baseconfig.proto    
 
   # OTG
   8201-32FH-FLM254306M8_OTG:
@@ -405,3 +491,28 @@ testbeds:
       gnmi_port: 50062
       rest_port: 30062
 
+  # Testbeds belonging to other teams
+
+  # Below testbed used by Optics DT team (Sanket)
+  ZRP_OPTICS_ACACIA: &ZRP_OPTICS_DEFAULTS
+    hw: ZRP_OPTICS_ACACIA
+    owner: liawalsh
+    testbed: topologies/cisco/hw/ZRP_OPTICS/testbed
+    binding: topologies/cisco/hw/ZRP_OPTICS/binding_acacia
+    baseconf: topologies/cisco/hw/ZRP_OPTICS/baseconfig.proto
+
+  ZRP_OPTICS_CIENA:
+    <<: *ZRP_OPTICS_DEFAULTS
+    binding: topologies/cisco/hw/ZRP_OPTICS/binding_ciena
+
+  # Below testbed used by gusomasu from account team, dont use without checking
+  ZR_TB_GURU: &ZR_TB_GURU_DEFAULTS
+    hw: ZR_TB_GURU
+    owner: arvbaska
+    testbed: topologies/cisco/hw/ZR_TB_GURU/testbed
+    binding: topologies/cisco/hw/ZR_TB_GURU/binding_zr
+    baseconf: topologies/cisco/hw/ZR_TB_GURU/baseconfig.proto
+
+  ZRP_TB_GURU:
+    <<: *ZR_TB_GURU_DEFAULTS
+    binding: topologies/cisco/hw/ZR_TB_GURU/binding_zrp

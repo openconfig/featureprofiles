@@ -1,0 +1,170 @@
+simulation:
+  slurm_flags:
+    distributed: True
+    hours: 24
+    partition: regression
+    pending_timeout: 3600
+    cluster: rch-slurm-m1 
+  vxr_sim_config:
+    default:
+       ConfigEnableNgdp: 'true'
+devices:
+  ate: 
+    data_ports: 
+      - 1/1
+      - 1/2
+      - 1/3
+      - 1/4
+      - 1/5
+      - 1/6
+      - 1/7
+      - 1/8
+      - 1/9
+      - 1/10
+      - 1/11
+      - 1/12
+      - 1/13
+      - 1/14
+      - 1/15
+      - 1/16                  
+    platform: ixia
+    vnc_password_display: 1234
+    ixia_images:
+      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
+      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
+      windows: /auto/b4ws/images/ixia/IxNetworkWeb_KVM_OTG_9.30.2309.34.qcow2
+
+  dut:
+    platform: spitfire_d
+    lcc_type: '8818'
+    dual_rp: true
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
+    linecard_slots: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    num_linecards: 16
+    fabcard_type: 8818-FC0
+    num_fabcards: 2
+    cli_commands: reload location all noprompt
+    cvac: $BASE_CONF_PATH
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+
+  peer:
+    platform: spitfire_d
+    lcc_type: '8818'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
+    linecard_slots: [0,1,2]
+    num_linecards: 3
+    fabcard_type: 8818-FC0
+    num_fabcards: 2
+    cvac: $BASE_CONF_PATH
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+
+connections:
+  hubs:
+    ixiaDUT1:
+        - 8818-DUT.FourHundredGigE0/0/0/0
+        - ate.1/1 
+    ixiaDUT2:
+        - 8818-DUT.FourHundredGigE0/0/0/35
+        - ate.1/2
+    ixiaDUT3:
+        - 8818-DUT.FourHundredGigE0/1/0/0
+        - ate.1/3
+    ixiaDUT4:
+        - 8818-DUT.FourHundredGigE0/2/0/0
+        - ate.1/4   
+    ixiaDUT5:
+        - 8818-DUT.FourHundredGigE0/3/0/0
+        - ate.1/5
+    ixiaDUT6:
+        - 8818-DUT.FourHundredGigE0/4/0/0
+        - ate.1/6
+    ixiaDUT7:
+        - 8818-DUT.FourHundredGigE0/5/0/0
+        - ate.1/7
+    ixiaDUT8:
+        - 8818-DUT.FourHundredGigE0/6/0/0
+        - ate.1/8    
+    ixiaDUT9:
+        - 8818-DUT.FourHundredGigE0/7/0/0
+        - ate.1/9 
+    ixiaDUT10:
+        - 8818-DUT.FourHundredGigE0/8/0/0
+        - ate.1/10
+    ixiaDUT11:
+        - 8818-DUT.FourHundredGigE0/9/0/0
+        - ate.1/11
+    ixiaDUT12:
+        - 8818-DUT.FourHundredGigE0/10/0/0
+        - ate.1/12    
+    ixiaDUT13:
+        - 8818-DUT.FourHundredGigE0/11/0/0
+        - ate.1/13 
+    ixiaDUT14:
+        - 8818-DUT.FourHundredGigE0/12/0/0
+        - ate.1/14 
+    ixiaDUT15:
+        - 8818-DUT.FourHundredGigE0/13/0/0
+        - ate.1/15 
+    ixiaPEER1:
+        - 8818-PEER.FourHundredGigE0/0/0/0
+        - ate.1/16                            
+    #DUT to PEER links   
+    DUT-PEER-Links-LC0:
+        - 8818-DUT.FourHundredGigE0/0/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/0/0/[1..5]              
+    DUT-PEER-Links-LC0_NP2:
+        - 8818-DUT.FourHundredGigE0/0/0/[30..34]
+        - 8818-PEER.FourHundredGigE0/0/0/[6..10]
+    DUT-PEER-Links-LC1:
+        - 8818-DUT.FourHundredGigE0/1/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/0/0/[11..15]                 
+    DUT-PEER-Links-LC2:
+        - 8818-DUT.FourHundredGigE0/2/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/0/0/[16..20]              
+    DUT-PEER-Links-LC3:
+        - 8818-DUT.FourHundredGigE0/3/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/0/0/[21..25]  
+    DUT-PEER-Links-LC4:
+        - 8818-DUT.FourHundredGigE0/4/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/0/0/[26..30]              
+    DUT-PEER-Links-LC5:
+        - 8818-DUT.FourHundredGigE0/5/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/0/0/[31..35]      
+    DUT-PEER-Links-LC6:
+        - 8818-DUT.FourHundredGigE0/6/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/1/0/[1..5]              
+    DUT-PEER-Links-LC7:
+        - 8818-DUT.FourHundredGigE0/7/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/1/0/[6..10]  
+    DUT-PEER-Links-LC8:
+        - 8818-DUT.FourHundredGigE0/8/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/1/0/[11..15]              
+    DUT-PEER-Links-LC9:
+        - 8818-DUT.FourHundredGigE0/9/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/1/0/[16..20]     
+    DUT-PEER-Links-LC10:
+        - 8818-DUT.FourHundredGigE0/10/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/1/0/[21..25]             
+    DUT-PEER-Links-LC11:
+        - 8818-DUT.FourHundredGigE0/11/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/1/0/[26..30]
+    DUT-PEER-Links-LC12:
+        - 8818-DUT.FourHundredGigE0/12/0/[1..5]
+        - 8818-PEER.FourHundredGigE0/1/0/[31..35]              
+    DUT-PEER-Links-LC13:
+        - 8818-DUT.FourHundredGigE0/13/0/[31..35]
+        - 8818-PEER.FourHundredGigE0/2/0/[31..35]     
+    DUT-PEER-Links-LC14:
+        - 8818-DUT.FourHundredGigE0/14/0/[10..15]
+        - 8818-PEER.FourHundredGigE0/2/0/[10..15]              
+    DUT-PEER-Links-LC15:
+        - 8818-DUT.FourHundredGigE0/15/0/[21..25]
+        - 8818-PEER.FourHundredGigE0/2/0/[21..25]         
