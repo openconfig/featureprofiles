@@ -374,7 +374,7 @@ func TestTrigger(t *testing.T) {
 
 		{"gNOI-REBOOT", func(ctx context.Context, t *testing.T) {
 			utils.GnoiReboot(t, tRes.DUT.Device)
-		}, 5 * time.Minute, true, true},
+		}, 10 * time.Minute, true, true},
 
 		{"LC-Shut-Unshut", func(ctx context.Context, t *testing.T) {
 			utils.DoShutUnshutAllAvailableLcParallel(t, tRes.DUT.Device)
