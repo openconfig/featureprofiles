@@ -255,12 +255,6 @@ type testArgs struct {
 	activeRp     string
 }
 
-// BundleIPAddress struct to store DUT-PEER bundle interface IPv4 and IPv6 address
-type BundleIPAddress struct {
-	ipv4 string
-	ipv6 string
-}
-
 // WAN PBR rules
 var pbrRules = []PbrRule{
 	{
