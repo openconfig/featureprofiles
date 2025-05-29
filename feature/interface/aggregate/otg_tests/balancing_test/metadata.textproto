@@ -32,5 +32,7 @@ platform_exceptions: {
     aggregate_atomic_update: true
     interface_enabled: true
     default_network_instance: "default"
+    static_protocol_name: "STATIC"
+    omit_l2_mtu: true
   }
 }

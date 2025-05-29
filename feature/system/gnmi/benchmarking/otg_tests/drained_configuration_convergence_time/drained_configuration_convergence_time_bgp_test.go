@@ -74,7 +74,7 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	actions5 := stmt.GetOrCreateActions()
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
-	if !deviations.BgpSetMedV7Unsupported(dut) {
+	if !deviations.BGPSetMedActionUnsupported(dut) {
 		setMedBGP.SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	}
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
