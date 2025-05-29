@@ -53,6 +53,7 @@ const (
 	ProtocolSTATIC                    = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
 	AddressFamilyV4                   = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 	AddressFamilyV6                   = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+	ON_CHANGE_TIMEOUT                 = 30 * time.Second
 )
 
 var (
@@ -110,7 +111,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if dut.ID() == "dut1" {
 		DUTSysID = "0000.0000.0001"
-		portName = "port11"
+		// portName = "port11"
+		portName = "dut1_ate_port1"
 		connectedPort = dut.Port(t, portName).Name()
 		baseIPv4 = DUT1_BASE_IPv4
 		loopbackIPv4 = "1.1.1.1"
@@ -120,10 +122,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		loopbackIPv6 = "1:1:1::1"
 	} else {
 		DUTSysID = "0000.0000.0002"
-		portName := "port11"
+		portName := "dut2_ate_port1"
 		connectedPort = dut.Port(t, portName).Name()
-		portName = "port12"
-		unresolvedPort = "FourHundredGigE0/0/0/3"
+		unresolvedPort = "HundredGigE0/0/0/3"
 		baseIPv4 = DUT2_BASE_IPv4
 		loopbackIPv4 = "2.2.2.2"
 		localV4Prefix = fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_BASE_IPv4, ipv4LBPrefixLen)
@@ -241,7 +242,7 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 	var isisIntfNameList []string
 	intfNameList := getInterfaceNameList(t, dut)
 
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 5; i++ {
 		var portAttrib = &attrs.Attributes{}
 		portName := "port" + strconv.Itoa(i+1)
 		port := intfNameList[i]
@@ -264,10 +265,15 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 		gnmi.Replace(t, dut, path.Config(), configInterfaceDUT(intf, portAttrib))
 	}
 
-	p1 := dut.Port(t, "port7").Name()
-	p2 := dut.Port(t, "port8").Name()
-	p3 := dut.Port(t, "port9").Name()
-	p4 := dut.Port(t, "port10").Name()
+	// p1 := dut.Port(t, "port7").Name()
+	// p2 := dut.Port(t, "port8").Name()
+	// p3 := dut.Port(t, "port9").Name()
+	// p4 := dut.Port(t, "port10").Name()
+
+	p1 := dut.Port(t, "port6").Name()
+	p2 := dut.Port(t, "port7").Name()
+	p3 := dut.Port(t, "port8").Name()
+	p4 := dut.Port(t, "port9").Name()
 
 	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether100")}
 	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether101")}
@@ -320,7 +326,13 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 	} else {
 		portAttrib = &dut2Port1
 	}
-	portName := "port11"
+	// portName := "port11"
+	var portName string
+	if dut.ID() == "dut1" {
+		portName = "dut1_ate_port1"
+	} else {
+		portName = "dut2_ate_port1"
+	}
 	port := dut.Port(t, portName).Name()
 	intf := &oc.Interface{Name: &port}
 	path := gnmi.OC().Interface(port)
@@ -339,7 +351,9 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 
 	i.Description = ygot.String(a.Desc)
-	s := &oc.Interface_Subinterface{}
+	s := &oc.Interface_Subinterface{
+		Enabled: ygot.Bool(true),
+	}
 
 	if i.GetName()[:6] == "Bundle" {
 		i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -433,46 +447,12 @@ func configBulkStaticRoute(t *testing.T, dut *ondatra.DUTDevice,
 	}
 }
 
-// func configBulkStaticRouteVRF(t *testing.T, dut *ondatra.DUTDevice,
-// 	prefix, nextHop string, count int, ipv4 bool, vrf string) {
-
-// 	fmt.Printf("Debug: configBulkStaticRouteVRF NI:%v\n", vrf)
-// 	fmt.Printf("Debug: configBulkStaticRouteVRF ciscoFlag:%v\n", *ciscoFlags.NonDefaultNetworkInstance)
-// 	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
-// 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
-// 	sr := static.GetOrCreateStatic(prefix)
-// 	nh := sr.GetOrCreateNextHop("0")
-// 	nh.GetOrCreateInterfaceRef().Interface = ygot.String(nextHop)
-
-// 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).
-// 		Protocol(ProtocolSTATIC, "DEFAULT").Config(), static)
-
-// 	for i := 0; i < count; i++ {
-// 		tempV4Prefix := prefix
-// 		if ipv4 == true {
-// 			prefix = getNewStaticIPv4(prefix[:11]) + "/32"
-// 			nextHop = tempV4Prefix[:11]
-// 		} else {
-// 			prefix = getNewStaticIPv6(prefix[:12]) + "/128"
-// 			nextHop = tempV4Prefix[:12]
-// 		}
-// 		st := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
-// 		sr := st.GetOrCreateStatic(prefix)
-// 		nh := sr.GetOrCreateNextHop(strconv.Itoa(i + 1))
-// 		nh.NextHop = oc.UnionString(nextHop)
-// 		nh.Recurse = ygot.Bool(true)
-
-// 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).
-// 			Protocol(ProtocolSTATIC, "DEFAULT").Config(), st)
-// 	}
-// }
-
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, noRecurse, recurse bool,
 	interfaceName, prefix, nextHop, vrf string) (*oc.NetworkInstance_Protocol,
 	*networkinstance.NetworkInstance_ProtocolPath) {
 
 	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
-	path := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+	path := gnmi.OC().NetworkInstance(vrf).
 		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
 	sr := static.GetOrCreateStatic(prefix)
@@ -512,8 +492,28 @@ func configStaticRouteWithAttributes(t *testing.T, dut *ondatra.DUTDevice, recur
 	return static, path
 }
 
+func configStaticRouteNoRecurseWithAttributes(t *testing.T, dut *ondatra.DUTDevice,
+	prefix, nextHop string, metric, tag, distance uint32) (*oc.NetworkInstance_Protocol,
+	*networkinstance.NetworkInstance_ProtocolPath) {
+
+	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
+	path := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+	static := ni.GetOrCreateProtocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
+
+	sr := static.GetOrCreateStatic(prefix)
+	sr.SetSetTag(oc.UnionUint32((tag)))
+
+	nh := sr.GetOrCreateNextHop("0")
+	nh.SetNextHop(oc.UnionString(nextHop))
+	nh.SetMetric(metric)
+	nh.SetPreference(distance)
+
+	return static, path
+}
+
 func configStaticRouteBFD(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
-	interfaceName, prefix string) (*oc.NetworkInstance_Protocol,
+	interfaceName, prefix, nextHop string) (*oc.NetworkInstance_Protocol,
 	*networkinstance.NetworkInstance_ProtocolPath) {
 
 	ni := oc.NetworkInstance{Name: ygot.String(*ciscoFlags.DefaultNetworkInstance)}
@@ -524,32 +524,34 @@ func configStaticRouteBFD(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.GetOrCreateEnableBfd().SetEnabled(true)
+	nh.SetNextHop(oc.UnionString(nextHop))
+	nh.SetRecurse(recurse)
 	if interfaceName != "" {
 		nh.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceName)
 	}
 
 	return static, path
 }
+func deleteStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ipAf string) {
 
-// func configStaticRouteVRF(t *testing.T, dut *ondatra.DUTDevice, recurse bool,
-// 	interfaceName, prefix, nextHop, srcVRF, dstVRF string) (*oc.NetworkInstance_Protocol,
-// 	*networkinstance.NetworkInstance_ProtocolPath) {
+	path := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *ciscoFlags.DefaultNetworkInstance).
+		StaticAny()
+	delPath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance)
 
-// 	ni := oc.NetworkInstance{Name: ygot.String(srcVRF)}
-// 	path := gnmi.OC().NetworkInstance(srcVRF).
-// 		Protocol(ProtocolSTATIC, "DEFAULT")
-// 	static := ni.GetOrCreateProtocol(ProtocolSTATIC, "DEFAULT")
-// 	sr := static.GetOrCreateStatic(prefix)
-// 	nh := sr.GetOrCreateNextHop("0")
-// 	nh.SetNextHop(oc.UnionString(nextHop))
-// 	nh.SetRecurse(recurse)
+	op := gnmi.GetAll(t, dut, path.State())
 
-// 	if interfaceName != "" {
-// 		nh.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceName)
-// 	}
-
-// 	return static, path
-// }
+	batchConfig := &gnmi.SetBatch{}
+	for _, val := range op {
+		if val.GetPrefix()[:4] == "100." && ipAf == "ipv4" {
+			gnmi.BatchDelete(batchConfig, delPath.Static(val.GetPrefix()).Config())
+		} else if val.GetPrefix()[:4] == "100:" && ipAf == "ipv6" {
+			gnmi.BatchDelete(batchConfig, delPath.Static(val.GetPrefix()).Config())
+		}
+	}
+	batchConfig.Set(t, dut)
+}
 
 func configRouterISIS(t *testing.T, dut *ondatra.DUTDevice, DUTAreaAddress,
 	DUTSysID string, ifaceNameList []string) {
@@ -689,8 +691,10 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(nonDefaultVRF)
 	inst.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	inst.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-	vrfIntf := inst.GetOrCreateInterface(dut.Port(t, "port12").Name())
-	vrfIntf.SetInterface(dut.Port(t, "port12").Name())
+	// vrfIntf := inst.GetOrCreateInterface(dut.Port(t, "port12").Name())
+	// vrfIntf.SetInterface(dut.Port(t, "port12").Name())
+	vrfIntf := inst.GetOrCreateInterface(dut.Port(t, "dut2_ate_port2").Name())
+	vrfIntf.SetInterface(dut.Port(t, "dut2_ate_port2").Name())
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), inst)
 
@@ -699,19 +703,28 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice) {
 func configVRFInterface(t *testing.T, dut *ondatra.DUTDevice) {
 
 	var portAttrib = &attrs.Attributes{}
-	portName := dut.Port(t, "port11").Name()
+	// portName := dut.Port(t, "port11").Name()
 
-	ipv4 := gnmi.GetAll(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv4().AddressAny().State())
-	ipv6 := gnmi.GetAll(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().AddressAny().State())
+	// ipv4 := gnmi.GetAll(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv4().AddressAny().State())
+	// ipv6_test := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Address("6:0:1::1").State())
+	// fmt.Printf("Debug:ipv6_test:%v\n", *ipv6_test.Ip)
+	// ipv6 := gnmi.GetAll(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().AddressAny().State())
 
-	vrfPortName := dut.Port(t, "port12").Name()
+	// vrfPortName := dut.Port(t, "port12").Name()
+	vrfPortName := dut.Port(t, "dut2_ate_port2").Name()
 	vrfIntf := &oc.Interface{Name: &vrfPortName}
 	path := gnmi.OC().Interface(vrfPortName)
+	// portAttrib.Desc = dut.ID() + vrfPortName
+	// portAttrib.IPv4 = ipv4[0].GetIp()
+	// portAttrib.IPv4Len = ipv4[0].GetPrefixLength()
+	// portAttrib.IPv6 = ipv6[0].GetIp()
+	// portAttrib.IPv6Len = ipv6[0].GetPrefixLength()
+
 	portAttrib.Desc = dut.ID() + vrfPortName
-	portAttrib.IPv4 = ipv4[0].GetIp()
-	portAttrib.IPv4Len = ipv4[0].GetPrefixLength()
-	portAttrib.IPv6 = ipv6[0].GetIp()
-	portAttrib.IPv6Len = ipv6[0].GetPrefixLength()
+	portAttrib.IPv4 = dut1Port1.IPv4
+	portAttrib.IPv4Len = dut1Port1.IPv4Len
+	portAttrib.IPv6 = dut1Port1.IPv6
+	portAttrib.IPv6Len = dut1Port1.IPv6Len
 
 	i := configInterfaceDUT(vrfIntf, portAttrib)
 
