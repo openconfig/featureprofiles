@@ -1,4 +1,4 @@
-# PF-1.4: Static GUEv1 Decapsulation over decap subnet range, decap TTL and DSCP behavior test
+# PF-1.4: GUEv1 Decapsulation rule using destination-address-prefix-set and TTL and DSCP behavior test
 
 ## Summary
 
