@@ -435,9 +435,10 @@ func configureTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, f
 	time.Sleep(15 * time.Second)
 }
 
-func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good []gosnappi.Flow, bad []gosnappi.Flow) {
+func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good []gosnappi.Flow, bad []gosnappi.Flow, nhCount int) {
 
 	configureTrafficFlows(t, dut, otg, append(good, bad...))
+	aftCheck(t, dut, nhCount)
 
 	top := otg.GetConfig(t)
 	otg.StartTraffic(t)
@@ -485,6 +486,26 @@ func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	}
 }
 
+func aftCheck(t *testing.T, dut *ondatra.DUTDevice, nhCount int) {
+	aftsPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
+
+	_, ok := gnmi.Watch(t, dut, aftsPath.Ipv4Entry(v4Route+"/24").State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		if !present {
+			return false
+		}
+		hopGroup := gnmi.Get(t, dut, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+		got := len(hopGroup.NextHop)
+		want := nhCount
+		t.Logf("Aft check for %s: Got %d nexthop,want %d", ipv4Entry.GetPrefix(), got, want)
+		return got == want
+
+	}).Await(t)
+
+	if !ok {
+		t.Errorf("Aft check failed for %s", v4Route+"/24")
+	}
+}
 func TestDrain(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -498,15 +519,15 @@ func TestDrain(t *testing.T) {
 	lag3Flow := createFlow(t, ateTopo, "trunk3-flow", atePort3.Name+".IPv4")
 
 	t.Logf("Validating baseline traffic flow")
-	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil)
+	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil, 2)
 
 	// Change trunk-2 metric to 1000 and validate the traffic flows
 	changeMetric(t, dut, agg2ID, 1000)
 	t.Logf("Validating traffic flows after increasing the metric")
-	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{lag3Flow}, []gosnappi.Flow{lag2Flow})
+	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{lag3Flow}, []gosnappi.Flow{lag2Flow}, 1)
 
 	// Restore trunk-2 metric
 	changeMetric(t, dut, agg2ID, 10)
 	t.Logf("Validating traffic flows after restoring the metric")
-	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil)
+	validateTrafficFlows(t, dut, otg, []gosnappi.Flow{ecmpFlows}, nil, 2)
 }
