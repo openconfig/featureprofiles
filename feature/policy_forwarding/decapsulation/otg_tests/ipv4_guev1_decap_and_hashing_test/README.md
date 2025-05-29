@@ -1,4 +1,4 @@
-# PF-1.22 Static GUEv1 Decapsulation and EMCP test for IPv4 and IPv6 payload
+# PF-1.22 Static GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload
 ## Summary
 This is to test the functionality of decapsulation of static GUEv1 to IPv4 or IPv6 payload and ensures that only the outer header (IPv4 | UDP) of GUEv1 encapsulated packets are used for hashing on decapsulating nodes. 
 Comprehensive static GUEv1 Decapsulation over decap subnet range, decap TTL and DSCP behavior test is documented in [#4178](https://github.com/openconfig/featureprofiles/pull/4178).
@@ -71,14 +71,13 @@ B7 <-- EBGP --> N4;
 | **Source ATE Nodes** | **Advertisement Type** | **Prefixes**  | **Via BGP Sessions**                   | **Host Mapping** |
 | -------------- | ---------------------- | ------------------  | ---------------------------------------| ---------------- |
 | ATE1           | EBGP                   | IPv4prefix1-10/24   | IPv4 DUT <--> ATE1                     | Host1v4         |
-| ATE1           | EBGP                   | IPv6prefix1-10/24   | IPv6 DUT <--> ATE1                     | Host1v6         |
+| ATE1           | EBGP                   | IPv6prefix1-10/64   | IPv6 DUT <--> ATE1                     | Host1v6         |
 | ATE1           | EBGP                   | Loopback[1-10]v4/32 | IPv4 DUT <--> ATE1                     | ATE1LO[1-10]v4   |
-| ATE1           | EBGP                   | Loopback[1-10]v6/32 | IPv6 DUT <--> ATE1                     | ATE1LO[1-10]v6   |
 | ATE2 and ATE3  | IBGP                   | IPv4prefix11-20/24  | IPv4 DUT <--> ATE2 and DUT <--> ATE3   | Host2v4         |
-| ATE2 and ATE3  | IBGP                   | IPv6prefix11-20/24  | IPv6 DUT <--> ATE2 and DUT <--> ATE3   | Host2v6         |
+| ATE2 and ATE3  | IBGP                   | IPv6prefix11-20/64  | IPv6 DUT <--> ATE2 and DUT <--> ATE3   | Host2v6         |
 | ATE3           | IBGP                   | IPv4prefix21-30/24  | IPv4 DUT <--> ATE2 and DUT <--> ATE3   | Host3v4         |
 | ATE4 and ATE5  | EBGP                   | IPv4prefix31-40/24  | IPv4 DUT <--> ATE4 and DUT <--> ATE5   | Host4v4         |
-| ATE4 and ATE5  | EBGP                   | IPv6prefix31-40/24  | IPv6 DUT <--> ATE4 and DUT <--> ATE5   | Host4v6         |
+| ATE4 and ATE5  | EBGP                   | IPv6prefix31-40/64  | IPv6 DUT <--> ATE4 and DUT <--> ATE5   | Host4v6         |
 
 
 **_To simplify this document, Host1, Host2, and Host3 will be referred to as H1, H2, H3 and H4 respectively._**
@@ -160,7 +159,7 @@ B7 <-- EBGP --> N4;
 - Repeat each test with the each ATE Flow-type or explicitly mentioned flow-type
 - Conduct each of the following test, using a single flow-type with 1024 flows
 
-### PF-1.22.1: GUE Decapsulation over ipv4 decap address and Load-balance test
+### PF-1.22.1[Baseline]: GUE Decapsulation over ipv4 decap address and Load-balance test
 - Configure the DUT and ATE as stated above
 - Initiate a single flow-type and follow the below stated and applicable verification steps
 - L4 source port of outer header(GUEv1 encap header) should be randomized for each flow-type that's running
@@ -188,6 +187,7 @@ B7 <-- EBGP --> N4;
     - Flow#10 for H4 should be load-balanced via ATE4 and ATE5
         - Traffic forwarded towards ATE4 (via LAG2) should be load-balanced across the LAG members
     - No packet loss should be observed
+    - Port traffic counters will be leveraged to verify the loab-balance behavior
 
 ### PF-1.22.2: GUE Decapsulation over non-matching ipv4 decap address [Negative]
 - Configure the DUT and ATE as stated above
@@ -207,57 +207,50 @@ B7 <-- EBGP --> N4;
 -  The outer header destination UDP port (6085) of the traffic does not matches the locally configured decapsulation port(6080), therefore it does not match the decapsulation criteria for the destination port
 -  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
 -  The DUT decapsulation counters should not increment for this flow
--  The drop counters will reflect the packets to 1000000
+-  The drop counters on DUT will reflect the packets to 1000000
 -  100% packet loss should be observed on ATE Port 2
 
-### PF-1.22.4: Randomize the L4 source port field in immediate next header to outer header and verify load-balance behavior
-- Configure the DUT and ATE as stated above
-- L4 source port of inner/middle header(immediate next header to outer header) should be randomized for each flow-type thats running
-- Initiate a flow-type and follow the below stated and applicable verification steps
-- Repeat the test for all flow types with above-stated modified field
-- Validations:
-    - Flow validations are same as captured in sub-test#PF-1.22.1
-    - Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field 
+### PF-1.22.4: Verify the Immediate next header's L4 fields are considered in Load-Balancing Algorithm
+- Set up the DUT and ATE as previously specified.
+- For each flow type, configure a single source and destination IP address for both the inner and middle IPv4 and IPv6 headers. Specifically:
+    - For IPv4 flows that would typically use an H1v4 range, use IPv4prefix1/24.
+    - For IPv6 flows that would typically use an H1v6 range, use IPv6prefix1/64.
+    - For IPv4 flows that would typically use an H2v4 range, use IPv4prefix11/24.
+    - For IPv6 flows that would typically use an H2v6 range, use IPv6prefix11/64.
+    - For IPv4 flows that would typically use an H4v4 range, use IPv4prefix31/24.
+    - For IPv6 flows that would typically use an H4v6 range, use IPv6prefix31/64.
+- Randomize the L4 source port of the inner/middle header (the header immediately following the outer header) for each flow type being tested.
+- Test Execution:
+    - Initiate each flow type sequentially.
+    - Perform the applicable verification steps for each flow.
+    - Repeat this process for all flow types, applying the modified field as described above.
+- Validation:
+    - Expected Outcome: The traffic should not be load-balanced; instead, it would simply forwarded along a single path.
+    - Port traffic counters will be leveraged to verify this behavior.
+    - Failure Condition: If traffic distribution is observed across multiple paths, the test fails.
 
-### PF-1.22.5: Randomize the L4 source port field and SIP in immediate next header to outer header (middle header) and verify load-balance behavior [Applicable to Packet#1 and Packet#6]
-- Configure the DUT and ATE as stated above
-- L4 source port of middle header(immediate next header to outer header) should be randomized for each flow-type that's running
-- SIP(immediate next header to outer header) should be randomized between ATE1LO[1-10] addresses for each flow-type that's running
-- Execute the test for flow-type1 and flow-type6 with above-stated modified fields
-- Initiate a single flow-type and follow the below stated and applicable verification steps
-- Validations:
-    -  Flow#1 for H3 should be load-balanced across the bundle members via ATE3
-    -  Flow#6 for H3 should be load-balanced across the bundle members via ATE3
-    -  No packet loss should be observed
-    -  Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field
-
-### PF-1.22.6: Randomize the L4 source port field and SIP in immediate next header to outer header (inner header) and verify load-balance behavior [NA to Packet#1 and Packet#6]
-- Configure the DUT and ATE as stated above
-- L4 source port of inner header should be randomized for each flow-type that's running
-- SIP of inner header should be randomized between the v4/v6 prefixes advertised by H1 for each flow-type that's running
-- Initiate a flow-type and follow the below stated and applicable verification steps
-- Execute the test for flow-type2, flow-type3, flow-type4, flow-type5, flow-type7, flow-type8, flow-type9 and flow-type10 with above-stated modified fields
-- Validations:
-    -  Flow#2 for H2 should be load-balanced via ATE2 and ATE3
-        -  Traffic via ATE3 should be load-balanced across the bundle members 
-    -  Flow#3 for H2 should be load-balanced via ATE2 and ATE3
-        -  Traffic via ATE3 should be load-balanced across the bundle members
-    -  Flow#4 for H4 should be load-balanced via ATE4 and ATE5
-        -  Traffic via ATE4 should be load-balanced across the bundle members
-    -  Flow#5 for H4 should be load-balanced via ATE4 and ATE5
-        -  Traffic via ATE4 should be load-balanced across the bundle members
-    -  Flow#7 for H2 should be load-balanced via ATE2 and ATE3
-        -  Traffic via ATE3 should be load-balanced across the bundle members 
-    -  Flow#8 for H2 should be load-balanced via ATE2 and ATE3
-        -  Traffic via ATE3 should be load-balanced across the bundle members
-    -  Flow#9 for H4 should be load-balanced via ATE4 and ATE5
-        -  Traffic via ATE4 should be load-balanced across the bundle members
-    -  Flow#10 for H4 should be load-balanced via ATE4 and ATE5
-        -  Traffic via ATE4 should be load-balanced across the bundle members
-    -  No packet loss should be observed
-    -  Traffic distribution should remain consistent with baseline test results, i.e. no deviation seen because of the modified field
-
-
+### PF-1.22.5: Verify the Immediate next header's L3 fields are considered in Load-Balancing Algorithm
+- Set up the DUT and ATE as previously specified.
+- For each flow type, configure a single destination IP address for both the inner and middle IPv4 and IPv6 headers. Specifically:
+    - For IPv4 flows that would typically use an H1v4 range, use IPv4prefix1/24.
+    - For IPv6 flows that would typically use an H1v6 range, use IPv6prefix1/64.
+    - For IPv4 flows that would typically use an H2v4 range, use IPv4prefix11/24.
+    - For IPv6 flows that would typically use an H2v6 range, use IPv6prefix11/64.
+    - For IPv4 flows that would typically use an H4v4 range, use IPv4prefix31/24.
+    - For IPv6 flows that would typically use an H4v6 range, use IPv6prefix31/64.
+- For each flow type, configure a source IP addresses for both the inner and middle IPv4 and IPv6 headers. Specifically:
+    - For IPv4 flows that would typically use an H1v4 addresses, continue to use the range IPv4prefix1-10/24.
+    - For IPv6 flows that would typically use an H1v6 addresses, continue to use the range IPv6prefix1-10/64.
+    - For IPv4 flows that would typically use an ATE1LO1v4 IPv4 address, use the range ATE1LO[1-10] addresses for each applicable flow-type.
+- Randomize the L4 source port of the inner/middle header (the header immediately following the outer header) for each flow type being tested.
+- Test Execution:
+    - Initiate each flow type sequentially.
+    - Perform the applicable verification steps for each flow.
+    - Repeat this process for all flow types, applying the modified field as described above.
+- Validation:
+    - Expected Outcome: The traffic should not be load-balanced; instead, it would simply forwarded along a single path.
+    - Port traffic counters will be leveraged to verify this behavior.
+    - Failure Condition: If traffic distribution is observed across multiple paths, the test fails.
 
 ## Canonical OpenConfig for GUEv1 Decapsulation configuration
 TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
