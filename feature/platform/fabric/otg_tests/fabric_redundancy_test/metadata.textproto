@@ -24,3 +24,11 @@ platform_exceptions: {
     omit_l2_mtu:  true
   }
 }
+latform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    config_leaf_create_required: true
+  }
+}

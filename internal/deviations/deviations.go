@@ -1372,3 +1372,7 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
+// Config Leaf Create required before GNMI get
+func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
+        return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+}
