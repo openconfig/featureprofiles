@@ -230,6 +230,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
 // Additionally, it configures LocalPreference, ASPathprepend and MED as part of the BGP policy.
 func configureBGPPolicy(d *oc.Root, t *testing.T) (*oc.RoutingPolicy, error) {
+
 	dut := ondatra.DUT(t, "dut")
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
