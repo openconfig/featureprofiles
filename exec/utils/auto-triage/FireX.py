@@ -279,7 +279,7 @@ class FireX:
             # Initialize base data dictionary
             data = {
                 "group": run_info.get("group", "Unknown"),
-                "efr": run_info.get("tag", "Unknown"),
+                "efr": run_info.get("efr", "Unknown"), # <-- CORRECTED: Use 'efr' from run_info directly
                 "run_id": current_run_id,
                 "lineup": run_info.get("lineup", "Unknown"),
                 "tests": int(stats.get("tests", 0)),
@@ -290,19 +290,19 @@ class FireX:
                 "timestamp" : current_run_timestamp,
                 "health": "ok",
                 "testcases": [],
-                "bugs": []
+                "bugs": [] # Initialize bugs as empty
             }
-            print(f"Initialized base data: group={data['group']}, lineup={data['lineup']}, run_id={data['run_id']}")
+            print(f"Initialized base data: group={data['group']}, lineup={data['lineup']}, run_id={data['run_id']}, efr={data['efr']}")
 
-            b4_keys = ["test.plan_id", 
-                    "test.description", 
-                    "test.uuid", 
-                    "testsuite_hash", 
+            b4_keys = ["test.plan_id",
+                    "test.description",
+                    "test.uuid",
+                    "testsuite_hash",
                     "testsuite_root"]
             
             cafy_keys_mappings = {
-                "testsuite_name": "plan_id", 
-                "testsuite_hash": "testsuite_hash", 
+                "testsuite_name": "plan_id",
+                "testsuite_hash": "testsuite_hash",
                 "testsuite_root": "testsuite_root"
                 }
             framework_property = properties.find("./property[@name='framework']")
@@ -395,7 +395,8 @@ class FireX:
                 if ai_generated_count > 0:
                     print(f"Found {ai_generated_count} AI-generated test cases in historical data")
 
-            # Inherit associated bugs from immediate predecessor only
+            # Initialize data["bugs"] based on inheritance from predecessor
+            # This block is what currently populates data["bugs"]
             if historial_testsuite:
                 print(f"Processing bug inheritance from historical testsuite")
                 for bug in historial_testsuite.get("bugs", []):
@@ -404,7 +405,7 @@ class FireX:
                     if name and bug_type:
                         try:
                             print(f"Inheriting bug {name} of type {bug_type}")
-                            # FIX: Make bug type check case-insensitive
+                            # Make bug type check case-insensitive
                             if bug_type.lower() in ["ddts", "techzone", "github"]:
                                 # Map to proper class name based on lowercase
                                 class_mapping = {
@@ -418,7 +419,7 @@ class FireX:
                                     inherited_bug = globals()[module_name].inherit(name)
                                     # Only append the bug if it's not None (filtered out)
                                     if inherited_bug is not None:
-                                        data["bugs"].append(inherited_bug) 
+                                        data["bugs"].append(inherited_bug)
                                         print(f"Successfully inherited bug {name}")
                                         if bug_type.lower() == "ddts" and test_passed and ddts.is_open(name):
                                             data["health"] = "unstable"
@@ -430,14 +431,23 @@ class FireX:
                     else:
                         print(f"Skipping bug inheritance due to missing name or type: {bug}")
 
+            # --- ADDED LOGIC FOR BUG CLEARING (IF TEST PASSES) ---
+            # This is the logic that's missing for Day 5 to clear the bugs.
+            # If the current testsuite passed and there are inherited bugs, clear them.
+            if test_passed and data["bugs"]:
+                print(f"Testsuite passed for run_id {current_run_id}. Clearing {len(data['bugs'])} inherited bugs.")
+                data["bugs"] = [] # Clear the bugs array
+                data["health"] = "ok" # Ensure health is 'ok' if test passed and bugs cleared
+            # --- END ADDED LOGIC ---
+
             # Pass database object AND immediate predecessor details AND lookup keys to _create_testsuites
             print(f"Calling _create_testsuites with {len(testcases)} test cases")
             data["testcases"] = self._create_testsuites(
-                database, 
-                testcases, 
+                database,
+                testcases,
                 historial_testsuite,
                 historical_timestamp,
-                group_for_lookup,   
+                group_for_lookup,
                 plan_id_for_lookup,
                 lineup_for_lookup,
                 ai_generated_testcases  # Dictionary of AI-generated test cases
