@@ -50,7 +50,7 @@ func Test400ZRLogicalChannels(t *testing.T) {
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 
 	cfgplugins.InterfaceConfig(t, dut, p1)
 	cfgplugins.InterfaceConfig(t, dut, p2)
