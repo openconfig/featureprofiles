@@ -188,13 +188,11 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
-	bundleIntfList         = []string{}
-	peerBundleIPMap        = map[string]BundleIPAddress{}
-	bundleList             = []util.BundleLinks{}
-	primaryInterfaces      = []util.BundleLinks{}
-	backupInterfaces       = []util.BundleLinks{}
-	peerBundlesubIntfIPMap = map[string]util.LinkIPs{}
-	gribiScaleVal          = ScaleParam{
+	bundleList                = []util.BundleLinks{}
+	primaryBundlesubIntfIPMap = map[string]util.LinkIPs{}
+	backupBundlesubIntfIPMap  = map[string]util.LinkIPs{}
+	pathInfo                  = PathInfo{}
+	gribiScaleVal             = ScaleParam{
 		V4TunnelCount:         v4TunnelCount,
 		V4TunnelNHGCount:      v4TunnelNHGCount,
 		V4TunnelNHGSplitCount: v4TunnelNHGSplitCount,
@@ -960,14 +958,75 @@ func (bundles Bundles) ConfigureBundleLinkIPs(t *testing.T, dut, peer *ondatra.D
 }
 
 type PathInfo struct {
-	PrimaryPaths    []string // IPv4 addresses
-	BackupPaths     []string // IPv4 addresses
-	PrimaryPathsV6  []string // IPv6 addresses
-	BackupPathsV6   []string // IPv6 addresses
-	PrimaryIntfs    []string // interface names
-	BackupIntfs     []string // interface names
-	PrimaryIntfLocs []string // card hosting interfaces
-	BackupIntfLocs  []string // card hosting interfaces
+	// bundleMode: true if bundle interface,  false if physical interface
+	bundleMode         bool
+	PrimaryInterface   []string
+	PrimaryPathsV4     []string
+	PrimaryPathsV6     []string
+	PrimaryPathsPeerV4 []string
+	PrimaryPathsPeerV6 []string
+	// PrimaryIntfLcs and PrimaryPeerLcs holds either a []string or [][]string depending on the interface mode.
+	// If bundleMode is false (physical interface mode), PrimaryIntfLcs is a []string.
+	// If bundleMode is true (bundle interface mode), PrimaryIntfLcs is a [][]string.
+	// Use type assertion after checking bundleMode:
+	//   if pathInfo.bundleMode {
+	//       lcs2d, ok := pathInfo.PrimaryIntfLcs.([][]string) // bundle mode
+	//   } else {
+	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
+	//   }
+	PrimaryIntfLcs any
+	PrimaryPeerLcs any
+	PrimarySubIntf map[string]util.LinkIPs
+
+	BackupInterface   []string
+	BackupPathsV4     []string
+	BackupPathsV6     []string
+	BackupPathsPeerV4 []string
+	BackupPathsPeerV6 []string
+	// BackupIntfLcs and BackupPeerLcs holds either a []string or [][]string depending on the interface mode.
+	// If bundleMode is false (physical interface mode), PrimaryIntfLcs is a []string.
+	// If bundleMode is true (bundle interface mode), PrimaryIntfLcs is a [][]string.
+	// Use type assertion after checking bundleMode:
+	//   if pathInfo.bundleMode {
+	//       lcs2d, ok := pathInfo.PrimaryIntfLcs.([][]string) // bundle mode
+	//   } else {
+	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
+	//   }
+	BackupIntfLcs any
+	BackupPeerLcs any
+	BackupSubIntf map[string]util.LinkIPs
+}
+
+// fillPathInfoInterface populates the PathInfo struct's interface-related fields.
+func (p *PathInfo) fillPathInfoInterface(
+	primaryInterfaces, backupInterfaces []util.BundleLinks,
+) {
+	primaryIntfsName := util.ExtractBundleLinkField(primaryInterfaces, "name")
+	backupIntfsName := util.ExtractBundleLinkField(backupInterfaces, "name")
+
+	p.PrimaryInterface = util.ToStringSlice(primaryIntfsName)
+	p.PrimaryPathsV4 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "intfv4addr"))
+	p.PrimaryPathsV6 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "intfv6addr"))
+	p.PrimaryPathsPeerV4 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "peerintfv4addr"))
+	p.PrimaryPathsPeerV6 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "peerintfv6addr"))
+	p.PrimaryIntfLcs = util.ExtractBundleLinkField(primaryInterfaces, "linecardnumber")
+	p.PrimaryPeerLcs = util.ExtractBundleLinkField(primaryInterfaces, "linecardnumber")
+
+	p.BackupInterface = util.ToStringSlice(backupIntfsName)
+	p.BackupPathsV4 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "intfv4addr"))
+	p.BackupPathsV6 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "intfv6addr"))
+	p.BackupPathsPeerV4 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "peerintfv4addr"))
+	p.BackupPathsPeerV6 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "peerintfv6addr"))
+	p.BackupIntfLcs = util.ExtractBundleLinkField(backupInterfaces, "peerlinecardnumber")
+	p.BackupPeerLcs = util.ExtractBundleLinkField(backupInterfaces, "peerlinecardnumber")
+}
+
+// fillPathInfoSubInterface populates the PathInfo struct's subinterface-related fields.
+func (p *PathInfo) fillPathInfoSubInterface(
+	primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap map[string]util.LinkIPs,
+) {
+	p.PrimarySubIntf = primaryBundlesubIntfIPMap
+	p.BackupSubIntf = backupBundlesubIntfIPMap
 }
 
 func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode string) {
@@ -983,7 +1042,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		aggID1, aggID2 := configureDUTInterfaces(t, dut)
 		t.Log("Configure DUT-PEER dynamic Bundle Interface")
 		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
-		if len(bundleList) < 2 {
+		if len(bundleListAll) < 2 {
 			t.Fatalf("Expected at least 2 bundles (one for bgp/isis other for test), got %d", len(bundleList))
 		}
 		bundleBgpIsis := bundleListAll[0] // first interface is for BGP/ISIS
@@ -994,49 +1053,15 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		if err != nil {
 			t.Fatal(err)
 		}
-		primaryInterfaces = primaryIntfs // interface for primary paths based on primaryPercent
-		backupInterfaces = backupIntfs   // interface for backup paths based on primaryPercent
-		if false {                       // use backupinterface for future test
-			t.Logf("Backup Interface List: %v", backupInterfaces)
-		}
+		// pathInfo: global variable
+		pathInfo.bundleMode = true
+		pathInfo.fillPathInfoInterface(primaryIntfs, backupIntfs)
 
-		primaryIntfsName := util.ExtractBundleLinkField(primaryInterfaces, "name")
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, primaryBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.PrimaryInterface, primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		pathInfo.fillPathInfoSubInterface(primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap)
 
-		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, peerBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, util.ToStringSlice(primaryIntfsName), primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
-		if false { // use  for future test
-			t.Logf("peerBundlesubIntfIPMap: %v", peerBundlesubIntfIPMap)
-			t.Logf("backupSubIntfScale count: %v", backupSubIntfScale)
-		}
-		var pathInfo PathInfo
-
-		// Extract IP addresses (e.g., IntfV4Addr) for primary and backup
-		primaryIPs := util.ExtractBundleLinkField(primaryInterfaces, "intfv4addr")
-		backupIPs := util.ExtractBundleLinkField(backupInterfaces, "intfv4addr")
-		primaryIPsV6 := util.ExtractBundleLinkField(primaryInterfaces, "intfv6addr")
-		backupIPsV6 := util.ExtractBundleLinkField(backupInterfaces, "intfv6addr")
-
-		// Extract card locations (LineCardNumber)
-		primaryLocs := util.ExtractBundleLinkField(primaryInterfaces, "linecardnumber")
-		backupLocs := util.ExtractBundleLinkField(backupInterfaces, "linecardnumber")
-
-		pathInfo = PathInfo{
-			PrimaryPaths:    util.ToStringSlice(primaryIPs),
-			BackupPaths:     util.ToStringSlice(backupIPs),
-			PrimaryPathsV6:  util.ToStringSlice(primaryIPsV6),
-			BackupPathsV6:   util.ToStringSlice(backupIPsV6),
-			PrimaryIntfLocs: util.ToStringSlice(primaryLocs),
-			BackupIntfLocs:  util.ToStringSlice(backupLocs),
-		}
-
-		if false { // use pathInfo for future
-			t.Logf("Primary Paths: %v", pathInfo.PrimaryPaths)
-			t.Logf("Backup Paths: %v", pathInfo.BackupPaths)
-			t.Logf("Primary Interfaces: %v", pathInfo.PrimaryIntfs)
-			t.Logf("Backup Interfaces: %v", pathInfo.BackupIntfs)
-			t.Logf("Primary Interface Locations: %v", pathInfo.PrimaryIntfLocs)
-			t.Logf("Backup Interface Locations: %v", pathInfo.BackupIntfLocs)
-		}
-
+		t.Logf("Path info: %v", pathInfo)
 		t.Log("Configure ISIS for DUT-PEER")
 		configureDeviceISIS(t, dut, peer, bundleBgpIsis)
 		t.Log("Configure Fallback in Encap VRF")
@@ -1063,49 +1088,6 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		t.Fatalf("Unknown mode: %s. Must be 'bundle' or 'physical'", interfaceMode)
 	}
 }
-
-// func configureBundleIPAddr(t *testing.T, dut, peer *ondatra.DUTDevice, bundlelist []string) (map[string]BundleIPAddress, map[string]BundleIPAddress) {
-// 	dutBundleIPMap := make(map[string]BundleIPAddress)
-// 	peerBundleIPMap := make(map[string]BundleIPAddress)
-// 	//Configure Bundle interface IPv4 address
-// 	for i, bundle := range bundlelist {
-// 		ipv4r, err := util.IncrementSubnetCIDR(dutPeerBundleIPv4Range, i)
-// 		ipv6r, err1 := util.IncrementSubnetCIDR(dutPeerBundleIPv6Range, i)
-// 		if err != nil || err1 != nil {
-// 			t.Errorf("Error in incrementing subnet")
-// 		}
-// 		dutIPv4, peerIPv4 := util.GetUsableIPs(ipv4r)
-// 		dutIPv6, peerIPv6 := util.GetUsableIPs(ipv6r)
-// 		dutConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, dutIPv4.String())
-// 		peerConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, peerIPv4.String())
-// 		helpers.GnmiCLIConfig(t, dut, dutConf)
-// 		helpers.GnmiCLIConfig(t, peer, peerConf)
-// 		//Configure Bundle interface IPv6 address
-// 		dutConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, dutIPv6.String())
-// 		peerConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, peerIPv6.String())
-// 		helpers.GnmiCLIConfig(t, dut, dutConf)
-// 		helpers.GnmiCLIConfig(t, peer, peerConf)
-// 		dutBundleIPMap[bundle] = BundleIPAddress{
-// 			ipv4: dutIPv4.String(),
-// 			ipv6: dutIPv6.String()}
-// 		peerBundleIPMap[bundle] = BundleIPAddress{
-// 			ipv4: peerIPv4.String(),
-// 			ipv6: peerIPv6.String()}
-// 	}
-// 	return dutBundleIPMap, peerBundleIPMap
-// }
-
-func getDUTBundleIPAddrList(deviceBundleMap map[string]BundleIPAddress) ([]string, []string) {
-	var v4list, v6list []string
-	for bun, addr := range deviceBundleMap {
-		if bun == bundleIntfList[0] {
-			continue
-		}
-		v4list = append(v4list, addr.ipv4)
-		v6list = append(v6list, addr.ipv6)
-	}
-	return v4list, v6list
-} //
 
 func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bgpLink util.BundleLinks) {
 	// dutBundleIPMap, peerBundleIPMap = configureBundleIPAddr(t, dut, peer, bundList)
@@ -1330,56 +1312,10 @@ func configureBaseProfile(t *testing.T) {
 		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
 	})
 
-	t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
-	peerNHIPv4 := util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "peerv4addr"))
 	// add static route on peer for the tunnel destination for encap, decap+encap traffic
 	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	t.Log("Program base gRIBI entries")
-	BaseGRIBIProgramming(t, tcArgs, peerNHIPv4, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
-}
-
-// configureBaseProfile configures DUT,PEER,TGEN baseconfig
-func ReconnectconfigureBaseProfile(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	peer := ondatra.DUT(t, "peer")
-	otg := ondatra.ATE(t, "ate")
-
-	ctx := context.Background()
-	gribic1 := dut.RawAPIs().GRIBI(t)
-	client1 := fluent.NewClient()
-	client1.Connection().WithStub(gribic1).WithPersistence().WithInitialElectionID(1, 0).
-		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
-
-	client1.Start(ctx, t)
-	// cleanup all existing gRIBI entries at the end of the test
-	// defer gribi.FlushAll(client)
-	// cleanup all existing gRIBI entries in the begining of the test
-	if err := gribi.FlushAll(client1); err != nil {
-		t.Error(err)
-	}
-	client1.Await(ctx, t)
-	// Wait for the gribi entries get flushed
-	time.Sleep(300 * time.Second)
-	defer client1.Stop(t)
-
-	// t.Log("Configure TGEN OTG")
-	topo := configureOTG(t, otg, dut, peer)
-	// t.Log("OTG CONFIG: ", topo)
-	tcArgs := &testArgs{
-		dut:    dut,
-		peer:   peer,
-		ate:    otg,
-		topo:   topo,
-		client: client1,
-		ctx:    ctx,
-	}
-	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
-	peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
-
-	// add static route on peer for the tunnel destination for encap, decap+encap traffic
-	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
-	t.Log("Program base gRIBI entries")
-	BaseGRIBIProgramming(t, tcArgs, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
+	BaseGRIBIProgramming(t, tcArgs, pathInfo.PrimaryPathsPeerV4, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
 }
 
 type DUTResources struct {

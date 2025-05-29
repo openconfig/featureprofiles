@@ -1192,8 +1192,8 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
 	})
 	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
-	tcArgs.primaryPaths, _ = getDUTBundleIPAddrList(peerBundleIPMap)
-	tcArgs.frr1Paths = tcArgs.primaryPaths //todo: fix it with a method that provides frr1 chain paths
+	tcArgs.primaryPaths = pathInfo.PrimaryPathsPeerV4
+	tcArgs.frr1Paths = pathInfo.BackupPathsPeerV4
 	_, tcArgs.activeRp = components.FindStandbyControllerCard(t, dut, components.FindComponentsByType(t, dut, controlcardType))
 
 	// add static route on peer for the tunnel destination for encap, decap+encap traffic

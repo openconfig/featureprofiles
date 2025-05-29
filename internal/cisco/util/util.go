@@ -1030,13 +1030,23 @@ func RebootDevice(t *testing.T) {
 	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
 }
 
-// Convert []any to []string
-func ToStringSlice(in []any) []string {
-	out := make([]string, len(in))
-	for i, v := range in {
-		out[i] = fmt.Sprintf("%v", v)
+// ToStringSlice converts an input of type []string or [][]string to a flat []string.
+// If the input is []string, it returns it as-is.
+// If the input is [][]string, it flattens all inner slices into a single []string.
+// For any other type, it returns nil.
+func ToStringSlice(val any) []string {
+	switch v := val.(type) {
+	case []string:
+		return v
+	case [][]string:
+		var flat []string
+		for _, inner := range v {
+			flat = append(flat, inner...)
+		}
+		return flat
+	default:
+		return nil
 	}
-	return out
 }
 
 func ParallelReloadRouter(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) error {
@@ -1115,38 +1125,61 @@ type BundleLinks struct {
 // field can be "intf", "intfv4addr", or "intfname".
 // ExtractBundleLinkField returns a slice of the requested field from all InterfacePhysicalLink in all bundles.
 // field can be any field in InterfacePhysicalLink or "name" for the bundle name.
-func ExtractBundleLinkField(bundles []BundleLinks, field string) []any {
-	var result []interface{}
+func ExtractBundleLinkField(bundles []BundleLinks, field string) any {
 	switch strings.ToLower(field) {
 	case "name":
+		var result []string
 		for _, bundle := range bundles {
 			result = append(result, bundle.Name)
 		}
+		return result
 	case "intfv4addr":
+		var result []string
 		for _, bundle := range bundles {
 			result = append(result, bundle.IntfV4Addr)
 		}
+		return result
 	case "intfv6addr":
+		var result []string
 		for _, bundle := range bundles {
 			result = append(result, bundle.IntfV6Addr)
 		}
+		return result
 	case "peerv4addr":
+		var result []string
 		for _, bundle := range bundles {
 			result = append(result, bundle.PeerV4Addr)
 		}
+		return result
 	case "peerv6addr":
+		var result []string
 		for _, bundle := range bundles {
 			result = append(result, bundle.PeerV6Addr)
-
 		}
+		return result
 	case "peerlinecardnumber":
+		var result [][]string
 		for _, bundle := range bundles {
+			var lcList []string
 			for _, link := range bundle.Links {
-				result = append(result, link.PeerLineCardNumber)
+				lcList = append(lcList, link.PeerLineCardNumber)
 			}
+			result = append(result, lcList)
 		}
+		return result
+	case "linecardnumber":
+		var result [][]string
+		for _, bundle := range bundles {
+			var lcList []string
+			for _, link := range bundle.Links {
+				lcList = append(lcList, link.PeerLineCardNumber)
+			}
+			result = append(result, lcList)
+		}
+		return result
+	default:
+		return nil
 	}
-	return result
 }
 
 // Assumptions
