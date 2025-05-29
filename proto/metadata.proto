@@ -759,6 +759,12 @@ message Metadata {
     // Cisco b/414333771
     bool bgp_set_med_action_unsupported = 272;
 
+    // Devices that do not propagate IGP metric through redistribution
+    bool default_no_igp_metric_propagation = 273;
+
+    // Skip setting send-community-type in bgp peer-group config
+    bool skip_bgp_peer_group_send_community_type = 274;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }
