@@ -1374,6 +1374,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-6.3"
+  description: "Route Leakage between Non Default VRFs"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/route_removal_non_default_vrf_with_backup_nhg_test/README.md"
+  exec: " "
+}
+test: {
   id: "TE-8.2"
   description: "Supervisor Failure"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/supervisor_failure_test/README.md"
