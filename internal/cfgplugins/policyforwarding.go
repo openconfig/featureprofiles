@@ -266,7 +266,7 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // PolicyForwardingConfig configures the interface policy-forwarding config.
-func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
