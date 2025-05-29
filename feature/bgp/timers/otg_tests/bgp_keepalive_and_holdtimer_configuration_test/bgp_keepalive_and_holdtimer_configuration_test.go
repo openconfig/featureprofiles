@@ -121,6 +121,8 @@ var (
 		{localAs: bgpGlobalAttrs.dutAS, peerAs: bgpGlobalAttrs.ateAS, pfxLimit: bgpGlobalAttrs.prefixLimit, neighborip: ateDst.IPv4, isV4: true},
 		{localAs: bgpGlobalAttrs.dutAS, peerAs: bgpGlobalAttrs.ateAS, pfxLimit: bgpGlobalAttrs.prefixLimit, neighborip: ateDst.IPv6, isV4: false},
 	}
+
+	bgpPeerGroups = []string{bgpGlobalAttrs.peerGrpNamev4, bgpGlobalAttrs.peerGrpNamev6}
 )
 
 type config struct {
@@ -198,6 +200,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	ate.OTG().StartProtocols(t)
 	return &config{topo, dstBgp4PeerRoutes, dstBgp6PeerRoutes, v4DstIncrement, v6DstIncrement}
 }
+
 func ateFlowConfig(t *testing.T, topo gosnappi.Config, srcEth gosnappi.DeviceEthernet, srcIpv4 gosnappi.DeviceIpv4, srcIpv6 gosnappi.DeviceIpv6, dstBgp4PeerRoutes gosnappi.BgpV4RouteRange, dstBgp6PeerRoutes gosnappi.BgpV6RouteRange) (gosnappi.PatternFlowIpv4DstCounter, gosnappi.PatternFlowIpv6DstCounter) {
 	// ATE Traffic Configuration
 	t.Logf("TestBGP:start ate Traffic config")
@@ -310,16 +313,35 @@ func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	return niProto
 }
 
+// bgpConfigType represents the type of BGP timer configuration.
+type bgpConfigType int
+
+const (
+	bgpConfigTypeNeighbor bgpConfigType = iota
+	bgpConfigTypePeerGroup
+)
+
 // bgpTimersConfig sets the right config for BGP timers.
 func (tc *testCase) bgpTimersConfig(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
-	for _, nbr := range bgpNbrs {
-		bgpNeighbor := bgp.GetOrCreateNeighbor(nbr.neighborip)
-		bgpNeighbor.GetOrCreateTimers().SetKeepaliveInterval(tc.bgpTimers.keepAliveTimer)
-		bgpNeighbor.GetOrCreateTimers().SetHoldTime(tc.bgpTimers.holdTimer)
+
+	switch tc.bgpConfigType {
+	case bgpConfigTypeNeighbor:
+		for _, nbr := range bgpNbrs {
+			bgpNeighbor := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			bgpNeighbor.GetOrCreateTimers().SetKeepaliveInterval(tc.bgpTimers.keepAliveTimer)
+			bgpNeighbor.GetOrCreateTimers().SetHoldTime(tc.bgpTimers.holdTimer)
+		}
+	case bgpConfigTypePeerGroup:
+		for _, peerGrp := range bgpPeerGroups {
+			bgp.GetOrCreatePeerGroup(peerGrp).GetOrCreateTimers().SetKeepaliveInterval(tc.bgpTimers.keepAliveTimer)
+			bgp.GetOrCreatePeerGroup(peerGrp).GetOrCreateTimers().SetHoldTime(tc.bgpTimers.holdTimer)
+		}
+	default:
+		t.Errorf("incorrect config type: %v", tc.bgpConfigType)
 	}
 	return niProto
 }
@@ -399,16 +421,33 @@ func (tc *testCase) verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 func (tc *testCase) verifyBGPTimers(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP timers")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	for _, nbr := range bgpNbrs {
-		timerPath := bgpPath.Neighbor(nbr.neighborip).Timers()
-		gotBgptimers := bgpTimers{
-			keepAliveTimer: gnmi.Get(t, dut, timerPath.KeepaliveInterval().State()),
-			holdTimer:      gnmi.Get(t, dut, timerPath.HoldTime().State()),
+	switch tc.bgpConfigType {
+	case bgpConfigTypeNeighbor:
+		for _, nbr := range bgpNbrs {
+			timerPath := bgpPath.Neighbor(nbr.neighborip).Timers()
+			gotBgptimers := bgpTimers{
+				keepAliveTimer: gnmi.Get(t, dut, timerPath.KeepaliveInterval().State()),
+				holdTimer:      gnmi.Get(t, dut, timerPath.HoldTime().State()),
+			}
+			if want := tc.bgpTimers; gotBgptimers != want {
+				t.Errorf("BGP timers: got %v, want %v", gotBgptimers, want)
+			}
 		}
-		if want := tc.bgpTimers; gotBgptimers != want {
-			t.Errorf("BGP timers: got %v, want %v", gotBgptimers, want)
+	case bgpConfigTypePeerGroup:
+		for _, peerGrp := range bgpPeerGroups {
+			timerPath := bgpPath.PeerGroup(peerGrp).Timers()
+			gotBgptimers := bgpTimers{
+				keepAliveTimer: gnmi.Get(t, dut, timerPath.KeepaliveInterval().State()),
+				holdTimer:      gnmi.Get(t, dut, timerPath.HoldTime().State()),
+			}
+			if want := tc.bgpTimers; gotBgptimers != want {
+				t.Errorf("BGP timers: got %v, want %v", gotBgptimers, want)
+			}
 		}
+	default:
+		t.Errorf("incorrect config type: %v", tc.bgpConfigType)
 	}
+
 }
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
@@ -429,6 +468,7 @@ type testCase struct {
 	numRoutes       int32
 	wantEstablished bool
 	bgpTimers       bgpTimers
+	bgpConfigType   bgpConfigType
 }
 
 func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -455,6 +495,26 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	})
 }
 
+func configureDUTATE(t *testing.T) (*config, *ondatra.DUTDevice, *ondatra.ATEDevice) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	// DUT Configuration
+	t.Log("Start DUT interface Config")
+	configureDUT(t, dut)
+	t.Log("Configure RPL")
+	configureRoutePolicy(t, dut, bgpGlobalAttrs.rplName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	t.Logf("Start DUT BGP Config")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConf := bgpCreateNbr(dut)
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+	// ATE Configuration.
+	t.Log("Start ATE Config")
+	otgConfig := configureATE(t, ate)
+	return otgConfig, dut, ate
+}
+
 func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	defaultTimer := bgpTimers{
 		keepAliveTimer: 30,
@@ -474,35 +534,38 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
 		wantEstablished: true,
 		bgpTimers:       defaultTimer,
+		bgpConfigType:   bgpConfigTypeNeighbor,
 	}, {
-		name:            "BGP Timers Updated Configuration",
+		name:            "BGP Timers Updated Configuration 10/30",
 		desc:            "BGP configuration with values of 10 and 30",
 		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
 		wantEstablished: true,
 		bgpTimers:       tenThirty,
+		bgpConfigType:   bgpConfigTypeNeighbor,
 	}, {
-		name:            "BGP Timers Updated Configuration",
+		name:            "BGP Timers Updated Configuration 5/15",
 		desc:            "BGP configuration with values of 5 and 15",
 		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
 		wantEstablished: true,
 		bgpTimers:       fiveFifteen,
-	}}
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	// DUT Configuration
-	t.Log("Start DUT interface Config")
-	configureDUT(t, dut)
-	t.Log("Configure RPL")
-	configureRoutePolicy(t, dut, bgpGlobalAttrs.rplName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	t.Logf("Start DUT BGP Config")
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	dutConf := bgpCreateNbr(dut)
-	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
-	// ATE Configuration.
-	t.Log("Start ATE Config")
-	otgConfig := configureATE(t, ate)
+		bgpConfigType:   bgpConfigTypeNeighbor,
+	}, {
+		name:            "BGP Timers Updated Configuration Peer Group 10/30",
+		desc:            "BGP configuration with values of 10 and 30 for peer groups",
+		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
+		wantEstablished: true,
+		bgpTimers:       tenThirty,
+		bgpConfigType:   bgpConfigTypePeerGroup,
+	}, {
+		name:            "BGP Timers Updated Configuration Peer Group 5/15",
+		desc:            "BGP configuration with values of 5 and 15 for peer groups",
+		numRoutes:       int32(bgpGlobalAttrs.prefixLimit),
+		wantEstablished: true,
+		bgpTimers:       fiveFifteen,
+		bgpConfigType:   bgpConfigTypePeerGroup,
+	},
+	}
+	otgConfig, dut, ate := configureDUTATE(t)
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

@@ -105,18 +105,24 @@ func bgpCreateNbr(bgpParams *bgpTestParams, dut *ondatra.DUTDevice) *oc.NetworkI
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(bgpParams.localAS)
 	global.RouterId = ygot.String(dutAttrs.IPv4)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(dutAS)
 	pg.PeerGroupName = ygot.String(peerGrpName)
+	pgT := pg.GetOrCreateTransport()
+	pgT.LocalAddress = ygot.String(dutAttrs.IPv4)
+	pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	nv4 := bgp.GetOrCreateNeighbor(ateAttrs.IPv4)
 	nv4.PeerGroup = ygot.String(peerGrpName)
 	nv4.PeerAs = ygot.Uint32(ateAS)
 	nv4.Enabled = ygot.Bool(true)
-
+	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	nv4T := nv4.GetOrCreateTransport()
+	nv4T.LocalAddress = ygot.String(dutAttrs.IPv4)
 	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	switch bgpParams.transportMode {
@@ -152,10 +158,15 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp_Neighbor_SessionState, transMode string) {
+func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp_Neighbor_SessionState, transMode string, transModeOnATE string) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
-
+	if deviations.BgpSessionStateIdleInPassiveMode(dut) {
+		if transModeOnATE == nbrLvlPassive || transModeOnATE == peerLvlPassive {
+			t.Logf("BGP session state idle is supported in passive mode, transMode: %s, transModeOnATE: %s", transMode, transModeOnATE)
+			wantState = oc.Bgp_Neighbor_SessionState_IDLE
+		}
+	}
 	// Get BGP adjacency state
 	t.Log("Checking BGP neighbor to state...")
 	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -168,12 +179,16 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp
 	}
 	status := gnmi.Get(t, dut, nbrPath.SessionState().State())
 	t.Logf("BGP adjacency for %s: %s", ateAttrs.IPv4, status)
+	t.Logf("wantState: %s, status: %s", wantState, status)
 	if status != wantState {
 		t.Errorf("BGP peer %s status got %d, want %d", ateAttrs.IPv4, status, wantState)
 	}
 
 	nbrTransMode := gnmi.Get(t, dut, nbrPath.Transport().State())
 	pgTransMode := gnmi.Get(t, dut, statePath.PeerGroup(peerGrpName).Transport().State())
+	t.Logf("Neighbor level passive mode is set to %v on DUT", nbrTransMode.GetPassiveMode())
+	t.Logf("Peer group level passive mode is set to %v on DUT", pgTransMode.GetPassiveMode())
+
 	// Check transport mode telemetry.
 	switch transMode {
 	case nbrLvlPassive:
@@ -223,9 +238,11 @@ func configureATE(t *testing.T, ateParams *bgpTestParams) gosnappi.Config {
 
 	switch ateParams.transportMode {
 	case nbrLvlPassive:
+		peerBGP.Advanced().SetPassiveMode(true)
 	case peerLvlPassive:
 		peerBGP.Advanced().SetPassiveMode(true)
 	case peerLvlActive:
+		peerBGP.Advanced().SetPassiveMode(false)
 	case nbrLvlActive:
 		peerBGP.Advanced().SetPassiveMode(false)
 	}
@@ -234,7 +251,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams) gosnappi.Config {
 }
 
 func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
-	//nbrPath := gnmi.OTG().BgpPeer("ateSrc.BGP4.peer")
+	// nbrPath := gnmi.OTG().BgpPeer("ateSrc.BGP4.peer")
 	t.Log("OTG telemetry does not support checking transport mode.")
 }
 
@@ -314,7 +331,7 @@ func TestBgpSessionModeConfiguration(t *testing.T) {
 			ate.OTG().StartProtocols(t)
 
 			t.Logf("Verify BGP telemetry")
-			verifyBgpTelemetry(t, dut, tc.wantBGPState, tc.dutTransportMode)
+			verifyBgpTelemetry(t, dut, tc.wantBGPState, tc.dutTransportMode, tc.otgTransportMode)
 
 			t.Logf("Verify BGP telemetry on otg")
 			verifyOTGBGPTelemetry(t, ate.OTG(), tc.ateConf)

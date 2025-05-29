@@ -101,15 +101,13 @@ var (
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
-	pd := rp.GetOrCreatePolicyDefinition(name)
-	st, err := pd.AppendNewStatement("id-1")
+	pdef := rp.GetOrCreatePolicyDefinition(name)
+	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
-	stc := st.GetOrCreateConditions()
-	stc.InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	st.GetOrCreateActions().PolicyResult = pr
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	stmt.GetOrCreateActions().PolicyResult = pr
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
 // configureDUT configures all the interfaces on the DUT.
@@ -261,13 +259,11 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) go
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(dutDst.IPv4).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	bgpNeti1Bgp4PeerRoutes := iDut1Bgp4Peer.V4Routes().Add().SetName(ateSrc.Name + ".BGP4.Route")
@@ -381,8 +377,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	})
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
-		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
