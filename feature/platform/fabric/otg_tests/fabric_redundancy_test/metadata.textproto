@@ -24,7 +24,7 @@ platform_exceptions: {
     omit_l2_mtu:  true
   }
 }
-latform_exceptions: {
+platform_exceptions: {
   platform: {
     vendor: JUNIPER
   }
