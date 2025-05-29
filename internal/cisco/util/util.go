@@ -1145,13 +1145,13 @@ func ExtractBundleLinkField(bundles []BundleLinks, field string) any {
 			result = append(result, bundle.IntfV6Addr)
 		}
 		return result
-	case "peerv4addr":
+	case "peerintfv4addr":
 		var result []string
 		for _, bundle := range bundles {
 			result = append(result, bundle.PeerV4Addr)
 		}
 		return result
-	case "peerv6addr":
+	case "peerintfv6addr":
 		var result []string
 		for _, bundle := range bundles {
 			result = append(result, bundle.PeerV6Addr)
