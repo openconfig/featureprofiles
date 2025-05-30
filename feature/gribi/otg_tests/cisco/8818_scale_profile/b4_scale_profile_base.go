@@ -202,8 +202,8 @@ var (
 
 	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
-	primarySubIntfScale         = 10 //todo increase // number of sub-interfaces on primary bundle interface
-	backupSubIntfScale          = 10 //todo increase // number of sub-interfaces on backup bundle interface
+	primarySubIntfScale         = 1000 //todo increase // number of sub-interfaces on primary bundle interface
+	backupSubIntfScale          = 1000 //todo increase // number of sub-interfaces on backup bundle interface
 	primaryPercent              = 60
 )
 

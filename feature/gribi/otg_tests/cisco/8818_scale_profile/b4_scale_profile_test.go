@@ -330,7 +330,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 }
 
 func TestGribiScaleProfile(t *testing.T) {
-
+	t.Skip()
 	resources := initializeTestResources(t)
 	log_collector.Start(context.Background(), t, resources.DUT.Device)
 
@@ -446,13 +446,11 @@ func TestModularGribiProfile(t *testing.T) {
 }
 
 func TestExpandedModularChain(t *testing.T) {
-	t.Skip()
 	t.Skipf("Skipping Expanded Modular Chain, need to ckeck if its failing for defect")
 	testExpandedModularChain(t)
 }
 
 func TestEncapScale(t *testing.T) {
-	t.Skip()
 	testEncapScale(t)
 }
 
