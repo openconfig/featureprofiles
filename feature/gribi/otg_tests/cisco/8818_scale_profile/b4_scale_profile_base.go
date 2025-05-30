@@ -1074,11 +1074,11 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		configureDeviceISIS(t, dut, peer, bundleBgpIsis)
 		t.Log("Configure Fallback in Encap VRF")
 		t.Log("Configure WAN facing VRF selection Policy")
-		wanPBR := CreatePbrPolicy(dut, wanPolicy, false)
+		wanPBR := CreatePbrPolicy(t, dut, wanPolicy, false)
 		defaultNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 		gnmi.Replace(t, dut, defaultNiPath.PolicyForwarding().Config(), wanPBR)
 		t.Log("Configure Cluster facing VRF selection Policy")
-		clusterPBR := CreatePbrPolicy(dut, clusterPolicy, true)
+		clusterPBR := CreatePbrPolicy(t, dut, clusterPolicy, true)
 		gnmi.Update(t, dut, defaultNiPath.PolicyForwarding().Config(), clusterPBR)
 		//Apply Cluster facing policy on DUT-TGEN Bundle1 interface
 		applyForwardingPolicy(t, aggID1, clusterPolicy, false)
