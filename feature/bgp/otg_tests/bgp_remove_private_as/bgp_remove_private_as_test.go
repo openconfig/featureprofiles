@@ -225,10 +225,10 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
-		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
+		t.Errorf("Installed prefixes mismatch on %v: got %v, want %v", nbr, gotInstalled, wantInstalled)
 	}
 	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
-		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
+		t.Errorf("Sent prefixes mismatch on %v: got %v, want %v", nbr, gotSent, wantSent)
 	}
 }
 
@@ -330,7 +330,7 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 }
 
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE.
-func verifyBGPAsPath(t *testing.T, otg *otg.OTG, config gosnappi.Config, asSeg []uint32, removeASPath bool) {
+func verifyBGPAsPath(t *testing.T, otg *otg.OTG, asSeg []uint32, removeASPath bool) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
 		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
@@ -349,16 +349,41 @@ func verifyBGPAsPath(t *testing.T, otg *otg.OTG, config gosnappi.Config, asSeg [
 	}
 
 	if ok {
-		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
-		gotPrefixCount := len(bgpPrefixes)
-		if gotPrefixCount != routeCount {
-			t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-		}
-		for _, prefix := range bgpPrefixes {
-			for _, gotASSeg := range prefix.AsPath {
-				if ok := cmp.Diff(gotASSeg.AsNumbers, wantASSeg); ok != "" {
-					t.Errorf("Remove private AS is not working: gotAsSeg %v wantAsSeg %v for Prefix %v", gotASSeg, wantASSeg, prefix.GetAddress())
+		// At this point the updates may not have been received so we have the following options
+		// 1. sleep -- but this could be innacurate as updates may come in late
+		// 2. check the number of bgp updates received on the otg side. The question is how many updates should be waiting for. We
+		// noticed 2, but the behaviour may differ between vendors.
+		// 3. attempt GetAll multiple times until the segments are received correctly.
+		//
+
+		retry := 0
+		for retry < 3 {
+			bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
+			gotPrefixCount := len(bgpPrefixes)
+			if gotPrefixCount != routeCount {
+				t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
+				break
+			}
+			routesGood := true
+			for _, prefix := range bgpPrefixes {
+				prefixAsSegments := []uint32{}
+				for _, gotASSeg := range prefix.AsPath {
+					prefixAsSegments = append(prefixAsSegments, gotASSeg.AsNumbers...)
 				}
+				if ok := cmp.Diff(prefixAsSegments, wantASSeg); ok != "" {
+					routesGood = false
+					retry++
+					t.Logf("Routes may not be updated, retrying. Mismatch on AS segments prefixAsSegments %v wantAsSegments %v for Prefix %v", prefixAsSegments, wantASSeg, prefix.GetAddress())
+					time.Sleep(2 * time.Second)
+					break
+				}
+			}
+			if routesGood {
+				t.Logf("AS segments correct for all routes")
+				break
+			}
+			if retry == 3 {
+				t.Errorf("Remove private AS is not working")
 			}
 		}
 	}
@@ -423,21 +448,24 @@ func TestRemovePrivateAS(t *testing.T) {
 			t.Log("Verifying port status.")
 			verifyPortsUp(t, dut.Device)
 
+			t.Logf("Verify OTG BGP sessions up")
+			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+
 			t.Log("Check BGP parameters.")
 			verifyBGPTelemetry(t, dut)
-			verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+
 			t.Log("Verify BGP prefix telemetry.")
-			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, routeCount, 0)
+			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, routeCount, routeCount)
 			verifyPrefixesTelemetry(t, dut, ateDst.IPv4, 0, routeCount)
 
 			t.Log("Verify AS Path list received at ate Port2 including private AS number.")
-			verifyBGPAsPath(t, otg, otgConfig, tc.asSeg, !removeASPath)
+			verifyBGPAsPath(t, otg, tc.asSeg, !removeASPath)
 
 			t.Log("Configure remove private AS on DUT.")
 			gnmi.Update(t, dut, dutConfPath.Bgp().PeerGroup(peerGrpName2).RemovePrivateAs().Config(), oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL)
 
 			t.Log("Private AS numbers should be stripped off while advertising BGP routes into public AS.")
-			verifyBGPAsPath(t, otg, otgConfig, tc.asSeg, removeASPath)
+			verifyBGPAsPath(t, otg, tc.asSeg, removeASPath)
 
 			otg.StopProtocols(t)
 			time.Sleep(30 * time.Second)
