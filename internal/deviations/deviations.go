@@ -1165,11 +1165,6 @@ func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
 }
 
-// BgpAllowownasDiffDefaultValue permits a device to have a different default value for allow own as.
-func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
-}
-
 // OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
 func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
@@ -1366,4 +1361,9 @@ func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
 // PortSpeedUnsupported returns true if there's no OC support for port-speed
 func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
+}
+
+// BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
+func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
