@@ -907,9 +907,6 @@ type Metadata_Deviations struct {
 	// CISCO: b/376241033
 	// CISCO: b/340859662
 	EnableMultipathUnderAfiSafi bool `protobuf:"varint,230,opt,name=enable_multipath_under_afi_safi,json=enableMultipathUnderAfiSafi,proto3" json:"enable_multipath_under_afi_safi,omitempty"`
-	// Device have different default value for allow own as.
-	// Juniper : b/373559004
-	BgpAllowownasDiffDefaultValue bool `protobuf:"varint,231,opt,name=bgp_allowownas_diff_default_value,json=bgpAllowownasDiffDefaultValue,proto3" json:"bgp_allowownas_diff_default_value,omitempty"`
 	// Cisco numbering for OTN channel assignment starts from 1 instead of 0
 	OtnChannelAssignmentCiscoNumbering bool `protobuf:"varint,232,opt,name=otn_channel_assignment_cisco_numbering,json=otnChannelAssignmentCiscoNumbering,proto3" json:"otn_channel_assignment_cisco_numbering,omitempty"`
 	// Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
@@ -2468,13 +2465,6 @@ func (x *Metadata_Deviations) GetEnableMultipathUnderAfiSafi() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetBgpAllowownasDiffDefaultValue() bool {
-	if x != nil {
-		return x.BgpAllowownasDiffDefaultValue
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetOtnChannelAssignmentCiscoNumbering() bool {
 	if x != nil {
 		return x.OtnChannelAssignmentCiscoNumbering
@@ -2811,7 +2801,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x96\x96\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ӕ\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -2823,7 +2813,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xea\x8c\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa7\x8c\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3029,8 +3019,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1fssh_server_counters_unsupported\x18\xe3\x01 \x01(\bR\x1csshServerCountersUnsupported\x12A\n" +
 	"\x1coperational_mode_unsupported\x18\xe4\x01 \x01(\bR\x1aoperationalModeUnsupported\x12Q\n" +
 	"&bgp_session_state_idle_in_passive_mode\x18\xe5\x01 \x01(\bR bgpSessionStateIdleInPassiveMode\x12E\n" +
-	"\x1fenable_multipath_under_afi_safi\x18\xe6\x01 \x01(\bR\x1benableMultipathUnderAfiSafi\x12I\n" +
-	"!bgp_allowownas_diff_default_value\x18\xe7\x01 \x01(\bR\x1dbgpAllowownasDiffDefaultValue\x12S\n" +
+	"\x1fenable_multipath_under_afi_safi\x18\xe6\x01 \x01(\bR\x1benableMultipathUnderAfiSafi\x12S\n" +
 	"&otn_channel_assignment_cisco_numbering\x18\xe8\x01 \x01(\bR\"otnChannelAssignmentCiscoNumbering\x12F\n" +
 	" cisco_pre_fec_ber_inactive_value\x18\xe9\x01 \x01(\bR\x1bciscoPreFecBerInactiveValue\x12L\n" +
 	"#bgp_afi_safi_wildcard_not_supported\x18\xeb\x01 \x01(\bR\x1ebgpAfiSafiWildcardNotSupported\x129\n" +
@@ -3071,7 +3060,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x16port_speed_unsupported\x18\x8f\x02 \x01(\bR\x14portSpeedUnsupported\x12C\n" +
 	"\x1ebgp_set_med_action_unsupported\x18\x90\x02 \x01(\bR\x1abgpSetMedActionUnsupported\x12>\n" +
 	"\x1bconfig_leaf_create_required\x18\x91\x02 \x01(\bR\x18configLeafCreateRequiredJ\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01\x1a\xa0\x01\n" +
+	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
