@@ -23,7 +23,6 @@ platform_exceptions:  {
   }
   deviations:  {
     isis_level_enabled:  true
-    gribi_decap_mixed_plen_unsupported: true
   }
 }
 platform_exceptions:  {
