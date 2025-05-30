@@ -250,6 +250,10 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 		powerAdminStateStateKey := strings.Join([]string{fabric, "state/power-admin-state"}, ":")
 
 		/* fabricLeafOrValuePresent: Key: fabric:leaf, Value: []any{isLeafPresent, leafValue} */
+		if deviations.ConfigLeafCreateRequired(dut) {
+			gnmi.Replace(t, dut, powerAdminState.Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+			gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED)
+		}
 		fabricLeafOrValuePresent[descriptionKey] = []any{gnmi.Lookup(t, dut, description.State()).IsPresent()}
 		fabricLeafOrValuePresent[hardwareVersionKey] = []any{gnmi.Lookup(t, dut, hardwareVersion.State()).IsPresent()}
 		fabricLeafOrValuePresent[idKey] = []any{gnmi.Lookup(t, dut, id.State()).IsPresent()}
