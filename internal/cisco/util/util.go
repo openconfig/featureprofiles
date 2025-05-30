@@ -1977,7 +1977,6 @@ func ParallelRPFO(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
 	}
 }
 
-<<<<<<< HEAD
 func RPFO(t *testing.T, dut *ondatra.DUTDevice) {
 
 	var supervisors []string
@@ -2071,7 +2070,8 @@ func RPFO(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
-=======
+}
+
 // CMDViaGNMI runs a command on the DUT via GNMI and returns the output
 func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
 	gnmiC := dut.RawAPIs().GNMI(t)
@@ -2100,5 +2100,4 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 	}
 	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
 	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
->>>>>>> f9387c55482a6d4b34a79511471411c48ca1dc68
 }
