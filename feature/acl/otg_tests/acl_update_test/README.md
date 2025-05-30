@@ -2,7 +2,15 @@
 
 ## Summary
 
-Configure an IP ACL, then test changing the ACL configuration to ensure a make-before-break behavior is performed.  Make before break for ACL is defined as
+Test configuration of an IP ACL.
+Test changing the ACL configuration to ensure no packets are dropped due to
+the configuration change, when the rule added or removed is not intended to
+affect the traffic (make before break).
+
+
+## Testbed type
+
+* [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
 ## ACL-1 Layer 3 terms
 
@@ -47,36 +55,64 @@ Configure an IP ACL, then test changing the ACL configuration to ensure a make-b
 
 * Repeat the same test by moving ACLs to the DUT egress interface.
 
-## Config Parameter coverage
+### Sub Test 4
 
+* Repeat sub tests 1 through 4 using a port where [/interfaces/interface/state/management](https://github.com/openconfig/public/blob/daf73c37e9062b458bb9eab645840e5d3835c74d/release/models/interfaces/openconfig-interfaces.yang#L719-L727)
+  is true and in the case of a modular form factor device (MFF), provided by a `CONTROLLER_CARD` component.  
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+  # base acl paths
+  /acl/acl-sets/acl-set/config/name:
+  /acl/acl-sets/acl-set/config/type:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/config/sequence-id:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/config/description:
+  
+  # ipv4 address match
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address-prefix-set:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address-prefix-set:
+
+  # icmpv4 match
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/icmpv4/config/type:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/icmpv4/config/code:
+
+  # ipv6 address match
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-address-prefix-set:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/protocol:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-address-prefix-set:
+
+  # paths for tcp/udp port and port-range
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port-set:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port-set:
+
+  # paths needed to match IP fragments
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/detail-mode:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/explicit-detail-match-mode:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/explicit-tcp-flags:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/builtin-detail:
+
+  # state paths for management port and ACL counters
+  /interfaces/interface/state/management:
+  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry/state/matched-packets:
+  /acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry/state/matched-packets:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
 ```
-acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address
-acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol
-acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address
-
-acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-address
-acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/protocol
-acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-address
-
-acl/interfaces/interface/ingress-acl-sets/ingress-acl-set
-acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries
-acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry
-
-acl/interfaces/interface/egress-acl-sets/egress-acl-set
-acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries
-acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry
-```
-
-## Telemetry Parameter coverage
-
-```
-acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry/state/matched-packets
-acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry/state/matched-packets
-```
-
-## Protocol/RPC Parameter coverage
-
-None
 
 ## Minimum DUT platform requirement
 
