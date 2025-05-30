@@ -430,7 +430,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop
 }
 
 // CreatePbrPolicy returns Policy map defined in pbrRules struct for cluster & wan policy
-func CreatePbrPolicy(dut *ondatra.DUTDevice, name string, cluster_facing bool) *oc.NetworkInstance_PolicyForwarding {
+func CreatePbrPolicy(t *testing.T, dut *ondatra.DUTDevice, name string, cluster_facing bool) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	pf := ni.GetOrCreatePolicyForwarding()
@@ -441,6 +441,18 @@ func CreatePbrPolicy(dut *ondatra.DUTDevice, name string, cluster_facing bool) *
 	}
 	for _, pbrRule := range pbrRules {
 		r, _ := p.NewRule(pbrRule.sequence)
+		t.Logf("Rule is: %v", r)
+		// sleep for 5 sec if rule is nill
+		if r == nil {
+			t.Errorf("Rule is nil for sequence %d in policy %s", pbrRule.sequence, name)
+			t.Logf("Sleep for 5 sec and check the pbr rule")
+			time.Sleep(5 * time.Second)
+			t.Logf("Rule after sleep %v", r)
+		}
+		// if rule is still nill after 5 sec sleep fail fatal
+		if r == nil {
+			t.Fatalf("Failed to create or get rule for sequence %d in policy %s", pbrRule.sequence, name)
+		}
 		l2 := r.GetOrCreateL2()
 		r4 := r.GetOrCreateIpv4()
 		if pbrRule.dscpSet != nil {
