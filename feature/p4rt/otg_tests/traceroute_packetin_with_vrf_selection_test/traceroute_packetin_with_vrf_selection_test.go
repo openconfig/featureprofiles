@@ -356,6 +356,7 @@ type flowArgs struct {
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
+	inrHdrDscp                   uint32
 	proto                        uint32
 }
 
@@ -742,6 +743,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 
 	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
@@ -1134,10 +1138,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, inrHdrDscp: dscpEncapA1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, inrHdrDscp: dscpEncapA1, isInnHdrV4: false}}
 	captureState := startCapture(t, args, baseCapturePortList)
 	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
@@ -1145,10 +1149,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent = []float64{0.0468, 0.1406, 0.5625, 0, 0.25, 0, 0}
 	flow = []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, inrHdrDscp: dscpEncapB1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, inrHdrDscp: dscpEncapB1, isInnHdrV4: false}}
 	captureState = startCapture(t, args, baseCapturePortList)
 	gotWeights = testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
