@@ -1,4 +1,4 @@
-# Server Certificate
+# CERTZ-2: Server Certificate
 
 ## Summary
 
@@ -104,6 +104,8 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
+    certz.v1.Certz.Rotate:
 ```
 
 ## Minimum DUT Platform Requirement
