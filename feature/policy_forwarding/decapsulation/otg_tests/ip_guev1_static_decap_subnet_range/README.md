@@ -30,20 +30,22 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 ### ATE Configuration
 
-*  ATE Port 1: Generates GUE-encapsulated traffic
-*  ATE Port 2: Receives traffic
+*  ATE Port 1: EBGP session with DUT and generates GUE-encapsulated traffic
+*  ATE Port 2: EBGP session with DUT and receives traffic
   
 * ATE Port 1 hosted prefixes:
 
   * ATE-Port1 IPV4 address = ATE-P1-Address
-  * Additional Source Address = IPV4-SRC1
-  * Additional Source Address = IPV6-SRC1 
+  * Additional Source Address advertised through eBGP session
+    - IPV4-SRC1
+    - IPV6-SRC1 
 
 * ATE Port 2 hosted prefixes:
 
   * ATE-Port2 IPV4 address = ATE-P2-Address
-  * Additional destination address = IPV4-DST1
-  * Additional destination address = IPV6-DST1
+  * Additional destination address advertised through eBGP session
+    - IPV4-DST1
+    - IPV6-DST1
 
 *  ATE Port 1 generates below flow types:
 
@@ -79,13 +81,14 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
  
 2. GUE Decapsulation:
     *  Configure a Loopback address with DECAP-DST_3/32 address
+    *  Configure eBGP session between DUT<>ATE Port 1 and DUT<>ATE Port 2 
     *  Configure the DUT as GUEv1 decapsulator with below fields:
        - DECAP-DST-SUBNET/30 as decapsulation subnet-range
           - DECAP-DST/32 is one of the IP prefix from DECAP-DST-SUBNET/30
        - Do not enable copying TTL bits from outer to inner header post decapsulation
-       - Use single UDP destination port 6081 for both IPv4 and IPv6 payload type
+       - Use single decapsulation UDP destination port 6081 for both IPv4 and IPv6 payload type
     *  Configure static routes for destination IPV4-DST2 and IPV6-DST2 towards ATE Port 2
-    *  Configure the UDP decap destination port as 6081 
+    *  Generate and advertise a summary route `DECAP-DST-SUBNET/30` towards the `DUT<>ATE Port 1` ebgp session 
 
 * DECAP-DST-SUBNET/30 subnet comprises of below IP prefixes:
    - DECAP-DST_1/32
@@ -106,74 +109,73 @@ Traffic:
 ### PF-1.4.1: GUE Decapsulation of inner IPv4 traffic over DECAP subnet range
 -  Push DUT configuration
 -  Initiate traffic flow type#1
-Verification:
--  The outer header destination IP of the traffic falls within the configured decap range (DECAP-DST-SUBNET/30)
--  The outer header destination port of the traffic (UDP 6081) matches the configured non-default UDP decap port criteria
--  The DUT will decapsulate the outer header and perform the lookup based on the inner IP address
--  The TTL bits will not be copied to the inner header
--  The inner header TTL value will be decremented by 1
--  The inner packet's DSCP value (32) will be preserved
--  The DUT will forward the traffic towards ATE Port 2
--  The relevant DUT counters will reflect 1,000,000 decapsulated packets
--  ATE Port 2 receives 1000 packets structured as RX-Flow-type#2
--  No packet loss should be observed
+- Verification:
+    -  The outer header destination IP of the traffic falls within the configured decap range (DECAP-DST-SUBNET/30)
+    -  The outer header destination port of the traffic (UDP 6081) matches the configured non-default UDP decap port    criteria
+    -  The DUT will decapsulate the outer header and perform the lookup based on the inner IP address
+    -  The TTL bits will not be copied to the inner header
+    -  The inner header TTL value will be decremented by 1
+    -  The inner packet's DSCP value (32) will be preserved
+    -  The DUT will forward the traffic towards ATE Port 2
+    -  The relevant DUT counters will reflect 1,000,000 decapsulated packets
+    -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#2
+    -  No packet loss should be observed
 
 ### PF-1.4.2: GUE Decapsulation of inner IPv6 traffic over DECAP subnet range
 -  Push DUT configuration.
 -  Initiate traffic flow type#2
-Verification:
--  The outer header destination IP of the traffic falls within the configured decap range (DECAP-DST-SUBNET/30)
--  The outer header destination port of the traffic (UDP 6081) matches the configured non-default UDP decap port criteria
--  The DUT will decapsulate the outer header and perform the lookup based on the inner IP address
--  The TTL bits will not be copied to the inner header
--  The inner header TTL value will be decremented by 1
--  The inner packet's DSCP value (32) will be preserved
--  The DUT will forward the traffic towards ATE Port 2
--  The relevant DUT counters will reflect 1,000,000 decapsulated packets
--  ATE Port 2 receives 1000 packets structured as RX-Flow-type#4
--  No packet loss should be observed
+- Verification:
+    -  The outer header destination IP of the traffic falls within the configured decap range (DECAP-DST-SUBNET/30)
+    -  The outer header destination port of the traffic (UDP 6081) matches the configured non-default UDP decap port    criteria
+    -  The DUT will decapsulate the outer header and perform the lookup based on the inner IP address
+    -  The TTL bits will not be copied to the inner header
+    -  The inner header TTL value will be decremented by 1
+    -  The inner packet's DSCP value (32) will be preserved
+    -  The DUT will forward the traffic towards ATE Port 2
+    -  The relevant DUT counters will reflect 1,000,000 decapsulated packets
+    -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#4
+    -  No packet loss should be observed
 
 ### PF-1.4.3: GUE Decapsulation of inner IPv4 traffic using non-default and unconfigured GUE UDP port (Negative).
 -  Push DUT configuration.
 -  Initiate traffic flow type#3
-Verification: 
--  The outer header destination IP of the traffic falls within the DECAP-DST-SUBNET/30 range
--  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it does not match the decapsulation criteria.
--  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
--  The DUT decapsulation counters should not increment for this flow
--  The drop counters will reflect the packets to 1000
--  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
+- Verification: 
+    -  The outer header destination IP of the traffic falls within the DECAP-DST-SUBNET/30 range
+    -  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it does not match the decapsulation criteria.
+    -  The DUT should not decapsulate these packets. Packets with `DECAP-DST_3/32` will be sent to the device controller/CPU while the packets with DECAP-DST_1/32, DECAP-DST_2/32 and DECAP-DST_4/32 will be dropped due to specific no-route to the destination present in local FIB
+    -  The DUT decapsulation counters should not increment for this flow
+    -  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
 
 ### PF-1.4.4: GUE Decapsulation of inner IPv6 traffic using non-default and unconfigured GUE UDP port (Negative).
 -  Push DUT configuration.
 -  Initiate traffic flow type#4
-Verification:
--  The outer header destination IP of the traffic falls within the DECAP-DST-SUBNET/30 range
--  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it does not match the decapsulation criteria.
--  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
--  The DUT decapsulation counters should not increment for this flow
--  The drop counters will reflect the packets to 1000
--  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
+- Verification:
+    -  The outer header destination IP of the traffic falls within the DECAP-DST-SUBNET/30 range
+    -  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it    does not match the decapsulation criteria.
+    -  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists   for unmatched GUE
+    -  The DUT decapsulation counters should not increment for this flow
+    -  The DUT drop counters will reflect the packets to 1000
+    -  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
 
 ### PF-1.4.5: Inner IPV4 GUE Pass-through (Negative)
 -  Push DUT configuration.
 -  Initiate traffic flow type#5
-Verification: 
--  The outer header destination UDP port (6081) matches a configured decap port
--  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
--  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer destination IP address and forward the packets as standard IP traffic
--  ATE Port 2 receives 1000 packets structured as RX-Flow-type#7 (original GUE encapsulated packets, outer TTL decremented by DUT)
--  No packet loss should be observed for this flow
+- Verification: 
+    -  The outer header destination UDP port (6081) matches a configured decap port
+    -  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap    range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
+    -  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer  destination IP address and forward the packets as standard IP traffic
+    -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#7 (original GUE encapsulated packets, outer TTL  decremented by DUT)
+    -  No packet loss should be observed for this flow
 
 ### PF-1.4.6: Inner IPV6 GUE Pass-through (Negative)
 -  Push DUT configuration.
 -  Initiate traffic flow type#6
-Verification:
--  The outer header destination UDP port (6081) matches a configured decap port
--  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
--  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer destination IP address and forward the packets as standard IP traffic
--  ATE Port 2 receives 1000 packets structured as RX-Flow-type#8 (original GUE encapsulated packets, outer TTL decremented by DUT)
--  No packet loss should be observed
+    - Verification:
+    -  The outer header destination UDP port (6081) matches a configured decap port
+    -  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap    range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
+    -  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer  destination IP address and forward the packets as standard IP traffic
+    -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#8 (original GUE encapsulated packets, outer TTL  decremented by DUT)
+    -  No packet loss should be observed
 
   ## Canonical OpenConfig for GUEv1 Decapsulation configuration
 TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
