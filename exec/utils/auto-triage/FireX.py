@@ -482,9 +482,6 @@ class FireX:
                 else: logger.info(f"Historical data for {current_test_name} - status: {history.get('status')}, label: {history.get('label', 'None')}") # MODIFIED
             
             testcase_data_dict = {"name": current_test_name, "time": float(testcase_xml_el.get("time", 0))}
-            # --- NEW: Initialize failed_code_path for each testcase ---
-            testcase_data_dict["failed_code_path"] = []
-            # --- End NEW ---
 
             failure_el = testcase_xml_el.find("failure")
             error_el = testcase_xml_el.find("error")
