@@ -7,67 +7,67 @@
 duts {
   id: "dut"
   ports {
-    id: "dut_ate_port1"
+    id: "port1"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port2"
+    id: "port2"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port3"
+    id: "port3"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port4"
+    id: "port4"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port5"
+    id: "port5"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port6"
+    id: "port6"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port7"
+    id: "port7"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port8"
+    id: "port8"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port9"
+    id: "port9"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port10"
+    id: "port10"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port11"
+    id: "port11"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port12"
+    id: "port12"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port13"
+    id: "port13"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port14"
+    id: "port14"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port15"
+    id: "port15"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port16"
+    id: "port16"
     speed: S_10GB
   }
 }
@@ -75,133 +75,133 @@ duts {
 ates {
   id: "ate"
   ports {
-    id: "dut_ate_port1"
+    id: "port1"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port2"
+    id: "port2"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port3"
+    id: "port3"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port4"
+    id: "port4"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port5"
+    id: "port5"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port6"
+    id: "port6"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port7"
+    id: "port7"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port8"
+    id: "port8"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port9"
+    id: "port9"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port10"
+    id: "port10"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port11"
+    id: "port11"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port12"
+    id: "port12"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port13"
+    id: "port13"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port14"
+    id: "port14"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port15"
+    id: "port15"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port16"
+    id: "port16"
     speed: S_10GB
   }
 }
 
 # dut to TGEN (ATE) connections
 links {
-  a: "dut:dut_ate_port1"
-  b: "ate:dut_ate_port1"
+  a: "dut:port1"
+  b: "ate:port1"
 }
 links {
-  a: "dut:dut_ate_port2"
-  b: "ate:dut_ate_port2"
+  a: "dut:port2"
+  b: "ate:port2"
 }
 links {
-  a: "dut:dut_ate_port3"
-  b: "ate:dut_ate_port3"
+  a: "dut:port3"
+  b: "ate:port3"
 }
 links {
-  a: "dut:dut_ate_port4"
-  b: "ate:dut_ate_port4"
+  a: "dut:port4"
+  b: "ate:port4"
 }
 links {
-  a: "dut:dut_ate_port5"
-  b: "ate:dut_ate_port5"
+  a: "dut:port5"
+  b: "ate:port5"
 }
 links {
-  a: "dut:dut_ate_port6"
-  b: "ate:dut_ate_port6"
+  a: "dut:port6"
+  b: "ate:port6"
 }
 links {
-  a: "dut:dut_ate_port7"
-  b: "ate:dut_ate_port7"
+  a: "dut:port7"
+  b: "ate:port7"
 }
 links {
-  a: "dut:dut_ate_port8"
-  b: "ate:dut_ate_port8"
+  a: "dut:port8"
+  b: "ate:port8"
 }
 links {
-  a: "dut:dut_ate_port9"
-  b: "ate:dut_ate_port9"
+  a: "dut:port9"
+  b: "ate:port9"
 }
 links {
-  a: "dut:dut_ate_port10"
-  b: "ate:dut_ate_port10"
+  a: "dut:port10"
+  b: "ate:port10"
 }
 links {
-  a: "dut:dut_ate_port11"
-  b: "ate:dut_ate_port11"
+  a: "dut:port11"
+  b: "ate:port11"
 }
 links {
-  a: "dut:dut_ate_port12"
-  b: "ate:dut_ate_port12"
+  a: "dut:port12"
+  b: "ate:port12"
 }
 links {
-  a: "dut:dut_ate_port13"
-  b: "ate:dut_ate_port13"
+  a: "dut:port13"
+  b: "ate:port13"
 }
 links {
-  a: "dut:dut_ate_port14"
-  b: "ate:dut_ate_port14"
+  a: "dut:port14"
+  b: "ate:port14"
 }
 links {
-  a: "dut:dut_ate_port15"
-  b: "ate:dut_ate_port15"
+  a: "dut:port15"
+  b: "ate:port15"
 }
 links {
-  a: "dut:dut_ate_port16"
-  b: "ate:dut_ate_port16"
+  a: "dut:port16"
+  b: "ate:port16"
 }
