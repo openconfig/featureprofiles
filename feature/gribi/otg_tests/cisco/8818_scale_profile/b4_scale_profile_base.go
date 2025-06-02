@@ -252,12 +252,10 @@ type testArgs struct {
 	electionID   gribi.Uint128
 	primaryPaths []string
 	frr1Paths    []string
-	activeRp     string
 	DUT          DUTResources
 	PEER         DUTResources
 	OTG          OTGResources
 	LogDir       string
-	dualSup      bool
 	// reader          io.ReadCloser
 	CommandPatterns map[string]map[string]interface{}
 }
