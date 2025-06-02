@@ -226,7 +226,7 @@ class FireX:
             }
             logger.info(f"Initialized base data: group={data['group']}, lineup={data['lineup']}, run_id={data['run_id']}, efr={data['efr']}") # MODIFIED
 
-            b4_keys = ["test.plan_id", "test.description", "test.uuid", "testsuite_hash", "testsuite_root"]
+            b4_keys = ["test.plan_id", "test.description", "test.uuid", "testsuite_hash", "testsuite_root", "testsuite_name"]
             cafy_keys_mappings = {"testsuite_name": "plan_id", "testsuite_hash": "testsuite_hash", "testsuite_root": "testsuite_root"}
             
             framework_property = properties.find("./property[@name='framework']")
@@ -248,6 +248,10 @@ class FireX:
                     data["script_full_path"] = prop_value
                     logger.info(f"Set script_full_path from property: {prop_value}") # MODIFIED
             
+            # b4 aborted tests don't have plan_id
+            if "plan_id" not in data:
+                data["plan_id"] = data.get("testsuite_name", "Unknown")
+
             historial_testsuite, historical_timestamp = None, None
             plan_id_for_lookup = data.get("plan_id")
             group_for_lookup = data.get("group")
