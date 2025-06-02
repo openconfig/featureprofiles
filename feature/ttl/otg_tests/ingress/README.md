@@ -22,30 +22,23 @@ This test verifies TTL handling for ingress flows.
                               -------
     ```
 
-*   Routes are advertised from ATE:Port2.
 *   Traffic is generated from ATE:Port1.
 *   ATE:Port2 is used as the destination port for flows.
 
 #### Configuration
 
-1.  DUT:Port1 is configured as Singleton IP interface towards ATE:Port1.
+1.  DUT:Port1 is configured as Singleton IP interface towards ATE:Port1
+    with IPv4 and IP6 addresses.
 
-2.  DUT:Port2 is configured as Singleton IP interface towards ATE:Port2.
+2.  DUT:Port2 is configured as Singleton IP interface towards ATE:Port2
+    with IPv4 and IP6 addresses.
 
-3.  DUT is configured to form one IPv4 and one IPV6 eBGP session
-    with ATE:Port1 using the directly connected Singleton interface IPs.
-
-4.  DUT is configured to form one IPv4 and one IPV6 eBGP session
-    with ATE:Port2 using the directly connected Singleton interface IPs.
-
-5.  ATE:Port2 is configured to advertise destination networks
-    IPv4-DST-NET/32 and IPv6-DST-NET/128 to DUT.
-
-6.  ATE:Port2 is configured to advertise destination networks
-    IPv4-DST-NET-SERV1/32 and IPv6-DST-NET-SERV2/128 to DUT.
-
-7.  ATE:Port2 is configured to advertise destination network
-    GRE-IPv4-DST-NET/32 to DUT to be used for GRE encapsulation.
+3.  DUT is configured with the following static routes:
+    a) Destination IPv4-DST-NET/32 next hop ATE:Port2 IPv4 address.
+    b) Destination IPv6-DST-NET/32 next hop ATE:Port2 IPv6 address.
+    c) Destination IPv4-DST-NET-SERV1/32 next hop ATE:Port2 IPv4 address.
+    d) Destination IPv6-DST-NET-SERV1/32 next hop ATE:Port2 IPv6 address.
+    c) Destination GRE-IPv4-DST-NET/32 next hop ATE:Port2 IPv4 address.
 
 ### PF-1.8.1: IPv4 traffic with no encapsulation on DUT and TTL = 10.
 
@@ -56,8 +49,6 @@ ATE action:
 
 Verify:
 
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
 *   DUT interface DUT:Port2 `out-unicast-pkts` counters equals the number of
@@ -80,8 +71,6 @@ ATE action:
 
 Verify:
 
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
 *   ATE:Port1 received ICMP TTL Exceeded packets for all packets sent.
