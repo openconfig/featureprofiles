@@ -77,7 +77,7 @@ Verify:
 *   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
-*   ATE:Port1 received ICMP Time Exceeded packets for all packets sent.
+*   ATE:Port1 received ICMP TTL Exceeded packets for all packets sent.
 
 ### PF-1.8.4: IPv6 traffic with no encapsulation on DUT and TTL = 1.
 
