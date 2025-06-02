@@ -25,6 +25,7 @@ platform_exceptions: {
   deviations: {
     skip_setting_statement_for_policy: true
     skip_checking_attribute_index: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
@@ -35,4 +36,13 @@ platform_exceptions: {
     bgp_rib_oc_path_unsupported:  true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    skip_prefix_set_mode: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}

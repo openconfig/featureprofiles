@@ -1,0 +1,18 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "E31CAC3B-C49C-4530-8E2E-8357B25F13FE"
+plan_id: "ACL-1.1"
+description: "ACL match based on L3/L4 fields and DSCP value"
+testbed: TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {  
+  platform: {
+    vendor: ARISTA  
+  }
+  deviations: {
+    default_network_instance: "default"
+    interface_enabled: true
+  }
+}
+tags: TAGS_AGGREGATION
