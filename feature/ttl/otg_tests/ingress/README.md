@@ -41,7 +41,7 @@ This test verifies TTL handling for ingress flows.
 5.  ATE:Port2 is configured to advertise destination networks
     IPv4-DST-NET/32 and IPv6-DST-NET/128 to DUT.
 
-### PF-1.8.1: IPv4 traffic with no encapsulation on DUT and TTL != 1.
+### PF-1.8.1: IPv4 traffic with no encapsulation on DUT and TTL = 10.
 
 ATE action:
 
@@ -60,7 +60,7 @@ Verify:
     packets generated from ATE:Port1.
 *   TTL for all packets received on ATE:Port2 should be *9*.
 
-### PF-1.8.2: IPv6 traffic with no encapsulation on DUT and TTL != 1.
+### PF-1.8.2: IPv6 traffic with no encapsulation on DUT and TTL = 10.
 
 *   Repeat `PF-1.8.1` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
@@ -83,7 +83,7 @@ Verify:
 
 *   Repeat `PF-1.8.3` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
-### PF-1.8.5: IPv4 traffic with GRE encapsulation on DUT and TTL != 1.
+### PF-1.8.5: IPv4 traffic with GRE encapsulation on DUT and TTL = 10.
 
 ATE action:
 
@@ -96,7 +96,7 @@ Verify:
     *   In addition, verify that encapsulation rules counter match number of
     packets from ATE:Port1.
 
-### PF-1.8.6: IPv6 traffic with GRE encapsulation on DUT and TTL != 1.
+### PF-1.8.6: IPv6 traffic with GRE encapsulation on DUT and TTL = 10.
 
 *   Repeat `PF-1.8.5` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
