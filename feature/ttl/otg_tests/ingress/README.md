@@ -41,6 +41,12 @@ This test verifies TTL handling for ingress flows.
 5.  ATE:Port2 is configured to advertise destination networks
     IPv4-DST-NET/32 and IPv6-DST-NET/128 to DUT.
 
+6.  ATE:Port2 is configured to advertise destination networks
+    IPv4-DST-NET-SERV1/32 and IPv6-DST-NET-SERV2/128 to DUT.
+
+7.  ATE:Port2 is configured to advertise destination network
+    GRE-IPv4-DST-NET/32 to DUT to be used for GRE encapsulation.
+
 ### PF-1.8.1: IPv4 traffic with no encapsulation on DUT and TTL = 10.
 
 ATE action:
@@ -58,7 +64,8 @@ Verify:
     packets generated from ATE:Port1.
 *   The packet count of traffic received on ATE:Port2 should be equal to the
     packets generated from ATE:Port1.
-*   TTL for all packets received on ATE:Port2 should be *9*.
+*   For ONLY non-encapsulated packets; TTL for all packets received on ATE:Port2
+    should be *9*.
 
 ### PF-1.8.2: IPv6 traffic with no encapsulation on DUT and TTL = 10.
 
@@ -85,26 +92,41 @@ Verify:
 
 ### PF-1.8.5: IPv4 traffic with GRE encapsulation on DUT and TTL = 10.
 
+DUT action:
+
+*   Configure DUT for GRE encapsulation as follows.
+    *   Packets destined to IPv4-DST-NET-SERV1/32 should be GRE encapsulated
+        to GRE-IPv4-DST-NET/32 with outer IP having TTL = 64.
+    *   Packets destined to IPv6-DST-NET-SERV1/128 should be GRE encapsulated
+        to GRE-IPv4-DST-NET/32 with outer IP having TTL = 64.
+
 ATE action:
 
-*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET/32.
+*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET-SERV1/32.
     *   Set TTL of all packets to *10*.
 
 Verify:
 
 *   Perform same verifications in `PF-1.8.1`.
+    *   TTL for inner IP is 10.
+    *   TTL for outer IP is 64.
     *   In addition, verify that encapsulation rules counter match number of
     packets from ATE:Port1.
 
 ### PF-1.8.6: IPv6 traffic with GRE encapsulation on DUT and TTL = 10.
 
-*   Repeat `PF-1.8.5` with ATE generating IPv6 packets IPv6-DST-NET/128.
+*   Repeat `PF-1.8.5` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
-### PF-1.8.7: IPv4 traffic with GRE encapsulation on DUT and TTL = 1.
+### PF-1.8.7: IPv4 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured to process TTL = 1 on receiving interface.
+
+DUT action:
+
+*   Additional configuration on DUT
+    *   Packets with TTL = 1 should be processed locally first before encapsulation.
 
 ATE action:
 
-*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET/32.
+*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET-SERV1/32.
     *   Set TTL of all packets to *1*.
 
 Verify:
@@ -113,10 +135,29 @@ Verify:
     packets generated from ATE:Port1.
 *   ATE:Port1 received ICMP Time Exceeded packets for all packets sent.
 
-### PF-1.8.8: IPv6 traffic with GRE encapsulation on DUT and TTL = 1.
+### PF-1.8.8: IPv6 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured to process TTL = 1 on receiving interface.
 
-*   Repeat `PF-1.8.7` with ATE generating IPv6 packets IPv6-DST-NET/128.
+*   Repeat `PF-1.8.7` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
+### PF-1.8.9: IPv4 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured NOT to process TTL = 1 on receiving interface.
+
+DUT action:
+
+*   Additional configuration on DUT
+    *   Packets with TTL = 1 should be encapsulated and not processed locally.
+
+ATE action:
+
+*   Generate 5 **IPv4 packets** from ATE:Port1 to IPv4-DST-NET-SERV1/32.
+    *   Set TTL of all packets to *1*.
+
+Verify:
+
+*   Perform same verifications in `PF-1.8.5`.
+
+### PF-1.8.10: IPv6 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured NOT to process TTL = 1 on receiving interface.
+
+*   Repeat `PF-1.8.9` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
 ## Canonical OpenConfig for policy-forwarding matching IPv4 and encapsulate GRE
 
