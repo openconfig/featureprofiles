@@ -1165,11 +1165,6 @@ func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
 }
 
-// BgpAllowownasDiffDefaultValue permits a device to have a different default value for allow own as.
-func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
-}
-
 // OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
 func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
@@ -1326,4 +1321,49 @@ func GreGueTunnelInterfaceOcUnsupported(dut *ondatra.DUTDevice) bool {
 // LoadIntervalNotSupported returns true if load interval is not supported on vendors
 func LoadIntervalNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadIntervalNotSupported()
+}
+
+// SkipOpticalChannelOutputPowerInterval returns true if devices do not support opticalchannel output-power interval leaf
+func SkipOpticalChannelOutputPowerInterval(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipOpticalChannelOutputPowerInterval()
+}
+
+// SkipTransceiverDescription returns true if devices do not support transceiver description leaf
+func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipTransceiverDescription()
+}
+
+// ContainerzOCUnsupported returns true if devices cannot configure containerz via OpenConfig
+func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
+}
+
+// BgpDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
+func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
+}
+
+// IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
+func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
+}
+
+// AutoNegotiateUnsupported returns true if there's no OC support for auto-negotiate
+func AutoNegotiateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAutoNegotiateUnsupported()
+}
+
+// DuplexModeUnsupported returns true if there's no OC support for duplex-mode
+func DuplexModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDuplexModeUnsupported()
+}
+
+// PortSpeedUnsupported returns true if there's no OC support for port-speed
+func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
+}
+
+// BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
+func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }

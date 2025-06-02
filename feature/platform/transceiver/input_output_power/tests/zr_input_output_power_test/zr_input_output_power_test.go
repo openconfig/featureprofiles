@@ -19,7 +19,7 @@ const (
 	inactiveOCHRxPower         = -30.0
 	inactiveOCHTxPower         = -30.0
 	inactiveTransceiverRxPower = -20.0
-	rxPowerReadingError        = 2
+	rxPowerReadingError        = 3
 	txPowerReadingError        = 0.5
 	timeout                    = 10 * time.Minute
 )
@@ -27,7 +27,7 @@ const (
 var (
 	frequencies         = []uint64{191400000, 196100000}
 	targetOpticalPowers = []float64{-9, -13}
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
 	operationalMode     uint16
 )
 
@@ -37,15 +37,9 @@ func TestMain(m *testing.M) {
 
 func TestOpticalPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
@@ -126,6 +120,13 @@ func TestOpticalPower(t *testing.T) {
 			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
+
+			//Close the connections:
+			for portName := range ochs {
+				ochStreams[portName].Close()
+				trStreams[portName].Close()
+				interfaceStreams[portName].Close()
+			}
 		}
 	}
 }

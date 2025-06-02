@@ -626,9 +626,6 @@ message Metadata {
     // CISCO: b/376241033
     // CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
-    // Device have different default value for allow own as.
-    // Juniper : b/373559004
-    bool bgp_allowownas_diff_default_value = 231;
     // Cisco numbering for OTN channel assignment starts from 1 instead of 0
     bool otn_channel_assignment_cisco_numbering = 232;
     // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
@@ -726,8 +723,41 @@ message Metadata {
     // Devices that do not support load-interval configuration
     bool load_interval_not_supported = 263;
 
+    // SkipOpticalChannelOutputPowerInterval for devices that do not support optical-channel/output-power/interval leaf
+    // Nokia b/394622454
+    bool skip_optical_channel_output_power_interval = 264;
+
+    // SkipTransceiverDescription for devices that do not support transceiver/description leaf
+    // Nokia b/394622453
+    bool skip_transceiver_description = 265;
+
+    // Devices that do not support containerz config via OpenConfig.
+    bool containerz_oc_unsupported = 266;
+
+    // Device does not support BGP OC distance
+    bool bgp_distance_oc_path_unsupported = 267;
+
+    // Devices that do not support ISIS MPLS
+    bool isis_mpls_unsupported = 268;
+
+    // Devices that do not support oc path for auto-negotiate
+    // Nokia b/417843274
+    bool auto_negotiate_unsupported = 269;
+
+    // Devices that do not support oc path for duplex-mode
+    // Nokia b/417843274
+    bool duplex_mode_unsupported = 270;
+
+    // Devices that do not support oc path for port-speed
+    // Nokia b/417843274
+    bool port_speed_unsupported = 271;
+
+    // Set-Med-Action is not supported for BGP
+    // Cisco b/414333771
+    bool bgp_set_med_action_unsupported = 272;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
 
   message PlatformExceptions {
