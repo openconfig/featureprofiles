@@ -455,21 +455,17 @@ func TestEncapScale(t *testing.T) {
 }
 
 func TestDecapScale(t *testing.T) {
-	t.Skip()
 	// t.Skipf("Skipping Decap Scale, need to find calculation for decal entries")
 	testDecapScale(t)
 }
 func TestDecapEncapScale(t *testing.T) {
-	t.Skip()
 	testDecapEncapScale(t)
 }
 
 func TestDcGateScale(t *testing.T) {
-	t.Skip()
 	testDcGateScale(t)
 }
 
 func TestFlushAll(t *testing.T) {
-	t.Skip()
 	testFlushAll(t)
 }

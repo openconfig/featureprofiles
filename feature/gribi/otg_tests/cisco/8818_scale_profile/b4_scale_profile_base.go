@@ -253,6 +253,13 @@ type testArgs struct {
 	primaryPaths []string
 	frr1Paths    []string
 	activeRp     string
+	DUT          DUTResources
+	PEER         DUTResources
+	OTG          OTGResources
+	LogDir       string
+	dualSup      bool
+	// reader          io.ReadCloser
+	CommandPatterns map[string]map[string]interface{}
 }
 
 // WAN PBR rules
@@ -1341,6 +1348,8 @@ type DUTResources struct {
 	FluentGRIBI *fluent.GRIBIClient
 	LCs         []string
 	DualSup     bool
+	ActiveRP    string
+	StandbyRP   string
 }
 type OTGResources struct {
 	Device *ondatra.ATEDevice

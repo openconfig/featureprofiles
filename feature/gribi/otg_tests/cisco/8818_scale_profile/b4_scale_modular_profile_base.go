@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	hautils "github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -21,11 +22,15 @@ import (
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
 	controlcardType      = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	activeController     = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController    = oc.Platform_ComponentRedundantRole_SECONDARY
 	L1NhPerNHG           = 8
 	L1Nhg                = 512
 	L2NhPerNHG           = 8
@@ -1186,7 +1191,8 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 		client: client,
 		ctx:    ctx,
 	}
-
+	tcArgs.DUT.OSC = dut.RawAPIs().GNOI(t).OS()
+	tcArgs.PEER.OSC = peer.RawAPIs().GNOI(t).OS()
 	t.Run("Verify default BGP traffic", func(t *testing.T) {
 		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
 		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
@@ -1194,14 +1200,62 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
 	tcArgs.primaryPaths = pathInfo.PrimaryPathsPeerV4
 	tcArgs.frr1Paths = pathInfo.BackupPathsPeerV4
-	_, tcArgs.activeRp = components.FindStandbyControllerCard(t, dut, components.FindComponentsByType(t, dut, controlcardType))
-
+	// Detect Dual sup support for DUT
+	dutDualSup, err := hautils.HasDualSUP(tcArgs.ctx, tcArgs.DUT.OSC)
+	if err != nil {
+		t.Logf("fetching dual sup info failed, Error:%v", err)
+	}
+	tcArgs.DUT.DualSup = dutDualSup
+	if tcArgs.DUT.DualSup {
+		tcArgs.DUT.StandbyRP, tcArgs.DUT.ActiveRP = components.FindStandbyControllerCard(t, dut, components.FindComponentsByType(t, dut, controlcardType))
+	} else {
+		tcArgs.DUT.ActiveRP = FindActiveControllerCard(t, dut, components.FindComponentsByType(t, dut, controlcardType))
+	}
+	// Detect Dual sup support for PEER
+	peerDualSup, err := hautils.HasDualSUP(tcArgs.ctx, tcArgs.PEER.OSC)
+	if err != nil {
+		t.Logf("fetching dual sup info failed, Error:%v", err)
+	}
+	tcArgs.PEER.DualSup = peerDualSup
+	if tcArgs.PEER.DualSup {
+		tcArgs.PEER.StandbyRP, tcArgs.PEER.ActiveRP = components.FindStandbyControllerCard(t, dut, components.FindComponentsByType(t, dut, controlcardType))
+	} else {
+		tcArgs.PEER.ActiveRP = FindActiveControllerCard(t, dut, components.FindComponentsByType(t, dut, controlcardType))
+	}
 	// add static route on peer for the tunnel destination for encap, decap+encap traffic
 	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	configStaticRoute(t, peer, "100.101.0.0/16", otgDst.IPv4, "", "", false)
-
+	gArgs = tcArgs
 	bConfig.setConfigured(true)
 	return tcArgs
+}
+
+// FindActiveControllerCard gets a list of two components and finds out the active and standby controller_cards.
+func FindActiveControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) string {
+	var activeCC, standbyCC string
+	for _, supervisor := range supervisors {
+		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+			return val.IsPresent()
+		})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		}
+		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
+			standbyCC = supervisor
+		} else if role == activeController {
+			activeCC = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
+		}
+	}
+	if activeCC == "" {
+		t.Fatalf("Expected non-empty activeCC and standbyCC, got activeCC: %v, standbyCC: %v", activeCC, standbyCC)
+	}
+	t.Logf("Detected activeCC: %v, standbyCC: %v", activeCC, standbyCC)
+
+	return activeCC
 }
 
 // DivideAndAdjust returns:
@@ -1250,7 +1304,7 @@ func testExpandedModularChain(t *testing.T) {
 			t.Error(err)
 		}
 		// Wait for the gribi entries get flushed
-		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
 
@@ -1465,7 +1519,7 @@ func testCompactModularChain(t *testing.T) {
 			t.Error(err)
 		}
 		// Wait for the gribi entries get flushed
-		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
 
@@ -1538,7 +1592,7 @@ func testEncapScale(t *testing.T) {
 			t.Error(err)
 		}
 		// Wait for the gribi entries get flushed
-		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
 
@@ -1546,7 +1600,7 @@ func testEncapScale(t *testing.T) {
 
 	// distribute the available resource IDs to NHGs such that it can be divided in batches.
 	// remaining resource IDs will be used to configure using a single NHG with nhs count = nhLeftover
-	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
 	nhsPerNHG := 8
 	nhg, nhLeftover, _ := DivideAndAdjust(gridRsrc.AvailableResourceIDs, nhsPerNHG, batches)
 	t.Logf("Possible NHG: %d, leftover: %d with available %d resource IDs", nhg, nhLeftover, gridRsrc.AvailableResourceIDs)
@@ -1605,7 +1659,7 @@ func testDecapScale(t *testing.T) {
 			t.Error(err)
 		}
 		// Wait for the gribi entries get flushed
-		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
 
@@ -1613,7 +1667,7 @@ func testDecapScale(t *testing.T) {
 
 	// distribute the available resource IDs to NHGs such that it can be divided in batches.
 	// remaining resource IDs will be used to configure using a single NHG with nhs count = nhLeftover
-	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
 	// available resource IDs for decap = 4k- already used by other clients
 	// 200 deducted in attempt to find how many entries can be configured for decap
 	availableForDecap := 4096 - gridRsrc.ClientUsages["eth_intf_ma_lc"] - 200
@@ -1698,7 +1752,7 @@ func testDecapEncapScale(t *testing.T) {
 			t.Error(err)
 		}
 		// Wait for the gribi entries get flushed
-		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
 
@@ -1706,7 +1760,7 @@ func testDecapEncapScale(t *testing.T) {
 
 	// distribute the available resource IDs to NHGs such that it can be divided in batches.
 	// remaining resource IDs will be used to configure using a single NHG with nhs count = nhLeftover
-	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
 	// reduce resouce for 1 encap tunnel for each batch, and 2 for leftover nexthops
 	availableForDecapEncap := reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent) - batches - 2
 	nhsPerNHG := 8
@@ -1753,7 +1807,7 @@ func testDecapEncapScale(t *testing.T) {
 		remaingNhGp2.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0})
 	}
 
-	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "0/0/CPU0")
+	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "0/0/CPU0")
 
 	t.Logf("Validating encap traffic")
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1})
@@ -1857,14 +1911,14 @@ func testDcGateScale(t *testing.T) {
 		}
 		// Wait for the gribi entries get flushed
 		// time.Sleep(300 * time.Second)
-		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
-	// waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+	// waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 
 	batches := 8
 	// get free resource IDs
-	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
 	availableForUseResourceIDs := reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
 	// plan resouce distribution among various tunnel types for DCGate profile
 	t.Logf("Available for use resource IDs: %d", availableForUseResourceIDs)
@@ -1937,7 +1991,7 @@ func testDcGateScale(t *testing.T) {
 		remaingNhGp2.pushBatchConfig(t, tcArgs.ctx, tcArgs.client, []int{0})
 	}
 
-	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "0/0/CPU0")
+	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "0/0/CPU0")
 
 	t.Logf("Validating encap traffic")
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
