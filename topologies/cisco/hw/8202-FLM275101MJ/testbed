@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# This DUT-ATE testbed provides 16 links between dut - ate
+# This DUT-ATE testbed provides 15 links between dut - ate
 
 # dut port definitions
 duts {
