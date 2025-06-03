@@ -70,7 +70,11 @@ const (
 	dscpEncapA2              = 18
 	dscpEncapB1              = 20
 	dscpEncapB2              = 28
-	dscpEncapNoMatch         = 30
+	dscpEncapC1              = 30
+	dscpEncapC2              = 38
+	dscpEncapD1              = 40
+	dscpEncapD2              = 48
+	dscpEncapNoMatch         = 50
 	peerGrpName              = "BGP-PEER-GROUP"
 	policyName               = "ALLOW"
 	dutBGPRID                = "18.18.18.18"
@@ -235,16 +239,17 @@ type trafficflowAttr struct {
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx          context.Context
-	client       *fluent.GRIBIClient
-	dut          *ondatra.DUTDevice
-	peer         *ondatra.DUTDevice
-	ate          *ondatra.ATEDevice
-	topo         gosnappi.Config
-	electionID   gribi.Uint128
-	primaryPaths []string
-	frr1Paths    []string
-	activeRp     string
+	ctx             context.Context
+	client          *fluent.GRIBIClient
+	dut             *ondatra.DUTDevice
+	peer            *ondatra.DUTDevice
+	ate             *ondatra.ATEDevice
+	topo            gosnappi.Config
+	electionID      gribi.Uint128
+	primaryPaths    []string // next hop ip address for peer interface for primary path
+	frr1Paths       []string // next hop ip address for peer interface for frr1 path
+	primaryPathIntf []string // list of interfaces for primary path
+	activeRp        string
 }
 
 // BundleIPAddress struct to store DUT-PEER bundle interface IPv4 and IPv6 address
@@ -256,63 +261,119 @@ type BundleIPAddress struct {
 // WAN PBR rules
 var pbrRules = []PbrRule{
 	{
-		sequence:    uint32(1),
+		sequence:    uint32(11),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(2),
+		sequence:    uint32(12),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(3),
+		sequence:    uint32(13),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(4),
+		sequence:    uint32(14),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(5),
+		sequence:    uint32(15),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(6),
+		sequence:    uint32(16),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(7),
+		sequence:    uint32(17),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(8),
+		sequence:    uint32(18),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(9),
+		sequence:    uint32(19),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(20),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(21),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(22),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(23),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(24),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(25),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(26),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(27),
 		protocol:    ipipProtocol,
 		decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
@@ -336,12 +397,12 @@ var pbrRules = []PbrRule{
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:  uint32(917),
+		sequence:  uint32(921),
 		etherType: ethertypeIPv4,
 		encapVrf:  vrfDefault,
 	},
 	{
-		sequence:  uint32(918),
+		sequence:  uint32(922),
 		etherType: ethertypeIPv6,
 		encapVrf:  vrfDefault,
 	},
@@ -368,6 +429,26 @@ var encapPbrRules = []PbrRule{
 		sequence:  uint32(916),
 		dscpSetv6: []uint8{dscpEncapB1, dscpEncapB2},
 		encapVrf:  vrfEncapB,
+	},
+	{
+		sequence: uint32(917),
+		dscpSet:  []uint8{dscpEncapC1, dscpEncapC2},
+		encapVrf: vrfEncapC,
+	},
+	{
+		sequence:  uint32(918),
+		dscpSetv6: []uint8{dscpEncapC1, dscpEncapC2},
+		encapVrf:  vrfEncapC,
+	},
+	{
+		sequence: uint32(919),
+		dscpSet:  []uint8{dscpEncapD1, dscpEncapD2},
+		encapVrf: vrfEncapD,
+	},
+	{
+		sequence:  uint32(920),
+		dscpSetv6: []uint8{dscpEncapD1, dscpEncapD2},
+		encapVrf:  vrfEncapD,
 	},
 }
 
