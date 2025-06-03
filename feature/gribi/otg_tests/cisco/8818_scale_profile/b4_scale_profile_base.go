@@ -1069,7 +1069,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		pathInfo.fillPathInfoInterface(primaryIntfs, backupIntfs)
 
 		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, primaryBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.PrimaryInterface, primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
-		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		// nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
 		nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 		nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
 		pathInfo.fillPathInfoSubInterface(primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap)
