@@ -43,7 +43,7 @@ message Metadata {
     TESTBED_DUT_400FR_100G_4LINKS = 11;
     TESTBED_DUT_ATE_5LINKS = 12;
     TESTBED_ATEDUT_10LR = 13;
-    TESTBED_ATEDUT_400GLR = 14;
+    TESTBED_ATEDUT_100GLR = 14;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
