@@ -30,7 +30,6 @@ devices:
     cvac: $BASE_CONF_PATH
     dual_rp: true
     rp_type: 8800-rp2
-    image: /auto/sf-test/steffran/images/clifton-8000-x64.iso
     num_linecards: 2
     lcc_type: '8808'
     num_fabcards: 2
