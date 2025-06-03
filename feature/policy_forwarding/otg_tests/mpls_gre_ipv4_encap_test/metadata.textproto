@@ -4,7 +4,7 @@
 uuid:  "2beaac46-9b7b-49c4-9bde-62ad530aa5c5"
 plan_id:  "PF-1.14"
 description:  "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload"
-testbed:  TESTBED_ATEDUT_10LR
+testbed:  TESTBED_ATEDUT_100GLR
 platform_exceptions:  {
   platform:  {
     vendor:  ARISTA
