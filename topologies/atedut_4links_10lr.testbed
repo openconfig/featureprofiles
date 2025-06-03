@@ -1,29 +1,29 @@
 
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
-# This testbed provides a DUT and ATE with 4 links between them and 10G LR optics.
+# This testbed provides a DUT and ATE with 4 links between them and 100G LR optics.
 duts {
   id: "dut"
   vendor: ARISTA
   ports {
     id: "port1"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
   ports {
     id: "port2"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
   ports {
     id: "port3"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
   ports {
     id: "port4"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
 }
 ates {
@@ -31,23 +31,23 @@ ates {
   vendor: IXIA
   ports {
     id: "port1"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
   ports {
     id: "port2"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
   ports {
     id: "port3"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
   ports {
     id: "port4"
-    speed: S_10GB
-    pmd: PMD_10GBASE_LR
+    speed: S_100GB
+    pmd: PMD_100GBASE_LR
   }
 }
 links {
