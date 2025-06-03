@@ -1,145 +1,193 @@
-# TE-18.3: MPLS in UDP Encapsulation with QoS Scheduler Scale Test
+# TE-18.3 MPLS in UDP Encapsulation Scale Test
 
-Building on TE-18.1 and TE-18.2, add scaling parameters
+Building on TE-18.1 and TE-18.2, this test focuses on scaling gRIBI-programmed MPLS-over-UDP tunnels and associated forwarding entries, parameterized by key scaling dimensions.
 
 ## Topology
 
-* 32 ports as the 'input port set'
-* 4 ports as "uplink facing"
-* VLAN configurations
-  * input vlans are distributed evenly across the 'input port set'
+- 32 ports as the 'input port set' (Ingress)
+- 4 ports as "uplink facing" (Egress)
+- Network Instances (VRFs) will be mapped from ingress ports/subinterfaces as needed by scale profiles.
 
 ## Test setup
 
 TODO: Complete test environment setup steps
 
-inner_ipv6_dst_A = "2001:aa:bb::1/128"
-inner_ipv6_dst_B = "2001:aa:bb::2/128"
-inner_ipv6_default = "::/0"
+inner_ipv6_dst_A = "2001:aa:bb::1/128" inner_ipv6_dst_B = "2001:aa:bb::2/128" inner_ipv6_default = "::/0"
 
-ipv4_inner_dst_A = "10.5.1.1/32"
-ipv4_inner_dst_B = "10.5.1.2/32"
-ipv4_inner_default = "0.0.0.0/0"
+ipv4_inner_dst_A = "10.5.1.1/32" ipv4_inner_dst_B = "10.5.1.2/32" ipv4_inner_default = "0.0.0.0/0"
 
-outer_ipv6_src =      "2001:f:a:1::0"
-outer_ipv6_dst_A =    "2001:f:c:e::1"
-outer_ipv6_dst_B =    "2001:f:c:e::2"
-outer_ipv6_dst_def =  "2001:1:1:1::0"
-outer_dst_udp_port =  "5555"
-outer_dscp =          "26"
-outer_ip-ttl =        "64"
+outer_ipv6_src = "2001:f:a:1::0" outer_ipv6_dst_A = "2001:f:c:e::1" outer_ipv6_dst_B = "2001:f:c:e::2" outer_ipv6_dst_def = "2001:1:1:1::0" outer_dst_udp_port = "5555" outer_dscp = "26" outer_ip-ttl = "64"
 
 ## Procedure
 
-### TE-18.3.1 Scale
+### TE-18.3 Overview: Scaling Dimensions and Targets
 
-#### Scale targets
+This test evaluates scaling across the following dimensions using gRIBI. The test profiles below represent different parameter combinations of these dimensions.
 
-* Flow scale
-  * 20,000 IPv4/IPv6 destinations
-  * 1,000 vlans
-  * Inner IP address space should be reused for each network-instance.
-  * gRIBI client update rate `flow_r` = 1 update per second
-  * Each gRIBI update include ip entries in batches of `flow_q` = 200
-  * DUT packet forwarding updated within 1 second after adding entries
+- **Network Instances (VRFs):** Number of separate routing instances.
+- **Next Hop Groups (NHGs):** Total number of NHGs programmed. Target: **Up to 20,000** (profile-dependent).
+- **Next Hops (NHs):** Total number of NHs programmed (NHs per NHG * Total NHGs).
+- **NHs per NHG:** Number of NH entries within each NHG (e.g., 1 or 8).
+- **Prefixes:** Total number of unique IPv4/IPv6 exact-match forwarding entries (routes). Target: **20,000**.
+- **(Unique Destination IP + MPLS) Tuples:** The combination of the inner destination IP and the MPLS label used in the NH encapsulation. Target: **Up to 20,000 unique tuples**.
+- **MPLS Labels:** Number and uniqueness of MPLS labels used in NH encapsulation. **Constraint:** The number of unique MPLS labels must equal the number of VRFs (#MPLS Labels == #VRFs).
+- **gRIBI Operations Rate (QPS):** Rate of gRIBI Modify requests or operations per second.
+- **gRIBI Batch Size:** Number of AFT entries (or operations) per ModifyRequest.
+- **Convergence:** DUT packet forwarding updated within **1 second** after receiving FIB_PROGRAMMED acknowledgement for added entries (baseline).
+- **IP Address Reuse:** Inner IP destination prefixes should be reused across different Network Instances where applicable.
 
-* Scheduler (policer) scale
-  * 1,000 policer rates
-  * 20,000 policer-policies / token buckets instantiations
-  * Update policer-policies at 1 per `sched_r` = 60 seconds
-  * Update policer-policies in a batch of `sched_q` = 1,000
-  * Policer-policies changes should take effect within `sched_r` / 2 time
+### TE-18.3: Scale Profiles
 
-#### Scale profile A - many vlans
+#### Profile 1 (Single VRF)
 
-* 20 ip destinations * 1,000 vlans = 20,000 'flows'
-* Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
-* The 20 ip destinations are split evenly between the 20 policers
-* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+- **Goal:** Baseline single VRF scale (Exact Label Match scenario).
+- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Total NHGs:** 20,000.
+- **NHs per NHG:** 1.
+- **MPLS Labels:** 1 (consistent with #VRFs = 1). Same label used for all NHs.
+- **Total Prefixes:** 20,000 (e.g., 10k IPv4, 10k IPv6).
+- **Unique (Dest IP + MPLS) Tuples:** 20,000 (different destination IPs, same MPLS label).
+- **Prefix Mapping:** 1 unique prefix -> 1 unique NHG (1:1).
+- **gRIBI Rate/Batch:** Baseline (e.g., 1 ModifyRequest/sec, 200 entries/request) - QPS not the primary focus here.
 
-#### Scale profile B - many destinations, few vlans
+#### Profile 2 (Multi-VRF)
 
-* 200 ip destinations * 100 vlans = 20,000 'flows'
-* Each ingress vlan has 4 policer-policies = 4,000 'token buckets'
-* The 200 ip destinations are split evenly between the 4 policers
-* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+- **Goal:** Scale across multiple VRFs with unique labels per VRF.
+- **Network Instances (VRFs):** 1024.
+- **Total NHGs:** 20,000 (distributed across VRFs, ~19-20 NHGs/VRF).
+- **NHs per NHG:** 1.
+- **MPLS Labels:** 1024 unique labels (1 label assigned per VRF, consistent with #VRFs = 1024).
+- **Total Prefixes:** 20,000 (distributed across VRFs, ~19-20 prefixes/VRF).
+- **Unique (Dest IP + MPLS) Tuples:** 20,000 (e.g., 20 unique destination IPs reused per MPLS label/VRF).
+- **Prefix Mapping:** Prefixes within a VRF map to NHGs using that VRF's unique MPLS label.
+- **Inner IP Reuse:** Required.
+- **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
 
-#### Procedure - Flow Scale
+#### Profile 3 (Multi-VRF)
 
-* For each scale profile, create the following subsets TE-18.1.5.n
-  * Configure ATE flows to send 100 pps per flow and wait for ARP
-  * Send traffic for q flows (destination IP prefixes) for 2 seconds
-  * At traffic start time, gRIBI client to send `flow_q` aft entries and their
-    related NHG and NH at rate `flow_r`
-  * Validate RIB_AND_FIB_ACK with FIB_PROGRAMMED is received from DUT within
-    1 second
-  * Measure packet loss.  Target packet loss <= 50%.
-  * Repeat adding 200 flows until 20,000 flows have been added
-  * Once reaching 20,000 flows, perform 1 iteration of modifying the first
-    `flow_q` flows to use different NH,NHG
+- **Goal:** Similar to Profile 2, but test potentially skewed distribution of prefixes/routes per VRF/label.
+- **Network Instances (VRFs):** 1024.
+- **Total NHGs:** 20,000.
+- **NHs per NHG:** 1.
+- **MPLS Labels:** 1024 unique labels (1 per VRF).
+- **Total Prefixes:** 20,000.
+- **Unique (Dest IP + MPLS) Tuples:** 20,000.
+- **Prefix Mapping:** Similar to Profile 2, but the distribution of the 20k prefixes across the 1024 VRFs/labels might be intentionally uneven (e.g., some VRFs have many more prefixes than others). _Exact skew pattern TBD._
+- **Inner IP Reuse:** Required.
+- **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
 
-#### Procedure - Policer + Flow Scale
+#### Profile 4 (Single VRF)
 
-* For each scale profile, create the following subsets TE-18.1.6.n
-  * Program all 20,000 flows
-  * Every `sched_r` interval use gnmi.Set to replace `sched_q` scheduler policies
-  * Verify packet loss changes for all flows within `sched_r` / 2 time
+- **Goal:** Test ECMP scale within a single VRF.
+- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Total NHGs:** 2,500.
+- **NHs per NHG:** 8 (each NH having a different destination IP).
+- **Total NHs:** 20,000 (2500 NHGs * 8 NH/NHG).
+- **MPLS Labels:** 1 (consistent with #VRFs = 1). Same label used for all NHs.
+- **Total Prefixes:** 20,000 (e.g., 10k IPv4, 10k IPv6).
+- **Unique (Dest IP + MPLS) Tuples:** 20,000 (different destination IPs across all NHs, same MPLS label).
+- **Prefix Mapping:** 8 unique prefixes -> 1 unique NHG (8:1 mapping, repeated 2500 times).
+- **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
 
-#### OpenConfig Path and RPC Coverage
+#### Profile 5 (Single VRF)
+
+- **Goal:** Test gRIBI control plane QPS scaling and impact on dataplane. Uses Profile 1 as the base state.
+- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Total NHGs:** 20,000.
+- **NHs per NHG:** 1.
+- **MPLS Labels:** 1.
+- **Total Prefixes:** 20,000.
+- **Unique (Dest IP + MPLS) Tuples:** 20,000.
+- **Prefix Mapping:** 1:1.
+- **gRIBI Operations:** Program/Modify the full 20k entries (Prefix + NHG + NH = ~3 ops/entry = ~60k ops total).
+
+  - Target Rate: **6,000 operations/second** (aiming to update the full table in ~10 seconds).
+  - Target Batch Size: **60 operations/ModifyRequest**.
+  - Target Request Rate: **100 ModifyRequests/second**.
+  - Operation Mix: Test with **50% ADD, 50% DELETE** operations during high-rate phase.
+
+- **Dataplane Validation:** Ensure live traffic forwarding remains stable and correct during high-rate gRIBI operations.
+
+### TE-18.3.3 Validation Procedures
+
+#### Procedure - Single VRF Validation (Profiles 1, 4)
+
+- Program all gRIBI entries (NHs, NHGs, Prefixes) according to the profile using baseline rate/batch.
+- Validate `RIB_ACK` / `FIB_PROGRAMMED` status is received from DUT for all entries.
+- Verify AFT state on DUT for a sample of entries (NH, NHG, Prefix -> NHG mapping).
+- Send traffic matching programmed prefixes from appropriate ingress ports.
+- Verify traffic is received on egress ports with correct MPLS-over-UDP encapsulation (correct outer IPs, UDP port, MPLS label).
+- Measure packet loss (target: <= 1% steady state).
+- Delete all gRIBI entries.
+- Verify AFT state shows entries removed.
+- Verify traffic loss is 100%.
+
+#### Procedure - Multi-VRF Validation (Profiles 2, 3)
+
+- Program all gRIBI entries across all specified VRFs according to the profile using baseline rate/batch.
+- Validate `RIB_ACK` / `FIB_PROGRAMMED` status for all entries.
+- Verify AFT state on DUT for a sample of entries within different VRFs.
+- Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF (e.g., via appropriate ingress interface mapping).
+- Verify traffic is received with correct MPLS-over-UDP encapsulation, including the VRF-specific MPLS label.
+- Measure packet loss (target: <= 1% steady state).
+- Delete all gRIBI entries.
+- Verify AFT state shows entries removed across VRFs.
+- Verify traffic loss is 100%.
+
+#### Procedure - ECMP Validation (Profile 4)
+
+- Perform Single VRF Validation steps.
+- Additionally, verify that traffic sent towards prefixes mapped to the ECMP NHG is distributed across the multiple NHs within that NHG (requires ATE support for flow analysis or DUT counter validation for NH packet/octet counters).
+
+#### Procedure - gRIBI Rate Validation (Profile 5)
+
+- Establish the baseline state (e.g., program 20k entries as per Profile 1).
+- Start traffic flows matching the programmed entries. Verify baseline forwarding and low loss.
+- Initiate high-rate gRIBI Modify operations (e.g., 100 ModifyRequests/sec, 60 ops/request, 50% ADD/50% DELETE mix targeting existing/new entries).
+- Monitor gRIBI operation results (ACKs) for success/failure and latency.
+- Continuously monitor traffic forwarding during the high-rate gRIBI phase.
+
+  - Verify traffic uses correct encapsulation based on the programmed state.
+  - Measure packet loss (target: minimal loss, allowing for brief transient loss during updates, but stable low loss overall).
+
+- Validate `RIB_ACK` / `FIB_PROGRAMMED` status is received promptly for updates.
+
+- Verify AFT state on DUT reflects the changes made during the high-rate phase.
+
+- Stop high-rate programming and measure steady-state loss again.
+
+#### Investigation - VRF Impact on QPS
+
+- As an extension, investigate if the number of VRFs impacts gRIBI QPS or dataplane stability during high-rate updates. This could involve running a variation of Profile 5 using the multi-VRF setup from Profile 2 or 3 as the baseline state.
+
+### TE-18.3.4 OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
-  # qos scheduler config
-  /qos/scheduler-policies/scheduler-policy/config/name:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/cir:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
-
-  # qos classifier config
-  /qos/classifiers/classifier/config/name:
-  /qos/classifiers/classifier/terms/term/config/id:
-  #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
-
-  # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
-  # /qos/input-policies/input-policy/config/name:
-  # /qos/input-policies/input-policy/config/classifier:
-  # /qos/input-policies/input-policy/config/scheduler-policy:
-
-  # qos interface config
-  #/qos/interfaces/interface/subinterface/input/config/policies:   # TODO:  new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-
-  # qos interface scheduler counters
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:
-
-  # afts next-hop counters
+  # AFTs Next-Hop state (Verification)
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address: # NH IP
 
-  # afts state paths set via gRIBI
-  # TODO: https://github.com/openconfig/public/pull/1153
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/src-ip:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-ip:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/ip-ttl:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-udp-port:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dscp:
+  # AFTs Next-Hop-Group state (Verification)
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop: # Verify NHs in NHG
+
+  # AFTs Prefix Entry state (Verification)
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
 
 rpcs:
   gnmi:
-    gNMI.Set:
-      union_replace: true
-      replace: true
+    # Primarily used for verification (Subscribe/Get)
     gNMI.Subscribe:
       on_change: true
+    gNMI.Get:
   gribi:
+    # Used for programming all AFT entries
     gRIBI.Modify:
     gRIBI.Flush:
 ```
 
 ## Required DUT platform
 
-* FFF
+- FFF
