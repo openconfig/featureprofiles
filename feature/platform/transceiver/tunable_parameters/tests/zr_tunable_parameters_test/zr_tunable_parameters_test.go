@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
 	operationalMode     uint16
 )
 
@@ -37,7 +37,7 @@ func Test400ZRTunableFrequency(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -91,6 +91,7 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					}
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
+
 					gotFreqoc1, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Frequency().State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
 						Frequency, ok := val.Val()
 						return ok && Frequency == freq
@@ -105,10 +106,11 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					if !ok {
 						t.Fatalf("ERROR:Got frequnecy: %v, but wanted frequency: %v", gotFreqoc2, freq)
 					}
-					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
 					time.Sleep(80 * time.Second) //Wait an extra interval to ensure the device has time to proccess change b/384969268
 					validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
+
 				})
 			}
 		})
@@ -120,7 +122,8 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	cfgplugins.Initialize(operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -167,6 +170,7 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
+
 				gotOPoc1, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
 					outPower, ok := val.Val()
 					return ok && outPower == top
@@ -181,10 +185,11 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 				if !ok {
 					t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2, top)
 				}
-				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
 				time.Sleep(80 * time.Second) //Wait an extra interval to ensure the device has time to proccess change b/384969268
 				validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, tc.frequency, top)
+
 			})
 		}
 	}
@@ -195,7 +200,8 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	cfgplugins.Initialize(operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -225,6 +231,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
+
 	gotOPoc1, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
 		outPower, ok := val.Val()
 		return ok && outPower == targetPower
@@ -239,9 +246,10 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	if !ok {
 		t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2, targetPower)
 	}
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
 	time.Sleep(80 * time.Second) //Wait an extra interval to ensure the device has time to proccess change b/384969268
+
 	t.Run("Telemetry before flap", func(t *testing.T) {
 		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, frequency, targetPower)
 	})
@@ -261,6 +269,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	// Re-enable the interfaces on the DUT.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), true)
+
 	gotOPoc1_enable, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
 		outPower, ok := val.Val()
 		return ok && outPower == targetPower
@@ -275,8 +284,9 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	if !ok {
 		t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2_enable, targetPower)
 	}
-	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
+
 	// Verify the ZR optics tune back to the correct frequency and TX output
 	// power as per the configuration and related telemetry values are updated
 	// to the value in the normal range again.

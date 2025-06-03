@@ -15,7 +15,6 @@
 package cfgplugins
 
 import (
-	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -46,15 +45,39 @@ func init() {
 }
 
 // Initialize assigns OpMode with value received through operationalMode flag.
-func Initialize(operationalMode uint16) {
+func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) uint16 {
 	once.Do(func() {
-		if operationalMode != 0 {
-			opmode = operationalMode
+		t.Helper()
+		if initialOperationalMode == 0 { // '0' signals to use vendor-specific default
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				opmode = 5003
+				t.Logf("cfgplugins.Initialize: Cisco DUT, setting opmode to default: %d", opmode)
+			case ondatra.ARISTA:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Arista DUT, setting opmode to default: %d", opmode)
+			case ondatra.JUNIPER:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Juniper DUT, setting opmode to default: %d", opmode)
+			case ondatra.NOKIA:
+				opmode = 1083
+				t.Logf("cfgplugins.Initialize: Nokia DUT, setting opmode to default: %d", opmode)
+			default:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", opmode)
+			}
 		} else {
-			fmt.Sprintln("Please specify the vendor-specific operational-mode flag")
-			return
+			opmode = initialOperationalMode
+			t.Logf("cfgplugins.Initialize: Using provided initialOperationalMode: %d", opmode)
 		}
+		t.Logf("cfgplugins.Initialize: Initialization complete. Final opmode set to: %d", opmode)
 	})
+	return InterfaceGetOpMode()
+}
+
+// GetOpMode returns the opmode value after the Initialize function has been called
+func InterfaceGetOpMode() uint16 {
+	return opmode
 }
 
 // InterfaceConfig configures the interface with the given port.
@@ -79,7 +102,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
-func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, targetOutputPowerdBm float64, targetFrequencyMHz uint64, targetOutputPowerTolerancedBm float64, targetFrequencyToleranceMHz float64) {
 	t.Helper()
 	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
@@ -147,6 +170,7 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			Index:              ygot.Uint32(otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				0: {
 					Index:          ygot.Uint32(0),
@@ -154,13 +178,6 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					Description:    ygot.String("OTN to Optical Channel"),
 					Allocation:     ygot.Float64(400),
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-				},
-				1: {
-					Index:          ygot.Uint32(1),
-					LogicalChannel: ygot.Uint32(ethIndex),
-					Description:    ygot.String("OTN to ETH"),
-					Allocation:     ygot.Float64(400),
-					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 				},
 			},
 		})
@@ -196,6 +213,7 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress:            ingress,
 		Assignment:         assignment,
+		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 	}
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
