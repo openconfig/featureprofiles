@@ -69,7 +69,8 @@ whitelist_arguments([
     'otg_gnmi_server'
     'otg_controller_command'
     'testbed_checks',
-    "testbeds_exclude",
+    'testbeds_exclude',
+    'violet_export'
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -725,6 +726,7 @@ def b4_chain_provider(ws, testsuite_id,
                         otg_keng_controller='1.3.0-2',
                         otg_keng_layer23_hw_server='1.3.0-4',
                         otg_gnmi_server='1.13.15',
+                        violet_export=False,
                         **kwargs):
     
     if internal_test:
@@ -793,6 +795,9 @@ def b4_chain_provider(ws, testsuite_id,
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
     chain |= RunGoTest.s(test_repo_dir=test_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout)
+
+    if violet_export:
+        chain |= Export2Violet.s()
 
     if fp_post_tests:
         for pt in fp_post_tests:
@@ -926,16 +931,16 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         if log_files:
             _aggregate_ondatra_log_files(log_files, str(xml_results_file))
 
+        test_did_pass = True
         xml_root = _get_testsuites_from_xml(xml_results_file)
         if xml_root is None: 
             if test_ignore_aborted or test_skip:
                 xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
             else:
                 xml_root = _generate_dummy_suite(test_name, abort=True)
+                test_did_pass = False
 
         suites = xml_root.findall("testsuite")
-
-        test_did_pass = True
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
@@ -1807,24 +1812,12 @@ def InvokeAutoTriage(self, test_name, script_output, debug_output):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
-    logger.print("Pushing results to influxdb...")
+def Export2Violet(self, ws, internal_fp_repo_dir, test_log_directory_path):
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
     try:
-        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2influx"
-        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
-        if lineup: 
-            cmd += f' --lineup {lineup}'
-        if efr: 
-            cmd += f' --efr {efr}'
-        logger.print(check_output(cmd))
+        logger.print(
+            check_output(f'{GO_BIN} run ./tools/cisco/violet_export/main.go {test_log_directory_path}', env=env, cwd=internal_fp_repo_dir)
+        )
     except:
-        logger.warning(f'Failed to push results to influxdb. Ignoring...')
-
-# noinspection PyPep8Naming
-@app.task(base=FireX, bind=True)
-@returns('test_report_text_file')
-def ConvertXunit2Text(self):
-    logger.print(f"In ConvertXunit2Text override")
-    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
-    test_report_text_file = self.enqueue_child_and_get_results(c)  
-    return test_report_text_file  
+        logger.warning(f'Failed to export to Violet. Ignoring...')
