@@ -42,17 +42,12 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-	// ate := ondatra.ATE(t, "ate")
 	ipAf := "ipv4"
 
 	configureDUT(t, dut1)
 	configureDUT(t, dut2)
-	time.Sleep(60 * time.Second)
+	time.Sleep(120 * time.Second)
 	cliHandle = dut2.RawAPIs().CLI(t)
-	// topo := configureATE(t, ate)
-	// t.Log("ATE CONFIG: ", topo)
-	// time.Sleep(30 * time.Minute)
-	// configureTrafficFlow(t, ate, topo)
 
 	testCases := []testCase{
 		{
@@ -858,13 +853,10 @@ func TestIPv4AddMemberPort(t *testing.T) {
 
 func TestIPv4NonDefaultVRF(t *testing.T) {
 
-	// dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 	ipAf := "ipv4"
 
-	// configVRFInterface(t, dut1)
 	configVRFInterface(t, dut2)
-	// configVRF(t, dut1)
 	configVRF(t, dut2)
 
 	cliOutput, _ := showRouteCLI(t, dut2, cliHandle, ipAf, "", "static")
@@ -947,16 +939,10 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-	// ate := ondatra.ATE(t, "ate")
 
 	configureDUT(t, dut1)
 	configureDUT(t, dut2)
 	time.Sleep(60 * time.Second)
-	cliHandle = dut2.RawAPIs().CLI(t)
-	// topo := configureATE(t, ate)
-	// t.Log("ATE CONFIG: ", topo)
-	// time.Sleep(30 * time.Minute)
-	// configureTrafficFlow(t, ate, topo)
 
 	testCases := []testCase{
 		{
@@ -1736,12 +1722,9 @@ func TestIPv6AddMemberPort(t *testing.T) {
 }
 func TestIPv6NonDefaultVRF(t *testing.T) {
 
-	// dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
-	// configVRFInterface(t, dut1)
 	configVRFInterface(t, dut2)
-	// configVRF(t, dut1)
 	configVRF(t, dut2)
 
 	cliOutput, _ := showRouteCLI(t, dut2, cliHandle, "ipv6", "", "static")
@@ -2590,11 +2573,6 @@ func validateIPv4StaticRouteRecurse(t *testing.T, dut *ondatra.DUTDevice, ipAf, 
 		t.Errorf("Error in running-config for route with prefix :%v", v4Prefix)
 	}
 
-	// cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, v4Prefix)
-	// cliHandle := dut.RawAPIs().CLI(t)
-	// ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-
-	// cliOutput, _ := cliHandle.RunCommand(ctx, cli)
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, v4Prefix)
 	if installRIB == true {
 		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
@@ -2686,11 +2664,6 @@ func validateIPv4StaticRouteNoRecurse(t *testing.T, dut *ondatra.DUTDevice, noRe
 		t.Errorf("Error in running-config for route with prefix :%v", v4Prefix)
 	}
 
-	// cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, v4Prefix)
-	// cliHandle := dut.RawAPIs().CLI(t)
-	// ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-
-	// cliOutput, _ := cliHandle.RunCommand(ctx, cli)
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, v4Prefix)
 	if installRIB == true {
 		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
@@ -2729,11 +2702,6 @@ func validateIPv4StaticRouteRecurseVRF(t *testing.T, dut *ondatra.DUTDevice, ipA
 		t.Errorf("Error in running-config for route with prefix :%v", v4Prefix)
 	}
 
-	// cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, v4Prefix)
-	// cliHandle := dut.RawAPIs().CLI(t)
-	// ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-
-	// cliOutput, _ := cliHandle.RunCommand(ctx, cli)
 	cliOutput, _ := showRouteVRFCLI(t, dut, cliHandle, nonDefaultVRF, ipAf, v4Prefix)
 	if installRIB == true {
 		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {

@@ -13,7 +13,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
@@ -53,7 +52,7 @@ const (
 	ProtocolSTATIC                    = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
 	AddressFamilyV4                   = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 	AddressFamilyV6                   = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
-	ON_CHANGE_TIMEOUT                 = 30 * time.Second
+	ON_CHANGE_TIMEOUT                 = 5 * time.Second
 )
 
 var (
@@ -111,7 +110,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if dut.ID() == "dut1" {
 		DUTSysID = "0000.0000.0001"
-		// portName = "port11"
 		portName = "dut1_ate_port1"
 		connectedPort = dut.Port(t, portName).Name()
 		baseIPv4 = DUT1_BASE_IPv4
@@ -157,86 +155,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-
-	topo := ate.Topology().New()
-	p1 := ate.Port(t, "port1")
-	i1 := topo.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dut1Port1.IPv4)
-	p2 := ate.Port(t, "port2")
-	i2 := topo.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dut2Port1.IPv4)
-
-	intfs := topo.Interfaces()
-	intfs[atePort1.Name].WithIPv4Loopback("3.3.3.3/32")
-	intfs[atePort2.Name].WithIPv4Loopback("3.3.3.3/32")
-	util.AddAteISISL2(t, topo, atePort1.Name, "45", "ISIS-3", 10, "3.3.3.3/32", 1)
-	util.AddAteISISL2(t, topo, atePort2.Name, "46", "ISIS-2", 10, "3.3.3.3/32", 1)
-	util.AddAteISISL2(t, topo, atePort1.Name, "47", "ISIS-30", 10, "30.30.30.1/32", 5)
-	util.AddAteISISL2(t, topo, atePort2.Name, "48", "ISIS-31", 10, "31.31.31.1/32", 5)
-	util.AddAteEBGPPeer(t, topo, atePort1.Name, "1.1.1.1", 64001, "BGP", atePort1.IPv4, "20.20.20.1/32", 5, true)
-	util.AddAteEBGPPeer(t, topo, atePort2.Name, "2.2.2.2", 64001, "BGP", atePort2.IPv4, "21.21.21.1/32", 5, true)
-
-	topo.Push(t)
-	topo.StartProtocols(t)
-
-	return topo
-}
-
-func configureTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, topo *ondatra.ATETopology) {
-
-	srcEndPoint := topo.Interfaces()[atePort1.Name]
-	var dstEndPoint ondatra.Endpoint
-	dstEndPoint = topo.Interfaces()[atePort2.Name]
-
-	bgp_flow := createTrafficFlow(t, ate, "Flow_BGP", srcEndPoint, dstEndPoint, "20.20.20.1", "21.21.21.1", 5)
-	isis_flow := createTrafficFlow(t, ate, "Flow_ISIS", srcEndPoint, dstEndPoint, "30.30.30.1", "31.31.31.1", 5)
-	var flows []*ondatra.Flow
-	flows = append(flows, bgp_flow, isis_flow)
-	validateTrafficFlow(t, ate, flows)
-}
-
-func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string,
-	srcEndPoint *ondatra.Interface, dstEndPoint ondatra.Endpoint, srcPrefix, dstPrefix string, count uint32) *ondatra.Flow {
-
-	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.SrcAddressRange().
-		WithMin(srcPrefix).
-		WithCount(count).
-		WithStep("0.0.0.1")
-	ipv4Header.DstAddressRange().
-		WithMin(dstPrefix).
-		WithCount(count).
-		WithStep("0.0.0.1")
-	flow := ate.Traffic().NewFlow(flowName).
-		WithSrcEndpoints(srcEndPoint).
-		WithDstEndpoints(dstEndPoint)
-	flow.WithFrameSize(300).
-		WithFrameRateFPS(100).
-		WithHeaders(ondatra.NewEthernetHeader(), ipv4Header)
-
-	return flow
-}
-
-func validateTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow) {
-
-	ate.Traffic().Start(t, flows...)
-	time.Sleep(1 * time.Minute)
-
-	ate.Traffic().Stop(t)
-	time.Sleep(1 * time.Minute)
-	for _, flow := range flows {
-		outpkt := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
-		inpkt := gnmi.Get(t, ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
-		t.Logf("Flow %s Input Packet Count: %v, Ouput Packet count:%v", flow.Name(), inpkt, outpkt)
-	}
-	time.Sleep(10 * time.Minute)
-}
-
 func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, baseIPv6 string) []string {
 
 	var isisIntfNameList []string
@@ -264,12 +182,6 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 		}
 		gnmi.Replace(t, dut, path.Config(), configInterfaceDUT(intf, portAttrib))
 	}
-
-	// p1 := dut.Port(t, "port7").Name()
-	// p2 := dut.Port(t, "port8").Name()
-	// p3 := dut.Port(t, "port9").Name()
-	// p4 := dut.Port(t, "port10").Name()
-
 	p1 := dut.Port(t, "port6").Name()
 	p2 := dut.Port(t, "port7").Name()
 	p3 := dut.Port(t, "port8").Name()
@@ -326,7 +238,6 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 	} else {
 		portAttrib = &dut2Port1
 	}
-	// portName := "port11"
 	var portName string
 	if dut.ID() == "dut1" {
 		portName = "dut1_ate_port1"
@@ -610,23 +521,6 @@ func configRouterBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	glob.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
-	pgATE := bgp.GetOrCreatePeerGroup("BGP-ATE-GROUP")
-	pgATE.PeerAs = ygot.Uint32(64001)
-	pgATE.LocalAs = ygot.Uint32(63001)
-	pgATE.PeerGroupName = ygot.String("BGP-ATE-GROUP")
-
-	peerATE := bgp.GetOrCreateNeighbor("3.3.3.3")
-	peerATE.PeerGroup = ygot.String("BGP-ATE-GROUP")
-	peerATE.GetOrCreateTransport().SetLocalAddress("Loopback0")
-	peerATE.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
-	peerATE.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
-	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
-	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
-	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
-	peerATE.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
-
 	if dut.ID() == "dut1" {
 		pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP")
 		pg.PeerAs = ygot.Uint32(63001)
@@ -691,8 +585,6 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(nonDefaultVRF)
 	inst.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	inst.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-	// vrfIntf := inst.GetOrCreateInterface(dut.Port(t, "port12").Name())
-	// vrfIntf.SetInterface(dut.Port(t, "port12").Name())
 	vrfIntf := inst.GetOrCreateInterface(dut.Port(t, "dut2_ate_port2").Name())
 	vrfIntf.SetInterface(dut.Port(t, "dut2_ate_port2").Name())
 
@@ -703,22 +595,9 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice) {
 func configVRFInterface(t *testing.T, dut *ondatra.DUTDevice) {
 
 	var portAttrib = &attrs.Attributes{}
-	// portName := dut.Port(t, "port11").Name()
-
-	// ipv4 := gnmi.GetAll(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv4().AddressAny().State())
-	// ipv6_test := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().Address("6:0:1::1").State())
-	// fmt.Printf("Debug:ipv6_test:%v\n", *ipv6_test.Ip)
-	// ipv6 := gnmi.GetAll(t, dut, gnmi.OC().Interface(portName).Subinterface(0).Ipv6().AddressAny().State())
-
-	// vrfPortName := dut.Port(t, "port12").Name()
 	vrfPortName := dut.Port(t, "dut2_ate_port2").Name()
 	vrfIntf := &oc.Interface{Name: &vrfPortName}
 	path := gnmi.OC().Interface(vrfPortName)
-	// portAttrib.Desc = dut.ID() + vrfPortName
-	// portAttrib.IPv4 = ipv4[0].GetIp()
-	// portAttrib.IPv4Len = ipv4[0].GetPrefixLength()
-	// portAttrib.IPv6 = ipv6[0].GetIp()
-	// portAttrib.IPv6Len = ipv6[0].GetPrefixLength()
 
 	portAttrib.Desc = dut.ID() + vrfPortName
 	portAttrib.IPv4 = dut1Port1.IPv4
