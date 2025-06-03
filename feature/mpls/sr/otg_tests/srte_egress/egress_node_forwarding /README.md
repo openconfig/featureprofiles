@@ -43,13 +43,18 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 *  ATE Port 1 generates below flow types:
  
- * Flow type 1:  Ethernet+IPv4+Payload
+ * Flow type 1:  Ethernet+MPLS+IPv4+Payload
   * For the Ethernet Header:
      * Source MAC address: Unicast Ethernet MAC
      * Destination MAC address: DUT-Port1 mac address
-   * For the IP header:
+  * For MPLS header:
+     * MPLS label 3
+     * EXP set to 0
+     * S set to 1
+     * TTL set to 64  
+  * For the IP header:
      * Source IP and Destination IP will be IPV4-SRC1 and IPV4-DST1 respectively.
-     * Protocol can be TCP/UDP and source and destination port will vary.
+     * Protocol will be TCP and UDP and source port (> 1024) and destination port will be 443.
 
  * Flow type 2:  Ethernet+MPLS+IPv6+Payload
   * For the Ethernet Header:
@@ -62,7 +67,8 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
      * TTL set to 64  
   * For the IPv6 header:
      * Source IP and Destination IP will be IPV6-SRC1 and IPV6-DST1 respectively.
-     * Protocol can be TCP/UDP and source and destination port will vary.
+     * Protocol will be TCP and UDP and source port (> 1024) and destination port will be 443.
+       
 ## Procedure
 
 ### Configuration
@@ -77,7 +83,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 Verify that:
 
 *  ATE Port1 will send IPv4 and IPv6 traffic.
-*  DUT will perform IPv4 lookup for the destination and forward IPv4 traffic.
+*  DUT will POP MPLS label, and perform IPv4 lookup for the destination and forward IPv4 traffic.
 *  DUT will POP MPLS label, and perform IPv6 lookup for the destination and forward IPv6 traffic.
 
 ```
