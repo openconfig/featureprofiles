@@ -1234,7 +1234,7 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 
 	peerIntfPathAny := gnmi.OC().InterfaceAny().State()
 	peerIntfAny := gnmi.GetAll(t, peer, peerIntfPathAny)
-
+	peerHostName := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State())
 	// logic to create the link by using LLDP neighbour
 	// re := regexp.MustCompile(`\d`)
 	re := regexp.MustCompile(`\d+/(\d+)/\d+/\d+`)
@@ -1248,7 +1248,7 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 		}
 
 		// Get the peer interface name using LLDP data
-		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName)
+		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName, peerHostName)
 
 		// TODO logic to fectch the NPU
 		// npu := getNpu(t,dut,intfName)
@@ -1496,7 +1496,7 @@ func enableInterfaceLldp(t *testing.T, device *ondatra.DUTDevice, interfaces []*
 }
 
 // getPeerInterfaceName retrieves the peer interface name using LLDP data.
-func getPeerInterfaceName(lldpIntfStateAny []*oc.Lldp_Interface, intfName string) string {
+func getPeerInterfaceName(lldpIntfStateAny []*oc.Lldp_Interface, intfName string, peerHostName string) string {
 	// Retrieve the LLDP interface state
 	// lldpIntfStatePathAny := gnmi.OC().Lldp().InterfaceAny().State()
 	// lldpIntfStateAny := gnmi.GetAll(t, device, lldpIntfStatePathAny)
@@ -1508,7 +1508,7 @@ func getPeerInterfaceName(lldpIntfStateAny []*oc.Lldp_Interface, intfName string
 			// Check if neighbors are present
 			if lldpIntfState != nil && lldpIntfState.Neighbor != nil {
 				for _, neighbor := range lldpIntfState.Neighbor {
-					if neighbor.PortId != nil && strings.Contains(*neighbor.PortId, "Gig") {
+					if neighbor.PortId != nil && strings.Contains(*neighbor.PortId, "Gig") && *neighbor.SystemName == peerHostName {
 						return *neighbor.PortId
 					}
 				}
