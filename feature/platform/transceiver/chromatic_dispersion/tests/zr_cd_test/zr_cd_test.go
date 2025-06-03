@@ -100,7 +100,7 @@ func TestCDValue(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 
