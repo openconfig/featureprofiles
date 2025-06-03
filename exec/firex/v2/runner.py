@@ -931,16 +931,16 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         if log_files:
             _aggregate_ondatra_log_files(log_files, str(xml_results_file))
 
+        test_did_pass = True
         xml_root = _get_testsuites_from_xml(xml_results_file)
         if xml_root is None: 
             if test_ignore_aborted or test_skip:
                 xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
             else:
                 xml_root = _generate_dummy_suite(test_name, abort=True)
+                test_did_pass = False
 
         suites = xml_root.findall("testsuite")
-
-        test_did_pass = True
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
