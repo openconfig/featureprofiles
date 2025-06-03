@@ -200,20 +200,22 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutPort1.IPv4)
 	global.As = ygot.Uint32(localAs)
-	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+
+	bgpGlobalIPv4AF := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	bgpGlobalIPv4AF.SetEnabled(true)
+	bgpGlobalIPv6AF := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	bgpGlobalIPv6AF.SetEnabled(true)
+
+	if !deviations.SkipBgpSendCommunityType(dut) {
+		bgpGlobalIPv6AF.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+		bgpGlobalIPv4AF.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+	}
 
 	for _, nbr := range ebgpNbrs {
 
 		pg := bgp.GetOrCreatePeerGroup(nbr.peerGrp)
 		pg.PeerAs = ygot.Uint32(nbr.as)
 		pg.PeerGroupName = ygot.String(nbr.peerGrp)
-
-		if deviations.SkipBgpSendCommunityType(dut) {
-			pg.SetSendCommunity(oc.E_Bgp_CommunityType(oc.Bgp_CommunityType_STANDARD))
-		} else {
-			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-		}
 
 		as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		as4.Enabled = ygot.Bool(true)
