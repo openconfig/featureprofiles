@@ -142,13 +142,23 @@ func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ond
 }
 
 // buildGNMISetRequest builds gnmi set request with protobuf-metadata
-func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root) *gpb.SetRequest {
+func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root, size int) *gpb.SetRequest {
+	var trimSize float64
+        // Trim data for 100KB and 1M cases
+        if size >= 100000 {
+                // Trim the data to 70% for encoding overhead of 30%
+              trimSize = float64(75)/float64(100)*float64(size)
+              //t.Logf("size is %d  trim size is %f :", size,trimSize)
+              metadataText = metadataText[:int(trimSize)]
+        }
 	msg := &gpb.ModelData{Name: metadataText}
 	b, err := proto.Marshal(msg)
 	if err != nil {
 		t.Fatalf("cannot marshal proto msg - error: %v", err)
 	}
 	metadataEncoded := base64.StdEncoding.EncodeToString(b)
+	dataSize:=len(metadataEncoded)
+        t.Logf("Input size is %d : Metadata size after final encoding is %d ", size,dataSize)
 	j := map[string]any{
 		"@": map[string]any{
 			"openconfig-metadata:protobuf-metadata": metadataEncoded,
@@ -229,7 +239,7 @@ func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUT
 	largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
 	largeMetadata = largeMetadata[:size]
 	// send large metadata update request in one goroutine
-	gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig)
+	gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig, size)
 	t.Log("gnmiClient Set large metadataconfig request")
 	_, err = gnmiClient.Set(context.Background(), gpbSetRequest)
 	if err != nil {
@@ -259,7 +269,8 @@ func TestLargeSetConsistency(t *testing.T) {
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	// send 1st update request in one goroutine
-	gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig)
+	sizeMetadata1 := len(shortStringMetadata1)
+        gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig,sizeMetadata1)
 	t.Log("gnmiClient Set 1st large config")
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
@@ -272,7 +283,8 @@ func TestLargeSetConsistency(t *testing.T) {
 	ch := make(chan struct{}, 1)
 
 	// sending 2nd update request in one goroutine
-	gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig)
+	sizeMetadata2 := len(shortStringMetadata2)
+        gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig, sizeMetadata2)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
