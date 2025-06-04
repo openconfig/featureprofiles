@@ -873,6 +873,14 @@ func getOuterSrcForDscp(dscp uint32) string {
 		return ipv4OuterSrc111
 	case dscpEncapB2:
 		return ipv4OuterSrc222
+	case dscpEncapC1:
+		return ipv4OuterSrc111
+	case dscpEncapC2:
+		return ipv4OuterSrc222
+	case dscpEncapD1:
+		return ipv4OuterSrc111
+	case dscpEncapD2:
+		return ipv4OuterSrc222
 	default:
 		return ipv4OuterSrc111
 	}
@@ -889,6 +897,14 @@ func dscpToString(dscp uint32) string {
 		return "dscpEncapB1"
 	case dscpEncapB2:
 		return "dscpEncapB2"
+	case dscpEncapC1:
+		return "dscpEncapC1"
+	case dscpEncapC2:
+		return "dscpEncapC2"
+	case dscpEncapD1:
+		return "dscpEncapD1"
+	case dscpEncapD2:
+		return "dscpEncapD2"
 	default:
 		return "dscpEncapA1"
 	}
@@ -1589,7 +1605,7 @@ func testCompactModularChain(t *testing.T) {
 		&routesParam{segment: "PrimaryLevel2", numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 100, numNHPerNHG: 8},
 		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 100, numNHPerNHG: 8},
-		&routesParam{segment: "Frr1Level1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
+		&routesParam{segment: "Frr1Level1", nextHops: tcArgs.frr1Paths, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
 		&routesParam{segment: "Frr1Level2", numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "DecapWan", numUniqueNHGs: 2, numNHPerNHG: 1},
 		&routesParam{segment: "DecapWanVar", numUniqueNHGs: 2, numNHPerNHG: 1},
@@ -2262,7 +2278,7 @@ func testDcGateTriggers(t *testing.T) {
 	defer tcArgs.client.Stop(t)
 	// waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
 
-	batches := 1
+	batches := 8
 	vrfCount := 4
 	// get free resource IDs
 	// gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
@@ -2293,31 +2309,48 @@ func testDcGateTriggers(t *testing.T) {
 	// divide tcArgs.primaryPaths in halves to be used by primary and frr1 paths
 	mid := len(tcArgs.primaryPaths) / 2
 	// build the DCGate profile
+	// failing test case
+	gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
+		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths[:mid], numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
+		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: 256, numNHPerNHG: 2},
+		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_A
+		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_B
+		&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_C
+		&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_D
+		&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.primaryPaths[mid:], numUniqueNHGs: 8, numNHPerNHG: 8},
+		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: frr1NHG, numNHPerNHG: nhsPerNHG},
+		&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(1, 1)},
+		&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
+	)
+
+	// working test case
 	// gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
 	// 	&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths[:mid], numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
-	// 	&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: 256, numNHPerNHG: 2},
-	// 	&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_A
-	// 	&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_B
-	// 	&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_C
-	// 	&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_D
+	// 	&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, 12000), numUniqueNHGs: 256, numNHPerNHG: 2},
+	// 	&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_A
+	// 	&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_B
+	// 	&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_C
+	// 	&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_D
 	// 	&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.primaryPaths[mid:], numUniqueNHGs: 8, numNHPerNHG: 8},
-	// 	&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: frr1NHG, numNHPerNHG: nhsPerNHG},
+	// 	&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, 12000), numUniqueNHGs: 8, numNHPerNHG: 8},
 	// 	&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(1, 1)},
 	// 	&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
 	// )
 
-	gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
-		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths[:mid], numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
-		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, 12000), numUniqueNHGs: 256, numNHPerNHG: 2},
-		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 200, numNHPerNHG: 8}, // allocate half of the available nhgs for ENCAP_TE_VRF_A
-		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 200, numNHPerNHG: 8}, // allocate half of the available nhgs for ENCAP_TE_VRF_B
-		&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: 200, numNHPerNHG: 8}, // allocate half of the available nhgs for ENCAP_TE_VRF_C
-		&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: 200, numNHPerNHG: 8}, // allocate half of the available nhgs for ENCAP_TE_VRF_D
-		&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.primaryPaths[mid:], numUniqueNHGs: 8, numNHPerNHG: 8},
-		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, 12000), numUniqueNHGs: 8, numNHPerNHG: 8},
-		&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(1, 1)},
-		&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
-	)
+	// working case
+	// gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
+	// 	&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths[:mid], numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
+	// 	&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, 6400), numUniqueNHGs: 256, numNHPerNHG: 2},
+	// 	&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_A
+	// 	&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_B
+	// 	&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_C
+	// 	&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: 200, numNHPerNHG: 8}, // define tunnel type for this vrf ENCAP_TE_VRF_D
+	// 	&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.primaryPaths[mid:], numUniqueNHGs: 8, numNHPerNHG: 8},
+	// 	&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, 6400), numUniqueNHGs: 88, numNHPerNHG: 8},
+	// 	&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(1, 1)},
+	// 	&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
+	// )
+
 	tcArgs.client.StartSending(tcArgs.ctx, t)
 	if err := awaitTimeout(tcArgs.ctx, tcArgs.client, t, time.Minute); err != nil {
 		t.Fatalf("Await got error during session negotiation for client: %v", err)
@@ -2326,7 +2359,8 @@ func testDcGateTriggers(t *testing.T) {
 	t.Logf("Election ID: %v", electionID)
 
 	gp.measurePerf = &tunTypes{location: "0/0/CPU0", tunType: []string{"iptnlnh", "iptnlencap", "iptnldecap"}}
-	gp.pushBatchConfig(t, tcArgs, []int{0}) //, 1, 2, 3}) //, 4, 5, 6, 7})
+	// gp.pushBatchConfig(t, tcArgs, []int{0}) //, 1, 2, 3}) //, 4, 5, 6, 7})
+	gp.pushBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
 	// gp.pushBatchConfig(t, tcArgs, []int{4, 5, 6, 7})
 	time.Sleep(10 * time.Second)
 
@@ -2357,7 +2391,8 @@ func testDcGateTriggers(t *testing.T) {
 	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "0/16/CPU0")
 
 	t.Logf("Validating encap traffic")
-	testEncapTrafficFlows(t, tcArgs, gp, []int{0}) //, 1, 2, 3}) //, 4, 5, 6, 7})
+	// testEncapTrafficFlows(t, tcArgs, gp, []int{0}) //, 1, 2, 3}) //, 4, 5, 6, 7})
+	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
 	// testEncapTrafficFlows(t, tcArgs, gp, []int{4, 5, 6, 7})
 
 	// t.Logf("Validating decap traffic")
