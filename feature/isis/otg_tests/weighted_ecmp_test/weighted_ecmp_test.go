@@ -183,7 +183,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		var weight string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n", aggIDs[1], aggIDs[2], aggIDs[3])
+			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n", aggIDs[0], aggIDs[1], aggIDs[2])
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
 		}
@@ -236,7 +236,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		var weight string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 200 \n address-family ipv6 unicast \n weight 200 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n", aggIDs[1], aggIDs[2], aggIDs[3])
+			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 200 \n address-family ipv6 unicast \n weight 200 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n", aggIDs[0], aggIDs[1], aggIDs[2])
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
 		}
@@ -435,6 +435,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 	}
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 
 	var aggIDs []string
 	for aggIdx, a := range []attrs.Attributes{dutagg1, dutagg2, dutagg3} {
@@ -475,6 +478,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Config(), i)
 		}
 		b.Set(t, dut)
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 	// Wait for LAG interfaces to be UP
 	for _, aggID := range aggIDs {
@@ -518,6 +524,8 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 
+	var maxPaths uint8 = 3
+	globalISIS.MaxEcmpPaths = &maxPaths
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 
@@ -572,10 +580,6 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, dutIntf := range dutIntfs {
-
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			dutIntf = dutIntf + ".0"
-		}
 		nbrPath := statePath.Interface(dutIntf)
 		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 		_, ok := gnmi.WatchAll(t, dut, query, 3*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
