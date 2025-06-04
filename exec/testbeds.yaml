@@ -16,6 +16,12 @@ testbeds:
     testbed: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/testbed
     binding: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/binding_mtls
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/baseconfig_mtls_zr_optics.proto
+  
+  8808_FOX2506P2QT_B2B:
+    <<: *8808_FOX2506P2QT_DEFAULTS
+    testbed: topologies/cisco/hw/8808_FOX2506P2QT_B2B/testbed
+    binding: topologies/cisco/hw/8808_FOX2506P2QT_B2B/binding_mtls
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT_B2B/baseconfig_mtls_zr_b2b.proto
 
   8808-36FH_FOX2613PHWL: &8808-36FH_FOX2613PHWL_DEFAULTS
     hw: 8808-36FH_FOX2613PHWL
