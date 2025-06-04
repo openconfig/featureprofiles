@@ -2,7 +2,7 @@
 
 ## Summary
 
-Use IP address and mac-address from TE-18.1 gRIBI. Static Rautes can be used for this.
+Use IP address and mac-address from TE-18.1 gRIBI. Static Routes can be used for this.
 Configure an ingress scheduler to police traffic using a 2 rate, 3 color policer and attach the scheduler to the interface without a classifier.
 Lack of match conditions will cause all packets to be matched. 
 Send traffic to validate the policer.
