@@ -338,8 +338,8 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
-	t.Logf("Waiting for 90s after power disable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power disable...")
+	time.Sleep(120 * time.Second)
 
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 
@@ -354,8 +354,8 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", fabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
-	t.Logf("Waiting for 90s after power enable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power enable...")
+	time.Sleep(120 * time.Second)
 
 	lastReboofdimeAfter := gnmi.Get(t, dut, lastReboofdime.State())
 
@@ -387,8 +387,8 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
-	t.Logf("Waiting for 90s after power disable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power disable...")
+	time.Sleep(120 * time.Second)
 
 	od.otg.StartProtocols(t)
 	od.waitInterface(t)
@@ -447,8 +447,8 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", disabledFabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
-	t.Logf("Waiting for 90s after power enable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power enable...")
+	time.Sleep(120 * time.Second)
 
 }
 
