@@ -26,6 +26,8 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 * Apply scheduler to DUT subinterface with vlan.
 * Use gnmi.Replace to push the config to the DUT.
 
+The configuration required for the 2R3C policer is included below:
+
 ```json
 {
   "openconfig-qos": {
@@ -180,37 +182,37 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 ```yaml
 paths:
   # qos scheduler config
-  /qos/scheduler-policies/scheduler-policy/config/name:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/be:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dscp:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dot1p:	
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-mpls-tc:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dscp:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dot1p:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-mpls-tc:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/drop:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dscp:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dot1p:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-mpls-tc:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/drop:
+  /qos/scheduler-policies/scheduler-policy/config/name
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/be
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dscp
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dot1p
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-mpls-tc
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dscp
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dot1p
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-mpls-tc
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/drop
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dscp
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dot1p
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-mpls-tc
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/drop
 
   # qos interfaces config
-  /qos/interfaces/interface/config/interface-id:
-  /qos/interfaces/interface/input/scheduler-policy/config/name:
+  /qos/interfaces/interface/config/interface-id
+  /qos/interfaces/interface/input/scheduler-policy/config/name
 
   # qos interface scheduler counters
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets:
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets
 
 rpcs:
   gnmi:
