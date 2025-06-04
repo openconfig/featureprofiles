@@ -2,7 +2,7 @@
 
 ## Summary
 
-Use the gRIBI applied ip entries from TE-18.1 gRIBI. 
+Use IP address and mac-address from TE-18.1 gRIBI. Static Rautes can be used for this.
 Configure an ingress scheduler to police traffic using a 2 rate, 3 color policer and attach the scheduler to the interface without a classifier.
 Lack of match conditions will cause all packets to be matched. 
 Send traffic to validate the policer.
@@ -20,10 +20,10 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 
 ## Procedure
 
-### DP-2.5.1 Generate and push configuration
+### SetUp
 
 * Generate config for 2 scheduler polices with an input rate limit.
-* Apply scheduler to DUT subinterface with vlan.
+* Apply scheduler to DUT subinterface with vlan. Dut1 is LAG in provided setup.
 * Use gnmi.Replace to push the config to the DUT.
 
 The configuration required for the 2R3C policer is included below:
@@ -127,7 +127,7 @@ The configuration required for the 2R3C policer is included below:
       {
         "interface": null,
         "config": {
-          "interface-id": "PortChannel1.100"
+          "interface-id": "Dut1.100"
         },
         "input": {
           "scheduler-policy": {
@@ -140,7 +140,7 @@ The configuration required for the 2R3C policer is included below:
       {
         "interface": null,
         "config": {
-          "interface-id": "PortChannel1.200"
+          "interface-id": "Dut1.200"
         },
         "input": {
           "scheduler-policy": {
@@ -155,23 +155,16 @@ The configuration required for the 2R3C policer is included below:
 }
 ```
 
-### DP-2.5.2 Test traffic
+### DP-2.5.1 Test traffic
 
 * Send traffic
   * Send flow A traffic from ATE port 1 to DUT for dest_A at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
   * Send flow B traffic from ATE port 1 to DUT for dest_B at 3Gbps (note cir is 2Gbps & pir is 4Gbps).
-  * Validate qos counters per DUT.
-  * Validate qos counters by ATE port.
-  * Validate packets are received by ATE port 2.
+  * Validate qos counters for dest_A & dest_B of DUT .
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts, conforming-octets, exceeding-pkts & exceeding-octets.
+  * Validate packets are received by ATE port 2.
     * Validate at OTG that 0 packets are lost on flow A and flow B
-  * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
-    * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol.
-    * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
-    * To validate the flow label, use the ATE to verify that the packets for 
-      * flow A all have the same flow label
-      * flow B have the same flow label
-      * flow A and B labels do not match
+  * Flow A and Flow B labels should not match.
   * Increase traffic on flow A to dest_A to 4Gbps
     * Validate that flow A to dest_A experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
@@ -182,37 +175,37 @@ The configuration required for the 2R3C policer is included below:
 ```yaml
 paths:
   # qos scheduler config
-  /qos/scheduler-policies/scheduler-policy/config/name
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/be
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dscp
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dot1p
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-mpls-tc
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dscp
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dot1p
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-mpls-tc
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/drop
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dscp
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dot1p
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-mpls-tc
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/drop
+  /qos/scheduler-policies/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir-pct:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir-pct:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/be:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dscp:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-dot1p:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/conform-action/config/set-mpls-tc:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dscp:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-dot1p:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/set-mpls-tc:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/drop:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dscp:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-dot1p:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-mpls-tc:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/drop:
 
   # qos interfaces config
-  /qos/interfaces/interface/config/interface-id
-  /qos/interfaces/interface/input/scheduler-policy/config/name
+  /qos/interfaces/interface/config/interface-id:
+  /qos/interfaces/interface/input/scheduler-policy/config/name:
 
   # qos interface scheduler counters
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts:
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts:
+  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets:
 
 rpcs:
   gnmi:
