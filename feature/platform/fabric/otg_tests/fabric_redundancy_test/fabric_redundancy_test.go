@@ -371,7 +371,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	od.otgConfig.Flows().Clear()
 	od.otgConfig.Flows().Append(flowParams)
 	od.otg.PushConfig(t, od.otgConfig)
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 120)
 
 	disabledFabric := ""
 	// Create a new random source with a specific seed
