@@ -164,7 +164,7 @@ The configuration required for the 2R3C policer is included below:
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts, conforming-octets, exceeding-pkts & exceeding-octets.
   * Validate packets are received by ATE port 2.
     * Validate at OTG that 0 packets are lost on flow A and flow B
-  * Flow A and Flow B labels should not match.
+  * Validate Flow A and Flow B labels should not match.
   * Increase traffic on flow A to dest_A to 4Gbps
     * Validate that flow A to dest_A experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
