@@ -768,7 +768,7 @@ func TestIPv4FlapInterfaces(t *testing.T) {
 	bCount := strings.Count(cliOutput.Output(), "S ")
 	t.Logf("IPv4 Static routes configured: %v", bCount)
 
-	FlapBulkInterfaces(t, dut, interfaceList)
+	util.FlapBulkInterfaces(t, dut, interfaceList)
 	time.Sleep(120 * time.Second)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
@@ -847,7 +847,7 @@ func TestIPv4AddMemberPort(t *testing.T) {
 
 	allInterfaceList = getInterfaceNameList(t, dut)
 	upInterfaceList = append(upInterfaceList, allInterfaceList[:6]...)
-	SetInterfaceStateScale(t, dut, upInterfaceList, true)
+	util.SetInterfaceStateScale(t, dut, upInterfaceList, true)
 
 }
 
@@ -1638,7 +1638,7 @@ func TestIPv6FlapInterfaces(t *testing.T) {
 	bCount := strings.Count(cliOutput.Output(), "S ")
 	t.Logf("IPv6 Static routes configured: %v", bCount)
 
-	FlapBulkInterfaces(t, dut, interfaceList)
+	util.FlapBulkInterfaces(t, dut, interfaceList)
 	time.Sleep(120 * time.Second)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
@@ -1666,7 +1666,7 @@ func TestIPv6DelMemberPort(t *testing.T) {
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[0])
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[2])
 
-	SetInterfaceStateScale(t, dut, downInterfaceList, false)
+	util.SetInterfaceStateScale(t, dut, downInterfaceList, false)
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
 	bCount := strings.Count(cliOutput.Output(), "S ")
@@ -1717,7 +1717,7 @@ func TestIPv6AddMemberPort(t *testing.T) {
 
 	allInterfaceList = getInterfaceNameList(t, dut)
 	upInterfaceList = append(upInterfaceList, allInterfaceList[:6]...)
-	SetInterfaceStateScale(t, dut, upInterfaceList, true)
+	util.SetInterfaceStateScale(t, dut, upInterfaceList, true)
 
 }
 func TestIPv6NonDefaultVRF(t *testing.T) {
@@ -1958,7 +1958,7 @@ func TestIPv4FlapInterfacesScale(t *testing.T) {
 	interfaceList = append(interfaceList, "Bundle-Ether100")
 	interfaceList = append(interfaceList, "Bundle-Ether101")
 
-	FlapBulkInterfaces(t, dut, interfaceList)
+	util.FlapBulkInterfaces(t, dut, interfaceList)
 	time.Sleep(180 * time.Second)
 	validateIPv4StaticRouteRecurseAttributesScale(t, dut, "ipv4", 10, 10, 10, false)
 }
@@ -1976,7 +1976,7 @@ func TestIPv4DelMemberPortScale(t *testing.T) {
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[0])
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[2])
 
-	SetInterfaceStateScale(t, dut, downInterfaceList, false)
+	util.SetInterfaceStateScale(t, dut, downInterfaceList, false)
 	DelAddMemberPort(t, dut, downMemberInterfaceList)
 	validateIPv4StaticRouteRecurseAttributesScale(t, dut, "ipv4", 10, 10, 10, false)
 }
@@ -1999,7 +1999,7 @@ func TestIPv4AddMemberPortScale(t *testing.T) {
 
 	allInterfaceList = getInterfaceNameList(t, dut)
 	upInterfaceList = append(upInterfaceList, allInterfaceList[:6]...)
-	SetInterfaceStateScale(t, dut, upInterfaceList, true)
+	util.SetInterfaceStateScale(t, dut, upInterfaceList, true)
 }
 
 func TestIPv6StaticRouteRecurseScale(t *testing.T) {
@@ -2156,7 +2156,7 @@ func TestIPv6FlapInterfacesScale(t *testing.T) {
 	interfaceList = append(interfaceList, "Bundle-Ether100")
 	interfaceList = append(interfaceList, "Bundle-Ether101")
 
-	FlapBulkInterfaces(t, dut, interfaceList)
+	util.FlapBulkInterfaces(t, dut, interfaceList)
 	time.Sleep(180 * time.Second)
 	validateIPv6StaticRouteRecurseAttributesScale(t, dut, 10, 10, 10, false)
 }
@@ -2196,7 +2196,7 @@ func TestIPv6AddMemberPortScale(t *testing.T) {
 
 	allInterfaceList = getInterfaceNameList(t, dut)
 	upInterfaceList = append(upInterfaceList, allInterfaceList[:6]...)
-	SetInterfaceStateScale(t, dut, upInterfaceList, true)
+	util.SetInterfaceStateScale(t, dut, upInterfaceList, true)
 }
 
 func testIPv4StaticRouteRecurseNextHop(t *testing.T, dut *ondatra.DUTDevice, noRecurse, recurse bool,
