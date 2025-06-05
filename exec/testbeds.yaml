@@ -470,8 +470,14 @@ testbeds:
   8808-P200:
     sim: true
     topology: topologies/cisco/pyvxr/8808-P200/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8808-P200/basefp.conf    
-
+    baseconf: topologies/cisco/pyvxr/8808-P200/basefp.conf 
+  8812-2DUT:   
+    sim: true
+    topology: topologies/cisco/pyvxr/8812-2DUT/topo.yaml
+    baseconf:
+      DUT1: topologies/cisco/pyvxr/8812-2DUT/DUT1_baseconfig.conf
+      DUT2: topologies/cisco/pyvxr/8812-2DUT/DUT2_baseconfig.conf
+      
   # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG
