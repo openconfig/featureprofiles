@@ -25,6 +25,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -205,6 +206,8 @@ var (
 	primarySubIntfScale         = 1000 //todo increase // number of sub-interfaces on primary bundle interface
 	backupSubIntfScale          = 1000 //todo increase // number of sub-interfaces on backup bundle interface
 	primaryPercent              = 60
+	aggID1                      = ""
+	aggID2                      = ""
 )
 
 type PbrRule struct {
@@ -1050,7 +1053,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 	// t.Log("Configure Fallback in Encap VRF")
 	if interfaceMode == "bundle" {
 		t.Log("Configure DUT-TGEN Bundle Interface")
-		aggID1, aggID2 := configureDUTInterfaces(t, dut)
+		aggID1, aggID2 = configureDUTInterfaces(t, dut)
 		t.Log("Configure DUT-PEER dynamic Bundle Interface")
 		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
 		if len(bundleListAll) < 2 {
@@ -1222,11 +1225,11 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, dut, peer *ondatra.DUTDe
 	tgenBundle1 := dutPorts[:mid]
 	tgenBundle2 := dutPorts[mid:]
 
-	aggID1 := "100"
-	configureOTGBundle(t, otg, otgSrc1, dutSrc1, topo, tgenBundle1, lagName1, aggID1)
+	aggId1 := strings.TrimPrefix(aggID1, "Bundle-Ether")
+	configureOTGBundle(t, otg, otgSrc1, dutSrc1, topo, tgenBundle1, lagName1, aggId1)
 	t.Log("Configuring DUT-TGEN Bundle interface2")
-	aggID2 := "200"
-	configureOTGBundle(t, otg, otgSrc2, dutSrc2, topo, tgenBundle2, lagName2, aggID2)
+	aggId2 := strings.TrimPrefix(aggID2, "Bundle-Ether")
+	configureOTGBundle(t, otg, otgSrc2, dutSrc2, topo, tgenBundle2, lagName2, aggId2)
 
 	//Configure PEER-TGEN interface - Destination port
 	peerLastPort := peerInterface[len(peerInterface)-1].ID()
