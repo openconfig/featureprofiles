@@ -2337,7 +2337,7 @@ func testDcGateTriggers(t *testing.T) {
 	// 	&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
 	// )
 
-	// working case
+	// working case - best case to be projected to customer
 	// gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
 	// 	&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths[:mid], numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
 	// 	&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, 6400), numUniqueNHGs: 256, numNHPerNHG: 2},
@@ -2395,11 +2395,11 @@ func testDcGateTriggers(t *testing.T) {
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
 	// testEncapTrafficFlows(t, tcArgs, gp, []int{4, 5, 6, 7})
 
-	// t.Logf("Validating decap traffic")
-	// testDecapTrafficFlows(t, tcArgs, gp, []int{0})
-	// // testDecapTrafficFlows(t, tcArgs, gp, []int{1})
-	// // testDecapTrafficFlows(t, tcArgs, gp, []int{2})
-	// testDecapTrafficFlows(t, tcArgs, gp, []int{3})
+	t.Logf("Validating decap traffic")
+	testDecapTrafficFlows(t, tcArgs, gp, []int{0})
+	// testDecapTrafficFlows(t, tcArgs, gp, []int{1})
+	// testDecapTrafficFlows(t, tcArgs, gp, []int{2})
+	testDecapTrafficFlows(t, tcArgs, gp, []int{7})
 
 	// gp.DeleteBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
 	// time.Sleep(10 * time.Second)
