@@ -2160,14 +2160,12 @@ func TestIPv6FlapInterfacesScale(t *testing.T) {
 }
 func TestIPv6DelMemberPortScale(t *testing.T) {
 
-	downInterfaceList := []string{}
 	bundleInterfaceList := []string{}
 	downMemberInterfaceList := []string{}
 
 	dut := ondatra.DUT(t, "dut2")
 	allInterfaceList := getInterfaceNameList(t, dut)
 
-	downInterfaceList = append(downInterfaceList, allInterfaceList[:6]...)
 	bundleInterfaceList = append(bundleInterfaceList, allInterfaceList[6:10]...)
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[0])
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[2])

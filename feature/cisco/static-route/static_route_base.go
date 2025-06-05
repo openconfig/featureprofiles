@@ -236,9 +236,7 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 	isisIntfNameList = append(isisIntfNameList, port)
 
 	op := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().SubinterfaceAny().Name().State())
-	for _, val := range op {
-		isisIntfNameList = append(isisIntfNameList, val)
-	}
+	isisIntfNameList = append(isisIntfNameList, op...)
 
 	return isisIntfNameList
 }
