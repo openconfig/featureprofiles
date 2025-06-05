@@ -1367,3 +1367,8 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
+
+// PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
+func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
+}
