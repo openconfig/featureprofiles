@@ -56,22 +56,6 @@ const (
 )
 
 var (
-	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
-		IPv4:    "6.0.1.2",
-		IPv6:    "6:0:1::2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
-	}
-
-	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
-		IPv4:    "7.0.1.2",
-		IPv6:    "7:0:1::2",
-		IPv4Len: ipv4PrefixLen,
-		IPv6Len: ipv6PrefixLen,
-	}
-
 	dut1Port1 = attrs.Attributes{
 		Desc:    "dut1ate",
 		IPv4:    "6.0.1.1",
@@ -217,11 +201,11 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 
 	bundlePortAttrib.Desc = dut.ID() + "Bundle-Ether101"
 	bundlePortAttrib.IPv4 = baseIPv4
-	baseIPv4 = getNewIPv4(baseIPv4)
+	getNewIPv4(baseIPv4)
 	bundlePortAttrib.IPv4Len = ipv4PrefixLen
 	bundlePortAttrib.Subinterface = 1
 	bundlePortAttrib.IPv6 = baseIPv6
-	baseIPv6 = getNewIPv6(baseIPv6)
+	getNewIPv6(baseIPv6)
 	bundlePortAttrib.IPv6Len = ipv6PrefixLen
 	bundlePortAttrib.Subinterface = 1
 
@@ -340,7 +324,7 @@ func configBulkStaticRoute(t *testing.T, dut *ondatra.DUTDevice,
 
 	for i := 0; i < count; i++ {
 		tempV4Prefix := prefix
-		if ipv4 == true {
+		if ipv4 {
 			prefix = getNewStaticIPv4(prefix[:11]) + "/32"
 			nextHop = tempV4Prefix[:11]
 		} else {
@@ -370,7 +354,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, noRecurse, recurse 
 	nh := sr.GetOrCreateNextHop("0")
 	nh.SetNextHop(oc.UnionString(nextHop))
 
-	if noRecurse == false {
+	if !noRecurse {
 		nh.SetRecurse(recurse)
 	}
 	if interfaceName != "" {

@@ -784,7 +784,6 @@ func TestIPv4FlapInterfaces(t *testing.T) {
 
 func TestIPv4DelMemberPort(t *testing.T) {
 
-	downInterfaceList := []string{}
 	bundleInterfaceList := []string{}
 	downMemberInterfaceList := []string{}
 
@@ -792,7 +791,6 @@ func TestIPv4DelMemberPort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut2")
 	allInterfaceList := getInterfaceNameList(t, dut)
 
-	downInterfaceList = append(downInterfaceList, allInterfaceList[:6]...)
 	bundleInterfaceList = append(bundleInterfaceList, allInterfaceList[6:10]...)
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[0])
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[2])
@@ -1481,7 +1479,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 					"100:100:100::36/128", "15:15:15::15")
 			},
 			validate: func(t *testing.T) {
-				validateIPv6StaticRouteNoRecurse(t, dut2, true,
+				validateIPv6StaticRouteNoRecurseInterface(t, dut2, true,
 					"100:100:100::36/128", "15:15:15::15", true, false)
 			},
 		},
@@ -1492,7 +1490,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 					"100:100:100::37/128", "25:25:25::25")
 			},
 			validate: func(t *testing.T) {
-				validateIPv6StaticRouteNoRecurse(t, dut2, true, "100:100:100::37/128", "25:25:25::25", true, false)
+				validateIPv6StaticRouteNoRecurseInterface(t, dut2, true, "100:100:100::37/128", "25:25:25::25", true, false)
 			},
 		},
 		{
@@ -1502,7 +1500,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 					"100:100:100::38/128", "35:35:35::35")
 			},
 			validate: func(t *testing.T) {
-				validateIPv6StaticRouteNoRecurse(t, dut2, true, "100:100:100::38/128", "35:35:35::35", true, false)
+				validateIPv6StaticRouteNoRecurseInterface(t, dut2, true, "100:100:100::38/128", "35:35:35::35", true, false)
 			},
 		},
 	}
