@@ -698,12 +698,14 @@ func showRouteCLI(t *testing.T, dut *ondatra.DUTDevice, cliHandle binding.CLICli
 
 	if len(static) > 0 {
 		cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, static[0])
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 
 		return cliHandle.RunCommand(ctx, cli)
 	} else {
 		cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, prefix)
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 
 		return cliHandle.RunCommand(ctx, cli)
 	}
@@ -714,12 +716,14 @@ func showRouteVRFCLI(t *testing.T, dut *ondatra.DUTDevice, cliHandle binding.CLI
 
 	if len(static) > 0 {
 		cli := fmt.Sprintf("show route vrf %s %s unicast %s\n", vrf, ipAf, static[0])
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 
 		return cliHandle.RunCommand(ctx, cli)
 	} else {
 		cli := fmt.Sprintf("show route vrf %s %s unicast %s\n", vrf, ipAf, prefix)
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 
 		return cliHandle.RunCommand(ctx, cli)
 	}
