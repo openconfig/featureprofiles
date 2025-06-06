@@ -7,19 +7,19 @@
 duts {
   id: "dut"
   ports {
-    id: "dut_ate_port1"
+    id: "port1"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port2"
+    id: "port2"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port3"
+    id: "port3"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port4"
+    id: "port4"
     speed: S_10GB
   }
 }
@@ -27,37 +27,37 @@ duts {
 ates {
   id: "ate"
   ports {
-    id: "dut_ate_port1"
+    id: "port1"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port2"
+    id: "port2"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port3"
+    id: "port3"
     speed: S_10GB
   }
   ports {
-    id: "dut_ate_port4"
+    id: "port4"
     speed: S_10GB
   }
 }
 
 # dut to TGEN (ATE) connections
 links {
-  a: "dut:dut_ate_port1"
-  b: "ate:dut_ate_port1"
+  a: "dut:port1"
+  b: "ate:port1"
 }
 links {
-  a: "dut:dut_ate_port2"
-  b: "ate:dut_ate_port2"
+  a: "dut:port2"
+  b: "ate:port2"
 }
 links {
-  a: "dut:dut_ate_port3"
-  b: "ate:dut_ate_port3"
+  a: "dut:port3"
+  b: "ate:port3"
 }
 links {
-  a: "dut:dut_ate_port4"
-  b: "ate:dut_ate_port4"
+  a: "dut:port4"
+  b: "ate:port4"
 }
