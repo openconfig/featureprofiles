@@ -968,6 +968,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, impPolic
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		bgpNbr.GetOrCreateTimers().HoldTime = ygot.Uint16(180)
 		bgpNbr.GetOrCreateTimers().KeepaliveInterval = ygot.Uint16(60)
+		bgpNbr.GetOrCreateTimers().SetMinimumAdvertisementInterval(10)
 		bgpNbr.PeerAs = ygot.Uint32(nbr.as)
 		bgpNbr.Enabled = ygot.Bool(true)
 		bgpNbr.PeerGroup = ygot.String(nbr.pg)
