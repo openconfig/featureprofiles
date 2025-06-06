@@ -115,7 +115,7 @@ func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ipv6Solicitation bool, waitTime uint8) {
 	otg := ate.OTG()
 	otg.StartProtocols(t)
-	
+
 	// Explicitly stop any pre-existing captures.
 	t.Log("Stopping any existing captures to avoid any limitation in the number of active captures")
 	stopCaptureState := gosnappi.NewControlState()
