@@ -121,7 +121,6 @@ func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config go
 	stopCaptureState := gosnappi.NewControlState()
 	stopCaptureState.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	otg.SetControlState(t, stopCaptureState)
-	time.Sleep(5 * time.Second)
 
 	// Start capture.
 	cs := gosnappi.NewControlState()
