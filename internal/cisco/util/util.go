@@ -2163,3 +2163,25 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
 	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
 }
+
+var re = regexp.MustCompile(`\d+$`) // Regex to match the trailing digits
+
+func extractPortNumber(portID string) int {
+	match := re.FindString(portID) // Find the trailing numeric part
+	if num, err := strconv.Atoi(match); err == nil {
+		return num
+	}
+	return 0
+}
+
+// SortOndatraPortsByID sorts a slice of *ondatra.Port by their ID in ascending order.
+func SortOndatraPortsByID(ports []*ondatra.Port) {
+	sort.Slice(ports, func(i, j int) bool {
+		// Extract the numeric part of ports[i].ID() and ports[j].ID()
+		id1 := extractPortNumber(ports[i].ID())
+		id2 := extractPortNumber(ports[j].ID())
+
+		// Compare the numeric parts
+		return id1 < id2
+	})
+}
