@@ -256,6 +256,7 @@ func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	for _, nbr := range bgpNbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			nv4.SetDescription("Description for neigbor " + nbr.neighborip)
 			nv4.PeerAs = ygot.Uint32(nbr.peerAs)
 			nv4.Enabled = ygot.Bool(true)
 			nv4.PeerGroup = ygot.String(bgpGlobalAttrs.peerGrpNamev4)
@@ -283,6 +284,7 @@ func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 			}
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			nv6.SetDescription("Description for neigbor " + nbr.neighborip)
 			nv6.PeerAs = ygot.Uint32(nbr.peerAs)
 			nv6.Enabled = ygot.Bool(true)
 			nv6.PeerGroup = ygot.String(bgpGlobalAttrs.peerGrpNamev6)
@@ -493,6 +495,14 @@ func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate 
 	t.Run("verifyBGPTimers", func(t *testing.T) {
 		tc.verifyBGPTimers(t, dut)
 	})
+	// Verify BGP Neighbor Descriptions
+	for _, nbr := range bgpNbrs {
+		neighborDescription := "Description for neigbor " + nbr.neighborip
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		if description := gnmi.Get(t, dut, bgpPath.Neighbor(nbr.neighborip).Description().State()); description != neighborDescription {
+			t.Errorf("Neighbor description: got %v, want %v", description, neighborDescription)
+		}
+	}
 }
 
 func configureDUTATE(t *testing.T) (*config, *ondatra.DUTDevice, *ondatra.ATEDevice) {
