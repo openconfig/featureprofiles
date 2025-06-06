@@ -115,7 +115,15 @@ func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ipv6Solicitation bool, waitTime uint8) {
 	otg := ate.OTG()
 	otg.StartProtocols(t)
+	
+	// Explicitly stop any pre-existing captures.
+	t.Log("Stopping any existing captures to avoid any limitation in the number of active captures")
+	stopCaptureState := gosnappi.NewControlState()
+	stopCaptureState.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	otg.SetControlState(t, stopCaptureState)
+	time.Sleep(5 * time.Second)
 
+	// Start capture.
 	cs := gosnappi.NewControlState()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 	otg.SetControlState(t, cs)
@@ -124,7 +132,7 @@ func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config go
 	}
 
 	time.Sleep(time.Duration(waitTime) * time.Second)
-	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[1].Name()))
+	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[0].Name()))
 	t.Logf("Config Ports %v", config.Ports().Items())
 	f, err := os.CreateTemp("", "pcap")
 	if err != nil {
