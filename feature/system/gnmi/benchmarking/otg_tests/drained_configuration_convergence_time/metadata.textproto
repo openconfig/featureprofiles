@@ -23,6 +23,7 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
