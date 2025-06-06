@@ -1,0 +1,1194 @@
+simulation:
+  slurm_flags:
+    hours: 48    
+    pending_timeout: 3600
+
+devices:
+  DUT1:
+    dual_rp: true
+    num_linecards: 8
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
+    platform: spitfire_d
+    num_fabcards: 2
+    xr_hostname: DUT1
+    xr_username: cisco
+    xr_password: cisco123
+    xr_config: |
+        vrf VRF1
+        vrf cust0
+        ssh server v2
+        ssh server netconf
+        grpc port 57777        
+    xr_port_redir: [22, 23, 57777, 830]
+
+  DUT2:       
+    dual_rp: true
+    num_linecards: 8
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
+    platform: spitfire_d
+    num_fabcards: 2
+    xr_hostname: DUT2
+    xr_username: cisco
+    xr_password: cisco123
+    xr_config: |
+        vrf VRF1
+        vrf cust0
+        ssh server v2
+        ssh server netconf
+        grpc port 57777       
+    xr_port_redir: [22, 23, 57777, 830]   
+
+connections: 
+  hubs:
+
+    DUT1_DUT2_LC0_0:
+    - DUT1.FourHundredGigE0/0/0/0
+    - DUT2.FourHundredGigE0/0/0/0
+
+    DUT1_DUT2_LC0_1:
+    - DUT1.FourHundredGigE0/0/0/1
+    - DUT2.FourHundredGigE0/0/0/1
+
+    DUT1_DUT2_LC0_2:
+    - DUT1.FourHundredGigE0/0/0/2
+    - DUT2.FourHundredGigE0/0/0/2
+
+    DUT1_DUT2_LC0_3:
+    - DUT1.FourHundredGigE0/0/0/3
+    - DUT2.FourHundredGigE0/0/0/3
+
+    DUT1_DUT2_LC0_4:
+    - DUT1.FourHundredGigE0/0/0/4
+    - DUT2.FourHundredGigE0/0/0/4
+
+    DUT1_DUT2_LC0_5:
+    - DUT1.FourHundredGigE0/0/0/5
+    - DUT2.FourHundredGigE0/0/0/5
+
+    DUT1_DUT2_LC0_6:
+    - DUT1.FourHundredGigE0/0/0/6
+    - DUT2.FourHundredGigE0/0/0/6
+
+    DUT1_DUT2_LC0_7:
+    - DUT1.FourHundredGigE0/0/0/7
+    - DUT2.FourHundredGigE0/0/0/7
+
+    DUT1_DUT2_LC0_8:
+    - DUT1.FourHundredGigE0/0/0/8
+    - DUT2.FourHundredGigE0/0/0/8
+
+    DUT1_DUT2_LC0_9:
+    - DUT1.FourHundredGigE0/0/0/9
+    - DUT2.FourHundredGigE0/0/0/9
+
+    DUT1_DUT2_LC0_10:
+    - DUT1.FourHundredGigE0/0/0/10
+    - DUT2.FourHundredGigE0/0/0/10
+
+    DUT1_DUT2_LC0_11:
+    - DUT1.FourHundredGigE0/0/0/11
+    - DUT2.FourHundredGigE0/0/0/11
+
+    DUT1_DUT2_LC0_12:
+    - DUT1.FourHundredGigE0/0/0/12
+    - DUT2.FourHundredGigE0/0/0/12
+
+    DUT1_DUT2_LC0_13:
+    - DUT1.FourHundredGigE0/0/0/13
+    - DUT2.FourHundredGigE0/0/0/13
+
+    DUT1_DUT2_LC0_14:
+    - DUT1.FourHundredGigE0/0/0/14
+    - DUT2.FourHundredGigE0/0/0/14
+
+    DUT1_DUT2_LC0_15:
+    - DUT1.FourHundredGigE0/0/0/15
+    - DUT2.FourHundredGigE0/0/0/15
+
+    DUT1_DUT2_LC0_16:
+    - DUT1.FourHundredGigE0/0/0/16
+    - DUT2.FourHundredGigE0/0/0/16
+
+    DUT1_DUT2_LC0_17:
+    - DUT1.FourHundredGigE0/0/0/17
+    - DUT2.FourHundredGigE0/0/0/17
+
+    DUT1_DUT2_LC0_18:
+    - DUT1.FourHundredGigE0/0/0/18
+    - DUT2.FourHundredGigE0/0/0/18
+
+    DUT1_DUT2_LC0_19:
+    - DUT1.FourHundredGigE0/0/0/19
+    - DUT2.FourHundredGigE0/0/0/19
+
+    DUT1_DUT2_LC0_20:
+    - DUT1.FourHundredGigE0/0/0/20
+    - DUT2.FourHundredGigE0/0/0/20
+
+    DUT1_DUT2_LC0_21:
+    - DUT1.FourHundredGigE0/0/0/21
+    - DUT2.FourHundredGigE0/0/0/21
+
+    DUT1_DUT2_LC0_22:
+    - DUT1.FourHundredGigE0/0/0/22
+    - DUT2.FourHundredGigE0/0/0/22
+
+    DUT1_DUT2_LC0_23:
+    - DUT1.FourHundredGigE0/0/0/23
+    - DUT2.FourHundredGigE0/0/0/23
+
+    DUT1_DUT2_LC0_24:
+    - DUT1.FourHundredGigE0/0/0/24
+    - DUT2.FourHundredGigE0/0/0/24
+
+    DUT1_DUT2_LC0_25:
+    - DUT1.FourHundredGigE0/0/0/25
+    - DUT2.FourHundredGigE0/0/0/25
+
+    DUT1_DUT2_LC0_26:
+    - DUT1.FourHundredGigE0/0/0/26
+    - DUT2.FourHundredGigE0/0/0/26
+
+    DUT1_DUT2_LC0_27:
+    - DUT1.FourHundredGigE0/0/0/27
+    - DUT2.FourHundredGigE0/0/0/27
+
+    DUT1_DUT2_LC0_28:
+    - DUT1.FourHundredGigE0/0/0/28
+    - DUT2.FourHundredGigE0/0/0/28
+
+    DUT1_DUT2_LC0_29:
+    - DUT1.FourHundredGigE0/0/0/29
+    - DUT2.FourHundredGigE0/0/0/29
+
+    DUT1_DUT2_LC0_30:
+    - DUT1.FourHundredGigE0/0/0/30
+    - DUT2.FourHundredGigE0/0/0/30
+
+    DUT1_DUT2_LC0_31:
+    - DUT1.FourHundredGigE0/0/0/31
+    - DUT2.FourHundredGigE0/0/0/31
+
+    DUT1_DUT2_LC0_32:
+    - DUT1.FourHundredGigE0/0/0/32
+    - DUT2.FourHundredGigE0/0/0/32
+
+    DUT1_DUT2_LC0_33:
+    - DUT1.FourHundredGigE0/0/0/33
+    - DUT2.FourHundredGigE0/0/0/33
+
+    DUT1_DUT2_LC0_34:
+    - DUT1.FourHundredGigE0/0/0/34
+    - DUT2.FourHundredGigE0/0/0/34
+
+    DUT1_DUT2_LC0_35:
+    - DUT1.FourHundredGigE0/0/0/35
+    - DUT2.FourHundredGigE0/0/0/35
+
+    DUT1_DUT2_LC1_0:
+    - DUT1.FourHundredGigE0/1/0/0
+    - DUT2.FourHundredGigE0/1/0/0
+
+    DUT1_DUT2_LC1_1:
+    - DUT1.FourHundredGigE0/1/0/1
+    - DUT2.FourHundredGigE0/1/0/1
+
+    DUT1_DUT2_LC1_2:
+    - DUT1.FourHundredGigE0/1/0/2
+    - DUT2.FourHundredGigE0/1/0/2
+
+    DUT1_DUT2_LC1_3:
+    - DUT1.FourHundredGigE0/1/0/3
+    - DUT2.FourHundredGigE0/1/0/3
+
+    DUT1_DUT2_LC1_4:
+    - DUT1.FourHundredGigE0/1/0/4
+    - DUT2.FourHundredGigE0/1/0/4
+
+    DUT1_DUT2_LC1_5:
+    - DUT1.FourHundredGigE0/1/0/5
+    - DUT2.FourHundredGigE0/1/0/5
+
+    DUT1_DUT2_LC1_6:
+    - DUT1.FourHundredGigE0/1/0/6
+    - DUT2.FourHundredGigE0/1/0/6
+
+    DUT1_DUT2_LC1_7:
+    - DUT1.FourHundredGigE0/1/0/7
+    - DUT2.FourHundredGigE0/1/0/7
+
+    DUT1_DUT2_LC1_8:
+    - DUT1.FourHundredGigE0/1/0/8
+    - DUT2.FourHundredGigE0/1/0/8
+
+    DUT1_DUT2_LC1_9:
+    - DUT1.FourHundredGigE0/1/0/9
+    - DUT2.FourHundredGigE0/1/0/9
+
+    DUT1_DUT2_LC1_10:
+    - DUT1.FourHundredGigE0/1/0/10
+    - DUT2.FourHundredGigE0/1/0/10
+
+    DUT1_DUT2_LC1_11:
+    - DUT1.FourHundredGigE0/1/0/11
+    - DUT2.FourHundredGigE0/1/0/11
+
+    DUT1_DUT2_LC1_12:
+    - DUT1.FourHundredGigE0/1/0/12
+    - DUT2.FourHundredGigE0/1/0/12
+
+    DUT1_DUT2_LC1_13:
+    - DUT1.FourHundredGigE0/1/0/13
+    - DUT2.FourHundredGigE0/1/0/13
+
+    DUT1_DUT2_LC1_14:
+    - DUT1.FourHundredGigE0/1/0/14
+    - DUT2.FourHundredGigE0/1/0/14
+
+    DUT1_DUT2_LC1_15:
+    - DUT1.FourHundredGigE0/1/0/15
+    - DUT2.FourHundredGigE0/1/0/15
+
+    DUT1_DUT2_LC1_16:
+    - DUT1.FourHundredGigE0/1/0/16
+    - DUT2.FourHundredGigE0/1/0/16
+
+    DUT1_DUT2_LC1_17:
+    - DUT1.FourHundredGigE0/1/0/17
+    - DUT2.FourHundredGigE0/1/0/17
+
+    DUT1_DUT2_LC1_18:
+    - DUT1.FourHundredGigE0/1/0/18
+    - DUT2.FourHundredGigE0/1/0/18
+
+    DUT1_DUT2_LC1_19:
+    - DUT1.FourHundredGigE0/1/0/19
+    - DUT2.FourHundredGigE0/1/0/19
+
+    DUT1_DUT2_LC1_20:
+    - DUT1.FourHundredGigE0/1/0/20
+    - DUT2.FourHundredGigE0/1/0/20
+
+    DUT1_DUT2_LC1_21:
+    - DUT1.FourHundredGigE0/1/0/21
+    - DUT2.FourHundredGigE0/1/0/21
+
+    DUT1_DUT2_LC1_22:
+    - DUT1.FourHundredGigE0/1/0/22
+    - DUT2.FourHundredGigE0/1/0/22
+
+    DUT1_DUT2_LC1_23:
+    - DUT1.FourHundredGigE0/1/0/23
+    - DUT2.FourHundredGigE0/1/0/23
+
+    DUT1_DUT2_LC1_24:
+    - DUT1.FourHundredGigE0/1/0/24
+    - DUT2.FourHundredGigE0/1/0/24
+
+    DUT1_DUT2_LC1_25:
+    - DUT1.FourHundredGigE0/1/0/25
+    - DUT2.FourHundredGigE0/1/0/25
+
+    DUT1_DUT2_LC1_26:
+    - DUT1.FourHundredGigE0/1/0/26
+    - DUT2.FourHundredGigE0/1/0/26
+
+    DUT1_DUT2_LC1_27:
+    - DUT1.FourHundredGigE0/1/0/27
+    - DUT2.FourHundredGigE0/1/0/27
+
+    DUT1_DUT2_LC1_28:
+    - DUT1.FourHundredGigE0/1/0/28
+    - DUT2.FourHundredGigE0/1/0/28
+
+    DUT1_DUT2_LC1_29:
+    - DUT1.FourHundredGigE0/1/0/29
+    - DUT2.FourHundredGigE0/1/0/29
+
+    DUT1_DUT2_LC1_30:
+    - DUT1.FourHundredGigE0/1/0/30
+    - DUT2.FourHundredGigE0/1/0/30
+
+    DUT1_DUT2_LC1_31:
+    - DUT1.FourHundredGigE0/1/0/31
+    - DUT2.FourHundredGigE0/1/0/31
+
+    DUT1_DUT2_LC1_32:
+    - DUT1.FourHundredGigE0/1/0/32
+    - DUT2.FourHundredGigE0/1/0/32
+
+    DUT1_DUT2_LC1_33:
+    - DUT1.FourHundredGigE0/1/0/33
+    - DUT2.FourHundredGigE0/1/0/33
+
+    DUT1_DUT2_LC1_34:
+    - DUT1.FourHundredGigE0/1/0/34
+    - DUT2.FourHundredGigE0/1/0/34
+
+    DUT1_DUT2_LC1_35:
+    - DUT1.FourHundredGigE0/1/0/35
+    - DUT2.FourHundredGigE0/1/0/35
+
+    DUT1_DUT2_LC2_0:
+    - DUT1.FourHundredGigE0/2/0/0
+    - DUT2.FourHundredGigE0/2/0/0
+
+    DUT1_DUT2_LC2_1:
+    - DUT1.FourHundredGigE0/2/0/1
+    - DUT2.FourHundredGigE0/2/0/1
+
+    DUT1_DUT2_LC2_2:
+    - DUT1.FourHundredGigE0/2/0/2
+    - DUT2.FourHundredGigE0/2/0/2
+
+    DUT1_DUT2_LC2_3:
+    - DUT1.FourHundredGigE0/2/0/3
+    - DUT2.FourHundredGigE0/2/0/3
+
+    DUT1_DUT2_LC2_4:
+    - DUT1.FourHundredGigE0/2/0/4
+    - DUT2.FourHundredGigE0/2/0/4
+
+    DUT1_DUT2_LC2_5:
+    - DUT1.FourHundredGigE0/2/0/5
+    - DUT2.FourHundredGigE0/2/0/5
+
+    DUT1_DUT2_LC2_6:
+    - DUT1.FourHundredGigE0/2/0/6
+    - DUT2.FourHundredGigE0/2/0/6
+
+    DUT1_DUT2_LC2_7:
+    - DUT1.FourHundredGigE0/2/0/7
+    - DUT2.FourHundredGigE0/2/0/7
+
+    DUT1_DUT2_LC2_8:
+    - DUT1.FourHundredGigE0/2/0/8
+    - DUT2.FourHundredGigE0/2/0/8
+
+    DUT1_DUT2_LC2_9:
+    - DUT1.FourHundredGigE0/2/0/9
+    - DUT2.FourHundredGigE0/2/0/9
+
+    DUT1_DUT2_LC2_10:
+    - DUT1.FourHundredGigE0/2/0/10
+    - DUT2.FourHundredGigE0/2/0/10
+
+    DUT1_DUT2_LC2_11:
+    - DUT1.FourHundredGigE0/2/0/11
+    - DUT2.FourHundredGigE0/2/0/11
+
+    DUT1_DUT2_LC2_12:
+    - DUT1.FourHundredGigE0/2/0/12
+    - DUT2.FourHundredGigE0/2/0/12
+
+    DUT1_DUT2_LC2_13:
+    - DUT1.FourHundredGigE0/2/0/13
+    - DUT2.FourHundredGigE0/2/0/13
+
+    DUT1_DUT2_LC2_14:
+    - DUT1.FourHundredGigE0/2/0/14
+    - DUT2.FourHundredGigE0/2/0/14
+
+    DUT1_DUT2_LC2_15:
+    - DUT1.FourHundredGigE0/2/0/15
+    - DUT2.FourHundredGigE0/2/0/15
+
+    DUT1_DUT2_LC2_16:
+    - DUT1.FourHundredGigE0/2/0/16
+    - DUT2.FourHundredGigE0/2/0/16
+
+    DUT1_DUT2_LC2_17:
+    - DUT1.FourHundredGigE0/2/0/17
+    - DUT2.FourHundredGigE0/2/0/17
+
+    DUT1_DUT2_LC2_18:
+    - DUT1.FourHundredGigE0/2/0/18
+    - DUT2.FourHundredGigE0/2/0/18
+
+    DUT1_DUT2_LC2_19:
+    - DUT1.FourHundredGigE0/2/0/19
+    - DUT2.FourHundredGigE0/2/0/19
+
+    DUT1_DUT2_LC2_20:
+    - DUT1.FourHundredGigE0/2/0/20
+    - DUT2.FourHundredGigE0/2/0/20
+
+    DUT1_DUT2_LC2_21:
+    - DUT1.FourHundredGigE0/2/0/21
+    - DUT2.FourHundredGigE0/2/0/21
+
+    DUT1_DUT2_LC2_22:
+    - DUT1.FourHundredGigE0/2/0/22
+    - DUT2.FourHundredGigE0/2/0/22
+
+    DUT1_DUT2_LC2_23:
+    - DUT1.FourHundredGigE0/2/0/23
+    - DUT2.FourHundredGigE0/2/0/23
+
+    DUT1_DUT2_LC2_24:
+    - DUT1.FourHundredGigE0/2/0/24
+    - DUT2.FourHundredGigE0/2/0/24
+
+    DUT1_DUT2_LC2_25:
+    - DUT1.FourHundredGigE0/2/0/25
+    - DUT2.FourHundredGigE0/2/0/25
+
+    DUT1_DUT2_LC2_26:
+    - DUT1.FourHundredGigE0/2/0/26
+    - DUT2.FourHundredGigE0/2/0/26
+
+    DUT1_DUT2_LC2_27:
+    - DUT1.FourHundredGigE0/2/0/27
+    - DUT2.FourHundredGigE0/2/0/27
+
+    DUT1_DUT2_LC2_28:
+    - DUT1.FourHundredGigE0/2/0/28
+    - DUT2.FourHundredGigE0/2/0/28
+
+    DUT1_DUT2_LC2_29:
+    - DUT1.FourHundredGigE0/2/0/29
+    - DUT2.FourHundredGigE0/2/0/29
+
+    DUT1_DUT2_LC2_30:
+    - DUT1.FourHundredGigE0/2/0/30
+    - DUT2.FourHundredGigE0/2/0/30
+
+    DUT1_DUT2_LC2_31:
+    - DUT1.FourHundredGigE0/2/0/31
+    - DUT2.FourHundredGigE0/2/0/31
+
+    DUT1_DUT2_LC2_32:
+    - DUT1.FourHundredGigE0/2/0/32
+    - DUT2.FourHundredGigE0/2/0/32
+
+    DUT1_DUT2_LC2_33:
+    - DUT1.FourHundredGigE0/2/0/33
+    - DUT2.FourHundredGigE0/2/0/33
+
+    DUT1_DUT2_LC2_34:
+    - DUT1.FourHundredGigE0/2/0/34
+    - DUT2.FourHundredGigE0/2/0/34
+
+    DUT1_DUT2_LC2_35:
+    - DUT1.FourHundredGigE0/2/0/35
+    - DUT2.FourHundredGigE0/2/0/35
+
+    DUT1_DUT2_LC3_0:
+    - DUT1.FourHundredGigE0/3/0/0
+    - DUT2.FourHundredGigE0/3/0/0
+
+    DUT1_DUT2_LC3_1:
+    - DUT1.FourHundredGigE0/3/0/1
+    - DUT2.FourHundredGigE0/3/0/1
+
+    DUT1_DUT2_LC3_2:
+    - DUT1.FourHundredGigE0/3/0/2
+    - DUT2.FourHundredGigE0/3/0/2
+
+    DUT1_DUT2_LC3_3:
+    - DUT1.FourHundredGigE0/3/0/3
+    - DUT2.FourHundredGigE0/3/0/3
+
+    DUT1_DUT2_LC3_4:
+    - DUT1.FourHundredGigE0/3/0/4
+    - DUT2.FourHundredGigE0/3/0/4
+
+    DUT1_DUT2_LC3_5:
+    - DUT1.FourHundredGigE0/3/0/5
+    - DUT2.FourHundredGigE0/3/0/5
+
+    DUT1_DUT2_LC3_6:
+    - DUT1.FourHundredGigE0/3/0/6
+    - DUT2.FourHundredGigE0/3/0/6
+
+    DUT1_DUT2_LC3_7:
+    - DUT1.FourHundredGigE0/3/0/7
+    - DUT2.FourHundredGigE0/3/0/7
+
+    DUT1_DUT2_LC3_8:
+    - DUT1.FourHundredGigE0/3/0/8
+    - DUT2.FourHundredGigE0/3/0/8
+
+    DUT1_DUT2_LC3_9:
+    - DUT1.FourHundredGigE0/3/0/9
+    - DUT2.FourHundredGigE0/3/0/9
+
+    DUT1_DUT2_LC3_10:
+    - DUT1.FourHundredGigE0/3/0/10
+    - DUT2.FourHundredGigE0/3/0/10
+
+    DUT1_DUT2_LC3_11:
+    - DUT1.FourHundredGigE0/3/0/11
+    - DUT2.FourHundredGigE0/3/0/11
+
+    DUT1_DUT2_LC3_12:
+    - DUT1.FourHundredGigE0/3/0/12
+    - DUT2.FourHundredGigE0/3/0/12
+
+    DUT1_DUT2_LC3_13:
+    - DUT1.FourHundredGigE0/3/0/13
+    - DUT2.FourHundredGigE0/3/0/13
+
+    DUT1_DUT2_LC3_14:
+    - DUT1.FourHundredGigE0/3/0/14
+    - DUT2.FourHundredGigE0/3/0/14
+
+    DUT1_DUT2_LC3_15:
+    - DUT1.FourHundredGigE0/3/0/15
+    - DUT2.FourHundredGigE0/3/0/15
+
+    DUT1_DUT2_LC3_16:
+    - DUT1.FourHundredGigE0/3/0/16
+    - DUT2.FourHundredGigE0/3/0/16
+
+    DUT1_DUT2_LC3_17:
+    - DUT1.FourHundredGigE0/3/0/17
+    - DUT2.FourHundredGigE0/3/0/17
+
+    DUT1_DUT2_LC3_18:
+    - DUT1.FourHundredGigE0/3/0/18
+    - DUT2.FourHundredGigE0/3/0/18
+
+    DUT1_DUT2_LC3_19:
+    - DUT1.FourHundredGigE0/3/0/19
+    - DUT2.FourHundredGigE0/3/0/19
+
+    DUT1_DUT2_LC3_20:
+    - DUT1.FourHundredGigE0/3/0/20
+    - DUT2.FourHundredGigE0/3/0/20
+
+    DUT1_DUT2_LC3_21:
+    - DUT1.FourHundredGigE0/3/0/21
+    - DUT2.FourHundredGigE0/3/0/21
+
+    DUT1_DUT2_LC3_22:
+    - DUT1.FourHundredGigE0/3/0/22
+    - DUT2.FourHundredGigE0/3/0/22
+
+    DUT1_DUT2_LC3_23:
+    - DUT1.FourHundredGigE0/3/0/23
+    - DUT2.FourHundredGigE0/3/0/23
+
+    DUT1_DUT2_LC3_24:
+    - DUT1.FourHundredGigE0/3/0/24
+    - DUT2.FourHundredGigE0/3/0/24
+
+    DUT1_DUT2_LC3_25:
+    - DUT1.FourHundredGigE0/3/0/25
+    - DUT2.FourHundredGigE0/3/0/25
+
+    DUT1_DUT2_LC3_26:
+    - DUT1.FourHundredGigE0/3/0/26
+    - DUT2.FourHundredGigE0/3/0/26
+
+    DUT1_DUT2_LC3_27:
+    - DUT1.FourHundredGigE0/3/0/27
+    - DUT2.FourHundredGigE0/3/0/27
+
+    DUT1_DUT2_LC3_28:
+    - DUT1.FourHundredGigE0/3/0/28
+    - DUT2.FourHundredGigE0/3/0/28
+
+    DUT1_DUT2_LC3_29:
+    - DUT1.FourHundredGigE0/3/0/29
+    - DUT2.FourHundredGigE0/3/0/29
+
+    DUT1_DUT2_LC3_30:
+    - DUT1.FourHundredGigE0/3/0/30
+    - DUT2.FourHundredGigE0/3/0/30
+
+    DUT1_DUT2_LC3_31:
+    - DUT1.FourHundredGigE0/3/0/31
+    - DUT2.FourHundredGigE0/3/0/31
+
+    DUT1_DUT2_LC3_32:
+    - DUT1.FourHundredGigE0/3/0/32
+    - DUT2.FourHundredGigE0/3/0/32
+
+    DUT1_DUT2_LC3_33:
+    - DUT1.FourHundredGigE0/3/0/33
+    - DUT2.FourHundredGigE0/3/0/33
+
+    DUT1_DUT2_LC3_34:
+    - DUT1.FourHundredGigE0/3/0/34
+    - DUT2.FourHundredGigE0/3/0/34
+
+    DUT1_DUT2_LC3_35:
+    - DUT1.FourHundredGigE0/3/0/35
+    - DUT2.FourHundredGigE0/3/0/35
+
+    DUT1_DUT2_LC4_0:
+    - DUT1.FourHundredGigE0/4/0/0
+    - DUT2.FourHundredGigE0/4/0/0
+
+    DUT1_DUT2_LC4_1:
+    - DUT1.FourHundredGigE0/4/0/1
+    - DUT2.FourHundredGigE0/4/0/1
+
+    DUT1_DUT2_LC4_2:
+    - DUT1.FourHundredGigE0/4/0/2
+    - DUT2.FourHundredGigE0/4/0/2
+
+    DUT1_DUT2_LC4_3:
+    - DUT1.FourHundredGigE0/4/0/3
+    - DUT2.FourHundredGigE0/4/0/3
+
+    DUT1_DUT2_LC4_4:
+    - DUT1.FourHundredGigE0/4/0/4
+    - DUT2.FourHundredGigE0/4/0/4
+
+    DUT1_DUT2_LC4_5:
+    - DUT1.FourHundredGigE0/4/0/5
+    - DUT2.FourHundredGigE0/4/0/5
+
+    DUT1_DUT2_LC4_6:
+    - DUT1.FourHundredGigE0/4/0/6
+    - DUT2.FourHundredGigE0/4/0/6
+
+    DUT1_DUT2_LC4_7:
+    - DUT1.FourHundredGigE0/4/0/7
+    - DUT2.FourHundredGigE0/4/0/7
+
+    DUT1_DUT2_LC4_8:
+    - DUT1.FourHundredGigE0/4/0/8
+    - DUT2.FourHundredGigE0/4/0/8
+
+    DUT1_DUT2_LC4_9:
+    - DUT1.FourHundredGigE0/4/0/9
+    - DUT2.FourHundredGigE0/4/0/9
+
+    DUT1_DUT2_LC4_10:
+    - DUT1.FourHundredGigE0/4/0/10
+    - DUT2.FourHundredGigE0/4/0/10
+
+    DUT1_DUT2_LC4_11:
+    - DUT1.FourHundredGigE0/4/0/11
+    - DUT2.FourHundredGigE0/4/0/11
+
+    DUT1_DUT2_LC4_12:
+    - DUT1.FourHundredGigE0/4/0/12
+    - DUT2.FourHundredGigE0/4/0/12
+
+    DUT1_DUT2_LC4_13:
+    - DUT1.FourHundredGigE0/4/0/13
+    - DUT2.FourHundredGigE0/4/0/13
+
+    DUT1_DUT2_LC4_14:
+    - DUT1.FourHundredGigE0/4/0/14
+    - DUT2.FourHundredGigE0/4/0/14
+
+    DUT1_DUT2_LC4_15:
+    - DUT1.FourHundredGigE0/4/0/15
+    - DUT2.FourHundredGigE0/4/0/15
+
+    DUT1_DUT2_LC4_16:
+    - DUT1.FourHundredGigE0/4/0/16
+    - DUT2.FourHundredGigE0/4/0/16
+
+    DUT1_DUT2_LC4_17:
+    - DUT1.FourHundredGigE0/4/0/17
+    - DUT2.FourHundredGigE0/4/0/17
+
+    DUT1_DUT2_LC4_18:
+    - DUT1.FourHundredGigE0/4/0/18
+    - DUT2.FourHundredGigE0/4/0/18
+
+    DUT1_DUT2_LC4_19:
+    - DUT1.FourHundredGigE0/4/0/19
+    - DUT2.FourHundredGigE0/4/0/19
+
+    DUT1_DUT2_LC4_20:
+    - DUT1.FourHundredGigE0/4/0/20
+    - DUT2.FourHundredGigE0/4/0/20
+
+    DUT1_DUT2_LC4_21:
+    - DUT1.FourHundredGigE0/4/0/21
+    - DUT2.FourHundredGigE0/4/0/21
+
+    DUT1_DUT2_LC4_22:
+    - DUT1.FourHundredGigE0/4/0/22
+    - DUT2.FourHundredGigE0/4/0/22
+
+    DUT1_DUT2_LC4_23:
+    - DUT1.FourHundredGigE0/4/0/23
+    - DUT2.FourHundredGigE0/4/0/23
+
+    DUT1_DUT2_LC4_24:
+    - DUT1.FourHundredGigE0/4/0/24
+    - DUT2.FourHundredGigE0/4/0/24
+
+    DUT1_DUT2_LC4_25:
+    - DUT1.FourHundredGigE0/4/0/25
+    - DUT2.FourHundredGigE0/4/0/25
+
+    DUT1_DUT2_LC4_26:
+    - DUT1.FourHundredGigE0/4/0/26
+    - DUT2.FourHundredGigE0/4/0/26
+
+    DUT1_DUT2_LC4_27:
+    - DUT1.FourHundredGigE0/4/0/27
+    - DUT2.FourHundredGigE0/4/0/27
+
+    DUT1_DUT2_LC4_28:
+    - DUT1.FourHundredGigE0/4/0/28
+    - DUT2.FourHundredGigE0/4/0/28
+
+    DUT1_DUT2_LC4_29:
+    - DUT1.FourHundredGigE0/4/0/29
+    - DUT2.FourHundredGigE0/4/0/29
+
+    DUT1_DUT2_LC4_30:
+    - DUT1.FourHundredGigE0/4/0/30
+    - DUT2.FourHundredGigE0/4/0/30
+
+    DUT1_DUT2_LC4_31:
+    - DUT1.FourHundredGigE0/4/0/31
+    - DUT2.FourHundredGigE0/4/0/31
+
+    DUT1_DUT2_LC4_32:
+    - DUT1.FourHundredGigE0/4/0/32
+    - DUT2.FourHundredGigE0/4/0/32
+
+    DUT1_DUT2_LC4_33:
+    - DUT1.FourHundredGigE0/4/0/33
+    - DUT2.FourHundredGigE0/4/0/33
+
+    DUT1_DUT2_LC4_34:
+    - DUT1.FourHundredGigE0/4/0/34
+    - DUT2.FourHundredGigE0/4/0/34
+
+    DUT1_DUT2_LC4_35:
+    - DUT1.FourHundredGigE0/4/0/35
+    - DUT2.FourHundredGigE0/4/0/35
+
+    DUT1_DUT2_LC5_0:
+    - DUT1.FourHundredGigE0/5/0/0
+    - DUT2.FourHundredGigE0/5/0/0
+
+    DUT1_DUT2_LC5_1:
+    - DUT1.FourHundredGigE0/5/0/1
+    - DUT2.FourHundredGigE0/5/0/1
+
+    DUT1_DUT2_LC5_2:
+    - DUT1.FourHundredGigE0/5/0/2
+    - DUT2.FourHundredGigE0/5/0/2
+
+    DUT1_DUT2_LC5_3:
+    - DUT1.FourHundredGigE0/5/0/3
+    - DUT2.FourHundredGigE0/5/0/3
+
+    DUT1_DUT2_LC5_4:
+    - DUT1.FourHundredGigE0/5/0/4
+    - DUT2.FourHundredGigE0/5/0/4
+
+    DUT1_DUT2_LC5_5:
+    - DUT1.FourHundredGigE0/5/0/5
+    - DUT2.FourHundredGigE0/5/0/5
+
+    DUT1_DUT2_LC5_6:
+    - DUT1.FourHundredGigE0/5/0/6
+    - DUT2.FourHundredGigE0/5/0/6
+
+    DUT1_DUT2_LC5_7:
+    - DUT1.FourHundredGigE0/5/0/7
+    - DUT2.FourHundredGigE0/5/0/7
+
+    DUT1_DUT2_LC5_8:
+    - DUT1.FourHundredGigE0/5/0/8
+    - DUT2.FourHundredGigE0/5/0/8
+
+    DUT1_DUT2_LC5_9:
+    - DUT1.FourHundredGigE0/5/0/9
+    - DUT2.FourHundredGigE0/5/0/9
+
+    DUT1_DUT2_LC5_10:
+    - DUT1.FourHundredGigE0/5/0/10
+    - DUT2.FourHundredGigE0/5/0/10
+
+    DUT1_DUT2_LC5_11:
+    - DUT1.FourHundredGigE0/5/0/11
+    - DUT2.FourHundredGigE0/5/0/11
+
+    DUT1_DUT2_LC5_12:
+    - DUT1.FourHundredGigE0/5/0/12
+    - DUT2.FourHundredGigE0/5/0/12
+
+    DUT1_DUT2_LC5_13:
+    - DUT1.FourHundredGigE0/5/0/13
+    - DUT2.FourHundredGigE0/5/0/13
+
+    DUT1_DUT2_LC5_14:
+    - DUT1.FourHundredGigE0/5/0/14
+    - DUT2.FourHundredGigE0/5/0/14
+
+    DUT1_DUT2_LC5_15:
+    - DUT1.FourHundredGigE0/5/0/15
+    - DUT2.FourHundredGigE0/5/0/15
+
+    DUT1_DUT2_LC5_16:
+    - DUT1.FourHundredGigE0/5/0/16
+    - DUT2.FourHundredGigE0/5/0/16
+
+    DUT1_DUT2_LC5_17:
+    - DUT1.FourHundredGigE0/5/0/17
+    - DUT2.FourHundredGigE0/5/0/17
+
+    DUT1_DUT2_LC5_18:
+    - DUT1.FourHundredGigE0/5/0/18
+    - DUT2.FourHundredGigE0/5/0/18
+
+    DUT1_DUT2_LC5_19:
+    - DUT1.FourHundredGigE0/5/0/19
+    - DUT2.FourHundredGigE0/5/0/19
+
+    DUT1_DUT2_LC5_20:
+    - DUT1.FourHundredGigE0/5/0/20
+    - DUT2.FourHundredGigE0/5/0/20
+
+    DUT1_DUT2_LC5_21:
+    - DUT1.FourHundredGigE0/5/0/21
+    - DUT2.FourHundredGigE0/5/0/21
+
+    DUT1_DUT2_LC5_22:
+    - DUT1.FourHundredGigE0/5/0/22
+    - DUT2.FourHundredGigE0/5/0/22
+
+    DUT1_DUT2_LC5_23:
+    - DUT1.FourHundredGigE0/5/0/23
+    - DUT2.FourHundredGigE0/5/0/23
+
+    DUT1_DUT2_LC5_24:
+    - DUT1.FourHundredGigE0/5/0/24
+    - DUT2.FourHundredGigE0/5/0/24
+
+    DUT1_DUT2_LC5_25:
+    - DUT1.FourHundredGigE0/5/0/25
+    - DUT2.FourHundredGigE0/5/0/25
+
+    DUT1_DUT2_LC5_26:
+    - DUT1.FourHundredGigE0/5/0/26
+    - DUT2.FourHundredGigE0/5/0/26
+
+    DUT1_DUT2_LC5_27:
+    - DUT1.FourHundredGigE0/5/0/27
+    - DUT2.FourHundredGigE0/5/0/27
+
+    DUT1_DUT2_LC5_28:
+    - DUT1.FourHundredGigE0/5/0/28
+    - DUT2.FourHundredGigE0/5/0/28
+
+    DUT1_DUT2_LC5_29:
+    - DUT1.FourHundredGigE0/5/0/29
+    - DUT2.FourHundredGigE0/5/0/29
+
+    DUT1_DUT2_LC5_30:
+    - DUT1.FourHundredGigE0/5/0/30
+    - DUT2.FourHundredGigE0/5/0/30
+
+    DUT1_DUT2_LC5_31:
+    - DUT1.FourHundredGigE0/5/0/31
+    - DUT2.FourHundredGigE0/5/0/31
+
+    DUT1_DUT2_LC5_32:
+    - DUT1.FourHundredGigE0/5/0/32
+    - DUT2.FourHundredGigE0/5/0/32
+
+    DUT1_DUT2_LC5_33:
+    - DUT1.FourHundredGigE0/5/0/33
+    - DUT2.FourHundredGigE0/5/0/33
+
+    DUT1_DUT2_LC5_34:
+    - DUT1.FourHundredGigE0/5/0/34
+    - DUT2.FourHundredGigE0/5/0/34
+
+    DUT1_DUT2_LC5_35:
+    - DUT1.FourHundredGigE0/5/0/35
+    - DUT2.FourHundredGigE0/5/0/35
+
+    DUT1_DUT2_LC6_0:
+    - DUT1.FourHundredGigE0/6/0/0
+    - DUT2.FourHundredGigE0/6/0/0
+
+    DUT1_DUT2_LC6_1:
+    - DUT1.FourHundredGigE0/6/0/1
+    - DUT2.FourHundredGigE0/6/0/1
+
+    DUT1_DUT2_LC6_2:
+    - DUT1.FourHundredGigE0/6/0/2
+    - DUT2.FourHundredGigE0/6/0/2
+
+    DUT1_DUT2_LC6_3:
+    - DUT1.FourHundredGigE0/6/0/3
+    - DUT2.FourHundredGigE0/6/0/3
+
+    DUT1_DUT2_LC6_4:
+    - DUT1.FourHundredGigE0/6/0/4
+    - DUT2.FourHundredGigE0/6/0/4
+
+    DUT1_DUT2_LC6_5:
+    - DUT1.FourHundredGigE0/6/0/5
+    - DUT2.FourHundredGigE0/6/0/5
+
+    DUT1_DUT2_LC6_6:
+    - DUT1.FourHundredGigE0/6/0/6
+    - DUT2.FourHundredGigE0/6/0/6
+
+    DUT1_DUT2_LC6_7:
+    - DUT1.FourHundredGigE0/6/0/7
+    - DUT2.FourHundredGigE0/6/0/7
+
+    DUT1_DUT2_LC6_8:
+    - DUT1.FourHundredGigE0/6/0/8
+    - DUT2.FourHundredGigE0/6/0/8
+
+    DUT1_DUT2_LC6_9:
+    - DUT1.FourHundredGigE0/6/0/9
+    - DUT2.FourHundredGigE0/6/0/9
+
+    DUT1_DUT2_LC6_10:
+    - DUT1.FourHundredGigE0/6/0/10
+    - DUT2.FourHundredGigE0/6/0/10
+
+    DUT1_DUT2_LC6_11:
+    - DUT1.FourHundredGigE0/6/0/11
+    - DUT2.FourHundredGigE0/6/0/11
+
+    DUT1_DUT2_LC6_12:
+    - DUT1.FourHundredGigE0/6/0/12
+    - DUT2.FourHundredGigE0/6/0/12
+
+    DUT1_DUT2_LC6_13:
+    - DUT1.FourHundredGigE0/6/0/13
+    - DUT2.FourHundredGigE0/6/0/13
+
+    DUT1_DUT2_LC6_14:
+    - DUT1.FourHundredGigE0/6/0/14
+    - DUT2.FourHundredGigE0/6/0/14
+
+    DUT1_DUT2_LC6_15:
+    - DUT1.FourHundredGigE0/6/0/15
+    - DUT2.FourHundredGigE0/6/0/15
+
+    DUT1_DUT2_LC6_16:
+    - DUT1.FourHundredGigE0/6/0/16
+    - DUT2.FourHundredGigE0/6/0/16
+
+    DUT1_DUT2_LC6_17:
+    - DUT1.FourHundredGigE0/6/0/17
+    - DUT2.FourHundredGigE0/6/0/17
+
+    DUT1_DUT2_LC6_18:
+    - DUT1.FourHundredGigE0/6/0/18
+    - DUT2.FourHundredGigE0/6/0/18
+
+    DUT1_DUT2_LC6_19:
+    - DUT1.FourHundredGigE0/6/0/19
+    - DUT2.FourHundredGigE0/6/0/19
+
+    DUT1_DUT2_LC6_20:
+    - DUT1.FourHundredGigE0/6/0/20
+    - DUT2.FourHundredGigE0/6/0/20
+
+    DUT1_DUT2_LC6_21:
+    - DUT1.FourHundredGigE0/6/0/21
+    - DUT2.FourHundredGigE0/6/0/21
+
+    DUT1_DUT2_LC6_22:
+    - DUT1.FourHundredGigE0/6/0/22
+    - DUT2.FourHundredGigE0/6/0/22
+
+    DUT1_DUT2_LC6_23:
+    - DUT1.FourHundredGigE0/6/0/23
+    - DUT2.FourHundredGigE0/6/0/23
+
+    DUT1_DUT2_LC6_24:
+    - DUT1.FourHundredGigE0/6/0/24
+    - DUT2.FourHundredGigE0/6/0/24
+
+    DUT1_DUT2_LC6_25:
+    - DUT1.FourHundredGigE0/6/0/25
+    - DUT2.FourHundredGigE0/6/0/25
+
+    DUT1_DUT2_LC6_26:
+    - DUT1.FourHundredGigE0/6/0/26
+    - DUT2.FourHundredGigE0/6/0/26
+
+    DUT1_DUT2_LC6_27:
+    - DUT1.FourHundredGigE0/6/0/27
+    - DUT2.FourHundredGigE0/6/0/27
+
+    DUT1_DUT2_LC6_28:
+    - DUT1.FourHundredGigE0/6/0/28
+    - DUT2.FourHundredGigE0/6/0/28
+
+    DUT1_DUT2_LC6_29:
+    - DUT1.FourHundredGigE0/6/0/29
+    - DUT2.FourHundredGigE0/6/0/29
+
+    DUT1_DUT2_LC6_30:
+    - DUT1.FourHundredGigE0/6/0/30
+    - DUT2.FourHundredGigE0/6/0/30
+
+    DUT1_DUT2_LC6_31:
+    - DUT1.FourHundredGigE0/6/0/31
+    - DUT2.FourHundredGigE0/6/0/31
+
+    DUT1_DUT2_LC6_32:
+    - DUT1.FourHundredGigE0/6/0/32
+    - DUT2.FourHundredGigE0/6/0/32
+
+    DUT1_DUT2_LC6_33:
+    - DUT1.FourHundredGigE0/6/0/33
+    - DUT2.FourHundredGigE0/6/0/33
+
+    DUT1_DUT2_LC6_34:
+    - DUT1.FourHundredGigE0/6/0/34
+    - DUT2.FourHundredGigE0/6/0/34
+
+    DUT1_DUT2_LC6_35:
+    - DUT1.FourHundredGigE0/6/0/35
+    - DUT2.FourHundredGigE0/6/0/35
+
+    DUT1_DUT2_LC7_0:
+    - DUT1.FourHundredGigE0/7/0/0
+    - DUT2.FourHundredGigE0/7/0/0
+
+    DUT1_DUT2_LC7_1:
+    - DUT1.FourHundredGigE0/7/0/1
+    - DUT2.FourHundredGigE0/7/0/1
+
+    DUT1_DUT2_LC7_2:
+    - DUT1.FourHundredGigE0/7/0/2
+    - DUT2.FourHundredGigE0/7/0/2
+
+    DUT1_DUT2_LC7_3:
+    - DUT1.FourHundredGigE0/7/0/3
+    - DUT2.FourHundredGigE0/7/0/3
+
+    DUT1_DUT2_LC7_4:
+    - DUT1.FourHundredGigE0/7/0/4
+    - DUT2.FourHundredGigE0/7/0/4
+
+    DUT1_DUT2_LC7_5:
+    - DUT1.FourHundredGigE0/7/0/5
+    - DUT2.FourHundredGigE0/7/0/5
+
+    DUT1_DUT2_LC7_6:
+    - DUT1.FourHundredGigE0/7/0/6
+    - DUT2.FourHundredGigE0/7/0/6
+
+    DUT1_DUT2_LC7_7:
+    - DUT1.FourHundredGigE0/7/0/7
+    - DUT2.FourHundredGigE0/7/0/7
+
+    DUT1_DUT2_LC7_8:
+    - DUT1.FourHundredGigE0/7/0/8
+    - DUT2.FourHundredGigE0/7/0/8
+
+    DUT1_DUT2_LC7_9:
+    - DUT1.FourHundredGigE0/7/0/9
+    - DUT2.FourHundredGigE0/7/0/9
+
+    DUT1_DUT2_LC7_10:
+    - DUT1.FourHundredGigE0/7/0/10
+    - DUT2.FourHundredGigE0/7/0/10
+
+    DUT1_DUT2_LC7_11:
+    - DUT1.FourHundredGigE0/7/0/11
+    - DUT2.FourHundredGigE0/7/0/11
+
+    DUT1_DUT2_LC7_12:
+    - DUT1.FourHundredGigE0/7/0/12
+    - DUT2.FourHundredGigE0/7/0/12
+
+    DUT1_DUT2_LC7_13:
+    - DUT1.FourHundredGigE0/7/0/13
+    - DUT2.FourHundredGigE0/7/0/13
+
+    DUT1_DUT2_LC7_14:
+    - DUT1.FourHundredGigE0/7/0/14
+    - DUT2.FourHundredGigE0/7/0/14
+
+    DUT1_DUT2_LC7_15:
+    - DUT1.FourHundredGigE0/7/0/15
+    - DUT2.FourHundredGigE0/7/0/15
+
+    DUT1_DUT2_LC7_16:
+    - DUT1.FourHundredGigE0/7/0/16
+    - DUT2.FourHundredGigE0/7/0/16
+
+    DUT1_DUT2_LC7_17:
+    - DUT1.FourHundredGigE0/7/0/17
+    - DUT2.FourHundredGigE0/7/0/17
+
+    DUT1_DUT2_LC7_18:
+    - DUT1.FourHundredGigE0/7/0/18
+    - DUT2.FourHundredGigE0/7/0/18
+
+    DUT1_DUT2_LC7_19:
+    - DUT1.FourHundredGigE0/7/0/19
+    - DUT2.FourHundredGigE0/7/0/19
+
+    DUT1_DUT2_LC7_20:
+    - DUT1.FourHundredGigE0/7/0/20
+    - DUT2.FourHundredGigE0/7/0/20
+
+    DUT1_DUT2_LC7_21:
+    - DUT1.FourHundredGigE0/7/0/21
+    - DUT2.FourHundredGigE0/7/0/21
+
+    DUT1_DUT2_LC7_22:
+    - DUT1.FourHundredGigE0/7/0/22
+    - DUT2.FourHundredGigE0/7/0/22
+
+    DUT1_DUT2_LC7_23:
+    - DUT1.FourHundredGigE0/7/0/23
+    - DUT2.FourHundredGigE0/7/0/23
+
+    DUT1_DUT2_LC7_24:
+    - DUT1.FourHundredGigE0/7/0/24
+    - DUT2.FourHundredGigE0/7/0/24
+
+    DUT1_DUT2_LC7_25:
+    - DUT1.FourHundredGigE0/7/0/25
+    - DUT2.FourHundredGigE0/7/0/25
+
+    DUT1_DUT2_LC7_26:
+    - DUT1.FourHundredGigE0/7/0/26
+    - DUT2.FourHundredGigE0/7/0/26
+
+    DUT1_DUT2_LC7_27:
+    - DUT1.FourHundredGigE0/7/0/27
+    - DUT2.FourHundredGigE0/7/0/27
+
+    DUT1_DUT2_LC7_28:
+    - DUT1.FourHundredGigE0/7/0/28
+    - DUT2.FourHundredGigE0/7/0/28
+
+    DUT1_DUT2_LC7_29:
+    - DUT1.FourHundredGigE0/7/0/29
+    - DUT2.FourHundredGigE0/7/0/29
+
+    DUT1_DUT2_LC7_30:
+    - DUT1.FourHundredGigE0/7/0/30
+    - DUT2.FourHundredGigE0/7/0/30
+
+    DUT1_DUT2_LC7_31:
+    - DUT1.FourHundredGigE0/7/0/31
+    - DUT2.FourHundredGigE0/7/0/31
+
+    DUT1_DUT2_LC7_32:
+    - DUT1.FourHundredGigE0/7/0/32
+    - DUT2.FourHundredGigE0/7/0/32
+
+    DUT1_DUT2_LC7_33:
+    - DUT1.FourHundredGigE0/7/0/33
+    - DUT2.FourHundredGigE0/7/0/33
+
+    DUT1_DUT2_LC7_34:
+    - DUT1.FourHundredGigE0/7/0/34
+    - DUT2.FourHundredGigE0/7/0/34
+
+    DUT1_DUT2_LC7_35:
+    - DUT1.FourHundredGigE0/7/0/35
+    - DUT2.FourHundredGigE0/7/0/35

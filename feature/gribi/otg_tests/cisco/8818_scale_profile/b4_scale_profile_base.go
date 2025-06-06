@@ -25,6 +25,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -205,6 +206,8 @@ var (
 	primarySubIntfScale         = 1000 //todo increase // number of sub-interfaces on primary bundle interface
 	backupSubIntfScale          = 1000 //todo increase // number of sub-interfaces on backup bundle interface
 	primaryPercent              = 60
+	aggID1                      = ""
+	aggID2                      = ""
 )
 
 type PbrRule struct {
@@ -556,6 +559,7 @@ func configureOTGBundle(t *testing.T, ate *ondatra.ATEDevice, otgIntfAttr, dutIn
 func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) (aggID1, aggID2 string) {
 	t.Log("Configuring DUT-TGEN Bundle interfaces")
 	allPorts := dut.Ports()
+	util.SortOndatraPortsByID(allPorts)
 	n := len(allPorts)
 	mid := n / 2
 	if n%2 != 0 {
@@ -833,8 +837,8 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg.StartProtocols(t)
 	time.Sleep(300 * time.Second) // time for otg ARP to settle
 	t.Log("Verify BGP establsihed after OTG start protocols")
-	// otgutils.WaitForARP(t, otg, args.topo, "IPv4")
-	// otgutils.WaitForARP(t, otg, args.topo, "IPv6")
+	otgutils.WaitForARP(t, otg, args.topo, "IPv4")
+	otgutils.WaitForARP(t, otg, args.topo, "IPv6")
 	cfgplugins.VerifyDUTBGPEstablished(t, args.peer)
 	if capture {
 		startCapture(t, args.ate)
@@ -1050,7 +1054,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 	// t.Log("Configure Fallback in Encap VRF")
 	if interfaceMode == "bundle" {
 		t.Log("Configure DUT-TGEN Bundle Interface")
-		aggID1, aggID2 := configureDUTInterfaces(t, dut)
+		aggID1, aggID2 = configureDUTInterfaces(t, dut)
 		t.Log("Configure DUT-PEER dynamic Bundle Interface")
 		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
 		if len(bundleListAll) < 2 {
@@ -1127,6 +1131,7 @@ func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bgpLink util
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 	t.Log("Config Peer Tgen interface")
 	ports := peer.Ports() // Get the list of ports from peer
+	util.SortOndatraPortsByID(ports)
 	if len(ports) > 0 {
 		peerLastPort := ports[len(ports)-1]
 		gnmi.Replace(t, peer, gnmi.OC().Interface(peerLastPort.Name()).Config(), peerDst.NewOCInterface(peerLastPort.Name(), peer))
@@ -1200,36 +1205,40 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, dut, peer *ondatra.DUTDe
 		peerPortMap[id] = struct{}{}
 	}
 	// Create OTG source and destination ports
-	var dutPorts, peerInterface []*ondatra.Port
+	var otgPortsToDut, otgPortsToPeer []*ondatra.Port
 	for _, p := range otg.Ports() {
 		if _, ok := dutPortMap[p.ID()]; ok {
-			dutPorts = append(dutPorts, p) // rename
+			otgPortsToDut = append(otgPortsToDut, p) // rename
 		} else if _, ok := peerPortMap[p.ID()]; ok {
-			peerInterface = append(peerInterface, p)
+			otgPortsToPeer = append(otgPortsToPeer, p)
 		}
 	}
-	if len(dutPorts) == 0 {
+	if len(otgPortsToDut) == 0 {
 		t.Fatalf("No DUT ports found on OTG device %s", otg.Name())
 	}
-	if len(peerInterface) == 0 {
+	if len(otgPortsToPeer) == 0 {
 		t.Fatalf("No PEER ports found on OTG device %s", otg.Name())
 	}
-	n := len(dutPorts)
+	n := len(otgPortsToDut)
 	mid := n / 2
 	if n%2 != 0 {
 		mid++ // Make first bundle larger if odd count
 	}
-	tgenBundle1 := dutPorts[:mid]
-	tgenBundle2 := dutPorts[mid:]
-
-	aggID1 := "100"
-	configureOTGBundle(t, otg, otgSrc1, dutSrc1, topo, tgenBundle1, lagName1, aggID1)
+	util.SortOndatraPortsByID(otgPortsToDut)
+	util.SortOndatraPortsByID(otgPortsToPeer)
+	tgenBundle1 := otgPortsToDut[:mid]
+	tgenBundle2 := otgPortsToDut[mid:]
+	t.Logf("Topo %v", topo)
+	aggId1 := strings.TrimPrefix(aggID1, "Bundle-Ether")
+	t.Logf("Configuring DUT-TGEN Bundle interface1: lagName1=%s, aggId1=%s, tgenBundle1=%v, otgSrc1=%+v, dutSrc1=%+v, topo=%v", lagName1, aggId1, tgenBundle1, otgSrc1, dutSrc1, topo)
+	configureOTGBundle(t, otg, otgSrc1, dutSrc1, topo, tgenBundle1, lagName1, aggId1)
 	t.Log("Configuring DUT-TGEN Bundle interface2")
-	aggID2 := "200"
-	configureOTGBundle(t, otg, otgSrc2, dutSrc2, topo, tgenBundle2, lagName2, aggID2)
+	aggId2 := strings.TrimPrefix(aggID2, "Bundle-Ether")
+	t.Logf("Configuring DUT-TGEN Bundle interface1: lagName1=%s, aggId1=%s, tgenBundle1=%v, otgSrc1=%+v, dutSrc1=%+v, topo=%v", lagName2, aggId2, tgenBundle2, otgSrc2, dutSrc2, topo)
+	configureOTGBundle(t, otg, otgSrc2, dutSrc2, topo, tgenBundle2, lagName2, aggId2)
 
 	//Configure PEER-TGEN interface - Destination port
-	peerLastPort := peerInterface[len(peerInterface)-1].ID()
+	peerLastPort := otgPortsToPeer[len(otgPortsToPeer)-1].ID()
 	dstPort := topo.Ports().Add().SetName(peerLastPort)
 	dstDev := topo.Devices().Add().SetName(otgDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(otgDst.Name + ".Eth").SetMac(otgDst.MAC)
@@ -1247,11 +1256,12 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, dut, peer *ondatra.DUTDe
 	configureOTGBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "v6Default", v6BGPDefault, 20000)
 	t.Logf("Pushing config to otg and starting protocols...")
 	otg.OTG().PushConfig(t, topo)
+	t.Logf("OTG Config: %v", topo.Marshal())
 	time.Sleep(30 * time.Second)
 	otg.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
-	// otgutils.WaitForARP(t, otg.OTG(), topo, "IPv4")
-	// otgutils.WaitForARP(t, otg.OTG(), topo, "IPv6")
+	otgutils.WaitForARP(t, otg.OTG(), topo, "IPv4")
+	otgutils.WaitForARP(t, otg.OTG(), topo, "IPv6")
 	return topo
 }
 
