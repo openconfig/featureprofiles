@@ -1,17 +1,21 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "20355cc3-7994-4e15-843e-1f2687900726"
-plan_id: "RT-5.3"
-description: "Aggregate Balancing"
-testbed: TESTBED_DUT_ATE_9LINKS_LAG
+uuid: "a7283b91-2e40-40eb-8988-f87443e4585d"
+plan_id: "DP-1.12"
+description: "ECN enabled traffic test"
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
     ipv4_missing_enabled: true
-    interface_counters_update_delayed: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
   }
 }
 platform_exceptions: {
@@ -19,10 +23,9 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_in_default_vrf: true
-    aggregate_atomic_update: true
     interface_enabled: true
-    static_protocol_name: "static"
+    explicit_interface_in_default_vrf: true
+    qos_queue_requires_id: true
   }
 }
 platform_exceptions: {
@@ -30,10 +33,8 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    aggregate_atomic_update: true
     interface_enabled: true
     default_network_instance: "default"
-    static_protocol_name: "STATIC"
     omit_l2_mtu: true
   }
 }
