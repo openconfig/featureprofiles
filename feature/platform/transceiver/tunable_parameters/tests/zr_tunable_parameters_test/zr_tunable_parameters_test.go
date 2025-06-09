@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "Vendor-specific operational-mode for the channel.")
 	operationalMode     uint16
 )
 
@@ -37,7 +37,7 @@ func Test400ZRTunableFrequency(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.Initialize(operationalMode)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -122,7 +122,8 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	cfgplugins.Initialize(operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -199,7 +200,8 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	cfgplugins.Initialize(operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	oc1 := opticalChannelFromPort(t, dut, p1)

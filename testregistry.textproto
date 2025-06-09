@@ -468,8 +468,8 @@ test: {
 }
 test: {
   id: "PF-1.8"
-  description: "Ingress handling of the TTL, for all ingress packets decrement TTL , and for TTL=1 generate ICMP time exceeded message"
-  readme: " "
+  description: "Ingress handling of the TTL"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/ingress/README.md"
   exec: " "
 }test: {
   id: "PF-1.9"
@@ -1371,6 +1371,12 @@ test: {
   id: "TE-6.2"
   description: "Route Removal In Non Default VRF"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/route_removal_non_default_vrf_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-6.3"
+  description: "Route Leakage between Non Default VRFs"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/route_removal_non_default_vrf_with_backup_nhg_test/README.md"
   exec: " "
 }
 test: {
