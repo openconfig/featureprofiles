@@ -1,16 +1,15 @@
-# SR-1.2: Egress Node Forwarding
+# SR-1.2: Egress Node Forwarding for MPLS traffic with Explicit Null label
 
 ## Summary
 
-This is to test the forwarding functionality of MPLS traffic on an Egress node 
+This is to test the forwarding functionality of MPLS traffic with the Explicit Null label on an Egress node 
 in SRTE+MPLS enabled network.
 
 The tests validate that the DUT performs the following actions -
 
  - DUT is an egress node in SRTE+MPLS network.
- - DUT will receive unlabled traffic for IPv4 destination and perform IPv4 forwarding.
- - DUT wil receive MPLS Label 2 traffic for IPv6 destinations.
- - DUT will pop the MPLS label 2 and perform IPv6 forwarding.
+ - DUT will receive traffic with MPLS Explicit Null label 0 and label 2 for IPv4 and IPv6 destination respectively.
+ - DUT will pop the MPLS label and perform IPv4 and IPv6 forwarding.
 
 
 ## Testbed type
@@ -48,7 +47,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
      * Source MAC address: Unicast Ethernet MAC
      * Destination MAC address: DUT-Port1 mac address
   * For MPLS header:
-     * MPLS label 3
+     * MPLS label 0
      * EXP set to 0
      * S set to 1
      * TTL set to 64  
@@ -74,7 +73,6 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 ### Configuration
                               
 *   Configure Segment Routing Global Block (srgb) lower-bound: 400000 upper-bound: 465001)
-*   Enable Segment Routing for the ISIS
 *   Enable MPLS forwarding.
 *   DUT will have a static IPv4 and IPv6 route for IPV4-DST1 / IPV6-DST1 towards ATE Port2.
 
@@ -83,8 +81,8 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 Verify that:
 
 *  ATE Port1 will send IPv4 and IPv6 traffic.
-*  DUT will POP MPLS label, and perform IPv4 lookup for the destination and forward IPv4 traffic.
-*  DUT will POP MPLS label, and perform IPv6 lookup for the destination and forward IPv6 traffic.
+*  DUT will POP MPLS label 0, and perform IPv4 lookup for the destination and forward IPv4 traffic.
+*  DUT will POP MPLS label 2, and perform IPv6 lookup for the destination and forward IPv6 traffic.
 
 ```
 {
