@@ -12,11 +12,26 @@ Building on TE-18.1 and TE-18.2, this test focuses on scaling gRIBI-programmed M
 
 TODO: Complete test environment setup steps
 
-inner_ipv6_dst_A = "2001:aa:bb::1/128" inner_ipv6_dst_B = "2001:aa:bb::2/128" inner_ipv6_default = "::/0"
+### Test Parameters
 
-ipv4_inner_dst_A = "10.5.1.1/32" ipv4_inner_dst_B = "10.5.1.2/32" ipv4_inner_default = "0.0.0.0/0"
+**Inner IPv6 Destinations:**
+- inner_ipv6_dst_A = "2001:aa:bb::1/128"
+- inner_ipv6_dst_B = "2001:aa:bb::2/128"
+- inner_ipv6_default = "::/0"
 
-outer_ipv6_src = "2001:f:a:1::0" outer_ipv6_dst_A = "2001:f:c:e::1" outer_ipv6_dst_B = "2001:f:c:e::2" outer_ipv6_dst_def = "2001:1:1:1::0" outer_dst_udp_port = "5555" outer_dscp = "26" outer_ip-ttl = "64"
+**Inner IPv4 Destinations:**
+- ipv4_inner_dst_A = "10.5.1.1/32"
+- ipv4_inner_dst_B = "10.5.1.2/32"
+- ipv4_inner_default = "0.0.0.0/0"
+
+**Outer IPv6 Encapsulation:**
+- outer_ipv6_src = "2001:f:a:1::0"
+- outer_ipv6_dst_A = "2001:f:c:e::1"
+- outer_ipv6_dst_B = "2001:f:c:e::2"
+- outer_ipv6_dst_def = "2001:1:1:1::0"
+- outer_dst_udp_port = "5555"
+- outer_dscp = "26"
+- outer_ip_ttl = "64"
 
 ## Procedure
 
@@ -26,15 +41,16 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 
 - **Network Instances (VRFs):** Number of separate routing instances.
 - **Next Hop Groups (NHGs):** Total number of NHGs programmed. Target: **Up to 20,000** (profile-dependent).
-- **Next Hops (NHs):** Total number of NHs programmed (NHs per NHG * Total NHGs).
+- **Next Hops (NHs):** Total number of NHs programmed. **Constraint: Maximum 20,000 total NHs.** When there are more NHs per NHG, there will be fewer total NHGs (e.g., 2,500 NHGs if each NHG has 8 NHs).
 - **NHs per NHG:** Number of NH entries within each NHG (e.g., 1 or 8).
-- **Prefixes:** Total number of unique IPv4/IPv6 exact-match forwarding entries (routes). Target: **20,000**.
+- **Prefixes:** Total number of unique IPv4/IPv6 exact-match forwarding entries (routes) across all VRFs. Target: **20,000 total**.
 - **(Unique Destination IP + MPLS) Tuples:** The combination of the inner destination IP and the MPLS label used in the NH encapsulation. Target: **Up to 20,000 unique tuples**.
 - **MPLS Labels:** Number and uniqueness of MPLS labels used in NH encapsulation. **Constraint:** The number of unique MPLS labels must equal the number of VRFs (#MPLS Labels == #VRFs).
 - **gRIBI Operations Rate (QPS):** Rate of gRIBI Modify requests or operations per second.
 - **gRIBI Batch Size:** Number of AFT entries (or operations) per ModifyRequest.
 - **Convergence:** DUT packet forwarding updated within **1 second** after receiving FIB_PROGRAMMED acknowledgement for added entries (baseline).
 - **IP Address Reuse:** Inner IP destination prefixes should be reused across different Network Instances where applicable.
+- **Multi-VRF Distribution:** In multi-VRF profiles, both NHGs and prefixes are distributed across the different VRFs as specified in each profile.
 
 ### TE-18.3: Scale Profiles
 
@@ -48,6 +64,7 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 - **Total Prefixes:** 20,000 (e.g., 10k IPv4, 10k IPv6).
 - **Unique (Dest IP + MPLS) Tuples:** 20,000 (different destination IPs, same MPLS label).
 - **Prefix Mapping:** 1 unique prefix -> 1 unique NHG (1:1).
+- **Total NHs:** 20,000 (20,000 NHGs × 1 NH/NHG = 20,000 total NHs).
 - **gRIBI Rate/Batch:** Baseline (e.g., 1 ModifyRequest/sec, 200 entries/request) - QPS not the primary focus here.
 
 #### Profile 2 (Multi-VRF)
@@ -56,6 +73,7 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 - **Network Instances (VRFs):** 1024.
 - **Total NHGs:** 20,000 (distributed across VRFs, ~19-20 NHGs/VRF).
 - **NHs per NHG:** 1.
+- **Total NHs:** 20,000 (20,000 NHGs × 1 NH/NHG = 20,000 total NHs).
 - **MPLS Labels:** 1024 unique labels (1 label assigned per VRF, consistent with #VRFs = 1024).
 - **Total Prefixes:** 20,000 (distributed across VRFs, ~19-20 prefixes/VRF).
 - **Unique (Dest IP + MPLS) Tuples:** 20,000 (e.g., 20 unique destination IPs reused per MPLS label/VRF).
@@ -69,6 +87,7 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 - **Network Instances (VRFs):** 1024.
 - **Total NHGs:** 20,000.
 - **NHs per NHG:** 1.
+- **Total NHs:** 20,000 (20,000 NHGs × 1 NH/NHG = 20,000 total NHs).
 - **MPLS Labels:** 1024 unique labels (1 per VRF).
 - **Total Prefixes:** 20,000.
 - **Unique (Dest IP + MPLS) Tuples:** 20,000.
@@ -82,7 +101,7 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 - **Network Instances (VRFs):** 1 (DEFAULT).
 - **Total NHGs:** 2,500.
 - **NHs per NHG:** 8 (each NH having a different destination IP).
-- **Total NHs:** 20,000 (2500 NHGs * 8 NH/NHG).
+- **Total NHs:** 20,000 (2,500 NHGs × 8 NHs/NHG = 20,000 total NHs, respecting the 20k NH constraint).
 - **MPLS Labels:** 1 (consistent with #VRFs = 1). Same label used for all NHs.
 - **Total Prefixes:** 20,000 (e.g., 10k IPv4, 10k IPv6).
 - **Unique (Dest IP + MPLS) Tuples:** 20,000 (different destination IPs across all NHs, same MPLS label).
@@ -99,7 +118,8 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 - **Total Prefixes:** 20,000.
 - **Unique (Dest IP + MPLS) Tuples:** 20,000.
 - **Prefix Mapping:** 1:1.
-- **gRIBI Operations:** Program/Modify the full 20k entries (Prefix + NHG + NH = ~3 ops/entry = ~60k ops total).
+- **Total NHs:** 20,000 (20,000 NHGs × 1 NH/NHG = 20,000 total NHs).
+- **gRIBI Operations:** Program/Modify the full 20k entries (1 Prefix + 1 NHG + 1 NH = 3 operations per entry = 60k operations total).
 
   - Target Rate: **6,000 operations/second** (aiming to update the full table in ~10 seconds).
   - Target Batch Size: **60 operations/ModifyRequest**.
