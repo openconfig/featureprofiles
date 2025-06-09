@@ -188,6 +188,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, test str
 	if test == "GRUnderNeighbor" {
 		bgpgr := g.GetOrCreateGracefulRestart()
 		bgpgr.Enabled = ygot.Bool(true)
+		bgpgr.HelperOnly = ygot.Bool(false)
 		bgpgr.RestartTime = ygot.Uint16(grRestartTime)
 		bgpgr.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 	} else {
