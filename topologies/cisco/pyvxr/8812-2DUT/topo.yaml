@@ -4,7 +4,7 @@ simulation:
     pending_timeout: 3600
 
 devices:
-  DUT1:
+  dut1:
     dual_rp: true
     num_linecards: 8
     linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
@@ -21,7 +21,7 @@ devices:
         grpc port 57777        
     xr_port_redir: [22, 23, 57777, 830]
 
-  DUT2:       
+  dut2:       
     dual_rp: true
     num_linecards: 8
     linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
