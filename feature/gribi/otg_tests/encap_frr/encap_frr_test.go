@@ -22,7 +22,7 @@ import (
 	"net"
 	"os"
 	"sort"
-	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -326,6 +326,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
+	}
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		baseScenario.StaticARPWithSpecificIP(t, dut)
 	}
@@ -462,6 +465,19 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+
+	client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1003).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1003).AddNextHop(1003, 1),
+		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
+			WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
+	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
 }
 
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddress, dutSysID string) {
@@ -484,7 +500,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		intfName = intfName + ".0"
+	}
 	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -592,7 +610,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 
 		port := config.Ports().Add().SetName(ap.ID())
 		atePortNamelist = append(atePortNamelist, port.Name())
-		portName := fmt.Sprintf("atePort%s", strconv.Itoa(i))
+		portName := fmt.Sprintf("ate%s", strings.ToUpper(string(ap.ID()[0]))+string(ap.ID()[1:]))
 		dev := config.Devices().Add().SetName(portName)
 		macAddress, _ := incrementMAC(ateSrcPortMac, i)
 		eth := dev.Ethernets().Add().SetName(portName + ".Eth").SetMac(macAddress)
@@ -605,7 +623,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			SetPrefix(plenIPv6)
 
 		otgPortDevices = append(otgPortDevices, dev)
-		if i == 7 {
+		if ap.ID() == "port8" {
 			iDut8LoopV4 := dev.Ipv4Loopbacks().Add().SetName("Port8LoopV4").SetEthName(eth.Name())
 			iDut8LoopV4.SetAddress(otgIsisPort8LoopV4)
 			iDut8LoopV6 := dev.Ipv6Loopbacks().Add().SetName("Port8LoopV6").SetEthName(eth.Name())
@@ -731,6 +749,7 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
+	//time.Sleep(1 * time.Minute)
 	var lossPct uint64
 	if txPackets != 0 {
 		lossPct = lostPackets * 100 / txPackets
@@ -1120,7 +1139,7 @@ func TestEncapFrr(t *testing.T) {
 	otg := ate.OTG()
 	otgConfig := configureOTG(t, otg, atePorts)
 
-	verifyISISTelemetry(t, dut, dutPorts[7].Name())
+	verifyISISTelemetry(t, dut, dut.Port(t, "port8").Name())
 	verifyBgpTelemetry(t, dut)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
@@ -1204,18 +1223,14 @@ func TestEncapFrr(t *testing.T) {
 				}
 			}
 			if tc.TestID == "encapNoMatch" {
-				args.client.Modify().AddEntry(t,
-					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1003).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1003).AddNextHop(1003, 1),
-					fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
-						WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-				)
-				if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
-					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
-				}
 				createFlow(t, otgConfig, otg, noMatchEncapDest)
+			}
+
+			if deviations.NoEcmpWithEncapDecapNhMix(dut) {
+				if tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
+					tc.CapturePortList = []string{atePortNamelist[5]}
+					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}
+				}
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)
