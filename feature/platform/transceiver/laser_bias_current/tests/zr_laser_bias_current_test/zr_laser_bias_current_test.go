@@ -30,14 +30,14 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+var (
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
+)
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
-var (
-	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
-	operationalMode     uint16
-)
 
 // Topology:
 //   dut:port1 <--> port2:dut
@@ -157,11 +157,11 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 		dp2 := dut1.Port(t, "port2")
 		t.Logf("dut1: %v", dut1)
 		t.Logf("dut1 dp1 name: %v", dp1.Name())
-		intUpdateTime := 2 * time.Minute
 		operationalMode = uint16(*operationalModeFlag)
 		operationalMode = cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
 		cfgplugins.InterfaceConfig(t, dut1, dp1)
 		cfgplugins.InterfaceConfig(t, dut1, dp2)
+		intUpdateTime := 2 * time.Minute
 		gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		transceiverState := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 		// Check if TRANSCEIVER is of type 400ZR
