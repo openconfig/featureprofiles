@@ -21,14 +21,19 @@ import (
 const (
 	bgpNHv4         = "203.0.200.1"
 	bgpNHv6         = "2001:db8:128:200::1"
+	BGPNHV4         = "203.0.200.0/24"
+	BGPNHV6         = "2001:db8:128:200::/64"
 	mplsLabelV4     = 10004 // Arista not suppoting the range mentioned in readme
 	mplsLabelV6     = 10006 // Arista not suppoting the range mentioned in readme
 	ipv4Dst         = "203.0.113.0/24"
 	ipv6Dst         = "2001:db8:128:128::/64"
+	iPV4Dst         = "203.0.113.1"
+	iPV6Dst         = "2001:db8:128:128::1"
 	dutAS           = 65001
 	ateAS           = 65002
 	ipv4PrefixLen   = 30
 	ipv6PrefixLen   = 126
+	adDist          = 254
 	rplType         = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName         = "ALLOW"
 	trafficPps      = 1000
@@ -127,34 +132,65 @@ func TestMplsStaticLspBGPNextHop(t *testing.T) {
 	configureDUT(t, dut)
 	cfgplugins.NewStaticMPLSLabel(t, dut, lspV4Name, mplsLabelV4, "", bgpNHv4, "ipv4")
 	cfgplugins.NewStaticMPLSLabel(t, dut, lspV6Name, mplsLabelV6, "", bgpNHv6, "ipv6")
-	topo := configureATE(t, ate)
+	ateConfig := configureATE(t)
 	verifyPortsUp(t, dut.Device)
+
+	// TODO: 409240869 - Discard test added based on README guidance; will update if needed once the bug is fixed.	
+	buildIPv4MPLSFlow(t, ateConfig, ipv4Flow, iPV4Dst)
+	buildIPv6MPLSFlow(t, ateConfig, ipv6Flow, iPV6Dst)
+
+	// Push config and start protocols once
+	ate.OTG().PushConfig(t, ateConfig)
+	ate.OTG().StartProtocols(t)
+
+	// Wait for ARP resolution once
+	otgutils.WaitForARP(t, ate.OTG(), ateConfig, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), ateConfig, "IPv6")
+
+	// Check BGP Establish
 	checkBgpStatus(t, dut)
+	t.Run("Verify IPv4 MPLS forwarding", func(t *testing.T) {
+		verifyMPLSForwarding(t, ate, ateConfig, dut, ipv4Flow, false, BGPNHV4, adDist, "0")
+	})
+
+	t.Run("Verify IPv6 MPLS forwarding", func(t *testing.T) {
+		verifyMPLSForwarding(t, ate, ateConfig, dut, ipv6Flow, true, BGPNHV6, adDist, "1")
+	})
+	t.Run("Verify IPv4 traffic discard when BGP-NH-V4 is not available.", func(t *testing.T) {
+		addStaticRouteWithNexthop(t, dut, ipv4Dst, atePort3.IPv4, "2")
+		withdrawBGPRoutes(t, []string{"BGP4.peer2.Route"})
+		verifyIpv4TrafficDiscard(t, ate, ateConfig, dut, ipv4Flow)
+	})
+	t.Run("Verify IPv6 traffic discard when BGP-NH-V6 is not available.", func(t *testing.T) {
+		addStaticRouteWithNexthop(t, dut, ipv6Dst, atePort3.IPv6, "3")
+		withdrawBGPRoutes(t, []string{"BGP6.peer2.Route"})
+		verifyIpv6TrafficDiscard(t, ate, ateConfig, dut, ipv6Flow)
+	})
+}
+
+func verifyMPLSForwarding(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnappi.Config, dut *ondatra.DUTDevice, flow string, isIPv6 bool, bgpNH string, adDist int, staticIndex string) {
+	// Verify MPLS forwarding (BGP active)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration * time.Second)
 	ate.OTG().StopTraffic(t)
-	t.Run("Verify IPv4 MPLS forwarding", func(t *testing.T) {
-		if verifyFlowTraffic(t, ate, topo, ipv4Flow) {
-			t.Log("IPv4 Traffic MPLS forwarding Passed")
-		} else {
-			t.Error("IPv4 Traffic MPLS forwarding Failed")
-		}
-	})
-	t.Run("Verify IPv6 MPLS forwarding", func(t *testing.T) {
-		if verifyFlowTraffic(t, ate, topo, ipv6Flow) {
+	if isIPv6 {
+		if verifyFlowTraffic(t, ate, ateConfig, flow) {
 			t.Log("IPv6 Traffic MPLS forwarding Passed")
 		} else {
 			t.Error("IPv6 Traffic MPLS forwarding Failed")
 		}
-	})
-	t.Run("Verify IPv4 traffic discard when BGP-NH-V4 is not available.", func(t *testing.T) {
-		withdrawBGPRoutes(t, []string{"BGP4.peer2.Route"})
-		verifyIpv4TrafficDiscard(t, ate, topo)
-	})
-	t.Run("Verify IPv6 traffic discard when BGP-NH-V6 is not available.", func(t *testing.T) {
-		withdrawBGPRoutes(t, []string{"BGP6.peer2.Route"})
-		verifyIpv6TrafficDiscard(t, ate, topo)
-	})
+		// Configure static route to Null0 and update BGPv6
+		// TODO: 409240869 - Route to Null0 with administrative distance was not explicitly added as per clarification; implemented based on README guidance. Will update if required once the bug is fixed.
+		addStaticRouteWithAD(t, dut, bgpNH, adDist, staticIndex)		
+	} else {
+		if verifyFlowTraffic(t, ate, ateConfig, flow) {
+			t.Log("IPv4 Traffic MPLS forwarding Passed")
+		} else {
+			t.Error("IPv4 Traffic MPLS forwarding Failed")
+		}
+		// Configure static route to Null0 and update BGPv4
+		addStaticRouteWithAD(t, dut, bgpNH, adDist, staticIndex)		
+	}
 }
 
 // configureDUT sets up the DUT interfaces, static LSPs, and BGP neighbors.
@@ -177,12 +213,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	configureRoutePolicy(t, dut, rplName, rplType)
 	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	dutConf := createBGPNeighborPort2(dutAS, ateAS, dut)
+	dutConf := createBGPNeighborPort2(dutAS, ateAS, dut, true, true)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 }
 
 // configureATE sets up the ATE interfaces and BGP configurations.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureATE(t *testing.T) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Log("Configure ATE interface")
 	port1 := topo.Ports().Add().SetName("port1")
@@ -223,62 +259,42 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	bgpPeerv6Routes := bgpPeerv6.V6Routes().Add().SetName("BGP6.peer2.Route")
 	bgpPeerv6Routes.Addresses().Add().SetAddress(bgpNHv6).SetPrefix(64)
-	iPv4MPLSForwarding(t, topo, ipv4Flow)
-	iPv6MPLSForwarding(t, topo, ipv6Flow)
 
-	ate.OTG().PushConfig(t, topo)
-	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return topo
 }
 
-func withdrawBGPRoutes(t *testing.T, routeNames []string) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("Failed to withdraw BGP routes: %v", r)
-		}
-	}()
-
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
-	otg.SetControlState(t, cs)
-	t.Log("BGP routes withdrawn successfully")
-}
-
-// Add IPv4 MPLS Forwarding Flow
-func iPv4MPLSForwarding(t *testing.T, config gosnappi.Config, flowname string) {
+func buildIPv4MPLSFlow(t *testing.T, config gosnappi.Config, flowname, ipv4Dt string) {
 	dut := ondatra.DUT(t, "dut")
 	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
+
 	flow := config.Flows().Add()
 	flow.SetName(flowname)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Port().SetTxName(config.Ports().Items()[0].Name()).SetRxNames([]string{config.Ports().Items()[1].Name()})
+	flow.TxRx().Port().
+		SetTxName(config.Ports().Items()[0].Name()).
+		SetRxNames([]string{config.Ports().Items()[1].Name(), config.Ports().Items()[2].Name()})
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(atePort1.MAC)
 	eth.Dst().SetValue(macAddress)
-
 	mpls := flow.Packet().Add().Mpls()
 	mpls.Label().SetValue(mplsLabelV4)
-
 	ip4 := flow.Packet().Add().Ipv4()
 	ip4.Src().SetValue(atePort1.IPv4)
-	ip4.Dst().SetValue(bgpNHv4)
-
+	ip4.Dst().SetValue(ipv4Dt)
 	flow.Size().SetFixed(trafficSize)
 	flow.Rate().SetPps(trafficPps)
 }
 
-// Add IPv6 MPLS Forwarding Flow
-func iPv6MPLSForwarding(t *testing.T, config gosnappi.Config, flowname string) {
+func buildIPv6MPLSFlow(t *testing.T, config gosnappi.Config, flowname, ipv6Dt string) {
 	dut := ondatra.DUT(t, "dut")
 	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
+
 	flow := config.Flows().Add()
 	flow.SetName(flowname)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Port().SetTxName(config.Ports().Items()[0].Name()).SetRxNames([]string{config.Ports().Items()[1].Name()})
+	flow.TxRx().Port().
+		SetTxName(config.Ports().Items()[0].Name()).
+		SetRxNames([]string{config.Ports().Items()[1].Name(), config.Ports().Items()[2].Name()})
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(atePort1.MAC)
 	eth.Dst().SetValue(macAddress)
@@ -286,33 +302,35 @@ func iPv6MPLSForwarding(t *testing.T, config gosnappi.Config, flowname string) {
 	mpls.Label().SetValue(mplsLabelV6)
 	ip6 := flow.Packet().Add().Ipv6()
 	ip6.Src().SetValue(atePort1.IPv6)
-	ip6.Dst().SetValue(bgpNHv6)
-	ip6.Version().SetValue(4)
+	ip6.Dst().SetValue(ipv6Dt)
+	ip6.Version().SetValue(6)
 	flow.Size().SetFixed(trafficSize)
 	flow.Rate().SetPps(trafficPps)
 }
 
 // Verify Ipv4 Traffic Discard
-func verifyIpv4TrafficDiscard(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
+func verifyIpv4TrafficDiscard(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, dut *ondatra.DUTDevice, flow string) {
+	t.Log("Verify traffic discard via Null0")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration * time.Second)
 	ate.OTG().StopTraffic(t)
-	if verifyFlowTraffic(t, ate, config, ipv4Flow) {
-		t.Error("Receiving IPv4 packets, RX should be zero")
+	if verifyFlowTraffic(t, ate, config, flow) == false {
+		t.Log("Packets correctly discarded via Null0 when BGPv4 down")
 	} else {
-		t.Log("IPv4 packets dropped, Test Passed")
+		t.Error("Unexpected packets received, DUT may not be discarding via Null0")
 	}
 }
 
 // Verify Ipv6 Traffic Discard
-func verifyIpv6TrafficDiscard(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
+func verifyIpv6TrafficDiscard(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, dut *ondatra.DUTDevice, flow string) {
+	t.Log("Verify traffic discard via Null0")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration * time.Second)
 	ate.OTG().StopTraffic(t)
-	if verifyFlowTraffic(t, ate, config, ipv6Flow) {
-		t.Error("Receiving IPv6 packets, RX should be zero")
+	if verifyFlowTraffic(t, ate, config, flow) == false {
+		t.Log("Packets correctly discarded via Null0 when BGPv6 down")
 	} else {
-		t.Log("IPv6 packets dropped, Test Passed")
+		t.Error("Unexpected packets received, DUT may not be discarding via Null0")
 	}
 }
 
@@ -357,7 +375,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 }
 
 // Configure BGP Neighbors on DUT
-func createBGPNeighborPort2(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func createBGPNeighborPort2(localAs, peerAs uint32, dut *ondatra.DUTDevice, v4shut, v6shut bool) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -380,6 +398,7 @@ func createBGPNeighborPort2(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.
 	nv4.PeerAs = ygot.Uint32(peerAs)
 	nv4.Enabled = ygot.Bool(true)
 	nv4.PeerGroup = ygot.String(bgpV4PeerName)
+	nv4.Enabled = ygot.Bool(v4shut)
 	afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afisafi.Enabled = ygot.Bool(true)
 	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
@@ -392,6 +411,7 @@ func createBGPNeighborPort2(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.
 	nv6.PeerAs = ygot.Uint32(peerAs)
 	nv6.Enabled = ygot.Bool(true)
 	nv6.PeerGroup = ygot.String(bgpV6PeerName)
+	nv6.Enabled = ygot.Bool(v6shut)
 	afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	afisafi6.Enabled = ygot.Bool(true)
 	nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
@@ -421,7 +441,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 		t.Fatal("BGP session not Established as expected...")
 	}
-
+	t.Log("BGP sessions established")
 	// Get BGPv6 adjacency state
 	t.Log("Waiting for BGPv6 neighbor to establish...")
 	_, ok = gnmi.Watch(t, dut, nbrPathv6.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -430,8 +450,45 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	}).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, dut, nbrPathv6.State()))
-		t.Fatal("BGP session not Established as expected...")
+		t.Fatal("BGPv6 session not Established as expected...")
 	}
+	t.Log("BGPv6 sessions established")
+}
+
+// addStaticRoute configures static route.
+func addStaticRouteWithAD(t *testing.T, dut *ondatra.DUTDevice, staticIp string, addst int, hopIndex string) {
+	d := gnmi.OC()
+	s := &oc.Root{}
+	static := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	ipNh := static.GetOrCreateStatic(staticIp).GetOrCreateNextHop(hopIndex)
+	ipNh.NextHop = oc.UnionString("DROP") // Use "DROP" instead of "Null0"
+	ipNh.SetPreference(uint32(addst))
+	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+}
+
+// addStaticRoute configures static route.
+func addStaticRouteWithNexthop(t *testing.T, dut *ondatra.DUTDevice, staticIp string, ipDST, hopIndex string) {
+	d := gnmi.OC()
+	s := &oc.Root{}
+	static := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	ipNh := static.GetOrCreateStatic(staticIp).GetOrCreateNextHop(hopIndex)
+	ipNh.NextHop, _ = ipNh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(ipDST)
+	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+}
+
+func withdrawBGPRoutes(t *testing.T, routeNames []string) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Failed to withdraw BGP routes: %v", r)
+		}
+	}()
+
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	cs := gosnappi.NewControlState()
+	cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
+	otg.SetControlState(t, cs)
+	t.Log("BGP routes withdrawn successfully")
 }
 
 // Verify ports status
