@@ -61,7 +61,7 @@ var (
 
 var (
 	services = map[string]protoreflect.ServiceDescriptors{
-		"gnmi":                    gnmipb.File_proto_gnmi_gnmi_proto.Services(),
+		"gnmi":                    gnmipb.File_github_com_openconfig_gnmi_proto_gnmi_gnmi_proto.Services(),
 		"gribi":                   gribipb.File_v1_proto_service_gribi_proto.Services(),
 		"gnsi.authz":              authzpb.File_github_com_openconfig_gnsi_authz_authz_proto.Services(),
 		"gnsi.certz":              certzpb.File_github_com_openconfig_gnsi_certz_certz_proto.Services(),
