@@ -13,6 +13,7 @@ platform_exceptions: {
     missing_isis_interface_afi_safi_enable: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    isis_mpls_unsupported: true
   }
 }
 platform_exceptions: {
