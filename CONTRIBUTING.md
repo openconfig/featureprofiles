@@ -67,6 +67,7 @@ The directory tree is organized as follows:
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
 *   `topologies/` contains the testbed topology definitions.
+*   All README and _test.go files should be nested underneath a `tests/` or `otg_tests/` folder.
 
 Directory names are not allowed to contain hyphen (-) characters.
 
