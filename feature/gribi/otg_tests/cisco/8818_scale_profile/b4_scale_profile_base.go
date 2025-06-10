@@ -215,18 +215,23 @@ type PbrRule struct {
 }
 
 type trafficflowAttr struct {
-	withInnerHeader bool // flow type
-	withNativeV6    bool
-	withInnerV6     bool
-	outerSrc        string   // source IP address
-	outerDst        []string // destination IP addresses
-	innerSrc        string
-	innerDst        []string // set of destination IP addresses
-	innerV4SrcStart string   // Inner v4 source IP address
-	innerV4DstStart string   // Inner v4 destination IP address
-	innerV6SrcStart string   // Inner v6 source IP address
-	innerV6DstStart string   // Inner v6 destination IP address
-	innerFlowCount  uint32
+	withInnerHeader       bool // flow type
+	withNativeV6          bool
+	withInnerV6           bool
+	outerSrc              string   // source IP address
+	outerDst              []string // destination IP addresses
+	innerSrc              string
+	innerDst              []string // set of destination IP addresses
+	innerV4SrcStart       string   // Inner v4 source IP address
+	innerV4DstStart       string   // Inner v4 destination IP address
+	innerV6SrcStart       string   // Inner v6 source IP address
+	innerV6DstStart       string   // Inner v6 destination IP address
+	innerFlowCount        uint32
+	outerFlowCount        uint32
+	useInnerFlowIncrement bool
+	useOuterFlowIncrement bool
+	innerSrcCount         uint32
+	outerSrcCount         uint32
 	// outerDscp       uint32   // DSCP value
 	innerDscp uint32   // Inner DSCP value
 	srcPort   []string // source OTG port
@@ -679,29 +684,33 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 		v6.TrafficClass().SetValue(dscp << 2)
 	} else {
 		v4 := flow.Packet().Add().Ipv4()
+		if fa.useOuterFlowIncrement {
+			v4.Dst().Increment().SetStart(fa.outerDst[0]).SetCount(fa.outerFlowCount)
+		} else {
+			v4.Dst().SetValues(fa.outerDst)
+		}
 		v4.Src().SetValue(fa.outerSrc)
-		v4.Dst().SetValues(fa.outerDst)
 		v4.TimeToLive().SetValue(ipTTL)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
 		if fa.withInnerHeader {
 			if fa.withInnerV6 {
 				innerV6 := flow.Packet().Add().Ipv6()
-				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+				if fa.useInnerFlowIncrement { // use pre-defined inner destination addresses
+					innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
+					innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerSrcCount)
+				} else { // create inner srouce and destination addresses
 					innerV6.Src().SetValue(fa.innerSrc)
 					innerV6.Dst().SetValues(fa.innerDst)
-				} else { // create inner srouce and destination addresses
-					innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerFlowCount)
-					innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
 				}
 				innerV6.TrafficClass().SetValue(fa.innerDscp << 2)
 			} else {
 				innerV4 := flow.Packet().Add().Ipv4()
-				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+				if fa.useInnerFlowIncrement { // use pre-defined inner destination addresses
+					innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerSrcCount)
+					innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
+				} else { // create inner srouce and destination addresses}
 					innerV4.Src().SetValue(fa.innerSrc)
 					innerV4.Dst().SetValues(fa.innerDst)
-				} else { // create inner srouce and destination addresses}
-					innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerFlowCount)
-					innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
 				}
 				innerV4.Priority().Dscp().Phb().SetValue(fa.innerDscp)
 			}

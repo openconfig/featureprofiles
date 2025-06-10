@@ -32,7 +32,7 @@ const (
 	L2Nhg                = 256
 	L3NhPerNHG           = 8
 	MaxNhsPerNHG         = 256
-	UsableResoucePercent = 90 // 80% of the total resources are usable
+	UsableResoucePercent = 90 // 90% of the total resources are usable
 	L1Weight             = 16
 	L2Weight             = 8
 	L3Weight             = 8
@@ -823,19 +823,19 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 	for _, batch := range batchSet {
 		if gp.DecapWanEntries != nil && len(gp.DecapWanEntries[batch].V4Prefixes) > 0 {
 			if gp.EncapEntriesA != nil && len(gp.EncapEntriesA[batch].V4Prefixes) > 0 {
-				flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+				flows = append(flows, getDecapFlowsForBatchUsingFlowCount(batch, "dcapF",
 					&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1})...)
 			}
 			if gp.EncapEntriesB != nil && len(gp.EncapEntriesB[batch].V4Prefixes) > 0 {
-				flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+				flows = append(flows, getDecapFlowsForBatchUsingFlowCount(batch, "dcapF",
 					&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
 			}
 			if gp.EncapEntriesC != nil && len(gp.EncapEntriesC[batch].V4Prefixes) > 0 {
-				flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+				flows = append(flows, getDecapFlowsForBatchUsingFlowCount(batch, "dcapF",
 					&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesC[batch].V4Prefixes, gp.EncapEntriesC[batch].V6Prefixes, dscpEncapC1})...)
 			}
 			if gp.EncapEntriesD != nil && len(gp.EncapEntriesD[batch].V4Prefixes) > 0 {
-				flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+				flows = append(flows, getDecapFlowsForBatchUsingFlowCount(batch, "dcapF",
 					&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesD[batch].V4Prefixes, gp.EncapEntriesD[batch].V6Prefixes, dscpEncapD1})...)
 			}
 		}
@@ -856,6 +856,72 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 			if gp.EncapEntriesD != nil && len(gp.EncapEntriesD[batch].V4Prefixes) > 0 {
 				flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
 					&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesD[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapD1})...)
+			}
+		}
+	}
+	validateTrafficFlows(t, tcArgs, flows, false, true)
+}
+
+func testDecapTrafficFlowsForEncap(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, encapType []string) {
+	flows := []gosnappi.Flow{}
+	for _, batch := range batchSet {
+		if gp.DecapWanEntries != nil && len(gp.DecapWanEntries[batch].V4Prefixes) > 0 {
+			for _, encap := range encapType {
+				switch encap {
+				case "A":
+					if gp.EncapEntriesA != nil && len(gp.EncapEntriesA[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+							&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1})...)
+					}
+				case "B":
+					if gp.EncapEntriesB != nil && len(gp.EncapEntriesB[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+							&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+					}
+				case "C":
+					if gp.EncapEntriesC != nil && len(gp.EncapEntriesC[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+							&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesC[batch].V4Prefixes, gp.EncapEntriesC[batch].V6Prefixes, dscpEncapC1})...)
+					}
+				case "D":
+					if gp.EncapEntriesD != nil && len(gp.EncapEntriesD[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapF",
+							&DecapFlowAttr{gp.DecapWanEntries[batch].V4Prefixes, gp.EncapEntriesD[batch].V4Prefixes, gp.EncapEntriesD[batch].V6Prefixes, dscpEncapD1})...)
+					}
+				}
+			}
+		}
+	}
+	validateTrafficFlows(t, tcArgs, flows, false, true)
+}
+
+func testDecapTrafficFlowsForVariablePrefix(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, encapType []string) {
+	flows := []gosnappi.Flow{}
+	for _, batch := range batchSet {
+		if gp.DecapWanVarEntries != nil && len(gp.DecapWanVarEntries[batch].V4Prefixes) > 0 {
+			for _, encap := range encapType {
+				switch encap {
+				case "A":
+					if gp.EncapEntriesA != nil && len(gp.EncapEntriesA[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
+							&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesA[batch].V4Prefixes, gp.EncapEntriesA[batch].V6Prefixes, dscpEncapA1})...)
+					}
+				case "B":
+					if gp.EncapEntriesB != nil && len(gp.EncapEntriesB[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
+							&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesB[batch].V4Prefixes, gp.EncapEntriesB[batch].V6Prefixes, dscpEncapB1})...)
+					}
+				case "C":
+					if gp.EncapEntriesC != nil && len(gp.EncapEntriesC[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
+							&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesC[batch].V4Prefixes, gp.EncapEntriesC[batch].V6Prefixes, dscpEncapC1})...)
+					}
+				case "D":
+					if gp.EncapEntriesD != nil && len(gp.EncapEntriesD[batch].V4Prefixes) > 0 {
+						flows = append(flows, getDecapFlowsForBatch(batch, "dcapV",
+							&DecapFlowAttr{gp.DecapWanVarEntries[batch].V4Prefixes, gp.EncapEntriesD[batch].V4Prefixes, gp.EncapEntriesD[batch].V6Prefixes, dscpEncapD1})...)
+					}
+				}
 			}
 		}
 	}
@@ -911,6 +977,64 @@ func dscpToString(dscp uint32) string {
 }
 
 // getDecapFlowsForBatch creates decap flows for a given batch
+func getDecapFlowsForBatchUsingFlowCount(batch int, name string, dfa ...*DecapFlowAttr) []gosnappi.Flow {
+
+	var dInV4 = trafficflowAttr{
+		withInnerHeader: true, // flow type
+		withNativeV6:    false,
+		withInnerV6:     false,
+		outerSrc:        v4DefaultSrc,                    // source IP address
+		outerDst:        []string{v4BGPDefaultStart},     // destination IP address
+		srcPort:         []string{lagName2 + ".IPv4"},    // source OTG port
+		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
+		srcMac:          otgSrc2.MAC,                     // source MAC address
+		dstMac:          dutSrc2.MAC,                     // destination MAC address
+		topo:            gosnappi.NewConfig(),
+	}
+
+	flows := []gosnappi.Flow{}
+
+	for i, f := range dfa {
+		j := i * 2
+		// define outer header
+		dInV4.useOuterFlowIncrement = true
+
+		dInV4.outerDst = f.outerIP // first IP will be used as seed for outer IP
+		dInV4.outerFlowCount = uint32(len(f.outerIP))
+		dInV4.outerSrc = getOuterSrcForDscp(f.dscp)
+
+		// common attribute for inner flows
+		dInV4.useInnerFlowIncrement = true
+
+		// create ipv4inipv4 flow
+		if len(f.innerV4Dst) > 0 {
+			dInV4.withInnerV6 = false
+			dInV4.innerV4DstStart = f.innerV4Dst[0]
+			dInV4.innerFlowCount = uint32(len(f.innerV4Dst))
+			dInV4.innerV4SrcStart = otgSrc2.IPv4
+			dInV4.innerSrcCount = uint32(1)
+			dInV4.innerDscp = f.dscp
+			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("b%d4in4%s%d:%s", batch, name, j, dscpToString(f.dscp)), f.dscp))
+			fmt.Printf("b%d4in4%s%d:%s, outerFlowCount %d, innerFlowCount%d\n", batch, name, j, dscpToString(f.dscp), dInV4.outerFlowCount, dInV4.innerFlowCount)
+
+		}
+		// create ipv6inipv4 flow
+		if len(f.innerV6Dst) > 0 {
+			dInV4.withInnerV6 = true
+			dInV4.innerV6DstStart = f.innerV6Dst[0] //example encapVrfAIPv6Enries for a batch
+			dInV4.innerFlowCount = uint32(len(f.innerV6Dst))
+			dInV4.innerV6SrcStart = otgSrc2.IPv6
+			dInV4.innerSrcCount = uint32(1)
+			dInV4.innerDscp = f.dscp
+			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("b%d6in4%s%d:%s", batch, name, j+1, dscpToString(f.dscp)), f.dscp))
+			fmt.Printf("b%d6in4%s%d:%s, outerFlowCount %d, innerFlowCount%d\n", batch, name, j+1, dscpToString(f.dscp), dInV4.outerFlowCount, dInV4.innerFlowCount)
+		}
+	}
+	return flows
+
+}
+
+// getDecapFlowsForBatch creates decap flows for a given batch
 func getDecapFlowsForBatch(batch int, name string, dfa ...*DecapFlowAttr) []gosnappi.Flow {
 
 	var dInV4 = trafficflowAttr{
@@ -939,6 +1063,7 @@ func getDecapFlowsForBatch(batch int, name string, dfa ...*DecapFlowAttr) []gosn
 			dInV4.innerSrc = otgSrc2.IPv4
 			dInV4.innerDscp = f.dscp
 			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("b%d4in4%s%d:%s", batch, name, j, dscpToString(f.dscp)), f.dscp))
+			fmt.Printf("b%d4in4%s%d:%s, outerFlowCount %d, innerFlowCount%d", batch, name, j, dscpToString(f.dscp), len(f.outerIP), len(f.innerV4Dst))
 		}
 		// create ipv6inipv4 flow
 		if len(f.innerV6Dst) > 0 {
@@ -948,6 +1073,7 @@ func getDecapFlowsForBatch(batch int, name string, dfa ...*DecapFlowAttr) []gosn
 			dInV4.innerSrc = otgSrc2.IPv6
 			dInV4.innerDscp = f.dscp
 			flows = append(flows, dInV4.createTrafficFlow(fmt.Sprintf("b%d6in4%s%d:%s", batch, name, j+1, dscpToString(f.dscp)), f.dscp))
+			fmt.Printf("b%d6in4%s%d:%s, outerFlowCount %d, innerFlowCount%d", batch, name, j+1, dscpToString(f.dscp), len(f.outerIP), len(f.innerV6Dst))
 		}
 	}
 	return flows
@@ -2281,17 +2407,17 @@ func testDcGateTriggers(t *testing.T) {
 	batches := 8
 	vrfCount := 4
 	// get free resource IDs
-	// gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
 	getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
-	// availableForUseResourceIDs := reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
-	availableForUseResourceIDs := 12000 - 145 //13136
+	availableForUseResourceIDs := reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
+	// availableForUseResourceIDs := 12000 - 145 //13136
 	// plan resouce distribution among various tunnel types for DCGate profile
 	t.Logf("Available for use resource IDs: %d", availableForUseResourceIDs)
 	nhsPerNHG := 8 // for encap and decapEncap tunnels
 
 	reserveForDecapF := 1024
 	reserveForDecapV := 48
-	reserveForDecapEncap := 64 // use closest value to it which can be equally divided in batches*nhsPerNHG
+	reserveForDecapEncap := 704 // use closest value to it which can be equally divided in batches*nhsPerNHG
 	nhgForDecapF := reserveForDecapF
 	nhgForDecapV := reserveForDecapV
 	avaialableForEncap := availableForUseResourceIDs - reserveForDecapF - reserveForDecapV - reserveForDecapEncap
@@ -2360,8 +2486,10 @@ func testDcGateTriggers(t *testing.T) {
 
 	gp.measurePerf = &tunTypes{location: "0/0/CPU0", tunType: []string{"iptnlnh", "iptnlencap", "iptnldecap"}}
 	// gp.pushBatchConfig(t, tcArgs, []int{0}) //, 1, 2, 3}) //, 4, 5, 6, 7})
+	// gp.pushBatchConfig(t, tcArgs, []int{7})
 	gp.pushBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
 	// gp.pushBatchConfig(t, tcArgs, []int{4, 5, 6, 7})
+	t.Logf("Waiting for 2 minutes for the gRIBI entries to be programmed")
 	time.Sleep(10 * time.Second)
 
 	// configure leftover NHGs
@@ -2391,27 +2519,36 @@ func testDcGateTriggers(t *testing.T) {
 	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "0/16/CPU0")
 
 	t.Logf("Validating encap traffic")
-	// testEncapTrafficFlows(t, tcArgs, gp, []int{0}) //, 1, 2, 3}) //, 4, 5, 6, 7})
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
-	// testEncapTrafficFlows(t, tcArgs, gp, []int{4, 5, 6, 7})
 
-	t.Logf("Validating decap traffic")
-	testDecapTrafficFlows(t, tcArgs, gp, []int{0})
+	t.Logf("Validating /32 decap traffic")
+	for _, b := range []int{0, 1, 2, 3, 4, 5, 6, 7} {
+		for _, encap := range []string{"A", "B", "C", "D"} {
+			testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
+		}
+	}
+
+	t.Logf("Validating variable prefix decap traffic")
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2, 3}, []string{"A", "B", "C", "D"})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{4, 5, 6, 7}, []string{"A", "B", "C", "D"})
+
 	// testDecapTrafficFlows(t, tcArgs, gp, []int{1})
 	// testDecapTrafficFlows(t, tcArgs, gp, []int{2})
-	testDecapTrafficFlows(t, tcArgs, gp, []int{7})
 
-	// gp.DeleteBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
-	// time.Sleep(10 * time.Second)
-	// gp.pushBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
-	// time.Sleep(10 * time.Second)
+	gp.DeleteBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	time.Sleep(10 * time.Second)
+	gp.pushBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	time.Sleep(10 * time.Second)
 
-	// t.Logf("Validating encap traffic after delete and re-add of gribi entries")
-	// testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	t.Logf("Validating encap traffic after delete and re-add of gribi entries")
+	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
 
-	// t.Logf("Validating decap traffic after delete and re-add of gribi entries")
-	// testDecapTrafficFlows(t, tcArgs, gp, []int{0})
-	// testDecapTrafficFlows(t, tcArgs, gp, []int{1})
-	// testDecapTrafficFlows(t, tcArgs, gp, []int{2})
-	// testDecapTrafficFlows(t, tcArgs, gp, []int{3})
+	t.Logf("Validating decap traffic after delete and re-add of gribi entries")
+	for _, b := range []int{0, 1, 2, 3, 4, 5, 6, 7} {
+		for _, encap := range []string{"A", "B", "C", "D"} {
+			testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
+		}
+	}
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2, 3}, []string{"A", "B", "C", "D"})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{4, 5, 6, 7}, []string{"A", "B", "C", "D"})
 }
