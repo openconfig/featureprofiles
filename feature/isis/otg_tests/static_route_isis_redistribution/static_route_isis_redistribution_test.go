@@ -170,7 +170,7 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 	srcProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
 	dstProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
 	addfmly oc.E_Types_ADDRESS_FAMILY,
-	metricPropagation bool) {
+	metricPropagation bool, operation string) {
 
 	t.Log("configure redistribution under isis")
 
@@ -178,31 +178,35 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 
 	batchSet := &gnmi.SetBatch{}
 	d := oc.Root{}
-	tableConn := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
-	tableConn.SetImportPolicy([]string{policyName})
-	if !deviations.SkipSettingDisableMetricPropagation(dut) {
-		tableConn.SetDisableMetricPropagation(metricPropagation)
-	}
-	if deviations.EnableTableConnections(dut) {
-		fptest.ConfigEnableTbNative(t, dut)
-	}
-	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
-
-	if deviations.SamePolicyAttachedToAllAfis(dut) {
-		if addfmly == oc.Types_ADDRESS_FAMILY_IPV4 {
-			addfmly = oc.Types_ADDRESS_FAMILY_IPV6
-		} else {
-			addfmly = oc.Types_ADDRESS_FAMILY_IPV4
-		}
-		tableConn1 := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
-		tableConn1.SetImportPolicy([]string{policyName})
+	if operation == "set" {
+		tableConn := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
+		tableConn.SetImportPolicy([]string{policyName})
 		if !deviations.SkipSettingDisableMetricPropagation(dut) {
-			tableConn1.SetDisableMetricPropagation(metricPropagation)
+			tableConn.SetDisableMetricPropagation(metricPropagation)
 		}
-		gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn1)
-	}
+		if deviations.EnableTableConnections(dut) {
+			fptest.ConfigEnableTbNative(t, dut)
+		}
+		gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
-	batchSet.Set(t, dut)
+		if deviations.SamePolicyAttachedToAllAfis(dut) {
+			if addfmly == oc.Types_ADDRESS_FAMILY_IPV4 {
+				addfmly = oc.Types_ADDRESS_FAMILY_IPV6
+			} else {
+				addfmly = oc.Types_ADDRESS_FAMILY_IPV4
+			}
+			tableConn1 := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
+			tableConn1.SetImportPolicy([]string{policyName})
+			if !deviations.SkipSettingDisableMetricPropagation(dut) {
+				tableConn1.SetDisableMetricPropagation(metricPropagation)
+			}
+			gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn1)
+		}
+
+		batchSet.Set(t, dut)
+	} else if operation == "delete" {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config())
+	}
 }
 
 func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement string, prefixSetCond, tagSetCond bool,
@@ -690,8 +694,9 @@ func TestStaticToISISRedistribution(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("Attach RPL %v Type %v to ISIS %v", tc.RplName, tc.policyStmtType.String(), dni), func(t *testing.T) {
-				isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
+				isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation, "set")
 			})
+			defer isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation, "delete")
 
 			t.Run(fmt.Sprintf("Verify RPL %v Attributes", tc.RplName), func(t *testing.T) {
 				getAndVerifyIsisImportPolicy(t, ts.DUT, tc.metricPropogation, tc.RplName, tc.protoAf.String())
