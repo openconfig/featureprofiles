@@ -756,6 +756,58 @@ message Metadata {
     // Cisco b/414333771
     bool bgp_set_med_action_unsupported = 272;
 
+     // Devices that do not support next-hop-group config
+    // Arista b/390507957
+    bool next_hop_group_config_unsupported = 273;
+
+    // Arista b/390507780
+    bool qos_shaper_config_unsupported = 274;
+
+    // Arista b/390507780
+    bool qos_shaper_state_unsupported = 275;
+
+    // Arista b/393178770
+    bool ethernet_over_mplsogre_unsupported = 276;
+
+    // Arista b/390507408
+    bool sflow_unsupported = 277;
+
+    // Arista b/390507402
+    bool mpls_unsupported = 278;
+
+    // Arista b/390507399
+    bool macsec_unsupported = 279;
+
+    // Arista b/390506900
+    bool gue_gre_decap_unsupported = 280;
+
+    // Arista b/390506584
+    bool mpls_label_classification_unsupported = 281;
+
+    // Arista b/390506395
+    bool local_proxy_unsupported = 282;
+
+    // Arista b/390506513
+    bool static_mpls_unsupported = 283;
+
+    // Arista b/390504878
+    bool qos_classification_unsupported = 284;
+
+    // Arista b/390503348
+    bool policy_forwarding_unsupported = 285;
+
+    // Arista b/393177745
+    bool cfm_unsupported = 286;
+
+    // Arista b/390506903
+    bool label_range_unsupported = 287;
+
+    // Arista b/390506907
+    bool static_arp_unsupported = 288;
+
+    // Arista b/390506907
+    bool interface_policy_forwarding_unsupported = 289;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
