@@ -15,12 +15,14 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -219,4 +221,40 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
 	}
 	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), channel)
+}
+
+// SetupAggregateAtomically sets up the aggregate interface atomically.
+func SetupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
+	d := &oc.Root{}
+
+	d.GetOrCreateLacp().GetOrCreateInterface(aggID)
+
+	agg := d.GetOrCreateInterface(aggID)
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	agg.Type = ieee8023adLag
+
+	for _, port := range dutAggPorts {
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
+		i.Type = ethernetCsmacd
+
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+	}
+
+	p := gnmi.OC()
+	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", dut), p.Config(), d)
+	gnmi.Update(t, dut, p.Config(), d)
+}
+
+// DeleteAggregate deletes the aggregate interface.
+func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
+	// Clear the aggregate minlink.
+	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
+
+	// Clear the members of the aggregate.
+	for _, port := range dutAggPorts {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+	}
 }
