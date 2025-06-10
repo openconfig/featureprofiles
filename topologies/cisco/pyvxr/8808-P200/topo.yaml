@@ -39,8 +39,8 @@ devices:
     - 0
     - 1
     linecard_types: 
-      - 88-LC2-36EHF-M
-      - 88-LC2-36EHF-M
+      - 88-LC2-36EF-M
+      - 88-LC2-36EF-M
     platform: spitfire_d
     # cli_commands: reload location all noprompt
     xr_hostname: dut
