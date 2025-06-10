@@ -362,7 +362,7 @@ func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policy
 				pfRProtoIP.SourceAddress = ygot.String(pfRule.ipv4.sourceAddr)
 			}
 		} else {
-			pfRProtoIP := pfR.GetOrCreateIpv4()
+			pfRProtoIP := pfR.GetOrCreateIpv6()
 			if pfRule.ipv6.dscpSet != nil {
 				pfRProtoIP.DscpSet = pfRule.ipv6.dscpSet
 			}
