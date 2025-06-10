@@ -71,22 +71,22 @@ duts {
 # from its topology ID to the actual port name on the device.
   
   ports {
-   id: "dut_ate_port1"
+   id: "port1"
     name: "TenGigE0/0/0/20/0"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port2"
+    id: "port2"
     name: "TenGigE0/0/0/20/1"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port3"
+    id: "port3"
     name: "TenGigE0/0/0/20/2"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port4"
+    id: "port4"
     name: "TenGigE0/0/0/20/3"  # Change this to the actual port name.
     speed: S_10GB  
   }       
@@ -110,22 +110,22 @@ ates {
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-  id: "dut_ate_port1"
+  id: "port1"
   name: "9/25" # Change this to the actual port name.
   speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port2"
+    id: "port2"
     name: "9/26" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port3"
+    id: "port3"
     name: "9/27" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port4"
+   id: "port4"
     name: "9/28" # Change this to the actual port name.
    speed: S_10GB  
   }   

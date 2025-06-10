@@ -275,10 +275,10 @@ testbeds:
   8202-FLM275203KT:
     hw: 8202-FLM275203KT
     owner: arvbaska
-    testbed: topologies/cisco/hw/8202_FLM275203KT/testbed
-    binding: topologies/cisco/hw/8202_FLM275203KT/binding
+    testbed: topologies/cisco/hw/8202-FLM275203KT/testbed
+    binding: topologies/cisco/hw/8202-FLM275203KT/binding
     baseconf:
-      dut: topologies/cisco/hw/8202_FLM275203KT/DUT-8202_FLM275203KT_baseconfig.proto
+      dut: topologies/cisco/hw/8202-FLM275203KT/DUT-8202_FLM275203KT_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 49203
@@ -288,10 +288,10 @@ testbeds:
   8202-FLM275101MJ:
     hw: 8202-FLM275101MJ
     owner: arvbaska
-    testbed: topologies/cisco/hw/8202_FLM275101MJ/testbed
-    binding: topologies/cisco/hw/8202_FLM275101MJ/binding
+    testbed: topologies/cisco/hw/8202-FLM275101MJ/testbed
+    binding: topologies/cisco/hw/8202-FLM275101MJ/binding
     baseconf:
-      dut: topologies/cisco/hw/8202_FLM275101MJ/DUT-8202_FLM275101MJ_baseconfig.proto
+      dut: topologies/cisco/hw/8202-FLM275101MJ/DUT-8202_FLM275101MJ_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 49202

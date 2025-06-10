@@ -1,12 +1,10 @@
 simulation:
   slurm_flags:
-    hours: 48
-    partition: regression
+    hours: 48    
     pending_timeout: 3600
-    cluster: vxr-slurm-m2      
 
 devices:
-  DUT1:   
+  DUT1:
     dual_rp: true
     num_linecards: 8
     linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
