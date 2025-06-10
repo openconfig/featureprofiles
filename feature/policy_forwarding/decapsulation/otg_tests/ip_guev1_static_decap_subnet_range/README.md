@@ -162,7 +162,7 @@ Traffic:
 -  Initiate traffic flow type#5
 - Verification: 
     -  The outer header destination UDP port (6081) matches a configured decap port
-    -  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap    range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
+    -  The outer header destination IP (ATE-P2-Address) of the traffic does not fall within the configured decap range (DECAP-DST-SUBNET/30), therefore it does not match the decapsulation criteria for the destination IP
     -  The DUT will not decapsulate the outer header. Instead, it will perform a lookup based on the outer  destination IP address and forward the packets as standard IP traffic
     -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#7 (original GUE encapsulated packets, outer TTL  decremented by DUT)
     -  No packet loss should be observed for this flow
