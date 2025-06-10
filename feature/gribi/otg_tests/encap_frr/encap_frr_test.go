@@ -749,7 +749,6 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	txPackets := recvMetric.GetCounters().GetOutPkts()
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
-	//time.Sleep(1 * time.Minute)
 	var lossPct uint64
 	if txPackets != 0 {
 		lossPct = lostPackets * 100 / txPackets
