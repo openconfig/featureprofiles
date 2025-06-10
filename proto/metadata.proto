@@ -808,6 +808,10 @@ message Metadata {
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
 
+    //Nokia; b/<yet to add>
+    //noECMPwithEncapDecapNhMix returns true if mixed encap and decap next hops are not supported.
+    bool no_ecmp_with_encap_decap_nh_mix = 290;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
