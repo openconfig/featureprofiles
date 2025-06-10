@@ -54,8 +54,6 @@ const (
 	Metadata_TESTBED_DUT_400ZR_100G_4LINKS Metadata_Testbed = 10
 	Metadata_TESTBED_DUT_400FR_100G_4LINKS Metadata_Testbed = 11
 	Metadata_TESTBED_DUT_ATE_5LINKS        Metadata_Testbed = 12
-	Metadata_TESTBED_ATEDUT_10LR           Metadata_Testbed = 13
-	Metadata_TESTBED_ATEDUT_400GLR         Metadata_Testbed = 14
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -74,8 +72,6 @@ var (
 		10: "TESTBED_DUT_400ZR_100G_4LINKS",
 		11: "TESTBED_DUT_400FR_100G_4LINKS",
 		12: "TESTBED_DUT_ATE_5LINKS",
-		13: "TESTBED_ATEDUT_10LR",
-		14: "TESTBED_ATEDUT_400GLR",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -91,8 +87,6 @@ var (
 		"TESTBED_DUT_400ZR_100G_4LINKS": 10,
 		"TESTBED_DUT_400FR_100G_4LINKS": 11,
 		"TESTBED_DUT_ATE_5LINKS":        12,
-		"TESTBED_ATEDUT_10LR":           13,
-		"TESTBED_ATEDUT_400GLR":         14,
 	}
 )
 
@@ -2961,7 +2955,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb3\x9e\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xff\x9d\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3242,7 +3236,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xac\x03\n" +
+	"deviations\"\xf8\x02\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -3257,9 +3251,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1dTESTBED_DUT_400ZR_100G_4LINKS\x10\n" +
 	"\x12!\n" +
 	"\x1dTESTBED_DUT_400FR_100G_4LINKS\x10\v\x12\x1a\n" +
-	"\x16TESTBED_DUT_ATE_5LINKS\x10\f\x12\x17\n" +
-	"\x13TESTBED_ATEDUT_10LR\x10\r\x12\x19\n" +
-	"\x15TESTBED_ATEDUT_400GLR\x10\x0e\"m\n" +
+	"\x16TESTBED_DUT_ATE_5LINKS\x10\f\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
