@@ -146,7 +146,7 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
 	policyExpected := GrpcAuthzPolicy{
-		GrpcAuthzPolicyCreatedOn: createdOn,
+		GrpcAuthzPolicyCreatedOn: createdOn * 1e9, // after xr bug CSCwo81858 - convert to nanoseconds
 		GrpcAuthzPolicyVersion:   version,
 	}
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
@@ -428,6 +428,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 	if resp.GetAction() != expectedRes {
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", spiffe.ID, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
+	retryCount := 0
 
 	// If HardVerify is enabled, execute the RPC and verify the result
 	if hardVerify {
@@ -439,16 +440,16 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 		// we get an "server not ready" Unavailable code after reboot
 		// incase, in future we have to retry for some other error codes , we can add that code to the list
 		retryCodeList := []codes.Code{codes.Unavailable}
-		rpcExecuteWithRetry(t, dut, spiffe, rpc, opts, maxRetries, retryInterval, expectedExecErr, retryCodeList)
+		retryCount = rpcExecuteWithRetry(t, dut, spiffe, rpc, opts, maxRetries, retryInterval, expectedExecErr, retryCodeList)
 
 	}
 	if !strings.Contains(spiffe.ID, "deny-all") {
 		// _, tempPolicy := Get(t, dut)
 		if len(tempPolicy.DenyRules) > 0 && tempPolicy.DenyRules[0].Name != "no-one-can-gnmi" {
-			expetedDiff := GrpcCounter{}
+			expectedDiff := GrpcCounter{}
 
 			if rpc == gnxi.RPCs.GnsiAuthzProbe {
-				expetedDiff.AccessAccepts += 1
+				expectedDiff.AccessAccepts += 1
 			}
 			data := gnmi.LookupAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
 			sysGrpcServerName, pres := data[0].Val()
@@ -469,14 +470,14 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			}
 
 			if expectedRes == authzpb.ProbeResponse_ACTION_PERMIT {
-				expetedDiff.AccessAccepts += 1
+				expectedDiff.AccessAccepts += uint64(retryCount + 1)
 			}
 			if expectedRes == authzpb.ProbeResponse_ACTION_DENY {
-				expetedDiff.AccessRejects += 1
+				expectedDiff.AccessRejects += uint64(retryCount + 1)
 			}
 
-			if gotDiff, ok := counterBefore.CompareDiff(t, counterAfter, expetedDiff); !ok {
-				t.Fatalf("Counter not matching for GRPC:%v Diff, Want: %v, Got: %v", rpc.Path, expetedDiff, gotDiff)
+			if gotDiff, ok := counterBefore.CompareDiff(t, counterAfter, expectedDiff); !ok {
+				t.Fatalf("Counter not matching for GRPC:%v Diff, Want: %v, Got: %v", rpc.Path, expectedDiff, gotDiff)
 			}
 		}
 	}
@@ -484,7 +485,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 
 // Retries the execution of an RPC until it succeeds or the maximum number of retries is reached.
 // To handel this expected error "server not ready" after reboot case, retry with timeout is implemented
-func rpcExecuteWithRetry(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts []grpc.DialOption, maxRetries int, retryInterval time.Duration, expectedExecErr codes.Code, retryCodes []codes.Code) {
+func rpcExecuteWithRetry(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts []grpc.DialOption, maxRetries int, retryInterval time.Duration, expectedExecErr codes.Code, retryCodes []codes.Code) int {
 	retryCount := 0
 	ctx := context.Background()
 	err := rpc.Exec(ctx, dut, opts)
@@ -501,7 +502,9 @@ func rpcExecuteWithRetry(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, r
 		t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 	} else {
 		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+		return retryCount
 	}
+	return retryCount
 }
 
 // Checks if a given code is in the list of retry codes.
