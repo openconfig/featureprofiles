@@ -907,9 +907,6 @@ type Metadata_Deviations struct {
 	// CISCO: b/376241033
 	// CISCO: b/340859662
 	EnableMultipathUnderAfiSafi bool `protobuf:"varint,230,opt,name=enable_multipath_under_afi_safi,json=enableMultipathUnderAfiSafi,proto3" json:"enable_multipath_under_afi_safi,omitempty"`
-	// Device have different default value for allow own as.
-	// Juniper : b/373559004
-	BgpAllowownasDiffDefaultValue bool `protobuf:"varint,231,opt,name=bgp_allowownas_diff_default_value,json=bgpAllowownasDiffDefaultValue,proto3" json:"bgp_allowownas_diff_default_value,omitempty"`
 	// Cisco numbering for OTN channel assignment starts from 1 instead of 0
 	OtnChannelAssignmentCiscoNumbering bool `protobuf:"varint,232,opt,name=otn_channel_assignment_cisco_numbering,json=otnChannelAssignmentCiscoNumbering,proto3" json:"otn_channel_assignment_cisco_numbering,omitempty"`
 	// Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
@@ -2500,13 +2497,6 @@ func (x *Metadata_Deviations) GetEnableMultipathUnderAfiSafi() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetBgpAllowownasDiffDefaultValue() bool {
-	if x != nil {
-		return x.BgpAllowownasDiffDefaultValue
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetOtnChannelAssignmentCiscoNumbering() bool {
 	if x != nil {
 		return x.OtnChannelAssignmentCiscoNumbering
@@ -2967,7 +2957,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aӔ\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe7\x8b\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
