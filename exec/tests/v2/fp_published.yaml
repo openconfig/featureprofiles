@@ -399,6 +399,7 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
     groups: [ancx,P0]
+    timeout: 4200
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
     path: feature/interface/otg_tests/telemetry_interface_packet_counters_test
     owners:
