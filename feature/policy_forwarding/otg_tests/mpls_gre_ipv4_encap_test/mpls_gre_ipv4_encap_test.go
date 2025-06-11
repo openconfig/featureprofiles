@@ -12,6 +12,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
+	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -194,6 +195,41 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[3].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowMultiCloudIPv4.FlowName, TolerancePct: 0.5},
 	}
+	Validations = []packetvalidationhelpers.ValidationType{
+		packetvalidationhelpers.ValidateIPv4Header,
+		packetvalidationhelpers.ValidateMPLSLayer,
+		packetvalidationhelpers.ValidateInnerIPv4Header,
+	}
+	OuterGREIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
+		Protocol: GREProtocol,
+		DstIP:    "10.99.1.1",
+		Tos:      96,
+		TTL:      64,
+	}
+	MPLSLayer = &packetvalidationhelpers.MPLSLayer{
+		Label: 116383,
+		Tc:    1,
+	}
+	InnerIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
+		DstIP: "11.1.1.1",
+		Tos:   1,
+		TTL:   63,
+	}
+	InnerIPLayerIPv6 = &packetvalidationhelpers.IPv6Layer{
+		DstIP:        "2000:1::1",
+		TrafficClass: 0,
+		HopLimit:     63,
+	}
+	EncapPacketValidation = &packetvalidationhelpers.PacketValidation{
+		PortName:         "port3",
+		IPv4Layer:        OuterGREIPLayerIPv4,
+		MPLSLayer:        MPLSLayer,
+		Validations:      Validations,
+		InnerIPLayerIPv4: InnerIPLayerIPv4,
+		InnerIPLayerIPv6: InnerIPLayerIPv6,
+		TCPLayer:         &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 179},
+		UDPLayer:         &packetvalidationhelpers.UDPLayer{SrcPort: 49152, DstPort: 3784},
+	}
 )
 
 func ConfigureOTG(t *testing.T) {
@@ -304,6 +340,23 @@ func TestMPLSOGREEncapIPv4(t *testing.T) {
 	if err := FlowMultiCloudIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("Validation on flows failed (): %q", err)
 	}
+	FlowIPv4.IPv4Flow.RawPriority = 1
+	FlowIPv4.IPv4Flow.RawPriorityCount = 0
+	FlowIPv4.PacketsToSend = 1000
+
+	createflow(t, top, FlowIPv4, true)
+	packetvalidationhelpers.ConfigurePacketCapture(t, top, EncapPacketValidation)
+	sendTrafficCapture(t, ate)
+	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+		packetvalidationhelpers.ClearCapture(t, top, ate)
+		t.Errorf("Validation on flows failed (): %q", err)
+	}
+
+	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, top, ate, EncapPacketValidation); err != nil {
+		packetvalidationhelpers.ClearCapture(t, top, ate)
+		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+	}
+	packetvalidationhelpers.ClearCapture(t, top, ate)
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, traffictype string) {
@@ -316,7 +369,16 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, traffictype string) {
 	time.Sleep(120 * time.Second)
 	ate.OTG().StopTraffic(t)
 }
-
+func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	cs := packetvalidationhelpers.StartCapture(t, ate)
+	ate.OTG().StartTraffic(t)
+	time.Sleep(60 * time.Second)
+	ate.OTG().StopTraffic(t)
+	time.Sleep(60 * time.Second)
+	packetvalidationhelpers.StopCapture(t, ate, cs)
+}
 func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
 		top.Flows().Clear()
