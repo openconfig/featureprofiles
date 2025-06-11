@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/isissession/isissession"
-	"google3/third_party/openconfig/featureprofiles/internal/telemetry/aftcache/aftcache"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/netutil/netutil"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
+	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
 
-	gnmipb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -83,7 +83,7 @@ var (
 	wantIPv4NHs          = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
 	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
-	// TODO: b/419767485 Update the next hop IP address and remove the link local address, once the bug is fixed.
+	// TODO: b/420360046 Update the next hop IP address and remove the link local address, once the bug is fixed.
 	wantIPv6NHsPostChurn = map[string]bool{"fe80::200:2ff:fe02:202": true}
 	portNames            = []string{"port1", "port2"}
 )

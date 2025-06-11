@@ -12,7 +12,7 @@
 package schema
 
 import (
-	gnmipb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // Point stores data about a single gNMI/OpenConfig data point.

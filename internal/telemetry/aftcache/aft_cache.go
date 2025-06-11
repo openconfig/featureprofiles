@@ -14,16 +14,16 @@ import (
 	"testing"
 	"time"
 
-	"google3/base/go/log"
-	"google3/testing/metricstore/go/testutil"
-	"google3/third_party/golang/cmp/cmp"
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/openconfig/featureprofiles/internal/telemetry/schema/schema"
-	"google3/third_party/openconfig/gnmi/cache/cache"
-	"google3/third_party/openconfig/gnmi/ctree/ctree"
-	"google3/third_party/openconfig/gnmi/metadata/metadata"
-	"google3/util/time/go/rate"
+	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/gnmi/cache"
+	"github.com/openconfig/gnmi/ctree"
+	"github.com/openconfig/gnmi/metadata"
+	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
+	"github.com/google/go-rate/rate"
+	"github.com/bazelbuild/rules_go/go/tools/bazel"
 
+	log "github.com/golang/glog"
 	gnmipb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
 )
 
@@ -780,7 +780,7 @@ func checkForRoutesRequest(target string) (*gnmipb.SubscribeRequest, error) {
 }
 
 func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool) error {
-	f, path := testutil.AnnotatedTestOutputFile(t, missingPrefixesFile, testutil.Annotation{
+	f, path := bazel.TestOutputFile(t, missingPrefixesFile, bazel.Annotation{
 		Description: "Missing prefixes",
 		TestCase:    t.Name(),
 	})
@@ -793,3 +793,5 @@ func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool) error {
 	log.Infof("Wrote missing prefixes to %s", path)
 	return nil
 }
+
+
