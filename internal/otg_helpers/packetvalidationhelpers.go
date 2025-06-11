@@ -6,11 +6,11 @@ import (
 	"os"
 	"testing"
 
-	"google3/third_party/golang/gopacket/gopacket"
-	"google3/third_party/golang/gopacket/layers/layers"
-	"google3/third_party/golang/gopacket/pcap/pcap"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/ondatra"
 )
 
 /*
