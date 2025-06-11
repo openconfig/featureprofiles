@@ -1,4 +1,4 @@
-# DP-2.5 Police traffic on input matching all packets using 2 rate, 3 color marker with classifier
+# DP-2.6 Police traffic on input matching all packets using 2 rate, 3 color marker with classifier
 
 ## Summary
 
@@ -22,27 +22,111 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 
 ### SetUp
 
-* Generate config for 2 scheduler polices with an input rate limit.
-* Apply scheduler to DUT subinterface with vlan. Dut1 is LAG in provided setup.
+* Generate config for scheduler polices with an input rate 2Gbps limit and a classifier 
+* Apply them to DUT interface . Dut1 is LAG in provided setup.
 * Use gnmi.Replace to push the config to the DUT.
 
-The configuration required for the 2R3C policer is included below:
+The configuration required for the 2R3C policer with classifier is included below:
 
 ```json
 {
   "openconfig-qos": {
+    "classifiers": {
+      #
+      # The specification for the classifier to be applied to an interface.
+      # The classifier is applied to IPv4 packets.
+      #
+      "classifier": [
+        {
+          "config": {
+            "name": "group_A_2Gb",
+            "type": "IPV4"
+          },
+          "name": "group_A_2Gb",
+          #
+          # The terms that are present in the classifier.
+          # If no comndition is provided in term , then everything will be considered as matched.
+          #
+          "terms": {
+            "term": [
+              {
+                # As condition container is absent from term , so no match criteria for 
+                # term in the classifier, so it should be interpreted as match all condition.
+                "actions": {
+                  "config": {
+                    #
+                    # Packets matching this term (i.e., is class-default
+                    # as specified below) are grouped into the 'TRAFFIC_CLASS_3'
+                    # forwarding-group.
+                    #
+                    "target-group": "TRAFFIC_CLASS_3"
+                  }
+                },
+                "config": {
+                  "id": "class-default"
+                },
+                "id": "class-default"
+              },              
+            ]
+          }
+        }
+      ]
+    },
+    #
+    # The definition of the forwarding groups. Each forwarding
+    # group has a name, and an output queue.
+    #
+    "forwarding-groups": {
+      "forwarding-group": [
+        {
+          "config": {
+            "name": "TRAFFIC_CLASS_3",
+            "output-queue": "QUEUE_3"
+          },
+          "name": "TRAFFIC_CLASS_3"
+        },
+      ]
+    },
+    #
+    # A forwarding-group is mapped to an output queue (i.e. is QUEUE_3)
+    #
+    "queues": {
+      "queue": [
+        {
+          "config": {
+            "name": "QUEUE_1"
+          },
+          "name": "QUEUE_1"
+        },
+        {
+          "config": {
+            "name": "QUEUE_2"
+          },
+          "name": "QUEUE_2"
+        },
+        {
+          "config": {
+            "name": "QUEUE_3"
+          },
+          "name": "QUEUE_3"
+        }
+      ]
+    },
+    #
+    # A single scheduler policy can be applied per interface.
+    #
     "scheduler-policies": [
       {
         "scheduler-policy": null,
         "config": {
-          "name": "limit_2Gb"
+          "name": "group_A_2Gb"
         },
         "schedulers": [
           {
             "scheduler": null,
             "config": {
               "sequence": 1,
-              "type": "TWO_RATE_THREE_COLOR"
+              "type": "TWO_RATE_THREE_COLOR_with_CLASSIFIER"
             },
             "inputs": [
               {
@@ -50,7 +134,7 @@ The configuration required for the 2R3C policer is included below:
                 "config": {
                   "id": "my input policer 2Gb",
                   "input-type": "QUEUE",
-                  "queue": "dummy_input_queue_A"
+                  "queue": "QUEUE_3"
                 }
               }
             ],
@@ -76,95 +160,55 @@ The configuration required for the 2R3C policer is included below:
           }
         ]
       },
-      {
-        "scheduler-policy": null,
-        "config": {
-          "name": "limit_4Gb"
-        },
-        "schedulers": [
-          {
-            "scheduler": null,
-            "config": {
-              "sequence": 1,
-              "type": "TWO_RATE_THREE_COLOR"
-            },
-            "inputs": [
-              {
-                "input": "my input policer 4Gb",
-                "config": {
-                  "id": "my input policer 4Gb",
-                  "input-type": "QUEUE",
-                  "queue": "dummy_input_queue_B"
-                }
-              }
-            ],
-            "two-rate-three-color": {
-              "config": {
-                "cir": 2000000000,
-                "pir": 4000000000,
-                "bc": 100000,
-                "be": 100000,
-                "queuing-behavior": "POLICE"
-              },
-              "exceed-action": {
-                "config": {
-                  "drop": false
-                }
-              },
-              "violate-action": {
-                "config": {
-                  "drop": true
-                }
-              }
-            }
-          }
-        ]
-      },
     ],
     #
-    # Interfaces input are mapped to the desired scheduler.
-    "interfaces": [
-      {
-        "interface": null,
-        "config": {
-          "interface-id": "Dut1.100"
-        },
-        "input": {
-          "scheduler-policy": {
-            "config": {
-              "name": "limit_group_A_2Gb"
-            }
-          }
+    # For configuration, the interfaces container specifies the
+    # binding between the specified classifiers,schedulers and
+    # an interface.
+    # Interfaces input are mapped to the desired scheduler and classifier.
+    #
+    "interfaces": {
+      "interface": [
+        {
+          "config": {
+            "interface-id": "Dut1"
+          },
+          #
+          # An input classifier is applied to the interface by
+          # referencing the classifier name within the /qos/interfaces
+          # list.
+          #
+          "input": {
+            "classifers": {
+              "classifier": [
+                {
+                  "config": {
+                    "name": "group_A_2Gb",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                }
+              ]
+            },
+            "scheduler-policy": null,
+              "config": {
+                "name": "group_A_2Gb"
+            },
+          },
         }
-      },
-      {
-        "interface": null,
-        "config": {
-          "interface-id": "Dut1.200"
-        },
-        "input": {
-          "scheduler-policy": {
-            "config": {
-              "name": "limit_group_B_4Gb"
-            }
-          }
-        }
-      }
-    ]
+     ]
   }
 }
 ```
 
-### DP-2.5.1 Test traffic
+### DP-2.6.1 Test traffic
 
 * Send traffic
   * Send flow A traffic from ATE port 1 to DUT for dest_A at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
-  * Send flow B traffic from ATE port 1 to DUT for dest_B at 3Gbps (note cir is 2Gbps & pir is 4Gbps).
-  * Validate qos counters for dest_A & dest_B of DUT .
+  * Validate qos counters for dest_A of DUT .
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts, conforming-octets, exceeding-pkts & exceeding-octets.
   * Validate packets are received by ATE port 2.
-    * Validate at OTG that 0 packets are lost on flow A and flow B
-  * Validate Flow A and Flow B labels should not match.
+    * Validate at OTG that 0 packets are lost on flow A.
   * Increase traffic on flow A to dest_A to 4Gbps
     * Validate that flow A to dest_A experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
@@ -174,7 +218,7 @@ The configuration required for the 2R3C policer is included below:
 
 ```yaml
 paths:
-  # qos scheduler config
+  # qos scheduler-policies config
   /qos/scheduler-policies/scheduler-policy/config/name:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir:
@@ -195,17 +239,38 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-mpls-tc:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/drop:
 
+  # qos classifier config path
+  /qos/classifiers/classifier/config/name:	
+  /qos/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+
+  # qos forwarding-group config path
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+
+  # qos queue config path
+  /qos/queues/queue/config/name:
+  /qos/queues/queue/config/queue-id:
+
+
   # qos interfaces config
   /qos/interfaces/interface/config/interface-id:
   /qos/interfaces/interface/input/scheduler-policy/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
 
-  # qos interface scheduler counters
+  # qos interface scheduler state path
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets:
+
+  # qos interface classifier state path
+  /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets:
+  /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-octets:
 
 rpcs:
   gnmi:
