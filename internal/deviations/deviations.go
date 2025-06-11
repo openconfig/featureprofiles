@@ -1456,4 +1456,7 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 // UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
 func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
+// Config Leaf Create required before GNMI get
+func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
