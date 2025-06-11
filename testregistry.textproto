@@ -302,6 +302,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_default/README.md"
 }
 test: {
+  id: "DP-2.6"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color_with_classifier/README.md"
+}
+test: {
   id: "FP-1.1"
   description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
