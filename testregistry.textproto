@@ -959,6 +959,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
   exec: " "
 }
+test: {
+  id: "RT-4.12"
+  description: "AFTs Base Link Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_base/README.md"
+  exec: " "
+}
 
 test: {
   id: "RT-5.1"
