@@ -335,7 +335,6 @@ func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 		NHIPAddr1:     "nh_ip_addr_1",
 		NHIPAddr2:     "nh_ip_addr_2",
 		// TODO: b/417988636 - Set the MplsLabel to the correct value.
-		// MplsLabelStack: oc.UnionUint32(100),
 	}
 }
 
