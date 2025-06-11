@@ -808,6 +808,10 @@ message Metadata {
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
 
+    // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
+    // issues/404301960
+    bool use_old_oc_path_static_lsp_nh = 290;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
