@@ -151,7 +151,7 @@ Traffic:
 -  Initiate traffic flow type#4
 - Verification:
     -  The outer header destination IP of the traffic falls within the DECAP-DST-SUBNET/30 range
-    -  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it    does not match the decapsulation criteria.
+    -  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it does not match the decapsulation criteria.
     -  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
     -  The DUT decapsulation counters should not increment for this flow
     -  The DUT drop counters will reflect the packets to 1000
