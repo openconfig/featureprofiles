@@ -160,30 +160,7 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 				},
 			},
 		})
-	} else if dut.Vendor() == ondatra.JUNIPER {
-		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
-			Description:        ygot.String("OTN Logical Channel"),
-			Index:              ygot.Uint32(otnIndex),
-			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
-			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
-			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-				0: {
-					Index:          ygot.Uint32(0),
-					OpticalChannel: ygot.String(och),
-					Description:    ygot.String("OTN to Optical Channel"),
-					Allocation:     ygot.Float64(400),
-					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-				},
-			},
-		})
 	} else {
-		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
-			Description:        ygot.String("ETH Logical Channel"),
-			Index:              ygot.Uint32(ethIndex),
-			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
-			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-		})
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),
