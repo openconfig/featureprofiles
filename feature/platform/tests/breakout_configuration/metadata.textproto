@@ -10,6 +10,7 @@ platform_exceptions: {
   }
   deviations: {
     verify_expected_breakout_supported_config: true
-
+    breakout_group_index_0: true
+    num_physical_channels_unsupported: true
   }
 }

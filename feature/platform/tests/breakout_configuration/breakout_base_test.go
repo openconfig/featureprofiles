@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
@@ -63,10 +64,16 @@ func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numB
 
 // verifyBreakout checks if the breakout configuration matches the expected values.
 // It reports errors to the testing object if there is a mismatch.
-func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, numPhysicalChannelsWant uint8, numPhysicalChannelsGot uint8, t *testing.T) {
+func verifyBreakout(dut *ondatra.DUTDevice, index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, numPhysicalChannelsWant uint8, numPhysicalChannelsGot uint8, t *testing.T) {
 	// Ensure that the index is set to the expected value (1 in this case).
-	if index != uint8(1) {
-		t.Errorf("Index: got %v, want 1", index)
+	if deviations.BreakoutGroupIndex0(dut) {
+		if index != uint8(0) {
+			t.Errorf("Index: got %v, want 0", index)
+		}
+	} else {
+		if index != uint8(1) {
+			t.Errorf("Index: got %v, want 1", index)
+		}
 	}
 	// Check if the number of breakouts configured matches what was expected.
 	if numBreakoutsGot != numBreakoutsWant {
@@ -77,8 +84,10 @@ func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, 
 		t.Errorf("Breakout speed configured: got %v, want %v", breakoutSpeedGot, breakoutSpeedWant)
 	}
 	// Verify that the number of physical channels configured matches the expected value.
-	if numPhysicalChannelsGot != numPhysicalChannelsWant {
-		t.Errorf("Number of physical channels configured: got %v, want %v", numPhysicalChannelsGot, numPhysicalChannelsWant)
+	if !deviations.NumPhysyicalChannelsUnsupported(dut) {
+		if numPhysicalChannelsGot != numPhysicalChannelsWant {
+			t.Errorf("Number of physical channels configured: got %v, want %v", numPhysicalChannelsGot, numPhysicalChannelsWant)
+		}
 	}
 
 }
