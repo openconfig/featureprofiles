@@ -103,7 +103,8 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 Traffic: 
 -  Generate the applicable GUE-encapsulated flow from ATE Port 1
      -  Send 1000 packets at the 10%  of the line rate.
-     -  Keep the frame size Internet Mix.
+     -  Keep the frame size [Internet Mix](https://datatracker.ietf.org/doc/html/rfc6985#section-4).
+     	-  Do not include the 16,000 MTU frame size in the testing, as DUT is not enabled to support it. 
    
   
 ### PF-1.4.1: GUE Decapsulation of inner IPv4 traffic over DECAP subnet range
