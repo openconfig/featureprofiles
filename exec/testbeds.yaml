@@ -16,6 +16,12 @@ testbeds:
     testbed: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/testbed
     binding: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/binding_mtls
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT_ZR_OPTICS/baseconfig_mtls_zr_optics.proto
+  
+  8808_FOX2506P2QT_B2B:
+    <<: *8808_FOX2506P2QT_DEFAULTS
+    testbed: topologies/cisco/hw/8808_FOX2506P2QT_B2B/testbed
+    binding: topologies/cisco/hw/8808_FOX2506P2QT_B2B/binding_mtls
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT_B2B/baseconfig_mtls_zr_b2b.proto
 
   8808-36FH_FOX2613PHWL: &8808-36FH_FOX2613PHWL_DEFAULTS
     hw: 8808-36FH_FOX2613PHWL
@@ -269,10 +275,10 @@ testbeds:
   8202-FLM275203KT:
     hw: 8202-FLM275203KT
     owner: arvbaska
-    testbed: topologies/cisco/hw/8202_FLM275203KT/testbed
-    binding: topologies/cisco/hw/8202_FLM275203KT/binding
+    testbed: topologies/cisco/hw/8202-FLM275203KT/testbed
+    binding: topologies/cisco/hw/8202-FLM275203KT/binding
     baseconf:
-      dut: topologies/cisco/hw/8202_FLM275203KT/DUT-8202_FLM275203KT_baseconfig.proto
+      dut: topologies/cisco/hw/8202-FLM275203KT/DUT-8202_FLM275203KT_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 49203
@@ -282,10 +288,10 @@ testbeds:
   8202-FLM275101MJ:
     hw: 8202-FLM275101MJ
     owner: arvbaska
-    testbed: topologies/cisco/hw/8202_FLM275101MJ/testbed
-    binding: topologies/cisco/hw/8202_FLM275101MJ/binding
+    testbed: topologies/cisco/hw/8202-FLM275101MJ/testbed
+    binding: topologies/cisco/hw/8202-FLM275101MJ/binding
     baseconf:
-      dut: topologies/cisco/hw/8202_FLM275101MJ/DUT-8202_FLM275101MJ_baseconfig.proto
+      dut: topologies/cisco/hw/8202-FLM275101MJ/DUT-8202_FLM275101MJ_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 49202
@@ -460,8 +466,18 @@ testbeds:
     topology: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/topo.yaml
     baseconf:
       dut: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/DUT_baseconfig.proto
-      peer: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/PEER_baseconfig.proto    
-
+      peer: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/PEER_baseconfig.proto
+  8808-P200:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-P200/basefp.conf 
+  8812-2DUT:   
+    sim: true
+    topology: topologies/cisco/pyvxr/8812-2DUT/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8812-2DUT/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8812-2DUT/DUT2_baseconfig.conf
+      
   # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG

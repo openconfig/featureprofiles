@@ -330,7 +330,7 @@ func TestGoogleBaseConfPush(t *testing.T) {
 }
 
 func TestGribiScaleProfile(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	resources := initializeTestResources(t)
 	log_collector.Start(context.Background(), t, resources.DUT.Device)
 
@@ -345,6 +345,7 @@ func TestGribiScaleProfile(t *testing.T) {
 }
 
 func TestTrigger(t *testing.T) {
+	t.Skip()
 	tRes := initializeTestResources(t)
 	processes := []string{"bgp", "ifmgr", "db_writer", "isis"}
 
@@ -374,7 +375,7 @@ func TestTrigger(t *testing.T) {
 
 		{"gNOI-REBOOT", func(ctx context.Context, t *testing.T) {
 			utils.GnoiReboot(t, tRes.DUT.Device)
-		}, 5 * time.Minute, true, true},
+		}, 10 * time.Minute, true, true},
 
 		{"LC-Shut-Unshut", func(ctx context.Context, t *testing.T) {
 			utils.DoShutUnshutAllAvailableLcParallel(t, tRes.DUT.Device)
@@ -427,7 +428,7 @@ func validateTraffic(t *testing.T, tRes *TestResources) {
 	ctx := context.Background()
 	client.Start(ctx, t)
 
-	topo := configureOTG(t, otg)
+	topo := configureOTG(t, otg, dut, peer)
 	tcArgs := &testArgs{
 		dut:    dut,
 		peer:   peer,

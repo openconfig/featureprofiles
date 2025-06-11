@@ -20,7 +20,7 @@ class Database(IDatabase):
         self._groups = None
 
         try:
-            self._client = MongoClient("mongodb://xr-sf-npi-lnx.cisco.com:27017/", serverSelectionTimeoutMS=5000)
+            self._client = MongoClient("mongodb://xr-sf-npi-lnx:27017,oc-perf-lnx:27017,sjc-ads-9292.cisco.com:27017/?replicaSet=xr-sf-npi-replication-to-oc-perf-lnx", serverSelectionTimeoutMS=5000)
             self._client.admin.command('ismaster')
             logger.info(f"Successfully connected to MongoDB server for environment: {self._environment}")
             self._database = self._client[self._environment]

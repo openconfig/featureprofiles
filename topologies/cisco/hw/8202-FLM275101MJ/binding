@@ -69,82 +69,82 @@ duts {
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-    id: "dut_ate_port1"
-    name: "Te0/0/0/0/0"  # Change this to the actual port name.
+    id: "port1"
+    name: "TenGigE0/0/0/0/0"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port2"
-    name: "Te0/0/0/0/1"  # Change this to the actual port name.
+    id: "port2"
+    name: "TenGigE0/0/0/0/1"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port3"
-    name: "Te0/0/0/0/2" # Change this to the actual port name.
+    id: "port3"
+    name: "TenGigE0/0/0/0/2" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port4"
-    name: "Te0/0/0/0/3"  # Change this to the actual port name.
+    id: "port4"
+    name: "TenGigE0/0/0/0/3"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port5"
-    name: "Te0/0/0/1/0"  # Change this to the actual port name.
+    id: "port5"
+    name: "TenGigE0/0/0/1/0"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port6"
-    name: "Te0/0/0/1/1"  # Change this to the actual port name.
+    id: "port6"
+    name: "TenGigE0/0/0/1/1"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port7"
-    name: "Te0/0/0/1/2"  # Change this to the actual port name.
+    id: "port7"
+    name: "TenGigE0/0/0/1/2"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port8"
-   name: "Te0/0/0/1/3"  # Change this to the actual port name.
+    id: "port8"
+   name: "TenGigE0/0/0/1/3"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port9"
+    id: "port9"
    name: "TenGigE0/0/0/20/0"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port11"
+   id: "port10"
    name: "TenGigE0/0/0/20/1"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port11"
+   id: "port11"
    name: "TenGigE0/0/0/20/2"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port12"
+   id: "port12"
    name: "TenGigE0/0/0/20/3"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port13"
+   id: "port13"
    name: "TenGigE0/0/0/31/0"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port14"
+   id: "port14"
    name: "TenGigE0/0/0/31/1"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port15"
+   id: "port15"
    name: "TenGigE0/0/0/31/2"  # Change this to the actual port name.
    speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port16"
+   id: "port16"
    name: "TenGigE0/0/0/31/3"  # Change this to the actual port name.
    speed: S_10GB  
   }
@@ -168,82 +168,82 @@ ates {
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
-    id: "dut_ate_port1"
+    id: "port1"
     name: "9/29"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port2"
+    id: "port2"
     name: "9/30"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port3"
+    id: "port3"
     name: "9/31"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port4"
+    id: "port4"
     name: "9/32"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port5"
+    id: "port5"
     name: "3/13" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port6"
+    id: "port6"
     name: "3/14"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port7"
+    id: "port7"
     name: "3/15"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port8"
+   id: "port8"
    name: "3/16"  # Change this to the actual port name.
     speed: S_10GB  
   }
     ports {
-    id: "dut_ate_port9"
+    id: "port9"
     name: "10/33"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port10"
+    id: "port10"
     name: "10/34"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port11"
+    id: "port11"
     name: "10/35"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port12"
+    id: "port12"
     name: "10/36"  # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port13"
+    id: "port13"
     name: "9/37" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port14"
+    id: "port14"
     name: "9/38" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-    id: "dut_ate_port15"
+    id: "port15"
     name: "9/39" # Change this to the actual port name.
     speed: S_10GB  
   }
   ports {
-   id: "dut_ate_port16"
+   id: "port16"
     name: "9/40" # Change this to the actual port name.
    speed: S_10GB  
   }   

@@ -1,0 +1,12 @@
+name: interface_neighbors
+owners: 
+  - shpaulch
+testbeds:
+  - 8812-2DUT
+tests:
+- name: interface_neighbors_test
+  path: feature/cisco/interface/interface_neighbors
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
