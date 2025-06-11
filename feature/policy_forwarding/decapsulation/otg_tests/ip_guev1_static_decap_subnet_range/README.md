@@ -14,7 +14,7 @@ The tests validate that the DUT performs the following action-
  - Post decapsulation, the inner TTL value will be decremented before egressing to next-hop
  - Traffic not subject to match criteria will be forwared using the traditional IP forwarding.
 
- Comprehensive GUEv1 decapsulation and ECMP hashing test for GUE flows with IPv4|UDP outer header on decapsulation node is documented in [PF-1.22](https://github.com/openconfig/featureprofiles/pull/4135)
+ Comprehensive GUEv1 decapsulation and ECMP hashing test for GUE flows with IPv4|UDP outer header on decapsulation node is documented in PF-1.22
 
 ## Procedure
 
@@ -81,8 +81,8 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
  
 2. GUE Decapsulation:
     *  Configure a Loopback address with DECAP-DST_3/32 address
-    *  Configure static routes for destination IPV4-SRC1 and IPV6-SRC2 towards ATE Port 1
-    *  Configure static routes for destination IPV4-DST2 and IPV6-DST2 towards ATE Port 2
+    *  Configure static routes for destination IPV4-SRC1 and IPV6-SRC1 towards ATE Port 1
+    *  Configure static routes for destination IPV4-DST1 and IPV6-DST1 towards ATE Port 2
     *  Configure the DUT as GUEv1 decapsulator with below fields:
        - DECAP-DST-SUBNET/30 as decapsulation subnet-range
           - DECAP-DST/32 is one of the IP prefix from DECAP-DST-SUBNET/30
