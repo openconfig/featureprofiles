@@ -14,7 +14,7 @@ The tests validate that the DUT performs the following action-
  - Post decapsulation, the inner TTL value will be decremented before egressing to next-hop
  - Traffic not subject to match criteria will be forwared using the traditional IP forwarding.
 
- Comprehensive GUEv1 decapsulation and ECMP hashing test for GUE flows with IPv4|UDP outer header on decapsulation node is documented in [#4135](https://github.com/openconfig/featureprofiles/pull/4135)
+ Comprehensive GUEv1 decapsulation and ECMP hashing test for GUE flows with IPv4|UDP outer header on decapsulation node is documented in [PF-1.22](https://github.com/openconfig/featureprofiles/pull/4135)
 
 ## Procedure
 
@@ -30,20 +30,20 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 ### ATE Configuration
 
-*  ATE Port 1: EBGP session with DUT and generates GUE-encapsulated traffic
-*  ATE Port 2: EBGP session with DUT and receives traffic
+*  ATE Port 1: Generates GUE-encapsulated traffic
+*  ATE Port 2: Receives traffic
   
 * ATE Port 1 hosted prefixes:
 
   * ATE-Port1 IPV4 address = ATE-P1-Address
-  * Additional Source Address advertised through eBGP session
+  * Additional Source Address advertised
     - IPV4-SRC1
     - IPV6-SRC1 
 
 * ATE Port 2 hosted prefixes:
 
   * ATE-Port2 IPV4 address = ATE-P2-Address
-  * Additional destination address advertised through eBGP session
+  * Additional destination address advertised
     - IPV4-DST1
     - IPV6-DST1
 
@@ -81,14 +81,14 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
  
 2. GUE Decapsulation:
     *  Configure a Loopback address with DECAP-DST_3/32 address
-    *  Configure eBGP session between DUT<>ATE Port 1 and DUT<>ATE Port 2 
+    *  Configure static routes for destination IPV4-SRC1 and IPV6-SRC2 towards ATE Port 1
+    *  Configure static routes for destination IPV4-DST2 and IPV6-DST2 towards ATE Port 2
     *  Configure the DUT as GUEv1 decapsulator with below fields:
        - DECAP-DST-SUBNET/30 as decapsulation subnet-range
           - DECAP-DST/32 is one of the IP prefix from DECAP-DST-SUBNET/30
        - Do not enable copying TTL bits from outer to inner header post decapsulation
        - Use single decapsulation UDP destination port 6081 for both IPv4 and IPv6 payload type
-    *  Configure static routes for destination IPV4-DST2 and IPV6-DST2 towards ATE Port 2
-    *  Generate and advertise a summary route `DECAP-DST-SUBNET/30` towards the `DUT<>ATE Port 1` ebgp session 
+    *  Configure IXIA with a static route for `DECAP-DST-SUBNET/30` towards the `DUT<>ATE Port 1` 
 
 * DECAP-DST-SUBNET/30 subnet comprises of below IP prefixes:
    - DECAP-DST_1/32
@@ -111,13 +111,13 @@ Traffic:
 -  Initiate traffic flow type#1
 - Verification:
     -  The outer header destination IP of the traffic falls within the configured decap range (DECAP-DST-SUBNET/30)
-    -  The outer header destination port of the traffic (UDP 6081) matches the configured non-default UDP decap port    criteria
+    -  The outer header destination port of the traffic (UDP 6081) matches the configured decap port criteria
     -  The DUT will decapsulate the outer header and perform the lookup based on the inner IP address
     -  The TTL bits will not be copied to the inner header
     -  The inner header TTL value will be decremented by 1
     -  The inner packet's DSCP value (32) will be preserved
     -  The DUT will forward the traffic towards ATE Port 2
-    -  The relevant DUT counters will reflect 1,000,000 decapsulated packets
+    -  The relevant DUT counters will reflect 1000 decapsulated packets
     -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#2
     -  No packet loss should be observed
 
@@ -126,13 +126,13 @@ Traffic:
 -  Initiate traffic flow type#2
 - Verification:
     -  The outer header destination IP of the traffic falls within the configured decap range (DECAP-DST-SUBNET/30)
-    -  The outer header destination port of the traffic (UDP 6081) matches the configured non-default UDP decap port    criteria
+    -  The outer header destination port of the traffic (UDP 6081) matches the configured decap port criteria
     -  The DUT will decapsulate the outer header and perform the lookup based on the inner IP address
     -  The TTL bits will not be copied to the inner header
     -  The inner header TTL value will be decremented by 1
     -  The inner packet's DSCP value (32) will be preserved
     -  The DUT will forward the traffic towards ATE Port 2
-    -  The relevant DUT counters will reflect 1,000,000 decapsulated packets
+    -  The relevant DUT counters will reflect 1000 decapsulated packets
     -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#4
     -  No packet loss should be observed
 
@@ -144,7 +144,7 @@ Traffic:
     -  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it does not match the decapsulation criteria.
     -  The DUT should not decapsulate these packets. Packets with `DECAP-DST_3/32` will be sent to the device controller/CPU while the packets with DECAP-DST_1/32, DECAP-DST_2/32 and DECAP-DST_4/32 will be dropped due to specific no-route to the destination present in local FIB
     -  The DUT decapsulation counters should not increment for this flow
-    -  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
+    -  100% packet loss should be observed on ATE Port 2
 
 ### PF-1.4.4: GUE Decapsulation of inner IPv6 traffic using non-default and unconfigured GUE UDP port (Negative).
 -  Push DUT configuration.
@@ -155,7 +155,7 @@ Traffic:
     -  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
     -  The DUT decapsulation counters should not increment for this flow
     -  The DUT drop counters will reflect the packets to 1000
-    -  100% packet loss should be observed on ATE Port 2 for RX-Flow-type equivalent
+    -  100% packet loss should be observed on ATE Port 2
 
 ### PF-1.4.5: Inner IPV4 GUE Pass-through (Negative)
 -  Push DUT configuration.
