@@ -2024,7 +2024,7 @@ func testDecapEncapScale(t *testing.T) {
 		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG),
 			numUniqueNHGs: batches, numNHPerNHG: 1},
 		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: batches, numNHPerNHG: 1, nextHopWeight: generateNextHopWeights(64, 1)},
-		&routesParam{segment: "Frr1Level1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
+		&routesParam{segment: "Frr1Level1", nextHops: tcArgs.frr1Paths, numUniqueNHGs: 1, numNHPerNHG: 1}, //frr1 path
 		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: nhg, numNHPerNHG: nhsPerNHG},
 	)
 
@@ -2199,7 +2199,7 @@ func testDcGateScale(t *testing.T) {
 		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: batches, numNHPerNHG: 1},
 		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: nhg / 2, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_A
 		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: nhg / 2, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_B
-		&routesParam{segment: "Frr1Level1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 1, numNHPerNHG: 1},
+		&routesParam{segment: "Frr1Level1", nextHops: tcArgs.frr1Paths, numUniqueNHGs: 1, numNHPerNHG: 1},
 		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, frr1NHG*nhsPerNHG), numUniqueNHGs: frr1NHG, numNHPerNHG: nhsPerNHG},
 		&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(64, 1)},
 		&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
@@ -2321,16 +2321,16 @@ func testDcGateTriggers(t *testing.T) {
 		}
 		// Wait for the gribi entries get flushed
 		// time.Sleep(300 * time.Second)
-		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
-	// waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "")
+	// waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 
 	batches := 8
 	vrfCount := 4
 	// get free resource IDs
-	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
-	getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.activeRp)
+	gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
+	getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
 	availableForUseResourceIDs := reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
 	// availableForUseResourceIDs := 12000 - 145 //13136
 	// plan resouce distribution among various tunnel types for DCGate profile
@@ -2355,17 +2355,17 @@ func testDcGateTriggers(t *testing.T) {
 	t.Logf("Possible NHG: %d, with NHsPerNHG: %d, leftover: %d with available %d resource IDs", nhg, nhsPerNHG, nhLeftover, avaialableForEncap+frr1NHLeftover)
 
 	// divide tcArgs.primaryPaths in halves to be used by primary and frr1 paths
-	mid := len(tcArgs.primaryPaths) / 2
+	// mid := len(tcArgs.primaryPaths) / 2
 	// build the DCGate profile
 	// failing test case
 	gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
-		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths[:mid], numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
+		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
 		&routesParam{segment: "PrimaryLevel2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: 256, numNHPerNHG: 2},
 		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_A
 		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_B
 		&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_C
 		&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG}, // allocate half of the available nhgs for ENCAP_TE_VRF_D
-		&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.primaryPaths[mid:], numUniqueNHGs: 8, numNHPerNHG: 8},
+		&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.frr1Paths, numUniqueNHGs: 8, numNHPerNHG: 8},
 		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: frr1NHG, numNHPerNHG: nhsPerNHG},
 		&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(1, 1)},
 		&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
@@ -2434,8 +2434,8 @@ func testDcGateTriggers(t *testing.T) {
 		// }
 	}
 
-	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "0/0/CPU0")
-	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.activeRp, "0/16/CPU0")
+	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "0/0/CPU0")
+	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "0/16/CPU0")
 
 	t.Logf("Validating encap traffic")
 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
