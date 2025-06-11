@@ -427,4 +427,3 @@ func ConfigurePacketCapture(t *testing.T, top gosnappi.Config, packetVal *Packet
 		SetPortNames(ports).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
 }
-
