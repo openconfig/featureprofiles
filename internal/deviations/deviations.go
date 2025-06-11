@@ -1468,3 +1468,7 @@ func SkipVerifyClassifierMatchedpackets(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipVerifyClassifierMatchedpackets()
 }
 
+// UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
+func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
+}
