@@ -102,7 +102,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 ### Test Procedure
 Traffic: 
 -  Generate the applicable GUE-encapsulated flow from ATE Port 1
-     -  Sent 1000 packets at the 10%  of the line rate.
+     -  Send 1000 packets at the 10%  of the line rate.
      -  Keep the frame size Internet Mix.
    
   
