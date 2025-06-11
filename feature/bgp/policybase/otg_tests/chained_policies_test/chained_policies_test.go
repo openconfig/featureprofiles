@@ -244,10 +244,11 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v4PrefixStatement, err)
 	}
-	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv41.cidr(t), maskLenExact)
 
 	if !deviations.SkipSetRpMatchSetOptions(dut) {
@@ -288,6 +289,8 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		}
 		batch.Set(t, dut)
 	}
+	// Sleep for 5 second to ensure that OTG has received the update packet
+	time.Sleep(time.Second * 5)
 }
 
 func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -354,6 +357,9 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		stmt2, err := pdef1.AppendNewStatement(v4MedStatement)
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+		if !deviations.BGPSetMedActionUnsupported(dut) {
+			stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+		}
 		if err != nil {
 			t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
 		}
@@ -362,6 +368,9 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+		if !deviations.BGPSetMedActionUnsupported(dut) {
+			stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+		}
 		if err != nil {
 			t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
 		}
@@ -463,10 +472,11 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v6PrefixStatement, err)
 	}
-	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv61.cidr(t), maskLenExact)
 
 	if !deviations.SkipSetRpMatchSetOptions(dut) {
@@ -577,6 +587,9 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 		}
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+		if !deviations.BGPSetMedActionUnsupported(dut) {
+			stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+		}
 	} else {
 		pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
 		stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
@@ -585,6 +598,10 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 		}
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+		if !deviations.BGPSetMedActionUnsupported(dut) {
+			stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+		}
+
 	}
 	if deviations.SkipSettingStatementForPolicy(dut) {
 		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -642,14 +659,13 @@ func validateExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 			t.Errorf("ExportPolicy = %v, want %v", exportPolicies, []string{v6ASPPolicy, v6MedPolicy})
 		}
 	}
-
 	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv6Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer("atePort1.BGP6.peer").UnicastIpv6PrefixAny().State())
 	found := false
 	for _, bgpPrefix := range bgpPrefixes {
 		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v62Route &&
 			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v6RoutePrefix {
 			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, v62Route)
+			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), v62Route)
 			t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
 			if bgpPrefix.GetMultiExitDiscriminator() != med {
 				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)

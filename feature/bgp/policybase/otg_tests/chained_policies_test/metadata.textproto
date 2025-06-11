@@ -16,6 +16,7 @@ platform_exceptions: {
     missing_value_for_defaults: true
     skip_setting_statement_for_policy: true
     default_import_export_policy_unsupported: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
@@ -38,4 +39,13 @@ platform_exceptions: {
     flatten_policy_with_multiple_statements: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    skip_prefix_set_mode: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}

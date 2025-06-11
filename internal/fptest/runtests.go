@@ -20,12 +20,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"unicode/utf8"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/featureprofiles/internal/pathutil"
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/featureprofiles/topologies/binding"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
@@ -106,6 +108,16 @@ func datapointValidator(dp *ygnmi.DataPoint) error {
 		}
 		if dp.RecvTimestamp.Before(dp.Timestamp) {
 			return fmt.Errorf("datapoint receive timestamp %v is before notification timestamp %v", dp.RecvTimestamp, dp.Timestamp)
+		}
+	}
+
+	if dp.Value != nil {
+		typedVal := dp.Value
+		switch typedVal.Value.(type) {
+		case *gpb.TypedValue_StringVal:
+			if typedVal.GetStringVal() != "" && !utf8.ValidString(typedVal.GetStringVal()) {
+				return fmt.Errorf("datapoint string value %v is not a valid UTF-8 string", typedVal.GetStringVal())
+			}
 		}
 	}
 

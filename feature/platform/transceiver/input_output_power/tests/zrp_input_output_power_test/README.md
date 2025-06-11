@@ -1,4 +1,4 @@
-# TRANSCEIVER-4: Telemetry: 400ZR_PLUS RX input and TX output power telemetry values streaming. 
+# TRANSCEIVER-4 (400ZR_PLUS): Telemetry: 400ZR_PLUS RX input and TX output power telemetry values streaming. 
 
 ## Summary
 

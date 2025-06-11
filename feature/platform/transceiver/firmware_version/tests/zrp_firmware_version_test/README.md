@@ -1,4 +1,4 @@
-# TRANSCEIVER-3: Telemetry: 400ZR_PLUS Optics firmware version streaming
+# TRANSCEIVER-3 (400ZR_PLUS): Telemetry: 400ZR_PLUS Optics firmware version streaming
 
 ## Summary
 

@@ -479,7 +479,8 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 			strconv.Itoa(p2NHID): {
 				Index: ygot.String(strconv.Itoa(p2NHID)),
 				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p2.Name()),
+					Subinterface: ygot.Uint32(0),
+					Interface:    ygot.String(p2.Name()),
 				},
 			},
 		},
@@ -490,7 +491,8 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 			strconv.Itoa(p3NHID): {
 				Index: ygot.String(strconv.Itoa(p3NHID)),
 				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p3.Name()),
+					Subinterface: ygot.Uint32(0),
+					Interface:    ygot.String(p3.Name()),
 				},
 			},
 		},
@@ -562,7 +564,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 	var macFilter string
 
 	otg := ate.OTG()
-	config := otg.FetchConfig(t)
+	config := otg.GetConfig(t)
 
 	switch option {
 	case trafficOnPort2Port3NotOnPort4:
