@@ -115,15 +115,13 @@ The configuration required for the 2R3C policer with classifier is included belo
     #
     # A single scheduler policy can be applied per interface.
     #
-    "scheduler-policies": [
-      {
-        "scheduler-policy": null,
+    "scheduler-policies": {
+        "scheduler-policy": [
         "config": {
           "name": "group_A_2Gb"
         },
-        "schedulers": [
-          {
-            "scheduler": null,
+        "schedulers": {
+            "scheduler": [
             "config": {
               "sequence": 1,
               "type": "TWO_RATE_THREE_COLOR_with_CLASSIFIER"
@@ -157,10 +155,10 @@ The configuration required for the 2R3C policer with classifier is included belo
                 }
               }
             }
-          }
-        ]
-      },
-    ],
+          ]
+        }
+      ],
+    },
     #
     # For configuration, the interfaces container specifies the
     # binding between the specified classifiers,schedulers and
@@ -190,13 +188,14 @@ The configuration required for the 2R3C policer with classifier is included belo
                 }
               ]
             },
-            "scheduler-policy": null,
+            "scheduler-policy": {
               "config": {
                 "name": "group_A_2Gb"
             },
           },
-        }
-     ]
+        },
+      }
+    ]
   }
 }
 ```
@@ -204,13 +203,13 @@ The configuration required for the 2R3C policer with classifier is included belo
 ### DP-2.6.1 Test traffic
 
 * Send traffic
-  * Send flow A traffic from ATE port 1 to DUT for dest_A at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
-  * Validate qos counters for dest_A of DUT .
+  * Send flow traffic from ATE port 1 to DUT for dest_A at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
+  * Validate qos counters for dest of DUT .
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts, conforming-octets, exceeding-pkts & exceeding-octets.
   * Validate packets are received by ATE port 2.
-    * Validate at OTG that 0 packets are lost on flow A.
-  * Increase traffic on flow A to dest_A to 4Gbps
-    * Validate that flow A to dest_A experiences ~50% packet loss (+/- 1%)
+    * Validate at OTG that 0 packets are lost on flow.
+  * Increase traffic on flow A to dest to 4Gbps
+    * Validate that flow to dest experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
 
 
