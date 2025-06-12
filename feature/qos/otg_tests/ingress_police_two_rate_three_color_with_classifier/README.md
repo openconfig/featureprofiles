@@ -203,12 +203,12 @@ The configuration required for the 2R3C policer with classifier is included belo
 ### DP-2.6.1 Test traffic
 
 * Send traffic
-  * Send flow traffic from ATE port 1 to DUT for dest_A at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
+  * Send flow traffic from ATE port 1 to DUT for dest towards port 2 at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
   * Validate qos counters for dest of DUT .
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts, conforming-octets, exceeding-pkts & exceeding-octets.
   * Validate packets are received by ATE port 2.
     * Validate at OTG that 0 packets are lost on flow.
-  * Increase traffic on flow A to dest to 4Gbps
+  * Increase traffic on flow to dest to 4Gbps
     * Validate that flow to dest experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
 
