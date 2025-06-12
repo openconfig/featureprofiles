@@ -70,7 +70,11 @@ const (
 	dscpEncapA2              = 18
 	dscpEncapB1              = 20
 	dscpEncapB2              = 28
-	dscpEncapNoMatch         = 30
+	dscpEncapC1              = 30
+	dscpEncapC2              = 38
+	dscpEncapD1              = 40
+	dscpEncapD2              = 48
+	dscpEncapNoMatch         = 50
 	peerGrpName              = "BGP-PEER-GROUP"
 	policyName               = "ALLOW"
 	dutBGPRID                = "18.18.18.18"
@@ -205,8 +209,8 @@ var (
 
 	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
-	primarySubIntfScale         = 1000 //todo increase // number of sub-interfaces on primary bundle interface
-	backupSubIntfScale          = 1000 //todo increase // number of sub-interfaces on backup bundle interface
+	primarySubIntfScale         = 512 //todo increase // number of sub-interfaces on primary bundle interface
+	backupSubIntfScale          = 512 //todo increase // number of sub-interfaces on backup bundle interface
 	primaryPercent              = 60
 	aggID1                      = ""
 	aggID2                      = ""
@@ -224,18 +228,23 @@ type PbrRule struct {
 }
 
 type trafficflowAttr struct {
-	withInnerHeader bool // flow type
-	withNativeV6    bool
-	withInnerV6     bool
-	outerSrc        string   // source IP address
-	outerDst        []string // destination IP addresses
-	innerSrc        string
-	innerDst        []string // set of destination IP addresses
-	innerV4SrcStart string   // Inner v4 source IP address
-	innerV4DstStart string   // Inner v4 destination IP address
-	innerV6SrcStart string   // Inner v6 source IP address
-	innerV6DstStart string   // Inner v6 destination IP address
-	innerFlowCount  uint32
+	withInnerHeader       bool // flow type
+	withNativeV6          bool
+	withInnerV6           bool
+	outerSrc              string   // source IP address
+	outerDst              []string // destination IP addresses
+	innerSrc              string
+	innerDst              []string // set of destination IP addresses
+	innerV4SrcStart       string   // Inner v4 source IP address
+	innerV4DstStart       string   // Inner v4 destination IP address
+	innerV6SrcStart       string   // Inner v6 source IP address
+	innerV6DstStart       string   // Inner v6 destination IP address
+	innerFlowCount        uint32
+	outerFlowCount        uint32
+	useInnerFlowIncrement bool
+	useOuterFlowIncrement bool
+	innerSrcCount         uint32
+	// outerSrcCount         uint32
 	// outerDscp       uint32   // DSCP value
 	innerDscp uint32   // Inner DSCP value
 	srcPort   []string // source OTG port
@@ -255,8 +264,8 @@ type testArgs struct {
 	ate          *ondatra.ATEDevice
 	topo         gosnappi.Config
 	electionID   gribi.Uint128
-	primaryPaths []string
-	frr1Paths    []string
+	primaryPaths []string // next hop ip address for peer interface for primary path
+	frr1Paths    []string // next hop ip address for peer interface for frr1 path
 	DUT          DUTResources
 	PEER         DUTResources
 	OTG          OTGResources
@@ -274,63 +283,119 @@ type ConvOptions struct {
 // WAN PBR rules
 var pbrRules = []PbrRule{
 	{
-		sequence:    uint32(1),
+		sequence:    uint32(11),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(2),
+		sequence:    uint32(12),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(3),
+		sequence:    uint32(13),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(4),
+		sequence:    uint32(14),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(5),
+		sequence:    uint32(15),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(6),
+		sequence:    uint32(16),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(7),
+		sequence:    uint32(17),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(8),
+		sequence:    uint32(18),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(9),
+		sequence:    uint32(19),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(20),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(21),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(22),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(23),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(24),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(25),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(26),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(27),
 		protocol:    ipipProtocol,
 		decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
@@ -354,12 +419,12 @@ var pbrRules = []PbrRule{
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:  uint32(917),
+		sequence:  uint32(921),
 		etherType: ethertypeIPv4,
 		encapVrf:  vrfDefault,
 	},
 	{
-		sequence:  uint32(918),
+		sequence:  uint32(922),
 		etherType: ethertypeIPv6,
 		encapVrf:  vrfDefault,
 	},
@@ -386,6 +451,26 @@ var encapPbrRules = []PbrRule{
 		sequence:  uint32(916),
 		dscpSetv6: []uint8{dscpEncapB1, dscpEncapB2},
 		encapVrf:  vrfEncapB,
+	},
+	{
+		sequence: uint32(917),
+		dscpSet:  []uint8{dscpEncapC1, dscpEncapC2},
+		encapVrf: vrfEncapC,
+	},
+	{
+		sequence:  uint32(918),
+		dscpSetv6: []uint8{dscpEncapC1, dscpEncapC2},
+		encapVrf:  vrfEncapC,
+	},
+	{
+		sequence: uint32(919),
+		dscpSet:  []uint8{dscpEncapD1, dscpEncapD2},
+		encapVrf: vrfEncapD,
+	},
+	{
+		sequence:  uint32(920),
+		dscpSetv6: []uint8{dscpEncapD1, dscpEncapD2},
+		encapVrf:  vrfEncapD,
 	},
 }
 
@@ -609,6 +694,7 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 	flow.TxRx().Device().SetTxNames(fa.srcPort).SetRxNames(fa.dstPorts)
 	flow.Size().SetFixed(512)
 	flow.Rate().SetPps(fps)
+	// flow.Duration().FixedPackets().SetPackets(1000)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(fa.srcMac)
 	e1.Dst().SetValue(fa.dstMac)
@@ -620,29 +706,33 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 		v6.TrafficClass().SetValue(dscp << 2)
 	} else {
 		v4 := flow.Packet().Add().Ipv4()
+		if fa.useOuterFlowIncrement {
+			v4.Dst().Increment().SetStart(fa.outerDst[0]).SetCount(fa.outerFlowCount)
+		} else {
+			v4.Dst().SetValues(fa.outerDst)
+		}
 		v4.Src().SetValue(fa.outerSrc)
-		v4.Dst().SetValues(fa.outerDst)
 		v4.TimeToLive().SetValue(ipTTL)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
 		if fa.withInnerHeader {
 			if fa.withInnerV6 {
 				innerV6 := flow.Packet().Add().Ipv6()
-				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+				if fa.useInnerFlowIncrement { // use pre-defined inner destination addresses
+					innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
+					innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerSrcCount)
+				} else { // create inner srouce and destination addresses
 					innerV6.Src().SetValue(fa.innerSrc)
 					innerV6.Dst().SetValues(fa.innerDst)
-				} else { // create inner srouce and destination addresses
-					innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerFlowCount)
-					innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
 				}
 				innerV6.TrafficClass().SetValue(fa.innerDscp << 2)
 			} else {
 				innerV4 := flow.Packet().Add().Ipv4()
-				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+				if fa.useInnerFlowIncrement { // use pre-defined inner destination addresses
+					innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerSrcCount)
+					innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
+				} else { // create inner srouce and destination addresses}
 					innerV4.Src().SetValue(fa.innerSrc)
 					innerV4.Dst().SetValues(fa.innerDst)
-				} else { // create inner srouce and destination addresses}
-					innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerFlowCount)
-					innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
 				}
 				innerV4.Priority().Dscp().Phb().SetValue(fa.innerDscp)
 			}
@@ -1155,11 +1245,11 @@ func (bundles Bundles) ConfigureBundleLinkIPs(t *testing.T, dut, peer *ondatra.D
 type PathInfo struct {
 	// bundleMode: true if bundle interface,  false if physical interface
 	bundleMode         bool
-	PrimaryInterface   []string
-	PrimaryPathsV4     []string
-	PrimaryPathsV6     []string
-	PrimaryPathsPeerV4 []string
-	PrimaryPathsPeerV6 []string
+	PrimaryInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsV4     []string // IPv4 address of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsV6     []string // IPv6 address of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsPeerV4 []string // IPv4 address of the peer of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsPeerV6 []string // IPv6 address of the peer of the primary path for bundle case, physical interfaces for physical case
 	// PrimaryIntfLcs and PrimaryPeerLcs holds either a []string or [][]string depending on the interface mode.
 	// If bundleMode is false (physical interface mode), PrimaryIntfLcs is a []string.
 	// If bundleMode is true (bundle interface mode), PrimaryIntfLcs is a [][]string.
@@ -1169,11 +1259,13 @@ type PathInfo struct {
 	//   } else {
 	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
 	//   }
-	PrimaryIntfLcs any
-	PrimaryPeerLcs any
-	PrimarySubIntf map[string]util.LinkIPs
+	PrimaryIntfLcs        any
+	PrimaryPeerLcs        any
+	PrimarySubIntf        map[string]util.LinkIPs
+	PrimarySubintfPathsV4 []string
+	PrimarySubintfPathsV6 []string
 
-	BackupInterface   []string
+	BackupInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
 	BackupPathsV4     []string
 	BackupPathsV6     []string
 	BackupPathsPeerV4 []string
@@ -1187,9 +1279,11 @@ type PathInfo struct {
 	//   } else {
 	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
 	//   }
-	BackupIntfLcs any
-	BackupPeerLcs any
-	BackupSubIntf map[string]util.LinkIPs
+	BackupIntfLcs        any
+	BackupPeerLcs        any
+	BackupSubIntf        map[string]util.LinkIPs
+	BackupSubintfPathsV4 []string
+	BackupSubintfPathsV6 []string
 }
 
 // fillPathInfoInterface populates the PathInfo struct's interface-related fields.
@@ -1216,12 +1310,45 @@ func (p *PathInfo) fillPathInfoInterface(
 	p.BackupPeerLcs = util.ExtractBundleLinkField(backupInterfaces, "peerlinecardnumber")
 }
 
+// GetAllSubIntfIPAddresses extracts all IPv4 addresses from a map of subIntIPMap based on the address family type and peer flag.
+func GetAllSubIntfIPAddresses(subIntIPMap map[string]util.LinkIPs, afType string, peer bool) []string {
+	var ipAddresses []string
+	for _, link := range subIntIPMap {
+		if afType == "v4" {
+			if peer {
+				if link.PeerIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.PeerIPv4)
+				}
+			} else {
+				if link.DutIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.DutIPv4)
+				}
+			}
+		} else if afType == "v6" {
+			if peer {
+				if link.PeerIPv6 != "" {
+					ipAddresses = append(ipAddresses, link.PeerIPv6)
+				}
+			} else {
+				if link.DutIPv6 != "" {
+					ipAddresses = append(ipAddresses, link.DutIPv6)
+				}
+			}
+		}
+	}
+	return ipAddresses
+}
+
 // fillPathInfoSubInterface populates the PathInfo struct's subinterface-related fields.
 func (p *PathInfo) fillPathInfoSubInterface(
 	primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap map[string]util.LinkIPs,
 ) {
 	p.PrimarySubIntf = primaryBundlesubIntfIPMap
 	p.BackupSubIntf = backupBundlesubIntfIPMap
+	p.PrimarySubintfPathsV4 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v4", true) // peer addresses are used in nexthop reference
+	p.PrimarySubintfPathsV6 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v6", true)
+	p.BackupSubintfPathsV4 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v4", true)
+	p.BackupSubintfPathsV6 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v6", true)
 }
 
 func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode string) {
@@ -1254,7 +1381,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 
 		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, primaryBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.PrimaryInterface, primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
 		t.Logf("backupSubIntfScale: %d", backupSubIntfScale)
-		// nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
 		nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 		nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
 		pathInfo.fillPathInfoSubInterface(primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap)
