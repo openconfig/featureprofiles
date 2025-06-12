@@ -811,6 +811,10 @@ message Metadata {
     // Devices does not support static mpls lsp
     bool static_mpls_lsp_oc_unsupported = 290;
 
+    // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
+    // issues/404301960
+    bool use_old_oc_path_static_lsp_nh = 291;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
