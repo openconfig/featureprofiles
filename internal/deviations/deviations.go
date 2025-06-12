@@ -1457,3 +1457,13 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
 }
+
+// BreakoutGroupIndex0 returns true if breakout group index starts from 0
+func BreakoutGroupIndex0(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBreakoutGroupIndex_0()
+}
+
+// NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
+func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
+}
