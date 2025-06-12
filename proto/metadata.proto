@@ -716,6 +716,7 @@ message Metadata {
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
+
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
@@ -756,7 +757,7 @@ message Metadata {
     // Cisco b/414333771
     bool bgp_set_med_action_unsupported = 272;
 
-     // Devices that do not support next-hop-group config
+    // Devices that do not support next-hop-group config
     // Arista b/390507957
     bool next_hop_group_config_unsupported = 273;
 
@@ -811,6 +812,15 @@ message Metadata {
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
+
+    // UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
+    bool unsupported_qos_output_service_policy = 291;
+
+    // InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
+    bool interface_output_queue_non_standard_name = 292;
+
+    // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+    bool mpls_exp_ingress_classifier_unsupported = 293;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
