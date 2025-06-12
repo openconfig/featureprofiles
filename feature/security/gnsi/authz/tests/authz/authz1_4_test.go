@@ -684,6 +684,7 @@ func TestAuthz4(t *testing.T) {
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(time.Minute)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
