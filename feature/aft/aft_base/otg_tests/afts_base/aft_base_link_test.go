@@ -83,7 +83,7 @@ var (
 	wantIPv4NHs          = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
 	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
-	// TODO: b/420360046 Update the next hop IP address and remove the link local address, once the bug is fixed.
+	// TODO: Update the next hop IP address and remove the link local address, once the Cisco bug is fixed.
 	wantIPv6NHsPostChurn = map[string]bool{"fe80::200:2ff:fe02:202": true}
 	portNames            = []string{"port1", "port2"}
 )
@@ -258,7 +258,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	p2 := config.Ports().Add().SetName(ap2.ID())
 	// add devices
 	d1 := config.Devices().Add().SetName(p1.Name() + ".d1")
-	d2 := config.Devices().Add().SetName(p2.Name() + ".d1")
+	d2 := config.Devices().Add().SetName(p2.Name() + ".d2")
 
 	// Configuration on port1.
 	d1Eth := d1.Ethernets().
@@ -447,8 +447,8 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			if !ok {
 				return fmt.Errorf("next hop %d not found in AFT for next-hop group: %d for prefix: %s", nhID, nhgID, pfix)
 			}
-			// TODO: b/422325056 - Add check for exact interface name
-			// TODO: b/419767485 - Cisco Next-hop interface is not available (Remove Cisco specific check once the bug is fixed)
+			// TODO: - Add check for exact interface name
+			// TODO: - Cisco Next-hop interface is not available (Remove Cisco specific check and add recursive check)
 			if tc.dut.Vendor() != ondatra.CISCO {
 				if nh.IntfName == "" {
 					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
@@ -527,7 +527,10 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 	t.Log("Waiting for BGPv4 neighbor to establish...")
-	tc.waitForBGPSession(t)
+	err = tc.waitForBGPSession(t)
+	if err != nil {
+		t.Fatalf("failed to wait for BGPv4 neighbor to establish: %v", err)
+	}
 	aft, err := tc.cache(t, wantIPv4NHs, wantIPv6NHs)
 	if err != nil {
 		t.Fatalf("failed to get AFT Cache: %v", err)

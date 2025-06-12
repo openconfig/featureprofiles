@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"runtime"
 	"strconv"
 	"strings"
@@ -23,8 +24,7 @@ import (
 	"github.com/google/go-rate/rate"
 	"github.com/bazelbuild/rules_go/go/tools/bazel"
 
-	log "github.com/golang/glog"
-	gnmipb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -376,6 +376,7 @@ func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, target
 
 	buffer := make(chan *aftSubscriptionResponse, aftBufferSize)
 	// Don't need to close the buffer channel. We don't need that signal, the stream stopping logic is with the consumer.
+	// TODO: Change logic to remove the need for return after spawning a go routine.
 	go func() {
 		for {
 			n, err := sub.Recv()
@@ -604,10 +605,7 @@ func parseNH(n *gnmipb.Notification) (uint64, *aftNextHop, error) {
 	entries := map[uint64]bool{nhID: true}
 	var path string
 	// Loop over updates, looking for all instances of next hop.
-	updates, err := schema.NotificationToPoints(n)
-	if err != nil {
-		return 0, nil, err
-	}
+	updates := schema.NotificationToPoints(n)
 	for _, u := range updates {
 		path, err = ygot.PathToSchemaPath(u.Path)
 		switch {
@@ -667,10 +665,7 @@ func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 	entries := map[uint64]bool{nhgID: true}
 
 	// Loop over updates, looking for instances of next hop groups and next hops.
-	updates, err = schema.NotificationToPoints(n)
-	if err != nil {
-		return 0, nil, err
-	}
+	updates = schema.NotificationToPoints(n)
 	nhg := &aftNextHopGroup{
 		NHIDs:     []uint64{},
 		NHWeights: map[uint64]uint64{},
@@ -715,10 +710,7 @@ func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 // parsePrefix extracts the IP prefix and next-hop-group ID from an AFT prefix GNMI notification.
 func parsePrefix(n *gnmipb.Notification) (string, uint64, error) {
 	// Normalizes paths for the "updates" in the gNMI notification.
-	updates, err := schema.NotificationToPoints(n)
-	if err != nil {
-		return "", 0, err
-	}
+	updates := schema.NotificationToPoints(n)
 	if len(updates) == 0 {
 		return "", 0, fmt.Errorf("missing updates")
 	}

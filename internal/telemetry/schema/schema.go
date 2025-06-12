@@ -12,7 +12,7 @@
 package schema
 
 import (
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	gnmipb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
 )
 
 // Point stores data about a single gNMI/OpenConfig data point.
@@ -32,9 +32,9 @@ type Point struct {
 // for each new update.
 //
 // Note that we only accept TypedValue values.
-func NotificationToPoints(n *gnmipb.Notification) ([]Point, error) {
+func NotificationToPoints(n *gnmipb.Notification) []Point {
 	if n == nil {
-		return nil, nil
+		return []Point{}
 	}
 	var points []Point
 	for _, u := range n.GetUpdate() {
@@ -46,5 +46,6 @@ func NotificationToPoints(n *gnmipb.Notification) ([]Point, error) {
 			Val:  u.GetVal(),
 		})
 	}
-	return points, nil
+	return points
 }
+
