@@ -22,7 +22,6 @@ import (
 	"math/rand"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -150,7 +149,7 @@ type pbrRule struct {
 
 // packetResult defines the expected packet attributes for validation
 type packetResult struct {
-	mplsLabel  uint64
+	mplsLabel uint64
 	// NOTE: Source UDP port is not validated since it is random
 	// udpSrcPort uint16
 	udpDstPort uint16
