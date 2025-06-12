@@ -17,12 +17,10 @@ TODO: Complete test environment setup steps
 **Inner IPv6 Destinations:**
 - inner_ipv6_dst_A = "2001:aa:bb::1/128"
 - inner_ipv6_dst_B = "2001:aa:bb::2/128"
-- inner_ipv6_default = "::/0"
 
 **Inner IPv4 Destinations:**
 - ipv4_inner_dst_A = "10.5.1.1/32"
 - ipv4_inner_dst_B = "10.5.1.2/32"
-- ipv4_inner_default = "0.0.0.0/0"
 
 **Outer IPv6 Encapsulation:**
 - outer_ipv6_src = "2001:f:a:1::0"
@@ -121,19 +119,17 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 - **Total NHs:** 20,000 (20,000 NHGs × 1 NH/NHG = 20,000 total NHs).
 - **gRIBI Operations:** Program/Modify the full 20k entries (1 Prefix + 1 NHG + 1 NH = 3 operations per entry = 60k operations total).
 
-  - Target Rate: **6,000 operations/second** (aiming to update the full table in ~10 seconds).
-  - Target Batch Size: **60 operations/ModifyRequest**.
-  - Target Request Rate: **100 ModifyRequests/second**.
+  - Target Rate: **6,000 operations/second** (aiming to update the full table in maximum of 60 seconds).
   - Operation Mix: Test with **50% ADD, 50% DELETE** operations during high-rate phase.
 
-- **Dataplane Validation:** Ensure live traffic forwarding remains stable and correct during high-rate gRIBI operations.
+- **Dataplane Validation:** Ensure live traffic forwarding remains stable and correct during high-rate gRIBI operations. The primary success criterion is zero packet loss during the update phase. This validates that the DUT correctly implements a "make-before-break" update sequence, where traffic for a modified prefix is seamlessly forwarded using either the old or the new state, without being dropped.
 
 ### TE-18.3.3 Validation Procedures
 
 #### Procedure - Single VRF Validation (Profiles 1, 4)
 
 - Program all gRIBI entries (NHs, NHGs, Prefixes) according to the profile using baseline rate/batch.
-- Validate `RIB_ACK` / `FIB_PROGRAMMED` status is received from DUT for all entries.
+- Validate `RIB_PROGRAMMED` status is received from DUT for all entries.
 - Verify AFT state on DUT for a sample of entries (NH, NHG, Prefix -> NHG mapping).
 - Send traffic matching programmed prefixes from appropriate ingress ports.
 - Verify traffic is received on egress ports with correct MPLS-over-UDP encapsulation (correct outer IPs, UDP port, MPLS label).
@@ -185,9 +181,21 @@ This test evaluates scaling across the following dimensions using gRIBI. The tes
 ```yaml
 paths:
   # AFTs Next-Hop state (Verification)
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/mpls-label-stack:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp:
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address: # NH IP
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
 
   # AFTs Next-Hop-Group state (Verification)
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop: # Verify NHs in NHG
