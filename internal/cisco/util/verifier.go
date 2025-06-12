@@ -17,7 +17,7 @@ var (
 	// DefaultVerifierTolerance is for default tolerance value
 	DefaultVerifierTolerance = float64(0.01)
 	// DefaultTelemtryInterval is for default telemetry interval
-	DefaultTelemtryInterval = time.Duration(5 * time.Second)
+	DefaultTelemtryInterval = time.Duration(35 * time.Second)
 )
 
 // CalculateDistribution computes the fraction of each input out of the total sum.

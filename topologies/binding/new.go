@@ -25,7 +25,7 @@ import (
 	"flag"
 
 	"github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/core"
+	// "github.com/openconfig/featureprofiles/internal/core"
 	"github.com/openconfig/featureprofiles/internal/rundata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -74,7 +74,7 @@ func New() (binding.Binding, error) {
 		return nil, err
 	}
 	// Register core file handler for DUTs.
-	core.Register()
+	// core.Register()
 	return &rundataBind{Binding: b}, nil
 }
 
