@@ -468,8 +468,8 @@ test: {
 }
 test: {
   id: "PF-1.8"
-  description: "Ingress handling of the TTL, for all ingress packets decrement TTL , and for TTL=1 generate ICMP time exceeded message"
-  readme: " "
+  description: "Ingress handling of the TTL"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/ingress/README.md"
   exec: " "
 }test: {
   id: "PF-1.9"
