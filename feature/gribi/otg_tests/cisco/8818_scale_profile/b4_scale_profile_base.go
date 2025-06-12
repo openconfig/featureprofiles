@@ -242,7 +242,7 @@ type trafficflowAttr struct {
 	useInnerFlowIncrement bool
 	useOuterFlowIncrement bool
 	innerSrcCount         uint32
-	outerSrcCount         uint32
+	// outerSrcCount         uint32
 	// outerDscp       uint32   // DSCP value
 	innerDscp uint32   // Inner DSCP value
 	srcPort   []string // source OTG port
@@ -255,21 +255,19 @@ type trafficflowAttr struct {
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx             context.Context
-	client          *fluent.GRIBIClient
-	dut             *ondatra.DUTDevice
-	peer            *ondatra.DUTDevice
-	ate             *ondatra.ATEDevice
-	topo            gosnappi.Config
-	electionID      gribi.Uint128
-	primaryPaths    []string // next hop ip address for peer interface for primary path
-	frr1Paths       []string // next hop ip address for peer interface for frr1 path
-	primaryPathIntf []string // list of interfaces for primary path
-	activeRp        string
-	DUT             DUTResources
-	PEER            DUTResources
-	OTG             OTGResources
-	LogDir          string
+	ctx          context.Context
+	client       *fluent.GRIBIClient
+	dut          *ondatra.DUTDevice
+	peer         *ondatra.DUTDevice
+	ate          *ondatra.ATEDevice
+	topo         gosnappi.Config
+	electionID   gribi.Uint128
+	primaryPaths []string // next hop ip address for peer interface for primary path
+	frr1Paths    []string // next hop ip address for peer interface for frr1 path
+	DUT          DUTResources
+	PEER         DUTResources
+	OTG          OTGResources
+	LogDir       string
 	// reader          io.ReadCloser
 	CommandPatterns map[string]map[string]interface{}
 }
