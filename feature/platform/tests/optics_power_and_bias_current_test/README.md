@@ -85,6 +85,7 @@ The below yaml defines the OC paths intended to be covered by this test.
 paths:
   # Config Parameter coverage
   /components/component/transceiver/config/enabled:
+    platform_type: ["TRANSCEIVER"]
   /interfaces/interface/config/enabled:
 
   # Telemetry Parameter coverage
