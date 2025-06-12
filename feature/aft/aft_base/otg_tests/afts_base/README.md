@@ -118,8 +118,9 @@ Bring up both link between ATE:port 1, port 2 and DUT:port 1, port 2 using OTG a
 *   Verify its next hop group, number of next hop and its interfaces.
 *   Verify the number of next hop is same as expected.
 
-## Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
+```yaml
 *   network-instances/network-instance[instance=<instance>]/afts/next-hops/next-hop[hop_id=<hop_id>]
 *   network-instances/network-instance[instance=<instance>]/afts/next-hops/next-hop[hop_id=<hop_id>]/index
 *   network-instances/network-instance[instance=<instance>]/afts/next-hops/next-hop[hop_id=<hop_id>]/interface-ref/state/interface
@@ -138,9 +139,6 @@ Bring up both link between ATE:port 1, port 2 and DUT:port 1, port 2 using OTG a
 *   network-instances/network-instance[instance=<instance>]/afts/ipv6-unicast/ipv6-entry[ipv6_prefix=<ipv6_prefix>]/prefix
 *   network-instances/network-instance[instance=<instance>]/afts/ipv6-unicast/ipv6-entry[ipv6_prefix=<ipv6_prefix>]/state/next-hop-group
 
-## OpenConfig Path and RPC Coverage
-
-```yaml
 rpcs:
   gnmi:
     gNMI.Get:
@@ -151,3 +149,4 @@ rpcs:
 
 BGP
 IS-IS
+
