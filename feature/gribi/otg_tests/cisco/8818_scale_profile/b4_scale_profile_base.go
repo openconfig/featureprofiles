@@ -207,8 +207,8 @@ var (
 
 	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
-	primarySubIntfScale         = 1000 //todo increase // number of sub-interfaces on primary bundle interface
-	backupSubIntfScale          = 1000 //todo increase // number of sub-interfaces on backup bundle interface
+	primarySubIntfScale         = 512 //todo increase // number of sub-interfaces on primary bundle interface
+	backupSubIntfScale          = 512 //todo increase // number of sub-interfaces on backup bundle interface
 	primaryPercent              = 60
 	aggID1                      = ""
 	aggID2                      = ""
@@ -686,6 +686,9 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames(fa.srcPort).SetRxNames(fa.dstPorts)
+	flow.Size().SetFixed(512)
+	flow.Rate().SetPps(1000)
+	// flow.Duration().FixedPackets().SetPackets(1000)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(fa.srcMac)
 	e1.Dst().SetValue(fa.dstMac)
@@ -1066,11 +1069,11 @@ func (bundles Bundles) ConfigureBundleLinkIPs(t *testing.T, dut, peer *ondatra.D
 type PathInfo struct {
 	// bundleMode: true if bundle interface,  false if physical interface
 	bundleMode         bool
-	PrimaryInterface   []string
-	PrimaryPathsV4     []string
-	PrimaryPathsV6     []string
-	PrimaryPathsPeerV4 []string
-	PrimaryPathsPeerV6 []string
+	PrimaryInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsV4     []string // IPv4 address of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsV6     []string // IPv6 address of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsPeerV4 []string // IPv4 address of the peer of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsPeerV6 []string // IPv6 address of the peer of the primary path for bundle case, physical interfaces for physical case
 	// PrimaryIntfLcs and PrimaryPeerLcs holds either a []string or [][]string depending on the interface mode.
 	// If bundleMode is false (physical interface mode), PrimaryIntfLcs is a []string.
 	// If bundleMode is true (bundle interface mode), PrimaryIntfLcs is a [][]string.
@@ -1084,7 +1087,7 @@ type PathInfo struct {
 	PrimaryPeerLcs any
 	PrimarySubIntf map[string]util.LinkIPs
 
-	BackupInterface   []string
+	BackupInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
 	BackupPathsV4     []string
 	BackupPathsV6     []string
 	BackupPathsPeerV4 []string
@@ -1165,7 +1168,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 
 		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, primaryBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.PrimaryInterface, primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
 		t.Logf("backupSubIntfScale: %d", backupSubIntfScale)
-		// nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
 		nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 		nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
 		pathInfo.fillPathInfoSubInterface(primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap)
