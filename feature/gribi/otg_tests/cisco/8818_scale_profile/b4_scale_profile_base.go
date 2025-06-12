@@ -1081,9 +1081,11 @@ type PathInfo struct {
 	//   } else {
 	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
 	//   }
-	PrimaryIntfLcs any
-	PrimaryPeerLcs any
-	PrimarySubIntf map[string]util.LinkIPs
+	PrimaryIntfLcs        any
+	PrimaryPeerLcs        any
+	PrimarySubIntf        map[string]util.LinkIPs
+	PrimarySubintfPathsV4 []string
+	PrimarySubintfPathsV6 []string
 
 	BackupInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
 	BackupPathsV4     []string
@@ -1099,9 +1101,11 @@ type PathInfo struct {
 	//   } else {
 	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
 	//   }
-	BackupIntfLcs any
-	BackupPeerLcs any
-	BackupSubIntf map[string]util.LinkIPs
+	BackupIntfLcs        any
+	BackupPeerLcs        any
+	BackupSubIntf        map[string]util.LinkIPs
+	BackupSubintfPathsV4 []string
+	BackupSubintfPathsV6 []string
 }
 
 // fillPathInfoInterface populates the PathInfo struct's interface-related fields.
@@ -1128,12 +1132,45 @@ func (p *PathInfo) fillPathInfoInterface(
 	p.BackupPeerLcs = util.ExtractBundleLinkField(backupInterfaces, "peerlinecardnumber")
 }
 
+// GetAllSubIntfIPAddresses extracts all IPv4 addresses from a map of subIntIPMap based on the address family type and peer flag.
+func GetAllSubIntfIPAddresses(subIntIPMap map[string]util.LinkIPs, afType string, peer bool) []string {
+	var ipAddresses []string
+	for _, link := range subIntIPMap {
+		if afType == "v4" {
+			if peer {
+				if link.PeerIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.PeerIPv4)
+				}
+			} else {
+				if link.DutIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.DutIPv4)
+				}
+			}
+		} else if afType == "v6" {
+			if peer {
+				if link.PeerIPv6 != "" {
+					ipAddresses = append(ipAddresses, link.PeerIPv6)
+				}
+			} else {
+				if link.DutIPv6 != "" {
+					ipAddresses = append(ipAddresses, link.DutIPv6)
+				}
+			}
+		}
+	}
+	return ipAddresses
+}
+
 // fillPathInfoSubInterface populates the PathInfo struct's subinterface-related fields.
 func (p *PathInfo) fillPathInfoSubInterface(
 	primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap map[string]util.LinkIPs,
 ) {
 	p.PrimarySubIntf = primaryBundlesubIntfIPMap
 	p.BackupSubIntf = backupBundlesubIntfIPMap
+	p.PrimarySubintfPathsV4 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v4", true) // peer addresses are used in nexthop reference
+	p.PrimarySubintfPathsV6 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v6", true)
+	p.BackupSubintfPathsV4 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v4", true)
+	p.BackupSubintfPathsV6 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v6", true)
 }
 
 func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode string) {

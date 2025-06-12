@@ -1441,7 +1441,9 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	})
 	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
 	tcArgs.primaryPaths = pathInfo.PrimaryPathsPeerV4
+	tcArgs.primaryPaths = append(tcArgs.primaryPaths, pathInfo.PrimarySubintfPathsV4...)
 	tcArgs.frr1Paths = pathInfo.BackupPathsPeerV4
+	tcArgs.frr1Paths = append(tcArgs.frr1Paths, pathInfo.BackupSubintfPathsV4...)
 	// Detect Dual sup support for DUT
 	dutDualSup, err := hautils.HasDualSUP(tcArgs.ctx, tcArgs.DUT.OSC)
 	if err != nil {
