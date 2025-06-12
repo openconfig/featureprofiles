@@ -1457,6 +1457,7 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
 }
+
 // Config Leaf Create required before GNMI get
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
