@@ -2,7 +2,7 @@
 
 ## Summary
 
-Use IP address and mac-address from TE-18.1 gRIBI. Static Routes can be used for this.
+Use IP address and mac-address from Topology shared below. Static Routes can be used for this.
 Configure an ingress scheduler to police traffic using a 2 rate, 3 color policer and attach the scheduler to the interface with classifier.
 Lack of match conditions will cause all packets to be matched. 
 Send traffic to validate the policer.
@@ -20,11 +20,47 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 
 ## Procedure
 
+### Testbed setup - Generate configuration for ATE and DUT
+
+#### Source & Destination Port for traffic
+
+* ATE (Port1) --- IP Connectivity --- DUT (Dut1),  DUT (Dut2) --- IP Connectivity --- ATE (Port2)
+* use below to configure traffic with following source and destination.
+
+  Dut1    = Attributes {
+		Desc:    "Dut1",
+		MAC:     "02:01:00:00:00:01",
+    IPv4:    "200.0.0.1/24"
+		IPv6:    "2001:f:d:e::1/126",
+	}
+  atePort1 = Attributes{
+		Desc:    "atePort1",
+		MAC:     "02:01:00:00:00:02",
+    IPv4:    "200.0.0.2/24"
+		IPv6:    "2001:f:d:e::2/126",
+	}
+	Dut2 = Attributes{
+		Desc:    "Dut2",
+		MAC:     "02:00:01:01:01:01",
+    IPv4:    "100.0.0.1/24"
+		IPv6:    "2001:f:d:e::1/126",
+	}
+	atePort2 = Attributes{
+		Desc:    "atePort2",
+		MAC:     "02:00:01:01:01:02",
+    IPv4:    "100.0.0.2/24"
+		IPv6:    "2001:f:d:e::2/126",
+	}
+
+* Create static route from atePort1 to atePort2.
+
 ### SetUp
 
 * Generate config for scheduler polices with an input rate 2Gbps limit and a classifier 
 * Apply them to DUT interface . Dut1 is LAG in provided setup.
 * Use gnmi.Replace to push the config to the DUT.
+
+### Canonical OC for DUT configuration
 
 The configuration required for the 2R3C policer with classifier is included below:
 
@@ -66,7 +102,7 @@ The configuration required for the 2R3C policer with classifier is included belo
                   "id": "class-default"
                 },
                 "id": "class-default"
-              },              
+              }
             ]
           }
         }
@@ -84,7 +120,7 @@ The configuration required for the 2R3C policer with classifier is included belo
             "output-queue": "QUEUE_3"
           },
           "name": "TRAFFIC_CLASS_3"
-        },
+        }
       ]
     },
     #
@@ -117,47 +153,53 @@ The configuration required for the 2R3C policer with classifier is included belo
     #
     "scheduler-policies": {
         "scheduler-policy": [
-        "config": {
-          "name": "group_A_2Gb"
-        },
-        "schedulers": {
-            "scheduler": [
+          {
             "config": {
-              "sequence": 1,
-              "type": "TWO_RATE_THREE_COLOR_with_CLASSIFIER"
+              "name": "group_A_2Gb"
             },
-            "inputs": [
-              {
-                "input": "my input policer 2Gb",
-                "config": {
-                  "id": "my input policer 2Gb",
-                  "input-type": "QUEUE",
-                  "queue": "QUEUE_3"
+            "name": "group_A_2Gb",
+            "schedulers": {
+              "scheduler": [
+                {
+                  "config": {
+                    "sequence": 1,
+                    "type": "TWO_RATE_THREE_COLOR_with_CLASSIFIER"
+                  },
+                  "inputs": [
+                  {
+                    "input": "my input policer 2Gb",
+                    "config": {
+                      "id": "my input policer 2Gb",
+                      "input-type": "QUEUE",
+                      "queue": "QUEUE_3"
+                    }
+                  }
+                  ],
+                  "two-rate-three-color": {
+                    "config": {
+                      "cir": 1000000000,
+                      "pir": 2000000000,
+                      "bc": 100000,
+                      "be": 100000,
+                      "queuing-behavior": "POLICE"
+                    },
+                    "exceed-action": {
+                      "config": {
+                        "drop": false
+                      }
+                    },
+                    "violate-action": {
+                      "config": {
+                        "drop": true
+                      }
+                    }
+                  }
                 }
-              }
-            ],
-            "two-rate-three-color": {
-              "config": {
-                "cir": 1000000000,
-                "pir": 2000000000,
-                "bc": 100000,
-                "be": 100000,
-                "queuing-behavior": "POLICE"
-              },
-              "exceed-action": {
-                "config": {
-                  "drop": false
-                }
-              },
-              "violate-action": {
-                "config": {
-                  "drop": true
-                }
-              }
+              ]
             }
-          ]
-        }
-      ],
+          }
+        ]
+      }
     },
     #
     # For configuration, the interfaces container specifies the
@@ -168,6 +210,7 @@ The configuration required for the 2R3C policer with classifier is included belo
     "interfaces": {
       "interface": [
         {
+          "interface-id": "Dut1",
           "config": {
             "interface-id": "Dut1"
           },
@@ -176,7 +219,7 @@ The configuration required for the 2R3C policer with classifier is included belo
           # referencing the classifier name within the /qos/interfaces
           # list.
           #
-          "input": {
+                    "input": {
             "classifers": {
               "classifier": [
                 {
@@ -191,25 +234,25 @@ The configuration required for the 2R3C policer with classifier is included belo
             "scheduler-policy": {
               "config": {
                 "name": "group_A_2Gb"
-            },
-          },
-        },
-      }
-    ]
+              }
+            }
+          }
+        }
+      ]
+    }
   }
-}
 ```
 
 ### DP-2.6.1 Test traffic
 
 * Send traffic
-  * Send flow traffic from ATE port 1 to DUT for dest towards port 2 at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
-  * Validate qos counters for dest of DUT .
+  * Send flow traffic from atePort1 to DUT towards atePort2 at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
+  * Validate qos counters on dut1 of DUT .
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts, conforming-octets, exceeding-pkts & exceeding-octets.
-  * Validate packets are received by ATE port 2.
+  * Validate packets are received by atePort2.
     * Validate at OTG that 0 packets are lost on flow.
-  * Increase traffic on flow to dest to 4Gbps
-    * Validate that flow to dest experiences ~50% packet loss (+/- 1%)
+  * Increase traffic on flow to atePort2 to 4Gbps
+    * Validate that flow to atePort2 experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
 
 
