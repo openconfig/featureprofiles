@@ -790,6 +790,19 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 		}
 	}
 	validateTrafficFlows(t, tcArgs, flows, false, true)
+
+	t.Run("Convergence with first frr & recovery", func(t *testing.T) {
+		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
+	})
+	t.Run("Convergence with two frrs & recovery", func(t *testing.T) {
+		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+	})
+	t.Run("Convergence with forwarding viable & recovery", func(t *testing.T) {
+		doBatchconfig(t, pathInfo.PrimaryInterface, "", "viable")
+		doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+
+		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+	})
 }
 
 // getOuterSrcForDscp returns the outer source IP address for a given DSCP value
@@ -2001,6 +2014,7 @@ func testDcGateScale(t *testing.T) {
 	testDecapTrafficFlows(t, tcArgs, gp, []int{1})
 	testDecapTrafficFlows(t, tcArgs, gp, []int{2})
 	testDecapTrafficFlows(t, tcArgs, gp, []int{3})
+
 }
 
 func testFlushAll(t *testing.T) {
