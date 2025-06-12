@@ -90,14 +90,11 @@ Verify that:
     "network-instance": [
       {
         "config": {
-          "name": "default",
+          "name": "DEFAULT",
           "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
         },
         "mpls": {
           "global": {
-            "config": {
-              "enabled": true
-            },
             "reserved-label-blocks": {
               "reserved-label-block": [
                 {
@@ -114,27 +111,32 @@ Verify that:
                     "upper-bound": 465000
                   },
                   "local-id": "isis-sr"
-                },
+                }
               ]
             }
-          },
+          }
         },
-        "name": "default",
+        "name": "DEFAULT",
         "protocols": {
           "protocol": [
             {
-            {
               "identifier": "openconfig-policy-types:ISIS",
+              "name": "isis",
+              "config": {
+                "identifier": "openconfig-policy-types:ISIS",
+                "name": "isis"
+              },
               "isis": {
+                "global": {
                   "segment-routing": {
                     "config": {
                       "enabled": true,
                       "srgb": "isis-sr",
                       "srlb": "srlb"
                     }
-                  },
-                },
-              },
+                  }
+                }
+              }
             }
           ]
         },
@@ -165,10 +167,10 @@ Verify that:
               }
             ]
           }
-        },
-      },
+        }
+      }
     ]
-  },
+  }
 }
 ```
 ## OpenConfig Path and RPC Coverage
