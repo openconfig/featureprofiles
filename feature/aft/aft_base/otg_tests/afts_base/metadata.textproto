@@ -1,8 +1,8 @@
 # proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
-uuid: "ec5cf6877-fdf4-4e5a-87ff-17aeae92dc6d"
-plan_id: "RT-4.12"
-description: "AFTs Base Link Test"
+uuid: "8c299aab-4df4-4213-8a1e-a7789fef0c60"
+plan_id: "AFT-1.1"
+description: "AFTs Base"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {

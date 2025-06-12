@@ -120,24 +120,26 @@ Bring up both link between ATE:port 1, port 2 and DUT:port 1, port 2 using OTG a
 
 ## OpenConfig Path and RPC Coverage
 
+The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
+
 ```yaml
--   network-instances/network-instance[instance=<instance>]/afts/next-hops/next-hop[hop_id=<hop_id>]
--   network-instances/network-instance[instance=<instance>]/afts/next-hops/next-hop[hop_id=<hop_id>]/index
--   network-instances/network-instance[instance=<instance>]/afts/next-hops/next-hop[hop_id=<hop_id>]/interface-ref/state/interface
--   network-instances/network-instance[instance=<instance>]/afts/next-hops/next-hop[hop_id=<hop_id>]/state/ip-address
--   network-instances/network-instance[instance=<instance>]/afts/next-hop-groups/next-hop-group[group_id=<group_id>]
--   network-instances/network-instance[instance=<instance>]/afts/next-hop-groups/next-hop-group[group_id=<group_id>]/state/id
--   network-instances/network-instance[instance=<instance>]/afts/next-hop-groups/next-hop-group[group_id=<group_id>]/id
--   network-instances/network-instance[instance=<instance>]/afts/next-hop-groups/next-hop-group[group_id=<group_id>]/next-hops/next-hop[hop_id=<hop_id>]/index
--   network-instances/network-instance[instance=<instance>]/afts/next-hop-groups/next-hop-group[group_id=<group_id>]/next-hops/next-hop[hop_id=<hop_id>]/state/weight
--   network-instances/network-instance[instance=<instance>]/afts/ipv4-unicast/ipv4-entry[ipv4_prefix=<ipv4_prefix>]
--   network-instances/network-instance[instance=<instance>]/afts/ipv4-unicast/ipv4-entry[ipv4_prefix=<ipv4_prefix>]/state/prefix
--   network-instances/network-instance[instance=<instance>]/afts/ipv4-unicast/ipv4-entry[ipv4_prefix=<ipv4_prefix>]/prefix
--   network-instances/network-instance[instance=<instance>]/afts/ipv4-unicast/ipv4-entry[ipv4_prefix=<ipv4_prefix>]/state/next-hop-group
--   network-instances/network-instance[instance=<instance>]/afts/ipv6-unicast/ipv6-entry[ipv6_prefix=<ipv6_prefix>]
--   network-instances/network-instance[instance=<instance>]/afts/ipv6-unicast/ipv6-entry[ipv6_prefix=<ipv6_prefix>]/state/prefix
--   network-instances/network-instance[instance=<instance>]/afts/ipv6-unicast/ipv6-entry[ipv6_prefix=<ipv6_prefix>]/prefix
--   network-instances/network-instance[instance=<instance>]/afts/ipv6-unicast/ipv6-entry[ipv6_prefix=<ipv6_prefix>]/state/next-hop-group
+paths:
+  ## Config Paths ##
+
+  ## State Paths ##:
+   /network-instances/network-instance/afts/next-hops/next-hop/index:
+   /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
+   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id:
+   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index:
+   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
+   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/prefix:
+   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/prefix:
+   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
 
 rpcs:
   gnmi:
