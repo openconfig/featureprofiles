@@ -84,28 +84,27 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   # Config Parameter coverage
+  /components/component/transceiver/config/enabled:
   /interfaces/interface/config/enabled:
-  # transceiver 3.3V power supply on/off
-  /components/component/transceiver/state/enabled:
 
   # Telemetry Parameter coverage
-  /components/component/transceiver/physical-channels/channel/state/input-power/instant:
-  /components/component/transceiver/physical-channels/channel/state/output-power/instant:
-  /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant:
-  /components/component/state/temperature/instant:
-  /components/component/state/mfg-name:
-  /components/component/transceiver/state/form-factor:
-  /components/component/state/serial-no:
-  /components/component/state/part-no:
   /components/component/state/firmware-version:
-  /components/component/transceiver/thresholds/threshold/state/output-power-lower:
-  /components/component/transceiver/thresholds/threshold/state/output-power-upper:
+  /components/component/state/mfg-name:
+  /components/component/state/part-no:
+  /components/component/state/serial-no:
+  /components/component/state/temperature/instant:
+  /components/component/transceiver/physical-channels/channel/state/input-power/instant:
+  /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant:
+  /components/component/transceiver/physical-channels/channel/state/output-power/instant:
+  /components/component/transceiver/state/form-factor:
   /components/component/transceiver/thresholds/threshold/state/input-power-lower:
   /components/component/transceiver/thresholds/threshold/state/input-power-upper:
-  /components/component/transceiver/thresholds/threshold/state/module-temperature-lower:
-  /components/component/transceiver/thresholds/threshold/state/module-temperature-upper:
   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-lower:
   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-upper:
+  /components/component/transceiver/thresholds/threshold/state/module-temperature-lower:
+  /components/component/transceiver/thresholds/threshold/state/module-temperature-upper:
+  /components/component/transceiver/thresholds/threshold/state/output-power-lower:
+  /components/component/transceiver/thresholds/threshold/state/output-power-upper:
   /components/component/transceiver/thresholds/threshold/state/severity:
 
 rpcs:
