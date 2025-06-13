@@ -20,7 +20,6 @@ graph LR;
     - The below routes learned on DUT from ATE:Port1 EBGP neighborship needs to be leaked from default vrf to non-default vrf
         - IPv4Prefix1/24 IPv6Prefix1/64 community 200:200
     - Routes learned on DUT from ATE:Port2 IBGP neighborship should not be leaked from default VRF to non-default VRF
-    - Configure a static ipv4 and ipv6 default route in non-default vrf pointing towards default vrf
 - DUT has DUT:Port1 and DUT:Port2 in the default network-instance
 - DUT's IP sub-interfaces belong to Default VRF
 - DUT port1 has uRPF policy at the ingress DUT:PORT1
