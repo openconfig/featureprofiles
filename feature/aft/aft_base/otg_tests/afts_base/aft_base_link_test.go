@@ -12,10 +12,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"

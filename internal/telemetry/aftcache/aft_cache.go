@@ -7,11 +7,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"runtime"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -21,7 +20,8 @@ import (
 	"github.com/openconfig/gnmi/metadata"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
-
+	
+	log "github.com/golang/glog"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
@@ -410,9 +410,11 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	if len(missingPrefixes) == 0 {
 		return
 	}
-	err := writeMissingPrefixes(t, missingPrefixes)
+	filename, err := writeMissingPrefixes(missingPrefixes)
 	if err != nil {
 		t.Errorf("error writing missing prefixes: %v", err)
+	} else {
+		t.Logf("Wrote missing prefixes to %s", filename)
 	}
 }
 
@@ -741,19 +743,21 @@ func checkForRoutesRequest(target string) (*gnmipb.SubscribeRequest, error) {
 	return &gnmipb.SubscribeRequest{Request: subReq}, nil
 }
 
-func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool) error {
-	f, path := bazel.TestOutputFile(t, missingPrefixesFile, bazel.Annotation{
-		Description: "Missing prefixes",
-		TestCase:    t.Name(),
-	})
+func writeMissingPrefixes(missingPrefixes map[string]bool) (string, error) {
+	absFilename, err := filepath.Abs(missingPrefixesFile)
+	if err != nil {
+		return "", err
+	}
+	f, err := os.OpenFile(absFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return "", err
+	}
 	defer f.Close()
 	for p := range missingPrefixes {
 		if _, err := fmt.Fprintln(f, p); err != nil {
-			return err
+			return "", err
 		}
 	}
-	log.Infof("Wrote missing prefixes to %s", path)
-	return nil
+	return absFilename, nil
 }
-
 
