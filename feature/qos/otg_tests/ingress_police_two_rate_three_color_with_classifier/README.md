@@ -66,7 +66,7 @@ The configuration required for the 2R3C policer with classifier is included belo
 
 ```json
 {
-  "openconfig-qos": {
+  "qos": {
     "classifiers": {
       #
       # The specification for the classifier to be applied to an interface.
@@ -199,8 +199,7 @@ The configuration required for the 2R3C policer with classifier is included belo
             }
           }
         ]
-      }
-    },
+      },
     #
     # For configuration, the interfaces container specifies the
     # binding between the specified classifiers,schedulers and
@@ -219,7 +218,7 @@ The configuration required for the 2R3C policer with classifier is included belo
           # referencing the classifier name within the /qos/interfaces
           # list.
           #
-                    "input": {
+          "input": {
             "classifers": {
               "classifier": [
                 {
@@ -241,6 +240,7 @@ The configuration required for the 2R3C policer with classifier is included belo
       ]
     }
   }
+}
 ```
 
 ### DP-2.6.1 Test traffic
