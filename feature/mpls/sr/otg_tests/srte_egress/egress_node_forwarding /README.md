@@ -178,6 +178,28 @@ Verify that:
 ```yaml
 paths:
   # telemetry
+  /network-instances/network-instance/protocols/protocol/name
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/upper-bound
+  /network-instances/network-instance/segment-routing/srgbs/srgb/local-id
+  /network-instances/network-instance/protocols/protocol/state/identifier
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/srgb
+  /network-instances/network-instance/segment-routing/srlbs/srlb/state/local-id
+  /network-instances/network-instance/segment-routing/srlbs/srlb/state/dataplane-type
+  /network-instances/network-instance/state/type
+  /network-instances/network-instance/protocols/protocol/identifier
+  /network-instances/network-instance/protocols/protocol/state/name
+  /network-instances/network-instance/segment-routing/srgbs/srgb/state/dataplane-type
+  /network-instances/network-instance/name
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/srlb
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/lower-bound
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled
+  /network-instances/network-instance/segment-routing/srgbs/srgb/state/mpls-label-blocks
+  /network-instances/network-instance/segment-routing/srlbs/srlb/local-id
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/local-id
+  /network-instances/network-instance/state/name
+  /network-instances/network-instance/segment-routing/srgbs/srgb/state/local-id
+  /network-instances/network-instance/segment-routing/srlbs/srlb/state/mpls-label-block
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/local-id
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/in-pkts:
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts:
