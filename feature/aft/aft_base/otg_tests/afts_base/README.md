@@ -12,17 +12,16 @@ IPv4/IPv6 unicast routes next hop group and next hop.
 
 ### Generate DUT and ATE Configuration
 
-Configure DUT:port 1, port 2, port 3 for IS-IS session with ATE:port 1, port 2, port 3
+Configure DUT:port 1, port 2 for IS-IS session with ATE:port 1, port 2
 
 *   Let `X` be the number of IPv4 prefixes to be advertised by BGP. **(User Adjustable Value)**
 *   Let `Y` be the number of IPv6 prefixes to be advertised by BGP. **(User Adjustable Value)**
-*   Let `Z` be the number of prefixes to be advertised by BGP. **(User Adjustable Value)**
+*   Let `Z` be the number of prefixes to be advertised by IS-IS. **(User Adjustable Value)**
 *   IS-IS must be level 2 only with wide metric.
 *   IS-IS must be point to point.
-*   Send `Z` IPv4 and `Z` IPv6 IS-IS prefixes from ATE:port 3 to DUT:port 3.
+*   Send `Z` IPv4 and `Z` IPv6 IS-IS prefixes from ATE:port 1 to DUT:port 1.
 
-Establish eBGP sessions between ATE:port 1, port 2 and DUT:port 1, port 2 and another
-between ATE:port 3 and DUT:port 3.
+Establish eBGP sessions between ATE:port 1, port 2 and DUT:port 1, port 2 
 
 *   Configure eBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
 *   eBGP must be multipath.
