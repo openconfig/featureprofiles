@@ -67,6 +67,34 @@ The configuration required for the 2R3C policer with classifier is included belo
 ```json
 {
   "qos": {
+    #
+    # output queue (i.e. is QUEUE_3)
+    #
+    "queues": {
+      "queue": [
+        {
+          "config": {
+            "name": "QUEUE_1"
+          },
+          "name": "QUEUE_1"
+        },
+        {
+          "config": {
+            "name": "QUEUE_2"
+          },
+          "name": "QUEUE_2"
+        },
+        {
+          "config": {
+            "name": "QUEUE_3"
+          },
+          "name": "QUEUE_3"
+        }
+      ]
+    },
+    #
+    # A single scheduler policy can be applied per interface.
+    #
     "scheduler-policies": {
       "scheduler-policy": [
         {
@@ -95,8 +123,8 @@ The configuration required for the 2R3C policer with classifier is included belo
                 },
                 "two-rate-three-color": {
                   "config": {
-                    "cir": 1000000000,
-                    "pir": 2000000000,
+                    "cir": "1000000000",
+                    "pir": "2000000000",
                     "bc": 100000,
                     "be": 100000,
                     "queuing-behavior": "POLICE"
