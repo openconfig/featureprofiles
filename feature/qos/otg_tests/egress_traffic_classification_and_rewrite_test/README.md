@@ -56,7 +56,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
    3c. DUT has IPv4-DST-DECAP/32 and IPv6-DST-DECAP/128 advertised to ATE:Port1 via IPv4 BGP. This IP is used for decapsulation.
 7.    ATE:Port2 advertises destination networks IPv4-DST-NET/32 and IPv6-DST-NET/128 to DUT.
 8. DUT decapsulates IPoGRE, IPoMPLSoGRE,IPoGUE or IPoMPLSoGUE payload with destination of IPv4-DST-DECAP/32 and IPv6-DST-DECAP/128
-9. DUT has MPLS static forwarding rule (aka static LSP) for label 100 pointing to a NHG resolved via ATE:Port2.
+9. DUT has MPLS static forwarding rule (aka static LSP) for label 100020 pointing to a NHG resolved via ATE:Port2.
 10. DUT matches packets on DSCP/TC values and sets new DSCP values based on remarking rules.
 
 
@@ -191,7 +191,7 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
 *   Traffic:
     *   Generate IPv6oGUE traffic from ATE Port 1 with IPv6 payload reachable via ATE:Port2
 *   Verfication:
-    *   Monitor telemetry on  DUT ATE Port 1 to verify packet scheduling into correct egress QOS queues based on the DSCP markings of the payload prir to re-write rules by observing queue counters per configued QOS classes.. 
+    *   Monitor telemetry on  DUT ATE Port 1 to verify packet scheduling into correct egress QOS queues based on the DSCP markings of the payload prir to re-write rules by observing queue counters per configued QOS classes. 
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
