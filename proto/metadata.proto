@@ -812,10 +812,14 @@ message Metadata {
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
 
+    // Create/Replace config leaf required 
+    // Juniper b/419536104
+    bool config_leaf_create_required = 291;
+
     // Devices that do not support transceiver config enable leaf
     // Nokia b/414842051
-    bool transceiver_config_enable_unsupported = 291;
-
+    bool transceiver_config_enable_unsupported = 292;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
