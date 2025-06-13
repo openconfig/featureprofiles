@@ -154,7 +154,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	time.Sleep(30 * time.Second)
 	t.Logf("Start Traffic flow configuraturation in OTG")
 	configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutIntf1.MAC)
-	t.Logf(top.Marshal().ToJson())
+	t.Logf("%v", top.Marshal().ToJson())
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
