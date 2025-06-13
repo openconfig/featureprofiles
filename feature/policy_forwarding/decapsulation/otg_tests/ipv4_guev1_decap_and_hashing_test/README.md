@@ -212,7 +212,7 @@ B7 <-- EBGP --> N4;
 -  The drop counters on DUT will reflect the packets to 1000000
 -  100% packet loss should be observed on ATE Port 2
 
-### PF-1.22.4: Verify the Immediate next header's L4 fields are considered in Load-Balancing Algorithm
+### PF-1.22.4: Verify the Immediate next header's L4 fields are not considered in Load-Balancing Algorithm
 - Set up the DUT and ATE as previously specified.
 - For each flow type, configure a single source and destination IP address for both the inner and middle IPv4 and IPv6 headers. Specifically:
     - For IPv4 flows that would typically use an H1v4 range, use IPv4prefix1/24.
