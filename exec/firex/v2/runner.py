@@ -582,10 +582,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         sim_use_mtls=False,
                         testbed_checks=False,
                         smus=None,
-                        otg_keng_controller='1.3.0-2',
-                        otg_keng_layer23_hw_server='1.3.0-4',
-                        otg_gnmi_server='1.13.15',
-                        otg_controller_command='',
                         testbeds_exclude=[]):
     
 
@@ -1674,11 +1670,20 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,otg_version={
-    "controller": "1.3.0-2",
-    "hw": "1.3.0-4",
-    "gnmi": "1.13.15",
-}):
+def BringupIxiaController(self, test_log_directory_path, reserved_testbed, 
+                        otg_keng_controller='1.3.0-2',
+                        otg_keng_layer23_hw_server='1.3.0-4',
+                        otg_gnmi_server='1.13.15',
+                        otg_controller_command='',
+                        otg_version=None):
+
+    if not otg_version:
+        otg_version = {
+            "controller": otg_keng_controller,
+            "hw": otg_keng_layer23_hw_server,
+            "gnmi": otg_gnmi_server,
+        }
+
     # TODO: delete this line
     logger.print(f"BringupIxiaController, reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
