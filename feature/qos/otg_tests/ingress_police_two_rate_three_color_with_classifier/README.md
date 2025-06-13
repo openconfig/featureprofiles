@@ -27,7 +27,7 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 * ATE (Port1) --- IP Connectivity --- DUT (Dut1),  DUT (Dut2) --- IP Connectivity --- ATE (Port2)
 * Use below to configure traffic with following source and destination.
 
-  * Dut1    = Attributes {
+  * Dut1 = Attributes {
 		Desc:    "Dut1",
 		MAC:     "02:01:00:00:00:01",
     IPv4:    "200.0.0.1/24"
@@ -39,7 +39,7 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
     IPv4:    "200.0.0.2/24"
 		IPv6:    "2001:f:d:e::2/126",
 	}
-	* Dut2 = Attributes{
+  * Dut2 = Attributes{
 		Desc:    "Dut2",
 		MAC:     "02:00:01:01:01:01",
     IPv4:    "100.0.0.1/24"
