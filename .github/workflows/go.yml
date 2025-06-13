@@ -23,9 +23,6 @@ jobs:
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-      # Dependency for Go module github.com/google/gopacket
-    - name: Install libpcap-dev
-      run: sudo apt-get -y install libpcap-dev
     - name: Build
       run: go build -v ./...
   test:
@@ -114,4 +111,3 @@ jobs:
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
     - name: Run staticcheck
       run: GOGC=30 staticcheck ./...
-
