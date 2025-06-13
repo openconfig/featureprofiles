@@ -836,6 +836,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.64"
+  description: "BGP Import/Export Policy Functional Test Case"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
