@@ -1048,17 +1048,20 @@ type Metadata_Deviations struct {
 	StaticArpUnsupported bool `protobuf:"varint,288,opt,name=static_arp_unsupported,json=staticArpUnsupported,proto3" json:"static_arp_unsupported,omitempty"`
 	// Arista b/390506907
 	InterfacePolicyForwardingUnsupported bool `protobuf:"varint,289,opt,name=interface_policy_forwarding_unsupported,json=interfacePolicyForwardingUnsupported,proto3" json:"interface_policy_forwarding_unsupported,omitempty"`
-	// Devices does not support static mpls lsp
-	StaticMplsLspOcUnsupported bool `protobuf:"varint,290,opt,name=static_mpls_lsp_oc_unsupported,json=staticMplsLspOcUnsupported,proto3" json:"static_mpls_lsp_oc_unsupported,omitempty"`
-	// DUT not supporting with qos remarking
-	QosRemarkOcUnsupported bool `protobuf:"varint,291,opt,name=qos_remark_oc_unsupported,json=qosRemarkOcUnsupported,proto3" json:"qos_remark_oc_unsupported,omitempty"`
-	// DUT not returning value for classifier matched packets
-	SkipVerifyClassifierMatchedpackets bool `protobuf:"varint,292,opt,name=skip_verify_classifier_matchedpackets,json=skipVerifyClassifierMatchedpackets,proto3" json:"skip_verify_classifier_matchedpackets,omitempty"`
 	// UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
 	// issues/404301960
-	UseOldOcPathStaticLspNh bool `protobuf:"varint,293,opt,name=use_old_oc_path_static_lsp_nh,json=useOldOcPathStaticLspNh,proto3" json:"use_old_oc_path_static_lsp_nh,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	UseOldOcPathStaticLspNh bool `protobuf:"varint,290,opt,name=use_old_oc_path_static_lsp_nh,json=useOldOcPathStaticLspNh,proto3" json:"use_old_oc_path_static_lsp_nh,omitempty"`
+	// Create/Replace config leaf required
+	// Juniper b/419536104
+	ConfigLeafCreateRequired bool `protobuf:"varint,291,opt,name=config_leaf_create_required,json=configLeafCreateRequired,proto3" json:"config_leaf_create_required,omitempty"`
+	// Devices does not support static mpls lsp
+	StaticMplsLspOcUnsupported bool `protobuf:"varint,292,opt,name=static_mpls_lsp_oc_unsupported,json=staticMplsLspOcUnsupported,proto3" json:"static_mpls_lsp_oc_unsupported,omitempty"`
+	// DUT not supporting with qos remarking
+	QosRemarkOcUnsupported bool `protobuf:"varint,293,opt,name=qos_remark_oc_unsupported,json=qosRemarkOcUnsupported,proto3" json:"qos_remark_oc_unsupported,omitempty"`
+	// DUT not returning value for classifier matched packets
+	SkipVerifyClassifierMatchedpackets bool `protobuf:"varint,294,opt,name=skip_verify_classifier_matchedpackets,json=skipVerifyClassifierMatchedpackets,proto3" json:"skip_verify_classifier_matchedpackets,omitempty"`
+	unknownFields                      protoimpl.UnknownFields
+	sizeCache                          protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2897,6 +2900,20 @@ func (x *Metadata_Deviations) GetInterfacePolicyForwardingUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetUseOldOcPathStaticLspNh() bool {
+	if x != nil {
+		return x.UseOldOcPathStaticLspNh
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetConfigLeafCreateRequired() bool {
+	if x != nil {
+		return x.ConfigLeafCreateRequired
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetStaticMplsLspOcUnsupported() bool {
 	if x != nil {
 		return x.StaticMplsLspOcUnsupported
@@ -2914,13 +2931,6 @@ func (x *Metadata_Deviations) GetQosRemarkOcUnsupported() bool {
 func (x *Metadata_Deviations) GetSkipVerifyClassifierMatchedpackets() bool {
 	if x != nil {
 		return x.SkipVerifyClassifierMatchedpackets
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetUseOldOcPathStaticLspNh() bool {
-	if x != nil {
-		return x.UseOldOcPathStaticLspNh
 	}
 	return false
 }
@@ -2981,7 +2991,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ҟ\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x92\xa0\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -2993,7 +3003,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa6\x96\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe6\x96\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3255,11 +3265,12 @@ const file_metadata_proto_rawDesc = "" +
 	"\x0fcfm_unsupported\x18\x9e\x02 \x01(\bR\x0ecfmUnsupported\x127\n" +
 	"\x17label_range_unsupported\x18\x9f\x02 \x01(\bR\x15labelRangeUnsupported\x125\n" +
 	"\x16static_arp_unsupported\x18\xa0\x02 \x01(\bR\x14staticArpUnsupported\x12V\n" +
-	"'interface_policy_forwarding_unsupported\x18\xa1\x02 \x01(\bR$interfacePolicyForwardingUnsupported\x12C\n" +
-	"\x1estatic_mpls_lsp_oc_unsupported\x18\xa2\x02 \x01(\bR\x1astaticMplsLspOcUnsupported\x12:\n" +
-	"\x19qos_remark_oc_unsupported\x18\xa3\x02 \x01(\bR\x16qosRemarkOcUnsupported\x12R\n" +
-	"%skip_verify_classifier_matchedpackets\x18\xa4\x02 \x01(\bR\"skipVerifyClassifierMatchedpackets\x12?\n" +
-	"\x1duse_old_oc_path_static_lsp_nh\x18\xa5\x02 \x01(\bR\x17useOldOcPathStaticLspNhJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"'interface_policy_forwarding_unsupported\x18\xa1\x02 \x01(\bR$interfacePolicyForwardingUnsupported\x12?\n" +
+	"\x1duse_old_oc_path_static_lsp_nh\x18\xa2\x02 \x01(\bR\x17useOldOcPathStaticLspNh\x12>\n" +
+	"\x1bconfig_leaf_create_required\x18\xa3\x02 \x01(\bR\x18configLeafCreateRequired\x12C\n" +
+	"\x1estatic_mpls_lsp_oc_unsupported\x18\xa4\x02 \x01(\bR\x1astaticMplsLspOcUnsupported\x12:\n" +
+	"\x19qos_remark_oc_unsupported\x18\xa5\x02 \x01(\bR\x16qosRemarkOcUnsupported\x12R\n" +
+	"%skip_verify_classifier_matchedpackets\x18\xa6\x02 \x01(\bR\"skipVerifyClassifierMatchedpacketsJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

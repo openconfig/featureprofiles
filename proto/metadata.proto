@@ -808,18 +808,22 @@ message Metadata {
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
 
-    // Devices does not support static mpls lsp
-    bool static_mpls_lsp_oc_unsupported = 290;
-
-    // DUT not supporting with qos remarking
-    bool qos_remark_oc_unsupported = 291;
-
-    // DUT not returning value for classifier matched packets
-    bool skip_verify_classifier_matchedpackets = 292;
-    
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
-    bool use_old_oc_path_static_lsp_nh = 293;
+    bool use_old_oc_path_static_lsp_nh = 290;
+
+    // Create/Replace config leaf required 
+    // Juniper b/419536104
+    bool config_leaf_create_required = 291;
+
+    // Devices does not support static mpls lsp
+    bool static_mpls_lsp_oc_unsupported = 292;
+
+    // DUT not supporting with qos remarking
+    bool qos_remark_oc_unsupported = 293;
+
+    // DUT not returning value for classifier matched packets
+    bool skip_verify_classifier_matchedpackets = 294;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
