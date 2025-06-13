@@ -2,7 +2,7 @@
 
 ## Summary
 
-Use IP address and mac-address from TE-18.1 gRIBI. Static Routes can be used for this.
+Use IP address and mac-address from topology shared below. Static Routes can be used for this.
 Configure an ingress scheduler to police traffic using a 2 rate, 3 color policer and attach the scheduler to the interface without a classifier.
 Lack of match conditions will cause all packets to be matched. 
 Send traffic to validate the policer.
@@ -20,13 +20,49 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 
 ## Procedure
 
+### Testbed setup - Generate configuration for ATE and DUT
+
+#### Source & Destination Port for traffic
+
+* ATE (Port1) --- IP Connectivity --- DUT (Dut1),  DUT (Dut2) --- IP Connectivity --- ATE (Port2)
+* Use below to configure traffic with following source and destination.
+
+  * Dut1 = Attributes {
+		Desc:    "Dut1",
+		MAC:     "02:01:00:00:00:01",
+    IPv4:    "200.0.0.1/24"
+		IPv6:    "2001:f:d:e::1/126",
+	}
+  * atePort1 = Attributes{
+		Desc:    "atePort1",
+		MAC:     "02:01:00:00:00:02",
+    IPv4:    "200.0.0.2/24"
+		IPv6:    "2001:f:d:e::2/126",
+	}
+  * Dut2 = Attributes{
+		Desc:    "Dut2",
+		MAC:     "02:00:01:01:01:01",
+    IPv4:    "100.0.0.1/24"
+		IPv6:    "2001:f:d:e::1/126",
+	}
+  * atePort2 = Attributes{
+		Desc:    "atePort2",
+		MAC:     "02:00:01:01:01:02",
+    IPv4:    "100.0.0.2/24"
+		IPv6:    "2001:f:d:e::2/126",
+	}
+
+* Create static route from atePort1 to atePort2.
+
 ### SetUp
 
-* Generate config for 2 scheduler polices with an input rate limit.
-* Apply scheduler to DUT subinterface with vlan. Dut1 is LAG in provided setup.
+* Generate config for scheduler polices with an input rate 2Gbps limit
+* Apply them to DUT interface . Dut1 is LAG in provided setup.
 * Use gnmi.Replace to push the config to the DUT.
 
-The configuration required for the 2R3C policer is included below:
+### Canonical OC for DUT configuration
+
+The configuration required for the 2R3C policer with classifier is included below:
 
 ```json
 {
