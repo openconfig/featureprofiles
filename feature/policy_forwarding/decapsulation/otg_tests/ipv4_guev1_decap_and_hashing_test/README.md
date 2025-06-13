@@ -231,7 +231,7 @@ B7 <-- EBGP --> N4;
     - Port traffic counters will be leveraged to verify this behavior.
     - Failure Condition: If traffic distribution is observed across multiple paths, the test fails.
 
-### PF-1.22.5: Verify the Immediate next header's L3 fields are considered in Load-Balancing Algorithm
+### PF-1.22.5: Verify the Immediate next header's L3 fields are not considered in Load-Balancing Algorithm
 - Set up the DUT and ATE as previously specified.
 - For each flow type, configure a single destination IP address for both the inner and middle IPv4 and IPv6 headers. Specifically:
     - For IPv4 flows that would typically use an H1v4 range, use IPv4prefix1/24.
