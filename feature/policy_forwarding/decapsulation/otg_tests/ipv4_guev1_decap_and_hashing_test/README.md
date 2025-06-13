@@ -53,11 +53,11 @@ B7 <-- EBGP --> N4;
 8. Enable BGP multipath for both EBGP and IBGP sessions to enable load balancing traffic across multiple paths/links
 9. Enable BGP multihop for BGP(IBGP/EBGP) sessions on LAG interfaces 
 10. DUT has multiple paths to Host2 via multiple nodes, ATE2 & ATE3
-11. DUT can reach Host3 via a bundle interface towards ATE3
+11. DUT can reach Host3 via a lag interface towards ATE3
 12. DUT has multiple paths to Host4 via multiple nodes, ATE4 & ATE5
 13. Host1(v4/v6) route is installed and active via ATE1
 14. Host2(v4/v6) route is installed and active via ATE2 and ATE3, therefore the traffic for Host2 should be load-balanced across both the nodes
-15. Host3v4 route is installed and active via ATE3, therefore the traffic for Host3 should be load-balanced across the bundle members
+15. Host3v4 route is installed and active via ATE3, therefore the traffic for Host3 should be load-balanced across the lag members
 16. Host4(v4/v6) route is installed and active via ATE4 and ATE5, therefore the traffic for Host4 should be load-balanced across both the nodes
 
 ### Baseline ATE configuration
@@ -108,7 +108,7 @@ B7 <-- EBGP --> N4;
 |          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
 | **6** | **Overall** | **Payload o IPv6\|TCP o MPLS o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v6 address        | H3v6 address        | 14                  | 15                        |             | Src Port: Any unassigned TCP; Dst Port: Any App/unassigned TCP |
-|          | MPLS        | MPLS              | N/A                 | N/A                 | N/A                 | N/A                       | Static label for ATE3 to reach H3v4 | *Note: Inner Dst is H3v6* |
+|          | MPLS        | MPLS              | N/A                 | N/A                 | N/A                 | N/A                       | Static label for ATE3 to reach H3v6 | *Note: Inner Dst is H3v6* |
 |          | Middle      | IPv4\|UDP         | ATE1LO1v4 IPv4 addr | ATE3-port IPv4 addr | 5995 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port | 
 |          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unassigned UDP port; GUE v1 encapsulation     |
 | **7** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                   |                      |                                                             |
@@ -123,13 +123,13 @@ B7 <-- EBGP --> N4;
 | **10**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v6 address        | H4v6 address        | 14 (randomizable)   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
 |          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 (randomizable) | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
-| **11**| **Overall** | **Payload o IPv4\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
+| **11**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v4 address        | H4v4 address        | 14   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
 |          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | ATE2-port-Address IPv4 addr  | 5996 | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
 | **12**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v6 address        | H4v6 address        | 14   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
 |          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | ATE2-port-Address IPv4 addr | 5996 | 6080                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
-| **13**| **Overall** | **Payload o IPv4\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
+| **13**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
 |          | Inner       | IPv6\|TCP         | H1v4 address        | H4v4 address        | 14   | 15                        |              | Src Port: Any unassigned TCP port; Dst Port: Any App/unassigned TCP port |
 |          | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address  | 5996  | 6085                      |              | Src Port: Any unreserved UDP port; GUE v1 encapsulation |
 | **14**| **Overall** | **Payload o IPv6\|TCP o IPv4\|UDP(GUE v1)**  |                     |                            |       |                     |                           |                                                             |
@@ -170,20 +170,20 @@ B7 <-- EBGP --> N4;
 -  The outer header destination IP of the traffic is the DUT-DECAP-Address and the destination port of the traffic (UDP 6080) matches the configured UDP decap port criteria
 -  Therefore, DUT will decapsulate the outer header and perform a lookup based on the inner IP address
 -  The following traffic distribution validations are applicable as per the flow-type that is being tested
-    - Flow#1 for H3 should be load-balanced across the bundle members via ATE3
+    - Flow#1 for H3 should be load-balanced across the lag members via ATE3
     - Flow#2 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members 
+        - Traffic via ATE3 should be load-balanced across the lag members 
     - Flow#3 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members
+        - Traffic via ATE3 should be load-balanced across the lag members
     - Flow#4 for H4 should be load-balanced via ATE4 and ATE5
         - Traffic forwarded towards ATE4 (via LAG2) should be load-balanced across the LAG members
     - Flow#5 for H4 should be load-balanced via ATE4 and ATE5
         - Traffic forwarded towards ATE4 (via LAG2) should be load-balanced across the LAG members
-    - Flow#6 for H3 should be load-balanced across the bundle members via ATE3
+    - Flow#6 for H3 should be load-balanced across the lag members via ATE3
     - Flow#7 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members 
+        - Traffic via ATE3 should be load-balanced across the lag members 
     - Flow#8 for H2 should be load-balanced via ATE2 and ATE3
-        - Traffic via ATE3 should be load-balanced across the bundle members
+        - Traffic via ATE3 should be load-balanced across the lag members
     - Flow#9 for H4 should be load-balanced via ATE4 and ATE5
         - Traffic forwarded towards ATE4 (via LAG2) should be load-balanced across the LAG members
     - Flow#10 for H4 should be load-balanced via ATE4 and ATE5
