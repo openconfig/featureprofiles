@@ -865,6 +865,19 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 		}
 	}
 	validateTrafficFlows(t, tcArgs, flows, false, true)
+
+	t.Run("Convergence with first frr & recovery", func(t *testing.T) {
+		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
+	})
+	t.Run("Convergence with two frrs & recovery", func(t *testing.T) {
+		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+	})
+	t.Run("Convergence with forwarding viable & recovery", func(t *testing.T) {
+		doBatchconfig(t, pathInfo.PrimaryInterface, "", "viable")
+		doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+
+		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+	})
 }
 
 func testDecapTrafficFlowsForEncap(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, encapType []string) {
