@@ -154,8 +154,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	time.Sleep(30 * time.Second)
 	t.Logf("Start Traffic flow configuraturation in OTG")
 	configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutIntf1.MAC)
-	json, err := top.Marshal().ToJson()
-	if err != nil {
+	if json, err := top.Marshal().ToJson(); err != nil {
 		t.Errorf("trouble converting %v to json: %v", top, err)
 	} else {
 		t.Logf("%s", json)
