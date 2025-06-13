@@ -23,13 +23,11 @@ A1 <-- EBGP --> B1;
 
 
 ## Prerequisites
-Basic IP connectivity configured between the DUT and Ixia interface.
 
-BGP peering established between the DUT and Ixia on the connected interfaces.
-
-Access to configure the DUT and Ixia.
-
-Understanding of BGP attributes (AS-Path, communities, local preference, MED).
+* Basic IP connectivity configured between the DUT and Ixia interface.
+* BGP peering established between the DUT and Ixia on the connected interfaces.
+* Access to configure the DUT and Ixia.
+* Understanding of BGP attributes (AS-Path, communities, local preference, MED).
 
 ## Test Case Scenario
 
@@ -44,7 +42,7 @@ This test case will focus on two scenarios:
 
 ### DUT Configuration (Basic BGP Peering):
 
-* Configure interface IP addresses (DUT: 10.1.1.1/30, Ixia: 10.1.1.2/30).
+* Configure interface IP addresses (DUT: IPV4 - 10.1.1.0/31 & IPV6 - 2607:f8b0:8007:614f::/127 , Ixia: IPV4 - 10.1.1.1/31 & IPV6 - 2607:f8b0:8007:614f::1/127 ).
 * Enable BGP on the DUT.
 * Establish an EBGP peering session with the Ixia (using Ixia's AS as  AS65002).
 * Ensure the DUT has some local routes (loopback interfaces advertised into BGP) that can be filtered.
@@ -52,9 +50,9 @@ This test case will focus on two scenarios:
 
 ### Ixia Configuration (Basic BGP Emulation):
 
-* Configure the Ixia port with an IP address (10.1.1.2/30).
+* Configure the Ixia port with an IP address (10.1.1.1/31).
 * Create a BGP Emulated Router on the Ixia, acting as AS 65002.
-* Establish a BGP peering session with the DUT's IP (10.1.1.1).
+* Establish a BGP peering session with the DUT's IP (10.1.1.0) & IPV6 (2607:f8b0:8007:614f::).
 
 * Advertise multiple unique BGP routes from Ixia, some intended to be filtered, and some to be allowed.
   * Allowed routes: 192.0.2.1/32 (AS-Path: 65002), 192.0.2.2/32 (AS-Path: 65002)
@@ -73,11 +71,11 @@ Objective: Only allow local routes 172.16.1.0/24 and 172.16.2.0/24 to be adverti
 Configure Export Policy on DUT:
 Create a prefix-list to match the desired prefixes.
 Create a route-map/policy-statement to apply the prefix-list.
-Apply the route-map/policy-statement to the BGP neighbor 10.1.1.2 as an out policy.
+Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 as an out policy.
 
 
 ### Clear BGP Session (Optional, but good practice):
-* On DUT: clear ip bgp 10.1.1.2 out (or soft reset)
+* On DUT: clear ip bgp 10.1.1.1 & 2607:f8b0:8007:614f::1 out (or soft reset)
 * This forces the DUT to re-advertise routes based on the new policy.
 
 ### Verify Export Policy:
@@ -89,7 +87,7 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.2 as an out poli
   * Expected: 192.168.10.0/24 should NOT be learned.
 
 * DUT (Verification):
-  * show ip bgp neighbors 10.1.1.2 advertised-routes
+  * show ip bgp neighbors 10.1.1.1 & 2607:f8b0:8007:614f::1 advertised-routes
   * Expected: The output should only show 172.16.1.0/24 and 172.16.2.0/24.
 
 ### Test Import Policy (AS-Path based)
@@ -99,19 +97,19 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.2 as an out poli
 * Configure Import Policy on DUT:
   * Create an AS-Path access-list (or regular expression) to match the desired AS-Path.
   * Create a route-map/policy-statement to apply the AS-Path access-list.
-  * Apply the route-map/policy-statement to the BGP neighbor 10.1.1.2 as an in policy.
+  * Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 as an in policy.
 
 * Clear BGP Session (Optional, but good practice):
-* On DUT: clear ip bgp 10.1.1.2 in (or soft reset)
+* On DUT: clear ip bgp 10.1.1.1 & 2607:f8b0:8007:614f::1 in (or soft reset)
 * This forces the DUT to re-evaluate received routes based on the new policy.
 
 ### Verify Import Policy:
 
 * DUT:
-  * show ip bgp
+  * Check the bgp neighbors
   * Expected: Only 192.0.2.1/32 and 192.0.2.2/32 should be present in the BGP table.
   * Expected: 198.51.100.1/32 and 198.51.100.2/32 should NOT be present in the BGP table.
-  * Check the ip bgp neighbors 10.1.1.2 received-routes (This shows routes received BEFORE policy application.).
+  * Check the ip bgp neighbors 10.1.1.1 & 2607:f8b0:8007:614f::1 received-routes (This shows routes received BEFORE policy application.).
 
 * Ixia:
   * Observe the "Advertised Routes" from the Ixia to the DUT.
@@ -124,20 +122,38 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.2 as an out poli
 
 ### Pass/Fail Criteria
 
-PASS:
-Both BGP export and import policies function as expected, allowing the desired routes and denying the unwanted routes as per the policy definitions.
-No unintended routes are exchanged.
-BGP session remains stable throughout the test.
+* PASS:
+  * Both BGP export and import policies function as expected, allowing the desired routes and denying the unwanted routes as per the policy definitions.
+  * No unintended routes are exchanged.
+  * BGP session remains stable throughout the test.
 
-FAIL:
-Desired routes are not exchanged (denied by policy when they should be allowed).
-Unwanted routes are exchanged (allowed by policy when they should be denied).
-BGP session instability or flap.
+* FAIL:
+  * Desired routes are not exchanged (denied by policy when they should be allowed).
+  * Unwanted routes are exchanged (allowed by policy when they should be denied).
+  * BGP session instability or flap.
 
 ### Notes/Considerations
 * Policy Complexity: This test uses simple prefix-list and AS-path filters. Real-world policies can involve communities, local preference, MED, weighted conditions, etc. More complex policies would require more elaborate test scenarios.
 * Policy Order: The order of permit and deny statements within route-maps/policy-statements is crucial. An implicit deny all usually exists at the end.
 * Troubleshooting: Use debug bgp commands on the DUT (with caution in production) to trace policy application. Ixia's detailed route information and packet captures can also be invaluable.
+
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+
+
+
+
+rpcs:
+  gnmi:
+    gNMI.Set: /acl/config
+      union_replace: true
+      replace: true
+    gNMI.Get: /acl/state
+    gNMI.Subscribe:
+      on_change: true
+```
 
 
 
