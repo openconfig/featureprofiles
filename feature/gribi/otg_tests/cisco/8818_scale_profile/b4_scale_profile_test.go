@@ -262,3 +262,7 @@ func TestFlushAll(t *testing.T) {
 func TestDcGateTriggers(t *testing.T) {
 	testDcGateTriggers(t)
 }
+
+func TestIPTNLNHUsage(t *testing.T) {
+	testIptnlUsage(t)
+}

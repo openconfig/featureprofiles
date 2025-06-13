@@ -133,6 +133,32 @@ func (p *PairedEntries) GetFirstIPv6PrefixAndCount() (string, int) {
 	return "", 0
 }
 
+func PushNonEmptyEntries(t *testing.T, tcArgs *testArgs, entries []PairedEntries) {
+	for _, pe := range entries {
+		nonEmptyEntries := []fluent.GRIBIEntry{}
+		if len(pe.NHs) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, pe.NHs...)
+		}
+		if len(pe.NHGs) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, pe.NHGs...)
+		}
+		if len(pe.V4Entries) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, pe.V4Entries...)
+		}
+		if len(pe.V6Entries) > 0 {
+			nonEmptyEntries = append(nonEmptyEntries, pe.V6Entries...)
+		}
+
+		if len(nonEmptyEntries) > 0 {
+			t.Logf("Pushing %d entries, NHs %d, NHGs %d, V4Entries %d, V6Entries %d", len(nonEmptyEntries), len(pe.NHs), len(pe.NHGs), len(pe.V4Entries), len(pe.V6Entries))
+			tcArgs.client.Modify().AddEntry(t, nonEmptyEntries...)
+			if err := awaitTimeout(tcArgs.ctx, tcArgs.client, t, aftProgTimeout); err != nil {
+				t.Fatalf("Could not program entries, got err: %v", err)
+			}
+		}
+	}
+}
+
 type tunTypes struct {
 	location string
 	tunType  []string
