@@ -275,9 +275,10 @@ type testArgs struct {
 }
 
 type ConvOptions struct {
-	convFRRFirst  string
-	convFRRSecond string
-	convViable    string
+	convFRRFirst       string
+	convFRRSecond      string
+	convViable         string
+	measureConvergence bool
 }
 
 // WAN PBR rules

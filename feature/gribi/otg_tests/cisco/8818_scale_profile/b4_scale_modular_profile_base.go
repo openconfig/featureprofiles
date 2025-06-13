@@ -804,7 +804,7 @@ type EncapFlowAttr struct {
 	dscp       uint32
 }
 
-func testEncapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int) {
+func testEncapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, opts ...*ConvOptions) {
 	flows := []gosnappi.Flow{}
 	for _, batch := range batchSet {
 		if gp.EncapEntriesA != nil && len(gp.EncapEntriesA[batch].V4Prefixes) > 0 {
@@ -821,9 +821,28 @@ func testEncapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 		}
 	}
 	validateTrafficFlows(t, tcArgs, flows, false, true)
+	if len(opts) != 0 {
+		for _, opt := range opts {
+			if opt.measureConvergence == true {
+
+				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
+				})
+				t.Run("Convergence with two frrs & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+				t.Run("Convergence with forwarding viable & recovery", func(t *testing.T) {
+					doBatchconfig(t, pathInfo.PrimaryInterface, "", "viable")
+					doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+			}
+		}
+	}
 }
 
-func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int) {
+func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, opts ...*ConvOptions) {
 	flows := []gosnappi.Flow{}
 	for _, batch := range batchSet {
 		if gp.DecapWanEntries != nil && len(gp.DecapWanEntries[batch].V4Prefixes) > 0 {
@@ -878,9 +897,28 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 
 		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
 	})
+	if len(opts) != 0 {
+		for _, opt := range opts {
+			if opt.measureConvergence == true {
+
+				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
+				})
+				t.Run("Convergence with two frrs & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+				t.Run("Convergence with forwarding viable & recovery", func(t *testing.T) {
+					doBatchconfig(t, pathInfo.PrimaryInterface, "", "viable")
+					doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+			}
+		}
+	}
 }
 
-func testDecapTrafficFlowsForEncap(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, encapType []string) {
+func testDecapTrafficFlowsForEncap(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, encapType []string, opts ...*ConvOptions) {
 	flows := []gosnappi.Flow{}
 	for _, batch := range batchSet {
 		if gp.DecapWanEntries != nil && len(gp.DecapWanEntries[batch].V4Prefixes) > 0 {
@@ -912,9 +950,28 @@ func testDecapTrafficFlowsForEncap(t *testing.T, tcArgs *testArgs, gp *GribiProf
 		}
 	}
 	validateTrafficFlows(t, tcArgs, flows, false, true)
+	if len(opts) != 0 {
+		for _, opt := range opts {
+			if opt.measureConvergence == true {
+
+				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
+				})
+				t.Run("Convergence with two frrs & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+				t.Run("Convergence with forwarding viable & recovery", func(t *testing.T) {
+					doBatchconfig(t, pathInfo.PrimaryInterface, "", "viable")
+					doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+			}
+		}
+	}
 }
 
-func testDecapTrafficFlowsForVariablePrefix(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, encapType []string) {
+func testDecapTrafficFlowsForVariablePrefix(t *testing.T, tcArgs *testArgs, gp *GribiProfile, batchSet []int, encapType []string, opts ...*ConvOptions) {
 	flows := []gosnappi.Flow{}
 	for _, batch := range batchSet {
 		if gp.DecapWanVarEntries != nil && len(gp.DecapWanVarEntries[batch].V4Prefixes) > 0 {
@@ -947,18 +1004,25 @@ func testDecapTrafficFlowsForVariablePrefix(t *testing.T, tcArgs *testArgs, gp *
 	}
 	validateTrafficFlows(t, tcArgs, flows, false, true)
 
-	t.Run("Convergence with first frr & recovery", func(t *testing.T) {
-		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
-	})
-	t.Run("Convergence with two frrs & recovery", func(t *testing.T) {
-		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
-	})
-	t.Run("Convergence with forwarding viable & recovery", func(t *testing.T) {
-		doBatchconfig(t, pathInfo.PrimaryInterface, "", "viable")
-		doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+	if len(opts) != 0 {
+		for _, opt := range opts {
+			if opt.measureConvergence == true {
 
-		validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
-	})
+				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
+				})
+				t.Run("Convergence with two frrs & recovery", func(t *testing.T) {
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+				t.Run("Convergence with forwarding viable & recovery", func(t *testing.T) {
+					doBatchconfig(t, pathInfo.PrimaryInterface, "", "viable")
+					doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+
+					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRSecond: "2"})
+				})
+			}
+		}
+	}
 }
 
 // getOuterSrcForDscp returns the outer source IP address for a given DSCP value
@@ -2268,13 +2332,13 @@ func testDcGateScale(t *testing.T) {
 	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "0/0/CPU0")
 
 	t.Logf("Validating encap traffic")
-	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7}, &ConvOptions{measureConvergence: true})
 
 	t.Logf("Validating decap traffic")
-	testDecapTrafficFlows(t, tcArgs, gp, []int{0})
-	testDecapTrafficFlows(t, tcArgs, gp, []int{1})
-	testDecapTrafficFlows(t, tcArgs, gp, []int{2})
-	testDecapTrafficFlows(t, tcArgs, gp, []int{3})
+	testDecapTrafficFlows(t, tcArgs, gp, []int{0}, &ConvOptions{measureConvergence: true})
+	testDecapTrafficFlows(t, tcArgs, gp, []int{1}, &ConvOptions{measureConvergence: true})
+	testDecapTrafficFlows(t, tcArgs, gp, []int{2}, &ConvOptions{measureConvergence: true})
+	testDecapTrafficFlows(t, tcArgs, gp, []int{3}, &ConvOptions{measureConvergence: true})
 
 }
 
@@ -2467,19 +2531,19 @@ func testDcGateTriggers(t *testing.T) {
 	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "0/16/CPU0")
 
 	t.Logf("Validating encap traffic")
-	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7}, &ConvOptions{measureConvergence: true})
 
 	t.Logf("Validating /32 decap traffic")
 	for _, b := range []int{0, 1, 2, 3, 4, 5, 6, 7} {
 		for _, encap := range []string{"A", "B", "C", "D"} {
-			testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
+			testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap}, &ConvOptions{measureConvergence: true})
 		}
 	}
 
 	t.Logf("Validating variable prefix decap traffic")
-	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2}, []string{"A", "B", "C", "D"})
-	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{3, 4, 5}, []string{"A", "B", "C", "D"})
-	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{6, 7}, []string{"A", "B", "C", "D"})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2}, []string{"A", "B", "C", "D"}, &ConvOptions{measureConvergence: true})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{3, 4, 5}, []string{"A", "B", "C", "D"}, &ConvOptions{measureConvergence: true})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{6, 7}, []string{"A", "B", "C", "D"}, &ConvOptions{measureConvergence: true})
 	// for _, b := range []int{0, 1, 2, 3, 4, 5, 6, 7} {
 	// 	for _, encap := range []string{"A", "B", "C", "D"} {
 	// 		testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{b}, []string{encap})
@@ -2495,15 +2559,15 @@ func testDcGateTriggers(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	t.Logf("Validating encap traffic after delete and re-add of gribi entries")
-	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7}, &ConvOptions{measureConvergence: true})
 
 	t.Logf("Validating decap traffic after delete and re-add of gribi entries")
 	for _, b := range []int{0, 1, 2, 3, 4, 5, 6, 7} {
 		for _, encap := range []string{"A", "B", "C", "D"} {
-			testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
+			testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap}, &ConvOptions{measureConvergence: true})
 		}
 	}
-	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2}, []string{"A", "B", "C", "D"})
-	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{3, 4, 5}, []string{"A", "B", "C", "D"})
-	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{6, 7}, []string{"A", "B", "C", "D"})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2}, []string{"A", "B", "C", "D"}, &ConvOptions{measureConvergence: true})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{3, 4, 5}, []string{"A", "B", "C", "D"}, &ConvOptions{measureConvergence: true})
+	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{6, 7}, []string{"A", "B", "C", "D"}, &ConvOptions{measureConvergence: true})
 }
