@@ -200,7 +200,7 @@ paths:
   /network-instances/network-instance/segment-routing/srgbs/srgb/state/local-id:
   /network-instances/network-instance/segment-routing/srlbs/srlb/state/mpls-label-block:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/local-id:
-  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
+
 
   # Telemetry
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/in-pkts:
