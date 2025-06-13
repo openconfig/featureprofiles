@@ -48,7 +48,7 @@ const (
 	SchedulerName   = "ARP-policer"
 	flowName        = "arp-test"
 	tolerance       = 2
-	macB            = "ff:ff:ff:ff:ff:ff"	
+	macB            = "ff:ff:ff:ff:ff:ff"
 )
 
 var (
