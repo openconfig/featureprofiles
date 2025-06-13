@@ -366,13 +366,13 @@ func EncapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	cfgplugins.NextHopGroupConfig(t, dut, "v4", ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfig(t, dut, "v4", pf, ni, ocPFParams)
+	cfgplugins.PolicyForwardingConfig(t, dut, "v4", pf, ocPFParams)
 	cfgplugins.NextHopGroupConfig(t, dut, "v6", ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfig(t, dut, "v6", pf, ni, ocPFParams)
+	cfgplugins.PolicyForwardingConfig(t, dut, "v6", pf, ocPFParams)
 	cfgplugins.NextHopGroupConfig(t, dut, "dualstack", ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfig(t, dut, "dualstack", pf, ni, ocPFParams)
+	cfgplugins.PolicyForwardingConfig(t, dut, "dualstack", pf, ocPFParams)
 	cfgplugins.NextHopGroupConfig(t, dut, "multicloudv4", ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfig(t, dut, "multicloudv4", pf, ni, ocPFParams)
+	cfgplugins.PolicyForwardingConfig(t, dut, "multicloudv4", pf, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		PushPolicyForwardingConfig(t, dut, ni)
 	}
