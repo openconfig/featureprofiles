@@ -79,6 +79,12 @@ test: {
   exec: " " 
 }
 test: {
+  id: "AFT-1.1"
+  description: "AFTs Base Link Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_base/README.md"
+  exec: " "
+}
+test: {
   id: "attestz-1"
   description: "Validate attestz for initial install"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
@@ -957,12 +963,6 @@ test: {
   id: "RT-4.11"
   description: " Scale AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-4.12"
-  description: "AFTs Base Link Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_base/README.md"
   exec: " "
 }
 
@@ -1984,3 +1984,4 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
   exec: " "
 }
+
