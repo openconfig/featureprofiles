@@ -305,22 +305,6 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
     }
 }
 
-{
-  "components": {
-    "component": {
-      "integrated-circuit": {
-        "pipeline-counters": {
-          "control-plane-traffic": {
-            "state": {
-              "dropped-aggregate": "VALUE",
-              "dropped-bytes-aggregate": "VALUE"
-            }
-          }
-        }
-      }
-    }
-  }
-}
 ```
 ## OpenConfig Path and RPC Coverage
 ```yaml
@@ -333,8 +317,8 @@ paths:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
 
 # telemetry
-openconfig-interfaces/interfaces/interface/state/counters/out-pkts:
-openconfig-interfaces/interfaces/interface/state/counters/out-unicast-pkts:
+/interfaces/interface/state/counters/out-pkts:
+/interfaces/interface/state/counters/out-unicast-pkts:
 /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
 /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
 
