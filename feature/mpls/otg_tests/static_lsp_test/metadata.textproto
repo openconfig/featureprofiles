@@ -11,5 +11,6 @@ platform_exceptions:  {
   }
   deviations:  {
     ipv4_missing_enabled:  true
+    use_old_oc_path_static_lsp_nh:  true
   }
 }
