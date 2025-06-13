@@ -21,8 +21,6 @@ import (
 	"github.com/openconfig/gnmi/metadata"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
-	"github.com/google/go-rate/rate"
-	"github.com/bazelbuild/rules_go/go/tools/bazel"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -56,35 +54,8 @@ var (
 	ErrNotExist = errors.New("does not exist")
 	// ErrUnsupported is an error returned when AFT elements are not supported.
 	ErrUnsupported  = errors.New("unsupported")
-	uniqueRateStore = make(map[int]*rate.Sometimes)
-	uniqueRateMu    sync.Mutex
 	missingPrefixes = make(map[string]bool)
 )
-
-func rateLimiterForLine(line int) *rate.Sometimes {
-	uniqueRateMu.Lock()
-	defer uniqueRateMu.Unlock()
-	r, ok := uniqueRateStore[line]
-	if !ok {
-		r = &rate.Sometimes{Interval: time.Second}
-		uniqueRateStore[line] = r
-	}
-	return r
-}
-
-// sometimesWarn prints a rate-limited warning that points to the line
-// at which this function was called.  Rates are unique for each line
-// where this is called.
-func sometimesWarn(err error) {
-	_, _, line, ok := runtime.Caller(1)
-	if !ok {
-		log.WarningDepth(1, err.Error())
-		return
-	}
-	rateLimiterForLine(line).Do(func() {
-		log.WarningDepth(3, err.Error())
-	})
-}
 
 var unusedPaths = []string{
 	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol",
@@ -179,7 +150,7 @@ func (c *aftCache) ToAFT() (*AFTData, error) {
 		nhg, data, err := parseNHG(n)
 		switch {
 		case errors.Is(err, ErrNotExist) || errors.Is(err, ErrUnsupported):
-			sometimesWarn(err)
+			log.Warningf("error parsing NHG: %v", err)
 		case err != nil:
 			return err
 		default:
@@ -191,7 +162,7 @@ func (c *aftCache) ToAFT() (*AFTData, error) {
 		nh, data, err := parseNH(n)
 		switch {
 		case errors.Is(err, ErrNotExist):
-			sometimesWarn(err)
+			log.Warningf("error parsing NH: %v", err)
 		case err != nil:
 			return err
 		default:
@@ -478,7 +449,6 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
-				sometimesWarn(err)
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
@@ -550,7 +520,7 @@ func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, w
 				got := map[string]bool{}
 				switch {
 				case errors.Is(err, ErrNotExist):
-					sometimesWarn(err)
+					log.Warningf("error resolving next hops for prefix %v: %v", p, err)
 				case err != nil:
 					return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
 				default:
