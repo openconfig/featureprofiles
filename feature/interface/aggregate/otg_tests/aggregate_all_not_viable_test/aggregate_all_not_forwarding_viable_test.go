@@ -1273,21 +1273,26 @@ func validateLag3Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow, aggregateAggName string) []uint64 {
 	t.Helper()
 	var rxs []uint64
+	// Get the flow metrics
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	flowInFrames := flowMetrics.GetCounters().GetInPkts()
 	for _, aggName := range aggNames {
+		// Get the aggregate metrics
 		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
-		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
 		inFrames := metrics.GetCounters().GetInFrames()
+		// Subtract the flow's in frames if it's the aggregate aggregate
 		if aggName == aggregateAggName {
 			inFrames = inFrames - flowInFrames
 		}
+		// Append the in frames to the rxs slice
 		rxs = append(rxs, inFrames)
 	}
+	// Calculate the total received frames
 	var total uint64
 	for _, rx := range rxs {
 		total += rx
 	}
+	// Calculate the weighted distribution
 	for idx, rx := range rxs {
 		rxs[idx] = (rx * 100) / total
 	}
