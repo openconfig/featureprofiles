@@ -823,7 +823,7 @@ func testEncapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 	validateTrafficFlows(t, tcArgs, flows, false, true)
 	if len(opts) != 0 {
 		for _, opt := range opts {
-			if opt.measureConvergence == true {
+			if opt.measureConvergence {
 
 				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
 					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
@@ -887,7 +887,7 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 
 	if len(opts) != 0 {
 		for _, opt := range opts {
-			if opt.measureConvergence == true {
+			if opt.measureConvergence {
 
 				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
 					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
@@ -940,7 +940,7 @@ func testDecapTrafficFlowsForEncap(t *testing.T, tcArgs *testArgs, gp *GribiProf
 	validateTrafficFlows(t, tcArgs, flows, false, true)
 	if len(opts) != 0 {
 		for _, opt := range opts {
-			if opt.measureConvergence == true {
+			if opt.measureConvergence {
 
 				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
 					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
@@ -994,7 +994,7 @@ func testDecapTrafficFlowsForVariablePrefix(t *testing.T, tcArgs *testArgs, gp *
 
 	if len(opts) != 0 {
 		for _, opt := range opts {
-			if opt.measureConvergence == true {
+			if opt.measureConvergence {
 
 				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
 					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
