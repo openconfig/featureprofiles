@@ -1,4 +1,4 @@
-# gNSI Client Certificate Tests
+# CERTZ-1: gNSI Client Certificate Tests
 
 ## Summary
 
@@ -7,19 +7,6 @@ and present a valid client certificate to that server in order to provide
 identification information. The client certificate should have a
 SPIFFE Idenitifier embedded in it to be used as the identifier of
 the client to the server.
-
-* SPIFFEE ID format
-
-```
-spiffe://<issuing role>.<context>.<security realm>.<domain>/role/<role>
-```
-
-* Example:
-
-```
-URI:spiffe://ca-issuer.sdn.wan.example.com/role/controller-role
-```
-
 
 
 ## Baseline Setup
@@ -56,8 +43,11 @@ gRPC service.
 
 Perform this for both RSA and ECDSA signed CA bundles and
 certificates.
-Perform this for the permutations of 1, 2, 10, 1000, 20000 CA
-trust_bundle configurations: (## indicates the 1, 2, 10, 1000, 20000 CA testdata)
+
+## TODO:Perform this for the permutations of 20000 CA
+## TODO:trust_bundle configurations: ( 20000 CA testdata)
+Perform this for the permutations of 1, 2, 10, 1000 CA
+trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
 
    1) Load the correct key-type trust bundle onto the device and client system:
         ca-##/trust_bundle_##_rsa.pem
@@ -127,9 +117,9 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
+    certz.v1.Certz.Rotate:
 ```
 
-
 ## Minimum DUT Platform Requirement
-
 vRX
