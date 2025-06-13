@@ -45,6 +45,10 @@ MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.p
 MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
 MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
 
+DOCKER_KENG_CONTROLLER = 'ghcr.io/open-traffic-generator/keng-controller'
+DOCKER_KENG_LAYER23 = 'ghcr.io/open-traffic-generator/keng-layer23-hw-server'
+DOCKER_OTG_GNMI = 'ghcr.io/open-traffic-generator/otg-gnmi-server'
+
 whitelist_arguments([
     'test_html_report',
     'release_ixia_ports',
@@ -59,8 +63,14 @@ whitelist_arguments([
     'sim_use_mtls',
     'collect_dut_info',
     'cflow_over_ssh',
+    'testbed_checks'
+    'otg_keng_controller'
+    'otg_keng_layer23_hw_server'
+    'otg_gnmi_server'
+    'otg_controller_command'
     'testbed_checks',
-    "testbeds_exclude",
+    'testbeds_exclude',
+    'violet_export'
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -128,12 +138,28 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port, rest_port, version):
-    return f"""
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,version):
+   controller_version,layer23_version,gnmi_version = otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server
+   if version["controller"] != '1.3.0-2':
+       controller_version = version["controller"]
+   if version["hw"] !=  '1.3.0-4':
+       layer23_version = version["hw"]
+   if version["gnmi"] !=  '1.13.15':
+       gnmi_version = version["gnmi"]
+    # check for controller_commands
+   if otg_controller_command:
+        # Remove the enclosing brackets and split the command into a list
+        otg_controller_command = otg_controller_command[0].strip('[]').split(", ")
+        controller_command_formatted = ""
+        for i in otg_controller_command:
+            controller_command_formatted = controller_command_formatted + f"\n      - \"{i}\""
+   else:
+        controller_command_formatted = ""
+   dockerFile = f"""
 version: "2.1"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:{version["controller"]}
+    image: {DOCKER_KENG_CONTROLLER}:{controller_version}
     restart: always
     ports:
       - "{control_port}:40051"
@@ -146,6 +172,7 @@ services:
       - "--debug"
       - "--keng-layer23-hw-server"
       - "layer23-hw-server:5001"
+      {controller_command_formatted}
     environment:
       - LICENSE_SERVERS=10.85.70.247
     logging:
@@ -155,7 +182,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:{version["hw"]}
+    image: {DOCKER_KENG_LAYER23}:{layer23_version}
     restart: always
     command:
       - "dotnet"
@@ -170,7 +197,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:{version["gnmi"]}
+    image: {DOCKER_OTG_GNMI}:{gnmi_version}
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -188,13 +215,17 @@ services:
         max-file: "10"
         mode: "non-blocking"
 """
+   logger.info(f"dockerFile: {dockerFile}")
+   return dockerFile
 
-def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version):
+def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,version):
+    logger.info(f"_write_otg_docker_compose_file")
     if not 'otg' in reserved_testbed:
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], otg_version))
+        res = fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,version))
+    logger.info(f"docker-compose file written: {res}")
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
@@ -434,8 +465,9 @@ def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
-            # Do we ever need multiple testbeds?
-            return output['testbeds'][0]
+            for tb in output['testbeds']:
+                if tb['id'] == testbed_id:
+                    return tb
         return None
     except:
         return None
@@ -550,8 +582,13 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         sim_use_mtls=False,
                         testbed_checks=False,
                         smus=None,
+                        otg_keng_controller='1.3.0-2',
+                        otg_keng_layer23_hw_server='1.3.0-4',
+                        otg_gnmi_server='1.13.15',
+                        otg_controller_command='',
                         testbeds_exclude=[]):
     
+
     internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
@@ -574,7 +611,8 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         testbeds.remove(reserved_testbed["id"])
 
         c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed, **self.abog)
+                    reserved_testbed=reserved_testbed,
+                    **self.abog)
 
         using_sim = reserved_testbed.get('sim', False) 
         if using_sim:
@@ -609,8 +647,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
             c |= ReleaseIxiaPorts.s()
 
         if is_otg:
-            c |= BringupIxiaController.s()
-
+            try:
+                c |= BringupIxiaController.s()
+            except Exception as e:
+                _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+                raise e
         if not using_sim:
             if testbed_checks:
                 c |= CheckTestbed.s(tgen=is_tgen, otg=is_otg)
@@ -682,6 +723,10 @@ def b4_chain_provider(ws, testsuite_id,
                         sanitizer=None,
                         cflow=None,
                         cflow_over_ssh=False,
+                        otg_keng_controller='1.3.0-2',
+                        otg_keng_layer23_hw_server='1.3.0-4',
+                        otg_gnmi_server='1.13.15',
+                        violet_export=False,
                         **kwargs):
     
     if internal_test:
@@ -703,6 +748,9 @@ def b4_chain_provider(ws, testsuite_id,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
                     test_enable_grpc_logs=test_enable_grpc_logs,
+                    otg_keng_controller=otg_keng_controller,
+                    otg_keng_layer23_hw_server=otg_keng_layer23_hw_server,
+                    otg_gnmi_server=otg_gnmi_server,
                     collect_debug_files=collect_debug_files,
                     override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
@@ -747,6 +795,9 @@ def b4_chain_provider(ws, testsuite_id,
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
     chain |= RunGoTest.s(test_repo_dir=test_repo_dir, test_path = test_path, test_args = test_args, test_timeout = test_timeout)
+
+    if violet_export:
+        chain |= Export2Violet.s()
 
     if fp_post_tests:
         for pt in fp_post_tests:
@@ -880,18 +931,25 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         if log_files:
             _aggregate_ondatra_log_files(log_files, str(xml_results_file))
 
+        test_did_pass = True
         xml_root = _get_testsuites_from_xml(xml_results_file)
         if xml_root is None: 
             if test_ignore_aborted or test_skip:
                 xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
             else:
                 xml_root = _generate_dummy_suite(test_name, abort=True)
+                test_did_pass = False
 
         suites = xml_root.findall("testsuite")
-
-        test_did_pass = True
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
+
+        if not test_did_pass:
+            self.enqueue_child(InvokeAutoTriage.s(
+                test_name=test_name, 
+                script_output=self.console_output_file, 
+                debug_output=os.path.join(test_log_directory_path,"debug_commands.json")
+            ))
 
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
@@ -1616,16 +1674,18 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_version={
+def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,otg_version={
     "controller": "1.3.0-2",
     "hw": "1.3.0-4",
     "gnmi": "1.13.15",
 }):
     # TODO: delete this line
-    logger.print(f"reserved_testbed [{reserved_testbed}]")
+    logger.print(f"BringupIxiaController, reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
+    remote_exec(f'ls -la {test_log_directory_path}')
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
-    _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version)
+    logger.print(f'the controller images are otg_keng_controller: {otg_keng_controller}, keng_layer23: {otg_keng_layer23_hw_server}, otg gnmi: {otg_gnmi_server}, docker_file: {docker_file}')
+    _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_keng_controller,otg_keng_layer23_hw_server,otg_gnmi_server,otg_controller_command,otg_version)
 
     conn_args = {}
     if 'username' in reserved_testbed['otg']:
@@ -1641,6 +1701,7 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_v
         docker_file = docker_file_on_remote
 
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
+    remote_exec(f'cat {docker_file}', reserved_testbed['otg']['host'], shell=True, **conn_args)
     remote_exec(cmd, reserved_testbed['otg']['host'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
@@ -1737,26 +1798,26 @@ def CollectCoverageDataOverSSH(self, ws, internal_fp_repo_dir, reserved_testbed,
     self.enqueue_child_and_get_results(c)
     return cflow_dat_dir
 
+# TODO: remove this task
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
-    logger.print("Pushing results to influxdb...")
+def InvokeAutoTriage(self, test_name, script_output, debug_output):
+    logger.print("Invoking auto triage...")
     try:
-        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2influx"
-        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
-        if lineup: 
-            cmd += f' --lineup {lineup}'
-        if efr: 
-            cmd += f' --efr {efr}'
+        cmd = "/ws/mastarke-sjc/py311_env/bin/python /ws/mastarke-sjc/my_local_git/CIT-Tool/development-site/data-labeler/scripts/on_demand_ai_debugger.py"
+        cmd += f' --logs-file {script_output} --test-name {test_name} --output {debug_output}'
         logger.print(check_output(cmd))
     except:
-        logger.warning(f'Failed to push results to influxdb. Ignoring...')
+        logger.warning(f'Failed to invoke auto triage. Ignoring...')
 
 # noinspection PyPep8Naming
-@app.task(base=FireX, bind=True)
-@returns('test_report_text_file')
-def ConvertXunit2Text(self):
-    logger.print(f"In ConvertXunit2Text override")
-    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
-    test_report_text_file = self.enqueue_child_and_get_results(c)  
-    return test_report_text_file  
+@app.task(bind=True)
+def Export2Violet(self, ws, internal_fp_repo_dir, test_log_directory_path):
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    try:
+        logger.print(
+            check_output(f'{GO_BIN} run ./tools/cisco/violet_export/main.go {test_log_directory_path}', env=env, cwd=internal_fp_repo_dir)
+        )
+    except:
+        logger.warning(f'Failed to export to Violet. Ignoring...')

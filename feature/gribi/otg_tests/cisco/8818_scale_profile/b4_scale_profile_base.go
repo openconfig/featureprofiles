@@ -22,8 +22,11 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,14 +39,24 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	ospb "github.com/openconfig/gnoi/os"
+	spb "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo"
+	gnpsipb "github.com/openconfig/gnpsi/proto/gnpsi"
+	certzpb "github.com/openconfig/gnsi/certz"
+	gribis "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	ondatra_binding "github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
-	"golang.org/x/exp/maps"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -57,7 +70,11 @@ const (
 	dscpEncapA2              = 18
 	dscpEncapB1              = 20
 	dscpEncapB2              = 28
-	dscpEncapNoMatch         = 30
+	dscpEncapC1              = 30
+	dscpEncapC2              = 38
+	dscpEncapD1              = 40
+	dscpEncapD2              = 48
+	dscpEncapNoMatch         = 50
 	peerGrpName              = "BGP-PEER-GROUP"
 	policyName               = "ALLOW"
 	dutBGPRID                = "18.18.18.18"
@@ -81,6 +98,8 @@ const (
 	v6DefaultSrc             = "20:20:20::20"
 	dutPeerBundleIPv4Range   = "88.1.1.0/24"
 	dutPeerBundleIPv6Range   = "2001:DB8:1::/64"
+	bundleSubIntIPv4Range    = "192.192.0.0/16"
+	bundleSubIntIPv6Range    = "2001:C0C0::0/112"
 	v4TunnelCount            = 1024
 	v4TunnelNHGCount         = 256
 	v4TunnelNHGSplitCount    = 2
@@ -174,16 +193,25 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
-	bundleIntfList  = []string{}
-	dutBundleIPMap  = map[string]BundleIPAddress{}
-	peerBundleIPMap = map[string]BundleIPAddress{}
-	gribiScaleVal   = ScaleParam{
+	bundleList                = []util.BundleLinks{}
+	primaryBundlesubIntfIPMap = map[string]util.LinkIPs{}
+	backupBundlesubIntfIPMap  = map[string]util.LinkIPs{}
+	pathInfo                  = PathInfo{}
+	gribiScaleVal             = ScaleParam{
 		V4TunnelCount:         v4TunnelCount,
 		V4TunnelNHGCount:      v4TunnelNHGCount,
 		V4TunnelNHGSplitCount: v4TunnelNHGSplitCount,
 		EgressNHGSplitCount:   egressNHGSplitCount,
 		V4ReEncapNHGCount:     v4ReEncapNHGCount,
 	}
+
+	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
+	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
+	primarySubIntfScale         = 512 //todo increase // number of sub-interfaces on primary bundle interface
+	backupSubIntfScale          = 512 //todo increase // number of sub-interfaces on backup bundle interface
+	primaryPercent              = 60
+	aggID1                      = ""
+	aggID2                      = ""
 )
 
 type PbrRule struct {
@@ -198,18 +226,23 @@ type PbrRule struct {
 }
 
 type trafficflowAttr struct {
-	withInnerHeader bool // flow type
-	withNativeV6    bool
-	withInnerV6     bool
-	outerSrc        string   // source IP address
-	outerDst        []string // destination IP addresses
-	innerSrc        string
-	innerDst        []string // set of destination IP addresses
-	innerV4SrcStart string   // Inner v4 source IP address
-	innerV4DstStart string   // Inner v4 destination IP address
-	innerV6SrcStart string   // Inner v6 source IP address
-	innerV6DstStart string   // Inner v6 destination IP address
-	innerFlowCount  uint32
+	withInnerHeader       bool // flow type
+	withNativeV6          bool
+	withInnerV6           bool
+	outerSrc              string   // source IP address
+	outerDst              []string // destination IP addresses
+	innerSrc              string
+	innerDst              []string // set of destination IP addresses
+	innerV4SrcStart       string   // Inner v4 source IP address
+	innerV4DstStart       string   // Inner v4 destination IP address
+	innerV6SrcStart       string   // Inner v6 source IP address
+	innerV6DstStart       string   // Inner v6 destination IP address
+	innerFlowCount        uint32
+	outerFlowCount        uint32
+	useInnerFlowIncrement bool
+	useOuterFlowIncrement bool
+	innerSrcCount         uint32
+	// outerSrcCount         uint32
 	// outerDscp       uint32   // DSCP value
 	innerDscp uint32   // Inner DSCP value
 	srcPort   []string // source OTG port
@@ -222,81 +255,139 @@ type trafficflowAttr struct {
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	ctx        context.Context
-	client     *fluent.GRIBIClient
-	dut        *ondatra.DUTDevice
-	peer       *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	topo       gosnappi.Config
-	electionID gribi.Uint128
-}
-
-// BundleIPAddress struct to store DUT-PEER bundle interface IPv4 and IPv6 address
-type BundleIPAddress struct {
-	ipv4 string
-	ipv6 string
+	ctx          context.Context
+	client       *fluent.GRIBIClient
+	dut          *ondatra.DUTDevice
+	peer         *ondatra.DUTDevice
+	ate          *ondatra.ATEDevice
+	topo         gosnappi.Config
+	electionID   gribi.Uint128
+	primaryPaths []string // next hop ip address for peer interface for primary path
+	frr1Paths    []string // next hop ip address for peer interface for frr1 path
+	DUT          DUTResources
+	PEER         DUTResources
+	OTG          OTGResources
+	LogDir       string
+	// reader          io.ReadCloser
+	CommandPatterns map[string]map[string]interface{}
 }
 
 // WAN PBR rules
 var pbrRules = []PbrRule{
 	{
-		sequence:    uint32(1),
+		sequence:    uint32(11),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(2),
+		sequence:    uint32(12),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(3),
+		sequence:    uint32(13),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(4),
+		sequence:    uint32(14),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 		decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(5),
+		sequence:    uint32(15),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(6),
+		sequence:    uint32(16),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
 	},
 	{
-		sequence:    uint32(7),
+		sequence:    uint32(17),
 		protocol:    ipipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(8),
+		sequence:    uint32(18),
 		protocol:    ipv6ipProtocol,
 		dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 		decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:    uint32(9),
+		sequence:    uint32(19),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(20),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(21),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(22),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapC1, dscpEncapC2},
+		decapVrfSet: []string{vrfDecap, vrfEncapC, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(23),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(24),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfRepaired},
+		src_addr:    ipv4OuterSrc222,
+	},
+	{
+		sequence:    uint32(25),
+		protocol:    ipipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(26),
+		protocol:    ipv6ipProtocol,
+		dscpSet:     []uint8{dscpEncapD1, dscpEncapD2},
+		decapVrfSet: []string{vrfDecap, vrfEncapD, vrfTransit},
+		src_addr:    ipv4OuterSrc111,
+	},
+	{
+		sequence:    uint32(27),
 		protocol:    ipipProtocol,
 		decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
 		src_addr:    ipv4OuterSrc222,
@@ -320,12 +411,12 @@ var pbrRules = []PbrRule{
 		src_addr:    ipv4OuterSrc111,
 	},
 	{
-		sequence:  uint32(917),
+		sequence:  uint32(921),
 		etherType: ethertypeIPv4,
 		encapVrf:  vrfDefault,
 	},
 	{
-		sequence:  uint32(918),
+		sequence:  uint32(922),
 		etherType: ethertypeIPv6,
 		encapVrf:  vrfDefault,
 	},
@@ -352,6 +443,26 @@ var encapPbrRules = []PbrRule{
 		sequence:  uint32(916),
 		dscpSetv6: []uint8{dscpEncapB1, dscpEncapB2},
 		encapVrf:  vrfEncapB,
+	},
+	{
+		sequence: uint32(917),
+		dscpSet:  []uint8{dscpEncapC1, dscpEncapC2},
+		encapVrf: vrfEncapC,
+	},
+	{
+		sequence:  uint32(918),
+		dscpSetv6: []uint8{dscpEncapC1, dscpEncapC2},
+		encapVrf:  vrfEncapC,
+	},
+	{
+		sequence: uint32(919),
+		dscpSet:  []uint8{dscpEncapD1, dscpEncapD2},
+		encapVrf: vrfEncapD,
+	},
+	{
+		sequence:  uint32(920),
+		dscpSetv6: []uint8{dscpEncapD1, dscpEncapD2},
+		encapVrf:  vrfEncapD,
 	},
 }
 
@@ -412,7 +523,7 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop
 }
 
 // CreatePbrPolicy returns Policy map defined in pbrRules struct for cluster & wan policy
-func CreatePbrPolicy(dut *ondatra.DUTDevice, name string, cluster_facing bool) *oc.NetworkInstance_PolicyForwarding {
+func CreatePbrPolicy(t *testing.T, dut *ondatra.DUTDevice, name string, cluster_facing bool) *oc.NetworkInstance_PolicyForwarding {
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	pf := ni.GetOrCreatePolicyForwarding()
@@ -423,6 +534,18 @@ func CreatePbrPolicy(dut *ondatra.DUTDevice, name string, cluster_facing bool) *
 	}
 	for _, pbrRule := range pbrRules {
 		r, _ := p.NewRule(pbrRule.sequence)
+		t.Logf("Rule is: %v", r)
+		// sleep for 5 sec if rule is nill
+		if r == nil {
+			t.Errorf("Rule is nil for sequence %d in policy %s", pbrRule.sequence, name)
+			t.Logf("Sleep for 5 sec and check the pbr rule")
+			time.Sleep(5 * time.Second)
+			t.Logf("Rule after sleep %v", r)
+		}
+		// if rule is still nill after 5 sec sleep fail fatal
+		if r == nil {
+			t.Fatalf("Failed to create or get rule for sequence %d in policy %s", pbrRule.sequence, name)
+		}
 		l2 := r.GetOrCreateL2()
 		r4 := r.GetOrCreateIpv4()
 		if pbrRule.dscpSet != nil {
@@ -519,31 +642,21 @@ func configureOTGBundle(t *testing.T, ate *ondatra.ATEDevice, otgIntfAttr, dutIn
 }
 
 func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) (aggID1, aggID2 string) {
-	t.Log("Configuring DUT-TGEN Bundle interface1")
-	aggID1 = netutil.NextAggregateInterface(t, dut)
-	dutBundle1Member := []*ondatra.Port{
-		dut.Port(t, "port1"),
-		dut.Port(t, "port2"),
-		dut.Port(t, "port3"),
-		dut.Port(t, "port4"),
-		dut.Port(t, "port5"),
-		dut.Port(t, "port6"),
-		dut.Port(t, "port7"),
-		dut.Port(t, "port8"),
+	t.Log("Configuring DUT-TGEN Bundle interfaces")
+	allPorts := dut.Ports()
+	util.SortOndatraPortsByID(allPorts)
+	n := len(allPorts)
+	mid := n / 2
+	if n%2 != 0 {
+		mid++ // Make first bundle larger if odd count
 	}
+	dutBundle1Member := allPorts[:mid]
+	dutBundle2Member := allPorts[mid:]
+
+	aggID1 = netutil.NextAggregateInterface(t, dut)
 	configureDUTBundle(t, dut, dutSrc1, dutBundle1Member, aggID1)
 
-	t.Log("Configuring DUT-TGEN Bundle interface2")
 	aggID2 = netutil.NextAggregateInterface(t, dut)
-	dutBundle2Member := []*ondatra.Port{
-		dut.Port(t, "port9"),
-		dut.Port(t, "port10"),
-		dut.Port(t, "port11"),
-		dut.Port(t, "port12"),
-		dut.Port(t, "port13"),
-		dut.Port(t, "port14"),
-		dut.Port(t, "port15"),
-	}
 	configureDUTBundle(t, dut, dutSrc2, dutBundle2Member, aggID2)
 	return aggID1, aggID2
 }
@@ -571,6 +684,9 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames(fa.srcPort).SetRxNames(fa.dstPorts)
+	flow.Size().SetFixed(512)
+	flow.Rate().SetPps(1000)
+	// flow.Duration().FixedPackets().SetPackets(1000)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(fa.srcMac)
 	e1.Dst().SetValue(fa.dstMac)
@@ -582,29 +698,33 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 		v6.TrafficClass().SetValue(dscp << 2)
 	} else {
 		v4 := flow.Packet().Add().Ipv4()
+		if fa.useOuterFlowIncrement {
+			v4.Dst().Increment().SetStart(fa.outerDst[0]).SetCount(fa.outerFlowCount)
+		} else {
+			v4.Dst().SetValues(fa.outerDst)
+		}
 		v4.Src().SetValue(fa.outerSrc)
-		v4.Dst().SetValues(fa.outerDst)
 		v4.TimeToLive().SetValue(ipTTL)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
 		if fa.withInnerHeader {
 			if fa.withInnerV6 {
 				innerV6 := flow.Packet().Add().Ipv6()
-				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+				if fa.useInnerFlowIncrement { // use pre-defined inner destination addresses
+					innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
+					innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerSrcCount)
+				} else { // create inner srouce and destination addresses
 					innerV6.Src().SetValue(fa.innerSrc)
 					innerV6.Dst().SetValues(fa.innerDst)
-				} else { // create inner srouce and destination addresses
-					innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerFlowCount)
-					innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
 				}
 				innerV6.TrafficClass().SetValue(fa.innerDscp << 2)
 			} else {
 				innerV4 := flow.Packet().Add().Ipv4()
-				if len(fa.innerDst) > 0 { // use pre-defined inner destination addresses
+				if fa.useInnerFlowIncrement { // use pre-defined inner destination addresses
+					innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerSrcCount)
+					innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
+				} else { // create inner srouce and destination addresses}
 					innerV4.Src().SetValue(fa.innerSrc)
 					innerV4.Dst().SetValues(fa.innerDst)
-				} else { // create inner srouce and destination addresses}
-					innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerFlowCount)
-					innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
 				}
 				innerV4.Priority().Dscp().Phb().SetValue(fa.innerDscp)
 			}
@@ -802,12 +922,15 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
-	t.Logf("Flow Configuration: %v", flows)
-	t.Logf("OTG Configuration: %v", args.topo)
+	// t.Logf("Flow Configuration: %v", flows)
+	// t.Logf("OTG Configuration: %v", args.topo)
 	otg.PushConfig(t, args.topo)
+	time.Sleep(30 * time.Second) // time for otg ARP to settle
 	otg.StartProtocols(t)
+	time.Sleep(300 * time.Second) // time for otg ARP to settle
 	t.Log("Verify BGP establsihed after OTG start protocols")
 	otgutils.WaitForARP(t, otg, args.topo, "IPv4")
+	otgutils.WaitForARP(t, otg, args.topo, "IPv6")
 	cfgplugins.VerifyDUTBGPEstablished(t, args.peer)
 	if capture {
 		startCapture(t, args.ate)
@@ -877,7 +1000,180 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 	return niProto
 }
 
-func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
+// splitPrimaryBackup splits the input interface list into primary and backup slices
+// according to the given primaryPercent (0-100). Ensures at least one interface in each group
+// and at least two interfaces in total.
+func splitPrimaryBackup(primaryPercent int, interfaces []util.BundleLinks) (primary, backup []util.BundleLinks, err error) {
+	n := len(interfaces)
+	if n < 2 {
+		return nil, nil, fmt.Errorf("at least two interfaces required, got %d", n)
+	}
+	if primaryPercent < 0 || primaryPercent > 100 {
+		return nil, nil, fmt.Errorf("primaryPercent must be between 0 and 100, got %d", primaryPercent)
+	}
+	primaryCount := n * primaryPercent / 100
+	if primaryCount == 0 {
+		primaryCount = 1
+	}
+	if primaryCount >= n {
+		primaryCount = n - 1
+	}
+	primary = interfaces[:primaryCount]
+	backup = interfaces[primaryCount:]
+	return primary, backup, nil
+}
+
+type Bundles []util.BundleLinks
+
+// ConfigureBundleLinkIPs assigns IPv4/IPv6 addresses to each InterfacePhysicalLink in the BundleMap
+// and configures those addresses on the DUT and PEER devices.
+func (bundles Bundles) ConfigureBundleLinkIPs(t *testing.T, dut, peer *ondatra.DUTDevice, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range string) error {
+	linkIndex := 0
+	for _, bundle := range bundles {
+		for i := range bundle.Links {
+			ipv4Subnet, err := util.IncrementSubnetCIDR(dutPeerBundleIPv4Range, linkIndex)
+			if err != nil {
+				return fmt.Errorf("failed to increment IPv4 subnet: %v", err)
+			}
+			ipv6Subnet, err := util.IncrementSubnetCIDR(dutPeerBundleIPv6Range, linkIndex)
+			if err != nil {
+				return fmt.Errorf("failed to increment IPv6 subnet: %v", err)
+			}
+			intfV4, peerV4 := util.GetUsableIPs(ipv4Subnet)
+			intfV6, peerV6 := util.GetUsableIPs(ipv6Subnet)
+			bundle.Links[i].IntfV4Addr = intfV4.String()
+			bundle.Links[i].PeerV4Addr = peerV4.String()
+			bundle.Links[i].IntfV6Addr = intfV6.String()
+			bundle.Links[i].PeerV6Addr = peerV6.String()
+
+			// Configure IPv4 address on DUT and PEER
+			dutConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle.Name, bundle.Links[i].IntfV4Addr)
+			peerConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle.Name, bundle.Links[i].PeerV4Addr)
+			helpers.GnmiCLIConfig(t, dut, dutConf)
+			helpers.GnmiCLIConfig(t, peer, peerConf)
+
+			// Configure IPv6 address on DUT and PEER
+			dutConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle.Name, bundle.Links[i].IntfV6Addr)
+			peerConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle.Name, bundle.Links[i].PeerV6Addr)
+			helpers.GnmiCLIConfig(t, dut, dutConf)
+			helpers.GnmiCLIConfig(t, peer, peerConf)
+
+			linkIndex++
+		}
+	}
+	return nil
+}
+
+type PathInfo struct {
+	// bundleMode: true if bundle interface,  false if physical interface
+	bundleMode         bool
+	PrimaryInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsV4     []string // IPv4 address of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsV6     []string // IPv6 address of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsPeerV4 []string // IPv4 address of the peer of the primary path for bundle case, physical interfaces for physical case
+	PrimaryPathsPeerV6 []string // IPv6 address of the peer of the primary path for bundle case, physical interfaces for physical case
+	// PrimaryIntfLcs and PrimaryPeerLcs holds either a []string or [][]string depending on the interface mode.
+	// If bundleMode is false (physical interface mode), PrimaryIntfLcs is a []string.
+	// If bundleMode is true (bundle interface mode), PrimaryIntfLcs is a [][]string.
+	// Use type assertion after checking bundleMode:
+	//   if pathInfo.bundleMode {
+	//       lcs2d, ok := pathInfo.PrimaryIntfLcs.([][]string) // bundle mode
+	//   } else {
+	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
+	//   }
+	PrimaryIntfLcs        any
+	PrimaryPeerLcs        any
+	PrimarySubIntf        map[string]util.LinkIPs
+	PrimarySubintfPathsV4 []string
+	PrimarySubintfPathsV6 []string
+
+	BackupInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
+	BackupPathsV4     []string
+	BackupPathsV6     []string
+	BackupPathsPeerV4 []string
+	BackupPathsPeerV6 []string
+	// BackupIntfLcs and BackupPeerLcs holds either a []string or [][]string depending on the interface mode.
+	// If bundleMode is false (physical interface mode), PrimaryIntfLcs is a []string.
+	// If bundleMode is true (bundle interface mode), PrimaryIntfLcs is a [][]string.
+	// Use type assertion after checking bundleMode:
+	//   if pathInfo.bundleMode {
+	//       lcs2d, ok := pathInfo.PrimaryIntfLcs.([][]string) // bundle mode
+	//   } else {
+	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
+	//   }
+	BackupIntfLcs        any
+	BackupPeerLcs        any
+	BackupSubIntf        map[string]util.LinkIPs
+	BackupSubintfPathsV4 []string
+	BackupSubintfPathsV6 []string
+}
+
+// fillPathInfoInterface populates the PathInfo struct's interface-related fields.
+func (p *PathInfo) fillPathInfoInterface(
+	primaryInterfaces, backupInterfaces []util.BundleLinks,
+) {
+	primaryIntfsName := util.ExtractBundleLinkField(primaryInterfaces, "name")
+	backupIntfsName := util.ExtractBundleLinkField(backupInterfaces, "name")
+
+	p.PrimaryInterface = util.ToStringSlice(primaryIntfsName)
+	p.PrimaryPathsV4 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "intfv4addr"))
+	p.PrimaryPathsV6 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "intfv6addr"))
+	p.PrimaryPathsPeerV4 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "peerintfv4addr"))
+	p.PrimaryPathsPeerV6 = util.ToStringSlice(util.ExtractBundleLinkField(primaryInterfaces, "peerintfv6addr"))
+	p.PrimaryIntfLcs = util.ExtractBundleLinkField(primaryInterfaces, "linecardnumber")
+	p.PrimaryPeerLcs = util.ExtractBundleLinkField(primaryInterfaces, "linecardnumber")
+
+	p.BackupInterface = util.ToStringSlice(backupIntfsName)
+	p.BackupPathsV4 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "intfv4addr"))
+	p.BackupPathsV6 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "intfv6addr"))
+	p.BackupPathsPeerV4 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "peerintfv4addr"))
+	p.BackupPathsPeerV6 = util.ToStringSlice(util.ExtractBundleLinkField(backupInterfaces, "peerintfv6addr"))
+	p.BackupIntfLcs = util.ExtractBundleLinkField(backupInterfaces, "peerlinecardnumber")
+	p.BackupPeerLcs = util.ExtractBundleLinkField(backupInterfaces, "peerlinecardnumber")
+}
+
+// GetAllSubIntfIPAddresses extracts all IPv4 addresses from a map of subIntIPMap based on the address family type and peer flag.
+func GetAllSubIntfIPAddresses(subIntIPMap map[string]util.LinkIPs, afType string, peer bool) []string {
+	var ipAddresses []string
+	for _, link := range subIntIPMap {
+		if afType == "v4" {
+			if peer {
+				if link.PeerIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.PeerIPv4)
+				}
+			} else {
+				if link.DutIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.DutIPv4)
+				}
+			}
+		} else if afType == "v6" {
+			if peer {
+				if link.PeerIPv6 != "" {
+					ipAddresses = append(ipAddresses, link.PeerIPv6)
+				}
+			} else {
+				if link.DutIPv6 != "" {
+					ipAddresses = append(ipAddresses, link.DutIPv6)
+				}
+			}
+		}
+	}
+	return ipAddresses
+}
+
+// fillPathInfoSubInterface populates the PathInfo struct's subinterface-related fields.
+func (p *PathInfo) fillPathInfoSubInterface(
+	primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap map[string]util.LinkIPs,
+) {
+	p.PrimarySubIntf = primaryBundlesubIntfIPMap
+	p.BackupSubIntf = backupBundlesubIntfIPMap
+	p.PrimarySubintfPathsV4 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v4", true) // peer addresses are used in nexthop reference
+	p.PrimarySubintfPathsV6 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v6", true)
+	p.BackupSubintfPathsV4 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v4", true)
+	p.BackupSubintfPathsV6 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v6", true)
+}
+
+func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode string) {
 	//Configure DUT Device
 	t.Log("Configure VRFs")
 	configureNetworkInstance(t, dut)
@@ -885,88 +1181,77 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, peer)
 	// t.Log("Configure Fallback in Encap VRF")
-	t.Log("Configure DUT-TGEN Bundle Interface")
-	aggID1, aggID2 := configureDUTInterfaces(t, dut)
-	t.Log("Configure DUT-PEER dynamic Bundle Interface")
-	bundleMap := util.ConfigureBundleIntfDynamic(t, dut, peer, 4)
-	bundleIntfList = maps.Keys(bundleMap)
-	t.Log("Configure BGP for DUT-PEER")
-	configureDeviceBGP(t, dut, peer, bundleIntfList)
-	t.Log("Configure ISIS for DUT-PEER")
-	configureDeviceISIS(t, dut, peer, bundleIntfList)
-	t.Log("Configure Fallback in Encap VRF")
-	t.Log("Configure WAN facing VRF selection Policy")
-	wanPBR := CreatePbrPolicy(dut, wanPolicy, false)
-	defaultNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, defaultNiPath.PolicyForwarding().Config(), wanPBR)
-	t.Log("Configure Cluster facing VRF selection Policy")
-	clusterPBR := CreatePbrPolicy(dut, clusterPolicy, true)
-	gnmi.Update(t, dut, defaultNiPath.PolicyForwarding().Config(), clusterPBR)
-	//Apply Cluster facing policy on DUT-TGEN Bundle1 interface
-	applyForwardingPolicy(t, aggID1, clusterPolicy, false)
-	//Apply WAN facing policy on DUT-TGEN Bundle2 interface
-	applyForwardingPolicy(t, aggID2, wanPolicy, false)
-}
-
-func configureBundleIPAddr(t *testing.T, dut, peer *ondatra.DUTDevice, bundlelist []string) (map[string]BundleIPAddress, map[string]BundleIPAddress) {
-	dutBundleIPMap := make(map[string]BundleIPAddress)
-	peerBundleIPMap := make(map[string]BundleIPAddress)
-	//Configure Bundle interface IPv4 address
-	for i, bundle := range bundlelist {
-		ipv4r, err := util.IncrementSubnetCIDR(dutPeerBundleIPv4Range, i)
-		ipv6r, err1 := util.IncrementSubnetCIDR(dutPeerBundleIPv6Range, i)
-		if err != nil || err1 != nil {
-			t.Errorf("Error in incrementing subnet")
+	if interfaceMode == "bundle" {
+		t.Log("Configure DUT-TGEN Bundle Interface")
+		aggID1, aggID2 = configureDUTInterfaces(t, dut)
+		t.Log("Configure DUT-PEER dynamic Bundle Interface")
+		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
+		if len(bundleListAll) < 2 {
+			t.Fatalf("Expected at least 2 bundles (one for bgp/isis other for test), got %d", len(bundleList))
 		}
-		dutIPv4, peerIPv4 := util.GetUsableIPs(ipv4r)
-		dutIPv6, peerIPv6 := util.GetUsableIPs(ipv6r)
-		dutConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, dutIPv4.String())
-		peerConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, peerIPv4.String())
-		helpers.GnmiCLIConfig(t, dut, dutConf)
-		helpers.GnmiCLIConfig(t, peer, peerConf)
-		//Configure Bundle interface IPv6 address
-		dutConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, dutIPv6.String())
-		peerConf = fmt.Sprintf("interface %v ipv6 address %v/64", bundle, peerIPv6.String())
-		helpers.GnmiCLIConfig(t, dut, dutConf)
-		helpers.GnmiCLIConfig(t, peer, peerConf)
-		dutBundleIPMap[bundle] = BundleIPAddress{
-			ipv4: dutIPv4.String(),
-			ipv6: dutIPv6.String()}
-		peerBundleIPMap[bundle] = BundleIPAddress{
-			ipv4: peerIPv4.String(),
-			ipv6: peerIPv6.String()}
-	}
-	return dutBundleIPMap, peerBundleIPMap
-}
-
-func getDUTBundleIPAddrList(deviceBundleMap map[string]BundleIPAddress) ([]string, []string) {
-	var v4list, v6list []string
-	for bun, addr := range deviceBundleMap {
-		if bun == bundleIntfList[0] {
-			continue
+		bundleBgpIsis := bundleListAll[0] // first interface is for BGP/ISIS
+		bundleList = bundleListAll[1:]    // rest of the interfaces are for test
+		configureDeviceBGP(t, dut, peer, bundleBgpIsis)
+		t.Log("Configure sub Interface for Dynamic Bundle DUT-PEER")
+		primaryIntfs, backupIntfs, err := splitPrimaryBackup(primaryPercent, bundleList)
+		if err != nil {
+			t.Fatal(err)
 		}
-		v4list = append(v4list, addr.ipv4)
-		v6list = append(v6list, addr.ipv6)
+		// pathInfo: global variable
+		pathInfo.bundleMode = true
+		pathInfo.fillPathInfoInterface(primaryIntfs, backupIntfs)
+
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, primaryBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.PrimaryInterface, primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		t.Logf("backupSubIntfScale: %d", backupSubIntfScale)
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
+		nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
+		pathInfo.fillPathInfoSubInterface(primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap)
+
+		t.Logf("Path info: %v", pathInfo)
+		t.Log("Configure ISIS for DUT-PEER")
+		configureDeviceISIS(t, dut, peer, bundleBgpIsis)
+		t.Log("Configure Fallback in Encap VRF")
+		t.Log("Configure WAN facing VRF selection Policy")
+		wanPBR := CreatePbrPolicy(t, dut, wanPolicy, false)
+		defaultNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+		gnmi.Replace(t, dut, defaultNiPath.PolicyForwarding().Config(), wanPBR)
+		t.Log("Configure Cluster facing VRF selection Policy")
+		clusterPBR := CreatePbrPolicy(t, dut, clusterPolicy, true)
+		gnmi.Update(t, dut, defaultNiPath.PolicyForwarding().Config(), clusterPBR)
+		//Apply Cluster facing policy on DUT-TGEN Bundle1 interface
+		applyForwardingPolicy(t, aggID1, clusterPolicy, false)
+		//Apply WAN facing policy on DUT-TGEN Bundle2 interface
+		applyForwardingPolicy(t, aggID2, wanPolicy, false)
+	} else if interfaceMode == "physical" {
+		t.Log("Configure DUT-TGEN Physical Interfaces")
+		// TODO: Implement physical interface configuration logic
+		// Add your physical interface configuration logic here
+		// Example:
+		// configureDUTPhysicalInterfaces(t, dut)
+		// configureDeviceBGP(t, dut, peer, physicalIntfList)
+		// configureDeviceISIS(t, dut, peer, physicalIntfList)
+	} else {
+		t.Fatalf("Unknown mode: %s. Must be 'bundle' or 'physical'", interfaceMode)
 	}
-	return v4list, v6list
 }
 
-func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bundList []string) {
-	dutBundleIPMap, peerBundleIPMap = configureBundleIPAddr(t, dut, peer, bundList)
+func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bgpLink util.BundleLinks) {
+	// dutBundleIPMap, peerBundleIPMap = configureBundleIPAddr(t, dut, peer, bundList)
 	configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	configureRoutePolicy(t, peer, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	dutBundlev4Addr := dutBundleIPMap[bundList[0]]
-	peerBundlev4Addr := peerBundleIPMap[bundList[0]]
+	// dutBundlev4Addr := dutBundleIPMap[bundList]
+	// peerBundlev4Addr := peerBundleIPMap[bundList]
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	peerConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := bgpWithNbr(dutAS, dutBGPRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		PeerAs:          ygot.Uint32(dutAS),
-		NeighborAddress: ygot.String(peerBundlev4Addr.ipv4),
+		NeighborAddress: ygot.String(bgpLink.PeerV4Addr), //peerBundlev4Addr.ipv4
 		PeerGroup:       ygot.String(peerGrpName),
 	}, dut)
 	peerConf := bgpWithNbr(dutAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		PeerAs:          ygot.Uint32(dutAS),
-		NeighborAddress: ygot.String(dutBundlev4Addr.ipv4),
+		NeighborAddress: ygot.String(bgpLink.IntfV4Addr), //dutBundlev4Addr.ipv4
 		PeerGroup:       ygot.String(peerGrpName),
 	}, peer)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
@@ -974,8 +1259,14 @@ func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bundList []s
 	t.Log("Verify iBGP session between DUT-PEER is established")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 	t.Log("Config Peer Tgen interface")
-	p1 := peer.Port(t, "port16")
-	gnmi.Replace(t, peer, gnmi.OC().Interface(p1.Name()).Config(), peerDst.NewOCInterface(p1.Name(), peer))
+	ports := peer.Ports() // Get the list of ports from peer
+	util.SortOndatraPortsByID(ports)
+	if len(ports) > 0 {
+		peerLastPort := ports[len(ports)-1]
+		gnmi.Replace(t, peer, gnmi.OC().Interface(peerLastPort.Name()).Config(), peerDst.NewOCInterface(peerLastPort.Name(), peer))
+	} else {
+		t.Fatalf("No ports found on peer device %s", peer.ID())
+	}
 	t.Log("Configure eBGP between PEER and TGEN")
 	peerEbgpConf := bgpWithNbr(dutAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
 		PeerAs:          ygot.Uint32(ateAS),
@@ -985,14 +1276,14 @@ func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bundList []s
 	gnmi.Update(t, peer, peerConfPath.Config(), peerEbgpConf)
 }
 
-func configureDeviceISIS(t *testing.T, dut, peer *ondatra.DUTDevice, bundList []string) {
+func configureDeviceISIS(t *testing.T, dut, peer *ondatra.DUTDevice, isisIntf util.BundleLinks) {
 	root := &oc.Root{}
 	t.Log("Configure ISIS on DUT")
-	util.AddISISOCWithSysAreaID(t, dut, bundList[0], DUTISISSysID, ISISAreaID, ISISName)
+	util.AddISISOCWithSysAreaID(t, dut, isisIntf.Name, DUTISISSysID, ISISAreaID, ISISName)
 	t.Log("Configure ISIS on PEER")
-	util.AddISISOCWithSysAreaID(t, peer, bundList[0], PeerISISSysID, ISISAreaID, ISISName)
+	util.AddISISOCWithSysAreaID(t, peer, isisIntf.Name, PeerISISSysID, ISISAreaID, ISISName)
 	t.Log("Verify ISIS session between DUT-PEER is established")
-	awaitISISAdjacency(t, dut, bundList[0])
+	awaitISISAdjacency(t, dut, isisIntf.Name)
 	//redirstribute v4 connected routes
 	tableConnv4 := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(peer)).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4)
 	gnmi.Update(t, peer, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(peer)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConnv4)
@@ -1016,36 +1307,68 @@ func awaitISISAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	}
 }
 
+func getPortIDs(dev *ondatra.DUTDevice) []string {
+	var ids []string
+	for _, p := range dev.Ports() {
+		ids = append(ids, p.ID())
+	}
+	return ids
+}
+
 // configreOTG configures IP addresses on tgen Bundle1 & Bundle2 on the otg.
-func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
+func configureOTG(t *testing.T, otg *ondatra.ATEDevice, dut, peer *ondatra.DUTDevice) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Log("Configuring DUT-TGEN Bundle interface1")
-	aggID1 := "100"
-	tgenBundle1 := []*ondatra.Port{
-		otg.Port(t, "port1"),
-		otg.Port(t, "port2"),
-		otg.Port(t, "port3"),
-		otg.Port(t, "port4"),
-		otg.Port(t, "port5"),
-		otg.Port(t, "port6"),
-		otg.Port(t, "port7"),
-		otg.Port(t, "port8"),
+	// Suppose you have these slices of port IDs:
+	dutPortIDs := getPortIDs(dut)
+	peerPortIDs := getPortIDs(peer)
+
+	// collect DUT port IDs
+	dutPortMap := make(map[string]struct{}, len(dutPortIDs))
+	for _, id := range dutPortIDs {
+		dutPortMap[id] = struct{}{}
 	}
-	configureOTGBundle(t, otg, otgSrc1, dutSrc1, topo, tgenBundle1, lagName1, aggID1)
-	t.Log("Configuring DUT-TGEN Bundle interface1")
-	aggID2 := "200"
-	tgenBundle2 := []*ondatra.Port{
-		otg.Port(t, "port9"),
-		otg.Port(t, "port10"),
-		otg.Port(t, "port11"),
-		otg.Port(t, "port12"),
-		otg.Port(t, "port13"),
-		otg.Port(t, "port14"),
-		otg.Port(t, "port15"),
+	// collect PEER port ID
+	peerPortMap := make(map[string]struct{}, len(peerPortIDs))
+	for _, id := range peerPortIDs {
+		peerPortMap[id] = struct{}{}
 	}
-	configureOTGBundle(t, otg, otgSrc2, dutSrc2, topo, tgenBundle2, lagName2, aggID2)
-	//Configure PEER-TGEN interface
-	dstPort := topo.Ports().Add().SetName("port16")
+	// Create OTG source and destination ports
+	var otgPortsToDut, otgPortsToPeer []*ondatra.Port
+	for _, p := range otg.Ports() {
+		if _, ok := dutPortMap[p.ID()]; ok {
+			otgPortsToDut = append(otgPortsToDut, p) // rename
+		} else if _, ok := peerPortMap[p.ID()]; ok {
+			otgPortsToPeer = append(otgPortsToPeer, p)
+		}
+	}
+	if len(otgPortsToDut) == 0 {
+		t.Fatalf("No DUT ports found on OTG device %s", otg.Name())
+	}
+	if len(otgPortsToPeer) == 0 {
+		t.Fatalf("No PEER ports found on OTG device %s", otg.Name())
+	}
+	n := len(otgPortsToDut)
+	mid := n / 2
+	if n%2 != 0 {
+		mid++ // Make first bundle larger if odd count
+	}
+	util.SortOndatraPortsByID(otgPortsToDut)
+	util.SortOndatraPortsByID(otgPortsToPeer)
+	tgenBundle1 := otgPortsToDut[:mid]
+	tgenBundle2 := otgPortsToDut[mid:]
+	t.Logf("Topo %v", topo)
+	aggId1 := strings.TrimPrefix(aggID1, "Bundle-Ether")
+	t.Logf("Configuring DUT-TGEN Bundle interface1: lagName1=%s, aggId1=%s, tgenBundle1=%v, otgSrc1=%+v, dutSrc1=%+v, topo=%v", lagName1, aggId1, tgenBundle1, otgSrc1, dutSrc1, topo)
+	configureOTGBundle(t, otg, otgSrc1, dutSrc1, topo, tgenBundle1, lagName1, aggId1)
+	t.Log("Configuring DUT-TGEN Bundle interface2")
+	aggId2 := strings.TrimPrefix(aggID2, "Bundle-Ether")
+	t.Logf("Configuring DUT-TGEN Bundle interface1: lagName1=%s, aggId1=%s, tgenBundle1=%v, otgSrc1=%+v, dutSrc1=%+v, topo=%v", lagName2, aggId2, tgenBundle2, otgSrc2, dutSrc2, topo)
+	configureOTGBundle(t, otg, otgSrc2, dutSrc2, topo, tgenBundle2, lagName2, aggId2)
+
+	//Configure PEER-TGEN interface - Destination port
+	peerLastPort := otgPortsToPeer[len(otgPortsToPeer)-1].ID()
+	dstPort := topo.Ports().Add().SetName(peerLastPort)
 	dstDev := topo.Devices().Add().SetName(otgDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(otgDst.Name + ".Eth").SetMac(otgDst.MAC)
 	dstEth.Connection().SetPortName(dstPort.Name())
@@ -1062,9 +1385,12 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
 	configureOTGBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "v6Default", v6BGPDefault, 20000)
 	t.Logf("Pushing config to otg and starting protocols...")
 	otg.OTG().PushConfig(t, topo)
+	t.Logf("OTG Config: %v", topo.Marshal())
 	time.Sleep(30 * time.Second)
 	otg.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, otg.OTG(), topo, "IPv4")
+	otgutils.WaitForARP(t, otg.OTG(), topo, "IPv6")
 	return topo
 }
 
@@ -1116,16 +1442,16 @@ func configureBaseProfile(t *testing.T) {
 	if err := gribi.FlushAll(client); err != nil {
 		t.Error(err)
 	}
+	client.Await(ctx, t)
 	// Wait for the gribi entries get flushed
-	time.Sleep(300 * time.Second)
+	// time.Sleep(300 * time.Second)
 	defer client.Stop(t)
 
-	// configureNetworkInstance(t, dut)
-	// t.Log("Configure DUT & PEER devices")
-	configureDevices(t, dut, peer)
-	// t.Log("Configure TGEN OTG")
-	topo := configureOTG(t, otg)
-	t.Log("OTG CONFIG: ", topo)
+	t.Log("Configure DUT & PEER devices")
+	configureDevices(t, dut, peer, "bundle")
+	t.Log("Configure TGEN OTG")
+	topo := configureOTG(t, otg, dut, peer)
+	// t.Log("OTG CONFIG: ", topo)
 	tcArgs := &testArgs{
 		dut:    dut,
 		peer:   peer,
@@ -1138,11 +1464,282 @@ func configureBaseProfile(t *testing.T) {
 		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
 		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
 	})
-	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
-	peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
 
 	// add static route on peer for the tunnel destination for encap, decap+encap traffic
 	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	t.Log("Program base gRIBI entries")
-	BaseGRIBIProgramming(t, tcArgs, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
+	BaseGRIBIProgramming(t, tcArgs, pathInfo.PrimaryPathsPeerV4, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
+}
+
+type DUTResources struct {
+	Device      *ondatra.DUTDevice
+	GNMI        gnmipb.GNMIClient
+	GNSI        ondatra_binding.GNSIClients
+	GNOI        gnoigo.Clients
+	GNPSI       gnpsipb.GNPSIClient
+	CLI         ondatra_binding.CLIClient
+	P4RT        p4pb.P4RuntimeClient
+	Console     ondatra_binding.ConsoleClient
+	OSC         ospb.OSClient
+	SC          spb.SystemClient
+	GRIBI       gribis.GRIBIClient
+	FluentGRIBI *fluent.GRIBIClient
+	LCs         []string
+	DualSup     bool
+	ActiveRP    string
+	StandbyRP   string
+}
+type OTGResources struct {
+	Device *ondatra.ATEDevice
+	GNMI   gnmipb.GNMIClient
+}
+
+// TestResources holds common resources used across tests.
+type TestResources struct {
+	DUT    DUTResources
+	PEER   DUTResources
+	OTG    OTGResources
+	LogDir string
+	// dualSup         bool
+	// reader          io.ReadCloser
+	ctx             context.Context
+	CommandPatterns map[string]map[string]interface{}
+}
+
+var (
+	testResources *TestResources
+	once          sync.Once
+)
+
+// TODO complete this ReconnectClients
+// Try to move to utils
+
+// CheckBootTime is a method of TestResources that checks the boot time for DUT and PEER
+func (tRes *TestResources) ReconnectClients(t *testing.T, maxRebootTime uint64) {
+	// t.Log("Reconnect CLI")
+	// reconnectCLI(t, tRes.DUT.CLI, "DUT", maxRebootTime)
+	// reconnectCLI(t, tRes.PEER.CLI, "PEER", maxRebootTime)
+
+	// t.Log("Reconnect FluentGRIBI")
+	// reconnectFluentGribi(t, tRes.DUT.FluentGRIBI, "DUT", maxRebootTime)
+	// reconnectFluentGribi(t, tRes.PEER.FluentGRIBI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gNOI")
+	reconnectGnoi(t, tRes.DUT.GNOI, "DUT", maxRebootTime)
+	reconnectGnoi(t, tRes.PEER.GNOI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gNMI")
+	reconnectGnmi(t, tRes.DUT.GNMI, "DUT", maxRebootTime)
+	reconnectGnmi(t, tRes.PEER.GNMI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gNSI")
+	reconnectGnsi(t, tRes.DUT.GNSI, "DUT", maxRebootTime)
+	reconnectGnsi(t, tRes.PEER.GNSI, "PEER", maxRebootTime)
+
+	t.Log("Reconnect P4RT")
+	reconnectP4RT(t, tRes.DUT.P4RT, "DUT", maxRebootTime)
+	reconnectP4RT(t, tRes.PEER.P4RT, "PEER", maxRebootTime)
+
+	t.Log("Reconnect gRIBI")
+	reconnectGribi(t, tRes.DUT.GRIBI, "DUT", maxRebootTime)
+	reconnectGribi(t, tRes.PEER.GRIBI, "PEER", maxRebootTime)
+}
+
+// reconnectGnoi attempts to reconnect to a device using the gNOI client and waits until the device is ready.
+// It periodically checks the device's system time to determine its availability.
+//
+// Parameters:
+//   - t: The testing context used for logging and error reporting.
+//   - gnoiClient: The gNOI client used to communicate with the device.
+//   - deviceName: The name of the device being checked.
+//   - maxRebootTime: The maximum allowed reboot time (in minutes) before the function fails the test.
+//
+// Behavior:
+//   - Logs the elapsed time since the reboot started.
+//   - Continuously attempts to fetch the device's system time using the gNOI client.
+//   - If the service is unavailable, waits for 30 seconds before retrying.
+//   - If the device becomes available, logs a success message and exits the loop.
+//   - If the elapsed time exceeds maxRebootTime, the function fails the test with a fatal error.
+//   - Logs the total time taken for the device to become ready.
+func reconnectGnoi(t *testing.T, gnoiClient gnoigo.Clients, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		response, err := gnoiClient.System().Time(ctx, &spb.TimeRequest{})
+
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching %s device time: %v", deviceName, err)
+		}
+
+		// Check if the error code indicates that the service is unavailable
+		if status.Code(err) == codes.Unavailable {
+			// If the service is unavailable, wait for 30 seconds before retrying
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if response != nil {
+			// If the device time is fetched successfully, log the success message
+			t.Logf("%s device time fetched successfully: %v", deviceName, response)
+			break
+		} else {
+			t.Logf("Error: %s device time response is nil despite no error", deviceName)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s gnoi ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+// reconnectGnmi attempts to reconnect to a device using the gNMI client and waits until the device is ready.
+// It periodically checks the device's capabilities to determine its availability.
+//
+// Parameters:
+//   - t: The testing context used for logging and error reporting.
+//   - gnmiClient: The gNMI client used to communicate with the device.
+//   - deviceName: The name of the device being checked.
+//   - maxRebootTime: The maximum allowed reboot time (in minutes) before the function fails the test.
+//
+// Behavior:
+//   - Logs the elapsed time since the reboot started.
+//   - Continuously attempts to fetch the device's capabilities using the gNMI client.
+//   - If the service is unavailable, waits for 30 seconds before retrying.
+//   - If the device becomes available, logs a success message and exits the loop.
+//   - If the elapsed time exceeds maxRebootTime, the function fails the test with a fatal error.
+//   - Logs the total time taken for the device to become ready.
+func reconnectGnmi(t *testing.T, gnmiClient gnmipb.GNMIClient, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		// Example of fetching capabilities from the repository code base
+		_, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
+
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching %s device capabilities: %v", deviceName, err)
+		}
+
+		// Check if the error code indicates that the service is unavailable
+		if status.Code(err) == codes.Unavailable {
+			// If the service is unavailable, wait for 30 seconds before retrying
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			// If the capabilities are fetched successfully, log the success message
+			t.Logf("%s device capabilities fetched successfully", deviceName)
+			break
+		} else {
+			t.Logf("Error: %s device capabilities response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s gNMI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+func reconnectGnsi(t *testing.T, gnsiClient ondatra_binding.GNSIClients, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		// Example of fetching GNSI certificates from the repository code base
+		_, err := gnsiClient.Certz().GetProfileList(ctx, &certzpb.GetProfileListRequest{})
+		// Log the error if it occurs
+		if err != nil {
+			t.Logf("Error fetching %s GNSI certificates: %v", deviceName, err)
+		}
+
+		if status.Code(err) == codes.Unavailable {
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			t.Logf("%s GNSI certificates fetched successfully", deviceName)
+			break
+		} else {
+			t.Logf("Error: %s GNSI response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s GNSI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+func reconnectP4RT(t *testing.T, p4rtClient p4pb.P4RuntimeClient, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+		_, err := p4rtClient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
+
+		if err != nil {
+			t.Logf("Error fetching %s P4RT capabilities: %v", deviceName, err)
+		}
+
+		if status.Code(err) == codes.Unavailable {
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			t.Logf("%s P4RT capabilities fetched successfully", deviceName)
+			break
+		} else {
+			t.Logf("Error: %s P4RT response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s P4RT ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+func reconnectGribi(t *testing.T, gribiClient gribis.GRIBIClient, deviceName string, maxRebootTime uint64) {
+	startReboot := time.Now()
+	t.Logf("%s boot time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+	for {
+		ctx := context.Background()
+
+		// Use GribiGet logic to validate the connection
+		getReq := gribis.GetRequest{
+			NetworkInstance: &gribis.GetRequest_All{},
+			Aft:             gribis.AFTType_ALL,
+		}
+		getStream, err := gribiClient.Get(ctx, &getReq)
+
+		if err != nil {
+			t.Logf("Error fetching %s gRIBI capabilities: %v", deviceName, err)
+		}
+
+		if status.Code(err) == codes.Unavailable {
+			t.Logf("%s service unavailable, retrying in 30 seconds...", deviceName)
+			time.Sleep(30 * time.Second)
+		} else if err == nil {
+			_, recvErr := getStream.Recv()
+			if recvErr == io.EOF {
+				t.Logf("%s gRIBI capabilities fetched successfully", deviceName)
+				break
+			} else if recvErr != nil {
+				t.Logf("Error: %s gRIBI response failed with error: %v", deviceName, recvErr)
+				time.Sleep(30 * time.Second)
+			}
+		} else {
+			t.Logf("Error: %s gRIBI response failed with error: %v", deviceName, err)
+			time.Sleep(30 * time.Second)
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check %s boot time: got %v, want < %v", deviceName, time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("%s gRIBI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
 }

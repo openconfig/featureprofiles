@@ -6,7 +6,7 @@
 duts {
   id: "dut"
   vendor: CISCO
-  hardware_model: "CISCO-8818"
+  hardware_model: "CISCO-8808"
   ports {
     id: "port1"
     speed: S_400GB
@@ -17,9 +17,32 @@ duts {
     speed: S_400GB
     pmd: PMD_400GBASE_ZR
   }
+  ports {
+    id: "port3"
+    speed: S_100GB 
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB 
+  }
 }
 
 links {
   a: "dut:port1"
   b: "dut:port2"
+}
+
+links {
+  a: "dut:port2"
+  b: "dut:port1"
+}
+
+links {
+  a: "dut:port3"
+  b: "dut:port4"
+}
+
+links {
+  a: "dut:port4"
+  b: "dut:port3"
 }
