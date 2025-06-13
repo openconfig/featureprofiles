@@ -756,7 +756,7 @@ message Metadata {
     // Cisco b/414333771
     bool bgp_set_med_action_unsupported = 272;
 
-     // Devices that do not support next-hop-group config
+    // Devices that do not support next-hop-group config
     // Arista b/390507957
     bool next_hop_group_config_unsupported = 273;
 
