@@ -177,8 +177,8 @@ The configuration required for the 2R3C policer with classifier is included belo
                   ],
                   "two-rate-three-color": {
                     "config": {
-                      "cir": 1000000000,
-                      "pir": 2000000000,
+                      "cir": "1000000000",
+                      "pir": "2000000000",
                       "bc": 100000,
                       "be": 100000,
                       "queuing-behavior": "POLICE"
