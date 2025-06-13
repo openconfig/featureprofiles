@@ -207,7 +207,7 @@ B7 <-- EBGP --> N4;
 - Validations:
 -  The outer header destination IP of the traffic matches a configured decap IP address
 -  The outer header destination UDP port (6085) of the traffic does not matches the locally configured decapsulation port(6080), therefore it does not match the decapsulation criteria for the destination port
--  The DUT should not decapsulate these packets. Packets should be dropped since no specific drop rule exists for unmatched GUE
+-  The DUT should not decapsulate these packets. Packets should be dropped since no specific policy-forwarding rule exists for unmatched GUE
 -  The DUT decapsulation counters should not increment for this flow
 -  The drop counters on DUT will reflect the packets to 1000000
 -  100% packet loss should be observed on ATE Port 2
