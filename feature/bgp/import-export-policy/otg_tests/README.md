@@ -1,7 +1,7 @@
 # RT-1.64 BGP Import/Export Policy Functional Test Case
 
 ## Objective
-To verify that BGP import and export policies are correctly applied on a router, allowing or denying specific BGP routes based on defined criteria (e.g., AS-Path, community, prefix-list) when exchanging routing information with an Ixia traffic generator emulating a BGP peer.
+To verify that BGP import and export policies are correctly applied on a router, allowing or denying specific BGP routes based on defined criteria when exchanging routing information with an Ixia traffic generator emulating a BGP peer.
 
 ## Test Bed Setup
 Device Under Test (DUT): 1 x Router
@@ -55,18 +55,18 @@ This test case will focus on two scenarios:
 * Establish a BGP peering session with the DUT's IP (10.1.1.0) & IPV6 (2607:f8b0:8007:614f::).
 
 * Advertise multiple unique BGP routes from Ixia, some intended to be filtered, and some to be allowed.
-  * Allowed routes: 192.0.2.1/32 (AS-Path: 65002), 192.0.2.2/32 (AS-Path: 65002)
-  * Denied routes: 198.51.100.1/32 (AS-Path: 65002 65003), 198.51.100.2/32 (AS-Path: 65002 65004)
+  * Allowed routes: IPV4 192.0.2.1/32 (AS-Path: 65002), 192.0.2.2/32 (AS-Path: 65002) and IPV6 2607:f8b0:8000:5100::1/128 (AS-Path: 65002) , 2607:f8b0:8000:6100::2/128 (AS-Path: 65002)
+  * Denied routes:  IPV4 198.51.100.1/32 (AS-Path: 65002 65003), 198.51.100.2/32 (AS-Path: 65002 65004) and IPV6 2607:f8b0:9000:1100::1/128 (AS-Path: 65002 65004) , 2607:f8b0:9000:2100::2/128 (AS-Path: 65002 65004)
 
 ### Verify BGP Peering:
 
-* On DUT: show ip bgp summary
+* On DUT: Check the BGP summary
 * On Ixia: Check BGP session status in IxNetwork.
 * Ensure both the DUT and Ixia have exchanged routes without any policy applied yet.
 
 ### Test Export Policy (Prefix-list based)
 
-Objective: Only allow local routes 172.16.1.0/24 and 172.16.2.0/24 to be advertised from DUT to Ixia. 192.168.10.0/24 should be denied.
+Objective: Only allow local routes 172.16.1.0/24 and 172.16.2.0/24  2001:4860:1:1::/64 and 2001:4860:1:2::/64  to be advertised from DUT to Ixia. 192.168.10.0/24 & 2607:f8b0:8000::/64 should be denied.
 
 Configure Export Policy on DUT:
 Create a prefix-list to match the desired prefixes.
@@ -142,6 +142,40 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
 
 ```yaml
 
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "<network_instance_name>",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "<protocol_identifier>",
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "<neighbor_ip_address>",
+                      "apply-policy": {
+                        "config": {
+                          "import-policy": [
+                            "<policy_name_1>"                          ]
+                          "export-policy": [
+                            "<policy_name_1>"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
 
 
 
