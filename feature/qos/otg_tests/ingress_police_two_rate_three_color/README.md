@@ -36,6 +36,7 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
   * atePort1 = Attributes{
 		Desc:    "atePort1",
 		MAC:     "02:01:00:00:00:02",
+    Vlan:    "100"
     IPv4:    "200.0.0.2/24"
 		IPv6:    "2001:f:d:e::2/126",
 	}
@@ -66,127 +67,77 @@ The configuration required for the 2R3C policer with classifier is included belo
 
 ```json
 {
-  "openconfig-qos": {
-    "scheduler-policies": [
-      {
-        "scheduler-policy": null,
-        "config": {
-          "name": "limit_2Gb"
-        },
-        "schedulers": [
-          {
-            "scheduler": null,
-            "config": {
-              "sequence": 1,
-              "type": "TWO_RATE_THREE_COLOR"
-            },
-            "inputs": [
+  "qos": {
+    "scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "group_A_2Gb"
+          },
+          "name": "group_A_2Gb",
+          "schedulers": {
+            "scheduler": [
               {
-                "input": "my input policer 2Gb",
                 "config": {
-                  "id": "my input policer 2Gb",
-                  "input-type": "QUEUE",
-                  "queue": "dummy_input_queue_A"
+                  "sequence": 1,
+                  "type": "TWO_RATE_THREE_COLOR"
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "my input policer 2Gb",
+                        "input-type": "QUEUE",
+                        "queue": "QUEUE_3"
+                      },
+                      "id": "my input policer 2Gb"
+                    }
+                  ]
+                },
+                "two-rate-three-color": {
+                  "config": {
+                    "cir": 1000000000,
+                    "pir": 2000000000,
+                    "bc": 100000,
+                    "be": 100000,
+                    "queuing-behavior": "POLICE"
+                  },
+                  "exceed-action": {
+                    "config": {
+                      "drop": false
+                    }
+                  },
+                  "violate-action": {
+                    "config": {
+                      "drop": true
+                    }
+                  }
                 }
               }
-            ],
-            "two-rate-three-color": {
-              "config": {
-                "cir": 1000000000,
-                "pir": 2000000000,
-                "bc": 100000,
-                "be": 100000,
-                "queuing-behavior": "POLICE"
-              },
-              "exceed-action": {
-                "config": {
-                  "drop": false
-                }
-              },
-              "violate-action": {
-                "config": {
-                  "drop": true
-                }
-              }
-            }
+            ]
           }
-        ]
-      },
-      {
-        "scheduler-policy": null,
-        "config": {
-          "name": "limit_4Gb"
-        },
-        "schedulers": [
-          {
-            "scheduler": null,
-            "config": {
-              "sequence": 1,
-              "type": "TWO_RATE_THREE_COLOR"
-            },
-            "inputs": [
-              {
-                "input": "my input policer 4Gb",
-                "config": {
-                  "id": "my input policer 4Gb",
-                  "input-type": "QUEUE",
-                  "queue": "dummy_input_queue_B"
-                }
-              }
-            ],
-            "two-rate-three-color": {
-              "config": {
-                "cir": 2000000000,
-                "pir": 4000000000,
-                "bc": 100000,
-                "be": 100000,
-                "queuing-behavior": "POLICE"
-              },
-              "exceed-action": {
-                "config": {
-                  "drop": false
-                }
-              },
-              "violate-action": {
-                "config": {
-                  "drop": true
-                }
-              }
-            }
-          }
-        ]
-      },
-    ],
+        }
+      ]
+    },
     #
     # Interfaces input are mapped to the desired scheduler.
-    "interfaces": [
-      {
-        "interface": null,
-        "config": {
-          "interface-id": "Dut1.100"
-        },
-        "input": {
-          "scheduler-policy": {
-            "config": {
-              "name": "limit_group_A_2Gb"
+    "interfaces": {
+      "interface": [
+        {
+          "interface-id": "Dut1.100",
+          "config": {
+            "interface-id": "Dut1.100"
+          },
+          "input": {
+            "scheduler-policy": {
+              "config": {
+                "name": "group_A_2Gb"
+              }
             }
           }
         }
-      },
-      {
-        "interface": null,
-        "config": {
-          "interface-id": "Dut1.200"
-        },
-        "input": {
-          "scheduler-policy": {
-            "config": {
-              "name": "limit_group_B_4Gb"
-            }
-          }
-        }
-      }
-    ]
+      ]
+    }
   }
 }
 ```
@@ -194,15 +145,13 @@ The configuration required for the 2R3C policer with classifier is included belo
 ### DP-2.5.1 Test traffic
 
 * Send traffic
-  * Send flow A traffic from ATE port 1 to DUT for dest_A at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
-  * Send flow B traffic from ATE port 1 to DUT for dest_B at 3Gbps (note cir is 2Gbps & pir is 4Gbps).
-  * Validate qos counters for dest_A & dest_B of DUT .
+  * Send flow traffic from atePort1 to DUT towards atePort2 at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
+  * Validate qos counters on dut1 of DUT .
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts, conforming-octets, exceeding-pkts & exceeding-octets.
-  * Validate packets are received by ATE port 2.
-    * Validate at OTG that 0 packets are lost on flow A and flow B
-  * Validate Flow A and Flow B labels should not match.
-  * Increase traffic on flow A to dest_A to 4Gbps
-    * Validate that flow A to dest_A experiences ~50% packet loss (+/- 1%)
+  * Validate packets are received by atePort2.
+    * Validate at OTG that 0 packets are lost on flow.
+  * Increase traffic on flow to atePort2 to 4Gbps
+    * Validate that flow to atePort2 experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
 
 
