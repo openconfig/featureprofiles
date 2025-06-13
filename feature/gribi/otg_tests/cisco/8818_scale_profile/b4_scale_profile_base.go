@@ -137,6 +137,8 @@ const (
 	advertisedRoutesv6Prefix = 64
 	dutAS                    = 68888
 	ateAS                    = 67777
+	switchovertime           = 315000.0
+	fps                      = 100000
 )
 
 var (
@@ -270,6 +272,13 @@ type testArgs struct {
 	LogDir       string
 	// reader          io.ReadCloser
 	CommandPatterns map[string]map[string]interface{}
+}
+
+type ConvOptions struct {
+	convFRRFirst       string
+	convFRRSecond      string
+	convViable         string
+	measureConvergence bool
 }
 
 // WAN PBR rules
@@ -685,7 +694,7 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames(fa.srcPort).SetRxNames(fa.dstPorts)
 	flow.Size().SetFixed(512)
-	flow.Rate().SetPps(1000)
+	flow.Rate().SetPps(fps)
 	// flow.Duration().FixedPackets().SetPackets(1000)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(fa.srcMac)
@@ -739,7 +748,7 @@ func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.
 }
 
 // validateTrafficFlows verifies that the flow on TGEN should pass for given flows
-func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool, match bool) {
+func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool, match bool, opts ...*ConvOptions) {
 
 	otg := args.ate.OTG()
 	sendTraffic(t, args, flows, capture)
@@ -764,6 +773,18 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, c
 			}
 		}
 
+	}
+	if len(opts) != 0 {
+		for _, opt := range opts {
+			if opt.convFRRFirst == "1" {
+				sendTraffic(t, args, flows, capture, &ConvOptions{convFRRFirst: "1"})
+			} else if opt.convFRRSecond == "2" {
+				sendTraffic(t, args, flows, capture, &ConvOptions{convFRRSecond: "2"})
+			} else if opt.convViable == "3" {
+				sendTraffic(t, args, flows, capture, &ConvOptions{convViable: "3"})
+			}
+
+		}
 	}
 }
 
@@ -918,7 +939,7 @@ func getEncapFlows() []gosnappi.Flow {
 // }
 
 // sendTraffic starts traffic flows and send traffic for a fixed duration
-func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) {
+func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool, opts ...*ConvOptions) {
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
@@ -939,8 +960,166 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
+
+	if len(opts) != 0 {
+		for _, opt := range opts {
+			if opt.convFRRFirst == "1" {
+				//interface shut
+				doBatchconfig(t, pathInfo.PrimaryInterface, "down", "")
+				time.Sleep(6 * time.Minute)
+
+				otg.StopTraffic(t)
+				time.Sleep(5 * time.Second)
+
+				checkConv(t, args, flows)
+				//interface no shut
+
+				otg.StartTraffic(t)
+				//no shut
+				//time.Sleep(15 * time.Second)
+
+				doBatchconfig(t, pathInfo.PrimaryInterface, "up", "")
+				time.Sleep(6 * time.Minute)
+				otg.StopTraffic(t)
+				time.Sleep(5 * time.Second)
+
+				checkConv(t, args, flows)
+
+			} else if opt.convFRRSecond == "2" {
+				//intf shut
+				doBatchconfig(t, pathInfo.PrimaryInterface, "down", "")
+				time.Sleep(6 * time.Minute)
+
+				otg.StopTraffic(t)
+				time.Sleep(5 * time.Second)
+
+				checkConv(t, args, flows)
+				otg.StartTraffic(t)
+				time.Sleep(10 * time.Second)
+				doBatchconfig(t, pathInfo.BackupInterface, "down", "")
+
+				time.Sleep(3 * time.Minute)
+				//interface shut
+
+				otg.StopTraffic(t)
+				time.Sleep(5 * time.Second)
+				checkConv(t, args, flows)
+				//no shut triggers
+				otg.StartTraffic(t)
+				time.Sleep(10 * time.Second)
+				doBatchconfig(t, pathInfo.BackupInterface, "up", "")
+
+				time.Sleep(6 * time.Minute)
+				//interface shut
+
+				otg.StopTraffic(t)
+				time.Sleep(5 * time.Second)
+				checkConv(t, args, flows)
+				//second no shut
+				otg.StartTraffic(t)
+				time.Sleep(10 * time.Second)
+				doBatchconfig(t, pathInfo.PrimaryInterface, "up", "")
+
+				time.Sleep(6 * time.Minute)
+				//interface shut
+
+				otg.StopTraffic(t)
+				time.Sleep(5 * time.Second)
+				checkConv(t, args, flows)
+
+			} else if opt.convViable == "3" {
+				//shut all interfaces viable false
+				doBatchconfig(t, pathInfo.PrimaryInterface, "", "unviable")
+				otg.StopTraffic(t)
+				time.Sleep(10 * time.Second)
+				checkConv(t, args, flows)
+				// no shut
+
+				otg.StartTraffic(t)
+				time.Sleep(trafficDuration)
+				//interface shut
+				doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+				otg.StopTraffic(t)
+				time.Sleep(10 * time.Second)
+				checkConv(t, args, flows)
+
+				doBatchconfig(t, pathInfo.BackupInterface, "", "unviable")
+				otg.StopTraffic(t)
+				time.Sleep(10 * time.Second)
+				checkConv(t, args, flows)
+				// no shut
+
+				otg.StartTraffic(t)
+				time.Sleep(trafficDuration)
+				//interface shut
+				doBatchconfig(t, pathInfo.BackupInterface, "", "viable")
+				otg.StopTraffic(t)
+				time.Sleep(10 * time.Second)
+				checkConv(t, args, flows)
+			}
+		}
+	}
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
+}
+
+func doBatchconfig(t *testing.T, IntfList []string, act, unviable string) {
+	batchConfig := &gnmi.SetBatch{}
+	dut := ondatra.DUT(t, "dut")
+	if act == "up" {
+		for _, bun := range IntfList {
+			gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(bun).Config(), &oc.Interface{Name: ygot.String(bun), Enabled: ygot.Bool(true)})
+		}
+		batchConfig.Set(t, dut)
+	} else if act == "down" {
+		for _, bun := range IntfList {
+			gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(bun).Config(), &oc.Interface{Name: ygot.String(bun), Enabled: ygot.Bool(false)})
+		}
+		batchConfig.Set(t, dut)
+	}
+	if unviable == "unviable" {
+		for _, port := range IntfList {
+			gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(port).Config(), &oc.Interface{Name: ygot.String(port), ForwardingViable: ygot.Bool(false)})
+		}
+	} else if unviable == "viable" {
+		for _, port := range IntfList {
+			gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(port).Config(), &oc.Interface{Name: ygot.String(port), ForwardingViable: ygot.Bool(true)})
+		}
+	}
+}
+
+func checkConv(t *testing.T, args *testArgs, flows []gosnappi.Flow) {
+	otg := args.ate.OTG()
+
+	otgutils.LogPortMetrics(t, otg, args.topo)
+	otgutils.LogFlowMetrics(t, otg, args.topo)
+	for _, flow := range flows {
+		t.Logf("Flow %s information", flow)
+		flowMetrics := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
+		sentPkts := uint64(flowMetrics.GetCounters().GetOutPkts())
+		receivedPkts := uint64(flowMetrics.GetCounters().GetInPkts())
+
+		if sentPkts == 0 {
+			t.Fatalf("Tx packets should be higher than 0")
+		}
+
+		// Check if traffic restores with in expected time in milliseconds during interface shut
+		t.Logf("Sent Packets: %v, Received packets: %v", sentPkts, receivedPkts)
+		diff := pktDiff(sentPkts, receivedPkts)
+		// Time took for traffic to restore in milliseconds after trigger
+		fpm := (diff / (uint64(fps) / 1000))
+		if fpm > uint64(switchovertime) {
+			t.Errorf("Traffic loss %v msecs more than expected %v msecs", fpm, switchovertime)
+		}
+		t.Logf("Traffic loss during path change : %v msecs", fpm)
+	}
+}
+
+func pktDiff(sent, recveived uint64) uint64 {
+	if sent > recveived {
+		return sent - recveived
+	}
+	return recveived - sent
 }
 
 // startCapture starts the capture on the otg ports
