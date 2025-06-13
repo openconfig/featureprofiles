@@ -1,4 +1,4 @@
-# Trust Bundle
+## CERTZ-4: gNSI Trust Bundle
 
 ## Summary
 
@@ -62,7 +62,6 @@ Load the server certificate and key from each of the following CA sets:
    * ca-02
    * ca-10
    * ca-1000
-   * ca-20000
 
 Each service must be configured to use the appropriate certificate and validate
 that certificate using the included trust_bundle.
@@ -79,6 +78,8 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
+    certz.v1.Certz.Rotate:
 ```
 
 
