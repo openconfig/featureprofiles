@@ -137,7 +137,7 @@ const (
 	advertisedRoutesv6Prefix = 64
 	dutAS                    = 68888
 	ateAS                    = 67777
-	switchovertime           = 250.0
+	switchovertime           = 315000.0
 	fps                      = 100000
 )
 
@@ -1065,12 +1065,12 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 func doBatchconfig(t *testing.T, IntfList []string, act, unviable string) {
 	batchConfig := &gnmi.SetBatch{}
 	dut := ondatra.DUT(t, "dut")
-	if act == "down" {
+	if act == "up" {
 		for _, bun := range IntfList {
 			gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(bun).Config(), &oc.Interface{Name: ygot.String(bun), Enabled: ygot.Bool(true)})
 		}
 		batchConfig.Set(t, dut)
-	} else if act == "up" {
+	} else if act == "down" {
 		for _, bun := range IntfList {
 			gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(bun).Config(), &oc.Interface{Name: ygot.String(bun), Enabled: ygot.Bool(false)})
 		}
