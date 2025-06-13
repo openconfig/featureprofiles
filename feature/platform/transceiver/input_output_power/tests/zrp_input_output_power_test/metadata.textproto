@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "8146c32a-d44a-4dac-b5a4-72306d8273d0"
+plan_id:  "TRANSCEIVER-4 (400ZR_PLUS)"
+description:  "Telemetry: 400ZR_PLUS RX input and TX output power telemetry values streaming."
+testbed:  TESTBED_DUT_400ZR_PLUS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    default_network_instance:  "default"
+  }
+}
