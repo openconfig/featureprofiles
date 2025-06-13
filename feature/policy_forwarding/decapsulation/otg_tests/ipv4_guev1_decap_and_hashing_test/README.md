@@ -210,6 +210,7 @@ B7 <-- EBGP --> N4;
 -  The DUT should not decapsulate these packets. Packets should be dropped since no specific policy-forwarding rule exists for unmatched GUE
 -  The DUT decapsulation counters should not increment for this flow
 -  The drop counters on DUT will reflect the packets to 1000000
+    - These drop packets count will be reflected in DUT control-plane drop counters  
 -  100% packet loss should be observed on ATE Port 2
 
 ### PF-1.22.4: Verify the Immediate next header's L4 fields are not considered in Load-Balancing Algorithm
@@ -303,6 +304,23 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
         }
     }
 }
+
+{
+  "components": {
+    "component": {
+      "integrated-circuit": {
+        "pipeline-counters": {
+          "control-plane-traffic": {
+            "state": {
+              "dropped-aggregate": "VALUE",
+              "dropped-bytes-aggregate": "VALUE"
+            }
+          }
+        }
+      }
+    }
+  }
+}
 ```
 ## OpenConfig Path and RPC Coverage
 ```yaml
@@ -317,6 +335,8 @@ paths:
 # telemetry
 openconfig-interfaces/interfaces/interface/state/counters/out-pkts:
 openconfig-interfaces/interfaces/interface/state/counters/out-unicast-pkts:
+/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
 
 rpcs:
   gnmi:
