@@ -99,11 +99,11 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
 ### DP-1.17.3 Egress Classification and rewrite of IPoMPLSoGUE traffic with pop action
 
 *   Configuration:
-    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100) via ATE Port 1.
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific label 100020 via ATE Port 1.
     *   Configure decapsulation rules for IPv4-DST-DECAP/32
     *   Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
 *   Traffic:
-    *   Generate IPoMPLSoGUE traffic from ATE Port 1 with labels between 100020 and 100100
+    *   Generate IPoMPLSoGUE traffic from ATE Port 1 with label 100020 
 *   Verfication:
     *   Monitor telemetry on  DUT ATE Port 1 to verify packet scheduling into correct egress QOS queues based on the DSCP markings of the payload prir to re-write rules by observing queue counters per configued QOS classes.. 
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
@@ -111,12 +111,12 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
 
 ### DP-1.17.4 Egress Classification and rewrite of IPv6oMPLSoGUE traffic with pop action
 *   Configuration:
-    *   Configure Static MPLS LSP with MPLS pop and IPv6 forward actions for a specific labels range (10020-10100).
+    *   Configure Static MPLS LSP with MPLS pop and IPv6 forward actions for a specific label 10020.
     *   Configure decapsulation rules for IPv6-DST-DECAP/12
     *   Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
 
 *   Traffic:
-    *   Generate IPv6oMPLSoGUE traffic from ATE Port 1 with labels between 100020 and 100100
+    *   Generate IPv6oMPLSoGUE traffic from ATE Port 1 with label 100020
 *   Verfication:
     *   Monitor telemetry on  DUT ATE Port 1 to verify packet scheduling into correct egress QOS queues based on the DSCP markings of the payload prir to re-write rules by observing queue counters per configued QOS classes.
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
@@ -124,25 +124,25 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
 
 ### DP-1.17.5 Egress Classification and rewrite of IPoMPLSoGRE traffic with pop action
 *   Configuration:
-    *   Configure Static MPLS LSP with MPLS pop and IPv4 forward actions for a specific labels range (100020-100100).
+    *   Configure Static MPLS LSP with MPLS pop and IPv4 forward actions for a specific label 100020
     *   Configure decapsulation rules for IPv4-DST-DECAP/32
     *   Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
 
 *   Traffic:
-    *   Generate IPoMPLSoGRE traffic from ATE Port 1 with labels between 100020 and 1000100
-*   Verfication:
+    *   Generate IPoMPLSoGRE traffic from ATE Port 1 with label 100020
+    *   Verfication:
     *   Monitor telemetry on the DUT to verify that packets re being scehduled for transmission into correct forwarding groups based on the DSCP markings of the payload prir to re-write rules
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
 ### DP-1.17.7 Egress Classification and rewrite of IPv6oMPLSoGRE traffic with pop action
 *   Configuration:
-    *  Configure Static MPLS LSP with MPLS pop and IPv6 forward actions for a specific labels range (100020-100100).
+    *  Configure Static MPLS LSP with MPLS pop and IPv6 forward actions for a specific label 100020.
     *  Configure decapsulation rules for IPv6-DST-DECAP/12
     *  Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
 
 *   Traffic:
-    *   Generate IPv6oMPLSoGRE traffic from ATE Port 1 with labels between 100020 and 1000100
+    *   Generate IPv6oMPLSoGRE traffic from ATE Port 1 with label 100020
 *   Verfication:
     *   Monitor telemetry on  DUT ATE Port 1 to verify packet scheduling into correct egress QOS queues based on the DSCP markings of the payload prir to re-write rules by observing queue counters per configued QOS classes.
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
@@ -172,14 +172,14 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
 ### DP-1.17.10 Egress Classification and rewrite of IPoGUE traffic with pop action
-*   Configuration:
+*   Configuration:ƒ
     *    Configure decapsulation rules for IPv4-DST-DECAP/32
     *    Configufe egress QOS re-write rules based on DSCP/TC values and set new DSCP values based on remarking rules.
 
 *   Traffic:
     *   Generate IPoGUE traffic from ATE Port 1 with payload reachable via ATE:Port2
 *   Verfication:
-    *   Monitor telemetry on  DUT ATE Port 1 to verify packet scheduling into correct egress QOS queues based on the DSCP markings of the payload prir to re-write rules by observing queue counters per configued QOS classes.. 
+    *   Monitor telemetry on  DUT ATE Port 1 to verify packet scheduling into correct egress QOS queues based on the DSCP markings of the payload prir to re-write rules by observing queue counters per configued QOS classes.. ƒ
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
