@@ -72,7 +72,7 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 
 ### Configuration
                               
-*   Configure Segment Routing Global Block (srgb) lower-bound: 400000 upper-bound: 465001)
+*   Configure Segment Routing Global Block (srgb) lower-bound: 400000 upper-bound: 465000)
 *   Enable MPLS forwarding.
 *   DUT will have a static IPv4 and IPv6 route for IPV4-DST1 / IPV6-DST1 towards ATE Port2.
 
@@ -81,8 +81,8 @@ A[ATE:Port1] --Ingress--> B[Port1:DUT:Port2];B --Egress--> C[Port2:ATE];
 Verify that:
 
 *  ATE Port1 will send IPv4 and IPv6 traffic.
-*  DUT will POP MPLS label 0, and perform IPv4 lookup for the destination and forward IPv4 traffic.
-*  DUT will POP MPLS label 2, and perform IPv6 lookup for the destination and forward IPv6 traffic.
+*  DUT will POP MPLS label 0, decrement the TTL from 64 to 63, and perform IPv4 lookup for the destination and forward IPv4 traffic.
+*  DUT will POP MPLS label 2, decrement the TTL from 64 to 63, and perform IPv6 lookup for the destination and forward IPv6 traffic.
 
 ```
 {
