@@ -1984,4 +1984,3 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
   exec: " "
 }
-
