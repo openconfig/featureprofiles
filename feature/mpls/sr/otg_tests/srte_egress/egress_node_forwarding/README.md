@@ -83,7 +83,7 @@ Verify that:
 *  ATE Port1 will send IPv4 and IPv6 traffic.
 *  DUT will POP MPLS label 0, decrement the TTL from 64 to 63, and perform IPv4 lookup for the destination and forward IPv4 traffic.
 *  DUT will POP MPLS label 2, decrement the TTL from 64 to 63, and perform IPv6 lookup for the destination and forward IPv6 traffic.
-*  Validate that there is no drop in the traffic.
+*  Validate the ingress and egress counter and ensure that there is no drop in the traffic.
 *  
     ```
       /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/in-pkts:
