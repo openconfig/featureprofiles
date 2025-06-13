@@ -140,7 +140,9 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
 
 ## OpenConfig Path and RPC Coverage
 
-```yaml
+```json
+
+## Config Paths:
 
 {
   "network-instances": {
@@ -175,7 +177,14 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
       }
     ]
   }
-}
+}```
+
+```yaml
+
+## State paths:
+
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/import-policy
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
 
 
 
@@ -187,6 +196,7 @@ rpcs:
     gNMI.Get: /acl/state
     gNMI.Subscribe:
       on_change: true
+
 ```
 
 
