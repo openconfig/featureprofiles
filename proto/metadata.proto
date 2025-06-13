@@ -756,7 +756,7 @@ message Metadata {
     // Cisco b/414333771
     bool bgp_set_med_action_unsupported = 272;
 
-     // Devices that do not support next-hop-group config
+    // Devices that do not support next-hop-group config
     // Arista b/390507957
     bool next_hop_group_config_unsupported = 273;
 
@@ -815,6 +815,10 @@ message Metadata {
     // Devices does not support traffic policy nexthop group
     bool traffic_policy_to_nexthop_unsupported = 291;
     
+    // Create/Replace config leaf required 
+    // Juniper b/419536104
+    bool config_leaf_create_required = 292;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
