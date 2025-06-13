@@ -250,6 +250,10 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 		powerAdminStateStateKey := strings.Join([]string{fabric, "state/power-admin-state"}, ":")
 
 		/* fabricLeafOrValuePresent: Key: fabric:leaf, Value: []any{isLeafPresent, leafValue} */
+		if deviations.ConfigLeafCreateRequired(dut) {
+			gnmi.Replace(t, dut, powerAdminState.Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
+			gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED)
+		}
 		fabricLeafOrValuePresent[descriptionKey] = []any{gnmi.Lookup(t, dut, description.State()).IsPresent()}
 		fabricLeafOrValuePresent[hardwareVersionKey] = []any{gnmi.Lookup(t, dut, hardwareVersion.State()).IsPresent()}
 		fabricLeafOrValuePresent[idKey] = []any{gnmi.Lookup(t, dut, id.State()).IsPresent()}
@@ -334,8 +338,8 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
-	t.Logf("Waiting for 90s after power disable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power disable...")
+	time.Sleep(120 * time.Second)
 
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 
@@ -350,8 +354,8 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", fabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
-	t.Logf("Waiting for 90s after power enable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power enable...")
+	time.Sleep(120 * time.Second)
 
 	lastReboofdimeAfter := gnmi.Get(t, dut, lastReboofdime.State())
 
@@ -367,7 +371,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	od.otgConfig.Flows().Clear()
 	od.otgConfig.Flows().Append(flowParams)
 	od.otg.PushConfig(t, od.otgConfig)
-	time.Sleep(time.Second * 30)
+	time.Sleep(time.Second * 120)
 
 	disabledFabric := ""
 	// Create a new random source with a specific seed
@@ -383,8 +387,8 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
-	t.Logf("Waiting for 90s after power disable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power disable...")
+	time.Sleep(120 * time.Second)
 
 	od.otg.StartProtocols(t)
 	od.waitInterface(t)
@@ -443,8 +447,8 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", disabledFabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
-	t.Logf("Waiting for 90s after power enable...")
-	time.Sleep(90 * time.Second)
+	t.Logf("Waiting for 120s after power enable...")
+	time.Sleep(120 * time.Second)
 
 }
 

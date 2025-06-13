@@ -1458,6 +1458,11 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
 }
 
+// Config Leaf Create required before GNMI get
+func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+}
+
 // StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
 func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()

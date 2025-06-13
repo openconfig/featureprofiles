@@ -756,7 +756,7 @@ message Metadata {
     // Cisco b/414333771
     bool bgp_set_med_action_unsupported = 272;
 
-     // Devices that do not support next-hop-group config
+    // Devices that do not support next-hop-group config
     // Arista b/390507957
     bool next_hop_group_config_unsupported = 273;
 
@@ -812,11 +812,15 @@ message Metadata {
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
 
+    // Create/Replace config leaf required 
+    // Juniper b/419536104
+    bool config_leaf_create_required = 291;
+
     // Devices does not support static mpls lsp
-    bool static_mpls_lsp_oc_unsupported = 291;
+    bool static_mpls_lsp_oc_unsupported = 292;
 
     // Device doesnot support gre enacapsulation
-    bool gre_decapsulation_oc_unsupported = 292;
+    bool gre_decapsulation_oc_unsupported = 293;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
