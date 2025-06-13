@@ -443,4 +443,5 @@ func DeviationGREDecapsulation(t *testing.T, dut *ondatra.DUTDevice, decapIp str
 			t.Errorf("Deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
 		return
+	}
 }
