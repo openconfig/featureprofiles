@@ -278,6 +278,36 @@ Verify:
                 "config": {
                     "name": "DEFAULT"
                 },
+                "mpls": {
+                   "lsps": {
+                      "static-lsps": {
+                         "static-lsp": [
+                            {
+                               "config": {
+                                  "name": "ipv4-static-lsp"
+                               }
+                               "egress": {
+                                  "config": {
+                                     "incoming-label": 100010
+                                     "next-hop": "10.1.1.1"
+                                  }
+                               }
+                            },
+                            {
+                               "config": {
+                                  "name": "ipv6-static-lsp"
+                               }
+                               "egress": {
+                                  "config": {
+                                     "incoming-label": 100020
+                                     "next-hop": "fc00:10:1:1::1"
+                                  }
+                               }
+                            }
+                         ]
+                      }
+                   }
+                }
                 "policy-forwarding": {
                     "policies": {
                         "policy": [
@@ -374,6 +404,9 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
+
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
 
   # Telemetry
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
