@@ -203,6 +203,7 @@ func (d *staticDUT) DialCLI(context.Context) (binding.CLIClient, error) {
 			ssh.Password(sshOpts.Password),
 			ssh.KeyboardInteractive(sshInteractive(sshOpts.Password)),
 		},
+		Timeout: time.Duration(time.Second.Nanoseconds() * int64(sshOpts.Timeout)),
 	}
 	if sshOpts.SkipVerify {
 		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
