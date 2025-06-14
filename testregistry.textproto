@@ -1581,6 +1581,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing based on outer and Inner header for MPLSoUDP packets"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/tunnel/otg_tests/mpls_over_udp_tunnel_hashing_test/README.md"
+  exec: " "
+}
+test: {
   id: "TUN-2.10"
   description: "ECMP hashing based on outer and Inner header for GRE packets"
   readme: ""
