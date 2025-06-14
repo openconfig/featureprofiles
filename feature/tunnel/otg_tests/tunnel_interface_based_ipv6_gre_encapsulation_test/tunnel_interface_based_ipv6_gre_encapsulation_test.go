@@ -164,7 +164,7 @@ func TestTunnelEncapsulationByGREOverIPv6WithLoadBalance(t *testing.T) {
 			t.Errorf("trouble converting %v to json: %v", top, err)
 		} else {
 			t.Logf("%s", json)
-		}	
+		}
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
 		time.Sleep(30 * time.Second)
