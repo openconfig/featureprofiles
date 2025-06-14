@@ -1,4 +1,4 @@
-# RT-3.52 Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking
+# RT-3.52: Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking
 
 ## Summary
 
