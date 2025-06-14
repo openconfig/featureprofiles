@@ -56,6 +56,9 @@ A1[ATE1:Port1] <-- IBGP(ASN100) --> B1;
 B2 <-- IBGP(ASN100) --> C1; 
 B4 <-- EBGP(ASN100:ASN200) --> C3;
 ```
+
+![Topology with details on different protocols, corresponding peerings and the IP addresses used.](https://github.com/openconfig/featureprofiles/blob/c40086997f89e8a80365ea46e57ba140f406715e/doc/RT-3.52_Multidimensional_test_topology.png)
+
 ### All IP addresses for the test:
 
 | **Different IP addresses**                                                                                 | **Description**                                                                                                                                                                                                                                                                                                                           |
