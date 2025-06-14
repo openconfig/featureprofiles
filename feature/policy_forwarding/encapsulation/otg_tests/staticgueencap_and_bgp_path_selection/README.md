@@ -206,10 +206,9 @@ Use # Health-1.1: Generic Health Check. If errors identified then the test Must 
 *   **Test Steps:**
 
     *   Execute all health checks mentioned above prior to running the tests.
-    *   Configure the DUT as described previously for IS-IS adjacency, IBGP and
-        EBGP peering and the corresponding routing policies, static routes for
-        GUE encapsulation, and policies to selectively apply Traffic Class (TZ)
-        marking to the GUE encapsulation header based on the tunnel destination.
+    *   Configure the DUT for IS-IS adjacency, IBGP and EBGP peering, and
+        GUE encapsulation. This includes setting up the necessary routing policies
+        and static routes as described previously.
     *   Initiate Flow-Set #1 and Flow-Set #2
     *   Initiate Flow-Set #5
     *   Send 50000 packets per flow @1000pps
@@ -546,7 +545,6 @@ Inflight**
                                                     "dst-ip": "outer_ipv4_dst",
                                                     "src-ip": "outer_ipv4_src",
                                                     "dscp": "outer_dscp",
-                                                    "tz": "outer_tz",
                                                     "ip-ttl": "outer_ip_ttl",
                                                     "dst-udp-port": "outer_dst_udp_port"
                                                 }
@@ -638,7 +636,6 @@ paths:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dst-ip:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/src-ip:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dscp:
-/network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/tz:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/ttl:
 /network-instances/network-instance/static-routes/static/next-hops/next-hop/config/encap-headers/encap-header/config/dst-udp-port:
 
