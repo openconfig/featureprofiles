@@ -27,7 +27,7 @@ ATE interface: IPV4 - 10.1.1.1/31 & IPV6 - 2001:db8:204:114::1/127
 
 ## Prerequisites
 
-* Basic IP connectivity configured between the DUT and ATE interface.
+* Basic IPv4 and IPv6 connectivity configured between the DUT and ATE interface.
 * BGP peering established between the DUT and ATE on the connected interfaces.
 * Access to configure the DUT and ATE.
 * Understanding of BGP attributes (AS-Path, communities, local preference, MED).
@@ -53,7 +53,7 @@ This test case will focus on two scenarios:
 
 ### ATE Configuration (Basic BGP Emulation):
 
-* Configure the ATE port with an IP address (10.1.1.1/31).
+* Configure the ATE port with an IP address (10.1.1.1/31) & IPv6 address (2001:db8:204:114::1/127).
 * Create a BGP Emulated Router on the ATE, acting as AS 65002.
 * Establish a BGP peering session with the DUT's IP (10.1.1.0) & IPV6 (2607:f8b0:8007:614f::).
 
@@ -78,7 +78,7 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
 
 
 ### Clear BGP Session (Optional, but good practice):
-* On DUT: clear ip bgp 10.1.1.1 & 2607:f8b0:8007:614f::1 out (or soft reset)
+* On DUT: clear ip & ipv6 bgp sessions towards 10.1.1.1 & 2607:f8b0:8007:614f::1 out (or soft reset)
 * This forces the DUT to re-advertise routes based on the new policy.
 
 ### Verify Export Policy:
@@ -187,7 +187,7 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
 ## State paths:
 
 /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/import-policy
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
 
 
 
