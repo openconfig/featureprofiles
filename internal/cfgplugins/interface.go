@@ -46,7 +46,7 @@ func init() {
 	opmode = 1
 }
 
-// Initialize assigns OpMode with value received through operationalMode flag.
+// InterfaceInitialize assigns OpMode with value received through operationalMode flag.
 func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) uint16 {
 	once.Do(func() {
 		t.Helper()
@@ -77,7 +77,7 @@ func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationa
 	return InterfaceGetOpMode()
 }
 
-// GetOpMode returns the opmode value after the Initialize function has been called
+// InterfaceGetOpMode returns the opmode value after the Initialize function has been called
 func InterfaceGetOpMode() uint16 {
 	return opmode
 }
