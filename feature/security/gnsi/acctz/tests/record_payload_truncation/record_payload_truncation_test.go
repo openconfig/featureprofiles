@@ -57,21 +57,19 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	startTime := time.Now()
 	sendOversizedPayload(t, dut)
-	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
+        requestTimestamp := &timestamppb.Timestamp{
+                Seconds:  0,
+                Nanos:   0, 
+        }
 
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
-	if err != nil {
-		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
-	}
+        acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(startTime),
-	})
-	if err != nil {
-		t.Fatalf("Failed sending record request, error: %s", err)
-	}
+        acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
+
+        if err != nil {
+                t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
+        }
 
 	for {
 		r := make(chan recordRequestResult)
