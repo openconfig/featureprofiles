@@ -32,19 +32,20 @@ This test verifies TTL handling for egress flows.
 
 2.  DUT:Port2 is configured as Singleton IP interface towards ATE:Port2.
 
-3.  DUT is configured to form one IPv4 and one IPV6 eBGP session
-    with ATE:Port1 using the directly connected Singleton interface IPs.
+3.  DUT is configured with the following static routes:
+    *   Destination IPv4-DST-NET/32 next hop ATE:Port2 IPv4 address.
+    *   Destination IPv6-DST-NET/32 next hop ATE:Port2 IPv6 address.
 
-4.  DUT is configured to form one IPv4 and one IPV6 eBGP session
-    with ATE:Port2 using the directly connected Singleton interface IPs.
+4.  DUT is configured to decapsulate packets destined to IPv4-DST-DECAP/32
 
-5.  DUT is configured with an IPv4-DST-DECAP/32 and this IP advertised to
-    ATE:Port1 via the IPv4 BGP session. This IP is used for decapsulation.
+5.  DUT is configured with static LSP with label 100010 pointing to ATE:Port2
+    IPv4 address. This should be used for encapsulated packets with inner IPv4.
 
-6.  ATE:Port2 is configured to advertise destination networks
-    IPv4-DST-NET/32 and IPv6-DST-NET/128 to DUT.
+5.  DUT is configured with static LSP with label 100020 pointing to ATE:Port2 
+    IPv6 address. This should be used for encapsulated packets with inner IPv6.
 
-### PF-1.9.1: IPv4 non-encapsulated traffic with TTL != 1.
+
+### PF-1.9.1: IPv4 non-encapsulated traffic with TTL = 10.
 
 ATE action:
 
@@ -53,8 +54,6 @@ ATE action:
 
 Verify:
 
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
 *   DUT interface DUT:Port2 `out-unicast-pkts` counters equals the number of
@@ -63,7 +62,7 @@ Verify:
     packets generated from ATE:Port1.
 *   TTL for all packets received on ATE:Port2 should be *9*.
 
-### PF-1.9.2: IPv6 non-encapsulated traffic with TTL != 1.
+### PF-1.9.2: IPv6 non-encapsulated traffic with TTL = 10.
 
 *   Repeat `PF-1.9.1` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
@@ -76,21 +75,19 @@ ATE action:
 
 Verify:
 
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
-*   ATE:Port1 received ICMP Time Exceeded packets for all packets sent.
+*   ATE:Port1 received ICMP TTL Exceeded packets for all packets sent.
 
 ### PF-1.9.4: IPv6 non-encapsulated traffic with TTL = 1.
 
 *   Repeat `PF-1.9.3` with ATE generating IPv6 packets IPv6-DST-NET/128.
 
-### PF-1.9.5: IPv4oGRE traffic with inner TTL != 1 and outer TTL != 1.
+### PF-1.9.5: IPv4oGRE traffic with inner TTL = 10 and outer TTL = 30.
 
 ATE action:
 
-*   Generate 5 **IPv4oGRE packets** from ATE:Port1 with below header settings.
+*   Generate 5 **IPv4oGRE packets** from ATE:Port1 with below headers.
     *   Set the inner IP header destination to IPv4-DST-NET/32.
     *   Set the inner IP header TTL to *10*.
     *   Set the outer IP header destination to IPv4-DST-DECAP/32.
@@ -99,15 +96,15 @@ ATE action:
 Verify:
 
 *   Perform same verifications in `PF-1.9.1`.
-    *   In addition, verify that decapsulation rules counter match number of
+*   Verify that decapsulation rule counters match the number of
     packets from ATE:Port1.
 
-### PF-1.9.6: IPv6oGRE traffic with inner TTL != 1 and outer TTL != 1.
+### PF-1.9.6: IPv6oGRE traffic with inner TTL = 10 and outer TTL = 30.
 
 *   Repeat `PF-1.9.5` using IPv6oGRE with inner header destination IP of
     IPv6-DST-NET/128.
 
-### PF-1.9.7: IPv4oGRE traffic with inner TTL = 1 and outer TTL != 1.
+### PF-1.9.7: IPv4oGRE traffic with inner TTL = 1 and outer TTL = 30.
 
 ATE action:
 
@@ -119,18 +116,16 @@ ATE action:
 
 Verify:
 
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
-*   ATE:Port1 received ICMP Time Exceeded packets for all packets sent.
+*   ATE:Port1 received ICMP TTL Exceeded packets for all packets sent.
 
-### PF-1.9.8: IPv6oGRE traffic with inner TTL = 1 and outer TTL != 1.
+### PF-1.9.8: IPv6oGRE traffic with inner TTL = 1 and outer TTL = 30.
 
 *   Repeat `PF-1.9.7` using IPv6oGRE with inner header destination IP of
     IPv6-DST-NET/128.
 
-### PF-1.9.9: IPv4oGRE traffic with inner TTL != 1 and outer TTL = 1.
+### PF-1.9.9: IPv4oGRE traffic with inner TTL = 10 and outer TTL = 1.
 
 ATE action:
 
@@ -143,50 +138,50 @@ ATE action:
 Verify:
 
 *   Perform same verifications in `PF-1.9.1`.
-    *   In addition, verify that decapsulation rules counter match number of
+*   Verify that decapsulation rules counter match number of
     packets from ATE:Port1.
 
-### PF-1.9.10: IPv6oGRE traffic with inner TTL != 1 and outer TTL = 1.
+### PF-1.9.10: IPv6oGRE traffic with inner TTL = 10 and outer TTL = 1.
 
 *   Repeat `PF-1.9.9` using IPv6oGRE with inner header destination IP of
     IPv6-DST-NET/128.
 
-### PF-1.9.11: IPv4oMPLSoGRE traffic with inner TTL != 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.11: IPv4oMPLSoGRE traffic with inner TTL = 10, MPLS TTL = 20 and outer TTL = 30.
 
 ATE action:
 
 *   Generate 5 **IPv4oMPLSoGRE packets** from ATE:Port1 with below headers settings.
     *   Set the inner IP header destination to IPv4-DST-NET/32.
     *   Set the inner IP header TTL to *10*.
+    *   Set the MPLS label to *100010*. 
     *   Set the MPLS TTL to *20*.
     *   Set the outer IP header destination to IPv4-DST-DECAP/32.
     *   Set the outer IP header TTL to *30*.
 
 Verify:
 
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
 *   DUT interface DUT:Port2 `out-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
 *   The packet count of traffic received on ATE:Port2 should be equal to the
     packets generated from ATE:Port1.
-*   TTL for all packets received on ATE:Port2 should be same as the one
-    set in the inner IP header.
+*   Verify that decapsulation rule counters match number of packets from ATE:Port1.
+*   TTL for all packets received on ATE:Port2 should *10*.
 
-### PF-1.9.12: IPv6oMPLSoGRE traffic with inner TTL != 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.12: IPv6oMPLSoGRE traffic with inner TTL = 10, MPLS TTL = 20 and outer TTL = 30.
 
 *   Repeat `PF-1.9.11` using IPv6oMPLSoGRE with inner header destination IP of
-    IPv6-DST-NET/128.
+    IPv6-DST-NET/128 and MPLS label of 100020.
 
-### PF-1.9.13: IPv4oMPLSoGRE traffic with inner TTL = 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.13: IPv4oMPLSoGRE traffic with inner TTL = 1, MPLS TTL = 20 and outer TTL = 30.
 
 ATE action:
 
 *   Generate 5 **IPv4oMPLSoGRE packets** from ATE:Port1 with below headers settings.
     *   Set the inner IP header destination to IPv4-DST-NET/32.
     *   Set the inner IP header TTL to *1*.
+    *   Set the MPLS label to *100010*.
     *   Set the MPLS TTL to *20*.
     *   Set the outer IP header destination to IPv4-DST-DECAP/32.
     *   Set the outer IP header TTL to *30*.
@@ -194,84 +189,80 @@ ATE action:
 Verify:
 
 *   Perform same verifications in `PF-1.9.11`.
-    *   In addition, verify that decapsulation rules counter match number of
-    packets from ATE:Port1.
 
-### PF-1.9.14: IPv6oMPLSoGRE traffic with inner TTL = 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.14: IPv6oMPLSoGRE traffic with inner TTL = 1, MPLS TTL = 20 and outer TTL = 30.
 
 *   Repeat `PF-1.9.11` using IPv6oMPLSoGRE with inner header destination IP of
-    IPv6-DST-NET/128.
+    IPv6-DST-NET/128 and MPLS label of 100020.
 
-### PF-1.9.15: IPv4oMPLSoGRE traffic with inner TTL != 1, MPLS TTL = 1 and outer TTL != 1.
+### PF-1.9.15: IPv4oMPLSoGRE traffic with inner TTL = 10, MPLS TTL = 1 and outer TTL = 30.
 
 ATE action:
 
 *   Generate 5 **IPv4oMPLSoGRE packets** from ATE:Port1 with below headers settings.
     *   Set the inner IP header destination to IPv4-DST-NET/32.
     *   Set the inner IP header TTL to *10*.
+    *   Set the MPLS label to *100010*.
     *   Set the MPLS TTL to *1*.
     *   Set the outer IP header destination to IPv4-DST-DECAP/32.
     *   Set the outer IP header TTL to *30*.
 
 Verify:
 
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port1 and ATE:Port1 are up.
-*   Both IPv4 and IPv6 BGP sessions between DUT:Port2 and ATE:Port2 are up.
 *   DUT interface DUT:Port1 `in-unicast-pkts` counters equals the number of
     packets generated from ATE:Port1.
-*   ATE:Port1 received ICMP Time Exceeded packets for all packets with source IP
-    as the inner header source IP of.
+*   ATE:Port1 received ICMP TTL Exceeded packets for all packets sent.
 
-### PF-1.9.16: IPv6oMPLSoGRE traffic with inner TTL != 1, MPLS TTL = 1 and outer TTL != 1.
+### PF-1.9.16: IPv6oMPLSoGRE traffic with inner TTL = 10, MPLS TTL = 1 and outer TTL = 30.
 
 *   Repeat `PF-1.9.15` using IPv6oMPLSoGRE with inner header destination IP of
-    IPv6-DST-NET/128.
+    IPv6-DST-NET/128 and MPLS label of 100020.
 
-### PF-1.9.17: IPv4oUDP traffic with inner TTL != 1 and outer TTL != 1.
+### PF-1.9.17: IPv4oUDP traffic with inner TTL = 10 and outer TTL = 30.
 
 *   Repeat `PF-1.9.5` using IPv4oUDP (GUE Variant 1)
 
-### PF-1.9.18: IPv6oUDP traffic with inner TTL != 1 and outer TTL != 1.
+### PF-1.9.18: IPv6oUDP traffic with inner TTL = 10 and outer TTL = 30.
 
 *   Repeat `PF-1.9.6` using IPv6oUDP (GUE Variant 1)
 
-### PF-1.9.19: IPv4oUDP traffic with inner TTL = 1 and outer TTL != 1.
+### PF-1.9.19: IPv4oUDP traffic with inner TTL = 1 and outer TTL = 30.
 
 *   Repeat `PF-1.9.7` using IPv4oUDP (GUE Variant 1)
 
-### PF-1.9.20: IPv6oUDP traffic with inner TTL = 1 and outer TTL != 1.
+### PF-1.9.20: IPv6oUDP traffic with inner TTL = 1 and outer TTL = 30.
 
 *   Repeat `PF-1.9.8` using IPv6oUDP (GUE Variant 1)
 
-### PF-1.9.21: IPv4oUDP traffic with inner TTL != 1 and outer TTL = 1.
+### PF-1.9.21: IPv4oUDP traffic with inner TTL = 10 and outer TTL = 1.
 
 *   Repeat `PF-1.9.9` using IPv4oUDP (GUE Variant 1)
 
-### PF-1.9.22: IPv6oUDP traffic with inner TTL != 1 and outer TTL = 1.
+### PF-1.9.22: IPv6oUDP traffic with inner TTL = 10 and outer TTL = 1.
 
 *   Repeat `PF-1.9.10` using IPv6oUDP (GUE Variant 1)
 
-### PF-1.9.23: IPv4oMPLSoUDP traffic with inner TTL != 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.23: IPv4oMPLSoUDP traffic with inner TTL = 10, MPLS TTL = 20 and outer TTL = 30.
 
 *   Repeat `PF-1.9.11` using IPv4oMPLSoUDP (GUE Variant 1)
 
-### PF-1.9.24: IPv6oMPLSoUDP traffic with inner TTL != 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.24: IPv6oMPLSoUDP traffic with inner TTL = 10, MPLS TTL = 20 and outer TTL = 30.
 
 *   Repeat `PF-1.9.12` using IPv6oMPLSoUDP (GUE Variant 1)
 
-### PF-1.9.25: IPv4oMPLSoUDP traffic with inner TTL = 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.25: IPv4oMPLSoUDP traffic with inner TTL = 1, MPLS TTL = 20 and outer TTL = 30.
 
 *   Repeat `PF-1.9.13` using IPv4oMPLSoUDP (GUE Variant 1)
 
-### PF-1.9.26: IPv6oMPLSoUDP traffic with inner TTL = 1, MPLS TTL != 1 and outer TTL != 1.
+### PF-1.9.26: IPv6oMPLSoUDP traffic with inner TTL = 1, MPLS TTL = 20 and outer TTL = 30.
 
 *   Repeat `PF-1.9.14` using IPv6oMPLSoUDP (GUE Variant 1)
 
-### PF-1.9.27: IPv4oMPLSoUDP traffic with inner TTL != 1, MPLS TTL = 1 and outer TTL != 1.
+### PF-1.9.27: IPv4oMPLSoUDP traffic with inner TTL = 10, MPLS TTL = 1 and outer TTL = 30.
 
 *   Repeat `PF-1.9.15` using IPv6oMPLSoUDP (GUE Variant 1)
 
-### PF-1.9.28: IPv6oMPLSoUDP traffic with inner TTL != 1, MPLS TTL = 1 and outer TTL != 1.
+### PF-1.9.28: IPv6oMPLSoUDP traffic with inner TTL = 10, MPLS TTL = 1 and outer TTL = 30.
 
 *   Repeat `PF-1.9.16` using IPv6oMPLSoUDP (GUE Variant 1)
 

@@ -468,13 +468,13 @@ test: {
 }
 test: {
   id: "PF-1.8"
-  description: "Ingress handling of the TTL"
+  description: "Ingress handling of TTL"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/ingress/README.md"
   exec: " "
 }test: {
   id: "PF-1.9"
-  description: "Egress handling of the TTL, all egress packets should have their TTL decremented,egress packets with TTL=1 should generate ICMP time exceeded to source"
-  readme: " "
+  description: "Egress handling of TTL"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/egress/README.md"
   exec: " "
 }
 test: {
