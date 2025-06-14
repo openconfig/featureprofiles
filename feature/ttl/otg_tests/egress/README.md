@@ -267,7 +267,7 @@ Verify:
 *   Repeat `PF-1.9.16` using IPv6oMPLSoUDP (GUE Variant 1)
 
 
-## Canonical OpenConfig for policy-forwarding matching IPv4 and decapsulate GRE/GUE/MPLSoUDP
+## Canonical OpenConfig
 
 ```json
 {
