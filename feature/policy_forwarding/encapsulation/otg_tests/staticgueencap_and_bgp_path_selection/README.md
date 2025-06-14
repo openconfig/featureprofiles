@@ -84,19 +84,24 @@ used.](https://github.com/openconfig/featureprofiles/blob/c40086997f89e8a80365ea
 
 **IS-IS:**
 
-| **Different IS-IS L2 adjacencies** | **Prefixes advertised**                |
-| :--------------------------------- | :------------------------------------- |
-| `ATE1_Port1<>DUT_Port1`            | <br>- `ATE1_PORT1` --> `DUT_PORT1`:    |
-:                                    : `$ATE1_IBGP.v4`, `$ATE1_IBGP.v6`<br>-  :
-:                                    : `DUT_PORT1` --> `ATE1_PORT1`\:         :
-:                                    : `$DUT_lo0.v4`, `$DUT_lo0.v6`           :
-| `ATE2_Port1<>DUT_Port2`            | <br>- `ATE2_Port1` --> `DUT_Port2`:    |
-:                                    : `$ATE2_PORT1.IBGP.v4/32`,              :
-:                                    : `$ATE2_PORT1.IBGP.v6/128`,             :
-:                                    : `$ATE2_C.IBGP.v6/128`,                 :
-:                                    : `$ATE2_M.IBGP.v6/128`<br>- `DUT_Port2` :
-:                                    : --> `ATE2_Port1`\: `$DUT_lo0.v4`,      :
-:                                    : `$DUT_lo0.v6`                          :
+| **Different IS-IS L2 adjacencies** | **Prefixes advertised**                                                                                                                                                                                     |
+| :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ATE1_Port1<>DUT_Port1`            | <br>- `ATE1_PORT1` --> `DUT_PORT1`:  `$ATE1_IBGP.v4`, `$ATE1_IBGP.v6`<br>- `DUT_PORT1` --> `ATE1_PORT1`: `$DUT_lo0.v4`, `$DUT_lo0.v6`                                                                 |
+| `ATE2_Port1<>DUT_Port2`            | <br>- `ATE2_Port1` --> `DUT_Port2`: `$ATE2_PORT1.IBGP.v4/32`, `$ATE2_PORT1.IBGP.v6/128`, `$ATE2_C.IBGP.v6/128`, `$ATE2_M.IBGP.v6/128`<br>- `DUT_Port2` --> `ATE2_Port1`: `$DUT_lo0.v4`, `$DUT_lo0.v6` |
+
+**BGP:**
+
+| **Different peering**                | **BGP peering type** | **Prefixes advertised**                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| :----------------------------------- | :------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$ATE1_IBGP.v[46]<>$DUT_lo0.v[46]`   | IBGP                 | <br>- `$DUT_lo0.v[46]` is the route-reflector server and `$ATE1_IBGP.v[46]` is the route-reflector client<br>- `$ATE1_IBGP.v[46]` advertises prefixes `$ATE1_PORT1_INTERNET[1-5].v[46]` to `$DUT_lo0.v[46]` on their respective AFI peering<br>- `$DUT_lo0.v[46]` advertises `$ATE2_INTERNAL[6-10].v[46]` to `$ATE1_IBGP.v[46]` on their respective AFI peering<br>- MULTIPATH enabled on this peering                                                                                  |
+| `$ATE2_IBGP.v[46]<>$DUT_lo0.v[46]`   | IBGP                 | <br>- `$ATE2_IBGP.v[46]` advertises `$ATE2_INTERNAL[6-10].v[46]`, `$ATE2_INTERNAL_TE10.v4/30`. and `$ATE2_INTERNAL_TE11.v4/30` to `DUT_lo0.v[46]` on their respective AFI peering<br>- `$DUT_lo0.v[46]` advertises `$ATE1_PORT1_INTERNET[1-5].v[46]`, `$DUT_TE10.v4/30`, `$DUT_TE11.v4/30`, `$DUT_TE10.v4/32` and `$DUT_TE11.v4/32` to `$ATE2_IBGP.v[46]`                                                                                                                                                                         |
+| `$ATE2_C.IBGP.v6<>$DUT_lo0.v6`       | IBGP                 | <br>- `$ATE2_C.IBGP.v6` advertises `$ATE2_INTERNAL[6-10].v[46]` to `DUT_lo0.v6` with Next-hop as $ATE2_PPNH1.v6/128 and a Local-Pref of 200. **Please Note:** These prefixes are gradually advertised by `$ATE2_C.IBGP.v6` in different Sub tests.<br>`$ATE2_INTERNAL6.v[46]` in RT-3.52.2 to RT-3.52.9<br>`$ATE2_INTERNAL7.v[46]` in RT-3.52.3 to RT-3.52.9<br>`$ATE2_INTERNAL8.v[46]` in RT-3.52.4 to RT-3.52.9<br>`$ATE2_INTERNAL9.v[46]` in RT-3.52.5 to RT-3.52.9<br>`$ATE2_INTERNAL10.v[46]` in RT-3.52.6 to RT-3.52.9<br>- `$DUT_lo0.v6` advertises `$ATE1_PORT1_INTERNET[1-5].v[46]` to `$ATE2_C.IBGP.v6` |
+| `$ATE2_M.IBGP.v[46]<>$DUT_lo0.v[46]` | IBGP                 | <br>- `DUT_lo0.v[46]` advertises, all its ECMP routes to `$ATE2_M.IBGP.v[46]` on the respective AFI peering.<br>- This peering will have ADD-Path for Multipath routes enabled.                                                                                                                                                                                                                                                                                                             |
+| `$ATE2_Port3<>$DUT_Port4`            | EBGP                 | <br>- `ATE2_Port3` advertises `$ATE2_INTERNAL_TE10.v4/30` and `$ATE2_INTERNAL_TE11.v4/30` to `DUT_Port4`<br>- `DUT_Port4` advertises `$DUT_TE10.v4/32`, `$DUT_TE11.v4/32`, `$DUT_TE10.v4/30` and `$DUT_TE11.v4/30` to `ATE2_Port3`                                                                                                                                                                                                                                                                                                      |
+| Peer ASN as ASN1 for following interfaces                               |                      | `$ATE1_IBGP.v[46]`, `$DUT_lo0.v[46]`, `$ATE2_IBGP.v[46]`, `$DUT_lo0.v[46]`, `$ATE2_C.IBGP.v6`, `$ATE2_M.IBGP.v[46]`, `$DUT_lo0.v[46]`, `$ATE2_Port3`                                                                                                                                                                                                                                                                                                                             |
+| Peer ASN as ASN2 for following interfaces                                 |                      | `$DUT_Port2`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+
 
 **BGP:**
 
@@ -112,38 +117,39 @@ Local ASN as ASN200 for following interfaces |                      | `$ATE2_Por
 
 **Different Flows used throughout the test:**
 
-Src_destination of flows                                                                             | From_IP --> To_IP                                      | DSCP | Tunnel endpoint used
----------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---- | --------------------
-Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | $ATE1_PORT1_INTERNET1.v4/24 --> $ATE2_INTERNAL6.v4/24  | BE1  | ATE2_INTERNAL_TE11.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET1.v6/64 --> $ATE2_INTERNAL6.v6/64  | BE1  | ATE2_INTERNAL_TE11.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET2.v4/24 --> $ATE2_INTERNAL7.v4/24  | AF1  | ATE2_INTERNAL_TE11.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET2.v6/64 --> $ATE2_INTERNAL7.v6/64  | AF1  | ATE2_INTERNAL_TE11.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET3.v4/24 --> $ATE2_INTERNAL8.v4/24  | AF2  | ATE2_INTERNAL_TE11.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET3.v6/64 --> $ATE2_INTERNAL8.v6/64  | AF2  | ATE2_INTERNAL_TE11.v4/32
-Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | $ATE1_PORT1_INTERNET4.v4/64 --> $ATE2_INTERNAL9.v4/24  | AF3  | $ATE2_INTERNAL_TE10.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET4.v6/64 --> $ATE2_INTERNAL9.v6/64  | AF3  | $ATE2_INTERNAL_TE10.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET5.v4/24 --> $ATE2_INTERNAL10.v4/24 | AF4  | $ATE2_INTERNAL_TE10.v4/32
-                                                                                                     | $ATE1_PORT1_INTERNET5.v6/64 --> $ATE2_INTERNAL10.v6/64 | AF4  | $ATE2_INTERNAL_TE10.v4/32
-Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24  | BE1  | $DUT_TE11.v4/30
-                                                                                                     | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64  | BE1  | $DUT_TE11.v4/30
-                                                                                                     | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24  | AF1  | $DUT_TE11.v4/30
-                                                                                                     | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64  | AF1  | $DUT_TE11.v4/30
-                                                                                                     | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24  | AF2  | $DUT_TE11.v4/30
-                                                                                                     | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64  | AF2  | $DUT_TE11.v4/30
-Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24  | AF3  | $DUT_TE10.v4/30
-                                                                                                     | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64  | AF3  | $DUT_TE10.v4/30
-                                                                                                     | $ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24 | AF4  | $DUT_TE10.v4/30
-                                                                                                     | $ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64 | AF4  | $DUT_TE10.v4/30
-Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24  | BE1  | N/A
-                                                                                                     | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64  | BE1  |
-                                                                                                     | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24  | AF1  |
-                                                                                                     | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64  | AF1  |
-                                                                                                     | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24  | AF2  |
-                                                                                                     | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64  | AF2  |
-                                                                                                     | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24  | AF3  |
-                                                                                                     | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64  | AF3  |
-                                                                                                     | $ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24 | AF4  |
-                                                                                                     | $ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64 | AF4  |
+| Src_destination of flows | From_IP --> To_IP | DSCP | Tunnel endpoint used |
+| :------------------------------------------------------------------------------------------------- | :------------------------------------------------------ | :--- | :-------------------------- |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET1.v4/24 --> $ATE2_INTERNAL6.v4/24`  | BE1  | `ATE2_INTERNAL_TE11.v4/32`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET1.v6/64 --> $ATE2_INTERNAL6.v6/64`  | BE1  | `ATE2_INTERNAL_TE11.v4/32`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET2.v4/24 --> $ATE2_INTERNAL7.v4/24`  | AF1  | `ATE2_INTERNAL_TE11.v4/32`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET2.v6/64 --> $ATE2_INTERNAL7.v6/64`  | AF1  | `ATE2_INTERNAL_TE11.v4/32`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET3.v4/24 --> $ATE2_INTERNAL8.v4/24`  | AF2  | `ATE2_INTERNAL_TE11.v4/32`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET3.v6/64 --> $ATE2_INTERNAL8.v6/64`  | AF2  | `ATE2_INTERNAL_TE11.v4/32`  |
+| Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET4.v4/24 --> $ATE2_INTERNAL9.v4/24`  | AF3  | `$ATE2_INTERNAL_TE10.v4/32` |
+| Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET4.v6/64 --> $ATE2_INTERNAL9.v6/64`  | AF3  | `$ATE2_INTERNAL_TE10.v4/32` |
+| Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET5.v4/24 --> $ATE2_INTERNAL10.v4/24` | AF4  | `$ATE2_INTERNAL_TE10.v4/32` |
+| Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_INTERNET5.v6/64 --> $ATE2_INTERNAL10.v6/64` | AF4  | `$ATE2_INTERNAL_TE10.v4/32` |
+| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | `$ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24`  | BE1  | `$DUT_TE11.v4/30`           |
+| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | `$ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64`  | BE1  | `$DUT_TE11.v4/30`           |
+| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | `$ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24`  | AF1  | `$DUT_TE11.v4/30`           |
+| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | `$ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64`  | AF1  | `$DUT_TE11.v4/30`           |
+| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | `$ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24`  | AF2  | `$DUT_TE11.v4/30`           |
+| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | `$ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64`  | AF2  | `$DUT_TE11.v4/30`           |
+| Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | `$ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24`  | AF3  | `$DUT_TE10.v4/30`           |
+| Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | `$ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64`  | AF3  | `$DUT_TE10.v4/30`           |
+| Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | `$ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24` | AF4  | `$DUT_TE10.v4/30`           |
+| Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | `$ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64` | AF4  | `$DUT_TE10.v4/30`           |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24`  | BE1  | N/A                         |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64`  | BE1  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24`  | AF1  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64`  | AF1  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24`  | AF2  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64`  | AF2  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24`  | AF3  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64`  | AF3  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24` | AF4  |                             |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | `$ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64` | AF4  |                             |
+
 
 ### DUT Configuration:
 
