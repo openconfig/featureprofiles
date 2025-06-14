@@ -1,6 +1,5 @@
 # RT-3.52 Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking
 
-
 ## Summary
 
 The goal of this test is to:
@@ -18,29 +17,27 @@ The goal of this test is to:
 3.  Validate that encapsulated traffic has its TOS bits copied from the inner
     header to the outer header.
 
-4.  The DUT will be configured to encapsulate traffic over multiple tunnels.
-    It is expected to tunnel traffic towards the correct tunnel destination,
-    based on the IBGP learned routes.
+4.  The DUT will be configured to encapsulate traffic over multiple tunnels. It
+    is expected to tunnel traffic towards the correct tunnel destination, based
+    on the IBGP learned routes.
 
-
-6.  The DUT will be configured to decapsulate traffic received over various
+5.  The DUT will be configured to decapsulate traffic received over various
     tunnel destinations, and it is expected to accurately decapsulate traffic
     across all these received destinations.
 
-
-7.  Confirm that the TTL value for the outer IP header created during GUE
+6.  Confirm that the TTL value for the outer IP header created during GUE
     encapsulation can be explicitly configured.
 
-8.  Confirm that when the DUT handles GUEv1 traffic from the reverse path, it
+7.  Confirm that when the DUT handles GUEv1 traffic from the reverse path, it
     successfully performs decapsulation. During this decapsulation process, the
     system must not transfer the DSCP and TTL bits from the outer header to the
     inner header. Instead, following decapsulation, the DUT should decrement the
     inner header's TTL by 1 before forwarding the packet
 
-   
 ## Topology
+
 ```mermaid
-graph LR; 
+graph LR;
 subgraph DUT [DUT]
     B1[Port1]
     B2[Port2]
@@ -52,94 +49,101 @@ subgraph ATE2 [ATE2]
     C3[Port3]
 end
 
-A1[ATE1:Port1] <-- IBGP(ASN100) --> B1; 
-B2 <-- IBGP(ASN100) --> C1; 
+A1[ATE1:Port1] <-- IBGP(ASN100) --> B1;
+B2 <-- IBGP(ASN100) --> C1;
 B4 <-- EBGP(ASN100:ASN200) --> C3;
 ```
 
-![Topology with details on different protocols, corresponding peerings and the IP addresses used.](https://github.com/openconfig/featureprofiles/blob/c40086997f89e8a80365ea46e57ba140f406715e/doc/RT-3.52_Multidimensional_test_topology.png)
+![Topology with details on different protocols, corresponding peerings and the
+IP addresses
+used.](https://github.com/openconfig/featureprofiles/blob/c40086997f89e8a80365ea46e57ba140f406715e/doc/RT-3.52_Multidimensional_test_topology.png)
 
 ### All IP addresses for the test:
 
-| **Different IP addresses**                                                                                 | **Description**                                                                                                                                                                                                                                                                                                                           |
-| :--------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <br>`$ATE1PORT1_DUTPORT1_1.v4/31`<br>`$ATE1PORT1_DUTPORT1_1.v6/127`                                                            | Used for IS-IS adjacency ATE1_Port1<>DUT_Port1.                                                                                                                                                                                                                                                                                         |
-| <br>`$ATE1PORT1_DUTPORT1_2.v4/31`<br>`$ATE1PORT1_DUTPORT1_2.v6/127`                                                              | Used on DUT_PORT1<>ATE1_PORT1 connection and IS-IS adjacency                                                                                                                                                                                                                                                                          |
-| <br>`$ATE1_IBGP.v4/32`<br>`$ATE1_IBGP.v6/128`                                                              | Exchanged over IS-IS adjacency. Used to establish IBGP peering between ATE1 and DUT1                                                                                                                                                                                                                                                      |
-| <br>`$ATE1_PORT1_INTERNET1.v4/24`<br>`$ATE1_PORT1_INTERNET2.v4/24`<br>`$ATE1_PORT1_INTERNET3.v4/24`<br>`$ATE1_PORT1_INTERNET4.v4/24`<br>`$ATE1_PORT1_INTERNET5.v4/24`<br>`$ATE1_PORT1_INTERNET1.v6/64`<br>`$ATE1_PORT1_INTERNET2.v6/64`<br>`$ATE1_PORT1_INTERNET3.v6/64`<br>`$ATE1_PORT1_INTERNET4.v6/64`<br>`$ATE1_PORT1_INTERNET5.v6/64` | <br>- `$ATE1_IBGP.v[46]` advertises these Internet learnt prefixes to `DUT_lo0.v[46]` over IBGP<br>- `$DUT_lo0.v[46]` advertises these further to `$ATE2_PORT1_IBGP.v[46]` and to  `$ $ATE2_C.IBGP.v6`                                                                                                                              |
-| <br>`$ATE2PORT1_DUTPORT2_1.v4/31`<br>`$ATE2PORT1_DUTPORT2_1.v6/127`                                                            | <br>- Used for IS-IS adjacency ATE2:Port1<>DUT:Port2. IS-IS will then be used to exchange the IBGP peer addresses `$ $ATE2_C.IBGP.v6` and `$DUT_lo0.v[46]`.                                                                                                                                     |
-| <br>`$ATE2PORT1_DUTPORT2_2.v4/31`<br>`$ATE2PORT1_DUTPORT2_2.v6/127`                                                              | Used on DUT_PORT2<>ATE2_PORT1 connection and IS-IS adjacency<br>                                                                                                                                                                                                                                                                    |
-| <br>`$ATE2_PORT1.IBGP.v4/32`<br>`$ATE2_PORT1.IBGP.v6/128`                                                  | Regular IBGP peering between `$ATE2_PORT1.IBGP.v[46]` and DUT_lo0.v[46]                                                                                                                                                                                                                                                                |
-| <br>`$ATE2_C.IBGP.v6/128`<br>`$ATE2_PPNH[12].v6/128`                                                          | - For IBGP peering between `$ATE2_C.IBGP.v6` and `DUT_lo0.v6`<br> - Pseudo protocol next-hop for the IBGP routes advertised by `$ATE2_C.IBGP.v6` to the DUT                                                                                                                                                                                    |
-| <br>`$ATE2_M.IBGP.v4/32`<br>`$ATE2_M.IBGP.v6/128`                                                          | For IBGP peering between `$ATE2_M.IBGP.v[4\|6]` and `DUT_lo0.v[4\|6]`                                                                                                                                                                                                                                                                               |
-| <br>`$ATE2PORT3_DUTPORT4_1.v4/31`<br>`$ATE2PORT3_DUTPORT4_1.v6/127`                                                            | Point-to-Point connection used for EBGP peering between DUT_PORT4<>ATE2_PORT3                                                                                                                                                                                                                                                         |
-| <br>`$ATE2PORT3_DUTPORT4_2.v4/31`<br>`$ATE2PORT3_DUTPORT4_2.v6/127`                                                              | Point-to-Point connection used for EBGP peering between DUT_PORT4<>ATE2_PORT3                                                                                                                                                                                                                                                         |
-| <br>`$DUT_lo0.v4`<br>`$DUT_lo0.v6`                                                                         | Adertised over IS-IS and used for IBGP peering. Also used as IPoUDP tunnel source address                                                                                                                                                                                                                                                 |
-| `$DUT_TE11.v4/32`                                                                                          | IPoUDP tunnel destination address on the DUT. This IP MUST receive traffic meant for single shard on the DUT                                                                                                                                                                                                       |
-| `$DUT_TE10.v4/32`                                                                                          | IPoUDP tunnel destination address on the DUT. This IP MUST receive traffic meant for multiple shards on the DUT                                                                                                                                                                                                                                     |
-| `$ATE2_INTERNAL_TE11.v4/32`                                                                                | IPoUDP tunnel destination address on the ATE2. This IP MUST receive traffic meant for single shard on the ATE                                                                                                                                                                                                                                     |
-| `$ATE2_INTERNAL_TE10.v4/32`                                                                                | IPoUDP tunnel destination address on the ATE. This IP MUST receive traffic meant for mulitple shards on the ATE                                                                                                                                                                                                                                 |
-| <br>`$ATE2_INTERNAL6.v4/24`<br>`$ATE2_INTERNAL6.v6/64`<br>`$ATE2_INTERNAL7.v4/24`<br>`$ATE2_INTERNAL7.v6/64`<br>`$ATE2_INTERNAL8.v4/24`<br>`$ATE2_INTERNAL8.v6/64`<br>`$ATE2_INTERNAL9.v4/24`<br>`$ATE2_INTERNAL9.v6/64`<br>`$ATE2_INTERNAL10.v4/24`<br>`$ATE2_INTERNAL10.v6/64` | <br>- Internal Public prefixes<br>- Advertised to the DUT over the IBGP peering between `ATE2_PORT1.IBGP.v[46]`<>`$DUT_lo0.v[46]` and `$ATE2_C.IBGP.v6`<>`$DUT_lo0.v6`<br>- Advertised further to `$ATE1_IBGP.v[46]` over the IBGP peering between `$ATE1_IBGP.v[46]`<>`DUT_lo0.v[46]` over their respective AFI peering |
-                    
-
-
+**Different IP addresses**                                                                                                                                                                                                                                                                                                                 | **Description**
+:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------
+<br>`$ATE1PORT1_DUTPORT1_1.v4/31`<br>`$ATE1PORT1_DUTPORT1_1.v6/127`                                                                                                                                                                                                                                                                        | Used for IS-IS adjacency ATE1_Port1<>DUT_Port1.
+<br>`$ATE1PORT1_DUTPORT1_2.v4/31`<br>`$ATE1PORT1_DUTPORT1_2.v6/127`                                                                                                                                                                                                                                                                        | Used on DUT_PORT1<>ATE1_PORT1 connection and IS-IS adjacency
+<br>`$ATE1_IBGP.v4/32`<br>`$ATE1_IBGP.v6/128`                                                                                                                                                                                                                                                                                              | Exchanged over IS-IS adjacency. Used to establish IBGP peering between ATE1 and DUT1
+<br>`$ATE1_PORT1_INTERNET1.v4/24`<br>`$ATE1_PORT1_INTERNET2.v4/24`<br>`$ATE1_PORT1_INTERNET3.v4/24`<br>`$ATE1_PORT1_INTERNET4.v4/24`<br>`$ATE1_PORT1_INTERNET5.v4/24`<br>`$ATE1_PORT1_INTERNET1.v6/64`<br>`$ATE1_PORT1_INTERNET2.v6/64`<br>`$ATE1_PORT1_INTERNET3.v6/64`<br>`$ATE1_PORT1_INTERNET4.v6/64`<br>`$ATE1_PORT1_INTERNET5.v6/64` | <br>- `$ATE1_IBGP.v[46]` advertises these Internet learnt prefixes to `DUT_lo0.v[46]` over IBGP<br>- `$DUT_lo0.v[46]` advertises these further to `$ATE2_PORT1_IBGP.v[46]` and to `$ $ATE2_C.IBGP.v6`
+<br>`$ATE2PORT1_DUTPORT2_1.v4/31`<br>`$ATE2PORT1_DUTPORT2_1.v6/127`                                                                                                                                                                                                                                                                        | <br>- Used for IS-IS adjacency ATE2:Port1<>DUT:Port2. IS-IS will then be used to exchange the IBGP peer addresses `$ $ATE2_C.IBGP.v6` and `$DUT_lo0.v[46]`.
+<br>`$ATE2PORT1_DUTPORT2_2.v4/31`<br>`$ATE2PORT1_DUTPORT2_2.v6/127`                                                                                                                                                                                                                                                                        | Used on DUT_PORT2<>ATE2_PORT1 connection and IS-IS adjacency<br>
+<br>`$ATE2_PORT1.IBGP.v4/32`<br>`$ATE2_PORT1.IBGP.v6/128`                                                                                                                                                                                                                                                                                  | Regular IBGP peering between `$ATE2_PORT1.IBGP.v[46]` and DUT_lo0.v[46]
+<br>`$ATE2_C.IBGP.v6/128`<br>`$ATE2_PPNH[12].v6/128`                                                                                                                                                                                                                                                                                       | - For IBGP peering between `$ATE2_C.IBGP.v6` and `DUT_lo0.v6`<br> - Pseudo protocol next-hop for the IBGP routes advertised by `$ATE2_C.IBGP.v6` to the DUT
+<br>`$ATE2_M.IBGP.v4/32`<br>`$ATE2_M.IBGP.v6/128`                                                                                                                                                                                                                                                                                          | For IBGP peering between `$ATE2_M.IBGP.v[4\|6]` and `DUT_lo0.v[4\|6]`
+<br>`$ATE2PORT3_DUTPORT4_1.v4/31`<br>`$ATE2PORT3_DUTPORT4_1.v6/127`                                                                                                                                                                                                                                                                        | Point-to-Point connection used for EBGP peering between DUT_PORT4<>ATE2_PORT3
+<br>`$ATE2PORT3_DUTPORT4_2.v4/31`<br>`$ATE2PORT3_DUTPORT4_2.v6/127`                                                                                                                                                                                                                                                                        | Point-to-Point connection used for EBGP peering between DUT_PORT4<>ATE2_PORT3
+<br>`$DUT_lo0.v4`<br>`$DUT_lo0.v6`                                                                                                                                                                                                                                                                                                         | Adertised over IS-IS and used for IBGP peering. Also used as IPoUDP tunnel source address
+`$DUT_TE11.v4/32`                                                                                                                                                                                                                                                                                                                          | IPoUDP tunnel destination address on the DUT. This IP MUST receive traffic meant for single shard on the DUT
+`$DUT_TE10.v4/32`                                                                                                                                                                                                                                                                                                                          | IPoUDP tunnel destination address on the DUT. This IP MUST receive traffic meant for multiple shards on the DUT
+`$ATE2_INTERNAL_TE11.v4/32`                                                                                                                                                                                                                                                                                                                | IPoUDP tunnel destination address on the ATE2. This IP MUST receive traffic meant for single shard on the ATE
+`$ATE2_INTERNAL_TE10.v4/32`                                                                                                                                                                                                                                                                                                                | IPoUDP tunnel destination address on the ATE. This IP MUST receive traffic meant for mulitple shards on the ATE
+<br>`$ATE2_INTERNAL6.v4/24`<br>`$ATE2_INTERNAL6.v6/64`<br>`$ATE2_INTERNAL7.v4/24`<br>`$ATE2_INTERNAL7.v6/64`<br>`$ATE2_INTERNAL8.v4/24`<br>`$ATE2_INTERNAL8.v6/64`<br>`$ATE2_INTERNAL9.v4/24`<br>`$ATE2_INTERNAL9.v6/64`<br>`$ATE2_INTERNAL10.v4/24`<br>`$ATE2_INTERNAL10.v6/64`                                                           | <br>- Internal Public prefixes<br>- Advertised to the DUT over the IBGP peering between `ATE2_PORT1.IBGP.v[46]`<>`$DUT_lo0.v[46]` and `$ATE2_C.IBGP.v6`<>`$DUT_lo0.v6`<br>- Advertised further to `$ATE1_IBGP.v[46]` over the IBGP peering between `$ATE1_IBGP.v[46]`<>`DUT_lo0.v[46]` over their respective AFI peering
 
 ### Advertisements:
 
 **IS-IS:**
 
-| **Different IS-IS L2 adjacencies** | **Prefixes advertised**                                                                                                                                                                                     |
-| :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ATE1_Port1<>DUT_Port1`            | <br>- `ATE1_PORT1` --> `DUT_PORT1`:  `$ATE1_IBGP.v4`, `$ATE1_IBGP.v6`<br>- `DUT_PORT1` --> `ATE1_PORT1`: `$DUT_lo0.v4`, `$DUT_lo0.v6`                                                                 |
-| `ATE2_Port1<>DUT_Port2`            | <br>- `ATE2_Port1` --> `DUT_Port2`: `$ATE2_PORT1.IBGP.v4/32`, `$ATE2_PORT1.IBGP.v6/128`, `$ATE2_C.IBGP.v6/128`, `$ATE2_M.IBGP.v6/128`<br>- `DUT_Port2` --> `ATE2_Port1`: `$DUT_lo0.v4`, `$DUT_lo0.v6` |
+| **Different IS-IS L2 adjacencies** | **Prefixes advertised**                |
+| :--------------------------------- | :------------------------------------- |
+| `ATE1_Port1<>DUT_Port1`            | <br>- `ATE1_PORT1` --> `DUT_PORT1`:    |
+:                                    : `$ATE1_IBGP.v4`, `$ATE1_IBGP.v6`<br>-  :
+:                                    : `DUT_PORT1` --> `ATE1_PORT1`\:         :
+:                                    : `$DUT_lo0.v4`, `$DUT_lo0.v6`           :
+| `ATE2_Port1<>DUT_Port2`            | <br>- `ATE2_Port1` --> `DUT_Port2`:    |
+:                                    : `$ATE2_PORT1.IBGP.v4/32`,              :
+:                                    : `$ATE2_PORT1.IBGP.v6/128`,             :
+:                                    : `$ATE2_C.IBGP.v6/128`,                 :
+:                                    : `$ATE2_M.IBGP.v6/128`<br>- `DUT_Port2` :
+:                                    : --> `ATE2_Port1`\: `$DUT_lo0.v4`,      :
+:                                    : `$DUT_lo0.v6`                          :
 
 **BGP:**
 
-| **Different peering**                | **BGP peering type** | **Prefixes advertised**                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| :----------------------------------- | :------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `$ATE1_IBGP.v[46]<>$DUT_lo0.v[46]`   | IBGP                 | <br>- `$DUT_lo0.v[46]` is the route-reflector server and `$ATE1_IBGP.v[46]` is the route-reflector client<br>- `$ATE1_IBGP.v[46]` advertises prefixes `$ATE1_PORT1_INTERNET[1-5].v[46]` to `$DUT_lo0.v[46]` on their respective AFI peering<br>- `$DUT_lo0.v[46]` advertises `$ATE2_INTERNAL[6-10].v[46]` to `$ATE1_IBGP.v[46]` on their respective AFI peering<br>- MULTIPATH enabled on this peering                                                                                  |
-| `$ATE2_IBGP.v[46]<>$DUT_lo0.v[46]`   | IBGP                 | <br>- `$ATE2_IBGP.v[46]` advertises `$ATE2_INTERNAL[6-10].v[46]`, `$ATE2_INTERNAL_TE10.v4/30`. and `$ATE2_INTERNAL_TE11.v4/30` to `DUT_lo0.v[46]` on their respective AFI peering<br>- `$DUT_lo0.v[46]` advertises `$ATE1_PORT1_INTERNET[1-5].v[46]`, `$DUT_TE10.v4/30`, `$DUT_TE11.v4/30`, `$DUT_TE10.v4/32` and `$DUT_TE11.v4/32` to `$ATE2_IBGP.v[46]`                                                                                                                                                                         |
-| `$ATE2_C.IBGP.v6<>$DUT_lo0.v6`       | IBGP                 | <br>- `$ATE2_C.IBGP.v6` advertises `$ATE2_INTERNAL[6-8].v[46]` to `DUT_lo0.v6` with Next-hop as $ATE2_PPNH1.v6/128 and a Local-Pref of 200. Similarly advertises `$ATE2_INTERNAL[9-10].v[46]` to `DUT_lo0.v6` with Next-hop as $ATE2_PPNH2.v6/128 and a Local-Pref of 200. **Please Note:** These prefixes are gradually advertised by `$ATE2_C.IBGP.v6` in different Sub tests.<br>`$ATE2_INTERNAL6.v[46]` in RT-3.52.2 to RT-3.52.9<br>`$ATE2_INTERNAL7.v[46]` in RT-3.52.3 to RT-3.52.9<br>`$ATE2_INTERNAL8.v[46]` in RT-3.52.4 to RT-3.52.9<br>`$ATE2_INTERNAL9.v[46]` in RT-3.52.5 to RT-3.52.9<br>`$ATE2_INTERNAL10.v[46]` in RT-3.52.6 to RT-3.52.9<br>- `$DUT_lo0.v6` advertises `$ATE1_PORT1_INTERNET[1-5].v[46]` to `$ATE2_C.IBGP.v6` |
-| `$ATE2_M.IBGP.v[46]<>$DUT_lo0.v[46]` | IBGP                 | <br>- `DUT_lo0.v[46]` advertises, all its ECMP routes to `$ATE2_M.IBGP.v[46]` on the respective AFI peering.<br>- This peering will have ADD-Path for Multipath routes enabled.                                                                                                                                                                                                                                                                                                             |
-| `$ATE2_Port3<>$DUT_Port4`            | EBGP                 | <br>- `ATE2_Port3` advertises `$ATE2_INTERNAL_TE10.v4/30` and `$ATE2_INTERNAL_TE11.v4/30` to `DUT_Port4`<br>- `DUT_Port4` advertises `$DUT_TE10.v4/32`, `$DUT_TE11.v4/32`, `$DUT_TE10.v4/30` and `$DUT_TE11.v4/30` to `ATE2_Port3`                                                                                                                                                                                                                                                                                                      |
-| Local ASN as ASN100 for following interfaces                               |                      | `$ATE1_IBGP.v[46]`, `$DUT_lo0.v[46]`, `$ATE2_IBGP.v[46]`, `$DUT_lo0.v[46]`, `$ATE2_C.IBGP.v6`, `$ATE2_M.IBGP.v[46]`, `$DUT_lo0.v[46]`, `$DUT_Port2`                                                                                                                                                                                                                                                                                                                             |
-| Local ASN as ASN200 for following interfaces                                 |                      | `$ATE2_Port3`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+**Different peering**                        | **BGP peering type** | **Prefixes advertised**
+:------------------------------------------- | :------------------- | :----------------------
+`$ATE1_IBGP.v[46]<>$DUT_lo0.v[46]`           | IBGP                 | <br>- `$DUT_lo0.v[46]` is the route-reflector server and `$ATE1_IBGP.v[46]` is the route-reflector client<br>- `$ATE1_IBGP.v[46]` advertises prefixes `$ATE1_PORT1_INTERNET[1-5].v[46]` to `$DUT_lo0.v[46]` on their respective AFI peering<br>- `$DUT_lo0.v[46]` advertises `$ATE2_INTERNAL[6-10].v[46]` to `$ATE1_IBGP.v[46]` on their respective AFI peering<br>- MULTIPATH enabled on this peering
+`$ATE2_IBGP.v[46]<>$DUT_lo0.v[46]`           | IBGP                 | <br>- `$ATE2_IBGP.v[46]` advertises `$ATE2_INTERNAL[6-10].v[46]`, `$ATE2_INTERNAL_TE10.v4/30`. and `$ATE2_INTERNAL_TE11.v4/30` to `DUT_lo0.v[46]` on their respective AFI peering<br>- `$DUT_lo0.v[46]` advertises `$ATE1_PORT1_INTERNET[1-5].v[46]`, `$DUT_TE10.v4/30`, `$DUT_TE11.v4/30`, `$DUT_TE10.v4/32` and `$DUT_TE11.v4/32` to `$ATE2_IBGP.v[46]`
+`$ATE2_C.IBGP.v6<>$DUT_lo0.v6`               | IBGP                 | <br>- `$ATE2_C.IBGP.v6` advertises `$ATE2_INTERNAL[6-8].v[46]` to `DUT_lo0.v6` with Next-hop as $ATE2_PPNH1.v6/128 and a Local-Pref of 200. Similarly advertises `$ATE2_INTERNAL[9-10].v[46]` to `DUT_lo0.v6` with Next-hop as $ATE2_PPNH2.v6/128 and a Local-Pref of 200. **Please Note:** These prefixes are gradually advertised by `$ATE2_C.IBGP.v6` in different Sub tests.<br>`$ATE2_INTERNAL6.v[46]` in RT-3.52.2 to RT-3.52.9<br>`$ATE2_INTERNAL7.v[46]` in RT-3.52.3 to RT-3.52.9<br>`$ATE2_INTERNAL8.v[46]` in RT-3.52.4 to RT-3.52.9<br>`$ATE2_INTERNAL9.v[46]` in RT-3.52.5 to RT-3.52.9<br>`$ATE2_INTERNAL10.v[46]` in RT-3.52.6 to RT-3.52.9<br>- `$DUT_lo0.v6` advertises `$ATE1_PORT1_INTERNET[1-5].v[46]` to `$ATE2_C.IBGP.v6`
+`$ATE2_M.IBGP.v[46]<>$DUT_lo0.v[46]`         | IBGP                 | <br>- `DUT_lo0.v[46]` advertises, all its ECMP routes to `$ATE2_M.IBGP.v[46]` on the respective AFI peering.<br>- This peering will have ADD-Path for Multipath routes enabled.
+`$ATE2_Port3<>$DUT_Port4`                    | EBGP                 | <br>- `ATE2_Port3` advertises `$ATE2_INTERNAL_TE10.v4/30` and `$ATE2_INTERNAL_TE11.v4/30` to `DUT_Port4`<br>- `DUT_Port4` advertises `$DUT_TE10.v4/32`, `$DUT_TE11.v4/32`, `$DUT_TE10.v4/30` and `$DUT_TE11.v4/30` to `ATE2_Port3`
+Local ASN as ASN100 for following interfaces |                      | `$ATE1_IBGP.v[46]`, `$DUT_lo0.v[46]`, `$ATE2_IBGP.v[46]`, `$DUT_lo0.v[46]`, `$ATE2_C.IBGP.v6`, `$ATE2_M.IBGP.v[46]`, `$DUT_lo0.v[46]`, `$DUT_Port2`
+Local ASN as ASN200 for following interfaces |                      | `$ATE2_Port3`
 
 **Different Flows used throughout the test:**
 
-| Src_destination of flows | From_IP --> To_IP | DSCP | Tunnel endpoint used |
-| ------------------------ | ------------------ | ---- | ------------------- |
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT] | $ATE1_PORT1_INTERNET1.v4/24 --> $ATE2_INTERNAL6.v4/24 | BE1 | ATE2_INTERNAL_TE11.v4/32 |
-|  | $ATE1_PORT1_INTERNET1.v6/64 --> $ATE2_INTERNAL6.v6/64 | BE1 | ATE2_INTERNAL_TE11.v4/32 |
-|  | $ATE1_PORT1_INTERNET2.v4/24 --> $ATE2_INTERNAL7.v4/24 | AF1 | ATE2_INTERNAL_TE11.v4/32 |
-|  | $ATE1_PORT1_INTERNET2.v6/64 --> $ATE2_INTERNAL7.v6/64 | AF1 | ATE2_INTERNAL_TE11.v4/32 |
-|  | $ATE1_PORT1_INTERNET3.v4/24 --> $ATE2_INTERNAL8.v4/24 | AF2 | ATE2_INTERNAL_TE11.v4/32 |
-|  | $ATE1_PORT1_INTERNET3.v6/64 --> $ATE2_INTERNAL8.v6/64 | AF2 | ATE2_INTERNAL_TE11.v4/32 |
-| Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT] | $ATE1_PORT1_INTERNET4.v4/64 --> $ATE2_INTERNAL9.v4/24 | AF3 | $ATE2_INTERNAL_TE10.v4/32 |
-|  | $ATE1_PORT1_INTERNET4.v6/64 --> $ATE2_INTERNAL9.v6/64 | AF3 | $ATE2_INTERNAL_TE10.v4/32 |
-|  | $ATE1_PORT1_INTERNET5.v4/24 --> $ATE2_INTERNAL10.v4/24 | AF4 | $ATE2_INTERNAL_TE10.v4/32 |
-|  | $ATE1_PORT1_INTERNET5.v6/64 --> $ATE2_INTERNAL10.v6/64 | AF4 | $ATE2_INTERNAL_TE10.v4/32 |
-| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24 | BE1 | $DUT_TE11.v4/30 |
-|  | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64 | BE1 | $DUT_TE11.v4/30 |
-|  | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24 | AF1 | $DUT_TE11.v4/30 |
-|  | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64 | AF1 | $DUT_TE11.v4/30 |
-|  | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24 | AF2 | $DUT_TE11.v4/30 |
-|  | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64 | AF2 | $DUT_TE11.v4/30 |
-| Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24 | AF3 | $DUT_TE10.v4/30 |
-|  | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64 | AF3 | $DUT_TE10.v4/30 |
-|  | $ATE2_INTERNAL10.v4/24 -->  $ATE1_PORT1_INTERNET5.v4/24 | AF4 | $DUT_TE10.v4/30 |
-|  | $ATE2_INTERNAL10.v6/64 -->  $ATE1_PORT1_INTERNET5.v6/64 | AF4 | $DUT_TE10.v4/30 |
-| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24 | BE1 | N/A |
-|  | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64 | BE1 |  |
-|  | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24 | AF1 |  |
-|  | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64 | AF1 |  |
-|  | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24 | AF2 |  |
-|  | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64 | AF2 |  |
-|  | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24 | AF3 |  |
-|  | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64 | AF3 |  |
-|  | $ATE2_INTERNAL10.v4/24 -->  $ATE1_PORT1_INTERNET5.v4/24 | AF4 |  |
-|  | $ATE2_INTERNAL10.v6/64 -->  $ATE1_PORT1_INTERNET5.v6/64 | AF4 |  |
-
+Src_destination of flows                                                                             | From_IP --> To_IP                                      | DSCP | Tunnel endpoint used
+---------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---- | --------------------
+Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | $ATE1_PORT1_INTERNET1.v4/24 --> $ATE2_INTERNAL6.v4/24  | BE1  | ATE2_INTERNAL_TE11.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET1.v6/64 --> $ATE2_INTERNAL6.v6/64  | BE1  | ATE2_INTERNAL_TE11.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET2.v4/24 --> $ATE2_INTERNAL7.v4/24  | AF1  | ATE2_INTERNAL_TE11.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET2.v6/64 --> $ATE2_INTERNAL7.v6/64  | AF1  | ATE2_INTERNAL_TE11.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET3.v4/24 --> $ATE2_INTERNAL8.v4/24  | AF2  | ATE2_INTERNAL_TE11.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET3.v6/64 --> $ATE2_INTERNAL8.v6/64  | AF2  | ATE2_INTERNAL_TE11.v4/32
+Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | $ATE1_PORT1_INTERNET4.v4/64 --> $ATE2_INTERNAL9.v4/24  | AF3  | $ATE2_INTERNAL_TE10.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET4.v6/64 --> $ATE2_INTERNAL9.v6/64  | AF3  | $ATE2_INTERNAL_TE10.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET5.v4/24 --> $ATE2_INTERNAL10.v4/24 | AF4  | $ATE2_INTERNAL_TE10.v4/32
+                                                                                                     | $ATE1_PORT1_INTERNET5.v6/64 --> $ATE2_INTERNAL10.v6/64 | AF4  | $ATE2_INTERNAL_TE10.v4/32
+Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24  | BE1  | $DUT_TE11.v4/30
+                                                                                                     | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64  | BE1  | $DUT_TE11.v4/30
+                                                                                                     | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24  | AF1  | $DUT_TE11.v4/30
+                                                                                                     | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64  | AF1  | $DUT_TE11.v4/30
+                                                                                                     | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24  | AF2  | $DUT_TE11.v4/30
+                                                                                                     | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64  | AF2  | $DUT_TE11.v4/30
+Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24  | AF3  | $DUT_TE10.v4/30
+                                                                                                     | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64  | AF3  | $DUT_TE10.v4/30
+                                                                                                     | $ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24 | AF4  | $DUT_TE10.v4/30
+                                                                                                     | $ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64 | AF4  | $DUT_TE10.v4/30
+Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped                                          | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24  | BE1  | N/A
+                                                                                                     | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64  | BE1  |
+                                                                                                     | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24  | AF1  |
+                                                                                                     | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64  | AF1  |
+                                                                                                     | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24  | AF2  |
+                                                                                                     | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64  | AF2  |
+                                                                                                     | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24  | AF3  |
+                                                                                                     | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64  | AF3  |
+                                                                                                     | $ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24 | AF4  |
+                                                                                                     | $ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64 | AF4  |
 
 ### DUT Configuration:
 
@@ -154,7 +158,7 @@ tables above, the DUT requires the following configurations:
 
     *   Define import and export route policies to match the advertisements for
         each BGP peering.
-        
+
 *   **Static GUE Encapsulation:**
 
     *   Configure static GUE encapsulation as follows:
@@ -166,17 +170,14 @@ tables above, the DUT requires the following configurations:
             *   `tunnel-source = $DUT_lo0.v4`
             *   `tunnel-destination1 = $ATE2_INTERNAL_TE11.v4/32`.
             *   `tunnel-destination2 = $ATE2_INTERNAL_TE10.v4/32`.
-            *   The DUT must have a static route pointing
-                `"$ATE2_PPNH1.v6/128"` and `$ATE2_PPNH2.v6/128` to the NHG
-                created above (below is an example of the static route). The IBGP peer
-                $ATE2_C.IBGP.v6/128 is expected to advertise both IPv4 and IPv6
-                prefixes with the Next-Hop as `"$ATE2_PPNH1.v6/128"` or
-                `"$ATE2_PPNH2.v6/128"`
-                ```
-                static dst: ATE2_PPNH1.v6/128 next-hop: $ATE2_INTERNAL_TE11.v4/32
-                static dst: ATE2_PPNH2.v6/128 next-hop: $ATE2_INTERNAL_TE10.v4/32
-                ```
-                
+            *   The DUT must have a static route pointing `"$ATE2_PPNH1.v6/128"`
+                and `$ATE2_PPNH2.v6/128` to the NHG created above (below is an
+                example of the static route). The IBGP peer $ATE2_C.IBGP.v6/128
+                is expected to advertise both IPv4 and IPv6 prefixes with the
+                Next-Hop as `"$ATE2_PPNH1.v6/128"` or `"$ATE2_PPNH2.v6/128"`
+                `static dst: ATE2_PPNH1.v6/128 next-hop:
+                $ATE2_INTERNAL_TE11.v4/32 static dst: ATE2_PPNH2.v6/128
+                next-hop: $ATE2_INTERNAL_TE10.v4/32`
 
 *   **GUE Decapsulation:**
 
@@ -189,13 +190,14 @@ tables above, the DUT requires the following configurations:
             [IETF draft](https://datatracker.ietf.org/doc/html/draft-ietf-intarea-gue-09#section-4)
         *   The Decapsulation node must be configured for decapsulating traffic
             received for the range i.e $DUT_TE11.v4/30 and $DUT_TE10.v4/30 in
-            place of the corresponding /32 addresses. 
+            place of the corresponding /32 addresses.
         *   After decapsulation, the outer TTL and DSCP bits must not be copied
             to the inner header
 
-
 ### Following Health checks to be run Pre and Post every sub test
-Use # Health-1.1: Generic Health Check. If errors identified then the test Must fail.
+
+Use # Health-1.1: Generic Health Check. If errors identified then the test Must
+fail.
 
 **RT-3.52.1: Baseline**
 
@@ -209,8 +211,8 @@ Use # Health-1.1: Generic Health Check. If errors identified then the test Must 
 *   **Test Steps:**
 
     *   Execute all health checks mentioned above prior to running the tests.
-    *   Configure the DUT for IS-IS adjacency, IBGP and EBGP peering, and
-        GUE encapsulation. This includes setting up the necessary routing policies
+    *   Configure the DUT for IS-IS adjacency, IBGP and EBGP peering, and GUE
+        encapsulation. This includes setting up the necessary routing policies
         and static routes as described previously.
     *   Initiate Flow-Set #1 and Flow-Set #2
     *   Initiate Flow-Set #5
@@ -221,12 +223,11 @@ Use # Health-1.1: Generic Health Check. If errors identified then the test Must 
     *   Flow-Set #1 and Flow-Set #2 are expected to achieve 100% success (zero
         packet loss) and be routed over the connection between `DUT_Port2` <>
         `ATE2_Port1`.
-    *   Flow-Set #5 must also achieve 100% success (zero
-        packet loss), with flows routing through
-        the connection between `ATE2_Port1` --> `DUT_Port2` --> `ATE1_Port1`.
+    *   Flow-Set #5 must also achieve 100% success (zero packet loss), with
+        flows routing through the connection between `ATE2_Port1` -->
+        `DUT_Port2` --> `ATE1_Port1`.
     *   Execute post-test health checks and compare the results with the
         baseline. Verify that there are no drops, core dumps, or other issues.
-
 
 **RT-3.52.2: BE1 Traffic Migrated from being routed over the DUT_Port2 -->
 ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path**
@@ -252,35 +253,33 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path**
         `$ATE2_PPNH1.v6/128` to `$ATE2_INTERNAL_TE11.v4/32`
 
 *   **Expectations:**
-  
+
     *   Routes to prefixes `$ATE2_INTERNAL6.v4/24` and `$ATE2_INTERNAL6.v6/64`,
-        learned from `$ATE2_C.IBGP.v6/128`, should have a local preference of 200
-        and be installed in the FIB. Other prefixes from ATE2 will continue to be
-        learnt via the IBGP peering between `$ATE2_PORT1.IBGP.v[46]` and
-        `$DUT_lo0.v[46]` with the default local preference of 100 and also be in the
-        DUT's FIB. Traffic to these prefixes MUST be 100% successful (zero losses).
+        learned from `$ATE2_C.IBGP.v6/128`, should have a local preference of
+        200 and be installed in the FIB. Other prefixes from ATE2 will continue
+        to be learnt via the IBGP peering between `$ATE2_PORT1.IBGP.v[46]` and
+        `$DUT_lo0.v[46]` with the default local preference of 100 and also be in
+        the DUT's FIB. Traffic to these prefixes MUST be 100% successful (zero
+        losses).
     *   Flows destined for `$ATE2_INTERNAL6.v4/24` and `$ATE2_INTERNAL6.v6/64`
-        should be GUE-encapsulated with tunnel destination `$ATE2_INTERNAL_TE11.v4`
-        and routed over the EBGP peering between `$ATE2_Port3` and `$DUT_Port4`, and
-        these flows must be 100% successful (zero loss). Inshort, change in path due
-        to higher local preference on the received routes from `$ATE2_C.IBGP.v6/128`
-        should cause zero packet loss
+        should be GUE-encapsulated with tunnel destination
+        `$ATE2_INTERNAL_TE11.v4` and routed over the EBGP peering between
+        `$ATE2_Port3` and `$DUT_Port4`, and these flows must be 100% successful
+        (zero loss). Inshort, change in path due to higher local preference on
+        the received routes from `$ATE2_C.IBGP.v6/128` should cause zero packet
+        loss
     *   The outer header TTL should be 127 upon arrival at `ATE2_Port1` (before
         decapsulation)
-    *   The outer header DSCP bits should be the same as the inner header DSCP bits
-        when received at `ATE2_Port1` (before decapsulation).
-    *   The DUT should accurately stream data regarding the number of packets/bytes
-        encapsulated
-    *   Unencapsulated flows from ATE2 to `ATE1_Port1` must have 100% success (Zero
-        loss), routing via the IBGP peering between `$ATE2_IBGP.v[46]` and
+    *   The outer header DSCP bits should be the same as the inner header DSCP
+        bits when received at `ATE2_Port1` (before decapsulation).
+    *   The DUT should accurately stream data regarding the number of
+        packets/bytes encapsulated
+    *   Unencapsulated flows from ATE2 to `ATE1_Port1` must have 100% success
+        (Zero loss), routing via the IBGP peering between `$ATE2_IBGP.v[46]` and
         `$DUT_lo0.v[46]`
     *   Post-test health checks should be performed and compared against the
-        baseline. Verify the absence of drops or core dumps. If any, the test Must
-        fail
-
-
-
-
+        baseline. Verify the absence of drops or core dumps. If any, the test
+        Must fail
 
 **RT-3.52.3: AF1-AF4 Traffic Migrated to DUT --> ATE2_Port3**
 
@@ -317,11 +316,8 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 
 *   **Expectations:**
 
-    *   Same as RT-3.52.2 for each traffic class migrated except that
-        AF3 and AF4 traffic are tunneled towards `$ATE2_INTERNAL_TE10.v4/32`.
-
-
-        
+    *   Same as RT-3.52.2 for each traffic class migrated except that AF3 and
+        AF4 traffic are tunneled towards `$ATE2_INTERNAL_TE10.v4/32`.
 
 **RT-3.52.7: DUT as a GUE Decap Node**
 
@@ -340,9 +336,8 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 *   **Expectations:**
 
     *   Traffic from ATE1 to ATE2 should be GUE encapsulated with tunnel
-        destinations `$ATE2_INTERNAL_TE11.v4/32` and
-        `$ATE2_INTERNAL_TE10.v4/32` and routed out
-        `$DUT_Port4<>$ATE2_Port3`.
+        destinations `$ATE2_INTERNAL_TE11.v4/32` and `$ATE2_INTERNAL_TE10.v4/32`
+        and routed out `$DUT_Port4<>$ATE2_Port3`.
 
     *   The DUT should provide accurate streaming data for the number of
         encapsulated packets/bytes.
@@ -361,8 +356,6 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
     *   Post-test health checks should be performed and compared against the
         baseline. Verify the absence of drops or core dumps. If any, the test
         Must fail
-        
-
 
 **RT-3.52.8: Negative Scenario - EBGP Route for remote tunnel endpoints Removed
 Inflight**
@@ -401,16 +394,15 @@ Inflight**
             baseline. Verify the absence of drops or core dumps. If any, the
             test Must fail
 
-
 **RT-3.52.9: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed
 Inflight**
 
 *   **Situation:**
 
-    *   The test starts from the end state of RT-3.52.8
-        Therefore, ATE1 to ATE2 traffic is routed via the `DUT_Port2` -->
-        `ATE2_Port1` path after encapsulation. ATE2 --> ATE1 traffic is routed via the
-        ATE2_Port3 --> DUT_Port4 path.
+    *   The test starts from the end state of RT-3.52.8 Therefore, ATE1 to ATE2
+        traffic is routed via the `DUT_Port2` --> `ATE2_Port1` path after
+        encapsulation. ATE2 --> ATE1 traffic is routed via the ATE2_Port3 -->
+        DUT_Port4 path.
     *   Static routes for `$ATE2_PPNH1.v6/128` and `$ATE2_PPNH2.v6/128` are
         active because tunnel endpoints `"$ATE2_INTERNAL_TE11.v4/32"` and
         `"$ATE2_INTERNAL_TE10.v4/32"` are reachable via the IBGP peering between
@@ -439,8 +431,6 @@ Inflight**
     *   Post-test health checks should be performed and compared against the
         baseline. Verify the absence of drops or core dumps. If any, the test
         Must fail
-
-
 
 **RT-3.52.10: Establish IBGP Peering over EBGP**
 
@@ -475,6 +465,7 @@ Inflight**
         Must fail
 
 ## Canonical OpenConfig for GUEv1 Encapsulation configuration
+
 ```json
 {
     "network-instances": {
@@ -564,7 +555,9 @@ Inflight**
     }
 }
 ```
+
 ## Canonical OpenConfig for GUEv1 Decapsulation configuration
+
 ```json
 {
     "network-instances": {
@@ -613,8 +606,8 @@ Inflight**
 }
 ```
 
-
 ## OpenConfig Path and RPC Coverage
+
 ```yaml
 paths:
 
@@ -664,7 +657,5 @@ rpcs:
 
 ## Required DUT platform
 
-* Specify the minimum DUT-type:
-  * FFF - fixed form factor
-
-
+*   Specify the minimum DUT-type:
+    *   FFF - fixed form factor
