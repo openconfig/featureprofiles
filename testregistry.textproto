@@ -838,7 +838,7 @@ test: {
 test: {
   id: "RT-1.64"
   description: "BGP Import/Export Policy Functional Test Case"
-  readme: " "
+  readme: "https://github.com/openconfig/feature/bgp/import-export-policy/otg_tests/README.md"
   exec: " "
 }
 test: {
