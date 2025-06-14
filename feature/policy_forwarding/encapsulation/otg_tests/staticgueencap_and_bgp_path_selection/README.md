@@ -16,8 +16,7 @@ The goal of this test is to:
     preferred path fails.
 
 3.  Validate that encapsulated traffic has its TOS bits copied from the inner
-    header to the outer header, and that the implementation marks the [`LSB bits
-    "2" and "3" of the TOS header`] as TZ=11.
+    header to the outer header.
 
 4.  Confirm that the TTL value for the outer IP header created during GUE
     encapsulation can be explicitly configured.
@@ -95,38 +94,42 @@ B4 <-- EBGP(ASN100:ASN200) --> C3;
 
 **Different Flows used throughout the test:**
 
-| Src_destination of flows | From_IP --> To_IP | DSCP | TZ Marking |
-|---|---|---|---|
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT] | $ATE1_PORT1_INTERNET1.v4/24 --> $ATE2_INTERNAL6.v4/24 | BE1 | 11 |
-| | $ATE1_PORT1_INTERNET1.v6/64 --> $ATE2_INTERNAL6.v6/64 | BE1 | 11 |
-| | $ATE1_PORT1_INTERNET2.v4/24 --> $ATE2_INTERNAL7.v4/24 | AF1 | 11 |
-| | $ATE1_PORT1_INTERNET2.v6/64 --> $ATE2_INTERNAL7.v6/64 | AF1 | 11 |
-| | $ATE1_PORT1_INTERNET3.v4/24 --> $ATE2_INTERNAL8.v4/24 | AF2 | 11 |
-| | $ATE1_PORT1_INTERNET3.v6/64 --> $ATE2_INTERNAL8.v6/64 | AF2 | 11 |
-| Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT] | $ATE1_PORT1_INTERNET4.v4/64 --> $ATE2_INTERNAL9.v4/24 | AF3 | 10 |
-| | $ATE1_PORT1_INTERNET4.v6/64 --> $ATE2_INTERNAL9.v6/64 | AF3 | 10 |
-| | $ATE1_PORT1_INTERNET5.v4/64 --> $ATE2_INTERNAL10.v4/24 | AF4 | 10 |
-| | $ATE1_PORT1_INTERNET5.v6/64 --> $ATE2_INTERNAL10.v6/64 | AF4 | 10 |
-| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24 | BE1 | 11 |
-| | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64 | BE1 | 11 |
-| | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24 | AF1 | 11 |
-| | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64 | AF1 | 11 |
-| | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24 | AF2 | 11 |
-| | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64 | AF2 | 11 |
-| Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24 | AF3 | 10 |
-| | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64 | AF3 | 10 |
-| | $ATE2_INTERNAL10.v4/24 -->  $ATE1_PORT1_INTERNET5.v4/24 | AF4 | 10 |
-| | $ATE2_INTERNAL10.v6/64 -->  $ATE1_PORT1_INTERNET5.v6/64 | AF4 | 10 |
-| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24 | BE1 | N/A |
-| | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64 | BE1 | |
-| | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24 | AF1 | |
-| | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64 | AF1 | |
-| | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24 | AF2 | |
-| | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64 | AF2 | |
-| | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24 | AF3 | |
-| | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64 | AF3 | |
-| | $ATE2_INTERNAL10.v4/24 -->  $ATE1_PORT1_INTERNET5.v4/24 | AF4 | |
-| | $ATE2_INTERNAL10.v6/64 -->  $ATE1_PORT1_INTERNET5.v6/64 | AF4 | |
+| Src_destination of flows | From_IP --> To_IP | DSCP |
+| :--- | :--- | :--- |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT] | $ATE1_PORT1_INTERNET1.v4/24 --> $ATE2_INTERNAL6.v4/24 | BE1 |
+| | $ATE1_PORT1_INTERNET1.v6/24 --> $ATE2_INTERNAL6.v6/64 | BE1 |
+| | $ATE1_PORT1_INTERNET2.v4/24 --> $ATE2_INTERNAL7.v4/24 | AF1 |
+| | $ATE1_PORT1_INTERNET2.v6/24 --> $ATE2_INTERNAL7.v6/64 | AF1 |
+| | $ATE1_PORT1_INTERNET3.v4/24 --> $ATE2_INTERNAL8.v4/24 | AF2 |
+| | $ATE1_PORT1_INTERNET3.v6/64 --> $ATE2_INTERNAL8.v6/64 | AF2 |
+| | | |
+| Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT] | $ATE1_PORT1_INTERNET4.v4/64 --> $ATE2_INTERNAL9.v4/24 | AF3 |
+| | $ATE1_PORT1_INTERNET4.v6/64 --> $ATE2_INTERNAL9.v6/64 | AF3 |
+| | $ATE1_PORT1_INTERNET5.v4/64 --> $ATE2_INTERNAL10.v4/24 | AF4 |
+| | $ATE1_PORT1_INTERNET5.v6/64 --> $ATE2_INTERNAL10.v6/64 | AF4 |
+| | | |
+| Flow-Set#3 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE11.v4/32 | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24 | BE1 |
+| | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64 | BE1 |
+| | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24 | AF1 |
+| | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64 | AF1 |
+| | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24 | AF2 |
+| | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64 | AF2 |
+| | | |
+| Flow-Set#4 from ATE2_Port3 --> ATE1_Port1 are GUE encaped with Tunnel destination as $DUT_TE10.v4/32 | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24 | AF3 |
+| | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64 | AF3 |
+| | $ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24 | AF4 |
+| | $ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64 | AF4 |
+| | | |
+| Flow-Set#5 from ATE2:Port1 to ATE1:Port1 are sent Unencaped | $ATE2_INTERNAL6.v4/24 --> $ATE1_PORT1_INTERNET1.v4/24 | BE1 |
+| | $ATE2_INTERNAL6.v6/64 --> $ATE1_PORT1_INTERNET1.v6/64 | BE1 |
+| | $ATE2_INTERNAL7.v4/24 --> $ATE1_PORT1_INTERNET2.v4/24 | AF1 |
+| | $ATE2_INTERNAL7.v6/64 --> $ATE1_PORT1_INTERNET2.v6/64 | AF1 |
+| | $ATE2_INTERNAL8.v4/24 --> $ATE1_PORT1_INTERNET3.v4/24 | AF2 |
+| | $ATE2_INTERNAL8.v6/64 --> $ATE1_PORT1_INTERNET3.v6/64 | AF2 |
+| | $ATE2_INTERNAL9.v4/24 --> $ATE1_PORT1_INTERNET4.v4/24 | AF3 |
+| | $ATE2_INTERNAL9.v6/64 --> $ATE1_PORT1_INTERNET4.v6/64 | AF3 |
+| | $ATE2_INTERNAL10.v4/24 --> $ATE1_PORT1_INTERNET5.v4/24 | AF4 |
+| | $ATE2_INTERNAL10.v6/64 --> $ATE1_PORT1_INTERNET5.v6/64 | AF4 |
 
 
 ### DUT Configuration:
@@ -160,16 +163,16 @@ tables above, the DUT requires the following configurations:
                 towards this tunnel destination, the most significant 4 DSCP
                 bits must match the inner header's DSCP bits, while the least
                 significant 2 DSCP bits (TZ bits) must be set to 10
-            *   The DUT must have a static route pointing
-                `"$ATE2_PPNH1.v6/128"` and `$ATE2_PPNH2.v6/128` to the NHG
-                created above (example of the static route below). The IBGP peer
-                $ATE2_C.IBGP.v6/128 is expected to advertise both IPv4 and IPv6
-                prefixes with the Next-Hop as `"$ATE2_PPNH1.v6/128"` or
-                `"$ATE2_PPNH2.v6/128"`
-                ```
-                static dst: ATE2_PPNH1.v6/128 next-hop: $ATE2_INTERNAL_TE11.v4/32
-                static dst: ATE2_PPNH2.v6/128 next-hop: $ATE2_INTERNAL_TE10.v4/32
-                ```
+        *   The DUT must have a static route pointing
+            `"$ATE2_PPNH1.v6/128"` and `$ATE2_PPNH2.v6/128` to the NHG
+            created above (example of the static route below). The IBGP peer
+            $ATE2_C.IBGP.v6/128 is expected to advertise both IPv4 and IPv6
+            prefixes with the Next-Hop as `"$ATE2_PPNH1.v6/128"` or
+            `"$ATE2_PPNH2.v6/128"`
+            ```
+            static dst: ATE2_PPNH1.v6/128 next-hop: $ATE2_INTERNAL_TE11.v4/32
+            static dst: ATE2_PPNH2.v6/128 next-hop: $ATE2_INTERNAL_TE10.v4/32
+            ```
                 
 
 *   **GUE Decapsulation:**
@@ -295,27 +298,17 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 
     *   **RT-3.52.5: Migrate AF3 Flows:** Migrate routing of AF3 flows from
         `DUT_Port2` --> `ATE2_Port1` to `DUT_Port4` --> `ATE2_Port3`.
-
-        *   `$ATE2_C.IBGP.v6` will advertise `$ATE2_INTERNAL9.v4/24` and
-            `$ATE2_INTERNAL9.v6/64` with next-hop as `$ATE2_PPNH2.v6/128`.
-            Traffic towards `$ATE2_INTERNAL9.v[46]/24` will have tunnel
-            destination `$ATE2_INTERNAL_TE10.v4/32` and TZ bits set to 10
+        
         *   BE1-AF3 are now migrated
 
     *   **RT-3.52.6: Migrate AF4 Flows:** Migrate routing of AF4 flows from
         `DUT_Port2` --> `ATE2_Port1` to `DUT_Port4` --> `ATE2_Port3`.
-
-        *   `$ATE2_C.IBGP.v6` will advertise `$ATE2_INTERNAL10.v4/24` and
-            `$ATE2_INTERNAL10.v6/64` with next-hop as `$ATE2_PPNH2.v6/128`
-            Traffic towards `$ATE2_INTERNAL10.v[46]` will have tunnel
-            destination `$ATE2_INTERNAL_TE10.v4/32` and TZ bits set to 10
+        
         *   BE1-AF4 are now migrated
 
 *   **Expectations:**
 
-    *   Same as RT-3.52.2 for each traffic class migrated, except for tunnel
-        destination `$ATE2_INTERNAL_TE10.v4/32`, where TZ bits will be marked
-        as 10.
+    *   Same as RT-3.52.2 for each traffic class migrated.
 
 
         
@@ -324,7 +317,7 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 
 *   **Situation:**
 
-    *   The test begins from the state established in RT-3.52.3, where all
+    *   The test begins from the state established in RT-3.52.6, where all
         traffic from ATE1 to ATE2 is encapsulated by the DUT and routed via
         DUT_Port4 --> ATE2_Port3 path.
 
@@ -337,19 +330,17 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 *   **Expectations:**
 
     *   Traffic from ATE1 to ATE2 should be GUE encapsulated with tunnel
-        destinations `$ATE2_INTERNAL_TE11.v4/32` (TZ=11) and
-        `$ATE2_INTERNAL_TE10.v4/32` (TZ=10), and routed out
+        destination `$ATE2_INTERNAL_TE11.v4/32` and routed out
         `$DUT_Port4<>$ATE2_Port3`.
 
     *   The DUT should provide accurate streaming data for the number of
-        encapsulated packets/bytes.
+        encapsulated PPS and BPS.
 
-    *   `ATE2_Port3` sends encapsulated flows (Flow-Set #3 and Flow-Set #4) to
+    *   `ATE2_Port3` sends encapsulated flows (Flow-Set #3) to
         `ATE1_Port1` through the DUT.
 
-        BE1 to AF2 flows are expected to have a tunnel destination of
-        `$DUT_TE11.v4/32`, while AF3 and AF4 flows should have `$DUT_TE10.v4/32`
-        as their tunnel destination.
+        All the flows (BE1 to AF4), are expected to have a tunnel destination of
+        `$DUT_TE11.v4/32`.
 
         Traffic should reach the destination successfully.
 
@@ -367,33 +358,30 @@ Inflight**
 *   **Situation:**
 
     *   The test begins from the final state of RT-3.52.7 In this state, the DUT
-        encapsulates BE1-AF2 traffic from ATE1 to ATE2 towards tunnel
-        destination address `"$ATE2_INTERNAL_TE11.v4/32"`, and AF3-AF4 traffic
-        is encapsulated towards `"$ATE2_INTERNAL_TE10.v4/32"` Similarly, BE1-AF2
+        encapsulates BE1-AF4 traffic from ATE1 to ATE2 towards tunnel
+        destination address `"$ATE2_INTERNAL_TE11.v4/32"`. Similarly, BE1-AF4
         traffic from ATE2 to ATE1 is encapsulated with tunnel destination
-        `"$DUT_TE11.v4/32"`, and AF3-AF4 traffic uses `"$DUT_TE10.v4/32"`
+        `"$DUT_TE11.v4/32"`
     *   ATE2 do not send any unencapsulated flows
 
 *   **Test Steps:**
 
     *   Execute the previously defined health checks as a baseline
     *   Flow-Sets #1 through #4 should be active
-    *   On `ATE2_Port3`, stop advertising the prefixes
-        `"$ATE2_INTERNAL_TE11.v4/32"` and `"$ATE2_INTERNAL_TE10.v4/32"` to
-        `DUT_Port4` over EBGP
+    *   On `ATE2_Port3`, stop advertising the prefix
+        `"$ATE2_INTERNAL_TE11.v4/30"` over EBGP
 
 *   **Expectations:**
 
     *   When `ATE2_Port3` withdraws the route advertisement on the EBGP peering
         with `DUT_Port4`:
-        *   The tunnel endpoints `"$ATE2_INTERNAL_TE11.v4/32"` and
-            `"$ATE2_INTERNAL_TE10.v4/32"`, learned via the IBGP peering between
+        *   The tunnel endpoints `"$ATE2_INTERNAL_TE11.v4/32"` learned via the IBGP peering between
             $ATE2_IBGP.v[46]<>$DUT_lo0.v[46], should be placed in the FIB.
         *   Traffic from ATE1 to ATE2 should then take the path `DUT_Port2` -->
             `ATE2_Port1` path after encapsulation on the DUT, with no traffic
             loss expected due to this change.
         *   The DUT should accurately stream encapsulated and decapsulated
-            packet/byte data.
+          BPS and PPS data.
         *   Post-test health checks should be performed and compared against the
             baseline. Verify the absence of drops or core dumps. If any, the
             test Must fail
@@ -408,9 +396,8 @@ Inflight**
         Therefore, ATE1 to ATE2 traffic is routed via the `DUT_Port2` -->
         `ATE2_Port1` path after encapsulation. ATE2 --> ATE1 traffic is routed via the
         ATE2_Port3 --> DUT_Port4 path.
-    *   Static routes for `$ATE2_PPNH1.v6/128` and `$ATE2_PPNH2.v6/128` are
-        active because tunnel endpoints `"$ATE2_INTERNAL_TE11.v4/32"` and
-        `"$ATE2_INTERNAL_TE10.v4/32"` are reachable via the IBGP peering between
+    *   Static route for `$ATE2_PPNH1.v6/128` is
+        active because tunnel endpoint `"$ATE2_INTERNAL_TE11.v4/32"` is reachable via the IBGP peering between
         `$ATE2_IBGP.v[46]` and `$DUT_lo0.v[46]`
     *   Routes for `ATE2_INTERNAL[6-10].v[46]`, advertised by ATE2 over the IBGP
         peering `$ATE2_C.IBGP.v6<>$DUT_lo0.v6`, remain active on the DUT.
@@ -418,12 +405,12 @@ Inflight**
 *   **Test Steps:**
 
     *   Configure `$ATE2_IBGP.v[46]` to stop advertising tunnel endpoints
-        `"$ATE2_INTERNAL_TE11.v4/32"` and `"$ATE2_INTERNAL_TE10.v4/32"` to
+        `"$ATE2_INTERNAL_TE11.v4/32"` to
         `$DUT_lo0.v[46]` over their IBGP peering
 
 *   **Expectations:**
 
-    *   Static routes for `$ATE2_PPNH1.v6/128` and `$ATE2_PPNH2.v6/128` must
+    *   Static route for `$ATE2_PPNH1.v6/128` must
         become invalid.
     *   Routes for `ATE2_INTERNAL[6-10].v[46]` advertised by ATE2 over the IBGP
         peering `$ATE2_C.IBGP.v6<>$DUT_lo0.v6` must become invalid.
