@@ -4,19 +4,36 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/helpers"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 )
+
+// DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
+type DecapPolicyParams struct {
+	PolicyID                  string
+	RuleSeqID                 uint32
+	IPv4DestAddress           string // For the match criteria in the decap rule
+	MPLSInterfaceID           string // For MPLS global interface attributes (e.g., "Aggregate4")
+	StaticLSPNameIPv4         string
+	StaticLSPLabelIPv4        uint32
+	StaticLSPNextHopIPv4      string
+	StaticLSPNameIPv6         string
+	StaticLSPLabelIPv6        uint32
+	StaticLSPNextHopIPv6      string
+	StaticLSPNameMulticast    string
+	StaticLSPLabelMulticast   uint32
+	StaticLSPNextHopMulticast string
+}
 
 // OcPolicyForwardingParams holds parameters for generating the OC Policy Forwarding config.
 type OcPolicyForwardingParams struct {
@@ -29,6 +46,7 @@ type OcPolicyForwardingParams struct {
 	InnerDstIPv4 string
 	CloudV4NHG   string
 	CloudV6NHG   string
+	DecapPolicy  DecapPolicyParams
 }
 
 var (
@@ -177,6 +195,19 @@ mpls label range ospf-sr 16 0
 mpls label range srlb 16 0
 mpls label range static 16 1048560
 !
+`
+	decapGroupGREArista = `
+ip decap-group gre-decap
+  tunnel type gre
+  tunnel decap-ip 11.0.0.0/8
+  tunnel overlay mpls qos map mpls-traffic-class to traffic-class
+!`
+
+	staticLSPArista = `
+mpls static top-label 99991 169.254.0.12 pop payload-type ipv4 access-list bypass
+mpls static top-label 99992 2600:2d00:0:1:8000:10:0:ca32 pop payload-type ipv6 access-list bypass
+mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypass
+mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
 `
 )
 
@@ -385,6 +416,35 @@ func RulesAndActions(params OcPolicyForwardingParams, pf *oc.NetworkInstance_Pol
 	ruleSeq++
 }
 
+// DecapPolicyRulesandActions configures the "decap MPLS in GRE" policy and related MPLS global and static LSP settings.
+func DecapPolicyRulesandActions(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	pols := pf.GetOrCreatePolicy("customer10")
+	var ruleSeq uint32 = 10
+
+	rule10 := pols.GetOrCreateRule(ruleSeq)
+	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(params.InnerDstIPv4)
+	rule10.GetOrCreateIpv4().Protocol = oc.UnionUint8(4)
+
+	rule10.GetOrCreateAction().DecapsulateGre = ygot.Bool(true)
+}
+
+// MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
+func MplsGlobalStaticLspAttributes(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+	mplsCfgv4 := ni.GetOrCreateMpls()
+	staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
+	egressv4 := staticMplsCfgv4.GetOrCreateEgress()
+	egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv4)
+	egressv4.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv4)
+
+	mplsCfgv6 := ni.GetOrCreateMpls()
+	staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv6)
+	egressv6 := staticMplsCfgv6.GetOrCreateEgress()
+	egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
+	egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
+}
+
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
 // policy to the given interface ID.
 func ApplyPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
@@ -399,3 +459,32 @@ func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
 	gnmi.Replace(t, dut, niPath, ni)
 }
+
+// DecapGroupConfig configures the interface decap-group.
+func DecapGroupConfig(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+	if deviations.GueGreDecapUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
+		}
+	} else {
+		DecapPolicyRulesandActions(t, pf, ocPFParams)
+	}
+}
+
+// MPLSStaticLSPConfig configures the interface mpls static lsp.
+func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
+	if deviations.StaticMplsUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, staticLSPArista)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
+		}
+	} else {
+		MplsGlobalStaticLspAttributes(t, dut, ni, ocPFParams)
+	}
+}
+
