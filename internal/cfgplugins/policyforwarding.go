@@ -416,7 +416,7 @@ func RulesAndActions(params OcPolicyForwardingParams, pf *oc.NetworkInstance_Pol
 	ruleSeq++
 }
 
-// DecapPolicyRulesandActions configures the "decap MPLS in GRE" policy and related MPLS global and static LSP settings.
+// DecapPolicyRulesandActionsGre configures the "decap MPLS in GRE" policy and related MPLS global and static LSP settings.
 func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
@@ -432,7 +432,8 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 }
 
 // MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
-func MplsGlobalStaticLspAttributes(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+	t.Helper()
 	mplsCfgv4 := ni.GetOrCreateMpls()
 	staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
 	egressv4 := staticMplsCfgv4.GetOrCreateEgress()
@@ -485,6 +486,6 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
 		}
 	} else {
-		MplsGlobalStaticLspAttributes(t, dut, ni, ocPFParams)
+		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
