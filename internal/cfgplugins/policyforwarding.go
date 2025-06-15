@@ -421,7 +421,7 @@ func DecapPolicyRulesandActions(t *testing.T, pf *oc.NetworkInstance_PolicyForwa
 	t.Helper()
 
 	pols := pf.GetOrCreatePolicy("customer10")
-        var ruleSeq uint32 = 10
+	var ruleSeq uint32 = 10
 	var protocol uint8 = 4
 
 	rule10 := pols.GetOrCreateRule(ruleSeq)
