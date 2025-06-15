@@ -189,12 +189,12 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
 paths:
 
 #Telemetry
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type
-/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/import-policy
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state:
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address:
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/import-policy:
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
 
 rpcs:
   gnmi:
