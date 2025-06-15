@@ -283,7 +283,7 @@ func DecapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
-	cfgplugins.DecapGroupConfig(t, dut, pf, ocPFParams)
+	cfgplugins.DecapGroupConfigGre(t, dut, pf, ocPFParams)
 	cfgplugins.MPLSStaticLSPConfig(t, dut, ni, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		PushPolicyForwardingConfig(t, dut, ni)

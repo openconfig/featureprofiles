@@ -417,7 +417,7 @@ func RulesAndActions(params OcPolicyForwardingParams, pf *oc.NetworkInstance_Pol
 }
 
 // DecapPolicyRulesandActions configures the "decap MPLS in GRE" policy and related MPLS global and static LSP settings.
-func DecapPolicyRulesandActions(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
 	pols := pf.GetOrCreatePolicy("customer10")
@@ -461,8 +461,8 @@ func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	gnmi.Replace(t, dut, niPath, ni)
 }
 
-// DecapGroupConfig configures the interface decap-group.
-func DecapGroupConfig(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+// DecapGroupConfigGre configures the interface decap-group.
+func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -471,7 +471,7 @@ func DecapGroupConfig(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstan
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 	} else {
-		DecapPolicyRulesandActions(t, pf, ocPFParams)
+		DecapPolicyRulesandActionsGre(t, pf, ocPFParams)
 	}
 }
 
