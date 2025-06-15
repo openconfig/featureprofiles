@@ -201,10 +201,9 @@ paths:
 
 rpcs:
   gnmi:
-    gNMI.Set: /acl/config
+    gNMI.Set:
       union_replace: true
       replace: true
-    gNMI.Get: /acl/state
     gNMI.Subscribe:
       on_change: true
 ```
