@@ -68,6 +68,8 @@ const (
 	defaultFlowV6            = "DEFAULT-FLOW-V6"
 	trafficPolicyName        = "BG_PBR_TRAFFIC_POLICY"
 	trafficDuration          = 30 * time.Second
+	timeout                  = 1 * time.Minute
+	interval                 = 20 * time.Second
 )
 
 var (
@@ -123,8 +125,6 @@ var (
 
 	pfMatchingDscpValues = []uint32{3, 11, 19, 27, 35, 43, 51, 59}
 	otherDscpValues      = []uint32{0, 8, 16, 24, 32, 40, 48, 56}
-	timeout              = 1 * time.Minute
-	interval             = 20 * time.Second
 )
 
 type ipAddr struct {
@@ -143,8 +143,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := dutP2.NewOCInterface(p2, dut)
 	gnmi.Replace(t, dut, dc.Interface(p2).Config(), i2)
 
-	// Configure Network instance type on DUT
-	t.Log("Configure/update Network Instance")
+	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	configureRoutePolicy(t, dut, rplName, rplType)
@@ -178,8 +177,8 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 		}
 	} else {
 		d := &oc.Root{}
-		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		npf := ni1.GetOrCreatePolicyForwarding()
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		npf := ni.GetOrCreatePolicyForwarding()
 		np := npf.GetOrCreatePolicy(name)
 		np.PolicyId = ygot.String(name)
 		np.Type = oc.Policy_Type_PBR_POLICY
@@ -204,22 +203,11 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 			npRuleAction.NextHop = ygot.String(ipvNHv6)
 		}
 
-		ifName := dut.Port(t, "port1").Name()
-		npi := npf.GetOrCreateInterface(ifName)
+		interfaceName := dut.Port(t, "port1").Name()
+		npi := npf.GetOrCreateInterface(interfaceName)
 		npi.ApplyForwardingPolicy = np.PolicyId
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 
-		json, err := ygot.EmitJSON(ni1, &ygot.EmitJSONConfig{
-			Format: ygot.RFC7951,
-			Indent: "  ",
-			RFC7951Config: &ygot.RFC7951JSONConfig{
-				AppendModuleName: true,
-			},
-		})
-		if err != nil {
-			t.Errorf("Error decoding sampling config: %v", err)
-		}
-		t.Logf("Got sampling config: %v", json)
 	}
 }
 
@@ -624,8 +612,8 @@ func TestPolicyForwardingIndirectNextHop(t *testing.T) {
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
 
-	t.Run("PF-1.1.1: Verify PF next-hop action", func(t *testing.T) {
-		t.Log("PF-1.1.1: Verify PF next-hop action Validation in progress")
+	t.Run("VerifyPFNext-hopAction", func(t *testing.T) {
+		t.Log("Verify PF next-hop action Validation in progress")
 		if verifyFlowTraffic(t, ate, config, policyMatchFlowV4) {
 			t.Log("PF next-hop action Passed for V4")
 		} else {
@@ -640,7 +628,7 @@ func TestPolicyForwardingIndirectNextHop(t *testing.T) {
 
 	})
 
-	t.Run("PF-1.1.2: Verify PF no-match action", func(t *testing.T) {
+	t.Run("VerifyPFNo-matchAction", func(t *testing.T) {
 		t.Log("PF-1.1.2: Verify PF no-match action Validation in progress")
 		if verifyFlowTraffic(t, ate, config, policyNoMatchFlowV4) {
 			t.Log("PF no-match action Passed for V4")
@@ -655,7 +643,7 @@ func TestPolicyForwardingIndirectNextHop(t *testing.T) {
 		}
 	})
 
-	t.Run("PF-1.1.3: Verify PF without NH present", func(t *testing.T) {
+	t.Run("VerifyPFWithoutNHPresent", func(t *testing.T) {
 		t.Log("PF-1.1.3: Verify PF without NH present Validation in progress")
 		t.Log("Withdraw next-hop prefixes from BGP Announcement")
 		cs := gosnappi.NewControlState()
