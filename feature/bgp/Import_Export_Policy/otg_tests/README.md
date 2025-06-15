@@ -164,7 +164,8 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
                       "apply-policy": {
                         "config": {
                           "import-policy": [
-                            "test_import"                          ]
+                            "test_import"
+                          ]
                           "export-policy": [
                             "test_export"
                           ]
@@ -183,12 +184,14 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
 }
 ```
 
+
 #### OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
 
 #Telemetry
+
 /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state:
 /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address:
 /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
@@ -204,10 +207,10 @@ rpcs:
     gNMI.Get: /acl/state
     gNMI.Subscribe:
       on_change: true
-
 ```
 
 ## Required DUT platform
+
 * FFF
 * MFF
 
