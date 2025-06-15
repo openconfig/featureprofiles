@@ -49,6 +49,7 @@ This test case will focus on two scenarios:
 * Enable BGP on the DUT.
 * Establish an EBGP peering session with the ATE (using ATE's AS as  AS65002).
 * Ensure the DUT has some local routes (loopback interfaces advertised into BGP) that can be filtered.
+* Advertise routes towards ATE , 
 
 
 ### ATE Configuration (Basic BGP Emulation):
@@ -57,62 +58,74 @@ This test case will focus on two scenarios:
 * Create a BGP Emulated Router on the ATE, acting as AS 65002.
 * Establish a BGP peering session with the DUT's IP (10.1.1.0) & IPV6 (2607:f8b0:8007:614f::).
 
-* Advertise multiple unique BGP routes from ATE, some intended to be filtered, and some to be allowed.
+* Advertise multiple unique BGP routes from ATE, some intended to be filtered, and some to be allowed on the DUT.
   * Allowed routes: IPV4 192.0.2.1/32 (AS-Path: 65002), 192.0.2.2/32 (AS-Path: 65002) and IPV6 2001:db8:300:100::0/127 (AS-Path: 65002) , 2001:db8:300:101::0/127 (AS-Path: 65002)
   * Denied routes:  IPV4 198.51.100.1/32 (AS-Path: 65002 65003), 198.51.100.2/32 (AS-Path: 65002 65004) and IPV6 2001:db8:400:100::1/128 (AS-Path: 65002 65004) , 2001:db8:400:101::1/128 (AS-Path: 65002 65004)
 
 ### Verify BGP Peering:
 
-* On DUT: Check the BGP summary
-* On ATE: Check BGP session status in IxNetwork.
-* Ensure both the DUT and ATE have exchanged routes without any policy applied yet.
+* On DUT:
+  * Check the BGP summary and make sure the session towards ATE is established.
+  * Advertise below routes towards ATE:
+     * IPV4: 172.16.1.0/24, 172.16.2.0/24, 192.168.10.0/24
+     * IPV6: 2001:db8:250:110::/64, 2001:db8:251:110::/64, 2001:db8:299:110::/64
+  * Check if the DUT is advertising routes towards ATE
+  * Check if the rotues advertised by ATE are received on the DUT  
+
+* On ATE:
+  * Check BGP session status towards DUT and the session should be in established state.
+  * Advertise below routes towards DUT:
+    * IPV4: 192.0.2.1/32, 192.0.2.2/32, 198.51.100.1/32, 198.51.100.2/32
+    * IPV6: 2001:db8:300:100::0/127, 2001:db8:300:101::0/127, 2001:db8:400:100::1/128, 2001:db8:400:101::1/128
+  * Check if the ATE is advertising routes towards DUT
+  * Check if the DUT is advertising routes towards ATE
 
 ### Test Export Policy (Prefix-list based)
 
 Objective: Only allow local routes 172.16.1.0/24 and 172.16.2.0/24 & 2001:db8:250:110::/64 and 2001:db8:251:110::/64  to be advertised from DUT to ATE. 192.168.10.0/24 & 2001:db8:299:110::/64 should be denied.
 
 Configure Export Policy on DUT:
-Create a prefix-list to match the desired prefixes.
-Create a route-map/policy-statement to apply the prefix-list.
-Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 as an out policy.
+Create a routing policy.
+Apply the routing policy to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 as an output policy.
 
 
 ### Clear BGP Session (Optional, but good practice):
-* On DUT: clear ip & ipv6 bgp sessions towards 10.1.1.1 & 2607:f8b0:8007:614f::1 out (or soft reset)
+
+* On DUT: clear ip & ipv6 bgp sessions towards 10.1.1.1 & 2607:f8b0:8007:614f::1 out (or soft reset) using gNOI or shutdown/unshutdown the ATE interface.
 * This forces the DUT to re-advertise routes based on the new policy.
 
 ### Verify Export Policy:
 
 * ATE:
-  * Go to the "Routes" tab for the emulated BGP router.
-  * Observe the "Learned Routes" from the DUT.
-  * Expected: Only 172.16.1.0/24 and 172.16.2.0/24 & 2001:db8:250:110::/64 and 2001:db8:251:110::/64 should be learned.
-  * Expected: 192.168.10.0/24 & 2001:db8:299:110::/64 should NOT be learned.
+  * Verify the routes received from the DUT 
+      * Routes 172.16.1.0/24 , 172.16.2.0/24, 2001:db8:250:110::/64 and 2001:db8:251:110::/64 should only be received.
+      * Routes 192.168.10.0/24 & 2001:db8:299:110::/64 should NOT be received.
 
 * DUT (Verification):
-  * show ip bgp neighbors 10.1.1.1 & 2607:f8b0:8007:614f::1 advertised-routes
-  * Expected: The output should only show 172.16.1.0/24 and 172.16.2.0/24 & 2001:db8:250:110::/64 and 2001:db8:251:110::/64
+  * Verify the routes advertised towards 10.1.1.1 & 2607:f8b0:8007:614f::1
+      * The output should only show 172.16.1.0/24 and 172.16.2.0/24 & 2001:db8:250:110::/64 and 2001:db8:251:110::/64
 
 ### Test Import Policy (AS-Path based)
 
 * Objective: Only allow routes from ATE with AS-Path 65002 (originating from the immediate neighbor) to be imported into the DUT's BGP table. Routes with longer AS-Paths (e.g., 65002 65003) should be denied.
 
 * Configure Import Policy on DUT:
-  * Create an AS-Path access-list (or regular expression) to match the desired AS-Path.
-  * Create a route-map/policy-statement to apply the AS-Path access-list.
-  * Apply the route-map/policy-statement to the BGP neighbor IPV4 - 10.1.1.1 & IPV6 - 2001:db8:204:114::1 as an in policy.
+  * Create a routing policy to match the desired AS-Path and prefixes.
+  * Apply the rrouting policy to the BGP neighbor IPV4 - 10.1.1.1 & IPV6 - 2001:db8:204:114::1 as an import policy.
 
-* Clear BGP Session (Optional, but good practice):
-* On DUT: clear ip bgp 10.1.1.1 & 2001:db8:204:114::1 in (or soft reset)
-* This forces the DUT to re-evaluate received routes based on the new policy.
+### Clear BGP Session (Optional, but good practice):
+
+* On DUT: clear ip & ipv6 bgp sessions towards 10.1.1.1 & 2607:f8b0:8007:614f::1 out (or soft reset) using gNOI or shutdown/unshutdown the ATE interface.
+* This forces the DUT to re-advertise routes based on the new policy.
+
 
 ### Verify Import Policy:
 
 * DUT:
-  * Check the bgp neighbors
-  * Expected: Only IPV4 192.0.2.1/32 (AS-Path: 65002), 192.0.2.2/32 (AS-Path: 65002) and IPV6 2001:db8:300:100::0/127 (AS-Path: 65002) , 2001:db8:300:101::0/127 (AS-Path: 65002) should be present in the BGP table.
-  * Expected: 198.51.100.1/32 and 198.51.100.2/32 & IPV6 2001:db8:400:100::1/128 and 2001:db8:400:101::1/128 should NOT be present in the BGP table.
-  * Check the ip bgp neighbors 10.1.1.1 & 2001:db8:204:114::1 received-routes (This shows routes received BEFORE policy application.).
+  * Check the bgp neighbors and received routes from ATE in DUT BGP table
+    * Routes 192.0.2.1/32 (AS-Path: 65002), 192.0.2.2/32 (AS-Path: 65002), 2001:db8:300:100::0/127 (AS-Path: 65002), 2001:db8:300:101::0/127 (AS-Path: 65002) should be received.
+    * Routes 198.51.100.1/32, 198.51.100.2/32, 2001:db8:400:100::1/128, 2001:db8:400:101::1/128 should be rejected.
+  * Check the bgp neighbors 10.1.1.1 & 2001:db8:204:114::1 received-routes and all the routes from ATE should be shown as routing policy doesnt get applied yet.
 
 * ATE:
   * Observe the "Advertised Routes" from the ATE to the DUT.
@@ -134,12 +147,6 @@ Apply the route-map/policy-statement to the BGP neighbor 10.1.1.1 & 2607:f8b0:80
   * Desired routes are not exchanged (denied by policy when they should be allowed).
   * Unwanted routes are exchanged (allowed by policy when they should be denied).
   * BGP session instability or flap.
-
-### Notes/Considerations
-* Policy Complexity: This test uses simple prefix-list and AS-path filters. Real-world policies can involve communities, local preference, MED, weighted conditions, etc. More complex policies would require more elaborate test scenarios.
-* Policy Order: The order of permit and deny statements within route-maps/policy-statements is crucial. An implicit deny all usually exists at the end.
-* Troubleshooting: Use debug bgp commands on the DUT (with caution in production) to trace policy application. ATE's detailed route information and packet captures can also be invaluable.
-
 
 ## Canonical OpenConfig
 
