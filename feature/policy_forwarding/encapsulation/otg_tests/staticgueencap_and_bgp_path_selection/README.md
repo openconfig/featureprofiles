@@ -629,14 +629,11 @@ paths:
 
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp:
 
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp:
 
 rpcs:
