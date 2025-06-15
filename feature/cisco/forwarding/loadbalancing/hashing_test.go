@@ -23,21 +23,24 @@ import (
 	// "os"
 	// "sort"
 	// "strings"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"testing"
+
+	"github.com/openconfig/featureprofiles/internal/deviations"
+
 	// "text/tabwriter"
-	// "time"
+	"time"
 
 	// "github.com/openconfig/featureprofiles/internal/attrs"
 
 	// "github.com/openconfig/featureprofiles/internal/components"
 	// "github.com/openconfig/featureprofiles/internal/cisco/verifiers"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
+	"github.com/openconfig/featureprofiles/internal/cisco/verifiers"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 
 	"github.com/openconfig/ondatra"
 	// "github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	// "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	// "github.com/openconfig/ondatra/netutil"
 )
@@ -46,12 +49,13 @@ const (
 	cardTypeRp = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 )
 
-// var (
-// 	lcList = []string{}
-// 	rtrID  uint32
-// 	npList = []int{0, 1, 2}
-// 	h      = NpuHash{npList: []int{0, 1, 2}}
-// )
+var (
+	lcList           = []string{}
+	rtrID            uint32
+	npList           = []int{0, 1, 2}
+	h                = NpuHash{npList: []int{0, 1, 2}}
+	trafficTolerance = 0.02
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -70,23 +74,29 @@ func TestLoadBalancing(t *testing.T) {
 	dut1E := ondatra.DUT(t, "dut7")
 	afttest := helper.FIB.GetPrefixAFTObjects(t, dut1E, "10.240.118.35/32", deviations.DefaultNetworkInstance(dut1E))
 	t.Log("afttest", afttest)
+	helper.Interface.ClearInterfaceCountersAll(t, dut1E)
+	time.Sleep(30 * time.Second)
 	InputIF := helper.Loadbalancing.GetIngressTrafficInterfaces(t, dut1E, "ipv4")
+	var totalInPackets uint64
+	for _, val := range InputIF {
+		totalInPackets += val
+	}
 	var OutputIFWeight = make(map[string]uint64)
 	for _, nhObj := range afttest.NextHop {
 		OutputIFWeight[nhObj.NextHopInterface] = nhObj.NextHopWeight
 	}
+	verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, dut1E, OutputIFWeight, totalInPackets, trafficTolerance)
 	t.Log("InputIF", InputIF, OutputIFWeight)
-	helper.Interface.ClearInterfaceCountersAll(t, dut1E)
+
 	//Verify Traffic stats on InputIF and match with OutputIF
 
 	// pfxNH, NHG := helper.FIB.GetPrefixAFTNH(t, dut1E, "10.240.118.35/32", deviations.DefaultNetworkInstance(dut1E))
 	// t.Log("pfxNH", pfxNH)
 	// t.Log("NHIP", NHIP)
 	// helper.Loadbalancing.GetPrefixOutGoingInterfaces(t, dut1E, "10.240.118.0/24", deviations.DefaultNetworkInstance(dut1E))
-	helper.Loadbalancing.GetIngressTrafficInterfaces(t, dut1E, "ipv4")
 	// util.ClearInterfaceCountersAll(t, dut1E)
-	util.CheckDUTTrafficViaInterfaceTelemetry(t, dut1E, []string{"Bundle-Ether1", "Bundle-Ether2", "Bundle-Ether3", "Bundle-Ether4", "Bundle-Ether5"}, []string{"Bundle-Ether14", "Bundle-Ether15"}, []float64{0.5, 0.5}, 2)
-	t.Logf("Get list of LCs")
+	// util.CheckDUTTrafficViaInterfaceTelemetry(t, dut1E, []string{"Bundle-Ether1", "Bundle-Ether2", "Bundle-Ether3", "Bundle-Ether4", "Bundle-Ether5"}, []string{"Bundle-Ether14", "Bundle-Ether15"}, []float64{0.5, 0.5}, 2)
+	// t.Logf("Get list of LCs")
 	// lcList = util.GetLCList(t, dut)
 	// cases := []testCase{
 	// 	{

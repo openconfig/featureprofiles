@@ -44,7 +44,7 @@ func findComponentsByTypeNoLogs(t *testing.T, dut *ondatra.DUTDevice, cType oc.E
 
 func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state []*oc.Component_Transceiver_Channel) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Transceiver", "Leaf", "Value"})
+	table.Header([]string{"Transceiver", "Leaf", "Value"})
 
 	for channel := range state {
 		// CDETS: CSCwk32258. This will be un-commented after the fix

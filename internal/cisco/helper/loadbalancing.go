@@ -50,3 +50,17 @@ func (v *LoadbalancingHelper) GetPrefixOutGoingInterfaces(t *testing.T, dut *ond
 
 	return NHWeightMap
 }
+
+// normalize normalizes the input values so that the output values sum
+// to 1.0 but reflect the proportions of the input.  For example,
+// input [1, 2, 3, 4] is normalized to [0.1, 0.2, 0.3, 0.4].
+func (v *LoadbalancingHelper) Normalize(xs []uint64) (ys []float64, sum uint64) {
+	for _, x := range xs {
+		sum += x
+	}
+	ys = make([]float64, len(xs))
+	for i, x := range xs {
+		ys[i] = float64(x) / float64(sum)
+	}
+	return ys, sum
+}
