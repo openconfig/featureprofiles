@@ -36,6 +36,9 @@ The goal of this test is to:
 
 ## Topology
 
+Please note: In the diagram below, ATE1 and ATE2 can be the same or different
+ATE
+
 ```mermaid
 graph LR;
 subgraph DUT [DUT]
