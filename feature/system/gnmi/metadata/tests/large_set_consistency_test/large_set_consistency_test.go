@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -150,7 +149,7 @@ func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.R
 	if size >= 100000 {
 		randomBytes := make([]byte, size)
 		_, err := io.ReadFull(rand.Reader, randomBytes)
-		fmt.Printf("Length of randomBytes: %d\n", len(randomBytes))
+		t.Logf("Length of randomBytes: %d\n", len(randomBytes))
 		if err != nil {
 			t.Fatalf("failed to generate random bytes: %v", err)
 		}
@@ -160,15 +159,15 @@ func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.R
 		largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
 		metadataText = largeMetadata[:int(trimSize)]
 	}
-	fmt.Printf("Length of largeMetadata: %d\n", len([]byte(metadataText)))
+	t.Logf("Length of largeMetadata: %d\n", len([]byte(metadataText)))
 	msg := &gpb.ModelData{Name: metadataText}
 	b, err := proto.Marshal(msg)
-	fmt.Printf("Length of protoMessage: %d\n", len(b))
+	t.Logf("Length of protoMessage: %d\n", len(b))
 	if err != nil {
 		t.Fatalf("cannot marshal proto msg - error: %v", err)
 	}
 	metadataEncoded := base64.StdEncoding.EncodeToString(b)
-	fmt.Printf("Required length: %d. Length of Metadata: %d\n", size, len([]byte(metadataEncoded)))
+	t.Logf("Required length: %d. Length of Metadata: %d\n", size, len([]byte(metadataEncoded)))
 
 	//msg := &gpb.ModelData{Name: metadataText}
 	j := map[string]any{
