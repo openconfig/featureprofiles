@@ -302,6 +302,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_default/README.md"
 }
 test: {
+  id: "DP-2.5"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color/README.md"
+}
+test: {
   id: "FP-1.1"
   description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
@@ -839,6 +843,12 @@ test: {
   id: "RT-1.63"
   description: "BGP Multihop"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multihop/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.64"
+  description: "BGP Import/Export Policy Functional Test Case"
+  readme: "https://github.com/openconfig/feature/bgp/import-export-policy/otg_tests/README.md"
   exec: " "
 }
 test: {
