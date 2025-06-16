@@ -1055,8 +1055,18 @@ type Metadata_Deviations struct {
 	// Create/Replace config leaf required
 	// Juniper b/419536104
 	ConfigLeafCreateRequired bool `protobuf:"varint,291,opt,name=config_leaf_create_required,json=configLeafCreateRequired,proto3" json:"config_leaf_create_required,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// SRGB and SLGB config through OC is not reflecting
+	IsisSrgbSrlbUnsupported bool `protobuf:"varint,292,opt,name=isis_srgb_srlb_unsupported,json=isisSrgbSrlbUnsupported,proto3" json:"isis_srgb_srlb_unsupported,omitempty"`
+	// Prefix segment configuration not supported
+	IsisSrPrefixSegmentConfigUnsupported bool `protobuf:"varint,293,opt,name=isis_sr_prefix_segment_config_unsupported,json=isisSrPrefixSegmentConfigUnsupported,proto3" json:"isis_sr_prefix_segment_config_unsupported,omitempty"`
+	// node segment configuration not supported
+	IsisSrNodeSegmentConfigUnsupported bool `protobuf:"varint,294,opt,name=isis_sr_node_segment_config_unsupported,json=isisSrNodeSegmentConfigUnsupported,proto3" json:"isis_sr_node_segment_config_unsupported,omitempty"`
+	// DUT not returning value for sid counters
+	SkipVerifySidCounters bool `protobuf:"varint,295,opt,name=skip_verify_sid_counters,json=skipVerifySidCounters,proto3" json:"skip_verify_sid_counters,omitempty"`
+	// DUT not supporting with anycast SID configuration
+	SkipVerifyAnycastSid bool `protobuf:"varint,296,opt,name=skip_verify_anycast_sid,json=skipVerifyAnycastSid,proto3" json:"skip_verify_anycast_sid,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2909,6 +2919,41 @@ func (x *Metadata_Deviations) GetConfigLeafCreateRequired() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetIsisSrgbSrlbUnsupported() bool {
+	if x != nil {
+		return x.IsisSrgbSrlbUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisSrPrefixSegmentConfigUnsupported() bool {
+	if x != nil {
+		return x.IsisSrPrefixSegmentConfigUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisSrNodeSegmentConfigUnsupported() bool {
+	if x != nil {
+		return x.IsisSrNodeSegmentConfigUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipVerifySidCounters() bool {
+	if x != nil {
+		return x.SkipVerifySidCounters
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipVerifyAnycastSid() bool {
+	if x != nil {
+		return x.SkipVerifyAnycastSid
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -2965,7 +3010,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xbd\x9e\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x9d\xa1\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -2977,7 +3022,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x91\x95\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf1\x97\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3241,7 +3286,12 @@ const file_metadata_proto_rawDesc = "" +
 	"\x16static_arp_unsupported\x18\xa0\x02 \x01(\bR\x14staticArpUnsupported\x12V\n" +
 	"'interface_policy_forwarding_unsupported\x18\xa1\x02 \x01(\bR$interfacePolicyForwardingUnsupported\x12?\n" +
 	"\x1duse_old_oc_path_static_lsp_nh\x18\xa2\x02 \x01(\bR\x17useOldOcPathStaticLspNh\x12>\n" +
-	"\x1bconfig_leaf_create_required\x18\xa3\x02 \x01(\bR\x18configLeafCreateRequiredJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1bconfig_leaf_create_required\x18\xa3\x02 \x01(\bR\x18configLeafCreateRequired\x12<\n" +
+	"\x1aisis_srgb_srlb_unsupported\x18\xa4\x02 \x01(\bR\x17isisSrgbSrlbUnsupported\x12X\n" +
+	")isis_sr_prefix_segment_config_unsupported\x18\xa5\x02 \x01(\bR$isisSrPrefixSegmentConfigUnsupported\x12T\n" +
+	"'isis_sr_node_segment_config_unsupported\x18\xa6\x02 \x01(\bR\"isisSrNodeSegmentConfigUnsupported\x128\n" +
+	"\x18skip_verify_sid_counters\x18\xa7\x02 \x01(\bR\x15skipVerifySidCounters\x126\n" +
+	"\x17skip_verify_anycast_sid\x18\xa8\x02 \x01(\bR\x14skipVerifyAnycastSidJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
