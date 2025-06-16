@@ -1,10 +1,10 @@
-# PF-1.3: Policy-based Static GUE Encapsulation to IPv4 tunnel
+# PF-1.3: Static route based GUE Encapsulation to IPv4 tunnel
 
 ## Summary
 
-This test verifies Policy Forwarding (PF) action to encapsulate packets in an
+This test verifies static route action to encapsulate packets in an
 IPv4 GUE tunnel. The encapsulation is based on a statically configured GUE
-tunnel and static route.
+tunnel.
 
 The GUE header ((UDPoIP)) used in this test refers to GUE Variant 1 as specified
 in
