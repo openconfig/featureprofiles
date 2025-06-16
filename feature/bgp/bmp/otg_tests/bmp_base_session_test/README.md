@@ -70,10 +70,10 @@ B --EBGP--> C[Port2:ATE];
 3)  Verify that the BMP station receives route monitoring messages for 192.0.2.0/24  2001:DB8:1::/48, using those paths:
 4)  Verify that the BMP station does not receive route monitoring messages for 172.16.0.0/16 and 2001:DB8::/32 (excluded by policy)
 
-## OpenConfig Path and RPC Coverage
+
+## OC paths in json format:
 
 ```json
-## OC paths in json format:
 
 ##TODO
 
@@ -110,6 +110,14 @@ B --EBGP--> C[Port2:ATE];
 #    }
 #  }
 #}
+
+```
+
+
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
 
 The below yaml defines the OC paths intended to be covered by this test.
 
