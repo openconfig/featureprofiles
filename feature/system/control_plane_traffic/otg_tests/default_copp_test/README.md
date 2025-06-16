@@ -3,10 +3,8 @@
 ## Summary
 
 ***NOTE:*** \
-Current verification relies on vendor specific CLI due to the lack of standardized CoPP YANG/OC models. \
+
 We will not configure any CoPP policies or thresholds on the DUT. We will solely rely on the vendor default and pre-applied CoPP policies and thresholds \
-Vendor implementation may differ and all vendors may not support all the subtests in this readme \
-Use OC wherever applicable and available e.g. configuring interfaces
 [TODO] Utilize standardized OC models as they become available
 
 *   Ensure that the default CoPP protects the control plane from excessive traffic and prioritizes critical control plane packets
@@ -50,24 +48,24 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 * Monitor CoPP telemetry for the BGP traffic class using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
-    *   BGP Session remains stable throughout the test
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   BGP Session may be impacted when exceeding system defined thresholds
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ### SYS-1.1.2 - Test L3 destination missing and Longest Prefix Match (LPM) overflow counters
 
-*   Generate traffic from ATE port-1 for destination IP addresses using `172.16.0.0/16` range
+*   Generate traffic from ATE port-1 for 1000 destinations with the IP addresses using `172.16.0.0/16` range
 *   The route for these destinations will/should not be present on DUT
 *   Generate traffic within the system defined thresholds and exceeding them
 * Monitor CoPP telemetry for the L3 Destinatin Miss or LPM overflow traffic class using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ### SYS-1.1.3 - Test System L2 Unicast thresholds
 
@@ -76,10 +74,10 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 * Monitor CoPP telemetry for System destined L2 Unicast traffic class using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ### SYS-1.1.4 - Test System IP Unicast
 
@@ -89,10 +87,10 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 * Monitor CoPP telemetry for the system destined IP Unicast traffic class using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ### SYS-1.1.5 - Test L2 Broadcast
 
@@ -101,10 +99,10 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 * Monitor CoPP telemetry for the L2 Broadcast traffic class using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ### SYS-1.1.6 - Test LACP thresholds
 
@@ -113,10 +111,10 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 * Monitor CoPP telemetry for LACP traffic using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ### SYS-1.1.7 - Test LDP Thresholds
 
@@ -125,11 +123,11 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 * Monitor CoPP telemetry for LDP traffic using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
     *   LDP session remains up throughout the test
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ### SYS-1.1.8 - Test System LLDP
 
@@ -138,10 +136,10 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
 * Monitor CoPP telemetry for LLDP traffic using the best available method to verify that:
     *   ***[TODO]*** **gNMI/OC:** Query standardized OC CoPP state model and use OC path via gNMI
         *   `/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/..`
-    *   **CLI fallback**: Execute vendor-specific CLI (like show cpu counters queue summary or more specific CoPP counter commands) and parse the output.
     *   Packets exceeding the threshold are dropped for each queue
     *   Packets within the threshold are not dropped
-    *   Analyze the CPU utilization to ensure it remains stable under traffic stress
+    *   Log the CPU utilization to ensure it remains < 100% under traffic stress
+        *   `/system/cpus/cpu/state/total/instant`
 
 ## Canonical OC Configuration
 
