@@ -54,9 +54,65 @@ B2 <-- IBGP(ASN100) --> C1;
 B4 <-- EBGP(ASN100:ASN200) --> C3;
 ```
 
-![Topology with details on different protocols, corresponding peerings and the
-IP addresses
-used](https://github.com/openconfig/featureprofiles/blob/39ca309a8de70a1c1becfe22623fb9471aedbd54/doc/RT_3_52_Multidimensional_test_topology.png).
+```
++-------------------------------------------+
+|               ATE1 (ASN-100)              |
+|-------------------------------------------|
+| IBGP Peer:                                |
+|  - $ATE1_IBGP.v4/32                       |
+|  - $ATE1_IBGP.v6/128                      |
+|                                           |
+| Prefixes Advertised:                      |
+|  - $ATE1_PORT1_INTERNET[1-5].v4/24        |
+|  - $ATE1_PORT1_INTERNET[1-5].v6/64        |
+|                                           |
+| ATE1_Port1 <-> DUT_Port1:                 |
+|  - $ATE1PORT1_DUTPORT1_1.v4/31            |
+|  - $ATE1PORT1_DUTPORT1_1.v6/127           |
++---------------------+---------------------+
+                      |
+                      | (IS-IS / IBGP)
+                      |
++---------------------+---------------------+
+| Port1: (to ATE1)                          |
+|  - $ATE1PORT1_DUTPORT1_2.v4/31            |
+|  - $ATE1PORT1_DUTPORT1_2.v6/127           |
+|-------------------------------------------|
+|                DUT (ASN-100)              |
+|-------------------------------------------|
+| Loopback:                                 |
+|  - $DUT_lo0.v4                            |
+|  - $DUT_lo0.v6                            |
+|-------------------------------------------|
+| Port2: (to ATE2_Port1)                    <------------+ (IS-IS/IBGP)
+|  - $ATE2PORT1_DUTPORT2_2.v4/31            |            |
+|  - $ATE2PORT1_DUTPORT2_2.v6/127           |            |
+|-------------------------------------------|            |
+| Port4: (to ATE2_Port3)                    |            |
+|  - $ATE2PORT3_DUTPORT4_2.v4/31            <----------------------+ (EBGP)
+|  - $ATE2PORT3_DUTPORT4_2.v6/127           |            |          |
++-------------------------------------------+            |          |
+                                                         |          |
++-----------------------------------------------------+  |          |
+|                      ATE2 (ASN 100 & 200)           |  |          |
+|-----------------------------------------------------+  |          |
+| Port1: (to DUT)                                     <--+          |
+|  - `$ATE2PORT1_DUTPORT2_1.v4/31`                    |             |
+|  - `$ATE2PORT1_DUTPORT2_1.v6/127`                   |             |
+|-----------------------------------------------------+             |
+| Port3: (to DUT)                                     <-------------+
+|  - `$ATE2PORT3_DUTPORT4_1.v4/31`                    |
+|  - `$ATE2PORT3_DUTPORT4_1.v6/127`                   |
+|-----------------------------------------------------+
+| IBGP Peer IPs:                                      |
+|  - $ATE2_C.IBGP.v6/128                              |
+|  - $ATE2_M.IBGP.v4/32, .v6/128                      |
+|  - $ATE2_IBGP.v4/32, .v6/128                        |
+| Prefixes Advertised over IBGP and EBGP peering:     |
+|  - $ATE2_INTERNAL[6-10].v4/24                       |
+|  - $ATE2_INTERNAL[6-10].v6/64                       |
++-----------------------------------------------------+
+```
 
 ### All IP addresses for the test:
 
