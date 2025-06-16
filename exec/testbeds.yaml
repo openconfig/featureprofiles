@@ -477,6 +477,10 @@ testbeds:
     baseconf:
       dut1: topologies/cisco/pyvxr/8812-2DUT/DUT1_baseconfig.conf
       dut2: topologies/cisco/pyvxr/8812-2DUT/DUT2_baseconfig.conf
+  8818-ATE-16P:
+    sim: true
+    topology: topologies/cisco/pyvxr/8818-ATE-16P/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8818-ATE-16P/baseconfig.conf    
       
   # OTG
   8201-32FH-FLM254306M8_OTG:
