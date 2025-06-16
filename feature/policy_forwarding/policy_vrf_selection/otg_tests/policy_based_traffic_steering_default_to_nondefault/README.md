@@ -29,8 +29,8 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;
 B3 <-- EBGP(ASN100:ASN200)  --> C2;
 ```
 
-* Route Advertisement direction is from ATE1 > ATE2
-* Traffic Flow direction is from ATE2 < ATE1
+* Route Advertisement direction is from ATE1 --> ATE2
+* Traffic Flow direction is from ATE2 --> ATE1
 
 ### Configuration generation of DUT and ATE
 
