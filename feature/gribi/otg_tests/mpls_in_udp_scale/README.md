@@ -6,16 +6,197 @@ entries, parameterized by key scaling dimensions.
 
 ## Topology
 
+**Physical Topology:**
+
+- 8 physical ports total (within 12-port hardware constraint)
+  - 4 ports as ingress interfaces (port1-port4)
+  - 4 ports as egress/uplink interfaces (port5-port8)
+
+**Logical Interface Scale Design:**
+
+- 32 logical ingress interfaces achieved through:
+  - 8 VLAN subinterfaces per physical ingress port (4 ports × 8 VLANs =
+    32 logical interfaces)
+  - VLAN IDs: 100-107 on port1, 200-207 on port2, 300-307 on port3,
+    400-407 on port4
+- Multiple VRFs mapped to logical interfaces as required by scale
+  profiles
+- Each logical interface assigned to appropriate VRF based on test
+  profile requirements
+
+<!-- -->
+
+    ATE port-1 <------> port-1 DUT (VLANs 100-107)
+    ATE port-2 <------> port-2 DUT (VLANs 200-207)
+    ATE port-3 <------> port-3 DUT (VLANs 300-307)
+    ATE port-4 <------> port-4 DUT (VLANs 400-407)
+    DUT port-5 <------> port-5 ATE (Egress)
+    DUT port-6 <------> port-6 ATE (Egress)
+    DUT port-7 <------> port-7 ATE (Egress)
+    DUT port-8 <------> port-8 ATE (Egress)
+
 - 32 ports as the ‘input port set’ (Ingress)
 - 4 ports as “uplink facing” (Egress)
 - Network Instances (VRFs) will be mapped from ingress
   ports/subinterfaces as needed by scale profiles.
 
-## Test setup
+## Test Setup
 
-TODO: Complete test environment setup steps
+### DUT Configuration
+
+1.  **Physical Interface Configuration:**
+
+    - Configure ports 1-8 with IPv6 addressing using base scheme
+      2001:f:d:e::/126 network
+    - Enable all physical interfaces with PMD100GBASEFR-specific
+      settings
+    - Apply ethernet configuration: AutoNegotiate=false,
+      DuplexMode=FULL, PortSpeed=100GB
+    - Set MAC addresses using systematic scheme: 02:01:00:00:00:XX for
+      DUT ports
+
+2.  **VLAN Subinterface Configuration:**
+
+    - Create 8 VLAN subinterfaces per ingress port (32 total logical
+      interfaces)
+    - Assign IPv6 addresses using 2001:f:d:e::/126 base with systematic
+      increments
+    - Configure subinterface-to-VRF mappings based on test profile
+      requirements
+    - Enable IPv4 protocols on subinterfaces when
+      deviations.InterfaceEnabled(dut) is required
+
+3.  **VRF Configuration:**
+
+    - Create required VRFs based on test profile:
+      - Profile 1: DEFAULT network instance only
+      - Profiles 2-3: 1024 VRFs (VRF_001 through VRF_1024) plus DEFAULT
+      - Profile 4: DEFAULT network instance only
+      - Profile 5: DEFAULT network instance only
+    - Use device-specific default network instance naming conventions
+    - Apply policy-based forwarding rules for VRF selection using
+      DSCP/source IP criteria
+
+4.  **Static Routes and Forwarding:**
+
+    - Configure static routes using device-specific static protocol
+      naming
+    - Set up IPv6 static routes with next-hop pointing to ATE port IPv6
+      addresses
+    - Use standard static route protocol type configuration
+    - Configure routes in appropriate network instances based on test
+      profile requirements
+
+### ATE Configuration
+
+1.  **Physical Port Setup:**
+
+    - Configure 8 physical ports with IPv6 addresses matching DUT
+      interface scheme
+    - Use MAC addresses: 02:00:XX:01:01:01 pattern for ATE ports
+    - Set up VLAN tagging on ingress ports (port1-4) to match DUT
+      subinterface VLANs
+    - Configure egress ports (port5-8) for traffic reception and
+      MPLS-in-UDP validation
+    - Apply PMD100GBASEFR-specific settings: disable FEC, set speed to
+      100Gbps, enable auto-negotiate
+
+2.  **Traffic Generation:**
+
+    - Create traffic flows targeting the 20,000 unique destination
+      prefixes
+    - Use IPv6 flow destination base: 2015:aa8:: as defined in Test
+      Parameters
+    - Distribute traffic across 32 logical ingress interfaces using VLAN
+      tags
+    - Configure flows with appropriate DSCP markings for VRF selection
+    - Set traffic duration: 15 seconds as defined in Test Parameters
+
+3.  **Packet Capture and Validation:**
+
+    - Enable packet capture on egress ports for MPLS-in-UDP
+      encapsulation validation
+    - Configure capture filters for MPLS label stack and UDP
+      encapsulation verification
+    - Validate outer IPv6 headers: source 2001:f:a:1::0, destination
+      2001:f:c:e::1 as defined in Test Parameters
+    - Verify UDP destination port 5555 as defined in Test Parameters
+    - Check outer DSCP marking: 26 and TTL: 64 as defined in Test
+      Parameters
+
+### gRIBI Programming Setup
+
+1.  **Client Configuration:**
+
+    - Establish gRIBI client connection with FIBACK: true and
+      Persistence: true
+    - Use standard gRIBI client configuration pattern
+    - Call BecomeLeader and FlushAll before programming entries
+    - Set appropriate batch sizes and operation rates per profile
+      requirements
+
+2.  **Entry Programming Sequence:**
+
+    - Program Next Hop (NH) entries with MPLS-in-UDP encapsulation
+      headers
+    - Use NH ID starting from 201 as defined in Test Parameters
+    - Create Next Hop Groups (NHGs) starting from ID 10 as defined in
+      Test Parameters
+    - Install IPv6 prefix entries using 2015:aa8::/128 base prefix
+      pattern as defined in Test Parameters
+    - Validate FIB_PROGRAMMED status for all programmed entries
+
+3.  **Scale-Specific Configurations:**
+
+    - Profile 1: DEFAULT network instance with 20,000 NHGs, 1 NH per
+      NHG, 1 MPLS label
+    - Profiles 2-3: 1024 VRFs with distributed NHGs/prefixes, unique
+      MPLS labels per VRF
+    - Profile 4: DEFAULT network instance with 2,500 NHGs, 8 NHs per NHG
+      (ECMP), 1 MPLS label
+    - Profile 5: High-rate programming (6,000 ops/sec) with 50% ADD/50%
+      DELETE operations
+
+4.  **Device-Specific Considerations:**
+
+    - Handle vendor-specific gRIBI encapsulation header support
+      limitations
+    - Use CLI configuration for tunnel encapsulation when gRIBI encap
+      headers unsupported
+    - Apply device-specific interface enablement requirements for IPv4
+      protocols
+    - Configure tunnel type: “mpls-over-udp udp destination port 5555”
+      as defined in Test Parameters
 
 ### Test Parameters
+
+**DUT Interface IPv6 Addressing:**
+
+- dut_port_base_ipv6 = “2001:f:d:e::/126”
+- dut_port1_ipv6 = “2001:f:d:e::1/126”
+- dut_port2_ipv6 = “2001:f:d:e::5/126”
+- dut_port3_ipv6 = “2001:f:d:e::9/126”
+- dut_port4_ipv6 = “2001:f:d:e::13/126”
+- dut_port5_ipv6 = “2001:f:d:e::17/126”
+- dut_port6_ipv6 = “2001:f:d:e::21/126”
+- dut_port7_ipv6 = “2001:f:d:e::25/126”
+- dut_port8_ipv6 = “2001:f:d:e::29/126”
+
+**ATE Interface IPv6 Addressing:**
+
+- ate_port1_ipv6 = “2001:f:d:e::2/126”
+- ate_port2_ipv6 = “2001:f:d:e::6/126”
+- ate_port3_ipv6 = “2001:f:d:e::10/126”
+- ate_port4_ipv6 = “2001:f:d:e::14/126”
+- ate_port5_ipv6 = “2001:f:d:e::18/126”
+- ate_port6_ipv6 = “2001:f:d:e::22/126”
+- ate_port7_ipv6 = “2001:f:d:e::26/126”
+- ate_port8_ipv6 = “2001:f:d:e::30/126”
+
+**MAC Address Schemes:**
+
+- dut_mac_pattern = “02:01:00:00:00:XX”
+- ate_mac_pattern = “02:00:XX:01:01:01”
 
 **Inner IPv6 Destinations:**
 
@@ -36,6 +217,21 @@ TODO: Complete test environment setup steps
 - outer_dst_udp_port = “5555”
 - outer_dscp = “26”
 - outer_ip_ttl = “64”
+
+**Traffic Flow Parameters:**
+
+- ipv6_flow_base = “2015:aa8::”
+- ipv6_prefix_base = “2015:aa8::/128”
+
+**Traffic Parameters:**
+
+- traffic_duration = “15 seconds”
+- target_packet_loss = “≤ 1%”
+
+**gRIBI Parameters:**
+
+- nh_id_start = “201”
+- nhg_id_start = “10”
 
 ## Procedure
 
