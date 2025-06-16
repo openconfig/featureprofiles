@@ -1,13 +1,15 @@
-# RT-1.64 BGP Import/Export Policy Functional Test Case
+# RT-1.64 BGP Import/Export Policy (Control plane only) Functional Test Case
 
 ## Objective
 
 To verify the basic functioanlity of BGP import and export policies and to check if they are correctly applied on a router.
 
 ## Test Bed Setup
-Device Under Test (DUT): 1 x Router
 
-ATE BGP Peer: 1 x ATE with BGP Emulation capabilities.
+*  [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+  
+* Device Under Test (DUT): 1 x Router
+* ATE BGP Peer: 1 x ATE with BGP Emulation capabilities.
 
 ### Connections:
 One Ethernet link between a port on the DUT and a port on the ATE.
@@ -28,9 +30,9 @@ ATE interface: IPV4 - 10.1.1.1/31 & IPV6 - 2001:db8:204:114::1/127
 ## Prerequisites
 
 * Basic IPv4 and IPv6 connectivity configured between the DUT and ATE interface.
-* BGP peering established between the DUT and ATE on the connected interfaces.
+* BGP peering established between the DUT and ATE on the connected interfaces for both IPV4 and IPV6 address families.
 * Access to configure the DUT and ATE.
-* Understanding of BGP attributes (AS-Path, communities, local preference, MED).
+* BGP parameters to be defined that includes the RouterID, AS paths to be used.
 
 ## Test Case Scenario
 
@@ -49,8 +51,12 @@ This test case will focus on two scenarios:
 * Enable BGP on the DUT.
 * Establish an EBGP peering session with the ATE (using ATE's AS as  AS65002).
 * Ensure the DUT has some local routes (loopback interfaces advertised into BGP) that can be filtered.
-* Advertise routes towards ATE , 
-
+* Routes advertised by DUT:
+   * IPV4: 172.16.1.0/24, 172.16.2.0/24, 192.168.10.0/24
+   * IPV6: 2001:db8:250:110::/64, 2001:db8:251:110::/64, 2001:db8:299:110::/64
+* Routes advertised by ATE: 
+   * IPV4: 192.0.2.1/32, 192.0.2.2/32, 198.51.100.1/32, 198.51.100.2/32 
+   * IPV6: 2001:db8:300:100::0/127, 2001:db8:300:101::0/127, 2001:db8:400:100::1/128, 2001:db8:400:101::1/128
 
 ### ATE Configuration (Basic BGP Emulation):
 
