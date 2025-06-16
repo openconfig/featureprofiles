@@ -307,6 +307,7 @@ test: {
 }
 test: {
   id: "DP-2.6"
+  description: "Ingress policing with two rate, three color classifier"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color_with_classifier/README.md"
 }
 test: {
@@ -847,6 +848,12 @@ test: {
   id: "RT-1.63"
   description: "BGP Multihop"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multihop/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.64"
+  description: "BGP Import/Export Policy Functional Test Case"
+  readme: "https://github.com/openconfig/feature/bgp/import-export-policy/otg_tests/README.md"
   exec: " "
 }
 test: {
