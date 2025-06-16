@@ -153,7 +153,3 @@ rpcs:
     gNMI.Subscribe:
 ```
 
-## Minimum DUT platform requirement
-
-*   FFF - Fixed Form Factor
-*   MFF - Modular Form Factor
