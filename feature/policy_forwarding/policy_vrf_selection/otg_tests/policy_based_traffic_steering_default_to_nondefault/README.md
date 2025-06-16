@@ -24,7 +24,7 @@ subgraph ATE2 [ATE2]
 end
 B1 <--> B2;
 B1 <--> B3;
-A1 <-- IBGP(ASN100) & ISIS --> B1;
+A1 <-- IBGP(ASN100) --> B1;
 B2 <-- EBGP(ASN100:ASN200) --> C1;
 B3 <-- EBGP(ASN100:ASN200)  --> C2;
 ```
@@ -32,7 +32,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 ### Configuration generation of DUT and ATE
 
 #### DUT Configuration
-* Configure ISIS[Level2] and IBGP[ASN100] as described in topology between ATE:Port1 and DUT:Port1
+* Configure IBGP[ASN100] as described in topology between ATE:Port1 and DUT:Port1
 * Configure EBGP[ASN200] between DUT1:Port2 and ATE2:Port1
 * Configure EBGP[ASN200] between DUT1:Port3 and ATE2:Port2
 * Port2 of DUT1 which maps to Default VRF instance, is connected to Port1 of ATE2
@@ -47,7 +47,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
     * DUT must also leak all the routes from the Default VRF to the non-default VRF
 
 #### ATE Configuration
-* Configure ISIS[Level2] & IBGP[ASN100] on ATE1:Port1
+* Configure IBGP[ASN100] on ATE1:Port1
 * Configure EBGP[ASN200] on ATE2:Port1 & ATE2:Port2
 
 ### Configure ATE Route Advertisements & Traffic Flows as below:
