@@ -218,7 +218,10 @@ func (c *aftCache) logMetadata(t *testing.T, start time.Time) error {
 // ocPath is a unix path style string which can contain globs (*).
 func (c *aftCache) traverse(ocPath string, f func(val *gnmipb.Notification) error) error {
 	return c.cache.Query(c.target, strings.Split(ocPath, "/"), func(_ []string, _ *ctree.Leaf, val any) error {
-		n := val.(*gnmipb.Notification)
+		n, ok := val.(*gnmipb.Notification)
+		if !ok {
+			return fmt.Errorf("value is not a notification: %v", val)
+		}
 		return f(n)
 	})
 }
