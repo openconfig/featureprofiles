@@ -56,7 +56,7 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 
 ### SetUp
 
-* Generate config for scheduler polices with an input rate 2Gbps limit and a classifier 
+* Generate config for scheduler polices with an input rate 2Gbps limit and a classifier.
 * Apply them to DUT interface . Dut1 is LAG in provided setup.
 * Use gnmi.Replace to push the config to the DUT.
 
