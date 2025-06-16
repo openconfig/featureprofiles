@@ -35,25 +35,12 @@ B --EBGP--> C[Port2:ATE];
 6) Configure BMP on the DUT with the following parameters:
 
     • statistics-timeout: 60 seconds
-        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout
-
     • connection-mode: active
-        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode
-
     • local-address: 172.16.1.1
-        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address
-
     • station-address: 10.23.15.58
-        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address
-
     • station-port: 7039
-        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port
-
     • route-monitoring: post-policy
-        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type
-
     • exclude-noneligible: true
-        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible
 
 ### Tests
 
@@ -61,35 +48,27 @@ B --EBGP--> C[Port2:ATE];
 
 1)  Configure BMP station on ATE port-2 with address 10.23.15.58 and port 7039
 2)  Verify that the DUT initiates a BMP session to the station (connection-mode: active), following this path:
-    *   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode
 3)  Confirm the connection is established using the configured local-address (172.16.1.1), following this path:
-    *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address
 4)  Validate that the DUT connects to the correct station-address (10.23.15.58) and port (7039), following those paths:
-    * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address
-    * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port
 5)  Check the session-state telemetry path to confirm the session is established
-    * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status
 
 
 ### BMP-1.1.2: Verify statistics reporting
 
 1)  Verify that the DUT sends statistics reports at the configured interval (60 seconds), using path:
-    *   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/statistics-timeout
 2)  Confirm that multiple consecutive reports are sent at the expected intervals, using path:
-    *   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics
 
 ### BMP-1.1.3: Verify route monitoring with post-policy and exclude-noneligible
 
 1)  Configure an import policy on the DUT to reject prefixes matching 172.16.0.0/16 and 2001:DB8::/32
 2)  Have ATE port-1 advertise prefixes 192.0.2.0/24 and 172.16.0.0/16 for IPv4 and 2001:DB8:1::/48 and 2001:DB8::/32 for IPv6 to the DUT
 3)  Verify that the BMP station receives route monitoring messages for 192.0.2.0/24  2001:DB8:1::/48, using those paths:
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/prefix
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/neighbors/neighbor/adj-rib-in-post/routes/route/prefix
 4)  Verify that the BMP station does not receive route monitoring messages for 172.16.0.0/16 and 2001:DB8::/32 (excluded by policy)
 
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+
 paths:
   ## Config paths
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
