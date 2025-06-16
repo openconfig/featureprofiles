@@ -846,6 +846,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.64"
+  description: "BGP Import/Export Policy Functional Test Case"
+  readme: "https://github.com/openconfig/feature/bgp/import-export-policy/otg_tests/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
