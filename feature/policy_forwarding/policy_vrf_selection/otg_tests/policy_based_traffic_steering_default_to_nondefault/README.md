@@ -40,10 +40,10 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 * Configure route leaking from the default VRF and non-default VRF and vice versa.
 * Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IPv4/IPv6 address.
 * DUT has the following VRF selection policy initially
-    * Statement1: traffic matching IPv4Prefix1/24, forward through default vrf
-    * Statement2: traffic matching IPv4Prefix2/24, forward through default vrf
-    * Statement3: traffic matching IPv6Prefix3/64, forward through default vrf
-    * Statement4: traffic matching IPv6Prefix4/64, forward through default vrf
+    * Statement1: traffic matching IPv4Prefix1/24, is GUE encapped and forwarded through default vrf
+    * Statement2: traffic matching IPv4Prefix2/24, is GUE encapped and forwarded through default vrf
+    * Statement3: traffic matching IPv6Prefix3/64, is GUE encapped and forwarded through default vrf
+    * Statement4: traffic matching IPv6Prefix4/64, is GUE encapped and forwarded through default vrf
     * DUT must also leak all the routes from the Default VRF to the non-default VRF
 
 #### ATE Configuration
@@ -98,9 +98,9 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
    
   * VRF selection policy on DUT1:Port2 changes as follows: 
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf
-    * Statement2: traffic matching IPv4Prefix2/24, forward through default vrf
-    * Statement3: traffic matching IPv6Prefix3/64, forward through default vrf
-    * Statement4: traffic matching IPv6Prefix4/64, forward through to default vrf
+    * Statement2: traffic matching IPv4Prefix2/24, is GUE encapped and forwarded through default vrf
+    * Statement3: traffic matching IPv6Prefix3/64, is GUE encapped and forwarded through default vrf
+    * Statement4: traffic matching IPv6Prefix4/64, is GUE encapped and forwarded through default vrf
 
   * Expectations:
     * To validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1. 
@@ -108,7 +108,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
     * Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
     * Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports 
     * The flow packets sent for IPv4Prefix1/24 by ATE1:Port3 should be equal packets to DUT1:Port3 out-pkts counter.
-    *  The sum of packets sent for flow prefixes IPv4Prefix2/240, IPv6Prefix3/24 and IPv6Prefix4/24 should be equal packets to DUT1:Port2 out-pkts counter.
+    * The sum of packets sent for flow prefixes IPv4Prefix2/240, IPv6Prefix3/24 and IPv6Prefix4/24 should be equal packets to DUT1:Port2 out-pkts counter.
     * There should be 0 packet loss. <br><br><br>
 
 ### PF-1.6.3: Traffic from ATE1 to ATE2 Prefix 1 migrated to Non-Default VRF using the VRF selection policy
@@ -121,8 +121,8 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
   * VRF selection policy on DUT1:Port2 changes as follows: 
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24, Punt to non-default vrf
-    * Statement3: traffic matching IPv6Prefix3/64, forward through default vrf
-    * Statement4: traffic matching IPv6Prefix4/64, forward through to default vrf
+    * Statement3: traffic matching IPv6Prefix3/64, is GUE encapped and forwarded through default vrf
+    * Statement4: traffic matching IPv6Prefix4/64, is GUE encapped and forwarded through to default vrf
 
   * Expectations:
     * To validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1 . 
@@ -130,7 +130,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
     * Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
     * Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports.
     * The sum of flow packets sent for flow prefixes IPv4Prefix1/24 and IPv4Prefix2/24 by ATE1:Port3 should be equal packets to DUT1:Port3 out-pkts counter.
-    *  The sum of packets sent for flow prefixes IPv6Prefix3/24 and IPv6Prefix4/24 should be equal packets to DUT1:Port2 out-pkts counter.
+    * The sum of packets sent for flow prefixes IPv6Prefix3/24 and IPv6Prefix4/24 should be equal packets to DUT1:Port2 out-pkts counter.
     * There should be 0 packet loss. <br><br><br>
 
 ### PF-1.6.4: Traffic from ATE1 to ATE2 Prefix 1 migrated to Non-Default VRF using the VRF selection policy
@@ -144,7 +144,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24, Punt to non-default vrf
     * Statement3: traffic matching IPv6Prefix3/64, Punt to non-default vrf
-    * Statement4: traffic matching IPv6Prefix4/64, forward through default vrf
+    * Statement4: traffic matching IPv6Prefix4/64, is GUE encapped and forwarded through default vrf
 
   * Expectations:
     * To validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2. 
@@ -179,29 +179,28 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 
 ## OpenConfig Path and RPC Coverage
 
-```yaml
+```
+paths:
+  /network-instances/network-instance/name:
+  /network-instances/network-instance/config:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/config/description:
+  /network-instances/network-instance/config/router-id:
+  /network-instances/network-instance/config/route-distinguisher:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/configa:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/state:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
 rpcs:
   gnmi:
     gNMI.Set:
-    /network-instances/network-instance/name
-    /network-instances/network-instance/config
-    /network-instances/network-instance/config/name
-    /network-instances/network-instance/config/type
-    /network-instances/network-instance/config/description
-    /network-instances/network-instance/config/router-id
-    /network-instances/network-instance/config/route-distinguisher
-    /network-instances/network-instance/policy-forwarding/interfaces/interface/configa
-    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id
-    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy
-
-    
-    gNMI.Get:
-
-    /network-instances/network-instance/state
-    /network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set
+      union_replace: true
     gNMI.Subscribe:
+      on_change: true
 ```
