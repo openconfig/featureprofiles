@@ -176,6 +176,67 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
     * DUT1:Port3 port out-pkts counter should match packets sent by ATE1:PORT1.
     * There should be 0 packet loss. <br><br><br>
 
+## Canonical OpenConfig
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "",
+        "config": {
+          "name": "",
+          "type": "",
+          "description": "",
+          "router-id": "",
+          "route-distinguisher": ""
+        },
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "interface-id": "",
+                  "apply-vrf-selection-policy": ""
+                },
+                "state": {
+                  "apply-vrf-selection-policy": ""
+                }
+              }
+            ]
+          },
+          "policies": {
+            "policy": [
+              {
+                "rules": {
+                  "rule": [
+                    {
+                      "state": {
+                        "matched-pkts": 0,
+                        "matched-octets": 0
+                      },
+                      "ipv4": {
+                        "state": {
+                          "dscp-set": []
+                        }
+                      },
+                      "ipv6": {
+                        "state": {
+                          "dscp-set": []
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "state": {}
+      }
+    ]
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
