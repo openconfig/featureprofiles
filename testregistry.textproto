@@ -878,14 +878,8 @@ test: {
 }
 test: {
   id: "RT-2.16"
-  description: "IS-IS Graceful Restart Helper"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-2.17"
-  description: "Graceful Restart Restarting"
-    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
+  description: "IS-IS Graceful Restart"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/graceful_restart/README.md"
   exec: " "
 }
 test: {
@@ -1584,6 +1578,12 @@ test: {
   id: "TUN-2.8"
   description: "ECMP hashing based on outer header of MPLSoUDP packets"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing based on outer and Inner header for MPLSoUDP packets"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/tunnel/otg_tests/mpls_over_udp_tunnel_hashing_test/README.md"
   exec: " "
 }
 test: {
