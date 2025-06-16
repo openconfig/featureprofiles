@@ -166,14 +166,14 @@ The configuration required for the 2R3C policer with classifier is included belo
                     "type": "TWO_RATE_THREE_COLOR_with_CLASSIFIER"
                   },
                   "inputs": [
-                  {
-                    "input": "my input policer 2Gb",
-                    "config": {
-                      "id": "my input policer 2Gb",
-                      "input-type": "QUEUE",
-                      "queue": "QUEUE_3"
+                    {
+                      "input": "my input policer 2Gb",
+                      "config": {
+                        "id": "my input policer 2Gb",
+                        "input-type": "QUEUE",
+                        "queue": "QUEUE_3"
+                      }
                     }
-                  }
                   ],
                   "two-rate-three-color": {
                     "config": {
