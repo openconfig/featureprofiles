@@ -72,7 +72,7 @@ B --EBGP--> C[Port2:ATE];
 
 ## OpenConfig Path and RPC Coverage
 
-```yaml
+```json
 ## OC paths in json format:
 
 ##TODO
