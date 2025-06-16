@@ -157,6 +157,5 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 
 // BuildCliConfigRequest Build config with Origin set to cli and Ascii encoded config.
 func BuildCliConfigRequest(config string) (*gpb.SetRequest, error) {
-	req, err := buildCliConfigRequest(config)
-	return req, err
+	return buildCliConfigRequest(config)
 }
