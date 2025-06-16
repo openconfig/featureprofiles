@@ -10,7 +10,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     omit_l2_mtu: true
     fragment_total_drops_unsupported: true
