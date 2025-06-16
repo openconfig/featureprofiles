@@ -172,8 +172,11 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 			t.Fatalf("Unsupported vendor %s for deviation 'PolicyForwardingToNextHopOcUnsupported'", dut.Vendor())
 		}
 		t.Logf("Push the CLI config:%s", dut.Vendor())
-		gpbSetRequest := helpers.BuildCliConfigRequest(config)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		gpbSetRequest, err := helpers.BuildCliConfigRequest(config)
+		if err != nil {
+			t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
+		}
+		if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
 	} else {
