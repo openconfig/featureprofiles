@@ -45,6 +45,7 @@ type InterfaceParams struct {
 type FlowParams struct {
 	Name         string
 	TolerancePct float32
+	ExpectedLoss float32
 }
 
 // IsIPv4Interfaceresolved validates that the IPv4 interface is resolved based on the interface configured using otgconfighelpers.
@@ -54,9 +55,9 @@ func (v *OTGValidation) IsIPv4Interfaceresolved(t *testing.T, ate *ondatra.ATEDe
 			return val.IsPresent()
 		}).Await(t)
 		if !ok {
-			return fmt.Errorf(`IPv4 %s gateway not resolved`, intf)
+			return fmt.Errorf("IPv4 %s gateway not resolved", intf)
 		}
-		t.Logf(`IPv4 %s gateway resolved to: %s`, intf, val1)
+		t.Logf("IPv4 %s gateway resolved to: %s", intf, val1)
 	}
 	return nil
 }
@@ -68,9 +69,9 @@ func (v *OTGValidation) IsIPv6Interfaceresolved(t *testing.T, ate *ondatra.ATEDe
 			return val.IsPresent()
 		}).Await(t)
 		if !ok {
-			return fmt.Errorf(`IPv6 %s gateway not resolved`, intf)
+			return fmt.Errorf("IPv6 %s gateway not resolved", intf)
 		}
-		t.Logf(`IPv6 %s gateway resolved to: %s`, intf, val1)
+		t.Logf("IPv6 %s gateway resolved to: %s", intf, val1)
 	}
 	return nil
 }
@@ -93,10 +94,21 @@ func (v *OTGValidation) ValidateLossOnFlows(t *testing.T, ate *ondatra.ATEDevice
 // ValidatePortIsActive validates the OTG port status.
 func (v *OTGValidation) ValidatePortIsActive(t *testing.T, ate *ondatra.ATEDevice) error {
 	for _, port := range v.Interface.Ports {
-		PortStatus := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Link().State())
-		if want := otg.Port_Link_UP; PortStatus != want {
-			return fmt.Errorf("Get(OTG port status): got %v, want %v", PortStatus, want)
+		portStatus := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Link().State())
+		if want := otg.Port_Link_UP; portStatus != want {
+			return fmt.Errorf("Get(OTG port status): got %v, want %v", portStatus, want)
 		}
 	}
 	return nil
+}
+
+// ReturnLossPercentage validates the percentage of traffic loss on the flows.
+func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevice) float32 {
+	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().OutPkts().State())
+	if outPkts == 0 {
+		t.Fatalf("Get(out packets for flow %q): got %v, want nonzero", v.Flow.Name, outPkts)
+	}
+	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
+	return lossPct
 }
