@@ -818,7 +818,7 @@ message Metadata {
 
     // Juniper: b/405071175
     // Devices which needs defined set to avoid exporting direct routes with default accept all.
-    bool default_policy_requires_bgp_match = 262;
+    bool default_policy_requires_bgp_match = 292;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
