@@ -337,6 +337,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "MPLS-1.2"
+  description: "MPLS Traffic Class Marking"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/mpls_tc/README.md"
+  exec: " "
+}
+test: {
   id: "MTU-1.3"
   description: "Large IP Packet Transmission"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission"
