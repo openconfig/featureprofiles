@@ -96,9 +96,9 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
    
   * VRF selection policy on DUT1:Port2 changes as follows: 
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf
-    * Statement2: traffic matching IPv4Prefix2/24, Punt to default vrf
-    * Statement3: traffic matching IPv6Prefix3/64, Punt to default vrf
-    * Statement4: traffic matching IPv6Prefix4/64, Punt to default vrf
+    * Statement2: traffic matching IPv4Prefix2/24, forward through default vrf
+    * Statement3: traffic matching IPv6Prefix3/64, forward through default vrf
+    * Statement4: traffic matching IPv6Prefix4/64, forward through to default vrf
 
   * Expectations:
     * To validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1. 
