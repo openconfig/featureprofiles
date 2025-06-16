@@ -117,6 +117,63 @@ This test aims to validate the functionality of ingress traffic classification a
     *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
+### DP-1.16.8 Ingress Classification and rewrite of IPV4 traffic with action GRE encap
+
+*  Configuration:
+    *  Configure GRE to encap traffic from the ATE port1
+    *  GRE packets should set the DSCP similar to the native IPV4 packets
+*  Traffic:
+    *  Generate IPV4 traffic from ATE Port 1
+    *  DUT should encap the IPV4 traffic in GRE destined to ATE port2
+*  Verfication:
+    *  Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *  Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *  Capture packets on the ATE's egress interface to verify teh GRE encapped packet marking is also according to the marking table.
+    *  Analyze traffic flows to confirm that no packets are dropped on the DUT.
+
+### DP-1.16.9 Ingress Classification and rewrite of IPV6 traffic with action GRE encap
+
+*  Configuration:
+    *  Configure GRE to encap traffic from the ATE port1
+    *  GRE packets should set the DSCP similar to the native IPV6 packets
+*  Traffic:
+    *  Generate IPV6 traffic from ATE Port 1
+    *  DUT should encap the IPV6 traffic in GRE destined to ATE port2
+*  Verfication:
+    *  Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *  Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *  Capture packets on the ATE's egress interface to verify teh GRE encapped packet marking is also according to the marking table.
+    *  Analyze traffic flows to confirm that no packets are dropped on the DUT.
+
+### DP-1.16.10 Ingress Classification and rewrite  of IPV4 traffic with action GUE variant1 encap
+
+*  Configuration:
+    *  Configure GUE Varriant1 to encap traffic from the ATE port1
+    *  GUE variant1 packets should set the DSCP similar to the native IPV4 packets
+*  Traffic:
+    *  Generate IPV4 traffic from ATE Port 1
+    *  DUT should encap the IPV4 traffic in GRE destined to ATE port2
+*  Verfication:
+    *  Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *  Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *  Capture packets on the ATE's egress interface to verify teh GRE encapped packet marking is also according to the marking table.
+    *  Analyze traffic flows to confirm that no packets are dropped on the DUT.
+
+### DP-1.16.11 Ingress Classification and rewrite  of IPV6 traffic with action GUE variant1 encap
+
+*  Configuration:
+    *  Configure GUE Varriant1 to encap traffic from the ATE port1
+    *  GUE variant1 packets should set the DSCP similar to the native IPV6 packets
+*  Traffic:
+    *  Generate IPV6 traffic from ATE Port 1
+    *  DUT should encap the IPV6 traffic in GRE destined to ATE port2
+*  Verfication:
+    *  Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *  Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *  Capture packets on the ATE's egress interface to verify teh GRE encapped packet marking is also according to the marking table.
+    *  Analyze traffic flows to confirm that no packets are dropped on the DUT.
+
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
