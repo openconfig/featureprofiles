@@ -28,10 +28,10 @@ This test verifies TTL handling for egress flows.
 *   IPv4-DST-NET is 10.1.1.1
 *   IPv6-DST-NET is fc00:10:1:1::1
 *   IPv4-DST-DECAP is 10.2.2.2
-*   ATE:Port1 interface IP: 192.168.10.1/30
-*   DUT:Port1 interface IP: 192.168.10.2/30
-*   ATE:Port2 interface IP: 192.168.20.1/30
-*   DUT:Port2 interface IP: 192.168.20.2/30
+*   ATE:Port1 interface. IPv4 is 192.168.10.1/30, IPv6 is 2001:DB8::192:168:10:1/126
+*   DUT:Port1 interface. IPv4 is 192.168.10.2/30, IPv6 is 2001:DB8::192:168:10:2/126
+*   ATE:Port2 interface. IPv4 is 192.168.20.1/30, IPv6 is 2001:DB8::192:168:20:1/126
+*   DUT:Port2 interface. IPv4 is 192.168.20.2/30, IPv6 is 2001:DB8::192:168:20:2/126
 *   Frame size for packets generated from ATE:Port1 is 128 bytes
 
 #### Configuration
