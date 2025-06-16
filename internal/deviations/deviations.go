@@ -1617,3 +1617,9 @@ func SkipOrigin(dut *ondatra.DUTDevice) bool {
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
+
+// UseBgpSetCommunityOptionTypeReplace returns true if BGP community set REPLACE
+// option is required
+func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
+}
