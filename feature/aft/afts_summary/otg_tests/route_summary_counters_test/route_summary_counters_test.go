@@ -104,6 +104,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 
 	t.Log("Starting protocols on ATE...")
 	ts.PushAndStart(t)
+	time.Sleep(30 * time.Second)
 	ts.MustAdjacency(t)
 }
 
