@@ -1,7 +1,7 @@
-# PF-1.6: Policy forwarding of GUE tunnel traffic to default and non-default network-instance
+# PF-1.6: Policy based VRF selection for IPV4/IPV6
 
 ## Summary
-This test ensures NOS is able to host multiple VRFs, perform GUE tunnel traffic in the default VRF and also allows for gradual traffic migration from Default to Non-Default VRF using VRF selection policy.
+This test ensures NOS is able to host multiple VRFs, and verify that VRF selection policy is working as intended.
 
 
 ## Test environment setup
