@@ -173,6 +173,81 @@ This test aims to validate the functionality of ingress traffic classification a
     *  Capture packets on the ATE's egress interface to verify the GRE encapped packet marking is also according to the marking table.
     *  Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
+```json
+# qos classifier config
+
+{
+  "qos": {
+    "classifiers": {
+      "classifier": {
+        "config": {
+          "name": <input>,
+          "type": <input>
+        },
+        "terms": {
+          "term": {
+            "config": {
+              "id": <input>
+            },
+            "actions": {
+              "config": {
+                "target-group": <input>
+              },
+              "remark": {
+                "config": {
+                  "set-dscp": <input>,
+                  "set-mpls-tc": <input>
+                }
+              }
+            },
+            "conditions": {
+              "ipv4": {
+                "config": {
+                  "dscp": <input>,
+                  "dscp-set": <input>
+                }
+              },
+              "ipv6": {
+                "config": {
+                  "dscp": <input>,
+                  "dscp-set": <input>
+                }
+              },
+              "mpls": {
+                "config": {
+                  "traffic-class": <input>
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# Applying classfiers on the interface 
+
+{
+  "qos": {
+    "interfaces": {
+      "interface": {
+        "input": {
+          "classifiers": {
+            "classifier": {
+              "config": {
+                "name": <input the path /qos/classifiers/classifier/config/name:>,
+                "type": <input IPV4/IPV6/MPLS>
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+```
 
 ## OpenConfig Path and RPC Coverage
 
