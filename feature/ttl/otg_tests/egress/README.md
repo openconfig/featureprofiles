@@ -25,6 +25,14 @@ This test verifies TTL handling for egress flows.
 *   Routes are advertised from ATE:Port2.
 *   Traffic is generated from ATE:Port1.
 *   ATE:Port2 is used as the destination port for flows.
+*   IPv4-DST-NET is 10.1.1.1
+*   IPv6-DST-NET is fc00:10:1:1::1
+*   IPv4-DST-DECAP is 10.2.2.2
+*   ATE:Port1 interface IP: 192.168.10.1/30
+*   DUT:Port1 interface IP: 192.168.10.2/30
+*   ATE:Port2 interface IP: 192.168.20.1/30
+*   DUT:Port2 interface IP: 192.168.20.2/30
+*   Frame size for packets generated from ATE:Port1 is 128 bytes
 
 #### Configuration
 
@@ -34,7 +42,7 @@ This test verifies TTL handling for egress flows.
 
 3.  DUT is configured with the following static routes:
     *   Destination IPv4-DST-NET/32 next hop ATE:Port2 IPv4 address.
-    *   Destination IPv6-DST-NET/32 next hop ATE:Port2 IPv6 address.
+    *   Destination IPv6-DST-NET/128 next hop ATE:Port2 IPv6 address.
 
 4.  DUT is configured to decapsulate packets destined to IPv4-DST-DECAP/32
 
@@ -324,7 +332,7 @@ Verify:
                                             }
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "inner_dst_ipv4"
+                                                    "destination-address": "10.2.2.2"
                                                     "protocol": IP_GRE
                                                 }
                                             },
@@ -341,7 +349,7 @@ Verify:
                                             }
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "inner_dst_ipv4"
+                                                    "destination-address": "10.2.2.2"
                                                     "protocol": IP_UDP
                                                 }
                                             },
@@ -363,7 +371,7 @@ Verify:
                                             }
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "inner_dst_ipv4"
+                                                    "destination-address": "10.2.2.2"
                                                     "protocol": IP_UDP
                                                 }
                                             },
