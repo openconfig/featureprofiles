@@ -3,6 +3,7 @@
 ## Summary
 
 Validate BGP Monitoring Protocol (BMP) session establishment and telemetry functionality with specific configuration parameters.
+This BMP test is for post policy routes.
 
 ## Testbed type
 
@@ -34,25 +35,25 @@ B --EBGP--> C[Port2:ATE];
 6) Configure BMP on the DUT with the following parameters:
 
     • statistics-timeout: 60 seconds
-        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout
+        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout
 
     • connection-mode: active
-        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode
+        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode
 
     • local-address: 172.16.1.1
-        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address
+        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address
 
     • station-address: 10.23.15.58
-        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address
+        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address
 
     • station-port: 7039
-        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port
+        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port
 
     • route-monitoring: post-policy
-        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type
+        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type
 
     • exclude-noneligible: true
-        * /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible
+        *  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible
 
 ### Tests
 
