@@ -231,7 +231,7 @@ func configureBGPv6Routes(peer gosnappi.BgpV6Peer, ipv6 string, name string, pre
 		SetCount(count)
 }
 
-func configureFlow((t *testing.T, topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp, iptype string, routeCount uint32) {
+func configureFlow(t *testing.T, topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp, iptype string, routeCount uint32) {
 	dut := ondatra.DUT(t, "dut")
 	flow := topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
