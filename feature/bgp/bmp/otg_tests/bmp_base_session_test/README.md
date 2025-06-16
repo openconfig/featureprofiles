@@ -77,39 +77,39 @@ B --EBGP--> C[Port2:ATE];
 
 ##TODO
 
-#{
-#  "network-instances": {
-#    "network-instance": {
-#      "protocols": {
-#        "protocol": {
-#          "bgp": {
-#            "global": {
-#              "bmp": {
-#                "config": {
-#                  "enabled": <value>,
-#                  "connection-mode": <value>,
-#                  "local-address": <value>,
-#                  "statistics-timeout": <value>
-#                },
-#                "stations": {
-#                  "station": {
-#                    "config": {
-#                      "name": <value>,
-#                      "address": <value>,
-#                      "port": <value>,
-#                      "policy-type": <value>,
-#                      "exclude-non-eligible": <value>
-#                    }
-#                  }
-#                }
-#              }
-#            }
-#          }
-#        }
-#      }
-#    }
-#  }
-#}
+{
+  "network-instances": {
+    "network-instance": {
+      "protocols": {
+        "protocol": {
+          "bgp": {
+            "global": {
+              "bmp": {
+                "config": {
+                  "enabled": <value>,
+                  "connection-mode": <value>,
+                  "local-address": <value>,
+                  "statistics-timeout": <value>
+                },
+                "stations": {
+                  "station": {
+                    "config": {
+                      "name": <value>,
+                      "address": <value>,
+                      "port": <value>,
+                      "policy-type": <value>,
+                      "exclude-non-eligible": <value>
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
 ```
 
@@ -119,10 +119,7 @@ B --EBGP--> C[Port2:ATE];
 
 ```yaml
 
-The below yaml defines the OC paths intended to be covered by this test.
-
-
-#TODO paths in flat format:
+## TODO paths in flat format:
   ## Config paths
 # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
 # /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
