@@ -35,6 +35,8 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 * Configure ISIS[Level2] and IBGP[ASN100] as described in topology between ATE:Port1 and DUT:Port1
 * Configure EBGP[ASN200] between DUT1:Port2 and ATE2:Port1
 * Configure EBGP[ASN200] between DUT1:Port3 and ATE2:Port2
+* Port2 of DUT1 which maps to Default VRF instance, is connected to Port1 of ATE2
+* Port3 of DUT1 which maps to the non-default VRF instance, is connected to Port2 of ATE2
 * Configure route leaking from the default VRF and non-default VRF and vice versa.
 * Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IPv4/IPv6 address.
 * DUT has the following VRF selection policy initially
