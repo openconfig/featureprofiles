@@ -84,7 +84,8 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 
     * Expectations:
       * All traffic must be successful and there should be 0 packet loss.
-      * Need to verify the packets sent by sender tester is equal to the packets on receiving tester port and also should be equal to the sum of packets seen in default.
+      * Need to verify the packets sent by sender tester is equal to the packets on receiving tester port 
+      * DUT1:Port2 port out-pkts counter should match packets sent by ATE1:PORT1.
 
 ### PF-1.6.2: Traffic from ATE1 to ATE2 Prefix 1 migrated to Non-Default VRF using the VRF selection policy
   * ATE1:Port1 sends following IPv4 and IPv6 flows:
