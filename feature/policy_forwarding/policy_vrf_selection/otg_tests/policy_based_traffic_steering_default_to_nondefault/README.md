@@ -38,10 +38,10 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 * Configure route leaking from the default VRF and non-default VRF and vice versa.
 * Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IPv4/IPv6 address.
 * DUT has the following VRF selection policy initially
-    * Statement1: traffic matching IPv4Prefix1/24, Punt to default vrf
-    * Statement2: traffic matching IPv4Prefix2/24, Punt to default vrf
-    * Statement3: traffic matching IPv6Prefix3/64, Punt to default vrf
-    * Statement4: traffic matching IPv6Prefix4/64, Punt to default vrf
+    * Statement1: traffic matching IPv4Prefix1/24, forward through default vrf
+    * Statement2: traffic matching IPv4Prefix2/24, forward through default vrf
+    * Statement3: traffic matching IPv6Prefix3/64, forward through default vrf
+    * Statement4: traffic matching IPv6Prefix4/64, forward through default vrf
     * DUT must also leak all the routes from the Default VRF to the non-default VRF
 
 #### ATE Configuration
