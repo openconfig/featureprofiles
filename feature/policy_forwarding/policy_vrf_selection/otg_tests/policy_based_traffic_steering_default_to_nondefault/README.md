@@ -140,7 +140,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24, Punt to non-default vrf
     * Statement3: traffic matching IPv6Prefix3/64, Punt to non-default vrf
-    * Statement4: traffic matching IPv6Prefix4/64, Punt to default vrf
+    * Statement4: traffic matching IPv6Prefix4/64, forward through default vrf
 
   * Expectations:
     * To validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2. 
