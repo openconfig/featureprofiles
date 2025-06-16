@@ -269,11 +269,11 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
 			}
 			if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
-				return fmt.Errorf("Traffic Class value is altered to: %d. Expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
 			}
 			if packetVal.IPv6Layer.NextHeader != 0 {
 				if uint32(ipv6.NextHeader) != packetVal.IPv6Layer.NextHeader {
-					return fmt.Errorf("Next Header value is altered to: %d. Expected: %d", ipv6.NextHeader, packetVal.IPv6Layer.NextHeader)
+					return fmt.Errorf("next header value is altered to: %d. expected: %d", ipv6.NextHeader, packetVal.IPv6Layer.NextHeader)
 				}
 			}
 			// If validation is successful for one packet, we can return.
@@ -307,7 +307,7 @@ func validateInnerIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, 
 				}
 				if packetVal.InnerIPLayerIPv4.Protocol != 0 {
 					if uint32(ip.Protocol) != packetVal.InnerIPLayerIPv4.Protocol {
-						return fmt.Errorf("Protocol value is altered to: %d. Expected: %d", ip.Protocol, packetVal.InnerIPLayerIPv4.Protocol)
+						return fmt.Errorf("protocol value is altered to: %d. expected: %d", ip.Protocol, packetVal.InnerIPLayerIPv4.Protocol)
 					}
 				}
 				// If validation is successful for one packet, we can return.
@@ -337,11 +337,11 @@ func validateInnerIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, 
 					return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.InnerIPLayerIPv6.HopLimit)
 				}
 				if ipv6.TrafficClass != packetVal.InnerIPLayerIPv6.TrafficClass {
-					return fmt.Errorf("Traffic Class value is altered to: %d. Expected: %d", ipv6.TrafficClass, packetVal.InnerIPLayerIPv6.TrafficClass)
+					return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.InnerIPLayerIPv6.TrafficClass)
 				}
 				if packetVal.InnerIPLayerIPv6.NextHeader != 0 {
 					if uint32(ipv6.NextHeader) != packetVal.InnerIPLayerIPv6.NextHeader {
-						return fmt.Errorf("Next Header value is altered to: %d. Expected: %d", ipv6.NextHeader, packetVal.InnerIPLayerIPv6.NextHeader)
+						return fmt.Errorf("next header value is altered to: %d. expected: %d", ipv6.NextHeader, packetVal.InnerIPLayerIPv6.NextHeader)
 					}
 				}
 				// If validation is successful for one packet, we can return.
@@ -362,10 +362,10 @@ func validateMPLSLayer(t *testing.T, packetSource *gopacket.PacketSource, packet
 			mpls, _ := mplsLayer.(*layers.MPLS)
 
 			if mpls.Label != packetVal.MPLSLayer.Label {
-				return fmt.Errorf("Mpls label is not set properly. Expected: %d, Actual: %d", packetVal.MPLSLayer.Label, mpls.Label)
+				return fmt.Errorf("mpls label is not set properly. expected: %d, Actual: %d", packetVal.MPLSLayer.Label, mpls.Label)
 			}
 			if mpls.TrafficClass != packetVal.MPLSLayer.Tc {
-				return fmt.Errorf("Mpls traffic class is not set properly. Expected: %d, Actual: %d", packetVal.MPLSLayer.Tc, mpls.TrafficClass)
+				return fmt.Errorf("mpls traffic class is not set properly. expected: %d, actual: %d", packetVal.MPLSLayer.Tc, mpls.TrafficClass)
 			}
 			// If validation is successful for one packet, we can return.
 			return nil
