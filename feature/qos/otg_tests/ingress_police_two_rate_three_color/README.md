@@ -29,26 +29,26 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
   * Dut1 = Attributes {
 		Desc:    "Dut1",
 		MAC:     "02:01:00:00:00:01",
-    IPv4:    "200.0.0.1/24",
+		IPv4:    "200.0.0.1/24",
 		IPv6:    "2001:f:d:e::1/126",
 	}
   * atePort1 = Attributes{
 		Desc:    "atePort1",
 		MAC:     "02:01:00:00:00:02",
-    Vlan:    "100",
-    IPv4:    "200.0.0.2/24",
+		Vlan:    "100",
+		IPv4:    "200.0.0.2/24",
 		IPv6:    "2001:f:d:e::2/126",
 	}
   * Dut2 = Attributes{
 		Desc:    "Dut2",
 		MAC:     "02:00:01:01:01:01",
-    IPv4:    "100.0.0.1/24",
+		IPv4:    "100.0.0.1/24",
 		IPv6:    "2001:c:d:e::1/126",
 	}
   * atePort2 = Attributes{
 		Desc:    "atePort2",
 		MAC:     "02:00:01:01:01:02",
-    IPv4:    "100.0.0.2/24",
+		IPv4:    "100.0.0.2/24",
 		IPv6:    "2001:c:d:e::2/126",
 	}
 
