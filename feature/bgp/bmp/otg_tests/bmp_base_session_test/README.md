@@ -27,11 +27,12 @@ B --EBGP--> C[Port2:ATE];
 
 *   Connect ATE Port 1 to DUT Port 1.
 *   Connect ATE Port 2 to DUT Port 2 (simulating the BMP monitoring station).
+*   Connected interface IPv4/IPv6 addresses
 
 3) Interface Configuration: Configure IPv4 and IPV6 addresses on all involved interfaces on both the ATE and the DUT.
 
-4) Establish eBGP Session: Configure and establish an external BGP (eBGP) peering session between the IP addresses of ATE Port 1 and DUT Port 1.
-5) Establish eBGP session between ATE port-1 and DUT port-1
+4) Establish eBGP Session: Configure and establish an external BGP (eBGP) peering session between the IP addresses of ATE Port 1 and DUT Port 1. Configure AS 64520 on the DUT and ATE port2 i.e. BMP station, configure AS 64530 on the ATE port1.
+5) Establish eBGP session between ATE port-1 (AS 64530) and DUT port-1 (AS 64520)
 6) Configure BMP on the DUT with the following parameters:
 
     • statistics-timeout: 60 seconds
@@ -41,6 +42,10 @@ B --EBGP--> C[Port2:ATE];
     • station-port: 7039
     • route-monitoring: post-policy
     • exclude-noneligible: true
+
+7) Advertise 10000 * IPV4 routes from the IP address range of 192.168.0.0 and 10.200.0.0
+8) Should be RFC7854 compliant
+
 
 ### Tests
 
@@ -69,7 +74,44 @@ B --EBGP--> C[Port2:ATE];
 
 ```yaml
 
-paths:
+## OC paths in json format:
+
+{
+  "network-instances": {
+    "network-instance": {
+      "protocols": {
+        "protocol": {
+          "bgp": {
+            "global": {
+              "bmp": {
+                "config": {
+                  "enabled": <value>,
+                  "connection-mode": <value>,
+                  "local-address": <value>,
+                  "statistics-timeout": <value>
+                },
+                "stations": {
+                  "station": {
+                    "config": {
+                      "name": <value>,
+                      "address": <value>,
+                      "port": <value>,
+                      "policy-type": <value>,
+                      "exclude-non-eligible": <value>
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+paths in flat format:
   ## Config paths
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
