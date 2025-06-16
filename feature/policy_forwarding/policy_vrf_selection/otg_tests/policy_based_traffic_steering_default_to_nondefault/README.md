@@ -180,6 +180,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
     * There should be 0 packet loss. <br><br><br>
 
 ## Canonical OpenConfig
+
 ```json
 {
   "network-instances": {
@@ -243,7 +244,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 
 ## OpenConfig Path and RPC Coverage
 
-```
+```yaml
 paths:
   /network-instances/network-instance/name:
   /network-instances/network-instance/config:
