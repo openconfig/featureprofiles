@@ -337,6 +337,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "MPLS-1.2"
+  description: "MPLS Traffic Class Marking"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/mpls_tc/README.md"
+  exec: " "
+}
+test: {
   id: "MTU-1.3"
   description: "Large IP Packet Transmission"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission"
@@ -872,14 +878,8 @@ test: {
 }
 test: {
   id: "RT-2.16"
-  description: "IS-IS Graceful Restart Helper"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-2.17"
-  description: "Graceful Restart Restarting"
-    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
+  description: "IS-IS Graceful Restart"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/graceful_restart/README.md"
   exec: " "
 }
 test: {
