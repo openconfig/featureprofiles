@@ -34,7 +34,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -70,17 +69,19 @@ const (
 	trafficDuration          = 30 * time.Second
 	timeout                  = 1 * time.Minute
 	interval                 = 20 * time.Second
+	iterationCount           = 2
 )
 
 var (
-	dutP1 = &attrs.Attributes{
+	dutP1 = attrs.Attributes{
+		Name:    "port1",
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	ateP1 = &attrs.Attributes{
+	ateP1 = attrs.Attributes{
 		Name:    "ateP1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
@@ -89,7 +90,8 @@ var (
 		IPv6Len: plenIPv6,
 	}
 
-	dutP2 = &attrs.Attributes{
+	dutP2 = attrs.Attributes{
+		Name:    "port2",
 		Desc:    "DUT to ATE destination-2",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
@@ -97,7 +99,7 @@ var (
 		IPv6Len: plenIPv6,
 	}
 
-	ateP2 = &attrs.Attributes{
+	ateP2 = attrs.Attributes{
 		Name:    "ateP2",
 		MAC:     "02:00:02:01:01:02",
 		IPv4:    "192.0.2.6",
@@ -106,7 +108,8 @@ var (
 		IPv6Len: plenIPv6,
 	}
 
-	dutP3 = &attrs.Attributes{
+	dutP3 = attrs.Attributes{
+		Name:    "port3",
 		Desc:    "DUT to ATE destination-3",
 		IPv4:    "192.0.2.9",
 		IPv6:    "2001:db8::9",
@@ -135,13 +138,12 @@ type ipAddr struct {
 // configureDUT configures all the interfaces and BGP on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
-	p1 := dut.Port(t, "port1").Name()
-	i1 := dutP1.NewOCInterface(p1, dut)
-	gnmi.Replace(t, dut, dc.Interface(p1).Config(), i1)
 
-	p2 := dut.Port(t, "port2").Name()
-	i2 := dutP2.NewOCInterface(p2, dut)
-	gnmi.Replace(t, dut, dc.Interface(p2).Config(), i2)
+	for _, portAttr := range []attrs.Attributes{dutP1, dutP2, dutP3} {
+		p := dut.Port(t, portAttr.Name).Name()
+		i := portAttr.NewOCInterface(p, dut)
+		gnmi.Replace(t, dut, dc.Interface(p).Config(), i)
+	}
 
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -151,10 +153,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutConfPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := createBGPNeighbor(dutAS, ateAS, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-
-	p3 := dut.Port(t, "port3").Name()
-	i3 := dutP3.NewOCInterface(p3, dut)
-	gnmi.Replace(t, dut, dc.Interface(p3).Config(), i3)
 
 	t.Log("Configure Static Routes IPV4-DST1/IPV6-DST1 towards ATE port 3")
 	configureDUTStaticRoutes(t, dut)
@@ -170,6 +168,9 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 	if deviations.PolicyForwardingToNextHopOcUnsupported(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		config := trafficPolicyConf(dut, interfaceName)
+		if config == "" {
+			t.Fatalf("Unsupported vendor %s for deviation 'PolicyForwardingToNextHopOcUnsupported'", dut.Vendor())
+		}
 		t.Logf("Push the CLI config:%s", dut.Vendor())
 		gpbSetRequest := helpers.BuildCliConfigRequest(config)
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
@@ -180,27 +181,27 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 		npf := ni.GetOrCreatePolicyForwarding()
 		np := npf.GetOrCreatePolicy(name)
-		np.PolicyId = ygot.String(name)
+		np.SetPolicyId(name)
 		np.Type = oc.Policy_Type_PBR_POLICY
 
 		for i, dscp := range pfMatchingDscpValues {
 			npRule := np.GetOrCreateRule(uint32(i + 1))
 			ip := npRule.GetOrCreateIpv4()
-			ip.SourceAddress = ygot.String(fmt.Sprintf("%s/32", ateP1.IPv4))
-			ip.DestinationAddress = ygot.String(fmt.Sprintf("%s/32", ipv4Dst))
-			ip.Dscp = ygot.Uint8(uint8(dscp))
+			ip.SetSourceAddress(fmt.Sprintf("%s/32", ateP1.IPv4))
+			ip.SetDestinationAddress(fmt.Sprintf("%s/32", ipv4Dst))
+			ip.SetDscp(uint8(dscp))
 			npRuleAction := npRule.GetOrCreateAction()
-			npRuleAction.NextHop = ygot.String(ipvNHv4)
+			npRuleAction.SetNextHop(ipvNHv4)
 		}
 
 		for i, dscp := range pfMatchingDscpValues {
 			npRule := np.GetOrCreateRule(uint32(i+1) + uint32(len(pfMatchingDscpValues)))
 			ip := npRule.GetOrCreateIpv6()
-			ip.SourceAddress = ygot.String(fmt.Sprintf("%s/128", ateP1.IPv6))
-			ip.DestinationAddress = ygot.String(fmt.Sprintf("%s/128", ipv6Dst))
-			ip.Dscp = ygot.Uint8(uint8(dscp))
+			ip.SetSourceAddress(fmt.Sprintf("%s/128", ateP1.IPv6))
+			ip.SetDestinationAddress(fmt.Sprintf("%s/128", ipv6Dst))
+			ip.SetDscp(uint8(dscp))
 			npRuleAction := npRule.GetOrCreateAction()
-			npRuleAction.NextHop = ygot.String(ipvNHv6)
+			npRuleAction.SetNextHop(ipvNHv6)
 		}
 
 		interfaceName := dut.Port(t, "port1").Name()
@@ -326,45 +327,45 @@ func createBGPNeighbor(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.Netwo
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
-	global.As = ygot.Uint32(localAs)
-	global.RouterId = ygot.String(dutP2.IPv4)
+	global.SetAs(localAs)
+	global.SetRouterId(dutP2.IPv4)
 
-	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNamev4)
-	pgv4.PeerAs = ygot.Uint32(peerAs)
-	pgv4.PeerGroupName = ygot.String(peerGrpNamev4)
+	pgv4.SetPeerAs(peerAs)
+	pgv4.SetPeerGroupName(peerGrpNamev4)
 	pgv6 := bgp.GetOrCreatePeerGroup(peerGrpNamev6)
-	pgv6.PeerAs = ygot.Uint32(peerAs)
-	pgv6.PeerGroupName = ygot.String(peerGrpNamev6)
+	pgv6.SetPeerAs(peerAs)
+	pgv6.SetPeerGroupName(peerGrpNamev6)
 
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerAs = ygot.Uint32(nbr.as)
-			nv4.Enabled = ygot.Bool(true)
-			nv4.PeerGroup = ygot.String(peerGrpNamev4)
+			nv4.SetPeerAs(nbr.as)
+			nv4.SetEnabled(true)
+			nv4.SetPeerGroup(peerGrpNamev4)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			afisafi.Enabled = ygot.Bool(true)
-			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+			afisafi.SetEnabled(true)
+			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(false)
 			pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			pgafv4.Enabled = ygot.Bool(true)
+			pgafv4.SetEnabled(true)
 			rpl := pgafv4.GetOrCreateApplyPolicy()
 			rpl.ImportPolicy = []string{rplName}
 			rpl.ExportPolicy = []string{rplName}
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv6.PeerAs = ygot.Uint32(nbr.as)
-			nv6.Enabled = ygot.Bool(true)
-			nv6.PeerGroup = ygot.String(peerGrpNamev6)
+			nv6.SetPeerAs(nbr.as)
+			nv6.SetEnabled(true)
+			nv6.SetPeerGroup(peerGrpNamev6)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			afisafi6.Enabled = ygot.Bool(true)
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+			afisafi6.SetEnabled(true)
+			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(false)
 			pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			pgafv6.Enabled = ygot.Bool(true)
+			pgafv6.SetEnabled(true)
 			rpl := pgafv6.GetOrCreateApplyPolicy()
 			rpl.ImportPolicy = []string{rplName}
 			rpl.ExportPolicy = []string{rplName}
@@ -443,9 +444,9 @@ func configureATE(t *testing.T) gosnappi.Config {
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
 
-	ateP1.AddToOTG(config, ap1, dutP1)
+	ateP1.AddToOTG(config, ap1, &dutP1)
 
-	d2 := ateP2.AddToOTG(config, ap2, dutP2)
+	d2 := ateP2.AddToOTG(config, ap2, &dutP2)
 
 	d2ipv41 := d2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	d2ipv61 := d2.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
@@ -453,7 +454,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 	configureBGPDev(d2, d2ipv41, ateAS, ipvNHv4)
 	configureBGPV6Dev(d2, d2ipv61, ateAS, ipvNHv6)
 
-	ateP3.AddToOTG(config, ap3, dutP3)
+	ateP3.AddToOTG(config, ap3, &dutP3)
 
 	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
@@ -513,6 +514,7 @@ func configureBGPDev(dev gosnappi.Device, Ipv4 gosnappi.DeviceIpv4, as int, bgpR
 
 func configureBGPV6Dev(dev gosnappi.Device, Ipv6 gosnappi.DeviceIpv6, as int, bgpRoutev6 string) {
 
+	// BGP Router Id is always ipv4
 	Bgp := dev.Bgp().SetRouterId(ateP2.IPv4)
 	Bgp6Peer := Bgp.Ipv6Interfaces().Add().SetIpv6Name(Ipv6.Name()).Peers().Add().SetName(dev.Name() + ".BGP6.peer")
 	Bgp6Peer.SetPeerAddress(dutP2.IPv6).SetAsNumber(uint32(as)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
@@ -574,7 +576,7 @@ func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Con
 		}
 	}
 
-	if count >= 2 {
+	if count >= iterationCount {
 		t.Logf("Packet loss percentage for flow: got %v, want %v", got, lossTolerance)
 		return false
 	}
@@ -612,61 +614,85 @@ func TestPolicyForwardingIndirectNextHop(t *testing.T) {
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
 
-	t.Run("VerifyPFNext-hopAction", func(t *testing.T) {
-		t.Log("Verify PF next-hop action Validation in progress")
-		if verifyFlowTraffic(t, ate, config, policyMatchFlowV4) {
-			t.Log("PF next-hop action Passed for V4")
-		} else {
-			t.Error("PF next-hop action Failed for V4")
-		}
+	type flowTest struct {
+		tcName string
+		ipType string
+		flow   string
+	}
 
-		if verifyFlowTraffic(t, ate, config, policyMatchFlowV6) {
-			t.Log("PF next-hop action Passed for V6")
-		} else {
-			t.Error("PF next-hop action Failed for V6")
-		}
+	tests := []flowTest{
+		{
+			tcName: "PF next-hop",
+			ipType: "IPv4",
+			flow:   policyMatchFlowV4,
+		},
+		{
+			tcName: "PF next-hop",
+			ipType: "IPv6",
+			flow:   policyMatchFlowV6,
+		}}
+	for _, tc := range tests {
+		t.Run("VerifyPFNext_hopAction", func(t *testing.T) {
+			if verifyFlowTraffic(t, ate, config, tc.flow) {
+				t.Logf("%s action Passed for %s", tc.tcName, tc.ipType)
+			} else {
+				t.Errorf("%s action Failed for %s", tc.tcName, tc.ipType)
+			}
+		})
+	}
 
-	})
+	tests = []flowTest{
+		{
+			tcName: "PF no-match",
+			ipType: "IPv4",
+			flow:   policyMatchFlowV4,
+		},
+		{
+			tcName: "PF no-match",
+			ipType: "IPv6",
+			flow:   policyNoMatchFlowV6,
+		}}
+	for _, tc := range tests {
+		t.Run("VerifyPFNo_matchAction", func(t *testing.T) {
+			if verifyFlowTraffic(t, ate, config, tc.flow) {
+				t.Logf("%s action Passed for %s", tc.tcName, tc.ipType)
+			} else {
+				t.Errorf("%s action Failed for %s", tc.tcName, tc.ipType)
+			}
+		})
+	}
 
-	t.Run("VerifyPFNo-matchAction", func(t *testing.T) {
-		t.Log("PF-1.1.2: Verify PF no-match action Validation in progress")
-		if verifyFlowTraffic(t, ate, config, policyNoMatchFlowV4) {
-			t.Log("PF no-match action Passed for V4")
-		} else {
-			t.Error("PF no-match action Failed for V4")
-		}
+	t.Log("PF-1.1.3: Verify PF without NH present Validation in progress")
+	t.Log("Withdraw next-hop prefixes from BGP Announcement")
+	cs := gosnappi.NewControlState()
+	cs.Protocol().Route().SetNames([]string{bgpV4RouteName, bgpV6RouteName}).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
+	otg.SetControlState(t, cs)
 
-		if verifyFlowTraffic(t, ate, config, policyNoMatchFlowV6) {
-			t.Log("PF no-match action Passed for V6")
-		} else {
-			t.Error("PF no-match action Failed for V6")
-		}
-	})
+	verifyPrefixesTelemetryV4(t, dut, 0)
 
-	t.Run("VerifyPFWithoutNHPresent", func(t *testing.T) {
-		t.Log("PF-1.1.3: Verify PF without NH present Validation in progress")
-		t.Log("Withdraw next-hop prefixes from BGP Announcement")
-		cs := gosnappi.NewControlState()
-		cs.Protocol().Route().SetNames([]string{bgpV4RouteName, bgpV6RouteName}).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
-		otg.SetControlState(t, cs)
+	otg.StartTraffic(t)
+	time.Sleep(trafficDuration)
+	otg.StopTraffic(t)
 
-		verifyPrefixesTelemetryV4(t, dut, 0)
+	tests = []flowTest{
+		{
+			tcName: "PF without NH",
+			ipType: "IPv4",
+			flow:   defaultFlow,
+		},
+		{
+			tcName: "PF without NH",
+			ipType: "IPv6",
+			flow:   defaultFlowV6,
+		}}
+	for _, tc := range tests {
+		t.Run("VerifyPFWithoutNHPresent", func(t *testing.T) {
+			if verifyFlowTraffic(t, ate, config, tc.flow) {
+				t.Logf("%s action Passed for %s", tc.tcName, tc.ipType)
+			} else {
+				t.Errorf("%s action Failed for %s", tc.tcName, tc.ipType)
+			}
+		})
+	}
 
-		otg.StartTraffic(t)
-		time.Sleep(trafficDuration)
-		otg.StopTraffic(t)
-
-		t.Log("Verify All traffic received on ATE Port 3.")
-		if verifyFlowTraffic(t, ate, config, defaultFlow) {
-			t.Log("PF without NH present Validation Passed for V4")
-		} else {
-			t.Error("PF without NH present Validation Failed for V4")
-		}
-
-		if verifyFlowTraffic(t, ate, config, defaultFlowV6) {
-			t.Log("PF without NH present Validation Passed for V6")
-		} else {
-			t.Error("PF without NH present Validation Failed for V6")
-		}
-	})
 }
