@@ -70,52 +70,49 @@ B --EBGP--> C[Port2:ATE];
 3)  Verify that the BMP station receives route monitoring messages for 192.0.2.0/24  2001:DB8:1::/48, using those paths:
 4)  Verify that the BMP station does not receive route monitoring messages for 172.16.0.0/16 and 2001:DB8::/32 (excluded by policy)
 
-## OpenConfig  
+## OpenConfig Path and RPC Coverage
 
 ```yaml
-
 ## OC paths in json format:
 
-{
-  "network-instances": {
-    "network-instance": {
-      "protocols": {
-        "protocol": {
-          "bgp": {
-            "global": {
-              "bmp": {
-                "config": {
-                  "enabled": <value>,
-                  "connection-mode": <value>,
-                  "local-address": <value>,
-                  "statistics-timeout": <value>
-                },
-                "stations": {
-                  "station": {
-                    "config": {
-                      "name": <value>,
-                      "address": <value>,
-                      "port": <value>,
-                      "policy-type": <value>,
-                      "exclude-non-eligible": <value>
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
+##TODO
 
-
-## OpenConfig Path and RPC Coverage
+#{
+#  "network-instances": {
+#    "network-instance": {
+#      "protocols": {
+#        "protocol": {
+#          "bgp": {
+#            "global": {
+#              "bmp": {
+#                "config": {
+#                  "enabled": <value>,
+#                  "connection-mode": <value>,
+#                  "local-address": <value>,
+#                  "statistics-timeout": <value>
+#                },
+#                "stations": {
+#                  "station": {
+#                    "config": {
+#                      "name": <value>,
+#                      "address": <value>,
+#                      "port": <value>,
+#                      "policy-type": <value>,
+#                      "exclude-non-eligible": <value>
+#                    }
+#                  }
+#                }
+#              }
+#            }
+#          }
+#        }
+#      }
+#    }
+#  }
+#}
 
 The below yaml defines the OC paths intended to be covered by this test.
 
-```yaml
 
 #TODO paths in flat format:
   ## Config paths
