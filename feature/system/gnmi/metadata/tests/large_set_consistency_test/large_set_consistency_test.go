@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -144,21 +145,32 @@ func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ond
 // buildGNMISetRequest builds gnmi set request with protobuf-metadata
 func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root, size int) *gpb.SetRequest {
 	var trimSize float64
-        // Trim data for 100KB and 1M cases
-        if size >= 100000 {
-                // Trim the data to 70% for encoding overhead of 30%
-              trimSize = float64(75)/float64(100)*float64(size)
-              //t.Logf("size is %d  trim size is %f :", size,trimSize)
-              metadataText = metadataText[:int(trimSize)]
-        }
+
+	// For 100KB and 1M cases trim the data according to proto and base64encoding overheads
+	if size >= 100000 {
+		randomBytes := make([]byte, size)
+		_, err := io.ReadFull(rand.Reader, randomBytes)
+		fmt.Printf("Length of randomBytes: %d\n", len(randomBytes))
+		if err != nil {
+			t.Fatalf("failed to generate random bytes: %v", err)
+		}
+		// Encode the bytes to a base64 string.
+		// account for 4 byte proto message overhead and 25% for subsequent base64encoding overhead
+		trimSize = float64(75)/float64(100)*float64(size) - 4
+		largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
+		metadataText = largeMetadata[:int(trimSize)]
+	}
+	fmt.Printf("Length of largeMetadata: %d\n", len([]byte(metadataText)))
 	msg := &gpb.ModelData{Name: metadataText}
 	b, err := proto.Marshal(msg)
+	fmt.Printf("Length of protoMessage: %d\n", len(b))
 	if err != nil {
 		t.Fatalf("cannot marshal proto msg - error: %v", err)
 	}
 	metadataEncoded := base64.StdEncoding.EncodeToString(b)
-	dataSize:=len(metadataEncoded)
-        t.Logf("Input size is %d : Metadata size after final encoding is %d ", size,dataSize)
+	fmt.Printf("Required length: %d. Length of Metadata: %d\n", size, len([]byte(metadataEncoded)))
+
+	//msg := &gpb.ModelData{Name: metadataText}
 	j := map[string]any{
 		"@": map[string]any{
 			"openconfig-metadata:protobuf-metadata": metadataEncoded,
@@ -270,7 +282,7 @@ func TestLargeSetConsistency(t *testing.T) {
 
 	// send 1st update request in one goroutine
 	sizeMetadata1 := len(shortStringMetadata1)
-        gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig,sizeMetadata1)
+	gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig, sizeMetadata1)
 	t.Log("gnmiClient Set 1st large config")
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
@@ -284,7 +296,7 @@ func TestLargeSetConsistency(t *testing.T) {
 
 	// sending 2nd update request in one goroutine
 	sizeMetadata2 := len(shortStringMetadata2)
-        gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig, sizeMetadata2)
+	gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig, sizeMetadata2)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
