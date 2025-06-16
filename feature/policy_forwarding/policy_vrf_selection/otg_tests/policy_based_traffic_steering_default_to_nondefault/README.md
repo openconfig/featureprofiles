@@ -36,7 +36,7 @@ B3 <-- EBGP(ASN100:ASN200)  --> C2;
 * Configure EBGP[ASN200] between DUT1:Port2 and ATE2:Port1
 * Configure EBGP[ASN200] between DUT1:Port3 and ATE2:Port2
 * Configure route leaking from the default VRF and non-default VRF and vice versa.
-* Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IP/IPV6 address.
+* Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IPv4/IPv6 address.
 * DUT has the following VRF selection policy initially
     * Statement1: traffic matching IPv4Prefix1/24, Punt to default vrf
     * Statement2: traffic matching IPv4Prefix2/24, Punt to default vrf
