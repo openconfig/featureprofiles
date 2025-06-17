@@ -14,18 +14,20 @@ type InterfaceHelper struct{}
 
 // ClearInterfaceCountersAll executes a 'clear counters' CLI.
 func (v *InterfaceHelper) ClearInterfaceCountersAll(t *testing.T, dut *ondatra.DUTDevice) {
-
+	t.Helper()
 	// Configure "service cli interactive disable" to disable the interactive prompt
 	config.TextWithGNMI(context.Background(), t, dut, "service cli interactive disable")
 	dut.CLI().Run(t, "clear counters")
 }
 
 func (v *InterfaceHelper) GetPerInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, intf string) *oc.Interface_Counters {
+	t.Helper()
 	counters := gnmi.Get(t, dut, (gnmi.OC().Interface(intf).Counters().State()))
 	return counters
 }
 
 func (v *InterfaceHelper) GetAllInterfaceInUnicast(t *testing.T, dut *ondatra.DUTDevice, trafficType string) map[string]uint64 {
+	t.Helper()
 	var unicastStats []*ygnmi.Value[uint64]
 	data := make(map[string]uint64)
 	switch trafficType {
@@ -42,4 +44,23 @@ func (v *InterfaceHelper) GetAllInterfaceInUnicast(t *testing.T, dut *ondatra.DU
 		}
 	}
 	return data
+}
+
+// GetBundleMembers retrieves the bundle member interfaces for a given bundle interface.
+func (v *InterfaceHelper) GetBundleMembers(t *testing.T, dut *ondatra.DUTDevice, bundleInterface string) map[string][]string {
+	t.Helper()
+	// Create a map to store the result
+	bundleMembers := make(map[string][]string)
+
+	// Use ondatra gnmi.Lookup API to retrieve the bundle member interfaces
+	members := gnmi.Lookup(t, dut, gnmi.OC().Interface(bundleInterface).Aggregation().Member().State())
+
+	// Check if the value is present and extract it
+	if memberList, ok := members.Val(); ok {
+		for _, memberName := range memberList {
+			bundleMembers[bundleInterface] = append(bundleMembers[bundleInterface], memberName)
+		}
+	}
+
+	return bundleMembers
 }

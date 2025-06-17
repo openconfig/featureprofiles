@@ -57,7 +57,7 @@ func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t *testing.T, 
 	}
 	// Print table with tabwriter
 	table := tablewriter.NewWriter(os.Stdout)
-	table.Header([]string{"Interface", "AFTWeight", "PacketCount", "WantDistribution", "GotDistribution"})
+	table.Header([]string{"Interface", "Weight", "Out_Packet_Count", "Want_Distribution", "Got_Distribution"})
 	index := 0
 	for intf, data := range trafficDistribution {
 		var wantDist, gotDist float64
