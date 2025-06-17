@@ -1438,6 +1438,21 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()
 }
 
+// PolicyForwardingToNextHopUnsupported returns true if policy forwarding to next hop is not supported on vendors
+func PolicyForwardingToNextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopUnsupported()
+}
+
+// PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func PolicyForwardingGREEncapsulationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationUnsupported()
+}
+
+// PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func QosClassifierDscpRemarkUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkUnsupported()
+}
+
 // IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
