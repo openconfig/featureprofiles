@@ -15,12 +15,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
 	"github.com/openconfig/gnmi/cache"
 	"github.com/openconfig/gnmi/ctree"
 	"github.com/openconfig/gnmi/metadata"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
-	
+
 	log "github.com/golang/glog"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -67,28 +67,28 @@ var unusedPaths = []string{
 }
 
 var subscriptionPaths = map[string][]string{
-	"prefix": []string{
+	"prefix": {
 		"network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
 		"network-instances/network-instance[name=DEFAULT]/afts/ipv6-unicast/ipv6-entry",
 	},
-	"nhg": []string{
+	"nhg": {
 		"network-instances/network-instance[name=DEFAULT]/afts/next-hop-groups/next-hop-group",
 	},
-	"nh": []string{
+	"nh": {
 		"network-instances/network-instance[name=DEFAULT]/afts/next-hops/next-hop",
 	},
 }
 
-// TODO: b/421860360 - Rework to remove these paths and only use subscriptionPaths.
+// TODO: - Rework to remove these paths and only use subscriptionPaths.
 var cacheTraversalPaths = map[string][]string{
-	"prefix": []string{
+	"prefix": {
 		"openconfig/network-instances/network-instance/DEFAULT/afts/ipv4-unicast",
 		"openconfig/network-instances/network-instance/DEFAULT/afts/ipv6-unicast",
 	},
-	"nhg": []string{
+	"nhg": {
 		"openconfig/network-instances/network-instance/DEFAULT/afts/next-hop-groups",
 	},
-	"nh": []string{
+	"nh": {
 		"openconfig/network-instances/network-instance/DEFAULT/afts/next-hops",
 	},
 }
@@ -765,4 +765,3 @@ func writeMissingPrefixes(missingPrefixes map[string]bool) (string, error) {
 	}
 	return absFilename, nil
 }
-

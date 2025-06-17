@@ -48,4 +48,3 @@ func NotificationToPoints(n *gnmipb.Notification) []Point {
 	}
 	return points
 }
-
