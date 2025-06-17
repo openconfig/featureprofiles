@@ -250,7 +250,7 @@ tables above, the DUT requires the following configurations:
 Use # Health-1.1: Generic Health Check. If errors identified then the test Must
 fail.
 
-**RT-3.52.1: Baseline**
+## RT-3.52.1: Baseline
 
 *   **Situation:**
 
