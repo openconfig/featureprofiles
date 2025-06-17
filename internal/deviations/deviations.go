@@ -1448,7 +1448,7 @@ func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool 
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
 
-// PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+// QosClassifierDscpRemarkOcUnsupported returns true if remark action for qos classifier terms is not supported on vendors
 func QosClassifierDscpRemarkOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkOcUnsupported()
 }
