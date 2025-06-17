@@ -47,11 +47,11 @@ import (
 	"fmt"
 	"regexp"
 
-	log "github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/metadata"
+	"google3/base/go/log"
+	"google3/third_party/openconfig/featureprofiles/internal/metadata/metadata"
 
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
-	"github.com/openconfig/ondatra"
+	mpb "google3/third_party/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
@@ -1403,16 +1403,6 @@ func InterfacePolicyForwardingOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
 
-// GueGreDecapUnsupported returns true if gue or gre decap is unsupported
-func GueGreDecapUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGueGreDecapUnsupported()
-}
-
-// StaticMplsUnsupported returns true if static mpls is unsupported
-func StaticMplsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetStaticMplsUnsupported()
-}
-
 // QosShaperStateOCUnsupported returns true if qos shaper state is unsupported
 func QosShaperStateOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosShaperStateUnsupported()
@@ -1468,7 +1458,12 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
 }
 
-// ConfigLeafCreateRequired returns true if leaf creation is required
+// Config Leaf Create required before GNMI get
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+}
+
+// SkipInterfaceNameCheck returns if device requires skipping the interface name check.
+func SkipInterfaceNameCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipInterfaceNameCheck()
 }

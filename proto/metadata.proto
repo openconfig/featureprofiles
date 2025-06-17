@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package openconfig.testing;
 
-import "github.com/openconfig/ondatra/proto/testbed.proto";
+import "third_party/openconfig/ondatra/proto/testbed.proto";
 
 // Metadata about a Feature Profiles test.
 message Metadata {
@@ -543,7 +543,9 @@ message Metadata {
     // /components/component/state/model-name of the chassis component must be
     // equal to the canonical hardware model name of its device.
     bool model_name_unsupported = 194;
-    // community_match_with_redistribution_unsupported is set to true for devices that do not support matching community at the redistribution attach point.
+    // community_match_with_redistribution_unsupported is set to true for
+    // devices that do not support matching community at the redistribution
+    // attach point.
     bool community_match_with_redistribution_unsupported = 195;
     // Devices that do not support components/component/state/install-component
     // and components/component/state/install-position.
@@ -552,9 +554,11 @@ message Metadata {
     bool encap_tunnel_shut_backup_nhg_zero_traffic = 197;
     // Flag to indicate support for max ecmp paths for isis.
     bool max_ecmp_paths = 198;
-    // wecmp_auto_unsupported is set to true for devices that do not support auto wecmp
+    // wecmp_auto_unsupported is set to true for devices that do not support
+    // auto wecmp
     bool wecmp_auto_unsupported = 199;
-    // policy chaining, ie. more than one policy at an attachement point is not supported
+    // policy chaining, ie. more than one policy at an attachement point is not
+    // supported
     bool routing_policy_chaining_unsupported = 200;
     // isis loopback config required
     bool isis_loopback_required = 201;
@@ -569,23 +573,28 @@ message Metadata {
     bool bgp_set_ext_community_set_refs_unsupported = 205;
     // Devices that do not support deleting link bandwidth
     bool bgp_delete_link_bandwidth_unsupported = 206;
-    // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
-    // Juniper: b/341130490
+    // qos_inqueue_drop_counter_Unsupported is set to true for devices that do
+    // not support qos ingress queue drop counters. Juniper: b/341130490
     bool qos_inqueue_drop_counter_unsupported = 207;
     // Devices that need bgp extended community enable explicitly
     bool bgp_explicit_extended_community_enable = 208;
     // devices that do not support match tag set condition
     bool match_tag_set_condition_unsupported = 209;
-    // peer_group_def_bgp_vrf_unsupported is set to true for devices that do not support peer group definition under bgp vrf configuration.
+    // peer_group_def_bgp_vrf_unsupported is set to true for devices that do not
+    // support peer group definition under bgp vrf configuration.
     bool peer_group_def_ebgp_vrf_unsupported = 210;
-    // redis_uconnected_under_ebgp_vrf_unsupported is set to true for devices that do not support redistribution of connected routes under ebgp vrf configuration.
+    // redis_uconnected_under_ebgp_vrf_unsupported is set to true for devices
+    // that do not support redistribution of connected routes under ebgp vrf
+    // configuration.
     bool redis_connected_under_ebgp_vrf_unsupported = 211;
-    // bgp_afisafi_in_default_ni_before_other_ni is set to true for devices that require certain afi/safis to be enabled
-    // in default network instance (ni) before enabling afi/safis for neighbors in default or non-default ni.
+    // bgp_afisafi_in_default_ni_before_other_ni is set to true for devices that
+    // require certain afi/safis to be enabled in default network instance (ni)
+    // before enabling afi/safis for neighbors in default or non-default ni.
     bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
     // Devices which do not support default import export policy.
     bool default_import_export_policy_unsupported = 213;
-    // ipv6_router_advertisement_interval_unsupported is set to true for devices that do not support ipv6 router advertisement interval configuration.
+    // ipv6_router_advertisement_interval_unsupported is set to true for devices
+    // that do not support ipv6 router advertisement interval configuration.
     bool ipv6_router_advertisement_interval_unsupported = 214;
     // Decap NH with NextHopNetworkInstance is unsupported
     bool decap_nh_with_nexthop_ni_unsupported = 215;
@@ -609,10 +618,11 @@ message Metadata {
     bool eth_channel_assignment_cisco_numbering = 223;
     // Devices needs time to update interface counters.
     bool interface_counters_update_delayed = 224;
-    // device does not support a Healthz GET RPC against Chassis level component like "CHASSIS" or "Rack 0"
+    // device does not support a Healthz GET RPC against Chassis level component
+    // like "CHASSIS" or "Rack 0"
     bool chassis_get_rpc_unsupported = 225;
-    // Leaf-ref validation for list keys which is enforced for Cisco and hence deviation
-    // b/373581140
+    // Leaf-ref validation for list keys which is enforced for Cisco and hence
+    // deviation b/373581140
     bool power_disable_enable_leaf_ref_validation = 226;
     // Device does not support ssh server counters.
     bool ssh_server_counters_unsupported = 227;
@@ -622,9 +632,9 @@ message Metadata {
     // BGP session state idle is supported in passive mode instead of active
     // Cisco: b/376021545
     bool bgp_session_state_idle_in_passive_mode = 229;
-    // EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
-    // CISCO: b/376241033
-    // CISCO: b/340859662
+    // EnableMultipathUnderAfiSafi returns true for devices that do not support
+    // multipath under /global path and instead support under global/afi/safi
+    // path CISCO: b/376241033 CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
     // Cisco numbering for OTN channel assignment starts from 1 instead of 0
     bool otn_channel_assignment_cisco_numbering = 232;
@@ -633,7 +643,8 @@ message Metadata {
     // Device does not support bgp afi safi wildcard.
     // Cisco: b/379863985
     bool bgp_afi_safi_wildcard_not_supported = 235;
-    // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
+    // Nokia; b/304493065 comment#7 SRL native admin_enable for
+    // table-connections
     bool enable_table_connections = 236;
     // Device has default zero suppression.
     // Juniper : b/378646018
@@ -648,24 +659,29 @@ message Metadata {
     // Devices that do not support setting med value using union type in OC.
     bool bgp_set_med_v7_unsupported = 241;
     // Cisco: b/388980373
-    // default import policy for table connection unsupported is set to true for devices that do not support default import policy.
+    // default import policy for table connection unsupported is set to true for
+    // devices that do not support default import policy.
     bool tc_default_import_policy_unsupported = 242;
     // Cisco: b/388955361
-    // table connection metric propagation unsupported is set to true for devices that do not support metric propagation.
+    // table connection metric propagation unsupported is set to true for
+    // devices that do not support metric propagation.
     bool tc_metric_propagation_unsupported = 243;
     // Cisco: b/388980376
-    // table connection attribute propagation unsupported is set to true for devices that do not support attribute propagation.
+    // table connection attribute propagation unsupported is set to true for
+    // devices that do not support attribute propagation.
     bool tc_attribute_propagation_unsupported = 244;
     // Cisco: b/388955364
-    // table connection subscription unsupported is set to true for devices that do not support subscription for table connection leaves.
+    // table connection subscription unsupported is set to true for devices that
+    // do not support subscription for table connection leaves.
     bool tc_subscription_unsupported = 245;
     // Cisco: b/388983709
-    // default bgp instance name is used to set bgp instance name value other than DEFAULT
+    // default bgp instance name is used to set bgp instance name value other
+    // than DEFAULT
     string default_bgp_instance_name = 246;
     // Arista does not support ETHChannel rate-class
     bool channel_assignment_rate_class_parameters_unsupported = 247;
 
-    // Arista: b/346557012  
+    // Arista: b/346557012
     // Devices that do not support qos scheduler ingress policer.
     bool qos_scheduler_ingress_policer_unsupported = 248;
 
@@ -693,19 +709,20 @@ message Metadata {
     // Device needs route policy reference to stream prefix set info.
     bool bgp_prefixset_req_routepol_ref = 255;
 
-    // Devices that do not support oper-status for Integrated Circuits telemetry path
-    // Juniper b/395551640
+    // Devices that do not support oper-status for Integrated Circuits telemetry
+    // path Juniper b/395551640
     bool oper_status_for_ic_unsupported = 256;
 
     // Nokia: b/383075189
-    // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
+    // ExplicitDcoConfig returns true if explicit configurations are required in
+    // module-functional-type for the transceiver
     bool explicit_dco_config = 257;
-    // verify_expected_breakout_supported_config is used to verify on Cisco devices if optic supports a given breakout mode
-    // Cisco:
+    // verify_expected_breakout_supported_config is used to verify on Cisco
+    // devices if optic supports a given breakout mode Cisco:
     bool verify_expected_breakout_supported_config = 258;
 
-    // bgp_aspathset_unsupported is set to true for devices that do not support as-path-set for bgp-defined-sets.
-    // Juniper: b/330173167
+    // bgp_aspathset_unsupported is set to true for devices that do not support
+    // as-path-set for bgp-defined-sets. Juniper: b/330173167
     bool bgp_aspathset_unsupported = 259;
 
     // Devices that do not support SR IGP configuration
@@ -713,22 +730,24 @@ message Metadata {
     bool sr_igp_config_unsupported = 260;
 
     // Cisco: b/404301960
-    // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
-    // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
+    // Devices that block one IS-IS level specific authentication config
+    // attribute for P2P links. The same leafs can be set directly under ISIS
+    // Interface authentication
+    // /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
-    
+
     // Devices that do not support load-interval configuration
     bool load_interval_not_supported = 263;
 
-    // SkipOpticalChannelOutputPowerInterval for devices that do not support optical-channel/output-power/interval leaf
-    // Nokia b/394622454
+    // SkipOpticalChannelOutputPowerInterval for devices that do not support
+    // optical-channel/output-power/interval leaf Nokia b/394622454
     bool skip_optical_channel_output_power_interval = 264;
 
-    // SkipTransceiverDescription for devices that do not support transceiver/description leaf
-    // Nokia b/394622453
+    // SkipTransceiverDescription for devices that do not support
+    // transceiver/description leaf Nokia b/394622453
     bool skip_transceiver_description = 265;
 
     // Devices that do not support containerz config via OpenConfig.
@@ -816,8 +835,13 @@ message Metadata {
     // Juniper b/419536104
     bool config_leaf_create_required = 291;
 
+    // SkipInterfaceNameCheck is set to true for devices that do not support
+    // interface name check in AFT.
+    bool skip_interface_name_check = 292;
+
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131,
+        141, 173, 234, 254, 231;
   }
 
   message PlatformExceptions {

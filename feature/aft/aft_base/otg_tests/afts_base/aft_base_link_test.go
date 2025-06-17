@@ -449,7 +449,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			}
 			// TODO: - Add check for exact interface name
 			// TODO: - Cisco Next-hop interface is not available (Remove Cisco specific check and add recursive check)
-			if tc.dut.Vendor() != ondatra.CISCO {
+			if !deviations.SkipInterfaceNameCheck(tc.dut) {
 				if nh.IntfName == "" {
 					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 				}

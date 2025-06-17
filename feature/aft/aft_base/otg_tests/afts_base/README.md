@@ -106,7 +106,7 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
 paths:
   ## Config Paths ##
 
-  ## State Paths ##:
+  ## State Paths ##
    /network-instances/network-instance/afts/next-hops/next-hop/index:
    /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
    /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
