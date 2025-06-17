@@ -14,6 +14,7 @@ platform_exceptions: {
     isis_single_topology_required: true
     skip_afi_safi_path_for_bgp_multiple_as: true
     enable_multipath_under_afi_safi: true
+    skip_interface_name_check: true
   }
 }
 platform_exceptions: {
