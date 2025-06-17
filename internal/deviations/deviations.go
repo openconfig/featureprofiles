@@ -1439,18 +1439,18 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // PolicyForwardingToNextHopUnsupported returns true if policy forwarding to next hop is not supported on vendors
-func PolicyForwardingToNextHopUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopUnsupported()
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
 }
 
-// PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
-func PolicyForwardingGREEncapsulationUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationUnsupported()
+// PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
 
-// PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
-func QosClassifierDscpRemarkUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkUnsupported()
+// PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func QosClassifierDscpRemarkOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkOcUnsupported()
 }
 
 // IsisMplsUnsupported returns true if there's no OC support for MPLS under ISIS
