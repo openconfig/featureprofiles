@@ -1463,7 +1463,7 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
 }
 
-// Config Leaf Create required before GNMI get
+// ConfigLeafCreateRequired returns true if leaf creation is required
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
