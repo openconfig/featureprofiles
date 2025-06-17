@@ -486,6 +486,9 @@ paths:
 
 rpcs:
   gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
     # Primarily used for verification (Subscribe/Get)
     gNMI.Subscribe:
       on_change: true
