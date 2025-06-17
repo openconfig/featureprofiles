@@ -31,6 +31,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -403,7 +404,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("01:01:01:01:01:01")
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
-	p100gbasefr := []string{}
+	var p100gbasefr []string
 	for _, p := range tc.atePorts {
 		if p.PMD() == ondatra.PMD100GBASEFR {
 			p100gbasefr = append(p100gbasefr, p.ID())
@@ -447,7 +448,7 @@ var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.1 /* absolute */)
 // weights listed in the same order as atePorts.
 func (tc *testCase) portWants() []float64 {
 	numPorts := len(tc.dutPorts[1:])
-	weights := []float64{}
+	var weights []float64
 	for i := 0; i < numPorts; i++ {
 		weights = append(weights, 1/float64(numPorts))
 	}
@@ -460,8 +461,8 @@ func (tc *testCase) verifyCounterDiff(t *testing.T, before, after map[string]*oc
 
 	fmt.Fprint(w, "Interface Counter Deltas\n\n")
 	fmt.Fprint(w, "Name\tInPkts\tInOctets\tOutPkts\tOutOctets\n")
-	allInPkts := []uint64{}
-	allOutPkts := []uint64{}
+	var allInPkts []uint64
+	var allOutPkts []uint64
 
 	for port := range before {
 		inPkts := after[port].GetInUnicastPkts() - before[port].GetInUnicastPkts()
@@ -631,6 +632,32 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
+// configureStaticRoute adds v4/v6 default static route on DUT
+func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+	b := &gnmi.SetBatch{}
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: ni,
+		Prefix:          "0.0.0.0/0",
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(ateDst.IPv4),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: ni,
+		Prefix:          "::0/0",
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(ateDst.IPv6),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+}
+
 // define different flows for traffic
 func TestBalancing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -671,6 +698,7 @@ func TestBalancing(t *testing.T) {
 	}
 	tc.configureATE(t)
 	tc.configureDUT(t)
+	configureStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut))
 	t.Run("verifyDUT", tc.verifyDUT)
 
 	for _, tf := range tests {
