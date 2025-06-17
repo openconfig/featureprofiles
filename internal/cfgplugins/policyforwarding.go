@@ -203,6 +203,16 @@ ip decap-group gre-decap
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
 !`
 
+	decapGroupGUEArista = `
+!
+ip decap-group type udp destination port 6635 payload mpls
+!
+ip decap-group gre-decap
+  tunnel type udp
+  tunnel decap-ip 11.0.0.0/8
+  tunnel overlay mpls qos map mpls-traffic-class to traffic-class
+!`
+
 	staticLSPArista = `
 mpls static top-label 99991 169.254.0.12 pop payload-type ipv4 access-list bypass
 mpls static top-label 99992 2600:2d00:0:1:8000:10:0:ca32 pop payload-type ipv6 access-list bypass
@@ -473,6 +483,20 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		}
 	} else {
 		DecapPolicyRulesandActionsGre(t, pf, ocPFParams)
+	}
+}
+
+// DecapGroupConfigGue configures the interface decap-group for GUE.
+func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+	if deviations.GueGreDecapUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
+		}
+	} else {
+		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
 	}
 }
 

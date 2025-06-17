@@ -1,5 +1,5 @@
-// Package mpls_gre_ipv4_decap_test tests mplsogre decap functionality.
-package mpls_gre_ipv4_decap_test
+// Package mpls_gue_ipv4_decap_test tests mplsogue decap functionality.
+package mpls_gue_ipv4_decap_test
 
 import (
 	"testing"
@@ -172,13 +172,13 @@ var (
 		RxNames:           []string{agg1.Interfaces[0].Name + ".IPv4"},
 		SizeWeightProfile: &sizeWeightProfile,
 		Flowrate:          45,
-		FlowName:          "MPLSOGRE traffic IPv4 interface IPv4 Payload",
+		FlowName:          "MPLSOGUE traffic IPv4 interface IPv4 Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 10000},
 		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99991, MPLSExp: 7},
-		GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: 6635},
 	}
-	// FlowOuterIPv4Validation MPLSOGRE traffic IPv4 interface IPv4 Payload.
+	// FlowOuterIPv4Validation MPLSOGUE traffic IPv4 interface IPv4 Payload.
 	FlowOuterIPv4Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv4.FlowName, TolerancePct: 0.5},
@@ -194,13 +194,13 @@ var (
 		RxNames:           []string{agg1.Interfaces[1].Name + ".IPv6"},
 		SizeWeightProfile: &sizeWeightProfile,
 		Flowrate:          45,
-		FlowName:          "MPLSOGRE traffic IPv6 interface IPv6 Payload",
+		FlowName:          "MPLSOGUE traffic IPv6 interface IPv6 Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 10000},
 		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99992, MPLSExp: 7},
-		GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+		UDPFlow:           &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: 6635},
 	}
-	// FlowOuterIPv6Validation MPLSOGRE traffic IPv6 interface IPv6 Payload.
+	// FlowOuterIPv6Validation MPLSOGUE traffic IPv6 interface IPv6 Payload.
 	FlowOuterIPv6Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[1].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv6.FlowName, TolerancePct: 0.5},
@@ -240,8 +240,7 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
 	configureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-	DecapMPLSInGRE(t, dut, pf, ni, ocPFParams)
-
+	DecapMPLSInGUE(t, dut, pf, ni, ocPFParams)
 }
 
 func TestSetup(t *testing.T) {
@@ -279,19 +278,19 @@ func configureInterfaceProperties(t *testing.T, dut *ondatra.DUTDevice, aggID st
 
 // function should also include the OC config , within these deviations there should be a switch statement is needed
 // Modified to accept pf, ni, and ocPFParams
-func DecapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+func DecapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
-	cfgplugins.DecapGroupConfigGre(t, dut, pf, ocPFParams)
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 	cfgplugins.MPLSStaticLSPConfig(t, dut, ni, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		PushPolicyForwardingConfig(t, dut, ni)
 	}
 }
 
-// PF-1.12.2: Verify PF MPLSoGRE Decap action for IPv4 and IPv6 traffic.
-func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
+// PF-1.12.2: Verify PF MPLSoGUE Decap action for IPv4 and IPv6 traffic.
+func TestMPLSOGUEDecapIPv4AndIPv6(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	createflow(t, top, FlowOuterIPv4, FlowInnerIPv4, true)
@@ -322,7 +321,7 @@ func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers
 	paramsOuter.CreateFlow(top)
 	paramsOuter.AddEthHeader()
 	paramsOuter.AddIPv4Header()
-	paramsOuter.AddGREHeader()
+	paramsOuter.AddUDPHeader()
 	paramsOuter.AddMPLSHeader()
 	if paramsInner.IPv4Flow != nil {
 		*paramsOuter.IPv4Flow = *paramsInner.IPv4Flow
@@ -337,7 +336,7 @@ func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers
 		paramsOuter.AddTCPHeader()
 	}
 	if paramsInner.UDPFlow != nil {
-		paramsOuter.UDPFlow = paramsInner.UDPFlow
+		*paramsOuter.UDPFlow = *paramsInner.UDPFlow
 		paramsOuter.AddUDPHeader()
 	}
 }
@@ -448,3 +447,4 @@ func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
 	gnmi.Replace(t, dut, niPath, ni)
 }
+
