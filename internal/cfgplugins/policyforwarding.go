@@ -441,6 +441,21 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGre = ygot.Bool(true)
 }
 
+// DecapPolicyRulesandActionsGue configures the "decap MPLS in GUE" policy and related MPLS global and static LSP settings.
+func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	pols := pf.GetOrCreatePolicy("customer10")
+	var ruleSeq uint32 = 10
+	var protocol uint8 = 4
+
+	rule10 := pols.GetOrCreateRule(ruleSeq)
+	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(params.InnerDstIPv4)
+	rule10.GetOrCreateIpv4().Protocol = oc.UnionUint8(protocol)
+
+	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
+}
+
 // MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
 func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
 	t.Helper()
