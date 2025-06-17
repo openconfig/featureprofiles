@@ -743,6 +743,10 @@ message Metadata {
     // Devices that do not support ISIS MPLS
     bool isis_mpls_unsupported = 268;
 
+    // Devices that does have different AS path prepend order.
+    // juniper : b/425632068
+    bool bgp_as_path_prepend_order_mismtach = 269;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
   }

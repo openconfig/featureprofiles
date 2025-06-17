@@ -1352,3 +1352,8 @@ func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisMplsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisMplsUnsupported()
 }
+
+// Devices that does have different AS path prepend order.
+func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAsPathPrependOrderMismtach()
+}
