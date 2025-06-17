@@ -56,7 +56,7 @@ platform_exceptions:  {
     skip_setting_disable_metric_propagation: true
     routing_policy_tag_set_embedded: true
     bgp_community_set_refs_unsupported: true
-    bgp_set_med_v7_unsupported: true
+    bgp_set_med_action_unsupported: true
     bgp_as_path_prepend_order_mismtach = true
   }
 }
