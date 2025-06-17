@@ -1002,11 +1002,6 @@ type Metadata_Deviations struct {
 	BgpDistanceOcPathUnsupported bool `protobuf:"varint,267,opt,name=bgp_distance_oc_path_unsupported,json=bgpDistanceOcPathUnsupported,proto3" json:"bgp_distance_oc_path_unsupported,omitempty"`
 	// Devices that do not support ISIS MPLS
 	IsisMplsUnsupported bool `protobuf:"varint,268,opt,name=isis_mpls_unsupported,json=isisMplsUnsupported,proto3" json:"isis_mpls_unsupported,omitempty"`
-	// Devices that does have different AS path prepend order.
-	// juniper : b/425632068
-	BgpAsPathPrependOrderMismtach bool `protobuf:"varint,269,opt,name=bgp_as_path_prepend_order_mismtach,json=bgpAsPathPrependOrderMismtach,proto3" json:"bgp_as_path_prepend_order_mismtach,omitempty"`
-	unknownFields                 protoimpl.UnknownFields
-	sizeCache                     protoimpl.SizeCache
 	// Devices that do not support oc path for auto-negotiate
 	// Nokia b/417843274
 	AutoNegotiateUnsupported bool `protobuf:"varint,269,opt,name=auto_negotiate_unsupported,json=autoNegotiateUnsupported,proto3" json:"auto_negotiate_unsupported,omitempty"`
@@ -1060,8 +1055,11 @@ type Metadata_Deviations struct {
 	// Create/Replace config leaf required
 	// Juniper b/419536104
 	ConfigLeafCreateRequired bool `protobuf:"varint,291,opt,name=config_leaf_create_required,json=configLeafCreateRequired,proto3" json:"config_leaf_create_required,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Devices that does have different AS path prepend order.
+	// juniper : b/425632068
+	BgpAsPathPrependOrderMismtach bool `protobuf:"varint,292,opt,name=bgp_as_path_prepend_order_mismtach,json=bgpAsPathPrependOrderMismtach,proto3" json:"bgp_as_path_prepend_order_mismtach,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2753,9 +2751,6 @@ func (x *Metadata_Deviations) GetIsisMplsUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetBgpAsPathPrependOrderMismtach() bool {
-	if x != nil {
-		return x.BgpAsPathPrependOrderMismtach
 func (x *Metadata_Deviations) GetAutoNegotiateUnsupported() bool {
 	if x != nil {
 		return x.AutoNegotiateUnsupported
@@ -2917,6 +2912,13 @@ func (x *Metadata_Deviations) GetConfigLeafCreateRequired() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetBgpAsPathPrependOrderMismtach() bool {
+	if x != nil {
+		return x.BgpAsPathPrependOrderMismtach
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -2973,8 +2975,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xae\x94\x01\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xbd\x9e\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x89\x9f\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -2986,8 +2987,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x82\x8b\x01\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x91\x95\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aݕ\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3228,9 +3228,6 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1cskip_transceiver_description\x18\x89\x02 \x01(\bR\x1askipTransceiverDescription\x12;\n" +
 	"\x19containerz_oc_unsupported\x18\x8a\x02 \x01(\bR\x17containerzOcUnsupported\x12G\n" +
 	" bgp_distance_oc_path_unsupported\x18\x8b\x02 \x01(\bR\x1cbgpDistanceOcPathUnsupported\x123\n" +
-	"\x15isis_mpls_unsupported\x18\x8c\x02 \x01(\bR\x13isisMplsUnsupported\x12J\n" +
-	"\"bgp_as_path_prepend_order_mismtach\x18\x8d\x02 \x01(\bR\x1dbgpAsPathPrependOrderMismtachJ\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01\x1a\xa0\x01\n" +
 	"\x15isis_mpls_unsupported\x18\x8c\x02 \x01(\bR\x13isisMplsUnsupported\x12=\n" +
 	"\x1aauto_negotiate_unsupported\x18\x8d\x02 \x01(\bR\x18autoNegotiateUnsupported\x127\n" +
 	"\x17duplex_mode_unsupported\x18\x8e\x02 \x01(\bR\x15duplexModeUnsupported\x125\n" +
@@ -3254,7 +3251,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x16static_arp_unsupported\x18\xa0\x02 \x01(\bR\x14staticArpUnsupported\x12V\n" +
 	"'interface_policy_forwarding_unsupported\x18\xa1\x02 \x01(\bR$interfacePolicyForwardingUnsupported\x12?\n" +
 	"\x1duse_old_oc_path_static_lsp_nh\x18\xa2\x02 \x01(\bR\x17useOldOcPathStaticLspNh\x12>\n" +
-	"\x1bconfig_leaf_create_required\x18\xa3\x02 \x01(\bR\x18configLeafCreateRequiredJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1bconfig_leaf_create_required\x18\xa3\x02 \x01(\bR\x18configLeafCreateRequired\x12J\n" +
+	"\"bgp_as_path_prepend_order_mismtach\x18\xa4\x02 \x01(\bR\x1dbgpAsPathPrependOrderMismtachJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
