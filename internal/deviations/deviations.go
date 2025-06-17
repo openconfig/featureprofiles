@@ -1467,4 +1467,3 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 func DefaultPolicyRequiresBgpMatch(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultPolicyRequiresBgpMatch()
 }
-
