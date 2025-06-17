@@ -115,10 +115,8 @@ paths:
    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index:
    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
-   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/prefix:
    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
    /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
-   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/prefix:
    /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
 
 rpcs:
