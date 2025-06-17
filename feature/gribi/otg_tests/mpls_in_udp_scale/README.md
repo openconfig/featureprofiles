@@ -456,7 +456,7 @@ these dimensions.
   running a variation of Profile 5 using the multi-VRF setup from
   Profile 2 or 3 as the baseline state.
 
-### TE-18.3.4 OpenConfig Path and RPC Coverage
+#### OpenConfig Path and RPC Coverage
 
 ``` yaml
 paths:
