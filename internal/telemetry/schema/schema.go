@@ -36,7 +36,7 @@ func NotificationToPoints(n *gnmipb.Notification) []Point {
 	if n == nil {
 		return []Point{}
 	}
-	var points []Point
+	points := make([]Point, 0, len(n.GetUpdate()))
 	for _, u := range n.GetUpdate() {
 		fullPath := &gnmipb.Path{}
 		fullPath.Elem = append(fullPath.GetElem(), n.GetPrefix().GetElem()...)

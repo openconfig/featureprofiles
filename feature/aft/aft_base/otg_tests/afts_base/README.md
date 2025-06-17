@@ -23,7 +23,7 @@ Configure DUT: port 1, port 2 for IS-IS session with ATE: port 1, port 2
 
 Establish eBGP sessions between ATE: port 1, port 2 and DUT: port 1, port 2 
 
-*   Configure eBGP over the interface IP between ATE: port1,port2 and DUT: port 1,port 2.
+*   Configure eBGP over the interface IP between ATE: port 1, port 2 and DUT: port 1,port 2.
 *   eBGP must be multipath.
 *   Advertise `X` IPv4, `Y` IPv6 prefixes from ATE port 1, port 2 observe received prefixes at DUT.
 *   Each prefix advertised by BGP must have 2 next hops pointing to ATE port 1 and ATE port 2.
@@ -64,7 +64,7 @@ Bring down the link between ATE: port 2 and DUT: port 2 using OTG API.
 
 ### Procedure
 
-Bring down both links between ATE: port 1, port 2 and DUT: port 1, fport 2 using OTG API.
+Bring down both links between ATE: port 1, port 2 and DUT: port 1, port 2 using OTG API.
 
 ### Verifications
 

@@ -82,7 +82,7 @@ test: {
   id: "AFT-1.1"
   description: "AFTs Base Link Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_base/README.md"
-  exec: " "
+  exec: ""
 }
 test: {
   id: "attestz-1"
