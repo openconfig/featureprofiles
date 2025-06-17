@@ -717,7 +717,7 @@ func parsePrefix(n *gnmipb.Notification) (string, uint64, error) {
 				return "", 0, fmt.Errorf("prefix mismatch")
 			}
 		// known unused paths
-		case unusedPaths[0], unusedPaths[1], unusedPaths[2], unusedPaths[3]:
+		case unusedPaths[0], unusedPaths[1], unusedPaths[2], unusedPaths[3], unusedPaths[4], unusedPaths[5]:
 		default:
 			log.Warningf("unexpected path %q in prefix notification %v", path, n)
 		}
