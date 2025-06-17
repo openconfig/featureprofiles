@@ -57,6 +57,6 @@ platform_exceptions:  {
     routing_policy_tag_set_embedded: true
     bgp_community_set_refs_unsupported: true
     bgp_set_med_action_unsupported: true
-    bgp_as_path_prepend_order_mismtach = true
+    bgp_as_path_prepend_order_mismtach: true
   }
 }
