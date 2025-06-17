@@ -93,7 +93,7 @@ func ConfigureLagMemberPort(agg gosnappi.Lag, portID string, a *Port, index int)
 	lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(index) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 }
 
-// ConfigureOtgInterface configures the Ethernet for the LAG or subinterface.
+// ConfigureInterface configures the Ethernet for the LAG or subinterface.
 func ConfigureInterface(top gosnappi.Config, intf *InterfaceProperties, a *Port) {
 	dev := top.Devices().Add().SetName(intf.Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(intf.Name + ".Eth").SetMac(intf.MAC)
