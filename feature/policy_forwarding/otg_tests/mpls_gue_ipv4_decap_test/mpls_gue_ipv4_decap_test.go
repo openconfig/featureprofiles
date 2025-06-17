@@ -447,4 +447,3 @@ func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
 	gnmi.Replace(t, dut, niPath, ni)
 }
-
