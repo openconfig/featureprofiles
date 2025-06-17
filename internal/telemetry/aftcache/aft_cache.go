@@ -707,17 +707,17 @@ func parsePrefix(n *gnmipb.Notification) (string, uint64, error) {
 		if err != nil {
 			return "", 0, fmt.Errorf("error converting path to schema path: %v", err)
 		}
-		switch path {
-		case prefixNHGPathV4, prefixNHGPathV6:
+		switch {
+		case path == prefixNHGPathV4 || path == prefixNHGPathV6:
 			wantFields[path] = true
 			nhgID = u.Val.GetUintVal()
-		case prefixPathV4, prefixPathV6:
+		case path == prefixPathV4 || path == prefixPathV6:
 			wantFields[path] = true
 			if u.Val.GetStringVal() != prefix {
 				return "", 0, fmt.Errorf("prefix mismatch")
 			}
 		// known unused paths
-		case unusedPaths[0], unusedPaths[1], unusedPaths[2], unusedPaths[3], unusedPaths[4], unusedPaths[5]:
+		case slices.Contains(unusedPaths, path):
 		default:
 			log.Warningf("unexpected path %q in prefix notification %v", path, n)
 		}
