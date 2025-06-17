@@ -110,7 +110,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
 	i8.Ethernet()
 
-	ports := []string{"port9", "port10", "port11", "port12", "port13", "port14", "port15", "port16"}
+	ports := []string{"port9", "port10", "port11", "port12", "port13", "port14", "port15"}
 	for _, portName := range ports {
 		port := ate.Port(t, portName)
 		intf := top.AddInterface(portName).WithPort(port)

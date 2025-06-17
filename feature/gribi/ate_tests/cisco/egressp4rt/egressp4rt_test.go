@@ -488,7 +488,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 		p13 := dut.Port(t, "port13")
 		p14 := dut.Port(t, "port14")
 		p15 := dut.Port(t, "port15")
-		p16 := dut.Port(t, "port16")
+		// p16 := dut.Port(t, "port16")
 
 		var IDMap = map[string]string{
 			p1.Name():  "10",
@@ -497,8 +497,8 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			p4.Name():  "13",
 			p5.Name():  "14",
 			p6.Name():  "15",
-			p7.Name():  "16",
-			p8.Name():  "17",
+			p7.Name():  "27",
+			p8.Name():  "16",
 			p9.Name():  "18",
 			p10.Name(): "19",
 			p11.Name(): "20",
@@ -506,7 +506,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			p13.Name(): "22",
 			p14.Name(): "23",
 			p15.Name(): "24",
-			p16.Name(): "25",
+			// p16.Name(): "25",
 		}
 
 		if c == 5 || c == 6 {
@@ -526,7 +526,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name(), p16.Name()}
+		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name()}
 		inputPort1 := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}
 		if len(opts) != 0 {
 			for _, opt := range opts {
@@ -989,7 +989,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 		p13 := dut.Port(t, "port13")
 		p14 := dut.Port(t, "port14")
 		p15 := dut.Port(t, "port15")
-		p16 := dut.Port(t, "port16")
+		// p16 := dut.Port(t, "port16")
 
 		var IDMap = map[string]string{
 			p1.Name():  "10",
@@ -998,8 +998,8 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 			p4.Name():  "13",
 			p5.Name():  "14",
 			p6.Name():  "15",
-			p7.Name():  "16",
-			p8.Name():  "17",
+			p7.Name():  "27",
+			p8.Name():  "16",
 			p9.Name():  "18",
 			p10.Name(): "19",
 			p11.Name(): "20",
@@ -1007,7 +1007,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 			p13.Name(): "22",
 			p14.Name(): "23",
 			p15.Name(): "24",
-			p16.Name(): "25",
+			// p16.Name(): "25",
 		}
 
 		if c == 5 || c == 6 {
@@ -1027,7 +1027,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name(), p16.Name()}
+		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name()}
 		inputPort1 := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}
 		if len(opts) != 0 {
 			for _, opt := range opts {
@@ -1603,7 +1603,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		p13 := dut.Port(t, "port13")
 		p14 := dut.Port(t, "port14")
 		p15 := dut.Port(t, "port15")
-		p16 := dut.Port(t, "port16")
+		// p16 := dut.Port(t, "port16")
 
 		var IDMap = map[string]string{
 			p1.Name():  "10",
@@ -1612,8 +1612,8 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			p4.Name():  "13",
 			p5.Name():  "14",
 			p6.Name():  "15",
-			p7.Name():  "16",
-			p8.Name():  "17",
+			p7.Name():  "27",
+			p8.Name():  "16",
 			p9.Name():  "18",
 			p10.Name(): "19",
 			p11.Name(): "20",
@@ -1621,7 +1621,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			p13.Name(): "22",
 			p14.Name(): "23",
 			p15.Name(): "24",
-			p16.Name(): "25",
+			// p16.Name(): "25",
 		}
 
 		if c == 5 || c == 6 {
@@ -1641,7 +1641,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name(), p16.Name()}
+		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name()}
 		inputPort1 := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}
 		if len(opts) != 0 {
 			for _, opt := range opts {

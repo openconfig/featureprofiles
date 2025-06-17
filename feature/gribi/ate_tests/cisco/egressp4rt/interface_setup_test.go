@@ -317,7 +317,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configBunInterfaceDUT(i7, &dutPort7.Attributes))
 
 	// Add ports 7, 13, 14, 15, and 16 as members of Bundle-Ether126
-	ports = []string{"port7", "port13", "port14", "port15", "port16"}
+	ports = []string{"port7", "port13", "port14", "port15"}
 	// ids = []uint32{16, 22, 23, 24, 25} // Assign unique IDs for each port
 
 	for _, portName := range ports {
