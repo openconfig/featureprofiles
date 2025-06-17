@@ -288,7 +288,7 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	createdOn := uint64(100)
 	version := "policy-normal-1_v1"
 	policyExpected := authz.GrpcAuthzPolicy{
-		GrpcAuthzPolicyCreatedOn: createdOn,
+		GrpcAuthzPolicyCreatedOn: createdOn * 1e9,
 		GrpcAuthzPolicyVersion:   version,
 	}
 	watchersampleEdtSystemAaaAuthz := edtSystemAaaAuthz(t, dut, gpb.SubscriptionMode_SAMPLE, policyExpected)
@@ -301,19 +301,19 @@ func TestHAEMSDProcessKill(t *testing.T) {
 	t.Run("watchersampleEdtSystemAaaAuthz", func(t *testing.T) {
 		t.Parallel()
 		if _, present := watchersampleEdtSystemAaaAuthz.Await(t); !present {
-			t.Errorf("EDT data was not sent SystemAaaAuthz  %v", policyExpected)
+			t.Errorf("EDT data was not sent sample SystemAaaAuthz  %v", policyExpected)
 		}
 	})
 	t.Run("watcherOnChangeEdtSystemAaaAuthz", func(t *testing.T) {
 		t.Parallel()
 		if _, present := watcherOnChangeEdtSystemAaaAuthz.Await(t); !present {
-			t.Errorf("EDT data was not sent SystemAaaAuthz  %v", policyExpected)
+			t.Errorf("EDT data was not sent on-change SystemAaaAuthz  %v", policyExpected)
 		}
 	})
 	t.Run("watcherTaargetDefinedEdtSystemAaaAuthz", func(t *testing.T) {
 		t.Parallel()
 		if _, present := watcherTaargetDefinedEdtSystemAaaAuthz.Await(t); !present {
-			t.Errorf("EDT data was not sent SystemAaaAuthz  %v", policyExpected)
+			t.Errorf("EDT data was not sent target-defined SystemAaaAuthz  %v", policyExpected)
 		}
 	})
 	// Verify all results match per the above table for policy policy-normal-1
