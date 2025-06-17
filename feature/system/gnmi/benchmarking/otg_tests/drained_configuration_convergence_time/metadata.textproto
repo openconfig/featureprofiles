@@ -23,6 +23,7 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
@@ -37,5 +38,13 @@ platform_exceptions: {
     isis_require_same_l1_metric_with_l2_metric: true
     bgp_set_med_requires_equal_ospf_set_metric: true
     isis_instance_enabled_required: true      
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    bgp_set_med_action_unsupported: true
   }
 }

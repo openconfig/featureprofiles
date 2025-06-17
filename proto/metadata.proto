@@ -626,9 +626,6 @@ message Metadata {
     // CISCO: b/376241033
     // CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
-    // Device have different default value for allow own as.
-    // Juniper : b/373559004
-    bool bgp_allowownas_diff_default_value = 231;
     // Cisco numbering for OTN channel assignment starts from 1 instead of 0
     bool otn_channel_assignment_cisco_numbering = 232;
     // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
@@ -743,12 +740,88 @@ message Metadata {
     // Devices that do not support ISIS MPLS
     bool isis_mpls_unsupported = 268;
 
+    // Devices that do not support oc path for auto-negotiate
+    // Nokia b/417843274
+    bool auto_negotiate_unsupported = 269;
+
+    // Devices that do not support oc path for duplex-mode
+    // Nokia b/417843274
+    bool duplex_mode_unsupported = 270;
+
+    // Devices that do not support oc path for port-speed
+    // Nokia b/417843274
+    bool port_speed_unsupported = 271;
+
+    // Set-Med-Action is not supported for BGP
+    // Cisco b/414333771
+    bool bgp_set_med_action_unsupported = 272;
+
+    // Devices that do not support next-hop-group config
+    // Arista b/390507957
+    bool next_hop_group_config_unsupported = 273;
+
+    // Arista b/390507780
+    bool qos_shaper_config_unsupported = 274;
+
+    // Arista b/390507780
+    bool qos_shaper_state_unsupported = 275;
+
+    // Arista b/393178770
+    bool ethernet_over_mplsogre_unsupported = 276;
+
+    // Arista b/390507408
+    bool sflow_unsupported = 277;
+
+    // Arista b/390507402
+    bool mpls_unsupported = 278;
+
+    // Arista b/390507399
+    bool macsec_unsupported = 279;
+
+    // Arista b/390506900
+    bool gue_gre_decap_unsupported = 280;
+
+    // Arista b/390506584
+    bool mpls_label_classification_unsupported = 281;
+
+    // Arista b/390506395
+    bool local_proxy_unsupported = 282;
+
+    // Arista b/390506513
+    bool static_mpls_unsupported = 283;
+
+    // Arista b/390504878
+    bool qos_classification_unsupported = 284;
+
+    // Arista b/390503348
+    bool policy_forwarding_unsupported = 285;
+
+    // Arista b/393177745
+    bool cfm_unsupported = 286;
+
+    // Arista b/390506903
+    bool label_range_unsupported = 287;
+
+    // Arista b/390506907
+    bool static_arp_unsupported = 288;
+
+    // Arista b/390506907
+    bool interface_policy_forwarding_unsupported = 289;
+
+    // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
+    // issues/404301960
+    bool use_old_oc_path_static_lsp_nh = 290;
+
+    // Create/Replace config leaf required 
+    // Juniper b/419536104
+    bool config_leaf_create_required = 291;
+
     // Devices that does have different AS path prepend order.
     // juniper : b/425632068
-    bool bgp_as_path_prepend_order_mismtach = 269;
+    bool bgp_as_path_prepend_order_mismtach = 292;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
 
   message PlatformExceptions {
