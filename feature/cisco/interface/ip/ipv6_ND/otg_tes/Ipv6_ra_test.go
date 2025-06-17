@@ -165,8 +165,8 @@ func configInterfaceIPv6RA(t *testing.T, dut *ondatra.DUTDevice, interfaces Inte
 		routerAdvert.SetInterval(routerAdvertisementTimeInterval)
 	case "Suppress":
 		// routerAdvert.Enable = ygot.Bool(true)
-		// routerAdvert.SetEnable(true)
-		routerAdvert.SetSuppress(routerAdvertisementDisabled)
+		routerAdvert.SetEnable(true)
+		// routerAdvert.SetSuppress(routerAdvertisementDisabled)
 	case "ModeAll":
 		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_ALL)
 	case "Unsolicited":
