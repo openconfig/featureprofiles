@@ -302,21 +302,21 @@ Canonical OpenConfig
 ```yaml
 paths:
     # config
-    /openconfig-network-instance:network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name
-    /openconfig-network-instance:network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/config/index
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/index
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dscp
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/ip-ttl
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip
-    /openconfig-network-instance:network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-udp-port
-    /openconfig-network-instance:network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name
+    /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
+    /network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index:
+    /network-instances/network-instance/static/next-hops/next-hop/config/index:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/index:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dscp:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/ip-ttl:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-udp-port:
+    /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name:
 
     # telemetry
-    /openconfig/interfaces/interface/state/counters/out-unicast-pkts
+    /openconfig/interfaces/interface/state/counters/out-unicast-pkts:
 
 
 rpcs:
