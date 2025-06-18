@@ -591,8 +591,6 @@ func parseNH(n *gnmipb.Notification) (uint64, *aftNextHop, error) {
 			return 0, nil, err
 		case strings.HasSuffix(path, "state/index"):
 			entries[u.Val.GetUintVal()] = true
-		case strings.HasSuffix(path, "/index"):
-			entries[u.Val.GetUintVal()] = true
 		}
 	}
 	// Ensure all next-hop entries are consistent.
