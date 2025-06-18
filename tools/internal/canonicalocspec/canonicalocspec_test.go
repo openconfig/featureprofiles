@@ -18,8 +18,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestParse(t *testing.T) {
