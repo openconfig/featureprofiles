@@ -41,11 +41,11 @@ const (
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	dut        *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	top        gosnappi.Config
-	iptype     string
-	protocol   oc.E_PacketMatchTypes_IP_PROTOCOL
+	dut      *ondatra.DUTDevice
+	ate      *ondatra.ATEDevice
+	top      gosnappi.Config
+	iptype   string
+	protocol oc.E_PacketMatchTypes_IP_PROTOCOL
 }
 
 var (
