@@ -125,6 +125,7 @@ var (
 		TgenSrcPort:       atePort1,
 		TgenDstPorts:      []string{atePort2.Name},
 		L4TCP:             true,
+		L4PortRandom:      true,
 		L4SrcPortStart:    1000,
 		L4DstPortStart:    2000,
 		L4FlowStep:        1,
@@ -144,7 +145,7 @@ func TestLoadBalancing(t *testing.T) {
 	}
 	topo := helper.TGEN.ConfigureTGEN(false, &tgenParam).ConfigureTgenInterface(t)
 	flows := helper.TGEN.ConfigureTGEN(false, &tgenParam).ConfigureTGENFlows(t)
-	helper.TGEN.StartTraffic(t, false, flows, 10*time.Second)
+	helper.TGEN.StartTraffic(t, false, flows, 10*time.Second, topo)
 	ate := topo.ATE
 	t.Log("ate", ate.String())
 	dut1E := ondatra.DUT(t, "B4E1")

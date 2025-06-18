@@ -38,16 +38,16 @@ type TrafficFlowAttr struct {
 	OuterDstStart      string
 	OuterSrcStep       string
 	OuterDstStep       string
-	OuterSrcFlowCount  int
-	OuterDstFlowCount  int
+	OuterSrcFlowCount  uint32
+	OuterDstFlowCount  uint32
 	InnerSrcStart      string
 	InnerDstStart      string
 	InnerSrcStep       string
 	InnerDstStep       string
 	OuterIPv6Flowlabel uint32
 	InnerIPv6Flowlabel uint32
-	InnerSrcFlowCount  int
-	InnerDstFlowCount  int
+	InnerSrcFlowCount  uint32
+	InnerDstFlowCount  uint32
 	InnerDSCP          uint8
 	OuterDSCP          uint8
 	OuterTTL           uint8
@@ -84,7 +84,6 @@ type OTGParam struct {
 }
 
 func (atep *ATEParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
-	t.Helper()
 	ate := ondatra.ATE(t, "ate")
 	topo := ate.Topology().New()
 
@@ -171,16 +170,32 @@ func (atep *ATEParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	// Layer4 header configuration
 	var l4TCPHeader *ondatra.TCPHeader
 	var l4UDPHeader *ondatra.UDPHeader
-	if atep.Params.TrafficFlowParam.L4TCP {
-		// TCP header
-		l4TCPHeader = ondatra.NewTCPHeader()
-		l4TCPHeader.SrcPortRange().WithMin(atep.Params.TrafficFlowParam.L4SrcPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
-		l4TCPHeader.DstPortRange().WithMin(atep.Params.TrafficFlowParam.L4DstPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
-	} else {
-		// UDP header
-		l4UDPHeader = ondatra.NewUDPHeader()
-		l4UDPHeader.SrcPortRange().WithMin(atep.Params.TrafficFlowParam.L4SrcPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
-		l4UDPHeader.DstPortRange().WithMin(atep.Params.TrafficFlowParam.L4DstPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+	// Randomize L4 ports
+	if atep.Params.TrafficFlowParam.L4PortRandom {
+		if atep.Params.TrafficFlowParam.L4TCP {
+			// TCP header
+			l4TCPHeader = ondatra.NewTCPHeader()
+			l4TCPHeader.SrcPortRange().WithRandom().WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+			l4TCPHeader.DstPortRange().WithRandom().WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+		} else {
+			// UDP header
+			l4UDPHeader = ondatra.NewUDPHeader()
+			l4UDPHeader.SrcPortRange().WithRandom().WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+			l4UDPHeader.DstPortRange().WithRandom().WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+		}
+
+	} else { // Use specified L4 port range
+		if atep.Params.TrafficFlowParam.L4TCP {
+			// TCP header
+			l4TCPHeader = ondatra.NewTCPHeader()
+			l4TCPHeader.SrcPortRange().WithMin(atep.Params.TrafficFlowParam.L4SrcPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+			l4TCPHeader.DstPortRange().WithMin(atep.Params.TrafficFlowParam.L4DstPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+		} else {
+			// UDP header
+			l4UDPHeader = ondatra.NewUDPHeader()
+			l4UDPHeader.SrcPortRange().WithMin(atep.Params.TrafficFlowParam.L4SrcPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+			l4UDPHeader.DstPortRange().WithMin(atep.Params.TrafficFlowParam.L4DstPortStart).WithStep(atep.Params.TrafficFlowParam.L4FlowStep).WithCount(atep.Params.TrafficFlowParam.L4FlowCount)
+		}
 	}
 
 	// Combine headers based on encapsulation type
@@ -231,36 +246,105 @@ func (atep *ATEParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	}
 }
 
-func (o *OTGParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
-	t.Helper()
-	otg := ondatra.ATE(t, "ate").OTG()
+func (otgp *OTGParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	topo := gosnappi.NewConfig()
-	topo.Flows().Clear()
-	// topo.Flows().Append(otgFlows...)
-	flow := gosnappi.NewFlow()
+	flow := topo.Flows().Add().SetName(otgp.Params.TrafficFlowParam.FlowName)
+	flow.Metrics().SetEnable(true)
 
-	// Example logic for configuring flows
-	for _, intf := range o.Params.TgenIntfAttr {
-		flow.SetName("Flow_" + intf.Name)
-		// Add more flow configuration logic here
+	flow.TxRx().Port().SetTxName(otgp.Params.TrafficFlowParam.TgenSrcPort.Name).SetRxNames(otgp.Params.TrafficFlowParam.TgenDstPorts)
+	// Ethernet header
+	ethHeader := flow.Packet().Add().Ethernet()
+	ethHeader.Src().SetValue(otgp.Params.TrafficFlowParam.TgenSrcPort.MAC)
+	ethHeader.Dst().SetValue(otgp.Params.TrafficFlowParam.DstMacAddress)
+
+	// Outer IP header configuration
+	var outerIPv4Header gosnappi.FlowIpv4
+	var outerIPv6Header gosnappi.FlowIpv6
+	if otgp.Params.TrafficFlowParam.OuterProtocolType == "IPv4" {
+		outerIPv4Header = flow.Packet().Add().Ipv4()
+		outerIPv4Header.Src().Increment().SetStart(otgp.Params.TrafficFlowParam.OuterSrcStart).SetStep(otgp.Params.TrafficFlowParam.OuterSrcStep).SetCount(otgp.Params.TrafficFlowParam.OuterSrcFlowCount)
+		outerIPv4Header.Dst().Increment().SetStart(otgp.Params.TrafficFlowParam.OuterDstStart).SetStep(otgp.Params.TrafficFlowParam.OuterDstStep).SetCount(otgp.Params.TrafficFlowParam.OuterDstFlowCount)
+		outerIPv4Header.TimeToLive().SetValue(uint32(otgp.Params.TrafficFlowParam.OuterTTL))
+		outerIPv4Header.Priority().Dscp().Phb().SetValue(uint32(otgp.Params.TrafficFlowParam.OuterDSCP))
+		outerIPv4Header.Priority().Dscp().Ecn().SetValue(uint32(otgp.Params.TrafficFlowParam.OuterECN))
+	} else if otgp.Params.TrafficFlowParam.OuterProtocolType == "IPv6" {
+		outerIPv6Header = flow.Packet().Add().Ipv6()
+		outerIPv6Header.Src().Increment().SetStart(otgp.Params.TrafficFlowParam.OuterSrcStart).SetStep(otgp.Params.TrafficFlowParam.OuterSrcStep).SetCount(otgp.Params.TrafficFlowParam.OuterSrcFlowCount)
+		outerIPv6Header.Dst().Increment().SetStart(otgp.Params.TrafficFlowParam.OuterDstStart).SetStep(otgp.Params.TrafficFlowParam.OuterDstStep).SetCount(otgp.Params.TrafficFlowParam.OuterDstFlowCount)
+		outerIPv6Header.HopLimit().SetValue(uint32(otgp.Params.TrafficFlowParam.OuterTTL))
+		outerIPv6Header.TrafficClass().SetValue(uint32(otgp.Params.TrafficFlowParam.OuterDSCP << 2))
+		outerIPv6Header.FlowLabel().Increment().SetStart(otgp.Params.TrafficFlowParam.OuterIPv6Flowlabel).SetStep(1).SetCount(otgp.Params.TrafficFlowParam.OuterSrcFlowCount)
 	}
 
-	t.Logf("Pushing flow config to OTG...")
-	otg.PushConfig(t, topo)
+	// Inner IP header configuration
+	var innerIPv4Header gosnappi.FlowIpv4
+	var innerIPv6Header gosnappi.FlowIpv6
+	if otgp.Params.TrafficFlowParam.InnerProtocolType == "IPv4" {
+		innerIPv4Header = flow.Packet().Add().Ipv4()
+		innerIPv4Header.Src().Increment().SetStart(otgp.Params.TrafficFlowParam.InnerSrcStart).SetStep(otgp.Params.TrafficFlowParam.InnerSrcStep).SetCount(otgp.Params.TrafficFlowParam.InnerSrcFlowCount)
+		innerIPv4Header.Dst().Increment().SetStart(otgp.Params.TrafficFlowParam.InnerDstStart).SetStep(otgp.Params.TrafficFlowParam.InnerDstStep).SetCount(otgp.Params.TrafficFlowParam.InnerDstFlowCount)
+		innerIPv4Header.TimeToLive().SetValue(uint32(otgp.Params.TrafficFlowParam.InnerTTL))
+		innerIPv4Header.Priority().Dscp().Phb().SetValue(uint32(otgp.Params.TrafficFlowParam.InnerDSCP))
+		innerIPv4Header.Priority().Dscp().Ecn().SetValue(uint32(otgp.Params.TrafficFlowParam.InnerECN))
+	} else if otgp.Params.TrafficFlowParam.InnerProtocolType == "IPv6" {
+		innerIPv6Header = flow.Packet().Add().Ipv6()
+		innerIPv6Header.Src().Increment().SetStart(otgp.Params.TrafficFlowParam.InnerSrcStart).SetStep(otgp.Params.TrafficFlowParam.InnerSrcStep).SetCount(otgp.Params.TrafficFlowParam.InnerSrcFlowCount)
+		innerIPv6Header.Dst().Increment().SetStart(otgp.Params.TrafficFlowParam.InnerDstStart).SetStep(otgp.Params.TrafficFlowParam.InnerDstStep).SetCount(otgp.Params.TrafficFlowParam.InnerDstFlowCount)
+		innerIPv6Header.HopLimit().SetValue(uint32(otgp.Params.TrafficFlowParam.InnerTTL))
+		innerIPv6Header.TrafficClass().SetValue(uint32(otgp.Params.TrafficFlowParam.InnerDSCP << 2))
+		innerIPv6Header.FlowLabel().Increment().SetStart(otgp.Params.TrafficFlowParam.InnerIPv6Flowlabel).SetStep(1).SetCount(otgp.Params.TrafficFlowParam.InnerSrcFlowCount)
+	}
+
+	// Layer4 header configuration
+	var l4TCPHeader gosnappi.FlowTcp
+	var l4UDPHeader gosnappi.FlowUdp
+	// Randomize L4 ports
+	if otgp.Params.TrafficFlowParam.L4PortRandom {
+		if otgp.Params.TrafficFlowParam.L4TCP {
+			// TCP header
+			l4TCPHeader = flow.Packet().Add().Tcp()
+			l4TCPHeader.SrcPort().Random().SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+			l4TCPHeader.SrcPort().Random().SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+		} else {
+			// UDP header
+			l4UDPHeader = flow.Packet().Add().Udp()
+			l4UDPHeader.SrcPort().Random().SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+			l4UDPHeader.SrcPort().Random().SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+		}
+
+	} else { // Use specified L4 port range
+		if otgp.Params.TrafficFlowParam.L4TCP {
+			// TCP header
+			l4TCPHeader = flow.Packet().Add().Tcp()
+			l4TCPHeader.SrcPort().Increment().SetStart(otgp.Params.TrafficFlowParam.L4SrcPortStart).SetStep(otgp.Params.TrafficFlowParam.L4FlowStep).SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+			l4TCPHeader.SrcPort().Increment().SetStart(otgp.Params.TrafficFlowParam.L4DstPortStart).SetStep(otgp.Params.TrafficFlowParam.L4FlowStep).SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+		} else {
+			// UDP header
+			l4UDPHeader = flow.Packet().Add().Udp()
+			l4UDPHeader.SrcPort().Increment().SetStart(otgp.Params.TrafficFlowParam.L4SrcPortStart).SetStep(otgp.Params.TrafficFlowParam.L4FlowStep).SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+			l4UDPHeader.SrcPort().Increment().SetStart(otgp.Params.TrafficFlowParam.L4DstPortStart).SetStep(otgp.Params.TrafficFlowParam.L4FlowStep).SetCount(otgp.Params.TrafficFlowParam.L4FlowCount)
+		}
+	}
 
 	return &TGENFlow{
 		OTG: []gosnappi.Flow{flow},
 	}
 }
-
-func (tg *TgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration) {
+func (tg *TgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology) {
 	if useOTG {
-		// otg := ondatra.ATE(t, "ate").OTG()
-		// otg.StartProtocols(t)
+		otg := ondatra.ATE(t, "ate").OTG()
+		otgTopo := topo.OTG
+		otgTopo.Flows().Clear().Items()
+		otgTopo.Flows().Append(allFlows.OTG...)
+		otg.PushConfig(t, otgTopo)
+		otg.StopProtocols(t)
+
 	} else {
 		ateFlowList := allFlows.ATE
 		ate := ondatra.ATE(t, "ate")
 		t.Logf("*** Starting traffic ...")
+		// ateTopo := topo.ATE
+		// ateTopo.Update(t)
 		ate.Traffic().Start(t, ateFlowList...)
 		time.Sleep(trafficDuration)
 		t.Logf("*** Stop traffic ...")
