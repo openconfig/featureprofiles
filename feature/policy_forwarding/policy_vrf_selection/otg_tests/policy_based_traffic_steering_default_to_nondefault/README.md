@@ -14,16 +14,18 @@ subgraph ATE1 [ATE1]
     A1[Port1]
 end
 subgraph DUT1 [DUT1]
-    B1[Port1-default VRF]
-    B2[Port2-nondefault VRF]
+    B3[Port1-default VRF]
+    B1[Port2-default VRF]
+    B2[Port3-nondefault VRF]
 end 
 subgraph ATE2 [ATE2]
     C1[Port1]
     C2[Port2]
 end
-A1 <-- IBGP(ASN100) --> B1;
+A1 <-- IBGP(ASN100) --> B3;
 B1 <-- EBGP(ASN100:ASN200) --> C1;
 B2 <-- EBGP(ASN100:ASN200)  --> C2;
+B3 --> B1;
 ```
 * Traffic Flow direction is from ATE1 --> ATE2
 
