@@ -150,35 +150,6 @@ The test performs detailed packet capture validation:
 - **Forwarding**: Encapsulated packets are properly routed to the egress
   port
 
-## Config Parameter Coverage
-
-- network-instances/network-instance/name
-- network-instances/network-instance/policy-forwarding/policies/policy/policy-id
-- network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id
-- network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/network-instance
-
-## Telemetry Parameter Coverage
-
-- network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id
-- network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/mpls-label-stack
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-ip
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-udp-port
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl
-- network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp
-
-## Protocol/RPC Parameter Coverage
-
-- gRIBI:
-  - Modify
-    - ModifyRequest: AFT entries for MPLS-in-UDP encapsulation
-  - Flush
-    - FlushRequest: Clean up AFT entries
-
 ## Required DUT platform
 
 - FFF (supports gRIBI and MPLS-in-UDP encapsulation)
