@@ -316,7 +316,7 @@ paths:
     /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name:
 
     # telemetry
-    /openconfig/interfaces/interface/state/counters/out-unicast-pkts:
+    /interfaces/interface/state/counters/out-unicast-pkts:
 
 
 rpcs:
