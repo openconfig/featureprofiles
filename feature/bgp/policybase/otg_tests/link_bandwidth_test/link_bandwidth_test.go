@@ -131,6 +131,12 @@ var (
 		"linkbw_any": ".*",
 	}
 
+	extCommunitySetArista = map[string]string{
+		"linkbw_1M":  "link-bandwidth:23456:1M",
+		"linkbw_2G":  "link-bandwidth:23456:2G",
+		"linkbw_any": "^lbw:.*:.*$",
+	}
+
 	communitySet = map[string]string{
 		"regex_match_comm100": "^100:.*$",
 	}
@@ -665,10 +671,19 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	var communitySetCLIConfig string
 	var extCommunitySetCLIConfig string
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		extCommunitySet = extCommunitySetCisco
+	case ondatra.JUNIPER:
+		extCommunitySet = extCommunitySetJuniper
+	case ondatra.ARISTA:
+		extCommunitySet = extCommunitySetArista
+	}
+
 	if deviations.BgpExtendedCommunitySetUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			extCommunitySet = extCommunitySetCisco
 			for name, community := range extCommunitySet {
 				if name == "linkbw_any" && deviations.CommunityMemberRegexUnsupported(dut) {
 					communitySetCLIConfig = fmt.Sprintf("community-set %v \n dfa-regex '%v' \n end-set", name, community)
@@ -682,9 +697,6 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("Unsupported vendor %s for native command support for deviation 'BgpExtendedCommunitySetUnsupported'", dut.Vendor())
 		}
 	} else {
-		if dut.Vendor() == ondatra.JUNIPER {
-			extCommunitySet = extCommunitySetJuniper
-		}
 		for name, community := range extCommunitySet {
 			rp := root.GetOrCreateRoutingPolicy()
 			pdef := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
