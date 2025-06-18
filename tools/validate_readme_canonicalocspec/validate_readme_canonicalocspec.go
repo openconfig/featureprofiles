@@ -134,10 +134,6 @@ func main() {
 	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {
 		fmt.Println(fmt.Errorf("cannot create download path directory: %v", config.DownloadPath))
 	}
-	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, "")
-	if err != nil {
-		log.Exit(err)
-	}
 
 	erredFiles := map[string]struct{}{}
 	for _, file := range files {
@@ -159,7 +155,7 @@ func main() {
 		}
 
 		errored := false
-		for ocStruct := range ocStructs {
+		for _, ocStruct := range ocStructs {
 			if err := isValidOC(ocStruct); err != nil {
 				log.Errorf("%q contains invalid Canonical OCs: %v", file, err)
 				errored = true
