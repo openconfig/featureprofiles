@@ -44,7 +44,6 @@ type testArgs struct {
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
 	top        gosnappi.Config
-	policyName string
 	iptype     string
 	protocol   oc.E_PacketMatchTypes_IP_PROTOCOL
 }
