@@ -33,7 +33,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 const (
 	trafficDuration = 1 * time.Minute
 	ipv4PrefixLen   = 30
