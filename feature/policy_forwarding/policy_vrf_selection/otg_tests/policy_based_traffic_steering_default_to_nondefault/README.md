@@ -54,13 +54,13 @@ B3 --> B1;
 ### Configure ATE Route Advertisements & Traffic Flows as below:
 #### ATE Route Advertisements:
 
-  	ATE2:Port1 advertises following prefixes to DUT1:Port1 over EBGP
+  	ATE2:Port1 advertises following prefixes to DUT1:Port2 over EBGP
     - IPv4Prefix1/24
     - IPv4Prefix2/24
     - IPv6Prefix3/64
     - IPv6Prefix4/64
 
-  	ATE2:Port2 advertieses following prefixes to DUT1:Port2 over EBGP
+  	ATE2:Port2 advertieses following prefixes to DUT1:Port3 over EBGP
     - IPv4Prefix1/24
     - IPv4Prefix2/24
     - IPv6Prefix3/64
