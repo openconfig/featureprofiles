@@ -252,11 +252,6 @@ fail.
 
 ## RT-3.52.1: Baseline
 
-
-
-    *   No prefixes are exchanged over the IBGP peering between
-        `$ATE2_C.IBGP.v6` and `$DUT_lo0.v6`. Therefore, 
-
 *   **Test Steps:**
 
     *   Generate DUT Configuration as specified in the test setup
@@ -273,19 +268,16 @@ fail.
     *   Set 50,000 packets per flow at 1,000pps
     *   Validate 0 packet loss on the ATE side
     *   Execute post-test health checks and compare the results with the
-        baseline. Verify that there are no core dumps, or other
-        issues.
-
+        baseline. Verify that there are no core dumps, or other issues.
 
 ## RT-3.52.2: BE1 Traffic Migrated from being routed over the DUT_Port2 -->
+
 ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path
-
-
 
 *   **Test Steps:**
 
-    *   Re-run he baseline test (RT-3.52.1), with flows active in
-        Flow-Set #1, Flow-Set #2, and Flow-Set #5
+    *   Re-run he baseline test (RT-3.52.1), with flows active in Flow-Set #1,
+        Flow-Set #2, and Flow-Set #5
     *   Execute the health checks described previously
     *   The IBGP session between `$ATE2_C.IBGP.v6`and `$DUT_lo0.v6` should now
         advertise only `$ATE2_INTERNAL6.v[46]` with a local preference of 200
@@ -296,10 +288,10 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path
 *   **Expectations:**
 
     *   Routes to prefixes `$ATE2_INTERNAL6.v4/24` and `$ATE2_INTERNAL6.v6/64`,
-        learned from `$ATE2_C.IBGP.v6/128`, should be placed in the FIB.
-        Other prefixes from ATE2 will continue
-        to be learnt via the IBGP peering between `$ATE2_PORT1.IBGP.v[46]` and
-        `$DUT_lo0.v[46]` and hence will be in the DUT's FIB.
+        learned from `$ATE2_C.IBGP.v6/128`, should be placed in the FIB. Other
+        prefixes from ATE2 will continue to be learnt via the IBGP peering
+        between `$ATE2_PORT1.IBGP.v[46]` and `$DUT_lo0.v[46]` and hence will be
+        in the DUT's FIB.
     *   Flows destined for `$ATE2_INTERNAL6.v4/24` and `$ATE2_INTERNAL6.v6/64`
         should be GUE-encapsulated with tunnel destination
         `$ATE2_INTERNAL_TE11.v4` and routed over the EBGP peering between
@@ -311,11 +303,9 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path
         bits when received at `ATE2_Port1` (before decapsulation). Please verify
         this on the ATE2.
     *   Verify on ATEs that the amount of packets sent is the same as the amount
-        of encaped packets received per tunnel endpoint. Also check the interface
-        counters using OC.
-        ```
-        /interfaces/interface/state/counters/out-unicast-pkts
-        ```
+        of encaped packets received per tunnel endpoint. Also check the
+        interface counters using OC.
+        `/interfaces/interface/state/counters/out-unicast-pkts`
     *   Unencapsulated flows from ATE2 to `ATE1_Port1` must have 100% success
         (Zero loss), routing via the IBGP peering between `$ATE2_IBGP.v[46]` and
         `$DUT_lo0.v[46]`
@@ -329,39 +319,50 @@ Follow the same steps as in RT-3.52.2 and gradually move one Traffic class at a
 time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 
 ### RT-3.52.3: Migrate AF1 Flows
-    *   Migrate routing of AF1 flows from `DUT_Port2` --> `ATE2_Port1` to 
-    `DUT_Port4` --> `ATE2_Port3`.
-    *   BE1 and AF1 are now migrated
-    *   Complete validation same as RT-3.52.2 above
+
+```
+*   Migrate routing of AF1 flows from `DUT_Port2` --> `ATE2_Port1` to
+`DUT_Port4` --> `ATE2_Port3`.
+*   BE1 and AF1 are now migrated
+*   Complete validation same as RT-3.52.2 above
+```
 
 ### RT-3.52.4: Migrate AF2 Flows
-    *   Migrate routing of AF2 flows from `DUT_Port2` --> `ATE2_Port1` to 
-    `DUT_Port4` --> `ATE2_Port3`.
-    *   BE1-AF2 are now migrated
-    *   Complete validation same as RT-3.52.2 above
+
+```
+*   Migrate routing of AF2 flows from `DUT_Port2` --> `ATE2_Port1` to
+`DUT_Port4` --> `ATE2_Port3`.
+*   BE1-AF2 are now migrated
+*   Complete validation same as RT-3.52.2 above
+```
 
 ### RT-3.52.5: Migrate AF3 Flows
-    *   Migrate routing of AF3 flows from `DUT_Port2` --> `ATE2_Port1` to 
-    `DUT_Port4` --> `ATE2_Port3`.
 
-    *  `$ATE2_C.IBGP.v6` will advertise `$ATE2_INTERNAL9.v4/24` and
-       `$ATE2_INTERNAL9.v6/64` with next-hop as `$ATE2_PPNH2.v6/128`.
-        Traffic towards `$ATE2_INTERNAL9.v[46]/24` will have tunnel
-        destination `$ATE2_INTERNAL_TE10.v4/32`.
-    *   BE1-AF3 are now migrated
-    *   Complete validation same as RT-3.52.2 above
+```
+*   Migrate routing of AF3 flows from `DUT_Port2` --> `ATE2_Port1` to
+`DUT_Port4` --> `ATE2_Port3`.
+
+*  `$ATE2_C.IBGP.v6` will advertise `$ATE2_INTERNAL9.v4/24` and
+   `$ATE2_INTERNAL9.v6/64` with next-hop as `$ATE2_PPNH2.v6/128`.
+    Traffic towards `$ATE2_INTERNAL9.v[46]/24` will have tunnel
+    destination `$ATE2_INTERNAL_TE10.v4/32`.
+*   BE1-AF3 are now migrated
+*   Complete validation same as RT-3.52.2 above
+```
 
 ### RT-3.52.6: Migrate AF4 Flows:
-    *   Migrate routing of AF4 flows from `DUT_Port2` --> `ATE2_Port1` to 
-    `DUT_Port4` --> `ATE2_Port3`.
 
-    *   `$ATE2_C.IBGP.v6` will advertise `$ATE2_INTERNAL10.v4/24` and
-        `$ATE2_INTERNAL10.v6/64` with next-hop as `$ATE2_PPNH2.v6/128`
-        Traffic towards `$ATE2_INTERNAL10.v[46]` will have tunnel
-        destination `$ATE2_INTERNAL_TE10.v4/32`.
-    *   BE1-AF4 are now migrated
-    *   Complete validation same as RT-3.52.2 above
+```
+*   Migrate routing of AF4 flows from `DUT_Port2` --> `ATE2_Port1` to
+`DUT_Port4` --> `ATE2_Port3`.
 
+*   `$ATE2_C.IBGP.v6` will advertise `$ATE2_INTERNAL10.v4/24` and
+    `$ATE2_INTERNAL10.v6/64` with next-hop as `$ATE2_PPNH2.v6/128`
+    Traffic towards `$ATE2_INTERNAL10.v[46]` will have tunnel
+    destination `$ATE2_INTERNAL_TE10.v4/32`.
+*   BE1-AF4 are now migrated
+*   Complete validation same as RT-3.52.2 above
+```
 
 ### RT-3.52.7: DUT as a GUE Decap Node
 
@@ -388,14 +389,15 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 
         BE1 to AF2 flows are expected to have a tunnel destination of
         `$DUT_TE11.v4/32`, while AF3 and AF4 flows should have `$DUT_TE10.v4/32`
-        as their tunnel destination.
-        Traffic should reach the destination successfully with zero loss.
-        
+        as their tunnel destination. Traffic should reach the destination
+        successfully with zero loss.
+
     *   Post-test health checks should be performed and compared against the
         baseline. Verify the absence of drops or core dumps. If any, the test
         Must fail
 
 ### RT-3.52.8: Negative Scenario - EBGP Route for remote tunnel endpoints Removed
+
 Inflight
 
 *   **Situation:**
@@ -425,22 +427,22 @@ Inflight
             $ATE2_IBGP.v[46]<>$DUT_lo0.v[46], should be placed in the FIB.
         *   Traffic from ATE1 to ATE2 should then take the path `DUT_Port2` -->
             `ATE2_Port1` path after encapsulation on the DUT, with no traffic
-            loss expected due to this change. Please verify this behavior on
-            the ATE2.
+            loss expected due to this change. Please verify this behavior on the
+            ATE2.
         *   Post-test health checks should be performed and compared against the
             baseline. Verify the absence of drops or core dumps. If any, the
             test Must fail
 
 ### RT-3.52.9: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed
+
 Inflight
 
 *   **Situation:**
 
     *   The test starts from the end state of RT-3.52.8, restart all the flows.
-        Traffic between ATE1 to ATE2 is routed via the `DUT_Port2` --> `ATE2_Port1`
-        path after
-        encapsulation on the DUT. ATE2 --> ATE1 traffic is routed via the ATE2_Port3 -->
-        DUT_Port4 path.
+        Traffic between ATE1 to ATE2 is routed via the `DUT_Port2` -->
+        `ATE2_Port1` path after encapsulation on the DUT. ATE2 --> ATE1 traffic
+        is routed via the ATE2_Port3 --> DUT_Port4 path.
     *   Static routes for `$ATE2_PPNH1.v6/128` and `$ATE2_PPNH2.v6/128` are
         active because tunnel endpoints `"$ATE2_INTERNAL_TE11.v4/32"` and
         `"$ATE2_INTERNAL_TE10.v4/32"` are reachable via the IBGP peering between
@@ -448,19 +450,19 @@ Inflight
     *   Routes for `ATE2_INTERNAL[6-10].v[46]`, advertised by ATE2 over the IBGP
         peering `$ATE2_C.IBGP.v6<>$DUT_lo0.v6`, remain active on the DUT.
     *   Verify the FIB entries using the AFT streamed data.
-      ```
+        ```
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
-        
+
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/octets-forwarded
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/packets-forwarded
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/next-hop-group
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/origin-protocol
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/prefix
-      ```
+        ```
 
 *   **Test Steps:**
 
@@ -476,8 +478,8 @@ Inflight
         peering `$ATE2_C.IBGP.v6<>$DUT_lo0.v6` must become invalid. Verify using
         the AFT table
     *   Routes for `ATE2_INTERNAL[6-10].v[46]` advertised by `$ATE2_IBGP.v[46]`
-        over the IBGP peering `$ATE2_IBGP.v[46]<>$DUT_lo0.v[46]` must be placed in
-        the FIB. Verify using AFT.
+        over the IBGP peering `$ATE2_IBGP.v[46]<>$DUT_lo0.v[46]` must be placed
+        in the FIB. Verify using AFT.
     *   Traffic from ATE1 to ATE2 towards `ATE2_INTERNAL[6-10].v[46]`
         destinations must not experience any drops and should be routed
         unencapsulated via the `ATE2_Port1<>DUT_Port2` path.
@@ -491,7 +493,7 @@ Inflight
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
-        
+
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/octets-forwarded
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/packets-forwarded
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/next-hop-group
@@ -527,15 +529,14 @@ Inflight
         `ATE2:Port3`. Validate on the ATE.
     *   Post-test health checks should be performed and compared against the
         baseline. Verify the absence of drops or core dumps. If any, the test
-        Must fail.
-        Following AFT paths to be used for validation
+        Must fail. Following AFT paths to be used for validation
         ```
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
-        
+
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/octets-forwarded
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/packets-forwarded
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/next-hop-group
