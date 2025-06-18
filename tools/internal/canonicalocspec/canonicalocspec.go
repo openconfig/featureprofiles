@@ -19,11 +19,11 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/yuin/goldmark"
-	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/ygot/ytypes"
 	"github.com/openconfig/featureprofiles/tools/internal/mdocspec"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
+	"github.com/yuin/goldmark"
 )
 
 // ErrNotFound indicates the Canonical OC JSON block was not found or was invalid.
