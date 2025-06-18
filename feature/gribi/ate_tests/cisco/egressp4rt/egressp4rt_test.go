@@ -526,7 +526,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name()}
+		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name(), p7.Name()}
 		inputPort1 := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}
 		if len(opts) != 0 {
 			for _, opt := range opts {
@@ -1027,7 +1027,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name()}
+		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name(), p7.Name()}
 		inputPort1 := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}
 		if len(opts) != 0 {
 			for _, opt := range opts {
@@ -1641,7 +1641,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name()}
+		inputPorts := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name(), p9.Name(), p10.Name(), p11.Name(), p12.Name(), p13.Name(), p14.Name(), p15.Name(), p7.Name()}
 		inputPort1 := []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}
 		if len(opts) != 0 {
 			for _, opt := range opts {
