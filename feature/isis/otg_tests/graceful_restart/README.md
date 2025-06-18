@@ -2,7 +2,7 @@
 
 ## Summary
 
-- test verify isis garceful restarts support in helper role
+- test verifies isis garceful restart support in helper and restarter role
 
 ## Testbed type
 
@@ -220,8 +220,7 @@
         }
         ```
 
-### RT-2.16.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2494]
-#### GR helper
+### RT-2.16.1 GR Helper: [TODO: https://github.com/openconfig/featureprofiles/issues/2494]
 
 *   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
 *   Verify traffic is recived on ATE port-2
@@ -229,6 +228,22 @@
 *   Verify traffic is recived on ATE port-2 during restart time ( no losses )
 *   Disable ISIS on ATE port-2 (set_control_state to "down"). Wait restart-time seconds
 *   Verify traffic is NOT recived on ATE port-2 (after restart-time expires)
+
+### RT-2.16.2 CONTROLLER-CARD switchover:
+
+*   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
+*   Verify traffic is recived on ATE port-2
+*   Using gNOI SwitchControlProcessor call initiate CONROLER-CARD switchover.
+*   Verify traffic is recived on ATE port-2 during restart time ( no losses )
+*   Wait 60 sec.
+
+### RT-2.16.3 DUT ISIS restart:
+
+*   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
+*   Verify traffic is recived on ATE port-2
+*   Using gNOI KillProcess w/ SIGNAL_KILL call restart process serving ISIS (implementation dependednt). This try to simulate ISIS crash due to unexpected error.
+*   Verify traffic is recived on ATE port-2 during restart time ( no losses )
+*   Wait 60 sec.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -245,8 +260,12 @@ rpcs:
   gnmi:
     gNMI.Subscribe:
     gNMI.Set:
+  gnoi:
+    system.System.SwitchControlProcessor:
+    system.System.KillProcess:
 ```
 
 ## Required DUT platform
 
-* FFF
+* MFF
+

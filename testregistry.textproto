@@ -302,6 +302,15 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_default/README.md"
 }
 test: {
+  id: "DP-2.5"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color/README.md"
+}
+test: {
+  id: "DP-2.6"
+  description: "Ingress policing with two rate, three color classifier"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color_with_classifier/README.md"
+}
+test: {
   id: "FP-1.1"
   description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
@@ -334,6 +343,12 @@ test: {
   id: "MPLS-1.1"
   description: "MPLS label blocks: Static and MPLS-SR"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/label_block/README.md"
+  exec: " "
+}
+test: {
+  id: "MPLS-1.2"
+  description: "MPLS Traffic Class Marking"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/mpls_tc/README.md"
   exec: " "
 }
 test: {
@@ -468,13 +483,13 @@ test: {
 }
 test: {
   id: "PF-1.8"
-  description: "Ingress handling of the TTL"
+  description: "Ingress handling of TTL"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/ingress/README.md"
   exec: " "
 }test: {
   id: "PF-1.9"
-  description: "Egress handling of the TTL, all egress packets should have their TTL decremented,egress packets with TTL=1 should generate ICMP time exceeded to source"
-  readme: " "
+  description: "Egress handling of TTL"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/egress/README.md"
   exec: " "
 }
 test: {
@@ -836,6 +851,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.64"
+  description: "BGP Import/Export Policy Functional Test Case"
+  readme: "https://github.com/openconfig/feature/bgp/import-export-policy/otg_tests/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
@@ -872,14 +893,8 @@ test: {
 }
 test: {
   id: "RT-2.16"
-  description: "IS-IS Graceful Restart Helper"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-2.17"
-  description: "Graceful Restart Restarting"
-    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
+  description: "IS-IS Graceful Restart"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/graceful_restart/README.md"
   exec: " "
 }
 test: {
@@ -1578,6 +1593,12 @@ test: {
   id: "TUN-2.8"
   description: "ECMP hashing based on outer header of MPLSoUDP packets"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing based on outer and Inner header for MPLSoUDP packets"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/tunnel/otg_tests/mpls_over_udp_tunnel_hashing_test/README.md"
   exec: " "
 }
 test: {
