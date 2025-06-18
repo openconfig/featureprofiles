@@ -33,10 +33,11 @@ B3 --> B1;
 
 #### DUT Configuration
 * Configure IBGP[ASN100] as described in topology between ATE1:Port1 and DUT1:Port1
-* Configure EBGP[ASN200] between DUT1:Port1 and ATE2:Port1
-* Configure EBGP[ASN200] between DUT1:Port2 and ATE2:Port2
-* Port1 of DUT1 which maps to Default VRF instance, is connected to Port1 of ATE2
-* Port2 of DUT1 which maps to the non-default VRF instance, is connected to Port2 of ATE2
+* Configure EBGP[ASN200] between DUT1:Port2 and ATE2:Port1
+* Configure EBGP[ASN200] between DUT1:Port3 and ATE2:Port2
+* Port1 of DUT1 is connected to Port1 of ATE1
+* Port2 of DUT1 which maps to Default VRF instance, is connected to Port1 of ATE2
+* Port3 of DUT1 which maps to the non-default VRF instance, is connected to Port2 of ATE2
 * Configure route leaking from the default VRF and non-default VRF and vice versa.
 * Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IPv4/IPv6 address.
 * DUT has the following VRF selection policy initially
@@ -96,14 +97,14 @@ B3 --> B1;
     * IPv6Prefix3/64
     * IPv6Prefix4/64
    
-  * VRF selection policy on DUT1:Port1 changes as follows: 
+  * VRF selection policy on DUT1:Port2 changes as follows: 
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf by the policy
     * Statement2: traffic matching IPv4Prefix2/24, is forwarded through the default vrf
     * Statement3: traffic matching IPv6Prefix3/64, is forwarded through the default vrf
     * Statement4: traffic matching IPv6Prefix4/64, is forwarded through the default vrf
 
   * Validation
-	* Validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1.
+	* Validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1
 	* Traffic for Prefix 1 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
 	* Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
 	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
@@ -116,7 +117,7 @@ B3 --> B1;
     * IPv6Prefix3/64
     * IPv6Prefix4/64
    
-  * VRF selection policy on DUT1:Port1 changes as follows: 
+  * VRF selection policy on DUT1:Port2 changes as follows: 
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf by the policy
     * Statement2: traffic matching IPv4Prefix2/24, Punt to non-default vrf by the policy
     * Statement3: traffic matching IPv6Prefix3/64, is forwarded through the default vrf
@@ -136,7 +137,7 @@ B3 --> B1;
     * IPv6Prefix3/64
     * IPv6Prefix4/64
    
-  * VRF selection policy on DUT1:Port1 changes as follows: 
+  * VRF selection policy on DUT1:Port2 changes as follows: 
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf by the policy
     * Statement2: traffic matching IPv4Prefix2/24, Punt to non-default vrf by the policy
     * Statement3: traffic matching IPv6Prefix3/64, Punt to non-default vrf by the policy
@@ -156,7 +157,7 @@ B3 --> B1;
     * IPv6Prefix3/64
     * IPv6Prefix4/64
    
-  * VRF selection policy on DUT1:Port1 changes as follows: 
+  * VRF selection policy on DUT1:Port2 changes as follows: 
     * Statement1: traffic matching IPv4Prefix1/24, Punt to non-default vrf by the policy
     * Statement2: traffic matching IPv4Prefix2/24, Punt to non-default vrf by the policy
     * Statement3: traffic matching IPv6Prefix3/64, Punt to non-default vrf by the policy
