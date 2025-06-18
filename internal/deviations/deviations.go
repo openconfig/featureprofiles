@@ -1774,3 +1774,13 @@ func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
 }
+
+// ConfigACLWithPrefixListNotSupported returns true if configuring prefixlist in ACL not supported
+func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()
+}
+
+// ConfigAclValueAnyOcUnsupported returns true if OC for configuring parameter in ACL with value ANY not supported
+func ConfigAclValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
+}
