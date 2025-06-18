@@ -83,9 +83,9 @@ B2 <-- EBGP(ASN100:ASN200)  --> C2;
     * IPv6Prefix4/64
    
   * Validation
-	All traffic must be successful and there should be 0 packet loss.
-	Need to verify the packets sent by sender tester is equal to the packets on receiving tester port
-	DUT1:Port2 port out-pkts counter should match packets sent by ATE1:PORT1.
+	* All traffic must be successful and there should be 0 packet loss.
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester port
+	* DUT1:Port2 port out-pkts counter should match packets sent by ATE1:PORT1.
 
 ### PF-1.6.2: Traffic from ATE1 to ATE2, 1 Prefix migrated to Non-Default VRF using the VRF selection policy
   * ATE1:Port1 sends following IPv4 and IPv6 flows:
@@ -101,11 +101,11 @@ B2 <-- EBGP(ASN100:ASN200)  --> C2;
     * Statement4: traffic matching IPv6Prefix4/64, is forwarded through the default vrf
 
   * Validation
-	Validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1.
-	Traffic for Prefix 1 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
-	Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
-	Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
-	There should be 0 packet loss.
+	* Validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1.
+	* Traffic for Prefix 1 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
+	* Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
+	* There should be 0 packet loss.
 
 ### PF-1.6.3: Traffic from ATE1 to ATE2, 2 Prefixes migrated to Non-Default VRF using the VRF selection policy
   * ATE1:Port1 sends following IPv4 and IPv6 flows:
@@ -121,11 +121,11 @@ B2 <-- EBGP(ASN100:ASN200)  --> C2;
     * Statement4: traffic matching IPv6Prefix4/64, is forwarded through the default vrf
 
  * Validation
-	Validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1 .
-	Traffic for Prefix 1 & 2 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
-	Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
-	Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
-	There should be 0 packet loss.
+	* Validate the prefixes advertised by ATE2:Port1 and ATE2:Port2 are received on ATE1:Port1 .
+	* Traffic for Prefix 1 & 2 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
+	* Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
+	* There should be 0 packet loss.
 
 ### PF-1.6.4: Traffic from ATE1 to ATE2, 3 Prefixes migrated to Non-Default VRF using the VRF selection policy
   * ATE1:Port1 sends following IPv4 and IPv6 flows:
@@ -141,11 +141,11 @@ B2 <-- EBGP(ASN100:ASN200)  --> C2;
     * Statement4: traffic matching IPv6Prefix4/64, is forwarded through the default vrf
 
   * Validation
-	Validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2.
-	Traffic for Prefix 1,2 & 3 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
-	Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
-	Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
-	There should be 0 packet loss.
+	* Validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2.
+	* Traffic for Prefix 1,2 & 3 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
+	* Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
+	* There should be 0 packet loss.
 
 ### PF-1.6.5: Traffic from ATE1 to ATE2, 4 Prefixes migrated to Non-Default VRF using the VRF selection policy
   * ATE1:Port1 sends following IPv4 and IPv6 flows:
@@ -161,11 +161,11 @@ B2 <-- EBGP(ASN100:ASN200)  --> C2;
     * Statement4: traffic matching IPv6Prefix4/64, Punt to non-default vrf by the policy
 
   * Validation   
-	To validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2.
-	Traffic for all Prefixes received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
-	No traffic should be routed to ATE2:Port1 via the DEFAULT VRF in the DUT in this case.
-	Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
-	There should be 0 packet loss.
+	* To validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2.
+	* Traffic for all Prefixes received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
+	* No traffic should be routed to ATE2:Port1 via the DEFAULT VRF in the DUT in this case.
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
+	* There should be 0 packet loss.
 
 ## Canonical OpenConfig
 
