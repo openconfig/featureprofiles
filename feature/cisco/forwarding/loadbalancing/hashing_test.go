@@ -81,6 +81,8 @@ var (
 		Name:    "port2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:5",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
@@ -88,6 +90,8 @@ var (
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:6",
+		IPv6Len: ipv6PrefixLen,
 	}
 )
 
@@ -103,17 +107,47 @@ func TestMain(m *testing.M) {
 // 	lcloc   []string
 // }
 
+var (
+	//Traffic flows
+	flowIPv4 = helper.TrafficFlowAttr{
+		FlowName:          "IPv4",
+		DstMacAddress:     "00:aa:00:bb:00:cc",
+		OuterProtocolType: "IPv4",
+		OuterSrcStart:     "192.1.1.1",
+		OuterDstStart:     "10.240.118.35",
+		OuterSrcStep:      "0.0.0.1",
+		OuterSrcFlowCount: 1,
+		OuterDstFlowCount: 1,
+		OuterDstStep:      "0.0.0.1",
+		OuterDSCP:         10,
+		OuterTTL:          55,
+		OuterECN:          1,
+		TgenSrcPort:       atePort1,
+		TgenDstPorts:      []string{atePort2.Name},
+		L4TCP:             true,
+		L4SrcPortStart:    1000,
+		L4DstPortStart:    2000,
+		L4FlowStep:        1,
+		L4FlowCount:       10,
+		TrafficPPS:        100,
+		PacketSize:        128,
+	}
+)
+
 func TestLoadBalancing(t *testing.T) {
 	// dut1R := ondatra.DUT(&testing.T{}, "dut1")
 	tgenParam := helper.TgenConfigParam{
-		DutIntfAttr:  []attrs.Attributes{dutPort1, dutPort2},
-		TgenIntfAttr: []attrs.Attributes{atePort1, atePort2},
-		TgenPortList: []*ondatra.Port{ondatra.ATE(t, "ate").Port(t, "port1"), ondatra.ATE(t, "ate").Port(t, "port2")},
+		DutIntfAttr:      []attrs.Attributes{dutPort1, dutPort2},
+		TgenIntfAttr:     []attrs.Attributes{atePort1, atePort2},
+		TgenPortList:     []*ondatra.Port{ondatra.ATE(t, "ate").Port(t, "port1"), ondatra.ATE(t, "ate").Port(t, "port2")},
+		TrafficFlowParam: &flowIPv4,
 	}
 	topo := helper.TGEN.ConfigureTGEN(false, &tgenParam).ConfigureTgenInterface(t)
+	flows := helper.TGEN.ConfigureTGEN(false, &tgenParam).ConfigureTGENFlows(t)
+	helper.TGEN.StartTraffic(t, false, flows, 10*time.Second)
 	ate := topo.ATE
 	t.Log("ate", ate.String())
-	dut1E := ondatra.DUT(t, "dut7")
+	dut1E := ondatra.DUT(t, "B4E1")
 	afttest := helper.FIB.GetPrefixAFTObjects(t, dut1E, "10.240.118.35/32", deviations.DefaultNetworkInstance(dut1E))
 	memberList := helper.Interface.GetBundleMembers(t, dut1E, afttest.NextHop[0].NextHopInterface)
 	var bundleMembers []string
