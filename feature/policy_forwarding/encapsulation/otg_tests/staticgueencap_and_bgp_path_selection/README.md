@@ -457,11 +457,11 @@ Inflight
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
         /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
 
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/octets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/packets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/next-hop-group
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/origin-protocol
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/prefix
+        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded
+        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded
+        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group
+        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol
+        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix
         ```
 
 *   **Test Steps:**
