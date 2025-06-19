@@ -40,27 +40,27 @@ import (
 const (
 	ipv4PrefixLen     = 30
 	ipv6PrefixLen     = 126
-	v41Route          = "203.0.113.0"
+	v41Route          = "203.0.113.1"
 	v41TrafficStart   = "203.0.113.1"
-	v42Route          = "203.0.114.0"
+	v42Route          = "203.0.114.1"
 	v42TrafficStart   = "203.0.114.1"
-	v43Route          = "203.0.115.0"
+	v43Route          = "203.0.115.1"
 	v43TrafficStart   = "203.0.115.1"
-	v4RoutePrefix     = uint32(24)
+	v4RoutePrefix     = uint32(32)
+	v61Route          = "2001:db8:128:128::1"
+	v61RouteOtg       = "2001:db8:128:128::1"
+	v61RouteAdvertise = "2001:db8:128:128::1/128"
 	parseV4           = "203.0.0.0/16"
-	v61Route          = "2001:db8:128:128::0"
-	v61RouteOtg       = "2001:db8:128:128::"
-	v61RouteAdvertise = "2001:db8:128:128::/64"
 	v61TrafficStart   = "2001:db8:128:128::1"
-	v62Route          = "2001:db8:128:129::0"
-	v62RouteAdvertise = "2001:db8:128:129::/64"
-	v62RouteOtg       = "2001:db8:128:129::"
+	v62Route          = "2001:db8:128:129::1"
+	v62RouteAdvertise = "2001:db8:128:129::1/128"
+	v62RouteOtg       = "2001:db8:128:129::1"
 	v62TrafficStart   = "2001:db8:128:129::1"
-	v63Route          = "2001:db8:128:130::0"
-	v63RouteAdvertise = "2001:db8:128:130::/64"
-	v63RouteOtg       = "2001:db8:128:130::"
+	v63Route          = "2001:db8:128:130::1"
+	v63RouteAdvertise = "2001:db8:128:130::1/128"
+	v63RouteOtg       = "2001:db8:128:130::1"
 	v63TrafficStart   = "2001:db8:128:130::1"
-	v6RoutePrefix     = uint32(64)
+	v6RoutePrefix     = uint32(128)
 	dutAS             = uint32(32001)
 	ateAS             = uint32(32002)
 	bgpName           = "BGP"
@@ -123,6 +123,18 @@ var (
 		"linkbw_1M":  "23456:1000000",
 		"linkbw_2G":  "23456:2000000000",
 		"linkbw_any": "^.*:.*$",
+	}
+
+	extCommunitySetJuniper = map[string]string{
+		"linkbw_1M":  "link-bandwidth:23456:1M",
+		"linkbw_2G":  "link-bandwidth:23456:2G",
+		"linkbw_any": "^link-bandwidth:.*",
+	}
+
+	extCommunitySetArista = map[string]string{
+		"linkbw_1M":  "link-bandwidth:23456:1M",
+		"linkbw_2G":  "link-bandwidth:23456:2G",
+		"linkbw_any": "^lbw:.*:.*$",
 	}
 
 	communitySet = map[string]string{
@@ -476,7 +488,9 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						}
 
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
-							verifyExtCommunityIndexV4(t, td, v4Prefix)
+							if !deviations.BGPRibOcPathUnsupported(td.dut) {
+								verifyExtCommunityIndexV4(t, td, v4Prefix)
+							}
 						}
 					}
 				}
@@ -545,7 +559,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 							t.Errorf("ERROR: lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
-							verifyExtCommunityIndexV6(t, td, v6Prefix)
+							if !deviations.BGPRibOcPathUnsupported(td.dut) {
+								verifyExtCommunityIndexV6(t, td, v6Prefix)
+							}
 						}
 					}
 				}
@@ -655,10 +671,19 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	var communitySetCLIConfig string
 	var extCommunitySetCLIConfig string
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		extCommunitySet = extCommunitySetCisco
+	case ondatra.JUNIPER:
+		extCommunitySet = extCommunitySetJuniper
+	case ondatra.ARISTA:
+		extCommunitySet = extCommunitySetArista
+	}
+
 	if deviations.BgpExtendedCommunitySetUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			extCommunitySet = extCommunitySetCisco
 			for name, community := range extCommunitySet {
 				if name == "linkbw_any" && deviations.CommunityMemberRegexUnsupported(dut) {
 					communitySetCLIConfig = fmt.Sprintf("community-set %v \n dfa-regex '%v' \n end-set", name, community)
@@ -679,6 +704,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			if err != nil {
 				t.Fatalf("NewExtCommunitySet failed: %v", err)
 			}
+			stmt.SetExtCommunitySetName(name)
 			stmt.SetExtCommunityMember([]string{community})
 			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 		}
@@ -1121,7 +1147,9 @@ func baseSetupConfigAndVerification(t *testing.T, td testData) {
 	td.verifyDUTBGPEstablished(t)
 	td.verifyOTGBGPEstablished(t)
 	configureImportRoutingPolicyAllowAll(t, td.dut)
-	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate, td)
+	if !deviations.BGPRibOcPathUnsupported(td.dut) {
+		validateImportRoutingPolicyAllowAll(t, td.dut, td.ate, td)
+	}
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev1", dstIP: v41TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev2", dstIP: v42TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev3", dstIP: v43TrafficStart})

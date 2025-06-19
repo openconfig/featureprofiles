@@ -384,7 +384,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 
 // validateTraffic will return loss percentage of traffic
 func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, flowFilter string) float32 {
-	top := ate.OTG().FetchConfig(t)
+	top := ate.OTG().GetConfig(t)
 	top.Flows().Clear()
 	top.Flows().Append(flow)
 	ate.OTG().PushConfig(t, top)

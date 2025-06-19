@@ -15,6 +15,7 @@
 package zr_laser_bias_current_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -27,6 +28,11 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+)
+
+var (
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -81,6 +87,8 @@ func TestZRLaserBiasCurrentState(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	intUpdateTime := 2 * time.Minute
@@ -102,6 +110,8 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	intUpdateTime := 2 * time.Minute
@@ -139,6 +149,8 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	intUpdateTime := 2 * time.Minute
@@ -154,7 +166,7 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	defer p1Stream.Close()
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	// power off interface transceiver
-	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Name().Config(), dp1.Name())
+	gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Name().Config(), transceiverState)
 	// for transceiver disable, the input needs to be the transceiver name instead of the interface name
 	gnmi.Update(t, dut1, gnmi.OC().Component(transceiverState).Transceiver().Enabled().Config(), false)
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)

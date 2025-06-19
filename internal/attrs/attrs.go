@@ -37,6 +37,7 @@ type Attributes struct {
 	IPv4         string
 	IPv4Sec      string // Secondary IPv4 address
 	IPv6         string
+	IPv6Sec      string // Secondary IPv6 address
 	MAC          string
 	Name         string // Interface name, only applied to ATE ports.
 	Desc         string // Description, only applied to DUT interfaces.
