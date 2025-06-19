@@ -170,7 +170,7 @@ func TestWithDCBackUp(t *testing.T) {
 
 	configDUT(t, dut2)
 	// Config VRFs for DUT2
-	configureNetworkInstance(t, dut)
+	configureNetworkInstance(t, dut2)
 
 	ctx2 := context.Background()
 	args = &testArgs{}
