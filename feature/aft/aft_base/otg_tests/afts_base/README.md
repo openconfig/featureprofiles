@@ -119,7 +119,6 @@ paths:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
-  /network-instances/network-instance/afts/next-hops/next-hop/index:
   /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
