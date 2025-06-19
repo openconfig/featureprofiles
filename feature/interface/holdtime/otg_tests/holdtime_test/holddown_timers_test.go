@@ -74,6 +74,11 @@ func setupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*
 
 	for _, port := range aggPorts {
 		i := d.GetOrCreateInterface(port.Name())
+		if port.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() == ondatra.ARISTA {
+			i.GetOrCreateEthernet().AutoNegotiate = ygot.Bool(false)
+			i.GetOrCreateEthernet().DuplexMode = oc.Ethernet_DuplexMode_FULL
+			i.GetOrCreateEthernet().PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		}
 		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 
@@ -90,7 +95,9 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 	if deviations.AggregateAtomicUpdate(dut) {
 		// Clear aggregate & ip config on ports.
 		for _, port := range aggPorts {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().Config())
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Config())
+			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Config())
 		}
 		setupAggregateAtomically(t, dut, aggPorts, aggID)
 	}
@@ -103,6 +110,11 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 		d := &oc.Root{}
 
 		i := d.GetOrCreateInterface(port.Name())
+		if port.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() == ondatra.ARISTA {
+			i.GetOrCreateEthernet().AutoNegotiate = ygot.Bool(false)
+			i.GetOrCreateEthernet().DuplexMode = oc.Ethernet_DuplexMode_FULL
+			i.GetOrCreateEthernet().PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		}
 		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 
