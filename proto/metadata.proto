@@ -823,7 +823,7 @@ message Metadata {
     bool interface_output_queue_non_standard_name = 293;
 
     // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
-    bool mpls_exp_ingress_classifier_unsupported = 294;
+    bool mpls_exp_ingress_classifier_oc_unsupported = 294;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;

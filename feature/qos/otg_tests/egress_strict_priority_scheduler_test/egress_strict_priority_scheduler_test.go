@@ -2186,7 +2186,7 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 	}}
 
 	t.Logf("QoS classifiers config: %v", classifiers)
-	if deviations.MplsExpIngressClassifierUnsupported(dut) {
+	if deviations.MplsExpIngressClassifierOcUnsupported(dut) {
 		configureMplsExpClassifierCLI(t, dut, classifiers)
 	} else {
 		for _, tc := range classifiers {
