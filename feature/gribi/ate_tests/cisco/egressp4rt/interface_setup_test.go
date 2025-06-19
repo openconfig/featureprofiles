@@ -318,12 +318,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Add ports 7, 13, 14, 15, and 16 as members of Bundle-Ether126
 	ports = []string{"port7", "port13", "port14", "port15"}
-	// ids = []uint32{16, 22, 23, 24, 25} // Assign unique IDs for each port
+	ids = []uint32{27, 22, 23, 24, 25} // Assign unique IDs for each port
 
-	for _, portName := range ports {
+	for i, portName := range ports {
 		port := dut.Port(t, portName)
 		BE126 := generateBundleMemberInterfaceConfig(t, port.Name(), *i7.Name)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), BE126)
+
+		memberInterface := &oc.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(ids[i])}
+		intfPath = gnmi.OC().Interface(port.Name())
+		gnmi.Update(t, dut, intfPath.Config(), memberInterface)
+
 	}
 
 	p6 := dut.Port(t, "port6")
