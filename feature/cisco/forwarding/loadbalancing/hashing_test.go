@@ -109,7 +109,7 @@ func TestMain(m *testing.M) {
 
 var (
 	//Traffic flows
-	flowIPv4 = helper.TrafficFlowAttr{
+	v4R2E = helper.TrafficFlowAttr{
 		FlowName:          "IPv4",
 		DstMacAddress:     "00:aa:00:bb:00:cc",
 		OuterProtocolType: "IPv4",
@@ -133,6 +133,30 @@ var (
 		TrafficPPS:        100,
 		PacketSize:        128,
 	}
+	v4E2R = helper.TrafficFlowAttr{
+		FlowName:          "IPv4",
+		DstMacAddress:     "00:aa:00:11:00:dd",
+		OuterProtocolType: "IPv4",
+		OuterSrcStart:     "192.0.2.6",
+		OuterDstStart:     "10.240.118.50",
+		OuterSrcStep:      "0.0.0.1",
+		OuterSrcFlowCount: 1,
+		OuterDstFlowCount: 1,
+		OuterDstStep:      "0.0.0.1",
+		OuterDSCP:         10,
+		OuterTTL:          55,
+		OuterECN:          1,
+		TgenSrcPort:       atePort2,
+		TgenDstPorts:      []string{atePort1.Name},
+		L4TCP:             true,
+		L4PortRandom:      true,
+		L4SrcPortStart:    1000,
+		L4DstPortStart:    2000,
+		L4FlowStep:        1,
+		L4FlowCount:       10,
+		TrafficPPS:        100,
+		PacketSize:        128,
+	}
 )
 
 func TestLoadBalancing(t *testing.T) {
@@ -141,7 +165,7 @@ func TestLoadBalancing(t *testing.T) {
 		DutIntfAttr:      []attrs.Attributes{dutPort1, dutPort2},
 		TgenIntfAttr:     []attrs.Attributes{atePort1, atePort2},
 		TgenPortList:     []*ondatra.Port{ondatra.ATE(t, "ate").Port(t, "port1"), ondatra.ATE(t, "ate").Port(t, "port2")},
-		TrafficFlowParam: &flowIPv4,
+		TrafficFlowParam: []*helper.TrafficFlowAttr{&v4R2E, &v4E2R},
 	}
 	topo := helper.TGEN.ConfigureTGEN(false, &tgenParam).ConfigureTgenInterface(t)
 	flows := helper.TGEN.ConfigureTGEN(false, &tgenParam).ConfigureTGENFlows(t)
