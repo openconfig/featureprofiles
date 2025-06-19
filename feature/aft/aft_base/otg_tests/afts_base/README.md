@@ -110,35 +110,18 @@ paths:
 
   /network-instances/network-instance/afts/ethernet/mac-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
-  /network-instances/network-instance/afts/aft-summaries/ipv4-unicast/protocols/protocol/state/origin-protocol:
-  /network-instances/network-instance/afts/aft-summaries/ipv6-unicast/protocols/protocol/state/origin-protocol:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   /network-instances/network-instance/afts/next-hops/next-hop/index:
   /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
-  /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/mac-address:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol:
-  /network-instances/network-instance/afts/state-synced/state/ipv4-unicast:
-  /network-instances/network-instance/afts/state-synced/state/ipv6-unicast:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/entry-metadata:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group-network-instance:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-network-instance:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/entry-metadata:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group-network-instance:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-network-instance:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/prefix:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/prefix:
 
