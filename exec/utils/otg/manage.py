@@ -8,7 +8,14 @@ import json
 import os
 import re
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../pyvxr')))
+
+from generate_bindings import generate_bindings
+
 GO_BIN = 'go'
+ALT_GO_BIN = '/auto/firex/bin/go'
+
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
 MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.pem'
@@ -162,26 +169,29 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_bindin
         with open(outFile, 'r') as fp:
             j = json.load(fp)
 
+    controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
+    gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
+    
     #TODO: support multiple ates
     for ate in j.get('ates', []):
         for p in ate.get('ports', []):
             parts = p['name'].split('/')
             p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
 
-        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port'])
+        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port)
         ate['options'] = {
             'username': 'admin',
             'password': 'admin'
         }
 
         ate['otg'] = {
-            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
+            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port),
             'insecure': True,
             'timeout': 100
         }
 
         ate['gnmi'] = {
-            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
+            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=gnmi_port),
             'skip_verify': True,
             'timeout': 30
         }
@@ -205,7 +215,7 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_bindin
         check_output(cmd, cwd=fp_repo_dir)        
         _replace_binding_placeholders(fp_repo_dir, baseconf_files, otg_binding_file)
 
-def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file):
+def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_files, ate_binding_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
     _replace_binding_placeholders(fp_repo_dir, baseconf_files, ate_binding_file)
         
@@ -225,11 +235,63 @@ export OTG_BINDING={otg_binding_file}
 
     with open(setup_file, 'w') as fp: 
         fp.write(setup_script)
+    print('You can run the following command to setup your enviroment:')
+    print(f'source {setup_file}')
+
+def _sim_get_port_redir(vxr_out):
+    vxr_ports_file = os.path.join(vxr_out, "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            sys.exit("Failed to parse vxr ports file")
+    
+    devices = {}
+    for d, e in vxr_ports.items():
+        devices[d] = {
+            'host': vxr_ports[d]['HostAgent'],
+            'ports': {}
+        }
+        for k, v in e.items():
+            try:
+                if k.startswith('redir'):
+                    devices[d]['ports'][int(k[5:])] = v
+                elif k.startswith('xr_redir'):
+                    devices[d]['ports'][int(k[8:])] = v
+            except: continue
+    return devices
+
+def _sim_edit_topo(topo_file, baseconf_files, image):
+    with open(topo_file, "r") as fp:
+        try:
+            topo = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            sys.exit("Failed to parse topology file")
+    with open(topo_file, "w") as fp:
+        for id, node in topo.get("devices", {}).items():
+            if node.get("platform", "") in ["spitfire_f", "spitfire_d"]:
+                node["image"] = image
+                if id in baseconf_files:
+                    node["cvac"] = baseconf_files[id]
+        yaml.dump(topo, fp, indent=2)
+
+def _generate_baseconf_files(fp_repo_dir, reserved_testbed, out_dir):
+    baseconf_files = {}
+    for dut, conf in reserved_testbed['baseconf'].items():
+        baseconf_file = os.path.join(out_dir, f'{dut}.baseconf')
+        _write_baseconf_file(fp_repo_dir, conf, baseconf_file)
+        baseconf_files[dut] = baseconf_file
+    return baseconf_files    
     
 parser = argparse.ArgumentParser(description='Manage OTG container for a testbed')
 command_parser = parser.add_subparsers(title="command", dest="command", help="command to run", required=True)
+
 start_parser = command_parser.add_parser("start", help="start OTG container")
 start_parser.add_argument('testbed', help="testbed id")
+start_parser.add_argument('--vxr_out', default='', help="path to vxr.out directory")
+start_parser.add_argument('--image', default='', help="path to xr image")
+start_parser.add_argument('--topo', default='', help="path to sim topology file")
+
 # check if there are more args that can modify docker-compose file
 start_parser.add_argument('--controller', help='Docker version number for image controller e.g. --controller=1.20.0-6', default='1.3.0-2')
 start_parser.add_argument('--layer23', help='Docker version number image for image layer23 e.g. 1.20.0-1', default='1.3.0-4')
@@ -239,33 +301,43 @@ start_parser.add_argument('--controller_command', help='Command line for control
 
 stop_parser = command_parser.add_parser("stop", help="stop OTG container")
 stop_parser.add_argument('testbed', help="testbed id")
+
 restart_parser = command_parser.add_parser("restart", help="restart OTG container")
 restart_parser.add_argument('testbed', help="testbed id")
+
 bindings_parser = command_parser.add_parser("bindings", help="generate Ondatra bindings")
 bindings_parser.add_argument('testbed', help="testbed id")
 bindings_parser.add_argument('--out_dir', default='', help="output directory")
+
 logs_parser = command_parser.add_parser("logs", help="collect OTG container logs")
 logs_parser.add_argument('testbed', help="testbed id")
 logs_parser.add_argument('out_dir', help="output directory")
 
 args = parser.parse_args()
 
+if shutil.which(GO_BIN) is None:
+    if os.path.exists(ALT_GO_BIN):
+        GO_BIN = ALT_GO_BIN
+    else:
+        sys.exit(f"Go binary not found. Make sure `go` is in PATH")
+
 testbed_id = args.testbed
 command = args.command
 
 if command == "start":
-    controller = getattr(args, 'controller', '1.3.0-2')
-    _check_otg_version("controller",controller)
-    layer23 = getattr(args, 'layer23', '1.3.0-4')
-    _check_otg_version("layer23",layer23)
-    gnmi = getattr(args, 'gnmi', '1.13.15')
-    _check_otg_version("gnmi",gnmi)
+    controller_ver = getattr(args, 'controller', '1.3.0-2')
+    _check_otg_version("controller",controller_ver)
+    layer23_ver = getattr(args, 'layer23', '1.3.0-4')
+    _check_otg_version("layer23",layer23_ver)
+    gnmi_ver = getattr(args, 'gnmi', '1.13.15')
+    _check_otg_version("gnmi",gnmi_ver)
     controller_command = getattr(args, 'controller_command', [])
 else:
-    controller = getattr(args, 'controller', None)
-    layer23 = getattr(args, 'layer23', None)
-    gnmi = getattr(args, 'gnmi', None)
+    controller_ver = getattr(args, 'controller', None)
+    layer23_ver = getattr(args, 'layer23', None)
+    gnmi_ver = getattr(args, 'gnmi', None)
     controller_command = getattr(args, 'controller_command', None)
+
 fp_repo_dir = os.getenv('FP_REPO_DIR', os.getcwd())
 reserved_testbed = _get_testbed_by_id(fp_repo_dir, testbed_id)
 pname = reserved_testbed['id'].lower()
@@ -275,56 +347,135 @@ if not type(reserved_testbed['baseconf']) is dict:
         'dut': reserved_testbed['baseconf']
     }
 
-if command in ["bindings", "logs"]:
-    if args.out_dir:
-        out_dir = _resolve_path_if_needed(os.getcwd(), args.out_dir)
-    else:
-        out_dir = _resolve_path_if_needed(os.getcwd(), f'{pname}_bindings')
-
+if 'out_dir' in args and args.out_dir:
+    out_dir = _resolve_path_if_needed(os.getcwd(), args.out_dir)
+else:
+    out_dir = _resolve_path_if_needed(os.getcwd(), f'{pname}_bindings')
+    
+if reserved_testbed.get('sim', False) and command in ["start", "restart"]:
+    shutil.rmtree(out_dir, ignore_errors=True)
     os.makedirs(out_dir, exist_ok=True)
     
-    if command == "bindings":
-        otg_binding_file = os.path.join(out_dir, 'otg.binding')
-        ate_binding_file = os.path.join(out_dir, 'ate.binding')
-        testbed_file = os.path.join(out_dir, 'dut.testbed')
-        setup_file = os.path.join(out_dir, 'setup.sh')
-        
-        baseconf_files = {}
-        for dut, conf in reserved_testbed['baseconf'].items():
-            baseconf_file = os.path.join(out_dir, f'{dut}.baseconf')
-            _write_baseconf_file(fp_repo_dir, conf, baseconf_file)
-            baseconf_files[dut] = baseconf_file
+    baseconf_files = _generate_baseconf_files(fp_repo_dir, reserved_testbed, out_dir)
+    
+    vxr_out = args.vxr_out
+    if not args.vxr_out:
+        if not reserved_testbed.get('sim', False): 
+            sys.exit(f"Testbed {pname} is not a sim")
 
+        if os.path.exists(out_dir):
+            try:
+                check_output(f'/auto/vxr/pyvxr/latest/vxr.py stop', cwd=out_dir)
+                check_output(f'/auto/vxr/pyvxr/latest/vxr.py clean', cwd=out_dir)
+            except: pass
 
-        _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
-        _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_files, ate_binding_file)
-        _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_binding_file)
-        _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, setup_file)
-        print('You can run the following command to setup your enviroment:')
-        print(f'source {setup_file}')
+        topo_file = os.path.join(out_dir, 'topology.yaml')
+        if args.topo:
+            shutil.copy(args.topo, topo_file)
+        else:
+            if not args.image:
+                sys.exit(f"Image not provided. Use --image option.")
+            shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed['topology']), topo_file)
+            _sim_edit_topo(topo_file, baseconf_files, args.image)
         
-    if command == "logs":
-        kne_host = reserved_testbed['otg']['host']
-        check_output(
-            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /auto/tftpboot-ottawa/b4/bin/otg_log_collector {pname} {out_dir}'
-        )
- 
+        if not os.path.exists(topo_file):
+            sys.exit(f"Topology file not found")
+        
+        check_output(f'/auto/vxr/pyvxr/latest/vxr.py start {topo_file}', cwd=out_dir)
+        vxr_out = os.path.join(out_dir, 'vxr.out')
+        if not os.path.exists(vxr_out):
+            sys.exit(f"Sim bringup failed")
+
+    sim_port_redir = _sim_get_port_redir(vxr_out)
+    if 'ate_gui' not in sim_port_redir:
+        sys.exit("ATE not found in sim ports file")
+
+    e = sim_port_redir['ate_gui']
+    reserved_testbed['otg'] = {
+        'host': e['host'],
+        'port': e['ports'][22],
+        'username': 'admin',
+        'password': 'admin',
+        'controller_port': 3389,
+        'controller_port_redir': e['ports'][3389],
+        'gnmi_port': 11009,
+        'gnmi_port_redir': e['ports'][11009],
+        'rest_port': 8443,
+    }
+
+    reserved_testbed['binding'] = os.path.join(out_dir, 'ate.binding')
+    reserved_testbed['testbed'] = os.path.join(out_dir, 'dut.testbed')
+
+    otg_binding_file = os.path.join(out_dir, 'otg.binding')
+    setup_file = os.path.join(out_dir, 'setup.sh')
+
+    generate_bindings(vxr_out, reserved_testbed['testbed'], reserved_testbed['binding'])
+    
+    _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_binding_file)
+    _write_setup_script(testbed_id, reserved_testbed['testbed'], reserved_testbed['binding'], otg_binding_file, setup_file)
+
+else:
+    if command in ["bindings", "logs"]:
+        shutil.rmtree(out_dir, ignore_errors=True)
+        os.makedirs(out_dir, exist_ok=True)
+
+        if command == "bindings":
+            baseconf_files = _generate_baseconf_files(fp_repo_dir, reserved_testbed, out_dir)
+            otg_binding_file = os.path.join(out_dir, 'otg.binding')
+            ate_binding_file = os.path.join(out_dir, 'ate.binding')
+            testbed_file = os.path.join(out_dir, 'dut.testbed')
+            setup_file = os.path.join(out_dir, 'setup.sh')
+
+            _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
+            _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_files, ate_binding_file)
+            _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_binding_file)
+            _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, setup_file)
+
+        if command == "logs":
+            kne_host = reserved_testbed['otg']['host']
+            check_output(
+                f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /auto/tftpboot-ottawa/b4/bin/otg_log_collector {pname} {out_dir}'
+            )
+    
 with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
     kne_host = reserved_testbed['otg']['host']
+    kne_port = reserved_testbed['otg'].get('port', 22)
+
+    username = reserved_testbed['otg'].get('username')
+    if username:
+        kne_host = f"{username}@{kne_host}"
+    
+    password = reserved_testbed['otg'].get('password', '')
+    if password:
+        password = f"sshpass -p {password}"
+
     docker_compose_file_path = f.name
     docker_compose_file_name = os.path.basename(docker_compose_file_path)
-    _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed,controller,layer23,gnmi,controller_command)
+    _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed, controller_ver, layer23_ver, gnmi_ver, controller_command)
     check_output(
-        f'scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}'
+        f'{password} scp -P {kne_port} -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}'
     )
 
-    if command in ["stop", "restart"]:
-        kne_host = reserved_testbed['otg']['host']
-        check_output(
-            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} down'
-        )
+    stop_cmd = f'{password} ssh -p {kne_port} -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} down'
+    start_cmd = f'{password} ssh -p {kne_port} -q -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} up -d --force-recreate'
+
+    if os.path.exists(out_dir):
+        with open(os.path.join(out_dir, 'start_otg.sh'), 'w') as fp:
+            fp.writelines([
+                "#!/bin/sh\n",
+                start_cmd + "\n"
+            ])
+        
+        with open(os.path.join(out_dir, 'stop_otg.sh'), 'w') as fp:
+            fp.writelines([
+                "#!/bin/sh\n",
+                stop_cmd + "\n"
+            ])
+
+    if command in ["stop", "restart", "sim"]:
+        print(f"Stopping OTG")
+        check_output(start_cmd)
 
     if command in ["start", "restart"]:
-        check_output(
-            f'ssh -q -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} up -d --force-recreate'
-        )
+        print(f"Starting OTG")
+        check_output(stop_cmd)
