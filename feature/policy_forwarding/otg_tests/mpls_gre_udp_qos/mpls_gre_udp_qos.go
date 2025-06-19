@@ -28,6 +28,7 @@ func TestMain(m *testing.M) {
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	GREProtocol    = 47
 )
 
 var (
