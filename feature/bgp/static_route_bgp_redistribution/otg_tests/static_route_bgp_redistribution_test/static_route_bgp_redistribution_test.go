@@ -208,9 +208,12 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-
 	dutOcRoot := &oc.Root{}
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
+
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	if deviations.DefaultBgpInstanceName(dut) != "" {
+		bgpPath = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
+	}
 
 	// permit all policy
 	rp := dutOcRoot.GetOrCreateRoutingPolicy()
@@ -224,8 +227,13 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// setup BGP
 	networkInstance := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	networkInstanceProtocolBgp := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
+	networkInstanceProtocolBgp := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	networkInstanceProtocolBgp.SetEnabled(true)
+
+	if deviations.DefaultBgpInstanceName(dut) != "" {
+		networkInstanceProtocolBgp = networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut))
+		networkInstanceProtocolBgp.SetEnabled(true)
+	}
 	bgp := networkInstanceProtocolBgp.GetOrCreateBgp()
 
 	bgpGlobal := bgp.GetOrCreateGlobal()
@@ -308,11 +316,19 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, neighbors []string) {
 	for _, neighbor := range neighbors {
-		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).
-			Bgp().
-			Neighbor(neighbor).
-			SessionState().State(), time.Second*240, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		if deviations.DefaultBgpInstanceName(dut) == "" {
+			gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+				Bgp().
+				Neighbor(neighbor).
+				SessionState().State(), time.Second*240, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		} else {
+			gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).
+				Bgp().
+				Neighbor(neighbor).
+				SessionState().State(), time.Second*240, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		}
 	}
 }
 
@@ -365,7 +381,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 // Configure OTG traffic-flow
-func configureTrafficFlow(t *testing.T, otgConfig gosnappi.Config, isV4 bool, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp string) gosnappi.Config {
+func configureTrafficFlow(t *testing.T, otgConfig gosnappi.Config, isV4 bool, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIP, dstIP string) gosnappi.Config {
 	t.Helper()
 
 	// ATE Traffic Configuration.
@@ -384,12 +400,12 @@ func configureTrafficFlow(t *testing.T, otgConfig gosnappi.Config, isV4 bool, na
 	e.Src().SetValue(srcMac)
 	if isV4 {
 		v4 := flow.Packet().Add().Ipv4()
-		v4.Src().SetValue(srcIp)
-		v4.Dst().SetValue(dstIp)
+		v4.Src().SetValue(srcIP)
+		v4.Dst().SetValue(dstIP)
 	} else {
 		v6 := flow.Packet().Add().Ipv6()
-		v6.Src().SetValue(srcIp)
-		v6.Dst().SetValue(dstIp)
+		v6.Src().SetValue(srcIP)
+		v6.Dst().SetValue(dstIP)
 	}
 
 	return otgConfig
@@ -820,8 +836,9 @@ func redistributeStaticRoutePolicyWithMED(t *testing.T, dut *ondatra.DUTDevice, 
 	policyStatementAction := policyStatement.GetOrCreateActions()
 	policyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(medValue))
-	policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
-
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		policyStatement.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	}
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 
 	configureTableConnection(t, dut, isV4, metricPropagate, redistributeStaticPolicyName, oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
@@ -865,12 +882,6 @@ func redistributeStaticRoutePolicyWithLocalPreference(t *testing.T, dut *ondatra
 
 // 1.27.8 and 1.27.19 setup function
 func redistributeStaticRoutePolicyWithCommunitySet(t *testing.T, dut *ondatra.DUTDevice, isV4 bool) {
-
-	// Remove import policy.
-	tableConnV4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4)
-	gnmi.Delete(t, dut, tableConnV4Path.ImportPolicy().Config())
-	tableConnV6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6)
-	gnmi.Delete(t, dut, tableConnV6Path.ImportPolicy().Config())
 
 	redistributeStaticPolicyName := redistributeStaticPolicyNameV4
 	policyStatementName := policyStatementNameV4
