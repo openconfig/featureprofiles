@@ -756,6 +756,34 @@ message Metadata {
     // Cisco b/414333771
     bool bgp_set_med_action_unsupported = 272;
 
+    // SRGB and SLGB config through OC is not reflecting
+    bool isis_srgb_srlb_unsupported = 273;
+
+    // Prefix segment configuration not supported
+    bool isis_sr_prefix_segment_config_unsupported = 274;
+
+    // node segment configuration not supported
+    bool isis_sr_node_segment_config_unsupported = 275;
+
+    // DUT not returning value for sid counters
+    bool skip_verify_sid_counters = 276;
+
+    // DUT not supporting with anycast SID configuration
+    bool skip_verify_anycast_sid = 277;
+
+    // GUE decapsulation unsuooprted
+    bool decapsulate_gue_oc_unsupported = 278;
+
+    // policy rule based counters unsupported
+    bool policy_rule_counters_oc_unsupported = 279;
+
+    // Devices does not support static mpls lsp
+    bool static_mpls_lsp_oc_unsupported = 280;
+
+   // DUT not supporting with qos remarking
+    bool qos_remark_oc_unsupported = 281;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
