@@ -113,6 +113,41 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowIPv4.FlowName, TolerancePct: 0.5},
 	}
+	Validations = []packetvalidationhelpers.ValidationType{
+		packetvalidationhelpers.ValidateIPv4Header,
+		packetvalidationhelpers.ValidateMPLSLayer,
+		packetvalidationhelpers.ValidateInnerIPv4Header,
+	}
+	OuterGREIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
+		Protocol: GREProtocol,
+		DstIP:    "10.99.1.1",
+		Tos:      96,
+		TTL:      64,
+	}
+	MPLSLayer = &packetvalidationhelpers.MPLSLayer{
+		Label: 116383,
+		Tc:    1,
+	}
+	InnerIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
+		DstIP: "11.1.1.1",
+		Tos:   1,
+		TTL:   63,
+	}
+	InnerIPLayerIPv6 = &packetvalidationhelpers.IPv6Layer{
+		DstIP:        "2000:1::1",
+		TrafficClass: 10,
+		HopLimit:     63,
+	}
+	EncapPacketValidation = &packetvalidationhelpers.PacketValidation{
+		PortName:         "port3",
+		IPv4Layer:        OuterGREIPLayerIPv4,
+		MPLSLayer:        MPLSLayer,
+		Validations:      Validations,
+		InnerIPLayerIPv4: InnerIPLayerIPv4,
+		InnerIPLayerIPv6: InnerIPLayerIPv6,
+		TCPLayer:         &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 179},
+		UDPLayer:         &packetvalidationhelpers.UDPLayer{SrcPort: 49152, DstPort: 3784},
+	}
 )
 
 func ConfigureOTG(t *testing.T) {
