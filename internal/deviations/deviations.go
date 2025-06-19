@@ -1463,6 +1463,47 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// SRLB and SRGB configuration does not effective with OC config
+func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
+}
+
+// Isis Prefix Segment config does not supported
+func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrPrefixSegmentConfigUnsupported()
+}
+
+// Isis Node Segment Configuration do not supported
+func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
+}
+
+// Verify counters based on SID label do not support
+func SkipVerifySidCounters(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipVerifySidCounters()
+}
+
+// Snycast SID config not supported
+func SkipVerifyAnycastSid(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipVerifyAnycastSid()
+}
+
+// Snycast SID config not supported
+func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
+}
+
+func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyRuleCountersOcUnsupported()
+}
+
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
+
+func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
+  
 // UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
 func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
@@ -1471,4 +1512,5 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 // ConfigLeafCreateRequired returns true if leaf creation is required
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+
 }
