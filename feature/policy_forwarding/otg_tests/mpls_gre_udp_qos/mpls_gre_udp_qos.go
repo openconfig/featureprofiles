@@ -252,7 +252,7 @@ func TestMPLSOGREEncapIPv4(t *testing.T) {
 	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("Validation on flows failed (): %q", err)
 	}
-  FlowIPv4.IPv4Flow.RawPriority = 1
+	FlowIPv4.IPv4Flow.RawPriority = 1
 	FlowIPv4.IPv4Flow.RawPriorityCount = 0
 	FlowIPv4.PacketsToSend = 1000
 
