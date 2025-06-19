@@ -169,6 +169,8 @@ func TestWithDCBackUp(t *testing.T) {
 	dut2 := ondatra.DUT(t, "dut2")
 
 	configDUT(t, dut2)
+	// Config VRFs for DUT2
+	configureNetworkInstance(t, dut)
 
 	ctx2 := context.Background()
 	args = &testArgs{}
