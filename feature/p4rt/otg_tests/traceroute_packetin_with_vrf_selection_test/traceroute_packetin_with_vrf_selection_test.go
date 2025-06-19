@@ -746,10 +746,10 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		intfName = intfName + ".0"
-	}
+
 	isisIntf := isis.GetOrCreateInterface(intfName)
+	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		isisIntf.InterfaceRef = nil
@@ -815,9 +815,6 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		dutIntf = dutIntf + ".0"
-	}
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
