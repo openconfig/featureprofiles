@@ -318,7 +318,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Add ports 7, 13, 14, 15, and 16 as members of Bundle-Ether126
 	ports = []string{"port7", "port13", "port14", "port15"}
-	ids = []uint32{27, 22, 23, 24, 25} // Assign unique IDs for each port
+	ids = []uint32{27, 22, 23, 24} // Assign unique IDs for each port
 
 	for i, portName := range ports {
 		port := dut.Port(t, portName)
