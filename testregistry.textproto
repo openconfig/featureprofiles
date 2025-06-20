@@ -458,12 +458,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "PF-1.3"
-  description: "Policy-based Static GUE Encapsulation to IPv4 tunnel"
-  readme: " "
-  exec: " "
-}
-test: {
   id: "PF-1.4"
   description: "Interface based GUE Decapsulation to IPv4 tunnel"
   readme: " "
@@ -966,6 +960,12 @@ test: {
   id: "RT-3.52"
   description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking based on tunnel destination."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-3.53"
+  description: "Static route based GUE Encapsulation to IPv4 tunnel"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/static_encap_gue_ipv4/README.md"
   exec: " "
 }
 test: {
