@@ -21,6 +21,7 @@ with different hashing parameters
 ```
 FEAT: FEAT-37197 Google: Avoid Polarization via Dupe+Masking of fields
 SFS/Scoping Doc: https://cisco-my.sharepoint.com/:x:/p/arvbaska/ETLBkY66uNpCgSkmxKQj7YIBC8F636MazdoROFayce1ixg
+EDCS:
 WIKI/TOI: https://wiki.cisco.com/display/SFFWD/Spitfire+CEF+Load+balancing%3A+Per+NPU+Hash+Rotate+feature
 MISC: 
 ```
