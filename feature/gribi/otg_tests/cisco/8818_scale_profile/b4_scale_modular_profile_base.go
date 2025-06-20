@@ -2184,8 +2184,11 @@ func testDecapScale(t *testing.T) {
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
 		if *flush_after {
-			t.Log("Flushing all gRIBI entries at the end of the test")
-			gribi.FlushAll(ta.client)
+			t.Run("Flush decap tunnels and check resource release duration", func(t *testing.T) {
+				t.Log("Flushing all gRIBI entries at the end of the test")
+				gribi.FlushAll(ta.client)
+				waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
+			})
 		}
 	}(tcArgs)
 
@@ -2289,8 +2292,11 @@ func testDecapEncapScale(t *testing.T) {
 	// cleanup all existing gRIBI entries at the end of the test
 	defer func(ta *testArgs) {
 		if *flush_after {
-			t.Log("Flushing all gRIBI entries at the end of the test")
-			gribi.FlushAll(ta.client)
+			t.Run("Flush DecapEncap tunnels and check resource release duration", func(t *testing.T) {
+				t.Log("Flushing all gRIBI entries at the end of the test")
+				gribi.FlushAll(ta.client)
+				waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
+			})
 		}
 	}(tcArgs)
 
@@ -2305,7 +2311,16 @@ func testDecapEncapScale(t *testing.T) {
 		waitForResoucesToRestore(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, "")
 	}
 	defer tcArgs.client.Stop(t)
+	t.Log("Clear results before programming")
 
+	for _, card := range pathInfo.PrimaryUniqueIntfCards {
+		t.Logf("Processing PrimaryUniqueIntfCard: %v", card)
+		clearOfaPerformance(t, tcArgs.dut, "DecapEncap", card)
+	}
+	for _, card := range pathInfo.BackupUniqueIntfCards {
+		t.Logf("Processing PrimaryUniqueIntfCard: %v", card)
+		clearOfaPerformance(t, tcArgs.dut, "DecapEncap", card)
+	}
 	batches := 2
 
 	// distribute the available resource IDs to NHGs such that it can be divided in batches.
@@ -2365,12 +2380,24 @@ func testDecapEncapScale(t *testing.T) {
 			t.Skip("no leftover NHGs to configure")
 		}
 	})
+	t.Run("Programming duration across unique cards", func(t *testing.T) {
+		for _, card := range pathInfo.PrimaryUniqueIntfCards {
+			t.Logf("Processing PrimaryUniqueIntfCard: %v", card)
+			getOfaPerformance(t, tcArgs.dut, "DecapEncap", card)
+		}
+		for _, card := range pathInfo.BackupUniqueIntfCards {
+			t.Logf("Processing PrimaryUniqueIntfCard: %v", card)
+			getOfaPerformance(t, tcArgs.dut, "DecapEncap", card)
+		}
+	})
+
 	t.Run("Resource consuption for all unique cards", func(t *testing.T) {
 		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, pathInfo.PrimaryUniqueIntfCards)
 	})
 	t.Run("Validating encap traffic", func(t *testing.T) {
 		testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1})
 	})
+
 }
 
 // parseOfaPerf parses the output of the "show ofa performance iptnlnh location <>" command and returns
@@ -2625,13 +2652,17 @@ func getResouceConsumption(t *testing.T, dut *ondatra.DUTDevice, pool, bank int,
 
 func waitForResoucesToRestore(t *testing.T, dut *ondatra.DUTDevice, pool, bank int, rploc, lcLoc string) {
 	// wait upto 10 minutes for the resources to restore
-	for i := 0; i < 11; i++ {
+	var fibUsage, i int
+	for i = 0; i < 11; i++ {
 		if fibUsage := getGridPoolUsageViaGNMI(t, dut, pool, bank, rploc).ClientUsages["fib-mgr"]; fibUsage != 0 {
 			t.Logf("Waiting for resources to be restored after %d minutes", i)
 			time.Sleep(1 * time.Minute)
 		} else {
 			break
 		}
+	}
+	if i <= 10 && fibUsage == 0 {
+		t.Logf("Time took to release resources is %d minutes", i)
 	}
 }
 
