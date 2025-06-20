@@ -621,6 +621,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                     'dut': reserved_testbed['baseconf']
                 }
 
+            if 'gateway' not in reserved_testbed:
+                reserved_testbed['gateway'] = "192.168.122.1"
+
             for dut, conf in reserved_testbed['baseconf'].items():
                 baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, conf)
                 baseconf_file_copy = os.path.join(testbed_logs_dir, f'baseconf_{dut}.conf')
@@ -710,9 +713,6 @@ def b4_chain_provider(ws, testsuite_id,
                         internal_test=False,
                         test_debug=False,
                         test_verbose=True,
-                        test_enable_grpc_logs=True,
-                        test_html_report=False,
-                        release_ixia_ports=True,
                         collect_debug_files=True,
                         override_test_args_from_env=True,
                         testbed=None,
@@ -743,7 +743,6 @@ def b4_chain_provider(ws, testsuite_id,
                     test_timeout=test_timeout,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
-                    test_enable_grpc_logs=test_enable_grpc_logs,
                     otg_keng_controller=otg_keng_controller,
                     otg_keng_layer23_hw_server=otg_keng_layer23_hw_server,
                     otg_gnmi_server=otg_gnmi_server,
@@ -757,14 +756,13 @@ def b4_chain_provider(ws, testsuite_id,
                     repo_pr=test_pr,
                     target_dir=test_repo_dir)
 
-    #chain |= GoTidy.s(repo=test_repo_dir)
-
     if test_debug:
         chain |= InstallGoDelve.s()
 
-    if test_enable_grpc_logs:
-        chain |= PatchTestRepoForGRPCBinLogs.s(internal_test=internal_test)
-
+    chain |= PatchTestRepoForCiscoExtra.s(internal_test=internal_test)
+    chain |= GoModReplace.s(repo=test_repo_dir)
+    chain |= GoTidy.s(repo=test_repo_dir)
+    
     reserved_testbed['testbed_file'] = reserved_testbed['noate_testbed_file']
     reserved_testbed['binding_file'] = reserved_testbed['noate_binding_file']
 
@@ -777,8 +775,6 @@ def b4_chain_provider(ws, testsuite_id,
 
     if is_otg: 
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
-        # if reserved_testbed.get('sim', False): # no needed anymore
-        #     chain |= PatchTestRepoForSimOTG.s(internal_test=internal_test)
 
     if is_tgen and not decommission_testbed_after_tests():
         chain |= ReleaseIxiaPorts.s()
@@ -903,8 +899,11 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
     test_ws = test_repo_dir
     test_env = _get_go_env(ws)
-    if test_enable_grpc_logs:
-        test_env["GRPC_BINARY_LOG_FILTER"] = "*"
+    test_env["GRPC_BINARY_LOG_FILTER"] = "*"
+    
+    tb_gw = reserved_testbed.get('gateway', None)
+    if tb_gw:
+        test_env["B4_DUT_GW"] = tb_gw
 
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
@@ -918,10 +917,12 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
                             cwd=test_ws)
         stop_time = self.get_current_time()
     finally:
-        if test_enable_grpc_logs:
-            grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
-            if os.path.exists(grpc_bin_log_file):
-                shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
+        grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
+        if os.path.exists(grpc_bin_log_file):
+            shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
+
+        test_log_dir_on_mount = os.path.join(test_log_directory_path, "test_logs")
+        shutil.move(test_logs_dir_in_ws, test_log_dir_on_mount)
 
         log_files = _get_all_ondatra_log_files(ws, test_ws, f"./{test_path}")
         if log_files:
@@ -940,13 +941,6 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
-        if not test_did_pass:
-            self.enqueue_child(InvokeAutoTriage.s(
-                test_name=test_name, 
-                script_output=self.console_output_file, 
-                debug_output=os.path.join(test_log_directory_path,"debug_commands.json")
-            ))
-
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
             ws=ws,
@@ -960,11 +954,18 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
             split_files_per_dut=True
         )).get('core_files', [])
 
+        if not test_did_pass or core_files:
+            self.enqueue_child(InvokeAutoTriage.s(
+                test_name=test_name, 
+                script_output=self.console_output_file, 
+                logs_dir=test_log_dir_on_mount,
+                debug_output=os.path.join(test_log_directory_path,"debug_commands.json")
+            ))
+        
         for suite in suites:
             _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
         _write_xml_tree(xml_root, xunit_results_filepath)
 
-        shutil.move(test_logs_dir_in_ws, os.path.join(test_log_directory_path, "test_logs"))
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
 
         if not Path(xunit_results_filepath).is_file():
@@ -1591,7 +1592,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PatchTestRepoForSimOTG(self, test_repo_dir, internal_test):
+def PatchTestRepoForCiscoExtra(self, test_repo_dir, internal_test):
     repo = git.Repo(test_repo_dir)
     remote = repo.remote()
     if not internal_test:
@@ -1600,20 +1601,20 @@ def PatchTestRepoForSimOTG(self, test_repo_dir, internal_test):
         except:
             remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
             remote.fetch()
-    remote.repo.git.checkout(f'{remote.name}/otg_sim_opt', 'internal/otgutils/arp.go')
+    remote.repo.git.checkout(f'{remote.name}/cisco_extra', 
+                             'internal/fptest/cisco_test_events.go', 
+                             'internal/fptest/cisco_monitor.go',
+                             'internal/fptest/cisco_error_patterns.go',
+                             'internal/fptest/cisco_grpc_record.go')
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PatchTestRepoForGRPCBinLogs(self, test_repo_dir, internal_test):
-    repo = git.Repo(test_repo_dir)
-    remote = repo.remote()
-    if not internal_test:
-        try:
-            remote = repo.remote("b4test")
-        except:
-            remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
-            remote.fetch()
-    remote.repo.git.checkout(f'{remote.name}/grpc_record', 'internal/fptest/cisco.go')
+def GoModReplace(self, ws, repo):
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    logger.print(
+        check_output(f'{GO_BIN} mod edit -replace github.com/cisco/gosifter=/auto/slapigo/repos/gosifter', env=env, cwd=repo)
+    )
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -1806,11 +1807,22 @@ def CollectCoverageDataOverSSH(self, ws, internal_fp_repo_dir, reserved_testbed,
 # TODO: remove this task
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def InvokeAutoTriage(self, test_name, script_output, debug_output):
+def InvokeAutoTriage(self, test_name, script_output, logs_dir, debug_output):
     logger.print("Invoking auto triage...")
     try:
-        cmd = "/ws/mastarke-sjc/py311_env/bin/python /ws/mastarke-sjc/my_local_git/CIT-Tool/development-site/data-labeler/scripts/on_demand_ai_debugger.py"
-        cmd += f' --logs-file {script_output} --test-name {test_name} --output {debug_output}'
+        log_files = []
+        ts_test_log = os.path.join(logs_dir, f'test.log')
+        if os.path.exists(ts_test_log):
+            log_files.append(ts_test_log)
+            pattern = os.path.join(logs_dir, '**', "*.log")
+            log_files.extend([str(f) for f in glob.glob(pattern, recursive=True) if os.path.dirname(f) != logs_dir])
+        else:
+            log_files.append(script_output)
+
+        logger.print(f'Found log files: {log_files}')
+
+        cmd = "/ws/mastarke-sjc/py311_env/bin/python /ws/mastarke-sjc/my_local_git/CIT-Tool/production-site/data-labeler/scripts/ai-scripts/on_demand_ai_debugger.py"
+        cmd += f' --logs-file {" ".join(log_files)} --test-name {test_name} --output {debug_output}'
         logger.print(check_output(cmd))
     except:
         logger.warning(f'Failed to invoke auto triage. Ignoring...')
