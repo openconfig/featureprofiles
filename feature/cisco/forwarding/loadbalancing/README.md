@@ -1,4 +1,4 @@
-# Loadbalancing tests using Google DVT topology
+# Loadbalancing test for different hashing parameters using Google DVT topology
 
 ## Testbed type
 DVT SIM topology Testbed ID: DVT-SIM-TOPO
@@ -45,6 +45,7 @@ rpcs:
 
 BGP
 IS-IS
+gRIBI
 
 ## Minimum DUT Platform Requirement
 
