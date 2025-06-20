@@ -397,7 +397,7 @@ func validateControllerConfig(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 }
 
-func TestZRProcessRestart(t *testing.T) {
+func TestOTNZRProcessRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	configureOTN(t, dut)
@@ -449,7 +449,7 @@ func TestZRProcessRestart(t *testing.T) {
 
 }
 
-func TestZRShutPort(t *testing.T) {
+func TestOTNZRShutPort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	configureOTN(t, dut)
@@ -505,7 +505,7 @@ func TestZRShutPort(t *testing.T) {
 
 }
 
-func TestZRLCReload(t *testing.T) {
+func TestOTNZRLCReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// enable transceivers.
@@ -560,7 +560,7 @@ func TestZRLCReload(t *testing.T) {
 
 }
 
-func TestZRRPFO(t *testing.T) {
+func TestOTNZRRPFO(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	configureOTN(t, dut)
