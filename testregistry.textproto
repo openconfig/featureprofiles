@@ -1484,7 +1484,7 @@ test: {
 test: {
   id: "TRANSCEIVER-8"
   description: "400ZR Optics module temperature streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_temperature_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/temperature/tests/zr_temperature_test/README.md"
   exec: " "
 }
 test: {
