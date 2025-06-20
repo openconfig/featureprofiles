@@ -19,7 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"sort"
-	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -465,6 +465,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // configureAdditionalGribiAft configures additional AFT entries for Gribi.
@@ -724,6 +727,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
+	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	prot.Enabled = ygot.Bool(true)
@@ -774,7 +778,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 		isisIntfLevelAfiv4.Enabled = nil
 		isisIntfLevelAfiv6.Enabled = nil
 	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	gnmi.Update(t, dut, dutConfIsisPath.Config(), prot)
 }
 
 // bgpCreateNbr creates BGP neighbor configuration
@@ -811,9 +815,6 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		dutIntf = dutIntf + ".0"
-	}
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -857,7 +858,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 	t.Logf("configureOTG")
 	config := gosnappi.NewConfig()
 	pmd100GFRPorts := []string{}
-	for i, ap := range atePorts {
+	for _, ap := range atePorts {
 		if ap.PMD() == ondatra.PMD100GBASEFR {
 			pmd100GFRPorts = append(pmd100GFRPorts, ap.ID())
 		}
@@ -867,7 +868,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 
 		port := config.Ports().Add().SetName(ap.ID())
 		atePortNamelist = append(atePortNamelist, port.Name())
-		portName := fmt.Sprintf("atePort%s", strconv.Itoa(i+1))
+		portName := fmt.Sprintf("ate%s", strings.ToUpper(string(ap.ID()[0]))+string(ap.ID()[1:]))
 		dev := config.Devices().Add().SetName(portName)
 		macAddress := portsMap[portName].MAC
 		eth := dev.Ethernets().Add().SetName(portName + ".Eth").SetMac(macAddress)
@@ -880,7 +881,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			SetPrefix(plenIPv6)
 
 		otgPortDevices = append(otgPortDevices, dev)
-		if i == 7 {
+		if ap.ID() == "port8" {
 			iDut8LoopV4 := dev.Ipv4Loopbacks().Add().SetName("Port8LoopV4").SetEthName(eth.Name())
 			iDut8LoopV4.SetAddress(otgIsisPort8LoopV4)
 			iDut8LoopV6 := dev.Ipv6Loopbacks().Add().SetName("Port8LoopV6").SetEthName(eth.Name())
@@ -1089,7 +1090,6 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 			if err := gribi.FlushAll(args.client); err != nil {
 				t.Fatal(err)
 			}
-
 			// Configure GRIBi baseline AFTs.
 			baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 			configureAdditionalGribiAft(ctx, t, dut, args)
@@ -1123,7 +1123,6 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	if err := gribi.FlushAll(args.client); err != nil {
 		t.Fatal(err)
 	}
-
 	// Configure GRIBi baseline AFTs.
 	baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 	configureAdditionalGribiAft(ctx, t, dut, args)
@@ -1272,25 +1271,26 @@ func TestTraceRoute(t *testing.T) {
 		testGribiDecapMatchSrcProtoDSCP(ctx, t, dut, args)
 	})
 	// Below test case will implement later
-	/*
-		t.Run("Test-4: Tests that traceroute respects transit FRR", func(t *testing.T) {
-
-		})
-		t.Run("Test-5: Tests that traceroute respects transit FRR when the backup is also unviable.", func(t *testing.T) {
-
-		})*/
+	/*t.Run("Test-4: Tests that traceroute respects transit FRR", func(t *testing.T) {
+	})
+	t.Run("Test-5: Tests that traceroute respects transit FRR when the backup is also unviable.", func(t *testing.T) {
+	})*/
 	t.Run("Test-6: Tunneled traffic with no decap", func(t *testing.T) {
 		testTunnelTrafficNoDecap(ctx, t, dut, args)
 	})
 	// Below test case will implement later
-	/*
-		t.Run("Test-7: Encap failure cases (TBD on confirmation)", func(t *testing.T) {
-
-		})
-		t.Run("Test-8: Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.", func(t *testing.T) {
-
-		})*/
+	/*t.Run("Test-7: Encap failure cases (TBD on confirmation)", func(t *testing.T) {
+	})
+	t.Run("Test-8: Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.", func(t *testing.T) {
+	})*/
 	t.Run("Test-9: Decap then encap", func(t *testing.T) {
 		testTunnelTrafficDecapEncap(ctx, t, dut, args)
 	})
+
+	defer func() {
+		// Flush all entries after test.
+		if err := gribi.FlushAll(client); err != nil {
+			t.Error(err)
+		}
+	}()
 }
