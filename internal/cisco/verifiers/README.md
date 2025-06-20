@@ -18,4 +18,4 @@ https://gh-xr.scm.engit.cisco.com/xr/iosxr/tree/main/test/kit/lib/parsers/xr/tem
 * TextFsm templates can added under featureprofiles/internal/cisco/verifiers/textfsm_templates directory.
 Create any sub directories as necessary.
 
-* TODO : Parsing textFsm with https://github.com/sirikothe/gotextfsm package
+#TODO : Parsing textFsm with https://github.com/sirikothe/gotextfsm package
