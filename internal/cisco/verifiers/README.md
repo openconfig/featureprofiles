@@ -1,6 +1,6 @@
 # XR Verifiers
 
-Common test verifiers for different XR components using either OC Yang state paths,
+Common test verifiers for different XR components using OC Yang (Config/state) paths,
 Use show CLIs/native yang where OC path is not applicable or supported.
 
 
