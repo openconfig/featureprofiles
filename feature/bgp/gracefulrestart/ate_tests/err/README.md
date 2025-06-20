@@ -69,19 +69,17 @@ we have the following that is different from EER.
 /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/config/retention-policy = "STALE-ROUTE-POLICY"
 ```
 
-````
-
 ### State OC path for ERR.
 
-    ```
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state/hold-time
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/state/enabled
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/state/restart-time
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/enabled
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/retention-time
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/retention-policy
-    ```
+```
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state/hold-time
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/state/enabled
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/state/restart-time
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/enabled
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/retention-time
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/retention-policy
+```
 
 ## Testbed type
 
