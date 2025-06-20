@@ -23,6 +23,9 @@ import (
 	// "os"
 	// "sort"
 	// "strings"
+	"context"
+	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -34,6 +37,7 @@ import (
 
 	// "github.com/openconfig/featureprofiles/internal/components"
 	// "github.com/openconfig/featureprofiles/internal/cisco/verifiers"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
 	"github.com/openconfig/featureprofiles/internal/cisco/verifiers"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -52,14 +56,11 @@ const (
 )
 
 var (
-	lcList           = []string{}
-	rtrID            uint32
-	npList           = []int{0, 1, 2}
-	h                = NpuHash{npList: []int{0, 1, 2}}
 	trafficTolerance = 0.02
 	dutPort1         = attrs.Attributes{
 		Name:    "port1",
 		Desc:    "dutPort1",
+		MAC:     "00:aa:00:bb:00:cc",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:1",
@@ -79,6 +80,7 @@ var (
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		Name:    "port2",
+		MAC:     "00:bb:00:11:00:dd",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:5",
@@ -87,7 +89,7 @@ var (
 
 	atePort2 = attrs.Attributes{
 		Name:    "port2",
-		MAC:     "02:00:02:01:01:01",
+		MAC:     "04:00:02:02:02:02",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:0db8::192:0:2:6",
@@ -99,19 +101,30 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// type testCase struct {
-// 	name    string
-// 	desc    string
-// 	npval   []int
-// 	hashval int
-// 	lcloc   []string
-// }
+type extendedEntropyCLIOptions struct {
+	perChasiss  string
+	perNPU      string
+	specificVal string
+}
+
+type algorithmAdjustCLIOptions struct {
+	perChasiss  string
+	perNPU      string
+	specificVal string
+}
+
+type testCase struct {
+	name                  string
+	desc                  string
+	extendedEntropyOption func(t *testing.T, hashParameter, optionType string, dutList []*ondatra.DUTDevice)
+	algorithmAdjustOption func(t *testing.T, hashParameter, optionType string, dutList []*ondatra.DUTDevice)
+}
 
 var (
 	//Traffic flows
 	v4R2E = helper.TrafficFlowAttr{
 		FlowName:          "IPv4",
-		DstMacAddress:     "00:aa:00:bb:00:cc",
+		DstMacAddress:     dutPort1.MAC,
 		OuterProtocolType: "IPv4",
 		OuterSrcStart:     "192.1.1.1",
 		OuterDstStart:     "10.240.118.35",
@@ -135,7 +148,7 @@ var (
 	}
 	v4E2R = helper.TrafficFlowAttr{
 		FlowName:          "IPv4",
-		DstMacAddress:     "00:aa:00:11:00:dd",
+		DstMacAddress:     dutPort2.MAC,
 		OuterProtocolType: "IPv4",
 		OuterSrcStart:     "192.0.2.6",
 		OuterDstStart:     "10.240.118.50",
@@ -159,8 +172,11 @@ var (
 	}
 )
 
-func TestLoadBalancing(t *testing.T) {
-	// dut1R := ondatra.DUT(&testing.T{}, "dut1")
+func TestWANLinksLoadBalancing(t *testing.T) {
+	dut1R := ondatra.DUT(&testing.T{}, "dut1")
+	// dut1E := ondatra.DUT(&testing.T{}, "dut5")
+	dut1E := ondatra.DUT(t, "B4E1")
+	dutList2 := []*ondatra.DUTDevice{dut1R, dut1E}
 	tgenParam := helper.TgenConfigParam{
 		DutIntfAttr:      []attrs.Attributes{dutPort1, dutPort2},
 		TgenIntfAttr:     []attrs.Attributes{atePort1, atePort2},
@@ -172,7 +188,6 @@ func TestLoadBalancing(t *testing.T) {
 	helper.TGEN.StartTraffic(t, false, flows, 10*time.Second, topo)
 	ate := topo.ATE
 	t.Log("ate", ate.String())
-	dut1E := ondatra.DUT(t, "B4E1")
 	afttest := helper.FIB.GetPrefixAFTObjects(t, dut1E, "10.240.118.35/32", deviations.DefaultNetworkInstance(dut1E))
 	memberList := helper.Interface.GetBundleMembers(t, dut1E, afttest.NextHop[0].NextHopInterface)
 	var bundleMembers []string
@@ -243,4 +258,99 @@ func TestLoadBalancing(t *testing.T) {
 	// 		}
 	// 	})
 	// }
+
+	// var setExtendedEntropy *extendedEntropyCLIOptions
+	// var setAlgorithmAdjust *algorithmAdjustCLIOptions
+
+	// //set extended entropy CLI options
+	// setExtendedEntropy.perChasiss = "cef platform load-balancing extended-entropy auto-global"
+	// setExtendedEntropy.perNPU = "cef platform load-balancing extended-entropy auto-instance"
+	// setExtendedEntropy.specificVal = fmt.Sprintf("cef platform load-balancing extended-entropy profile-index %s", rand.Intn(215))
+
+	// //set algorithm adjust CLI options
+	// setAlgorithmAdjust.perChasiss = "cef platform load-balancing algorithm adjust auto-global"
+	// setAlgorithmAdjust.perNPU = "cef platform load-balancing algorithm adjust auto-instance"
+	// setAlgorithmAdjust.specificVal = fmt.Sprintf("cef platform load-balancing algorithm adjust %s", rand.Intn(255))
+
+	cases := []testCase{
+		{
+			name: "Default",
+			desc: "Default Hash parameters",
+		},
+		{
+			name: "Both auto-global",
+			desc: "auto-global Hash parameters for both Extended Entropy and Algorithm Adjust",
+			extendedEntropyOption: func(t *testing.T, hashParameter, optionType string, dutList []*ondatra.DUTDevice) {
+				configureOptions(t, "extendedEntropyOption", "perChassis", dutList2)
+			},
+			algorithmAdjustOption: func(t *testing.T, hashParameter, optionType string, dutList []*ondatra.DUTDevice) {
+				configureOptions(t, "algorithmAdjustOption", "perChassis", dutList2)
+			},
+		},
+		// {
+		// 	name: "Decap with NO DSCP match & Mixed Prefix Length Decap gRIBI Entries",
+		// 	desc: "match on source and protocol, no match on DSCP; flow VRF_DECAP hit -> DEFAULT",
+		// 	fn:   testMixDecapNoDscpMatch,
+		// },
+		// {
+		// 	name: "Tunneled traffic with NO Decap",
+		// 	desc: "IPinIP tunneled traffic recived on cluster interfaces are sent to TE VRF when no match in DECAP VRF",
+		// 	fn:   testTunnelWithNoDecap,
+		// },
+		// {
+		// 	name: "TE Disabled Default class match",
+		// 	desc: "TE disabled IPinIP/IP cluster traffic arriving on WAN facing ports > Send to Default class",
+		// 	fn:   testTEDisabledTraffic,
+		// },
+		// {
+		// 	name: "Decap and encap",
+		// 	desc: "Decap and then match route in post-Decap Encap VRF >> Traffic forwarded out with Encap header",
+		// 	fn:   testDecapEncap,
+		// },
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+
+			t.Logf("Reset to Base gRIBI programming")
+
+		})
+	}
+}
+
+func configureOptions(t *testing.T, hashParameter, optionType string, dutList []*ondatra.DUTDevice) {
+	for _, dut := range dutList {
+		switch optionType {
+		case "extendedEntropyOption":
+			switch optionType {
+			case "perChassis":
+				// Configure for per chassis
+				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing extended-entropy auto-global")
+			case "perNPU":
+				// Configure for per NPU
+				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing extended-entropy auto-instance")
+			case "specificValue":
+				// Configure for specific value
+				config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("cef platform load-balancing extended-entropy profile-index %d", rand.Intn(215)))
+			default:
+				t.Log("Default Hashing parameters set")
+			}
+		case "algorithmAdjustOption":
+			switch optionType {
+			case "perChassis":
+				// Configure for per chassis
+				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing algorithm adjust auto-global")
+			case "perNPU":
+				// Configure for per NPU
+				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing algorithm adjust auto-instance")
+			case "specificValue":
+				// Configure for specific value
+				config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("cef platform load-balancing algorithm adjust %d", rand.Intn(215)))
+			default:
+				t.Log("Default Hashing parameters set")
+			}
+		default:
+
+		}
+	}
+
 }
