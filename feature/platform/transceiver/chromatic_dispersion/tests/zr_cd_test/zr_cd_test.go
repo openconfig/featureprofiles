@@ -32,7 +32,7 @@ const (
 var (
 	frequencies         = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
 	targetOutputPowers  = []float64{-13, -9}             // 400ZR OIF Tx power range
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
 	operationalMode     uint16
 )
 
@@ -95,15 +95,12 @@ func verifyAllCDValues(t *testing.T, dut1 *ondatra.DUTDevice, p1StreamInstant, p
 
 func TestCDValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 
