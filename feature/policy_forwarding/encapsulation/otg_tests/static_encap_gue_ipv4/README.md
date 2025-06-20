@@ -250,7 +250,7 @@ Canonical OpenConfig
                     {
                       "config": {
                         "index": 0
-                        "type": UDPV4
+                        "type": "UDPV4"
                       }
                       "udp-v4": {
                         "config": {
