@@ -152,73 +152,67 @@ Create the following connections:
 
 > > Tabular representation of the above
 
-### DUT BGP and Graceful Restart/ERR Configuration
+### DUT BGP and Graceful Restart/ERR ConfigurationAdd commentMore actions
 
-| Parameter                | Value                | Description                |
-| :----------------------- | :------------------- | :------------------------- |
-| **BGP ASN**              | `100`                | The Autonomous System      |
-:                          :                      : Number for the DUT's IBGP  :
-:                          :                      : sessions.                  :
-| **Hold Time**            | 30 seconds           | The BGP session hold       |
-:                          :                      : timer.                     :
-| **GR Restart Time**      | 220 seconds          | The time a peer should     |
-:                          :                      : wait for the BGP session   :
-:                          :                      : to re-establish during a   :
-:                          :                      : graceful restart.          :
-| **GR Stale Routes Time** | 250 seconds          | The duration for which a   |
-:                          :                      : peer should hold stale     :
-:                          :                      : routes during a graceful   :
-:                          :                      : restart.                   :
-| **ERR Enabled**          | `True`               | Extended Route Retention   |
-:                          :                      : is enabled on the BGP      :
-:                          :                      : peerings.                  :
-| **ERR Retention Time**   | 300 seconds          | The time for which the DUT |
-:                          :                      : will hold stale routes     :
-:                          :                      : under ERR conditions.      :
-| **ERR Retention Policy** | `STALE-ROUTE-POLICY` | The policy applied to      |
-:                          :                      : stale routes when ERR is   :
-:                          :                      : triggered.                 :
+
+| Parameter              | Value                | Description                                                                                |
+| :--------------------- | :------------------- | :----------------------------------------------------------------------------------------- |
+| **BGP ASN**            | `100`                | The Autonomous System Number for the DUT's BGP sessions.                                   |
+| **Hold Time**          | 30 seconds           | The BGP session hold timer.                                                                |
+| **GR Restart Time**    | 220 seconds          | The time a peer should wait for the BGP session to re-establish during a graceful restart. |
+| **GR Stale Routes Time** | 250 seconds          | The duration for which a peer should hold stale routes during a graceful restart.        |
+| **ERR Enabled**        | `True`               | Extended Route Retention is enabled on the BGP peerings.                                   |
+| **ERR Retention Time** | 300 seconds          | The time for which the DUT will hold stale routes under ERR conditions.                    |
+| **ERR Retention Policy** | `STALE-ROUTE-POLICY` | The policy applied to stale routes when ERR is triggered.                                |
+
+
+
 
 ### ATE Advertised Prefixes to the DUT
 
-**ATE:Port1 (IBGP Peer)** | Prefix | Community | | :--- | :--- | | IPv4Prefix1 /
-IPv6Prefix1 | `NO-ERR` | | IPv4Prefix2 / IPv6Prefix2 | `ERR-NO-DEPREF` | |
-IPv4Prefix3 / IPv6Prefix3 | `TEST-IBGP` |
+**ATE:Port1 (IBGP Peer)**
+| Prefix | Community |
+| :--- | :--- |
+| IPv4Prefix1 / IPv6Prefix1 | `NO-ERR` |
+| IPv4Prefix2 / IPv6Prefix2 | `ERR-NO-DEPREF` |
+| IPv4Prefix3 / IPv6Prefix3 | `TEST-IBGP` |
 
-**ATE:Port2 (EBGP Peer)** | Prefix | Community | | :--- | :--- | | IPv4Prefix4 /
-IPv6Prefix4 | `NO-ERR` | | IPv4Prefix5 / IPv6Prefix5 | `ERR-NO-DEPREF` | |
-IPv4Prefix6 / IPv6Prefix6 | `TEST-EBGP` |
+**ATE:Port2 (EBGP Peer)**
+| Prefix | Community |
+| :--- | :--- |
+| IPv4Prefix4 / IPv6Prefix4 | `NO-ERR` |
+| IPv4Prefix5 / IPv6Prefix5 | `ERR-NO-DEPREF` |
+| IPv4Prefix6 / IPv6Prefix6 | `TEST-EBGP` |
 
---------------------------------------------------------------------------------
-
+---
 ### DUT Routing Policies
 
-**`STALE-ROUTE-POLICY` (Applied during ERR)** | Term Name | Match Condition |
-Action(s) | | :--- | :--- | :--- | | `no-retention` | Community `NO-ERR` |
-`REJECT` (Route is not retained under ERR) | | `err-no-depref` | Community
-`ERR-NO-DEPREF` | `ACCEPT`; Add community `STALE` | | `default-retention` | All
-other prefixes | `ACCEPT`; Set `local-preference` to 0; Add community `STALE` |
+**`STALE-ROUTE-POLICY` (Applied during ERR)**
+| Term Name | Match Condition | Action(s) |
+| :--- | :--- | :--- |
+| `no-retention` | Community `NO-ERR` | `REJECT` (Route is not retained under ERR) |
+| `err-no-depref` | Community `ERR-NO-DEPREF` | `ACCEPT`; Add community `STALE` |
+| `default-retention` | All other prefixes | `ACCEPT`; Set `local-preference` to 0; Add community `STALE` |
 
-**Standard BGP Policies (Applied during normal operation)** | Policy Name |
-Direction | BGP Peer | Match Condition | Action(s) | | :--- | :--- | :--- | :---
-| :--- | | `importibgp` | Import | IBGP | Community `testibgp` | Set
-`local-preference` to 200 | | `exportibgp` | Export | IBGP | MED `50` | Set
-community `NEW-IBGP` | | `importebgp` | Import | EBGP | Community `TEST-EBGP` |
-Set `MED` to 50 | | `exportebgp` | Export | EBGP | Community `TESTIBGP` |
-Prepend AS-PATH with own ASN (100) twice; Set community `NEW-EBGP` |
+**Standard BGP Policies (Applied during normal operation)**
+| Policy Name | Direction | BGP Peer | Match Condition | Action(s) |
+| :--- | :--- | :--- | :--- | :--- |
+| `importibgp` | Import | IBGP | Community `testibgp` | Set `local-preference` to 200 |
+| `exportibgp` | Export | IBGP | MED `50` | Set community `NEW-IBGP` |
+| `importebgp` | Import | EBGP | Community `TEST-EBGP` | Set `MED` to 50 |
+| `exportebgp` | Export | EBGP | Community `TESTIBGP` | Prepend AS-PATH with own ASN (100) twice; Set community `NEW-EBGP` |
 
---------------------------------------------------------------------------------
-
+---
 ### Test Traffic Flows for Verification
 
-Flow Name | Source Prefix | Destination Prefix
-:-------- | :------------ | :-----------------
-Flow 1    | IPv4Prefix1   | IPv4Prefix4
-Flow 2    | IPv6Prefix1   | IPv6Prefix4
-Flow 3    | IPv4Prefix2   | IPv4Prefix5
-Flow 4    | IPv6Prefix2   | IPv6Prefix5
-Flow 5    | IPv4Prefix3   | IPv4Prefix6
-Flow 6    | IPv6Prefix3   | IPv6Prefix6
+| Flow Name | Source Prefix | Destination Prefix |
+| :--- | :--- | :--- |
+| Flow 1 | IPv4Prefix1 | IPv4Prefix4 |
+| Flow 2 | IPv6Prefix1 | IPv6Prefix4 |
+| Flow 3 | IPv4Prefix2 | IPv4Prefix5 |
+| Flow 4 | IPv6Prefix2 | IPv6Prefix5 |
+| Flow 5 | IPv4Prefix3 | IPv4Prefix6 |
+| Flow 6 | IPv6Prefix3 | IPv6Prefix6 |
 
 ## Procedure
 
