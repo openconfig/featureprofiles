@@ -417,49 +417,6 @@ func DecapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	cfgplugins.MPLSStaticLSPConfig(t, dut, ni, ocPFParams)
 }
 
-func validatelossyFlows(t *testing.T, ate *ondatra.ATEDevice, validations []*otgvalidationhelpers.OTGValidation) {
-	for _, validation := range validations {
-		if lossPct := validation.ReturnLossPercentage(t, ate); validation.Flow.ExpectedLoss-validation.Flow.TolerancePct < lossPct && lossPct < validation.Flow.ExpectedLoss+validation.Flow.TolerancePct {
-			t.Logf("lossPct %v ", lossPct)
-			t.Logf("Flow name %s  traffic Testcase passed", validation.Flow.Name)
-		} else {
-			t.Logf("lossPct %v ", lossPct)
-			t.Errorf("Flow name %s  traffic Failed", validation.Flow.Name)
-		}
-	}
-}
-func createflowencap(top gosnappi.Config, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool) {
-	if clearFlows {
-		top.Flows().Clear()
-	}
-	paramsOuter.CreateFlow(top)
-	paramsOuter.AddEthHeader()
-	paramsOuter.AddIPv4Header()
-	if paramsOuter.GREFlow != nil {
-		paramsOuter.AddGREHeader()
-	}
-	if paramsOuter.UDPFlow != nil {
-		paramsOuter.AddUDPHeader()
-	}
-	paramsOuter.AddMPLSHeader()
-	if paramsInner.IPv4Flow != nil {
-		paramsOuter.IPv4Flow = paramsInner.IPv4Flow
-		paramsOuter.AddIPv4Header()
-	}
-	if paramsInner.IPv6Flow != nil {
-		paramsOuter.IPv6Flow = paramsInner.IPv6Flow
-		paramsOuter.AddIPv6Header()
-	}
-	if paramsInner.TCPFlow != nil {
-		paramsOuter.TCPFlow = paramsInner.TCPFlow
-		paramsOuter.AddTCPHeader()
-	}
-	if paramsInner.UDPFlow != nil {
-		paramsOuter.UDPFlow = paramsInner.UDPFlow
-		paramsOuter.AddUDPHeader()
-	}
-}
-
 // OtgPreValidation validates the OTG port status and interface resolution.
 func OtgPreValidation(t *testing.T, params *otgvalidationhelpers.OTGValidation, InterfaceType string) {
 	t.Helper()
@@ -477,13 +434,6 @@ func OtgPreValidation(t *testing.T, params *otgvalidationhelpers.OTGValidation, 
 			t.Errorf("IsIPv6Interfaceresolved(): got err: %q, want nil", err)
 		}
 	}
-}
-func startTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	ate.OTG().StartTraffic(t)
-	time.Sleep(100 * time.Second)
-	ate.OTG().StopTraffic(t)
 }
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
