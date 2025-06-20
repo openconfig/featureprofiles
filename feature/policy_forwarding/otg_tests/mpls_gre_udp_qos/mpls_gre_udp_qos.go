@@ -28,6 +28,7 @@ func TestMain(m *testing.M) {
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	//  GREProtocol is the protocol number for GRE.
 	GREProtocol    = 47
 )
 
@@ -98,7 +99,7 @@ var (
 		{Size: 1500, Weight: 28},
 		{Size: 9000, Weight: 2},
 	}
-	// MPLSOGRE Encap IPv4 interface IPv4 Payload
+	// FlowIPv4 consists of MPLSOGRE Encap IPv4 interface IPv4 Payload.
 	FlowIPv4 = &otgconfighelpers.Flow{
 		TxNames:           []string{agg1.Interfaces[0].Name + ".IPv4"},
 		RxNames:           []string{agg2.Name + ".IPv4"},
@@ -109,7 +110,7 @@ var (
 		VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: 20},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, RawPriority: 0, RawPriorityCount: 100},
 	}
-
+// FlowIPv4Validation consists of flow validation params. 
 	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowIPv4.FlowName, TolerancePct: 0.5},
@@ -151,7 +152,7 @@ var (
 	}
 )
 
-func ConfigureOTG(t *testing.T) {
+func configureOTG(t *testing.T) {
 	t.Helper()
 	top.Captures().Clear()
 	ate := ondatra.ATE(t, "ate")
@@ -194,7 +195,7 @@ func TestSetup(t *testing.T) {
 
 	// Pass ocPFParams to ConfigureDut
 	ConfigureDut(t, dut, ocPFParams, ocNHGParams)
-	ConfigureOTG(t)
+	configureOTG(t)
 }
 
 // GetDefaultStaticNextHopGroupParams provides default parameters for the generator.
