@@ -1182,11 +1182,13 @@ type InterfacePhysicalLink struct {
 	IntfV4Addr         string
 	IntfV6Addr         string
 	LineCardNumber     string
+	Npu                string
 	PeerIntfName       string
 	PeerV4Addr         string
 	PeerV6Addr         string
 	PeerIntf           *oc.Interface
 	PeerLineCardNumber string
+	PeerNpu            string
 }
 
 type BundleLinks struct {
@@ -1261,6 +1263,80 @@ func ExtractBundleLinkField(bundles []BundleLinks, field string) any {
 	}
 }
 
+// GetNpuAndLcOrRpForInterfaces returns a map of interface name to (npu, card) tuple for all interfaces.
+// It uses LookupAll for hardware port and processes each interface.
+func GetNpuAndLcOrRpForInterfaces(t testing.TB, dut *ondatra.DUTDevice, intfNameList []string) map[string][2]string {
+	result := make(map[string][2]string)
+	hwPorts := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().HardwarePort().State())
+	hwPortMap := make(map[string]string)
+	for _, hw := range hwPorts {
+		ifName := hw.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := hw.Val(); ok {
+			hwPortMap[ifName] = v
+		}
+	}
+	// Use LookupAll to get all parent components for hardware ports outside the loop
+	parentLookups := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Parent().State())
+	parentMap := make(map[string]string)
+	for _, pl := range parentLookups {
+		compName := pl.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := pl.Val(); ok {
+			parentMap[compName] = v
+		}
+	}
+
+	// Use LookupAll to get all component types outside the loop
+	typeLookups := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Type().State())
+	typeMap := make(map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT)
+	for _, tl := range typeLookups {
+		compName := tl.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := tl.Val(); ok {
+			if enumVal, ok := v.(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT); ok {
+				typeMap[compName] = enumVal
+			}
+		}
+	}
+
+	for _, ifName := range intfNameList {
+		v, ok := hwPortMap[ifName]
+		if !ok {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		node, ok := parentMap[v]
+		if !ok {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		ct, ok := typeMap[node]
+		if !ok || ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		npu, card := getNpuandLCorRP(node)
+		result[ifName] = [2]string{npu, card}
+	}
+	return result
+}
+
+// getNpuandLCorRP parses the NPU component name and returns the NPU and the matched LC/RP string.
+// Example input: "0/1/CPU0-NPU0" -> returns ("NPU0", "0/1/CPU0")
+// Example input: "0/RP0/CPU0-NPU0" -> returns ("NPU0", "0/RP0/CPU0")
+func getNpuandLCorRP(npu string) (string, string) {
+	// Extract the NPU part after the last '-'
+	parts := strings.Split(npu, "-")
+	if len(parts) < 2 {
+		return "", ""
+	}
+	npuPart := parts[len(parts)-1]
+
+	// Extract the LC/RP match using the pattern
+	pattern := `\d+/(RP\d*|\d*)/CPU\d+`
+	regex := regexp.MustCompile(pattern)
+	card := regex.FindString(npu)
+	return npuPart, card
+}
+
 // Assumptions
 // dut is connected only to peer (no other lldp device in the topology)
 // no  bundle is configured before calling this function
@@ -1306,6 +1382,11 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 
 	// Get only enabled interfaces of DUT
 	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)
+	dutIntfNames := make([]string, 0, len(dutEnabledInterfaces))
+	for _, intf := range dutEnabledInterfaces {
+		dutIntfNames = append(dutIntfNames, intf.GetName())
+	}
+	dutNpuSlot := GetNpuAndLcOrRpForInterfaces(t, dut, dutIntfNames)
 	linkInfos := make([]InterfacePhysicalLink, 0)
 
 	lldpIntfStatePathAny := gnmi.OC().Lldp().InterfaceAny().State()
@@ -1315,20 +1396,12 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	peerIntfAny := gnmi.GetAll(t, peer, peerIntfPathAny)
 	peerHostName := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State())
 	// logic to create the link by using LLDP neighbour
-	// re := regexp.MustCompile(`\d`)
-	re := regexp.MustCompile(`\d+/(\d+)/\d+/\d+`)
 	for _, dutIntf := range dutEnabledInterfaces {
 		intfName := dutIntf.GetName()
-		// lcNumber := re.FindString(intfName)
-		matches := re.FindStringSubmatch(intfName)
-		var lcNumber string
-		if len(matches) > 1 {
-			lcNumber = matches[1]
-		}
+		npu, lcNumber := dutNpuSlot[intfName][0], dutNpuSlot[intfName][1]
 
 		// Get the peer interface name using LLDP data
 		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName, peerHostName)
-
 		// TODO logic to fectch the NPU
 		// npu := getNpu(t,dut,intfName)
 		// PeerNpu := getNpu(t,peer,peerIntfName)
@@ -1346,24 +1419,35 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 			}
 
 			if peerIntf != nil {
-				// peerLcNumber := re.FindString(peerIntfName)
-				peerMatches := re.FindStringSubmatch(peerIntfName)
-				var peerLcNumber string
-				if len(peerMatches) > 1 {
-					peerLcNumber = peerMatches[1]
-				}
 				linkInfo := InterfacePhysicalLink{
 					Intf:           dutIntf,
 					IntfName:       intfName,
 					LineCardNumber: lcNumber,
-					// Npu:				npu,
-					PeerIntfName:       peerIntfName,
-					PeerIntf:           peerIntf,
-					PeerLineCardNumber: peerLcNumber,
+					Npu:            npu,
+					PeerIntfName:   peerIntfName,
+					PeerIntf:       peerIntf,
+					// PeerLineCardNumber: peerLcNumber,
 					// PeerNpu:		  	peerNpu,
 				}
 				linkInfos = append(linkInfos, linkInfo)
 			}
+		}
+	}
+
+	// Extract all peer interface names from linkInfos
+	peerIntfNames := make([]string, 0, len(linkInfos))
+	for _, link := range linkInfos {
+		if link.PeerIntfName != "" {
+			peerIntfNames = append(peerIntfNames, link.PeerIntfName)
+		}
+	}
+	// Get NPU and LC/RP info for all peer interfaces
+	peerNpuSlot := GetNpuAndLcOrRpForInterfaces(t, peer, peerIntfNames)
+	// Fill PeerLineCardNumber and PeerNpu in linkInfos
+	for idx, link := range linkInfos {
+		if npuAndSlot, ok := peerNpuSlot[link.PeerIntfName]; ok {
+			linkInfos[idx].PeerNpu = npuAndSlot[0]            // npu
+			linkInfos[idx].PeerLineCardNumber = npuAndSlot[1] // lc or RP
 		}
 	}
 
