@@ -29,7 +29,7 @@ const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	//  GREProtocol is the protocol number for GRE.
-	GREProtocol    = 47
+	GREProtocol = 47
 )
 
 var (
@@ -110,7 +110,7 @@ var (
 		VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: 20},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, RawPriority: 0, RawPriorityCount: 100},
 	}
-// FlowIPv4Validation consists of flow validation params. 
+	// FlowIPv4Validation consists of flow validation params.
 	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowIPv4.FlowName, TolerancePct: 0.5},
