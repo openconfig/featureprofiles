@@ -150,23 +150,20 @@ Create the following connections:
     *   IPv4Prefix2 <-> IPv4Prefix5, IPv6Prefix2 <-> IPv6Prefix5
     *   IPv4Prefix3 <-> IPv4Prefix6, IPv6Prefix3 <-> IPv6Prefix6
 
-> > Tabular representation of the above
 
-### DUT BGP and Graceful Restart/ERR ConfigurationAdd commentMore actions
+>> Tabular representation of the above
 
+### DUT BGP and Graceful Restart/ERR Configuration
 
-| Parameter              | Value                | Description                                                                                |
-| :--------------------- | :------------------- | :----------------------------------------------------------------------------------------- |
-| **BGP ASN**            | `100`                | The Autonomous System Number for the DUT's BGP sessions.                                   |
-| **Hold Time**          | 30 seconds           | The BGP session hold timer.                                                                |
-| **GR Restart Time**    | 220 seconds          | The time a peer should wait for the BGP session to re-establish during a graceful restart. |
-| **GR Stale Routes Time** | 250 seconds          | The duration for which a peer should hold stale routes during a graceful restart.        |
-| **ERR Enabled**        | `True`               | Extended Route Retention is enabled on the BGP peerings.                                   |
-| **ERR Retention Time** | 300 seconds          | The time for which the DUT will hold stale routes under ERR conditions.                    |
-| **ERR Retention Policy** | `STALE-ROUTE-POLICY` | The policy applied to stale routes when ERR is triggered.                                |
-
-
-
+| Parameter | Value | Description |
+| :--- | :--- | :--- |
+| **BGP ASN** | `100` | The Autonomous System Number for the DUT's IBGP sessions. |
+| **Hold Time** | 30 seconds | The BGP session hold timer. |
+| **GR Restart Time** | 220 seconds | The time a peer should wait for the BGP session to re-establish during a graceful restart. |
+| **GR Stale Routes Time** | 250 seconds | The duration for which a peer should hold stale routes during a graceful restart. |
+| **ERR Enabled** | `True` | Extended Route Retention is enabled on the BGP peerings. |
+| **ERR Retention Time** | 300 seconds | The time for which the DUT will hold stale routes under ERR conditions. |
+| **ERR Retention Policy** | `STALE-ROUTE-POLICY` | The policy applied to stale routes when ERR is triggered. |
 
 ### ATE Advertised Prefixes to the DUT
 
@@ -213,6 +210,7 @@ Create the following connections:
 | Flow 4 | IPv6Prefix2 | IPv6Prefix5 |
 | Flow 5 | IPv4Prefix3 | IPv4Prefix6 |
 | Flow 6 | IPv6Prefix3 | IPv6Prefix6 |
+ 
 
 ## Procedure
 
