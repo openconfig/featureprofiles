@@ -1,4 +1,4 @@
-# PF-1.3: Static route based GUE Encapsulation to IPv4 tunnel
+# RT-3.53: Static route based GUE Encapsulation to IPv4 tunnel
 
 ## Summary
 
@@ -81,7 +81,7 @@ The following behavioral properties are called out for awareness:
     -   To IPv4-DST-GUE, next hop is ATE:LAG2:IPv4.
 
 
-### PF-1.3.1: IPv4 traffic GUE encapsulation without explicit ToS/TTL configuration on tunnel
+### RT-3.53.1: IPv4 traffic GUE encapsulation without explicit ToS/TTL configuration on tunnel
 
 ATE action:
 
@@ -103,102 +103,102 @@ Verify:
 *   ECMP hashing works over the two LAG interfaces with a tolerance of 6%.
 *   LAG hashing works over the two singleton ports within LAG1 and LAG2 with a
     tolerance of 6%.
-*   ToS for all GUE encapsulated packets:
+*   ToS for all GUE encapsulated packets received at ATE ports:
     *   GUE header ToS is **0x80**.
     *   Inner header ToS is **0x80**.
-*   TTL for all GUE encapsulated packets:
+*   TTL for all GUE encapsulated packets received at ATE ports:
     *   GUE header TTL is **9**.
     *   Inner header TTL is **9**.
 
-### PF-1.3.2: IPv6 traffic GUE encapsulation without explicit ToS/TTL configuration on tunnel
+### RT-3.53.2: IPv6 traffic GUE encapsulation without explicit ToS/TTL configuration on tunnel
 
-*   Modify the flows in `PF-1.3.1` to use IPv6 destination IPv6-DST-NET and
+*   Modify the flows in `RT-3.53.1` to use IPv6 destination IPv6-DST-NET and
     repeat the traffic generation and validation.
 
-### PF-1.3.3: IPv4 traffic GUE encapsulation with explicit ToS configuration on tunnel
+### RT-3.53.3: IPv4 traffic GUE encapsulation with explicit ToS configuration on tunnel
 
 DUT and ATE actions:
 
 *   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
-*   Generate the same flows in `PF-1.3.1`.
+*   Generate the same flows in `RT-3.53.1`.
 
 Verify:
 
-*   Repeat same verifications in `PF-1.3.1` but with the following differences
+*   Repeat same verifications in `RT-3.53.1` but with the following differences
     *   ToS for all GUE encapsulated packets:
         *   GUE header ToS is **0x60**.
 
-### PF-1.3.4: IPv6 traffic GUE encapsulation with explicit ToS configuration on tunnel
+### RT-3.53.4: IPv6 traffic GUE encapsulation with explicit ToS configuration on tunnel
 
-*   Modify the flows in `PF-1.3.3` to use IPv6 destination IPv6-DST-NET and
+*   Modify the flows in `RT-3.53.3` to use IPv6 destination IPv6-DST-NET and
     repeat the traffic generation and validation.
 
-### PF-1.3.5: IPv4 traffic GUE encapsulation with explicit TTL configuration on tunnel
+### RT-3.53.5: IPv4 traffic GUE encapsulation with explicit TTL configuration on tunnel
 
 DUT and ATE actions:
 
 *   Re-configure the IPv4 GUE tunnel on the DUT without an explicit ToS value.
 *   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
-*   Generate the same flows in `PF-1.3.1`.
+*   Generate the same flows in `RT-3.53.1`.
 
 Verify:
 
-*   Repeat same verifications in `PF-1.3.1` but with the following differences
+*   Repeat same verifications in `RT-3.53.1` but with the following differences
     *   TTL for all GUE encapsulated packets:
-        *   GUE header TTL is **20**.
+        *   GUE header TTL is **19**.
 
-### PF-1.3.6: IPv6 traffic GUE encapsulation with explicit TTL configuration on tunnel
+### RT-3.53.6: IPv6 traffic GUE encapsulation with explicit TTL configuration on tunnel
 
-*   Modify the flows in `PF-1.3.5` to use IPv6 destination IPv6-DST-NET and
+*   Modify the flows in `RT-3.53.5` to use IPv6 destination IPv6-DST-NET and
     repeat the traffic generation and validation.
 
-### PF-1.3.7: IPv4 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
+### RT-3.53.7: IPv4 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
 
 DUT and ATE actions:
 
 *   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
 *   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
-*   Generate the same flows in `PF-1.3.1`.
+*   Generate the same flows in `RT-3.53.1`.
 
 Verify:
 
-*   Repeat same verifications in `PF-1.3.1` but with the following differences
+*   Repeat same verifications in `RT-3.53.1` but with the following differences
     *   ToS for all GUE encapsulated packets:
         *   GUE header ToS is **0x60**.
     *   TTL for all GUE encapsulated packets:
-        *   GUE header TTL is **20**.
+        *   GUE header TTL is **19**.
 
-### PF-1.3.8: IPv6 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
+### RT-3.53.8: IPv6 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
 
-*   Modify the flows in `PF-1.3.7` to use IPv6 destination IPv6-DST-NET and
+*   Modify the flows in `RT-3.53.7` to use IPv6 destination IPv6-DST-NET and
     repeat the traffic generation and validation.
 
-### PF-1.3.9: IPv4 traffic GUE encapsulation to a single 5-tuple tunnel
+### RT-3.53.9: IPv4 traffic GUE encapsulation to a single 5-tuple tunnel
 
 DUT and ATE actions:
 
 *   Re-configure DUT without explicit ToS/TTL configuration on tunnel
-*   Modify flows in `PF-1.3.1` to be a single flow only; use fixed source and
+*   Modify flows in `RT-3.53.1` to be a single flow only; use fixed source and
     destination IPs as well as fixed source and destination UDP ports.
 
 Verify:
 
 Verify:
 
-*   Repeat same verifications in `PF-1.3.1` but with the following differences
+*   Repeat same verifications in `RT-3.53.1` but with the following differences
     *   All traffic is hashed to a only one LAG and only one singleton port in the
         LAG.
 
-### PF-1.3.10: IPv4 traffic GUE encapsulation to a single tunnel
+### RT-3.53.10: IPv4 traffic GUE encapsulation to a single tunnel
 
-*   Modify the flows in `PF-1.3.9` to use IPv6 destination IPv6-DST-NET
+*   Modify the flows in `RT-3.53.9` to use IPv6 destination IPv6-DST-NET
     and repeat the traffic generation and validation.
 
-### PF-1.3.11: IPv4 traffic that should be GUE encapsulated but TTL=1
+### RT-3.53.11: IPv4 traffic that should be GUE encapsulated but TTL=1
 
 ATE action:
 
-*   Modify flows in `PF-1.3.1` and set TTL of all packets to *1*.
+*   Modify flows in `RT-3.53.1` and set TTL of all packets to *1*.
 
 Verify:
 
@@ -206,9 +206,9 @@ Verify:
     Exceeded (Type 11) / Time to Live exceeded in Transit (Code 0) sent back to
     source address (ATE:Port1).
 
-### PF-1.3.12: IPv6 traffic that should be GUE encapsulated but Hop Limit=1
+### RT-3.53.12: IPv6 traffic that should be GUE encapsulated but Hop Limit=1
 
-*   Modify the flows in `PF-1.3.11` to use IPv6 destination IPv6-DST-NET 
+*   Modify the flows in `RT-3.53.11` to use IPv6 destination IPv6-DST-NET 
     and repeat the traffic generation and validation.
 
 
