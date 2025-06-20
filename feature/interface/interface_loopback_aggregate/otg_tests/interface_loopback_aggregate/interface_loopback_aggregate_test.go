@@ -228,17 +228,18 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		}
 	})
 
-	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
-		if deviations.InterfaceLoopbackModeRawGnmi(dut) {
-
-			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
-
+	t.Run("Configure interface loopback mode on DUT AE interface", func(t *testing.T) {
+		var loopbackMode oc.E_Interfaces_LoopbackModeType
+		switch dut.Vendor() {
+		case ondatra.NOKIA, ondatra.CISCO:
+			loopbackMode = oc.Interfaces_LoopbackModeType_TERMINAL
+		default:
+			loopbackMode = oc.Interfaces_LoopbackModeType_FACILITY
+		}
+		if deviations.MemberLinkLoopbackUnsupported(dut) {
+			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), loopbackMode)
 		} else {
-			if deviations.MemberLinkLoopbackUnsupported(dut) {
-				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			} else {
-				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			}
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), loopbackMode)
 		}
 	})
 
