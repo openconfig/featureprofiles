@@ -1473,7 +1473,8 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
 
-func FrBreakoutFix(dut ondatra.DUTDevice) bool {
+// FrBreakoutFix returns true if the fix is needed
+func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFrBreakoutFix()
 }
 
