@@ -1472,3 +1472,7 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
+
+func FrBreakoutFix(dut ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFrBreakoutFix()
+}
