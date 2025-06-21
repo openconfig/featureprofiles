@@ -27,6 +27,13 @@ const (
 	// OCSpecHeading is the MarkDown heading that MUST precede the yaml
 	// section containing the OC path and RPC listing.
 	OCSpecHeading = "OpenConfig Path and RPC Coverage"
+	// CanonicalOCHeading is the MarkDown heading that MUST precede the json
+	// section containing the OC path and RPC listing.
+	CanonicalOCHeading = "Canonical OC"
+	// yamlLang is the language identifier for yaml code blocks.
+	yamlLang = "yaml"
+	// jsonLang is the language identifier for json code blocks.
+	jsonLang = "json"
 )
 
 type mdOCSpecs struct{}
@@ -41,63 +48,119 @@ func (e *mdOCSpecs) Extend(m goldmark.Markdown) {
 	m.SetRenderer(&yamlRenderer{})
 }
 
+type mdJSONSpecs struct {
+	CanonicalOCs []string
+}
+
+// MDJSONSpecs is an extension that only renders the first json block from a
+// functional test README that comes after the pre-established OC Spec heading
+// `CanonicalOCHeading`.
+var MDJSONSpecs = &mdJSONSpecs{}
+
+func (e *mdJSONSpecs) Extend(m goldmark.Markdown) {
+	// Clear the CanonicalOCs in the shared MDJSONSpecs when a new Markdown is created.
+	MDJSONSpecs.CanonicalOCs = MDJSONSpecs.CanonicalOCs[:0]
+	// NOMUTANTS -- This function call is required to extend the markdown and is actually tested.
+	extension.GFM.Extend(m)
+	m.SetRenderer(&jsonRenderer{})
+}
+
 type yamlRenderer struct{}
 
-func (r *yamlRenderer) Render(w io.Writer, source []byte, n ast.Node) error {
-	return ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		return renderYAML(w, source, n, entering)
+type jsonRenderer struct{}
+
+type codeBlockHandler func(c *ast.FencedCodeBlock, writer io.Writer, source []byte) (ast.WalkStatus, error)
+
+type renderCodeBlockArgs struct {
+	writer           io.Writer
+	source           []byte
+	node             ast.Node
+	entering         bool
+	specHeading      string
+	lang             string
+	processCodeBlock codeBlockHandler
+}
+
+func processYAMLBlock(c *ast.FencedCodeBlock, writer io.Writer, source []byte) (ast.WalkStatus, error) {
+	l := c.Lines().Len()
+	for i := 0; i != l; i++ {
+		line := c.Lines().At(i)
+		if _, err := writer.Write(line.Value(source)); err != nil {
+			return ast.WalkStop, err
+		}
+	}
+	return ast.WalkStop, nil
+}
+
+func (r *yamlRenderer) Render(writer io.Writer, source []byte, node ast.Node) error {
+	return ast.Walk(node, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		return renderCodeBlock(renderCodeBlockArgs{writer, source, node, entering, OCSpecHeading, yamlLang, processYAMLBlock})
+	})
+}
+
+func processJSONBlock(c *ast.FencedCodeBlock, writer io.Writer, source []byte) (ast.WalkStatus, error) {
+	var curBytes []byte
+	l := c.Lines().Len()
+	for i := 0; i != l; i++ {
+		line := c.Lines().At(i)
+		curBytes = append(curBytes, line.Value(source)...)
+	}
+	if len(curBytes) != 0 {
+		MDJSONSpecs.CanonicalOCs = append(MDJSONSpecs.CanonicalOCs, string(curBytes))
+	}
+	return ast.WalkContinue, nil
+}
+
+func (r *jsonRenderer) Render(writer io.Writer, source []byte, node ast.Node) error {
+	return ast.Walk(node, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		return renderCodeBlock(renderCodeBlockArgs{writer, source, node, entering, CanonicalOCHeading, jsonLang, processJSONBlock})
 	})
 }
 
 func (r *yamlRenderer) AddOptions(...renderer.Option) {}
 
-func ocSpecHeading(source []byte, n ast.Node) (heading *ast.Heading, ok bool) {
-	if h, ok := n.(*ast.Heading); ok {
+func (r *jsonRenderer) AddOptions(...renderer.Option) {}
+
+func fetchHeading(source []byte, node ast.Node, specHeading string) (heading *ast.Heading, ok bool) {
+	if h, ok := node.(*ast.Heading); ok {
 		if h.Lines().Len() == 0 {
 			return nil, false
 		}
 		headingSegment := h.Lines().At(0)
-		if string(headingSegment.Value(source)) == OCSpecHeading {
+		if string(headingSegment.Value(source)) == specHeading {
 			return h, true
 		}
 	}
 	return nil, false
 }
 
-func yamlCodeBlock(source []byte, n ast.Node) (block *ast.FencedCodeBlock, ok bool) {
-	if c, ok := n.(*ast.FencedCodeBlock); ok && c.Info != nil {
-		if lang := c.Info.Text(source); len(lang) > 0 && string(lang) == "yaml" {
+func codeBlock(source []byte, node ast.Node, lang string) (block *ast.FencedCodeBlock, ok bool) {
+	if c, ok := node.(*ast.FencedCodeBlock); ok && c.Info != nil {
+		if l := c.Info.Text(source); len(l) > 0 && string(l) == lang {
 			return c, true
 		}
 	}
 	return nil, false
 }
 
-func renderYAML(w io.Writer, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+func renderCodeBlock(args renderCodeBlockArgs) (ast.WalkStatus, error) {
+	entering := args.entering
 	if !entering {
 		return ast.WalkContinue, nil
 	}
-	heading, ok := ocSpecHeading(source, n)
+	heading, ok := fetchHeading(args.source, args.node, args.specHeading)
 	if !ok {
 		return ast.WalkContinue, nil
 	}
 	// Check if prior to the next heading of the same level,
-	// a yaml code block can be found.
+	// a code block with the specified language can be found.
 	for next := heading.NextSibling(); next != nil; next = next.NextSibling() {
 		if h, ok := next.(*ast.Heading); ok && h.Level <= heading.Level {
 			// End of heading reached.
 			return ast.WalkContinue, nil
 		}
-		if c, ok := yamlCodeBlock(source, next); ok {
-			l := c.Lines().Len()
-			for i := 0; i != l; i++ {
-				line := c.Lines().At(i)
-				if _, err := w.Write(line.Value(source)); err != nil {
-					return ast.WalkStop, err
-				}
-			}
-			// Stop after finding the first such YAML block.
-			return ast.WalkStop, nil
+		if c, ok := codeBlock(args.source, next, args.lang); ok {
+			return args.processCodeBlock(c, args.writer, args.source)
 		}
 	}
 	return ast.WalkContinue, nil

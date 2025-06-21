@@ -15,7 +15,7 @@ test requirements include:
   Decapsulation](https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp/README.md)
 * [TE-3.7: Base Hierarchical NHG
   Update](/feature/gribi/otg_tests/base_hierarchical_nhg_update/README.md)
-  * [PF-1.14 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload](https://github.com/openconfig/featureprofiles/blob/61d11a47d37fac58b311f57e8c2b619dc7fb264b/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md)
+    * [PF-1.14 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload](https://github.com/openconfig/featureprofiles/blob/61d11a47d37fac58b311f57e8c2b619dc7fb264b/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md)
 * [gNMI-1.13: Telemetry: Optics Power and Bias
   Current](https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md)
 
@@ -82,7 +82,7 @@ README may be approved and merged before the TODO item(s) are resolved.
           }
         },
         "interface": "PortChannel1.100"
-      },
+      }
     ]
   }
 }
@@ -99,61 +99,28 @@ Repeat the format of the first subtest for each additional subtest defined.
 #### Canonical OC
 ```json
 {
-  "network-instances": {
-    "network-instance": [
+  "interfaces": {
+    "interface": [
       {
         "config": {
-          "name": "DEFAULT"
+          "description": "a description",
+          "mtu": 1500,
+          "name": "eth0",
+          "type": "ethernetCsd"
         },
-        "name": "DEFAULT",
-        "protocols": {
-          "protocol": [
-            {
-              "bgp": {
-                "neighbors": {
-                  "neighbor": [
-                    {
-                      "config": {
-                        "neighbor-address": "192.0.2.6"
-                      },
-                      "neighbor-address": "192.0.2.6",
-                      "timers": {
-                        "config": {
-                          "hold-time": 30,
-                          "keepalive-interval": 10
-                        }
-                      }
-                    }
-                  ]
-                },
-                "peer-groups": {
-                  "peer-group": [
-                    {
-                      "config": {
-                        "peer-group-name": "peer_group"
-                      },
-                      "peer-group-name": "peer_group",
-                      "timers": {
-                        "config": {
-                          "hold-time": 30,
-                          "keepalive-interval": 10
-                        }
-                      }
-                    }
-                  ]
-                }
-              },
-              "config": {
-                "identifier": "BGP",
-                "name": "BGP"
-              },
-              "identifier": "BGP",
-              "name": "BGP"
-            }
-          ]
-        }
+        "hold-time": {
+          "config": {
+            "up": 42
+          }
+        },
+        "name": "eth0"
       }
     ]
+  },
+  "system": {
+    "config": {
+      "hostname": "a hostname"
+    }
   }
 }
 ```
@@ -188,7 +155,7 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
-  * MFF - A modular form factor device containing LINECARDs, FABRIC and
-    redundant CONTROLLER_CARD components
-  * FFF - fixed form factor
-  * vRX - virtual router device
+    * MFF - A modular form factor device containing LINECARDs, FABRIC and
+      redundant CONTROLLER_CARD components
+    * FFF - fixed form factor
+    * vRX - virtual router device
