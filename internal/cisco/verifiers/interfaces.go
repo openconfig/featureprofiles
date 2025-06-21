@@ -1,4 +1,4 @@
-// Package intf provides verifiers APIs to verify oper data for node interface.
+// Package verifiers provides verifiers APIs to verify oper data for different component verifications.
 package verifiers
 
 import (

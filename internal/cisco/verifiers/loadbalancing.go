@@ -1,4 +1,4 @@
-// Package loadbalancing provides verifiers APIs to verify oper data for loadbalancing verifications.
+// Package verifiers provides verifiers APIs to verify oper data for different component verifications.
 package verifiers
 
 import (
