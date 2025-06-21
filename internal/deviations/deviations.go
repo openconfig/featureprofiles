@@ -1472,3 +1472,8 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
+
+// StaticMplsLspOCUnsupported returns true if static mpls lsp parameters are unsupported
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
