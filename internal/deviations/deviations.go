@@ -1472,3 +1472,8 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
+
+// DefaultPolicyRequiresBgpMatch returns true device needs defined set to limit exporting direct routes into BGP.
+func DefaultPolicyRequiresBgpMatch(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPolicyRequiresBgpMatch()
+}
