@@ -1463,6 +1463,11 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// TrafficPolicyToNextHopOCUnsupported returns true if traffic policy parameters are unsupported
+func TrafficPolicyToNextHopOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTrafficPolicyToNexthopUnsupported()
+}
+
 // UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
 func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
