@@ -106,18 +106,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// type extendedEntropyCLIOptions struct {
-// 	perChasiss  string
-// 	perNPU      string
-// 	specificVal string
-// }
-
-// type algorithmAdjustCLIOptions struct {
-// 	perChasiss  string
-// 	perNPU      string
-// 	specificVal string
-// }
-
 var (
 	//Traffic flows
 	v4R2E = helper.TrafficFlowAttr{
