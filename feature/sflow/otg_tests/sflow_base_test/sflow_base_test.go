@@ -161,7 +161,7 @@ func configureDUTBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 				dutInt.GetOrCreateEthernet().DuplexMode = oc.Ethernet_DuplexMode_FULL
 				dutInt.GetOrCreateEthernet().AutoNegotiate = ygot.Bool(false)
 			}
-			gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutInt)
+			gnmi.Replace(t, dut, d.Interface(dutPort.Name()).Config(), dutInt)
 		}
 	}
 
