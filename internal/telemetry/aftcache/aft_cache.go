@@ -69,28 +69,28 @@ var unusedPaths = []string{
 
 var subscriptionPaths = map[string][]string{
 	"prefix": {
-		"network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
-		"network-instances/network-instance[name=DEFAULT]/afts/ipv6-unicast/ipv6-entry",
+		"network-instances/network-instance[name=default]/afts/ipv4-unicast/ipv4-entry",
+		"network-instances/network-instance[name=default]/afts/ipv6-unicast/ipv6-entry",
 	},
 	"nhg": {
-		"network-instances/network-instance[name=DEFAULT]/afts/next-hop-groups/next-hop-group",
+		"network-instances/network-instance[name=default]/afts/next-hop-groups/next-hop-group",
 	},
 	"nh": {
-		"network-instances/network-instance[name=DEFAULT]/afts/next-hops/next-hop",
+		"network-instances/network-instance[name=default]/afts/next-hops/next-hop",
 	},
 }
 
 // TODO: - Rework to remove these paths and only use subscriptionPaths.
 var cacheTraversalPaths = map[string][]string{
 	"prefix": {
-		"openconfig/network-instances/network-instance/DEFAULT/afts/ipv4-unicast",
-		"openconfig/network-instances/network-instance/DEFAULT/afts/ipv6-unicast",
+		"network-instances/network-instance/default/afts/ipv4-unicast",
+		"network-instances/network-instance/default/afts/ipv6-unicast",
 	},
 	"nhg": {
-		"openconfig/network-instances/network-instance/DEFAULT/afts/next-hop-groups",
+		"network-instances/network-instance/default/afts/next-hop-groups",
 	},
 	"nh": {
-		"openconfig/network-instances/network-instance/DEFAULT/afts/next-hops",
+		"network-instances/network-instance/default/afts/next-hops",
 	},
 }
 
@@ -507,6 +507,7 @@ func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, w
 			gotPrefixes := a.Prefixes
 			nPrefixes := len(wantPrefixes)
 			nGot := 0
+			missingPrefixes := map[string]bool{}
 			for p := range wantPrefixes {
 				if _, ok := gotPrefixes[p]; ok {
 					nGot++
@@ -516,7 +517,7 @@ func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, w
 			}
 			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
 			if nGot < nPrefixes {
-				t.Logf("%d missing prefixes:\n", len(missingPrefixes))
+				t.Logf("%d missing prefixes.", len(missingPrefixes))
 				return false, nil
 			}
 
@@ -672,7 +673,7 @@ func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 		}
 	}
 	if len(nhg.NHIDs) == 0 {
-		err = fmt.Errorf("no next hop values were found in notification %v, %w", n, ErrNotExist)
+		log.Warningf("no next hop values were found in notification %v, %w", n, ErrNotExist)
 	}
 	if len(entries) != 1 {
 		err = fmt.Errorf("the NHG values do not match between Prefix and Update parts of message. Notification: %v, %w", n, err)

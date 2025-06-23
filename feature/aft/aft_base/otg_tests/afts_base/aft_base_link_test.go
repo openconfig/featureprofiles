@@ -84,7 +84,7 @@ var (
 	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
 	// TODO: Update the next hop IP address and remove the link local address, once the Cisco bug is fixed.
-	wantIPv6NHsPostChurn = map[string]bool{"fe80::200:2ff:fe02:202": true}
+	wantIPv6NHsPostChurn = map[string]bool{ateP1.IPv6: true}
 	portNames            = []string{"port1", "port2"}
 )
 
@@ -521,51 +521,32 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 	t.Log("Waiting for BGPv4 neighbor to establish...")
-	err = tc.waitForBGPSession(t)
-	if err != nil {
-		t.Fatalf("failed to wait for BGPv4 neighbor to establish: %v", err)
-	}
+	tc.waitForBGPSession(t)
 	aft, err := tc.cache(t, wantIPv4NHs, wantIPv6NHs)
 	if err != nil {
 		t.Fatalf("failed to get AFT Cache: %v", err)
 	}
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		err := tc.verifyPrefixes(t, aft, startingRouteIPv4, bgpRouteCountIPv4, 2)
-		if err != nil {
-			t.Errorf("failed to verify prefixes: %v", err)
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		err := tc.verifyPrefixes(t, aft, startingRouteIPv6, bgpRouteCountIPv6, 2)
-		if err != nil {
-			t.Errorf("failed to verify prefixes: %v", err)
-		}
-	}()
-	wg.Wait()
+	err = tc.verifyPrefixes(t, aft, startingRouteIPv4, bgpRouteCountIPv4, 2)
+	if err != nil {
+		t.Errorf("failed to verify IPv4 prefixes: %v", err)
+	}
+	err = tc.verifyPrefixes(t, aft, startingRouteIPv6, bgpRouteCountIPv6, 2)
+	if err != nil {
+		t.Errorf("failed to verify IPv6 prefixes: %v", err)
+	}
 	t.Log("Stopping Port2 interface to create Churn")
 	tc.otgInterfaceDown(t, portNames[1])
 	aft, err = tc.cache(t, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
 	if err != nil {
 		t.Fatalf("failed to get AFT Cache: %v", err)
 	}
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		err := tc.verifyPrefixes(t, aft, startingRouteIPv4, bgpRouteCountIPv4, 1)
-		if err != nil {
-			t.Errorf("failed to verify prefixes: %v", err)
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		err := tc.verifyPrefixes(t, aft, startingRouteIPv6, bgpRouteCountIPv6, 1)
-		if err != nil {
-			t.Errorf("failed to verify prefixes: %v", err)
-		}
-	}()
-	wg.Wait()
+	err = tc.verifyPrefixes(t, aft, startingRouteIPv4, bgpRouteCountIPv4, 1)
+	if err != nil {
+		t.Errorf("failed to verify IPv4 prefixes after churn: %v", err)
+	}
+	err = tc.verifyPrefixes(t, aft, startingRouteIPv6, bgpRouteCountIPv6, 1)
+	if err != nil {
+		t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
+	}
 }
+
