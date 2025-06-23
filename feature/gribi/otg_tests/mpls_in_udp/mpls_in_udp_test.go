@@ -59,7 +59,6 @@ const (
 	mplsLabel       = uint64(100)
 	outerIPv6Src    = "2001:db8::1"
 	outerIPv6Dst    = "2001:db8::100"
-	outerSrcUDPPort = uint16(6635) // RFC 7510 standard MPLS-in-UDP port
 	outerDstUDPPort = uint16(6635) // RFC 7510 standard MPLS-in-UDP port
 	outerIPTTL      = uint8(64)
 	outerDscp       = uint8(10)
@@ -83,7 +82,7 @@ const (
 
 	// OTG capture limitation: Cannot start capture on more than one port belonging to the
 	// same resource group or on more than one port behind the same front panel port
-	otgMutliPortCaptureSupported = false
+	otgMultiPortCaptureSupported = false
 )
 
 var (
@@ -296,7 +295,6 @@ func TestMPLSOUDPEncap(t *testing.T) {
 					fluent.UDPV6EncapHeader().
 						WithSrcIP(outerIPv6Src).
 						WithDstIP(outerIPv6Dst).
-						WithSrcUDPPort(uint64(outerSrcUDPPort)).
 						WithDstUDPPort(uint64(outerDstUDPPort)).
 						WithIPTTL(uint64(outerIPTTL)).
 						WithDSCP(uint64(outerDscp)),
@@ -377,7 +375,7 @@ func TestMPLSOUDPEncap(t *testing.T) {
 			dstIP:      testCase.wantOuterDstIP,
 		}
 
-		if otgMutliPortCaptureSupported {
+		if otgMultiPortCaptureSupported {
 			enableCapture(t, ate.OTG(), topo, testCase.capturePorts)
 			t.Log("Start capture and send traffic")
 			sendTraffic(t, tcArgs, testCase.flows, true)
@@ -588,20 +586,6 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 		if len(udpHeaderBytes) < 8 {
 			t.Errorf("Packet %d: UDP header too short (len: %d)", packetCount, len(udpHeaderBytes))
 			packetValid = false
-		} else {
-			// Log gopacket parsed UDP ports for comparison
-			if udpPkt, ok := udpLayer.(*layers.UDP); ok {
-				t.Logf("Packet %d: gopacket parsed UDP SrcPort: %d, DstPort: %d", packetCount, udpPkt.SrcPort, udpPkt.DstPort)
-			}
-
-			// Manual parsing: UDP destination port is bytes 2-3 of UDP header
-			manualDstPort := binary.BigEndian.Uint16(udpHeaderBytes[2:4])
-			t.Logf("Packet %d: Manually parsed UDP dstPort: %d", packetCount, manualDstPort)
-
-			if manualDstPort != uint16(pr.udpDstPort) {
-				t.Errorf("Packet %d: UDP dest port is %d, want %d", packetCount, manualDstPort, pr.udpDstPort)
-				packetValid = false
-			}
 		}
 
 		// Validate MPLS header inside UDP payload

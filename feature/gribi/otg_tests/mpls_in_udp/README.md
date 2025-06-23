@@ -24,7 +24,6 @@ The test uses the following key parameters:
     mpls_label = 100
     outer_ipv6_src = "2001:db8::1"
     outer_ipv6_dst = "2001:db8::100"
-    outer_src_udp_port = 6635  # RFC 7510 standard MPLS-in-UDP port
     outer_dst_udp_port = 6635  # RFC 7510 standard MPLS-in-UDP port
     outer_ip_ttl = 64
     outer_dscp = 10
@@ -68,7 +67,6 @@ Using gRIBI, install the following AFT entries:
           udp_v6 {
             src_ip: "2001:db8::1"
             dst_ip: "2001:db8::100"
-            src_udp_port: 6635
             dst_udp_port: 6635
             ip_ttl: 64
             dscp: 10
