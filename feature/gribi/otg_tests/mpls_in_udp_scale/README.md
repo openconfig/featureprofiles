@@ -120,7 +120,7 @@ entries, parameterized by key scaling dimensions.
       encapsulation verification
     - Validate outer IPv6 headers: source 2001:f:a:1::0, destination
       2001:f:c:e::1 as defined in Test Parameters
-    - Verify UDP destination port 5555 as defined in Test Parameters
+    - Verify UDP destination port 6635 as defined in Test Parameters
     - Check outer DSCP marking: 26 and TTL: 64 as defined in Test
       Parameters
 
@@ -128,10 +128,10 @@ entries, parameterized by key scaling dimensions.
 
 1.  **Client Configuration:**
 
-    - Establish gRIBI client connection with FIBACK: true and
+    - Establish gRIBI client connection with RIB_AND_FIB_ACK: true and
       Persistence: true
     - Use standard gRIBI client configuration pattern
-    - Call BecomeLeader and FlushAll before programming entries
+    - Make sure the client is the leader
     - Set appropriate batch sizes and operation rates per profile
       requirements
 
@@ -154,7 +154,7 @@ entries, parameterized by key scaling dimensions.
       MPLS labels per VRF
     - Profile 4: DEFAULT network instance with 2,500 NHGs, 8 NHs per NHG
       (ECMP), 1 MPLS label
-    - Profile 5: High-rate programming (6,000 ops/sec) with 50% ADD/50%
+    - Profile 5: High-rate programming (1,000 ops/sec) with 50% ADD/50%
       DELETE operations
 
 4.  **Device-Specific Considerations:**
@@ -165,7 +165,7 @@ entries, parameterized by key scaling dimensions.
       headers unsupported
     - Apply device-specific interface enablement requirements for IPv4
       protocols
-    - Configure tunnel type: “mpls-over-udp udp destination port 5555”
+    - Configure tunnel type: "mpls-over-udp udp destination port 6635"
       as defined in Test Parameters
 
 ### Test Parameters
@@ -364,7 +364,7 @@ these dimensions.
 - **gRIBI Operations:** Program/Modify the full 20k entries (1 Prefix +
   1 NHG + 1 NH = 3 operations per entry = 60k operations total).
 
-  - Target Rate: **6,000 operations/second** (aiming to update the full
+  - Target Rate: **1,000 operations/second** (aiming to update the full
     table in maximum of 60 seconds).
   - Operation Mix: Test with **50% ADD, 50% DELETE** operations during
     high-rate phase.
@@ -383,7 +383,7 @@ these dimensions.
 
 - Program all gRIBI entries (NHs, NHGs, Prefixes) according to the
   profile using baseline rate/batch.
-- Validate `RIB_PROGRAMMED` status is received from DUT for all entries.
+- Validate `FIB_PROGRAMMED` status is received from DUT for all entries.
 - Verify AFT state on DUT for a sample of entries (NH, NHG, Prefix -\>
   NHG mapping).
 - Send traffic matching programmed prefixes from appropriate ingress
@@ -428,7 +428,7 @@ these dimensions.
   forwarding and low loss.
 
 - Initiate high-rate gRIBI Modify operations (e.g., 100
-  ModifyRequests/sec, 60 ops/request, 50% ADD/50% DELETE mix targeting
+  ModifyRequests/sec, 10 ops/request, 50% ADD/50% DELETE mix targeting
   existing/new entries).
 
 - Monitor gRIBI operation results (ACKs) for success/failure and
