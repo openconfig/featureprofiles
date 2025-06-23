@@ -66,7 +66,7 @@ func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numB
 // It reports errors to the testing object if there is a mismatch.
 func verifyBreakout(dut *ondatra.DUTDevice, index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, breakoutSpeedWant string, breakoutSpeedGot string, numPhysicalChannelsWant uint8, numPhysicalChannelsGot uint8, t *testing.T) {
 	// Ensure that the index is set to the expected value (1 in this case).
-	if deviations.BreakoutGroupIndex0(dut) {
+	if dut.Vendor() == ondatra.CISCO {
 		if index != uint8(0) {
 			t.Errorf("Index: got %v, want 0", index)
 		}

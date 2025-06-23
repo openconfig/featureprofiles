@@ -813,12 +813,8 @@ message Metadata {
     bool use_old_oc_path_static_lsp_nh = 290;
 
     // Cisco b/421356455
-    // breakout group index starts from 0 instead of 1
-    bool breakout_group_index_0 = 291;
-
-    // Cisco b/421356455
     // numPhysicalChannels is not supported
-    bool num_physical_channels_unsupported = 292;
+    bool num_physical_channels_unsupported = 291;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;

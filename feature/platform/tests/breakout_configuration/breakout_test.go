@@ -191,10 +191,13 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	var Dutipv4Subnets []string
 	var Ateipv4Subnets []string
 
-	if deviations.BreakoutGroupIndex0(dut) {
+	// Decide which group index to use based on the device type
+	switch dut.Vendor() {
+	case ondatra.CISCO:
 		schemaValue = 0
+	default:
+		schemaValue = 1
 	}
-
 	cases := []struct {
 		numbreakouts        uint8
 		breakoutspeed       oc.E_IfEthernet_ETHERNET_SPEED
@@ -277,7 +280,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			for _, componentName := range componentNameList {
 				t.Logf("Starting Test for %s %v", componentName, tc)
 				var configContainer *oc.Component_Port_BreakoutMode_Group
-				if !deviations.BreakoutGroupIndex0(dut) {
+				if !deviations.NumPhysyicalChannelsUnsupported(dut) {
 					configContainer = &oc.Component_Port_BreakoutMode_Group{
 						Index:               ygot.Uint8(1),
 						NumBreakouts:        ygot.Uint8(tc.numbreakouts),
@@ -327,7 +330,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					numBreakouts := *groupDetails.NumBreakouts
 					breakoutSpeed := groupDetails.BreakoutSpeed
 					var numPhysicalChannels uint8
-					if !deviations.BreakoutGroupIndex0(dut) {
+					if !deviations.NumPhysyicalChannelsUnsupported(dut) {
 						numPhysicalChannels = *groupDetails.NumPhysicalChannels
 					} else {
 						numPhysicalChannels = *ygot.Uint8(0)

@@ -1453,16 +1453,6 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
-// UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
-func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
-}
-
-// BreakoutGroupIndex0 returns true if breakout group index starts from 0
-func BreakoutGroupIndex0(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBreakoutGroupIndex_0()
-}
-
 // NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
 func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
