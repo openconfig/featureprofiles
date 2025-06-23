@@ -1403,6 +1403,16 @@ func InterfacePolicyForwardingOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
 
+// GueGreDecapUnsupported returns true if gue or gre decap is unsupported
+func GueGreDecapUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGueGreDecapUnsupported()
+}
+
+// StaticMplsUnsupported returns true if static mpls is unsupported
+func StaticMplsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsUnsupported()
+}
+
 // QosShaperStateOCUnsupported returns true if qos shaper state is unsupported
 func QosShaperStateOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosShaperStateUnsupported()
@@ -1456,4 +1466,14 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 // UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
 func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
+}
+
+// ConfigLeafCreateRequired returns true if leaf creation is required
+func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+}
+
+// SkipInterfaceNameCheck returns if device requires skipping the interface name check.
+func SkipInterfaceNameCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipInterfaceNameCheck()
 }
