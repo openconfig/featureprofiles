@@ -229,17 +229,10 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Configure interface loopback mode on DUT AE interface", func(t *testing.T) {
-		var loopbackMode oc.E_Interfaces_LoopbackModeType
-		switch dut.Vendor() {
-		case ondatra.NOKIA, ondatra.CISCO:
-			loopbackMode = oc.Interfaces_LoopbackModeType_TERMINAL
-		default:
-			loopbackMode = oc.Interfaces_LoopbackModeType_FACILITY
-		}
 		if deviations.MemberLinkLoopbackUnsupported(dut) {
-			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), loopbackMode)
+			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
 		} else {
-			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), loopbackMode)
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
 		}
 	})
 
@@ -258,6 +251,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 
 	t.Run("Admin up OTG port1", func(t *testing.T) {
 		cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
+		
 		otg.SetControlState(t, cs)
 	})
 }
