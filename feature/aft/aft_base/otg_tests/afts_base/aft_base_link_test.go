@@ -519,7 +519,10 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 	t.Log("Waiting for BGPv4 neighbor to establish...")
-	tc.waitForBGPSession(t)
+	err = tc.waitForBGPSession(t)
+	if err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
 	aft, err := tc.cache(t, wantIPv4NHs, wantIPv6NHs)
 	if err != nil {
 		t.Fatalf("failed to get AFT Cache: %v", err)
