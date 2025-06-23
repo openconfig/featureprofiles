@@ -518,7 +518,7 @@ func TestMPLSOGREEncapBGPv4(t *testing.T) {
 	createflow(t, top, flowBGPv4, true)
 	sendTraffic(t, ate)
 	if err := flowBGPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Fatalf("ValidateLossOnFlows(): got err: %q", err)
+		t.Errorf("ValidateLossOnFlows(): got err: %q", err)
 	}
 }
 
