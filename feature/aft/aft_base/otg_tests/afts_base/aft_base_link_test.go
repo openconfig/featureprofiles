@@ -46,7 +46,7 @@ const (
 	bgpRouteCountIPv4        = 2000000
 	bgpRouteCountIPv6        = 512000
 	isisRouteCount           = 2
-	aftConvergenceTime       = 35 * time.Minute
+	aftConvergenceTime       = 20 * time.Minute
 	bgpTimeout               = 2 * time.Minute
 	startingRouteIPv4        = "200.0.0.0/32"
 	startingRouteIPv6        = "3001:1::0/128"
@@ -378,7 +378,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 }
 
 func configureBGPDev(dev gosnappi.Device, IPv4 gosnappi.DeviceIpv4, IPv6 gosnappi.DeviceIpv6, as int) {
-
 	bgp := dev.Bgp().SetRouterId(IPv4.Address())
 	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(IPv4.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
 	bgp4Peer.SetPeerAddress(IPv4.Gateway()).SetAsNumber(uint32(as)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
