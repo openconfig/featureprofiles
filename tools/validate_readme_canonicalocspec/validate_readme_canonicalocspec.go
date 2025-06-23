@@ -19,7 +19,6 @@ package main
 
 import (
 	goflag "flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -35,7 +34,6 @@ import (
 
 // Config is the set of flags for this binary.
 type Config struct {
-	DownloadPath   string
 	FeatureDir     string
 	NonTestREADMEs stringMap
 }
@@ -68,7 +66,6 @@ func New(fs *flag.FlagSet) *Config {
 	if fs == nil {
 		fs = flag.CommandLine
 	}
-	fs.StringVar(&c.DownloadPath, "download-path", "./tmp", "path into which to download OpenConfig GitHub repos for validation")
 	fs.StringVar(&c.FeatureDir, "feature-dir", "", "path to the feature directory of featureprofiles, for which all README.md files are validated for their coverage spec")
 	fs.Var(&c.NonTestREADMEs, "non-test-readme", "README that's exempt from coverage spec validation (can be specified multiple times)")
 
@@ -131,14 +128,6 @@ func main() {
 		log.Exit("Program internal error: input not handled.")
 	}
 
-	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {
-		fmt.Println(fmt.Errorf("cannot create download path directory: %v", config.DownloadPath))
-	}
-	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, "")
-	if err != nil {
-		log.Exit(err)
-	}
-
 	erredFiles := map[string]struct{}{}
 	for _, file := range files {
 		if _, ok := config.NonTestREADMEs[file]; ok {
@@ -159,7 +148,7 @@ func main() {
 		}
 
 		errored := false
-		for ocStruct := range ocStructs {
+		for _, ocStruct := range ocStructs {
 			if err := isValidOC(ocStruct); err != nil {
 				log.Errorf("%q contains invalid Canonical OCs: %v", file, err)
 				errored = true
