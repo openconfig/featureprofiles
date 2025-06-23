@@ -55,7 +55,7 @@ Bring down the link between ATE:port2 and DUT:port2 using OTG API.
 * eBGP routes advertised from ATE:port1,port2 must have 1 nexthop (pointing to ATE:port1).
 * IS-IS routes advertised from ATE:port1 must have one next hop.
 * Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and their interfaces.
+* Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hop per prefix must be 1.
 
 ## AFT-1.1.2: AFT Base Link Down scenario 2
@@ -80,7 +80,7 @@ Bring up the link between ATE:port1 and DUT:port1 using OTG API.
 * eBGP routes advertised from ATE:port1,port2 must have one next hop (pointing to ATE:port1).
 * IS-IS routes advertised from ATE:port1 must have one next hop.
 * Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and their interfaces.
+* Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hop per prefix is 1.
 
 ## AFT-1.1.4: AFT Base Link Up scenario 2
@@ -94,7 +94,7 @@ Bring up both links between ATE:port1,port2 and DUT:port1,port2 using OTG API.
 * eBGP routes advertised from ATE:port1,port2 must have 2 next hops.
 * IS-IS routes advertised from ATE:port1 must have one next hop.
 * Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and their interfaces.
+* Verify their next hop group, number of next hops, and the name of the interfaces.
 
 
 ## OpenConfig Path and RPC Coverage
