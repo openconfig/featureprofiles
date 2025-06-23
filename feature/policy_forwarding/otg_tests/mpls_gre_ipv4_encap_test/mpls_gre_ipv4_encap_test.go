@@ -513,6 +513,7 @@ func TestMPLSOGREEncapDualStack(t *testing.T) {
 
 }
 func TestMPLSOGREEncapBGPv4(t *testing.T) {
+	t.Log("PF-1.14.7: Verify IPV4/IPV6 selective local traffic processing")
 	ate := ondatra.ATE(t, "ate")
 
 	createflow(t, top, FlowBGPv4, true)
@@ -524,7 +525,7 @@ func TestMPLSOGREEncapBGPv4(t *testing.T) {
 }
 
 func TestMPLSOGREEncapBFDv4(t *testing.T) {
-
+	t.Log("PF-1.14.7: Verify IPV4/IPV6 selective local traffic processing")
 	ate := ondatra.ATE(t, "ate")
 
 	createflow(t, top, FlowBFDv4, true)
