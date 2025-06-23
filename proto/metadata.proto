@@ -816,6 +816,13 @@ message Metadata {
     // Juniper b/419536104
     bool config_leaf_create_required = 291;
 
+    // Device doesnot support configuring prefix list inside ACL
+    bool config_acl_with_prefixlist_unsupported = 292;
+
+    // Device doesnot support configuring source/destination address as ANY inside ACL
+    bool config_acl_value_any_oc_unsupported = 293;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
