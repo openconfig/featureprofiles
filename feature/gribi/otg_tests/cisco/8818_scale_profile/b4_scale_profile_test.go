@@ -266,3 +266,7 @@ func TestDcGateTriggers(t *testing.T) {
 func TestIPTNLNHUsage(t *testing.T) {
 	testIptnlUsage(t)
 }
+
+func TestDcGateOOR(t *testing.T) {
+	testDcGateOOR(t)
+}

@@ -122,6 +122,7 @@ const (
 	vrfEncapD                = "ENCAP_TE_VRF_D"
 	niDecapTeVrf             = "DECAP_TE_VRF"
 	vrfDefault               = "DEFAULT"
+	vrfEncapE                = "ENCAP_TE_VRF_E" //vrf to test OOR scenarios
 	ipv4PrefixLen            = 30
 	ipv6PrefixLen            = 126
 	ethertypeIPv4            = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
@@ -487,7 +488,7 @@ var (
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := &oc.Root{}
-	vrfs := []string{vrfDecap, vrfTransit, vrfRepaired, vrfEncapA, vrfEncapB, vrfEncapC, vrfEncapD, niDecapTeVrf}
+	vrfs := []string{vrfDecap, vrfTransit, vrfRepaired, vrfEncapA, vrfEncapB, vrfEncapC, vrfEncapD, niDecapTeVrf, vrfEncapE}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF

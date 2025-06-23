@@ -46,6 +46,7 @@ const (
 	L1Weight             = 16
 	L2Weight             = 8
 	L3Weight             = 8
+	maxTunnelResources   = 12000
 )
 
 var (
@@ -171,6 +172,7 @@ type GribiProfile struct {
 	PrimaryLevel3B         *routesParam
 	PrimaryLevel3C         *routesParam
 	PrimaryLevel3D         *routesParam
+	PrimaryLevel3E         *routesParam
 	Frr1Level1             *routesParam
 	Frr1Level2             *routesParam
 	DecapWan               *routesParam
@@ -186,6 +188,7 @@ type GribiProfile struct {
 	EncapEntriesB          []PairedEntries
 	EncapEntriesC          []PairedEntries
 	EncapEntriesD          []PairedEntries
+	EncapEntriesE          []PairedEntries
 	DecapWanEntries        []PairedEntries
 	DecapWanVarEntries     []PairedEntries
 	ConmbinedPairedEntries [][]fluent.GRIBIEntry
@@ -467,6 +470,50 @@ func NewGribiProfile(t *testing.T, batches int, frr1bkp bool, frr2bkp bool, dut 
 			gp.PrimaryLevel3D = p
 			gp.EncapEntriesD = GetFibSegmentGribiEntries(t, p, dut, batches)
 		}
+		if p.segment == "PrimaryLevel3E" {
+			// ipEntries:     encapVrfEIPv4Enries,
+			// ipv6Entries:   encapVrfEIPv6Enries,
+			// prefixVRF:     vrfEncapE,
+			// nextHops:      tunnelDestIPs,
+			// nextHopVRF:    vrfTransit,
+			// nextHopType:   "encap",
+			// numUniqueNHGs: 200, //encapNhgcount,
+			// numNHPerNHG:   8,
+			// nextHopWeight: generateNextHopWeights(16, 8),
+			// tunnelSrcIP:   ipv4OuterSrc222,
+			if p.ipEntries == nil {
+				p.ipEntries = encapVrfEIPv4Enries
+			}
+			if p.ipv6Entries == nil {
+				p.ipv6Entries = encapVrfEIPv6Enries
+			}
+			if p.prefixVRF == "" {
+				p.prefixVRF = vrfEncapE
+			}
+			if p.nextHops == nil {
+				p.nextHops = tunnelDestIPs
+			}
+			if p.nextHopVRF == "" {
+				p.nextHopVRF = vrfTransit
+			}
+			if p.nextHopType == "" {
+				p.nextHopType = "encap"
+			}
+			if p.numUniqueNHGs == 0 {
+				p.numUniqueNHGs = 200
+			}
+			if p.numNHPerNHG == 0 {
+				p.numNHPerNHG = 8
+			}
+			if p.nextHopWeight == nil {
+				p.nextHopWeight = generateNextHopWeights(L3Weight, L3NhPerNHG)
+			}
+			if p.tunnelSrcIP == "" {
+				p.tunnelSrcIP = ipv4OuterSrc222
+			}
+			gp.PrimaryLevel3E = p
+			gp.EncapEntriesE = GetFibSegmentGribiEntries(t, p, dut, batches)
+		}
 		if p.segment == "Frr1Level1" {
 			// ipEntries:     vipFrr1IPs, // 512 VIP prefixes
 			// prefixVRF:     deviations.DefaultNetworkInstance(dut),
@@ -658,6 +705,11 @@ func (gp *GribiProfile) pushBatchConfig(t *testing.T, tcArgs *testArgs, batchSet
 			}
 		}
 		t.Logf("Programming %d entries", len(entries))
+		// retain for debugging purpose - it prints aft entry details
+		// for _, e := range entries {
+		// 	aftEntry, _ := e.EntryProto()
+		// 	t.Logf("entry to delete: %v", aftEntry.String())
+		// }
 		tcArgs.client.Modify().AddEntry(t, entries...)
 		if err := awaitTimeout(tcArgs.ctx, tcArgs.client, t, aftProgTimeout); err != nil {
 			t.Fatalf("Could not program entries, got err: %v", err)
@@ -688,7 +740,15 @@ func (gp *GribiProfile) DeleteBatchConfig(t *testing.T, tcArgs *testArgs, batchS
 		}
 		// Program the entries
 		t.Logf("Deleting %d entries", len(entries))
+		// retain for debugging purpose - it prints aft entry details
+		for _, e := range entries {
+			aftEntry, _ := e.EntryProto()
+			t.Logf("entry to delete: %v", aftEntry.String())
+		}
 		tcArgs.client.Modify().DeleteEntry(t, entries...)
+		if err := awaitTimeout(tcArgs.ctx, tcArgs.client, t, 1*time.Minute); err != nil {
+			t.Fatalf("Could not delete entries, got err: %v", err)
+		}
 		if gp.measurePerf != nil {
 			for _, tn := range gp.measurePerf.tunType {
 				getOfaPerformance(t, tcArgs.dut, tn, gp.measurePerf.location)
@@ -719,6 +779,9 @@ func (gp *GribiProfile) GetNonEmptyRoutesParams() []*routesParam {
 	}
 	if gp.PrimaryLevel3D != nil && len(gp.PrimaryLevel3D.ipEntries) > 0 {
 		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel3D)
+	}
+	if gp.PrimaryLevel3E != nil && len(gp.PrimaryLevel3E.ipEntries) > 0 {
+		nonEmptyParams = append(nonEmptyParams, gp.PrimaryLevel3E)
 	}
 	if gp.Frr1Level1 != nil && len(gp.Frr1Level1.ipEntries) > 0 {
 		nonEmptyParams = append(nonEmptyParams, gp.Frr1Level1)
