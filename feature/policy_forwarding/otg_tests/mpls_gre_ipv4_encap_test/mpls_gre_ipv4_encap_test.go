@@ -1,6 +1,4 @@
-//
-Add files
-/// Package mpls_gre_ipv4_encap_test tests mplsogre encap functionality.
+// Package mpls_gre_ipv4_encap_test tests mplsogre encap functionality.
 package mpls_gre_ipv4_encap_test
 
 import (
@@ -245,6 +243,39 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[2].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowDualIPv6.FlowName, TolerancePct: 0.5},
 	}
+	// MPLSOGRE Encap IPv4 Interface BGPv4 Payload
+	FlowBGPv4 = &otgconfighelpers.Flow{
+		TxNames:   []string{agg1.Interfaces[0].Name + ".IPv4"},
+		RxNames:   []string{agg2.Name + ".IPv4"},
+		FrameSize: 1500,
+		FlowName:  "GCI traffic IPv4 interface, BGPv4 Payload",
+		EthFlow:   &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
+		VLANFlow:  &otgconfighelpers.VLANFlowParams{VLANId: 20},
+		IPv4Flow:  &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, RawPriority: 0, RawPriorityCount: 100},
+		TCPFlow:   &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 179},
+	}
+
+	FlowBGPv4Validation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowBGPv4.FlowName, TolerancePct: 0.5},
+	}
+
+	// MPLSOGRE Encap IPv4 Interface BFDv4 Payload
+	FlowBFDv4 = &otgconfighelpers.Flow{
+		TxNames:   []string{agg1.Interfaces[0].Name + ".IPv4"},
+		RxNames:   []string{agg2.Name + ".IPv4"},
+		FrameSize: 1500,
+		FlowName:  "GCI traffic IPv4 interface, BFDv4 Payload",
+		EthFlow:   &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC},
+		VLANFlow:  &otgconfighelpers.VLANFlowParams{VLANId: 20},
+		IPv4Flow:  &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 100, RawPriority: 0, RawPriorityCount: 100},
+		UDPFlow:   &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: 3784},
+	}
+
+	FlowBFDv4Validation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowBFDv4.FlowName, TolerancePct: 0.5},
+	}
 	Validations = []packetvalidationhelpers.ValidationType{
 		packetvalidationhelpers.ValidateIPv4Header,
 		packetvalidationhelpers.ValidateMPLSLayer,
@@ -479,6 +510,40 @@ func TestMPLSOGREEncapDualStack(t *testing.T) {
 	if err := FlowDualIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): %q", err)
 	}
+
+}
+func TestMPLSOGREEncapBGPv4(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+
+	createflow(t, top, FlowBGPv4, true)
+	sendTraffic(t, ate, "IPv4")
+	if err := FlowBGPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Fatalf("ValidateLossOnFlows(): got err: %q", err)
+	}
+
+	FlowBGPv4.IPv4Flow.RawPriority = 1
+	FlowBGPv4.IPv4Flow.RawPriorityCount = 0
+	FlowBGPv4.PacketsToSend = 1000
+
+	createflow(t, top, FlowBGPv4, true)
+
+}
+
+func TestMPLSOGREEncapBFDv4(t *testing.T) {
+
+	ate := ondatra.ATE(t, "ate")
+
+	createflow(t, top, FlowBFDv4, true)
+	sendTraffic(t, ate, "IPv4")
+	if err := FlowBFDv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q", err)
+	}
+
+	FlowBFDv4.IPv4Flow.RawPriority = 1
+	FlowBFDv4.IPv4Flow.RawPriorityCount = 0
+	FlowBFDv4.PacketsToSend = 1000
+
+	createflow(t, top, FlowBFDv4, true)
 
 }
 
