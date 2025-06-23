@@ -1472,3 +1472,8 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
 }
+
+// SkipInterfaceNameCheck returns if device requires skipping the interface name check.
+func SkipInterfaceNameCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipInterfaceNameCheck()
+}
