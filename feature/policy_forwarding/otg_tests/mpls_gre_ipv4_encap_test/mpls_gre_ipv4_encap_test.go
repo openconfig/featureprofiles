@@ -521,12 +521,6 @@ func TestMPLSOGREEncapBGPv4(t *testing.T) {
 		t.Fatalf("ValidateLossOnFlows(): got err: %q", err)
 	}
 
-	FlowBGPv4.IPv4Flow.RawPriority = 1
-	FlowBGPv4.IPv4Flow.RawPriorityCount = 0
-	FlowBGPv4.PacketsToSend = 1000
-
-	createflow(t, top, FlowBGPv4, true)
-
 }
 
 func TestMPLSOGREEncapBFDv4(t *testing.T) {
@@ -538,12 +532,6 @@ func TestMPLSOGREEncapBFDv4(t *testing.T) {
 	if err := FlowBFDv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q", err)
 	}
-
-	FlowBFDv4.IPv4Flow.RawPriority = 1
-	FlowBFDv4.IPv4Flow.RawPriorityCount = 0
-	FlowBFDv4.PacketsToSend = 1000
-
-	createflow(t, top, FlowBFDv4, true)
 
 }
 
