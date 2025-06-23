@@ -38,7 +38,7 @@ Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2
 * eBGP routes advertised from ATE:port1,port2 must have 2 nexthops.
 * Use gNMI Subscribe with `ON_CHANGE` option to `/network-instances/network-instance/afts`.
 * Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and their interfaces.
+* Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hops is 2 for eBGP advertised prefixes.
 * Verify the number of next hop is 1 for ISIS advertised prefixes.
 * Verify the prefixes are pointing to the correct egress interface(s).
@@ -104,18 +104,13 @@ OC paths used for test setup are not listed here.
 
 ```yaml
 paths:
-  ## Config Paths ##
-
-
   ## State Paths ##
 
-  /network-instances/network-instance/afts/ethernet/mac-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
