@@ -1,3 +1,15 @@
+# AFT-1.1: AFTs Base
+
+## Summary
+
+IPv4/IPv6 unicast routes next hop group and next hop.
+
+## Testbed
+
+* atedut_4.testbed
+
+## Test Setup
+
 ### Generate DUT and ATE Configuration
 
 Configure DUT:port1,port2,port3 for IS-IS session with ATE:port1,port2,port3
@@ -23,7 +35,8 @@ Establish RSVP Sessions between ATE:port3 and SUT:port3.
 
 ### Procedure
 
-	@@ -40,125 +37,87 @@ Establish RSVP Sessions between ATE:port3 and SUT:port3.
+*   Use gNMI.Set with REPLACE option to push the Test Setup configuration to the DUT.
+*   ATE configuration must be pushed.
 
 ### Verifications
 
@@ -110,9 +123,9 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## Config Paths ##
 
-
+ 
   ## State Paths ##
-
+ 
   /network-instances/network-instance/afts/ethernet/mac-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
@@ -149,10 +162,16 @@ paths:
 
 rpcs:
   gnmi:
-	@@ -169,9 +128,4 @@ rpcs:
+    gNMI.Subscribe:
+```
+
+## Control Protocol Coverage
+
 BGP
 IS-IS
 RSVP
 MPLS
+
 ## Minimum DUT Platform Requirement
+
 vRX
