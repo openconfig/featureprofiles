@@ -325,7 +325,7 @@ func configACL(t *testing.T, dut *ondatra.DUTDevice, aclConfig aclConfig) {
 				}
 			}
 		}
-		if deviations.ConfigAclValueAnyOcUnsupported(dut) {
+		if deviations.ConfigACLValueAnyOcUnsupported(dut) {
 			cliConfig := ""
 			switch dut.Vendor() {
 			case ondatra.ARISTA:
@@ -411,7 +411,7 @@ func configACL(t *testing.T, dut *ondatra.DUTDevice, aclConfig aclConfig) {
 
 // TODO: Raised issue  416164360 for unsupport of logging
 func configHighScaleACL(t *testing.T, dut *ondatra.DUTDevice, name string, startCount int, lastCount int, action string, log bool, aclType oc.E_Acl_ACL_TYPE) {
-	if deviations.ConfigAclValueAnyOcUnsupported(dut) {
+	if deviations.ConfigACLValueAnyOcUnsupported(dut) {
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -779,17 +779,18 @@ func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, flowName string) {
 }
 
 // getACLMatchedPackets retrieves the matched packet count for a specific ACL entry applied to the control plane.
-func getACLMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, aclName string, aclType oc.E_Acl_ACL_TYPE, seqID uint32) uint64 {
-	t.Helper()
-	counterQuery := gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclName, aclType).AclEntry(seqID).MatchedPackets().State()
-	val := gnmi.Lookup(t, dut, counterQuery)
-	count, present := val.Val()
-	if !present {
-		t.Logf("ACL counter not present for ACL %s, Type %s, Seq %d. Assuming 0.", aclName, aclType, seqID)
-		return 0 // Return 0 if the counter path doesn't exist yet
-	}
-	return count
-}
+// TODO: Validation of logging (Raised issue 416164360)
+// func getACLMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, aclName string, aclType oc.E_Acl_ACL_TYPE, seqID uint32) uint64 {
+// 	t.Helper()
+// 	counterQuery := gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(aclName, aclType).AclEntry(seqID).MatchedPackets().State()
+// 	val := gnmi.Lookup(t, dut, counterQuery)
+// 	count, present := val.Val()
+// 	if !present {
+// 		t.Logf("ACL counter not present for ACL %s, Type %s, Seq %d. Assuming 0.", aclName, aclType, seqID)
+// 		return 0 // Return 0 if the counter path doesn't exist yet
+// 	}
+// 	return count
+// }
 
 func removeAClOnInterface(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	ifName := dut.Port(t, portName).Name()
