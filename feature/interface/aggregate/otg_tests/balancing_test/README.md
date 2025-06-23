@@ -22,16 +22,23 @@ B[DUT] <-- LACP LAG (Port 2-9) --> C[ATE];
 *   Connect ATE ports 2 through 9 to DUT ports 2-9
 *   Configure ATE and DUT ports 2-9 to be part of a LACP-controlled LAG
 *   Configure a default static route on DUT with the next hop to ATE LAG
-*   Send at least 1000 flows from ATE port-1 towards the DUT with the following parameters
+*   Send at least 1000 flows from ATE port-1 towards the DUT with the following
+    parameters
     *   IP/TCP (Protocol number 0x06):
-        *   IP header: IPv4/v6 packets with different source and destination addresse pairs
-        *   TCP header: IPv4/IPv6 packets with varying TCP source port and destination ports
+        *   IP header: IPv4/v6 packets with different source and destination
+            address pairs
+        *   TCP header: IPv4/IPv6 packets with varying TCP source port and
+            destination ports
         *   Flow Label: IPv6 packets with varying flow labels
     *   IPinIP (Protocol number 0x04):
-        *   TCP header: IPinIP containing IPv4/v6 payload with different source and destination addresse pairs
-        *   Flow Label: IPinIP containing IPv4/v6 payload with varying flow labels
+        *   TCP header: IPinIP containing IPv4/v6 payload with different source
+            and destination addresse pairs
+        *   Flow Label: IPinIP containing IPv4/v6 payload with varying flow
+            labels
     *   Ensure that traffic is seen across all the LAG members
-NOTE: Due to the random nature of the test you may not see a balanced distribution of traffic, but all the links should get traffic
+
+NOTE: Due to the random nature of the test you may not see a balanced
+distribution of traffic, but all the links should get traffic
 
 ## Canonical OC
 
