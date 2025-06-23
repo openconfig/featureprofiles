@@ -98,7 +98,7 @@ func (r *yamlRenderer) Render(writer io.Writer, source []byte, node ast.Node) er
 	})
 }
 
-func processJSONBlock(c *ast.FencedCodeBlock, writer io.Writer, source []byte) (ast.WalkStatus, error) {
+func processJSONBlock(c *ast.FencedCodeBlock, _ io.Writer, source []byte) (ast.WalkStatus, error) {
 	var curBytes []byte
 	l := c.Lines().Len()
 	for i := 0; i != l; i++ {
