@@ -550,4 +550,3 @@ func TestBGP(t *testing.T) {
 		t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
 	}
 }
-
