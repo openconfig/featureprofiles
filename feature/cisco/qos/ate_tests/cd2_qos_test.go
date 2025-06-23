@@ -1272,7 +1272,6 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	// defer teardownQos(t, dut)
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1383,7 +1382,7 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	// defer teardownQos(t, dut)
+	
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1502,7 +1501,7 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	// defer teardownQos(t, dut)
+	
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1618,7 +1617,7 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
-	// defer teardownQos(t, dut)
+	
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
