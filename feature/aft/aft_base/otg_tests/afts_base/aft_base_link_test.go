@@ -446,7 +446,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 				return fmt.Errorf("next hop %d not found in AFT for next-hop group: %d for prefix: %s", nhID, nhgID, pfix)
 			}
 			// TODO: - Add check for exact interface name
-			// TODO: - Cisco Next-hop interface is not available (Remove Cisco specific check and add recursive check)
+			// TODO: - Remove deviation and add recursive check for interface
 			if !deviations.SkipInterfaceNameCheck(tc.dut) {
 				if nh.IntfName == "" {
 					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
@@ -521,7 +521,7 @@ func TestBGP(t *testing.T) {
 	t.Log("Waiting for BGPv4 neighbor to establish...")
 	err = tc.waitForBGPSession(t)
 	if err != nil {
-		t.Fatalf("Unable to establish BGP session: %v", err)
+		t.Fatalf("unable to establish BGP session: %v", err)
 	}
 	aft, err := tc.cache(t, wantIPv4NHs, wantIPv6NHs)
 	if err != nil {
