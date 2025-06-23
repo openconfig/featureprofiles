@@ -1,5 +1,5 @@
-
 # DP-1.17: Egress traffic DSCP rewrite
+
 ## Summary
 
 This test validates egress traffic scheduling and packet remarking (rewrite) on a DUT. IP payload encapsulated as IPoGRE,

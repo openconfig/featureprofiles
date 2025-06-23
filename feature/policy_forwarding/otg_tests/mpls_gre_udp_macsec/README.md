@@ -1,4 +1,4 @@
-# PF-1.17 - MPLSoGRE and MPLSoGUE MACsec 
+# PF-1.17: MPLSoGRE and MPLSoGUE MACsec 
 
 ## Summary
 This test verifies MACSec with MPLSoGRE and MPLSoGUE IP encap and decap traffic on the test device.

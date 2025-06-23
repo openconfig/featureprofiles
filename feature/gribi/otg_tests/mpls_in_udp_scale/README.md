@@ -1,4 +1,4 @@
-# TE-18.3 MPLS in UDP Encapsulation with QoS Scheduler Scale Test
+# TE-18.3: MPLS in UDP Encapsulation with QoS Scheduler Scale Test
 
 Building on TE-18.1 and TE-18.2, add scaling parameters
 

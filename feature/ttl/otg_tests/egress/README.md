@@ -1,4 +1,4 @@
-# PF-1.9 Egress handling of TTL
+# PF-1.9: Egress handling of TTL
 
 ## Summary
 
