@@ -2,7 +2,6 @@ package aft_base_link_test
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
