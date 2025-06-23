@@ -104,19 +104,17 @@ func configureDUT(t *testing.T) {
 		dut2: {&dut2Port1},
 	}
 	t.Log("Configure interfaces on dut.")
-	if deviations.FrBreakoutFix(dut1) {
-		for dutx, dutports := range dutsports {
-			for _, portx := range dutports {
-				port := dutx.Port(t, portx.Name)
-				dutInt := portx.NewOCInterface(port.Name(), dutx)
-				ethPort := dutInt.GetOrCreateEthernet()
-				if port.PMD() == ondatra.PMD100GBASEFR {
-					ethPort.AutoNegotiate = ygot.Bool(false)
-					ethPort.DuplexMode = oc.Ethernet_DuplexMode_FULL
-					ethPort.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-				}
-				gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
+	for dutx, dutports := range dutsports {
+		for _, portx := range dutports {
+			port := dutx.Port(t, portx.Name)
+			dutInt := portx.NewOCInterface(port.Name(), dutx)
+			ethPort := dutInt.GetOrCreateEthernet()
+			if deviations.FrBreakoutFix(dut1) && port.PMD() == ondatra.PMD100GBASEFR {
+				ethPort.AutoNegotiate = ygot.Bool(false)
+				ethPort.DuplexMode = oc.Ethernet_DuplexMode_FULL
+				ethPort.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 			}
+			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
 		}
 	}
 }

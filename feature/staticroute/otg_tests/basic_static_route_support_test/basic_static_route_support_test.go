@@ -1312,13 +1312,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, dutPorts := range []*attrs.Attributes{&dutPort1, &dutPort2, &dutPort3, &dutPort4} {
 		dutPort := dut.Port(t, dutPorts.Name)
 		dutInt := dutPorts.NewOCInterface(dutPort.Name(), dut)
-		if deviations.FrBreakoutFix(dut) {
-			if dutPort.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() == ondatra.ARISTA {
-				ethPort := dutInt.GetOrCreateEthernet()
-				ethPort.AutoNegotiate = ygot.Bool(false)
-				ethPort.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				ethPort.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-			}
+		if deviations.FrBreakoutFix(dut) && dutPort.PMD() == ondatra.PMD100GBASEFR {
+			ethPort := dutInt.GetOrCreateEthernet()
+			ethPort.AutoNegotiate = ygot.Bool(false)
+			ethPort.DuplexMode = oc.Ethernet_DuplexMode_FULL
+			ethPort.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 		}
 		if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut) {
 			dutInt.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
