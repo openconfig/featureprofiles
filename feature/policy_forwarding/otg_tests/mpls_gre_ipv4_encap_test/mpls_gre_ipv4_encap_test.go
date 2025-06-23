@@ -244,7 +244,7 @@ var (
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowDualIPv6.FlowName, TolerancePct: 0.5},
 	}
 	// MPLSOGRE Encap IPv4 Interface BGPv4 Payload
-	FlowBGPv4 = &otgconfighelpers.Flow{
+	flowBGPv4 = &otgconfighelpers.Flow{
 		TxNames:   []string{agg1.Interfaces[0].Name + ".IPv4"},
 		RxNames:   []string{agg2.Name + ".IPv4"},
 		FrameSize: 1500,
@@ -255,13 +255,13 @@ var (
 		TCPFlow:   &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 179},
 	}
 
-	FlowBGPv4Validation = &otgvalidationhelpers.OTGValidation{
+	flowBGPv4Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowBGPv4.FlowName, TolerancePct: 0.5},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowBGPv4.FlowName, TolerancePct: 0.5},
 	}
 
 	// MPLSOGRE Encap IPv4 Interface BFDv4 Payload
-	FlowBFDv4 = &otgconfighelpers.Flow{
+	flowBFDv4 = &otgconfighelpers.Flow{
 		TxNames:   []string{agg1.Interfaces[0].Name + ".IPv4"},
 		RxNames:   []string{agg2.Name + ".IPv4"},
 		FrameSize: 1500,
@@ -272,7 +272,7 @@ var (
 		UDPFlow:   &otgconfighelpers.UDPFlowParams{UDPSrcPort: 49152, UDPDstPort: 3784},
 	}
 
-	FlowBFDv4Validation = &otgvalidationhelpers.OTGValidation{
+	flowBFDv4Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name, agg1.Interfaces[0].Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowBFDv4.FlowName, TolerancePct: 0.5},
 	}
@@ -515,25 +515,21 @@ func TestMPLSOGREEncapDualStack(t *testing.T) {
 func TestMPLSOGREEncapBGPv4(t *testing.T) {
 	t.Log("PF-1.14.7: Verify IPV4/IPV6 selective local traffic processing")
 	ate := ondatra.ATE(t, "ate")
-
-	createflow(t, top, FlowBGPv4, true)
+	createflow(t, top, flowBGPv4, true)
 	sendTraffic(t, ate)
-	if err := FlowBGPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowBGPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Fatalf("ValidateLossOnFlows(): got err: %q", err)
 	}
-
 }
 
 func TestMPLSOGREEncapBFDv4(t *testing.T) {
 	t.Log("PF-1.14.7: Verify IPV4/IPV6 selective local traffic processing")
 	ate := ondatra.ATE(t, "ate")
-
 	createflow(t, top, FlowBFDv4, true)
 	sendTraffic(t, ate)
 	if err := FlowBFDv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q", err)
 	}
-
 }
 
 // OTGPreValidation validates the OTG port status and interface resolution.
