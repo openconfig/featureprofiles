@@ -140,7 +140,7 @@ paths:
   # name of chassis and linecard components
   /components/component/state/name:
     platform_type: ["CHASSIS", "LINECARD"]
-  # TODO: Add next-hop-group paths, see [public#1234](https://github.com/openconfig/public/pull/1234)
+  # TODO: Add next-hop-group paths, see https://github.com/openconfig/public/pull/1234
   # /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name
   # /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
 

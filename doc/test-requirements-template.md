@@ -52,7 +52,9 @@ NOTE: If the test requires configuration or state which are not defined in the
 [public OC data models]([url](https://github.com/openconfig/public)), then new OC
 paths must be proposed in this README. A "TODO" comment must be provided linking
 to a pull request to add these paths to the public OC models repository. The
-README may be approved and merged before the TODO item(s) are resolved.
+README may be approved and merged before the TODO item(s) are resolved. A heading
+cannot be called "Canonical OC" if it contains invalid OC and each README must have at
+least one "Canonical OC" heading to be validated.
 
 #### TODO: https://github.com/openconfig/public/pull/1234 - Add new leaf to scheduler-policy
 
