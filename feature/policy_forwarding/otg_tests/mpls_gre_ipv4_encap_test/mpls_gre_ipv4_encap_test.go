@@ -527,7 +527,7 @@ func TestMPLSOGREEncapBFDv4(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	createflow(t, top, flowBFDv4, true)
 	sendTraffic(t, ate)
-	if err := FlowBFDv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowBFDv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q", err)
 	}
 }
