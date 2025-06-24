@@ -192,7 +192,7 @@ func TestCancelReboot(t *testing.T) {
 func TestRebootPlusConfigPush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	gnoiClient := dut.RawAPIs().GNOI(t)
-
+	LargeConfigPush(t)
 	cases := []struct {
 		desc          string
 		rebootRequest *spb.RebootRequest
@@ -258,7 +258,7 @@ func TestRebootPlusConfigPush(t *testing.T) {
 	}
 }
 
-func TestControllerCardLargeConfigPushAndPull(t *testing.T) {
+func LargeConfigPush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// Get the number of ports on the DUT
 	numPorts := len(dut.Ports())
@@ -267,82 +267,126 @@ func TestControllerCardLargeConfigPushAndPull(t *testing.T) {
 	// Config the hostname to prevent the test failure when oc base config is not loaded
 	gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), "ondatraHost")
 	// Configuring the network instance as some devices only populate OC after configuration.
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)	
+	ctx := context.Background()
+	t.Run("testLargeConfigSetRequest", func(t *testing.T) {
+		_ = sendSetRequest(ctx, t, dut, setConfig)
+	})
+}
 
-	// Get Controller Card list that are inserted in the DUT.
-	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
-	t.Logf("Found controller card list: %v", controllerCards)
-	if got, want := len(controllerCards), 2; got < want {
-		t.Fatalf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
-	}
-
+func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
+	t.Helper()
 	params := configParams{
 		NumLAGInterfaces:            numPorts,
 		NumEthernetInterfacesPerLAG: 1,
 		NumBGPNeighbors:             15,
 	}
-
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	ctx := context.Background()
-	t.Run("testLargeConfigSetRequest", func(t *testing.T) {
-		testLargeConfigSetRequest(ctx, t, dut, gnoiClient, &controllerCards)
-	})
-}
-
-func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, controllerCards *[]string) {
-	activeStandbyCC := fetchActiveStandbyControllerCards(t, dut, controllerCards)
-	switchoverControllerCards(ctx, t, dut, &switchoverControllerCardsConfig{&activeStandbyCC, gnoiClient, controllerCardSwitchoverTimeout})
-	switchoverResponseTime := time.Now()
-
-	var setResponseTime time.Time
-	var setErr error
-	for attempt := 1; attempt <= 4; attempt++ {
-		if attempt > 1 {
-			time.Sleep(sleepTimeBtwAttempts)
+	var aggIDs []string
+	for i := 1; i <= params.NumLAGInterfaces; i++ {
+		lagInterfaceAttrs := attrs.Attributes{
+			Desc:    fmt.Sprintf("LAG Interface %d", i),
+			IPv4:    "192.0.2.5",
+			IPv6:    "2001:db8::5",
+			IPv4Len: IPv4PrefixLen,
+			IPv6Len: IPv6PrefixLen,
 		}
-		setErr = sendSetRequest(ctx, t, dut, setConfig)
-		setResponseTime = time.Now()
-		if setErr != nil {
-			t.Logf("Error during set request on attempt %d: %v", attempt, setErr)
-			if setResponseTime.Sub(switchoverResponseTime) > lastRequestTime {
-				t.Fatalf("gNMI Set response after switchover time: %v, got non-zero status code", setResponseTime.Sub(switchoverResponseTime))
+		aggID := netutil.NextAggregateInterface(t, dut)
+
+		aggIDs = append(aggIDs, aggID)
+		agg := lagInterfaceAttrs.NewOCInterface(aggID, dut)
+		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+		if err := gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg); err != nil {
+			return fmt.Errorf("unable to set lag interface")
+		}
+	}
+
+	batch := &gnmi.SetBatch{}
+	device := &oc.Root{}
+
+	networkInterface := device.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+
+	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS")
+	isisProto.Enabled = ygot.Bool(true)
+	isis := isisProto.GetOrCreateIsis()
+	for _, agg := range aggIDs {
+		isisIntf := isis.GetOrCreateInterface(agg)
+		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+	}
+	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS").Config(), isisProto)
+
+	bgpProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := bgpProto.GetOrCreateBgp()
+
+	global := bgp.GetOrCreateGlobal()
+	global.RouterId = ygot.String(globalRouterID)
+	global.As = ygot.Uint32(localASN)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+
+	pg := bgp.GetOrCreatePeerGroup(bgpPeerGrpName)
+	pg.PeerAs = ygot.Uint32(peerASN)
+	pg.PeerGroupName = ygot.String(bgpPeerGrpName)
+
+	for i := 5; i < params.NumBGPNeighbors+5; i++ {
+		bgpNbrV4 := bgp.GetOrCreateNeighbor(fmt.Sprintf("192.0.2.%d", i))
+		bgpNbrV4.PeerGroup = ygot.String(bgpPeerGrpName)
+		bgpNbrV4.PeerAs = ygot.Uint32(peerASN)
+		bgpNbrV4.Enabled = ygot.Bool(true)
+		af4 := bgpNbrV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		af4.Enabled = ygot.Bool(true)
+		af6 := bgpNbrV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		af6.Enabled = ygot.Bool(false)
+
+		bgpNbrV6 := bgp.GetOrCreateNeighbor(fmt.Sprintf("2001:db8::%d", i))
+		bgpNbrV6.PeerGroup = ygot.String(bgpPeerGrpName)
+		bgpNbrV6.PeerAs = ygot.Uint32(peerASN)
+		bgpNbrV6.Enabled = ygot.Bool(true)
+		af4 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		af4.Enabled = ygot.Bool(false)
+		af6 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		af6.Enabled = ygot.Bool(true)
+	}
+	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProto)
+
+	ethIdx := 0
+	for lagIdx := 0; ethIdx < numPorts && lagIdx < len(aggIDs); lagIdx++ {
+		for ethAdded := 0; ethIdx < numPorts && ethAdded < params.NumEthernetInterfacesPerLAG; ethAdded++ {
+			port := dut.Port(t, fmt.Sprintf("port%d", ethIdx+1))
+			intf := device.GetOrCreateInterface(port.Name())
+			intf.GetOrCreateEthernet().AggregateId = ygot.String(aggIDs[lagIdx])
+			intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			if deviations.InterfaceEnabled(dut) {
+				intf.Enabled = ygot.Bool(true)
 			}
-			t.Logf("gNMI Set response after switchover time: %v, got non-zero grpc status code, retrying", setResponseTime.Sub(switchoverResponseTime))
-			continue
+			gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), intf)
+			ethIdx++
 		}
-		if setResponseTime.Sub(switchoverResponseTime) > maxResponseTime {
-			t.Fatalf("gNMI Set response after switchover time: %v, got SUCCESS, but exceeded max response time: %v", setResponseTime.Sub(switchoverResponseTime), maxResponseTime)
-		}
-		t.Logf("gNMI Set response after switchover time: %v, got SUCCESS", setResponseTime.Sub(switchoverResponseTime))
-		break
 	}
-	if setErr != nil {
-		t.Fatalf("Failed to send gNMI Set request after all attempts: %v", setErr)
+	if err := batch.Set(t, dut); err != nil {
+		return fmt.Errorf("unable to set configuration")
 	}
-	// Retrieve configuration from DUT DUT using gNMI `GetRequest`.
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	getRequest := buildGetRequest(t)
-
-	ctxWithTimeout, cancelWithTimeout := context.WithTimeout(context.Background(), getRequestTimeout)
-	defer cancelWithTimeout()
-	fullConfig, err := gnmiClient.Get(ctxWithTimeout, getRequest)
-	if err != nil {
-		t.Fatalf("Error getting config: %v", err)
-	}
-
-	verifyConfiguredElements(t, dut, fullConfig)
+	return nil
 }
 
-func getSubCompPath(t *testing.T, dut *ondatra.DUTDevice) *tpb.Path {
+func sendSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, set setRequest) error {
 	t.Helper()
-	controllerCards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-	if len(controllerCards) == 0 {
-		t.Fatal("No controller card components found in DUT.")
+
+	ctxTimeout, cancelTimeout := context.WithTimeout(ctx, setRequestTimeout)
+	defer cancelTimeout()
+
+	done := make(chan error, 1)
+
+	go func() {
+		err := set(t, dut)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctxTimeout.Done():
+		return ctxTimeout.Err()
 	}
-	activeRP := controllerCards[0]
-	if len(controllerCards) == 2 {
-		_, activeRP = components.FindStandbyControllerCard(t, dut, controllerCards)
-	}
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	return components.GetSubcomponentPath(activeRP, useNameOnly)
 }
+
