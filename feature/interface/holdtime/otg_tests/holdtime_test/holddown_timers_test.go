@@ -114,16 +114,16 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 		i := d.GetOrCreateInterface(port.Name())
 		if deviations.FrBreakoutFix(dut) {
 			if port.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() == ondatra.ARISTA {
-				i.GetOrCreateEthernet().AutoNegotiate = ygot.Bool(false)
-				i.GetOrCreateEthernet().DuplexMode = oc.Ethernet_DuplexMode_FULL
-				i.GetOrCreateEthernet().PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+				i.GetOrCreateEthernet().SetAutoNegotiate(false)
+				i.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+				i.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
 			}
 		}
 		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		i.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 		if deviations.InterfaceEnabled(dut) {
-			i.Enabled = ygot.Bool(true)
+			i.SetEnabled(true)
 		}
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), i)
 	}
