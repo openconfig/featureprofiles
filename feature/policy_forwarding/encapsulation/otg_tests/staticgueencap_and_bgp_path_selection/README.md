@@ -409,7 +409,7 @@ Inflight
         is encapsulated towards `"$ATE2_INTERNAL_TE10.v4/32"` Similarly, BE1-AF2
         traffic from ATE2 to ATE1 is encapsulated with tunnel destination
         `"$DUT_TE11.v4/32"`, and AF3-AF4 traffic uses `"$DUT_TE10.v4/32"`
-    *   ATE2 do not send any unencapsulated flows
+    *   ATE2 do not send any unencapsulated flows (Flow-Set#5)
 
 *   **Test Steps:**
 
