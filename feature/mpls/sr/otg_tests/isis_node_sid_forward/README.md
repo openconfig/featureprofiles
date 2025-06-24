@@ -3,7 +3,7 @@
 
 ## Summary
 
-Define reserved MPLS label blocks: static and MPLS-SR.
+MPLS-SR transit forwarding to Node-SID distributed over ISIS
 
 ## Testbed type
 
@@ -23,6 +23,7 @@ G[ATE:PORT4] <-- IPv4-IPv6 --> H[DUT PORT4];
 
 ## Procedure
 
+### Test
 On DUT1 configure:
 
 *   ISIS adjacency between ATE & DUT for all the ports ATE1, ATE2, ATE3, ATE4; DUT1, DUT2, DUT3, DUT4.
@@ -33,8 +34,13 @@ On DUT1 configure:
 *   Segment Routing Local Block (srlb) with lower-bound: 40000 upper-bound: 41000)
 *   Send traffic from Source to destination and make sure the interface sid counters are populated
 
+Generate traffic:
+*   Send labeled traffic transiting through the DUT matching direct prefix (1). Verify that ATE2 receives traffic with node-SID label popped.
+*   Send labeled traffic transiting through the DUT matching indirect prefix (2). Verify that ATE2 receives traffic with the node-SID label intact.
+*   Verify that corresponding SID forwarding counters are incremented.
+*   Traffic arrives without packet loss.
+  
 Verify:
-
 *   Defined blocks are configured on DUT1.
 *   DUT1 advertises its SRGB and SRLB to ATE1.
 *   Verify the counters
@@ -44,11 +50,15 @@ Verify:
 
 ```yaml
 paths:
-  # configuration
+  # srgb definition
   /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/local-id:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/lower-bound:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound:
+
+  # sr config
+  /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
+
   /network-instances/network-instance/segment-routing/srgbs/srgb/config/local-id:
   /network-instances/network-instance/segment-routing/srgbs/srgb/config/mpls-label-blocks:
   /network-instances/network-instance/segment-routing/srlbs/srlb/local-id:
@@ -57,7 +67,11 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srgb:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srlb:
   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/config/interface-id:
+
   # telemetry
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
+  /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/in-pkts:
+  /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/local-id:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/lower-bound:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/upper-bound:
@@ -70,6 +84,7 @@ rpcs:
   gnmi:
     gNMI.Set:
       union_replace: true
+      replace: true
     gNMI.Subscribe:
       on_change: true
 ```
