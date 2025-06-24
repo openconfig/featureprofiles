@@ -161,9 +161,9 @@ func configureDUTBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 	for dutPort, dutPortAttr := range dutPortAttrs {
 		dutInt := dutPortAttr.NewOCInterface(dutPort.Name(), dut)
 		if deviations.FrBreakoutFix(dut) && dutPort.PMD() == ondatra.PMD100GBASEFR {
-			dutInt.GetOrCreateEthernet().PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-			dutInt.GetOrCreateEthernet().DuplexMode = oc.Ethernet_DuplexMode_FULL
-			dutInt.GetOrCreateEthernet().AutoNegotiate = ygot.Bool(false)
+			dutInt.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+			dutInt.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			dutInt.GetOrCreateEthernet().SetAutoNegotiate(false)
 		}
 		gnmi.Replace(t, dut, d.Interface(dutPort.Name()).Config(), dutInt)
 	}

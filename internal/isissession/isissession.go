@@ -203,18 +203,22 @@ func New(t testing.TB) (*TestSession, error) {
 	dutIntf1 := s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name())
 	dutIntf2 := s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name())
 
-	for port, dutIntf := range map[*ondatra.Port]*oc.Interface{
+	dutPortsMap := map[*ondatra.Port]*oc.Interface{
 		s.DUTPort1: dutIntf1,
 		s.DUTPort2: dutIntf2,
-	} {
-		if deviations.FrBreakoutFix(s.DUT) && port.PMD() == ondatra.PMD100GBASEFR {
-			dutIntf.GetOrCreateEthernet().AutoNegotiate = ygot.Bool(false)
-			dutIntf.GetOrCreateEthernet().DuplexMode = oc.Ethernet_DuplexMode_FULL
-			dutIntf.GetOrCreateEthernet().PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-		}
-		DUTISISAttrs.ConfigOCInterface(dutIntf1, s.DUT)
-		DUTTrafficAttrs.ConfigOCInterface(dutIntf2, s.DUT)
 	}
+
+	for port, dutIntf := range dutPortsMap {
+		if deviations.FrBreakoutFix(s.DUT) && port.PMD() == ondatra.PMD100GBASEFR {
+			dutIntf.GetOrCreateEthernet().SetAutoNegotiate(false)
+			dutIntf.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			dutIntf.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+		}
+	}
+
+	DUTISISAttrs.ConfigOCInterface(dutIntf1, s.DUT)
+	DUTTrafficAttrs.ConfigOCInterface(dutIntf2, s.DUT)
+
 	// If there is no ate, any operation that requires the ATE will call
 	// t.Fatal() instead. This is helpful for debugging the parts of the test
 	// that don't use an ATE.
