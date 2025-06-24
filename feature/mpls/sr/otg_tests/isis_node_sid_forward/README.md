@@ -142,7 +142,6 @@ Generate traffic:
 Verify:
 *   Defined blocks are configured on DUT1.
 *   DUT1 advertises its SRGB and SRLB to ATE1.
-*   Verify the counters
 *   Verify the Interface SID counters
 
 ## OpenConfig Path and RPC Coverage
