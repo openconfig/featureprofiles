@@ -123,3 +123,4 @@ paths:
 rpcs:
   gnmi:
     gNMI.Subscribe:
+```yaml
