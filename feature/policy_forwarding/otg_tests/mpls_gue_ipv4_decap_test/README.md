@@ -1,4 +1,4 @@
-# PF-1.19 - MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
+# PF-1.19: MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
 
 ## Summary
 This test verifies MPLSoGUE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGUE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.

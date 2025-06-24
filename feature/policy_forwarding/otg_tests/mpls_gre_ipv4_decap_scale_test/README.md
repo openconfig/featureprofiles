@@ -1,4 +1,4 @@
-# PF-1.13 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload scale test 
+# PF-1.13: MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload scale test 
 
 ## Summary
 This test verifies scaling of MPLSoGRE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGRE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.

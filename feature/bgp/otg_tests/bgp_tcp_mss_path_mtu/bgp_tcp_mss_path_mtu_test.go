@@ -95,18 +95,28 @@ var (
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T) {
 	dc := gnmi.OC()
+
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
-	t.Log("Configure interfaces on dut1.")
-	i1 := dut1Port1.NewOCInterface(dut1.Port(t, "port1").Name(), dut1)
-	gnmi.Replace(t, dut1, dc.Interface(i1.GetName()).Config(), i1)
-	i2 := dut1Port2.NewOCInterface(dut1.Port(t, "port2").Name(), dut1)
-	gnmi.Replace(t, dut1, dc.Interface(i2.GetName()).Config(), i2)
-
-	t.Log("Configure interfaces on dut2.")
-	i3 := dut2Port1.NewOCInterface(dut2.Port(t, "port1").Name(), dut2)
-	gnmi.Replace(t, dut2, dc.Interface(i3.GetName()).Config(), i3)
+	dutPortsMap := map[*ondatra.DUTDevice][]*attrs.Attributes{
+		dut1: {&dut1Port1, &dut1Port2},
+		dut2: {&dut2Port1},
+	}
+	t.Log("Configure interfaces on dut.")
+	for dutx, dutports := range dutPortsMap {
+		for _, portx := range dutports {
+			port := dutx.Port(t, portx.Name)
+			dutInt := portx.NewOCInterface(port.Name(), dutx)
+			ethPort := dutInt.GetOrCreateEthernet()
+			if deviations.FrBreakoutFix(dut1) && port.PMD() == ondatra.PMD100GBASEFR {
+				ethPort.SetAutoNegotiate(false)
+				ethPort.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+				ethPort.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+			}
+			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
+		}
+	}
 }
 
 // bgpCreateNbr creates bgp configuration on dut device.

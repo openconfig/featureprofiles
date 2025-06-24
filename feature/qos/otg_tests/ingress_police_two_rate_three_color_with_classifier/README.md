@@ -1,4 +1,4 @@
-# DP-2.6 Police traffic on input matching all packets using 2 rate, 3 color marker with classifier
+# DP-2.6: Police traffic on input matching all packets using 2 rate, 3 color marker with classifier
 
 ## Summary
 
