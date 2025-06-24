@@ -1,4 +1,3 @@
-
 # SR-1.1: Transit forwarding to Node-SID via ISIS
 
 ## Summary
