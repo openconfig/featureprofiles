@@ -14,7 +14,7 @@ ATE port-1 \<——\> port-1 DUT
 
 DUT port-2 \<——\> port-2 ATE
 
-- [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+- [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
 ## Test Configuration
 
@@ -37,17 +37,23 @@ The test uses the following key parameters:
 
 - Apply VRF selection policy to DUT port-1 to route traffic to the
   DEFAULT network instance
-- Configure static ARP entries for gRIBI next hop resolution
-  (device-specific)
-- Set up basic routing infrastructure to forward encapsulated packets to
-  port-2
+- Set up basic static routing infrastructure using gRIBI to forward
+  encapsulated packets to port-2. This uses static IPv6 routes (not BGP
+  or ISIS) configured via gRIBI AFT entries to establish the forwarding
+  path for MPLS-in-UDP encapsulated packets.
 
-Using gRIBI, install the following AFT entries:
+Basic routing infrastructure AFT entries:
 
-    # Basic routing infrastructure for encapsulated packet forwarding
+    # Static IPv6 route for encapsulated packet forwarding
     IPv6Entry {2001:db8::100/128 (DEFAULT VRF)} -> NHG#400 (DEFAULT VRF) -> {
       {NH#300, DEFAULT VRF, interface: port-2, mac: magic_mac}
     }
+
+## Procedure
+
+### TE-18.1.1 - Using gRIBI, install AFT entries
+
+Install the following MPLS-in-UDP encapsulation AFT entries:
 
     # MPLS-in-UDP encapsulation entries
     IPv6Entry {2001:db8:1::/64 (DEFAULT VRF)} -> NHG#2001 (DEFAULT VRF) -> {
@@ -75,9 +81,7 @@ Using gRIBI, install the following AFT entries:
       }
     }
 
-## Procedure
-
-### TE-18.1.1 MPLS-in-UDP IPv6 Traffic Encapsulation
+### TE-18.1.2 MPLS-in-UDP IPv6 Traffic Encapsulation
 
 Send IPv6 packets from ATE port-1 to DUT port-1 with:
 
@@ -111,7 +115,7 @@ Validate that ATE port-2 receives MPLS-in-UDP encapsulated packets with:
 
 - Original IPv6 packet with decremented hop limit
 
-### TE-18.1.2 Traffic Flow Validation
+### TE-18.1.3 Traffic Flow Validation
 
 1.  **Positive Test**: Verify traffic flows successfully when
     MPLS-in-UDP entries are installed
