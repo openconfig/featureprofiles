@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
@@ -176,8 +177,169 @@ func TestBasicEncap(t *testing.T) {
 	}
 }
 
+func TestRecirculation(t *testing.T) {
+	// Configure DUT
+	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut, true)
+	defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
+	// Configure ATE
+	otg := ondatra.ATE(t, "ate")
+	topo := configureOTG(t, otg)
+	// configure gRIBI client
+	c := gribi.Client{
+		DUT:         dut,
+		FIBACK:      true,
+		Persistence: true,
+	}
+
+	defer c.Close(t)
+	c.BecomeLeader(t)
+
+	// Flush all existing AFT entries on the router
+	defer c.FlushAll(t)
+
+	tcArgs := &testArgs{
+		client: &c,
+		dut:    dut,
+		ate:    otg,
+		topo:   topo,
+	}
+
+	// Program RIB entries required for Encap functionality
+	validateDefaultRouteEncapLookup(t, dut, &c, tcArgs)
+
+	test := []struct {
+		name               string
+		description        string
+		pattr              packetAttr
+		flows              []gosnappi.Flow
+		weights            []float64
+		capturePorts       []string
+		validateEncapRatio bool
+		skip               bool
+	}{
+		{
+			name:               fmt.Sprintf("Default Route VRF Lookup", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
+			weights:            wantWeights,
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: true,
+		},
+		{
+			name:               fmt.Sprintf("Default Route Multiple NH", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
+			weights:            wantWeights,
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: true,
+		},
+		{
+			name:               fmt.Sprintf("NHG Update Ignore Default", dscpEncapA1),
+			description:        "Validate NHG update operation is ignored for existing default chain",
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
+			weights:            wantWeights,
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: true,
+		},
+		{
+			name:               fmt.Sprintf("Next Hop Unavailability", dscpEncapA1),
+			description:        "Validate behavior when primary NH becomes unavailable",
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
+			weights:            wantWeights,
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: true,
+		},
+	}
+
+	for _, tc := range test {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("Name: %s", tc.name)
+			for _, port := range tc.capturePorts {
+				enableCapture(t, otg.OTG(), topo, []string{port})
+				t.Log("Start capture and send traffic")
+				sendTraffic(t, tcArgs, tc.flows, true)
+				t.Log("Validate captured packet attributes")
+				var tunCounter = validatePacketCapture(t, tcArgs, []string{port}, &tc.pattr)
+				if tc.validateEncapRatio {
+					validateTunnelEncapRatio(t, tunCounter)
+				}
+				clearCapture(t, otg.OTG(), topo)
+			}
+			t.Log("Validate traffic flows")
+			validateTrafficFlows(t, tcArgs, tc.flows, false, true)
+			t.Log("Validate hierarchical traffic distribution")
+			validateTrafficDistribution(t, otg, tc.weights)
+		})
+	}
+}
+
+func validateDefaultRouteEncapLookup(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArgs *testArgs) {
+
+	// push RIB entries
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		c.AddNH(t, nh10ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort2DummyIP.IPv4, Mac: magicMac})
+		c.AddNH(t, nh11ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort3DummyIP.IPv4, Mac: magicMac})
+		c.AddNH(t, nh100ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort4DummyIP.IPv4, Mac: magicMac})
+		c.AddNH(t, nh101ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort5DummyIP.IPv4, Mac: magicMac})
+
+	} else {
+		c.AddNH(t, nh10ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: magicMac})
+		c.AddNH(t, nh11ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port3").Name(), Mac: magicMac})
+		c.AddNH(t, nh100ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port4").Name(), Mac: magicMac})
+		c.AddNH(t, nh101ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
+	}
+	c.AddNHG(t, nhg2ID, map[uint64]uint64{nh10ID: 1, nh11ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv4(t, cidr(vipIP1, 32), nhg2ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+	c.AddNHG(t, nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv4(t, cidr(vipIP2, 32), nhg3ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+	// Configure single next-hop
+	c.AddNH(t, nhID1, nextHopIP1, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port6").Name(), Mac: magicMac})
+	c.AddNHG(t, nhgID1, map[uint64]uint64{nhID1: 1}, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+	c.AddIPv4(t, defaultRoute, nhgID1, vrfEncap, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+
+	// Configure next-hops and NHG for Encap functionality
+	c.AddNH(t, nh1ID, vipIP1, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddNH(t, nh2ID, vipIP2, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1, nh2ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv4(t, cidr(tunnelDstIP1, 32), nhg1ID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv4(t, cidr(tunnelDstIP2, 32), nhg1ID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+	// Add second next-hop with weight distribution
+	c.AddNH(t, nhID2, "192.0.2.2", *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: magicMac})
+	c.AddNHG(t, nhgID1, map[uint64]uint64{nhID1: 60, nhID2: 40}, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+
+	// Add third next-hop and update distribution
+	c.AddNH(t, nhID3, "192.0.2.3", *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port3").Name(), Mac: magicMac})
+	c.AddNHG(t, nhgID1, map[uint64]uint64{nhID2: 50, nhID3: 50}, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+
+	t.Log("Attempting NHG update - should be ignored")
+	c.AddNH(t, nhID2, "192.0.2.2", *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: magicMac})
+	c.AddNHG(t, nhgID1, map[uint64]uint64{nhID1: 60, nhID2: 40}, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+	t.Log("Attempting NHG update with different weights - should be ignored")
+	c.AddNHG(t, nhgID1, map[uint64]uint64{nhID1: 50, nhID2: 50}, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+
+	t.Log("Simulating primary NH failure")
+	shutInterface(t, tcArgs, []string{"Bundle-Ether1", "Bundle-Ether2"})
+
+	// Configure Encap next-hops and NHG
+	c.AddNH(t, nh201ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP1, VrfName: vrfTransit})
+	c.AddNH(t, nh202ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP2, VrfName: vrfTransit})
+	c.AddNHG(t, nhg10ID, map[uint64]uint64{nh201ID: 1, nh202ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+}
+
 // programEntries pushes RIB entries on the DUT required for Encap functionality
 func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
+
 	// push RIB entries
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		c.AddNH(t, nh10ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort2DummyIP.IPv4, Mac: magicMac})

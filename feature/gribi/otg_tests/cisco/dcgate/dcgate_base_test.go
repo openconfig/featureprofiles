@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -61,6 +62,7 @@ const (
 	vrfEncapB            = "ENCAP_TE_VRF_B"
 	vrfDecapPostRepaired = "DECAP"
 	vrfRepair            = "REPAIR_VRF"
+	vrfEncap             = "ENCAP_TE_VRF"
 	ipv4PrefixLen        = 30
 	ipv6PrefixLen        = 126
 	trafficDuration      = 15 * time.Second
@@ -76,12 +78,20 @@ const (
 	nhg3ID               = 3
 	nh100ID              = 100
 	nh101ID              = 101
+	nhID1                = 1000
+	nhgID1               = 1100
+	nhID2                = 2000
+	nhgID2               = 2100
+	nhID3                = 3000
+	nhgID3               = 3100
 	dscpEncapA1          = 10
 	dscpEncapA2          = 18
 	dscpEncapB1          = 20
 	dscpEncapB2          = 28
 	dscpEncapNoMatch     = 30
+	defaultRoute         = "0.0.0.0/0"
 	magicMac             = "02:00:00:00:00:01"
+	nextHopIP1           = "192.0.2.6"
 	tunnelDstIP1         = "203.0.113.1"
 	tunnelDstIP2         = "203.0.113.2"
 	tunnelDstIP3         = "203.0.113.100"
@@ -144,13 +154,14 @@ func decapNH(i uint64) uint64  { return i + decapNHOffset }
 func decapNHG(i uint64) uint64 { return i + decapNHGOffset }
 
 var (
-	otgDstPorts = []string{"port2", "port3", "port4", "port5"}
+	otgDstPorts = []string{"port2", "port3", "port4", "port5", "port6"}
 	otgSrcPort  = "port1"
 	wantWeights = []float64{
 		0.0625, // 1/4 * 1/4 - port2
 		0.1875, // 1/4 * 3/4 - port3
 		0.3,    // 3/4 * 2/5 - port4
-		0.45,   // 3/5 * 3/4 - port5
+		0.4,    // 3/5 * 8/15 - port5
+		0.05,   //(1/4) * (1/5) - port6
 	}
 	noMatchWeight = []float64{
 		1, 0, 0, 0,
@@ -247,6 +258,23 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 
+	dutPort6 = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "192.0.2.35",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:13",
+		IPv4Len: ipv6PrefixLen,
+	}
+
+	otgPort6 = attrs.Attributes{
+		Name:    "otgPort6",
+		MAC:     "02:00:06:01:01:01",
+		IPv4:    "192.0.2.36",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:14",
+		IPv6Len: ipv6PrefixLen,
+	}
+
 	dutPort2DummyIP = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.21",
@@ -292,6 +320,18 @@ var (
 	otgPort5DummyIP = attrs.Attributes{
 		Desc:    "otgPort5",
 		IPv4:    "192.0.2.34",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort6DummyIP = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "192.0.2.37",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	otgPort6DummyIP = attrs.Attributes{
+		Desc:    "otgPort6",
+		IPv4:    "192.0.2.38",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -667,6 +707,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 	p5 := dut.Port(t, "port5")
+	p6 := dut.Port(t, "port6")
 
 	// configure interfaces
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
@@ -674,6 +715,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
 	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+	gnmi.Replace(t, dut, d.Interface(p6.Name()).Config(), dutPort6.NewOCInterface(p6.Name(), dut))
 
 	// configure base PBF policies and network-instances
 	configureBaseconfig(t, dut, clusterFacing)
@@ -774,12 +816,14 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p3 := ate.Port(t, "port3")
 	p4 := ate.Port(t, "port4")
 	p5 := ate.Port(t, "port5")
+	p6 := ate.Port(t, "port6")
 
 	otgPort1.AddToOTG(topo, p1, &dutPort1)
 	otgPort2.AddToOTG(topo, p2, &dutPort2)
 	otgPort3.AddToOTG(topo, p3, &dutPort3)
 	otgPort4.AddToOTG(topo, p4, &dutPort4)
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
+	otgPort6.AddToOTG(topo, p6, &dutPort6)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
@@ -830,6 +874,15 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 
 		// add inner ipv4 headers
 		if flowType == "ipv4in4" {
+
+			// IPv4-in-IPv4 configuration
+			pkt := flow.Packet().Add()
+
+			// Outer IPv4
+			outerV4 := pkt.Ipv4()
+			outerV4.Src().SetValue(fa.src)
+			outerV4.Dst().SetValue(fa.dst)
+
 			innerV4 := flow.Packet().Add().Ipv4()
 			innerV4.Src().SetValue(innerV4SrcIP)
 			innerV4.Dst().SetValue(innerV4DstIP)
@@ -1127,14 +1180,17 @@ func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 	p5 := dut.Port(t, "port5")
+	p6 := dut.Port(t, "port6")
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), assignIPAsSecondary(&dutPort2DummyIP, p2.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), assignIPAsSecondary(&dutPort3DummyIP, p3.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), assignIPAsSecondary(&dutPort4DummyIP, p4.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), assignIPAsSecondary(&dutPort5DummyIP, p5.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), assignIPAsSecondary(&dutPort6DummyIP, p6.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), configStaticArp(p6.Name(), otgPort6DummyIP.IPv4, magicMac))
 }
 
 // override ip address type as secondary
@@ -1355,3 +1411,19 @@ func unshutPorts(t *testing.T, args *testArgs, ports []string) {
 	}
 	time.Sleep(5 * time.Second)
 }
+
+func shutInterface(t *testing.T, args *testArgs, interfaces []string) {
+	t.Logf("Shutting down interfaces %v", interfaces)
+	failureTime := time.Now()
+	t.Logf("time when interface is shutdown %v", failureTime)
+	for _, intf := range interfaces {
+		gnmi.Update(t, args.dut, gnmi.OC().Interface(intf).Subinterface(0).Enabled().Config(), false)
+		time.Sleep(2 * time.Second) // Allow interface state to update
+		// Verify interface state
+		enabled := gnmi.Get(t, args.dut, gnmi.OC().Interface(intf).Enabled().State())
+		if enabled {
+			t.Errorf("Interface %s failed to shutdown", intf)
+		}
+	}
+}
+
