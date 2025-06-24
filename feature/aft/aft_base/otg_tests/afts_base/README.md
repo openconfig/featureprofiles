@@ -19,7 +19,7 @@ Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
 * Let `Z` be the number of prefixes to be advertised by IS-IS. **(User Adjustable Value)**
 * IS-IS must be level 2 only with wide metric.
 * IS-IS must be point to point.
-* Send `z` IPv4 and `Z` IPv6 prefixes from ATE:port1 to DUT:port1.
+* Send `Z` IPv4 and `Z` IPv6 prefixes from ATE:port1 to DUT:port1.
 
 Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 
