@@ -6,12 +6,9 @@
 MPLS-SR transit forwarding to Node-SID distributed over ISIS
 
 ## Testbed type
-
 *  [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
-
 ## Topology
-
 ```mermaid
 graph LR;
 A[ATE PORT1] <-- IPv4-IPv6 --> B[DUT PORT1];
@@ -21,8 +18,6 @@ G[ATE:PORT4] <-- IPv4-IPv6 --> H[DUT PORT4];
 ```
 
 ## Procedure
-
-
 ### Configuration
 *   Configure Segment Routing Global Block (srgb) lower-bound: 400000 upper-bound: 465001)
 *   Enable Segment Routing for the ISIS
@@ -33,6 +28,100 @@ G[ATE:PORT4] <-- IPv4-IPv6 --> H[DUT PORT4];
 
 * ATE port1 - used for Traffic source
 * ATE port2-port4 - used for verification of per-interface sid or per-node sid
+
+### Canonical OC for DUT configuration
+This section should contain a JSON formatted stanza representing the
+canonical OC to configure MPLS SR-ID (See the
+[README Template](https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md#procedure))
+```
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT",
+          "type": "openconfig-network-instance-types:DEFAULT_INSTANCE"
+        },
+        "mpls": {
+          "global": {
+            "reserved-label-blocks": {
+              "reserved-label-block": [
+                {
+                  "config": {
+                    "local-id": "srlb",
+                    "lower-bound": 16
+                  },
+                  "local-id": "srlb"
+                },
+                {
+                  "config": {
+                    "local-id": "isis-sr",
+                    "lower-bound": 400000,
+                    "upper-bound": 465000
+                  },
+                  "local-id": "isis-sr"
+                }
+              ]
+            }
+          }
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:ISIS",
+              "name": "isis",
+              "config": {
+                "identifier": "openconfig-policy-types:ISIS",
+                "name": "isis"
+              },
+              "isis": {
+                "global": {
+                  "segment-routing": {
+                    "config": {
+                      "enabled": true,
+                      "srgb": "isis-sr",
+                      "srlb": "srlb"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "segment-routing": {
+          "srgbs": {
+            "srgb": [
+              {
+                "config": {
+                  "dataplane-type": "MPLS",
+                  "local-id": "isis-sr",
+                  "mpls-label-blocks": [
+                    "isis-sr"
+                  ]
+                },
+                "local-id": "isis-sr"
+              }
+            ]
+          },
+          "srlbs": {
+            "srlb": [
+              {
+                "config": {
+                  "dataplane-type": "MPLS",
+                  "local-id": "srlb",
+                  "mpls-label-block": "srlb"
+                },
+                "local-id": "srlb"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
 
 ### Test
 On DUT1 configure:
