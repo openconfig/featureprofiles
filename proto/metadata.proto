@@ -822,7 +822,7 @@ message Metadata {
 
     // Arista b/426375784
     // FNT only issue, non-breakout ports have breakout config
-    bool fr_breakout_fix = 292;
+    bool fr_breakout_fix = 293;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
