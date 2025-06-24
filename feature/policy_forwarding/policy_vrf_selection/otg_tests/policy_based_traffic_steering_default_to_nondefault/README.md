@@ -87,7 +87,8 @@ B3 --> B1;
    
   * Validation
 	* All traffic must be successful and there should be 0 packet loss.
-	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester port
+        * Need to verify the packets sent by sender tester is equal to the packets on receiving tester port
+	* DUT1:Port2 port out-pkts counter should match packets sent by ATE1:PORT1
 	* DUT1:Port2 port out-pkts counter should match packets sent by ATE1:PORT1.
 
 ### PF-1.6.2: Traffic from ATE1 to ATE2, 1 Prefix migrated to Non-Default VRF using the VRF selection policy
