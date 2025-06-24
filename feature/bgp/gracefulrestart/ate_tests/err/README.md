@@ -3,9 +3,9 @@
 ## Summary
 
 This is an extension to the RFC8538 tests already conducted under "RT-1.4: BGP
-Graceful Restart". However, ERR is for projects that need to extend the validity
+Graceful Restart". However, ExRR is for projects that need to extend the validity
 of a route beyond the expiration of the stale routes timer for the BGP GR
-process. Following are the scenarios when ERR can be considered by a project.
+process. Following are the scenarios when ExRR can be considered by a project.
 
 1.  Upon expiration of BGP hold-timer (Hold timer expiry on the Speaker side or
     when a notification for hold timer expiry is received from the helper)
@@ -34,25 +34,25 @@ we have the following that is different from EER.
     the route as least-preferred. This isnt the case for ERR. There arent any
     communities attached to Stale routes thereby mandating their depreference.
 *   Section 4.7: Different conditions for partial deployment of LLGR is a no-op
-    for ERR as it builds on the concepts of RFC8538 and hence there arent any
+    for ExRR as it builds on the concepts of RFC8538 and hence there arent any
     special communities expected to be sent or received for the stale routes.
 
-**More about the ERR policy**
+**More about the ExRR policy**
 
 *   This policy can be attached at the Global, Peer-group or Neighbor levels. *
     The routes passed through the retention-policy should be the post-policy
     adj-rib-in of the neighbor. Any other import policy applied to the routes
     must not be overridden by this policy, it should be additive.
-*   Default action if no ERR policy is specified should be to follow RFC8538
+*   Default action if no ExRR policy is specified should be to follow RFC8538
     behavior.
-*   Please Note: In the case of an ERR policy, when the action of a given MATCH
+*   Please Note: In the case of an ExRR policy, when the action of a given MATCH
     criteria is REJECT, the matching prefixes will be treated similar to RFC8538
     expectations. Therefore such prefixes wouldnt experience extended Retention.
     Similarly, when the policy match condition translates to an ACCEPT action,
-    the prefixes are considered for ERR operation and the configured Retention
+    the prefixes are considered for ExRR operation and the configured Retention
     time becomes applicable. The Prefix also gets other attributes as configured
     part of ACTION
-*   Yang definitions for ERR is proposed in
+*   Yang definitions for ExRR is proposed in
     [pull/1319](https://github.com/openconfig/public/pull/1319). Following is a
     representation of how the entire config/state used in this test will look
     like.
@@ -110,11 +110,11 @@ Create the following connections:
 *   DUT has the following configuration on its IBGP and EBGP peering
 
     *   Extended route retention (ERR) enabled.
-    *   ERR configuration has the retention time of 300 secs configured
-    *   ERR has a retention-policy `STALE-ROUTE-POLICY` attached.
+    *   ExRR configuration has the retention time of 300 secs configured
+    *   ExRR has a retention-policy `STALE-ROUTE-POLICY` attached.
     *   "STALE-ROUTE-POLICY" has policy-statements to identify routes tagged
         with community `NO-ERR` and have an action of "REJECT" so such routes
-        aren't considered for ERR but only GR (RFC8538)
+        aren't considered for ExRR but only GR (RFC8538)
     *   identify routes tagged with community `ERR-NO-DEPREF` and have an action
         of "ACCEPT" so such routes are considered for ERR. Also ADD community
         `STALE` to the existing community list attached as part of the regular
@@ -160,8 +160,8 @@ Create the following connections:
 | **GR Restart Time** | 220 seconds | The time a peer should wait for the BGP session to re-establish during a graceful restart. |
 | **GR Stale Routes Time** | 250 seconds | The duration for which a peer should hold stale routes during a graceful restart. |
 | **ERR Enabled** | `True` | Extended Route Retention is enabled on the BGP peerings. |
-| **ERR Retention Time** | 300 seconds | The time for which the DUT will hold stale routes under ERR conditions. |
-| **ERR Retention Policy** | `STALE-ROUTE-POLICY` | The policy applied to stale routes when ERR is triggered. |
+| **ERR Retention Time** | 300 seconds | The time for which the DUT will hold stale routes under ExRR conditions. |
+| **ERR Retention Policy** | `STALE-ROUTE-POLICY` | The policy applied to stale routes when ExRR is triggered. |
 
 ### ATE Advertised Prefixes to the DUT
 
@@ -229,7 +229,7 @@ Create the following connections:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/enabled
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time
     ```
-*   Validate ERR retention-policy is set to "STALE-ROUTE-POLICY".
+*   Validate ExRR retention-policy is set to "STALE-ROUTE-POLICY".
     ```
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-policy`
     ```
@@ -282,12 +282,12 @@ Create the following connections:
     with the DUT (e.g., by sending a BGP Cease NOTIFICATION).
 *   Prevent the ATEs from re-establishing their BGP sessions for 280
         seconds. This duration is longer than the configured stale-routes-time
-        (250s) but shorter than the ERR retention-time (300s), ensuring the DUT
-        transitions from standard Graceful Restart into the ERR state.
+        (250s) but shorter than the ExRR retention-time (300s), ensuring the DUT
+        transitions from standard Graceful Restart into the ExRR state.
 *   Verify traffic behavior:
     *   Prefixes with community NO-ERR (policy action REJECT) should
         stop forwarding after the stale-routes-time (250s) expires. This
-        confirms the REJECT action in the ERR policy removes the route
+        confirms the REJECT action in the ExRR policy removes the route
         from being held.
     *   Prefixes with community ERR-NO-DEPREF should continue forwarding
         and have the STALE community added.
@@ -305,7 +305,7 @@ Create the following connections:
     re-establishing their BGP sessions for 280 seconds.
 *   Verification: The expected behavior and traffic verification steps are
     identical to the graceful termination test (RT-1.35.2) above, as the DUT
-    should trigger its ERR logic once the stale-routes-time expires.
+    should trigger its ExRR logic once the stale-routes-time expires.
 
 
 ## RT-1.35.4: BGP Notification Handling (Graceful Teardown), "Administrative Reset" Notification (rfc4486) sent by the DUT
@@ -360,7 +360,7 @@ in https://github.com/openconfig/gnoi/pull/214`
     the data portion of subcode 9 notification message.
 *   On receipt of the "HARD RESET" Notification message from the DUT, the ATEs
     MUST flush all the routes. Hence, 100% packet loss MUST be experienced on
-    all the flows irrespective of the ERR configuration and the
+    all the flows irrespective of the ExRR configuration and the
     `STALE-ROUTE-POLICY`. The test MUST fail if this isnt the behavior seen.
     Verficiation of packet loss done on the ATE side as well as on the DUT using
     the following OC path.
@@ -387,18 +387,18 @@ in https://github.com/openconfig/gnoi/pull/214`
 
 ## RT-1.35.8: Additive Policy Application
 
-Verify that the ERR retention policy is additive to the standard import policy.
+Verify that the ExRR retention policy is additive to the standard import policy.
 
 *   In addition to the existing importibgp policy that sets local-preference to
     200, add an action to set the MED to 150 for prefixes with community
     TEST-IBGP.
 *   In the baseline state, verify IPv4Prefix3 and IPv6Prefix3 have both
     local-preference 200 and MED 150. Use the loc-rib state paths below.
-*   Trigger an ERR state as in RT-1.35.2. The STALE-ROUTE-POLICY should apply a
+*   Trigger an ExRR state as in RT-1.35.2. The STALE-ROUTE-POLICY should apply a
     local-preference of 0. Verify using the LOC-RIB path below.
-*   During the ERR state, verify that the prefixes now have a local-preference
-    of 0 (from ERR policy), a MED of 150 (from import policy), and the STALE
-    community (from ERR policy).
+*   During the ExRR state, verify that the prefixes now have a local-preference
+    of 0 (from ExRR policy), a MED of 150 (from import policy), and the STALE
+    community (from ExRR policy).
 *   This confirms the retention policy does not override pre-existing attributes
     set by other policies. If the behavior is different from this expectation
     then fail the test.
@@ -410,22 +410,22 @@ Verify that the ERR retention policy is additive to the standard import policy.
 
 ## RT-1.35.9: Default Reject Behavior
 
-Verify that the default behavior is to drop stale routes when ERR is enabled but
+Verify that the default behavior is to drop stale routes when ExRR is enabled but
 no policy is attached. 
 
-* Enable ERR on the DUT but do not configure a retention-policy. 
-* Trigger a BGP session failure on the ATEs that would normally activate ERR 
+* Enable ExRR on the DUT but do not configure a retention-policy. 
+* Trigger a BGP session failure on the ATEs that would normally activate ExRR 
 (e.g., as in RT-1.35.2). 
 * Verify that after the restart-timer expires, all routes from the failed 
 neighbor are flushed and traffic for all flows drops to 0%. Validate on the ATE 
 as well as using OC.
 `/interfaces/interface/state/counters/out-unicast-pkts` 
-* Test Must fail if the default action without ERR isn't satisfied.
+* Test Must fail if the default action without ExRR isn't satisfied.
 
 
 ## RT-1.35.10: Consecutive BGP Restarts
 
-Verify that ERR is correctly triggered during rapid, consecutive session
+Verify that ExRR is correctly triggered during rapid, consecutive session
 failures. This test addresses the specific, complex failure scenario where
 timers may not expire normally due to flapping.
 
@@ -437,13 +437,13 @@ Check the BGP peering state on the ATEs as well as using OC.
 `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state`
 * After several such cycles, stop the loop and prevent the ATE from
 reconnecting.
-* Verify that the DUT enters the ERR state and holds the routes
+* Verify that the DUT enters the ExRR state and holds the routes
 according to the STALE-ROUTE-POLICY, as validated in RT-1.35.2.
 
 
 ## RT-1.35.11
 
-Repeat the tests above, with ERR configuration under the peer-group hierarchy.
+Repeat the tests above, with ExRR configuration under the peer-group hierarchy.
 
 ## Canonical OpenConfig for ERR
 
