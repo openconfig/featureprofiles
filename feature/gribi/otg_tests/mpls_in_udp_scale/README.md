@@ -477,9 +477,6 @@ paths:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
 
-  # AFTs Next-Hop-Group state (Verification)
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop: # Verify NHs in NHG
-
   # AFTs Prefix Entry state (Verification)
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
