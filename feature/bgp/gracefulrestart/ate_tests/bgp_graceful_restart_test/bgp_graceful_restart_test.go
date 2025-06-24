@@ -184,26 +184,24 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, test str
 	pg := bgp.GetOrCreatePeerGroup(peerv4GrpName)
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerv4GrpName)
-
+	pgv6 := bgp.GetOrCreatePeerGroup(peerv6GrpName)
+	pgv6.PeerAs = ygot.Uint32(ateAS)
+	pgv6.PeerGroupName = ygot.String(peerv6GrpName)
+	bgpgr := g.GetOrCreateGracefulRestart()
+	bgpgr.RestartTime = ygot.Uint16(grRestartTime)
+	bgpgr.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 	if test == "GRUnderNeighbor" {
-		bgpgr := g.GetOrCreateGracefulRestart()
 		bgpgr.Enabled = ygot.Bool(true)
 		bgpgr.HelperOnly = ygot.Bool(false)
-		bgpgr.RestartTime = ygot.Uint16(grRestartTime)
-		bgpgr.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 	} else {
 
 		pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
 		pg1af4Gr := pg.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateGracefulRestart()
 		pg1af4Gr.SetEnabled(true)
-		pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
-		pg1af6Gr := pg.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateGracefulRestart()
+		pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
+		pg1af6Gr := pgv6.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateGracefulRestart()
 		pg1af6Gr.SetEnabled(true)
 	}
-
-	pgv6 := bgp.GetOrCreatePeerGroup(peerv6GrpName)
-	pgv6.PeerAs = ygot.Uint32(ateAS)
-	pgv6.PeerGroupName = ygot.String(peerv6GrpName)
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
@@ -257,7 +255,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, test str
 	return niProto
 }
 
-func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
+func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, test string, nbrs []*bgpNeighbor) {
 	t.Log("Verifying BGP state")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateSrc.IPv4)
@@ -284,15 +282,24 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, dut, nbrPathv6.State()))
 		t.Fatal("No BGPv6 neighbor formed...")
 	}
-
-	isGrEnabled := gnmi.Get(t, dut, statePath.Global().GracefulRestart().Enabled().State())
-	t.Logf("isGrEnabled %v", isGrEnabled)
-	if isGrEnabled {
-		t.Logf("Graceful restart on neighbor %v enabled as Expected", ateDst.IPv4)
+	if test == "GRUnderNeighbor" {
+		isGrEnabled := gnmi.Get(t, dut, statePath.Global().GracefulRestart().Enabled().State())
+		t.Logf("isGrEnabled %v", isGrEnabled)
+		if isGrEnabled {
+			t.Logf("Graceful restart on neighbor %v enabled as Expected", ateDst.IPv4)
+		} else {
+			t.Errorf("Expected Graceful restart status on neighbor: got %v, want Enabled", isGrEnabled)
+		}
 	} else {
-		t.Errorf("Expected Graceful restart status on neighbor: got %v, want Enabled", isGrEnabled)
+		isGrEnabledv4 := gnmi.Get(t, dut, statePath.PeerGroup(peerv4GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GracefulRestart().Enabled().State())
+		isGrEnabledv6 := gnmi.Get(t, dut, statePath.PeerGroup(peerv6GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GracefulRestart().Enabled().State())
+		t.Logf("isGrEnabledv4 %v and isGrEnabledv6 %v", isGrEnabledv4, isGrEnabledv6)
+		if isGrEnabledv4 {
+			t.Logf("Graceful restart on neighbor %v enabled as Expected", ateDst.IPv4)
+		} else {
+			t.Errorf("Expected Graceful restart status on neighbor: got GrEnabledv4 %v and GrEnabledv6 %v, want Enabled for both", isGrEnabledv4, isGrEnabledv6)
+		}
 	}
-
 	grTimerVal := gnmi.Get(t, dut, statePath.Global().GracefulRestart().RestartTime().State())
 	t.Logf("grTimerVal %v", grTimerVal)
 	if grTimerVal == uint16(grRestartTime) {
@@ -300,7 +307,6 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		t.Errorf("Expected Graceful restart timer: got %v, want %v", grTimerVal, grRestartTime)
 	}
-
 	t.Log("Waiting for BGP v4 prefix to be installed")
 	got, found := gnmi.Watch(t, dut, nbrPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		prefixCount, ok := val.Val()
@@ -526,7 +532,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 
 			t.Logf("VerifyBGPParameters")
 			t.Log("Check BGP parameters")
-			checkBgpStatus(t, dut)
+			checkBgpStatus(t, dut, test, nbrList)
 
 			// Starting ATE Traffic
 			t.Run("VerifyTrafficPassBeforeAcLBlock", func(t *testing.T) {
