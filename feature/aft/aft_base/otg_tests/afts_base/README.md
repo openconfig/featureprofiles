@@ -69,7 +69,7 @@ Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG API.
 * eBGP routes advertised from ATE:port1,port2 must be removed from RIB and FIB of the DUT (query results should be nil).
 * ISIS routes advertised from ATE:port1 must be removed from RIB and FIB of the DUT (query result should be nil).
 
-## AFT-1.1.3: AFT Base Link Up scenario 1
+## AFT-1.1.3: AFT Base Link Up scenario 3
 
 ### Procedure
 
@@ -83,7 +83,7 @@ Bring up the link between ATE:port1 and DUT:port1 using OTG API.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hop per prefix is 1.
 
-## AFT-1.1.4: AFT Base Link Up scenario 2
+## AFT-1.1.4: AFT Base Link Up scenario 4
 
 ### Procedure
 
