@@ -117,9 +117,6 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/prefix:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/prefix:
-
 rpcs:
   gnmi:
     gNMI.Subscribe:
