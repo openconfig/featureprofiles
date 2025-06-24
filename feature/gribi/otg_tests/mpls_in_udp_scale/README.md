@@ -8,17 +8,16 @@ entries, parameterized by key scaling dimensions.
 
 **Physical Topology:**
 
-- 8 physical ports total (within 12-port hardware constraint)
-  - 4 ports as ingress interfaces (port1-port4)
-  - 4 ports as egress/uplink interfaces (port5-port8)
+- 4 physical ports total (2 DUT ports + 2 ATE ports)
+  - 2 ports as ingress interfaces (port1-port2)
+  - 2 ports as egress/uplink interfaces (port3-port4)
 
 **Logical Interface Scale Design:**
 
 - 32 logical ingress interfaces achieved through:
-  - 8 VLAN subinterfaces per physical ingress port (4 ports × 8 VLANs =
+  - 16 VLAN subinterfaces per physical ingress port (2 ports × 16 VLANs =
     32 logical interfaces)
-  - VLAN IDs: 100-107 on port1, 200-207 on port2, 300-307 on port3,
-    400-407 on port4
+  - VLAN IDs: 100-115 on port1, 200-215 on port2
 - Multiple VRFs mapped to logical interfaces as required by scale
   profiles
 - Each logical interface assigned to appropriate VRF based on test
@@ -26,17 +25,13 @@ entries, parameterized by key scaling dimensions.
 
 <!-- -->
 
-    ATE port-1 <------> port-1 DUT (VLANs 100-107)
-    ATE port-2 <------> port-2 DUT (VLANs 200-207)
-    ATE port-3 <------> port-3 DUT (VLANs 300-307)
-    ATE port-4 <------> port-4 DUT (VLANs 400-407)
-    DUT port-5 <------> port-5 ATE (Egress)
-    DUT port-6 <------> port-6 ATE (Egress)
-    DUT port-7 <------> port-7 ATE (Egress)
-    DUT port-8 <------> port-8 ATE (Egress)
+    ATE port-1 <------> port-1 DUT (VLANs 100-115)
+    ATE port-2 <------> port-2 DUT (VLANs 200-215)
+    DUT port-3 <------> port-3 ATE (Egress)
+    DUT port-4 <------> port-4 ATE (Egress)
 
-- 32 ports as the ‘input port set’ (Ingress)
-- 4 ports as “uplink facing” (Egress)
+- 32 logical interfaces as the ‘input port set’ (Ingress)
+- 2 ports as “uplink facing” (Egress)
 - Network Instances (VRFs) will be mapped from ingress
   ports/subinterfaces as needed by scale profiles.
 
@@ -46,7 +41,7 @@ entries, parameterized by key scaling dimensions.
 
 1.  **Physical Interface Configuration:**
 
-    - Configure ports 1-8 with IPv6 addressing using base scheme
+    - Configure ports 1-4 with IPv6 addressing using base scheme
       2001:f:d:e::/126 network
     - Enable all physical interfaces with PMD100GBASEFR-specific
       settings
@@ -57,7 +52,7 @@ entries, parameterized by key scaling dimensions.
 
 2.  **VLAN Subinterface Configuration:**
 
-    - Create 8 VLAN subinterfaces per ingress port (32 total logical
+    - Create 16 VLAN subinterfaces per ingress port (32 total logical
       interfaces)
     - Assign IPv6 addresses using 2001:f:d:e::/126 base with systematic
       increments
@@ -91,12 +86,12 @@ entries, parameterized by key scaling dimensions.
 
 1.  **Physical Port Setup:**
 
-    - Configure 8 physical ports with IPv6 addresses matching DUT
+    - Configure 4 physical ports with IPv6 addresses matching DUT
       interface scheme
     - Use MAC addresses: 02:00:XX:01:01:01 pattern for ATE ports
-    - Set up VLAN tagging on ingress ports (port1-4) to match DUT
+    - Set up VLAN tagging on ingress ports (port1-2) to match DUT
       subinterface VLANs
-    - Configure egress ports (port5-8) for traffic reception and
+    - Configure egress ports (port3-4) for traffic reception and
       MPLS-in-UDP validation
     - Apply PMD100GBASEFR-specific settings: disable FEC, set speed to
       100Gbps, enable auto-negotiate
@@ -177,10 +172,6 @@ entries, parameterized by key scaling dimensions.
 - dut_port2_ipv6 = “2001:f:d:e::5/126”
 - dut_port3_ipv6 = “2001:f:d:e::9/126”
 - dut_port4_ipv6 = “2001:f:d:e::13/126”
-- dut_port5_ipv6 = “2001:f:d:e::17/126”
-- dut_port6_ipv6 = “2001:f:d:e::21/126”
-- dut_port7_ipv6 = “2001:f:d:e::25/126”
-- dut_port8_ipv6 = “2001:f:d:e::29/126”
 
 **ATE Interface IPv6 Addressing:**
 
@@ -188,10 +179,6 @@ entries, parameterized by key scaling dimensions.
 - ate_port2_ipv6 = “2001:f:d:e::6/126”
 - ate_port3_ipv6 = “2001:f:d:e::10/126”
 - ate_port4_ipv6 = “2001:f:d:e::14/126”
-- ate_port5_ipv6 = “2001:f:d:e::18/126”
-- ate_port6_ipv6 = “2001:f:d:e::22/126”
-- ate_port7_ipv6 = “2001:f:d:e::26/126”
-- ate_port8_ipv6 = “2001:f:d:e::30/126”
 
 **MAC Address Schemes:**
 
