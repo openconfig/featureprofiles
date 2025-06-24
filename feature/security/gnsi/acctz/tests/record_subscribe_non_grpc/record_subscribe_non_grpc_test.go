@@ -78,7 +78,6 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	var recordIdx int
 	var lastTimestampUnixMillis int64
-	var lastTaskID string
 	r := make(chan recordRequestResult)
 
 	// Ignore proto fields which are set internally by the DUT (cannot be matched exactly)
@@ -131,13 +130,11 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 			continue
 		}
 
-		// Some task ids may be tracked multiple times (for start/stop accounting). If we see two in
-		// a row that are the same task, we can skip this record and continue.
-		currentTaskID := resp.record.TaskIds[0]
-		if currentTaskID == lastTaskID {
+		// Skip start/stop accounting records if present.
+		sessionStatus := resp.record.GetSessionInfo().GetStatus()
+		if sessionStatus == acctzpb.SessionInfo_SESSION_STATUS_LOGIN || sessionStatus == acctzpb.SessionInfo_SESSION_STATUS_LOGOUT {
 			continue
 		}
-		lastTaskID = currentTaskID
 
 		timestamp := resp.record.Timestamp.AsTime()
 		if timestamp.UnixMilli() == lastTimestampUnixMillis {
