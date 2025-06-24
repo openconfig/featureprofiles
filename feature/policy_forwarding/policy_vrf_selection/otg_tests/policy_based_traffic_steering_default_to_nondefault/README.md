@@ -174,7 +174,8 @@ B3 --> B1;
 	* To validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2.
 	* Traffic for all Prefixes received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
 	* No traffic should be routed to ATE2:Port1 via the DEFAULT VRF in the DUT in this case.
-	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports.
+	* DUT1:Port3 port out-pkts counter should match packets sent by ATE1:PORT1.
 	* There should be 0 packet loss.
 
 ## Canonical OpenConfig
