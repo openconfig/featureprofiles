@@ -1468,9 +1468,19 @@ func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
 }
 
+// UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
+func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
+}
+
 // ConfigLeafCreateRequired returns true if leaf creation is required
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+}
+
+// FrBreakoutFix returns true if the fix is needed
+func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFrBreakoutFix()
 }
 
 // SkipInterfaceNameCheck returns if device requires skipping the interface name check.
