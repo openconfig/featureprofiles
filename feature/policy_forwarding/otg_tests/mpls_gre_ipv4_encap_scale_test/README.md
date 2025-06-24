@@ -1,4 +1,4 @@
-# PF-1.15 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test
+# PF-1.15: MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test
 
 ## Summary
 

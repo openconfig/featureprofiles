@@ -1,16 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
-
-uuid: "4ed6ff3f-b27e-4f46-93b2-8bcbc521d883"
-plan_id: "RT-5.5"
-description: "Interface hold-time"
+uuid: "8c299aab-4df4-4213-8a1e-a7789fef0c60"
+plan_id: "AFT-1.1"
+description: "AFTs Base"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
+    isis_single_topology_required: true
+    skip_interface_name_check: true
   }
 }
 platform_exceptions: {
@@ -18,10 +18,7 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    aggregate_atomic_update: true
-    interface_enabled: true
     default_network_instance: "default"
-    missing_value_for_defaults: true
-    fr_breakout_fix: true
+    isis_single_topology_required: true
   }
 }
