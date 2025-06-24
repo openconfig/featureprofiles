@@ -57,8 +57,6 @@ paths:
   /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound:
 
   # sr config
-  /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
-
   /network-instances/network-instance/segment-routing/srgbs/srgb/config/local-id:
   /network-instances/network-instance/segment-routing/srgbs/srgb/config/mpls-label-blocks:
   /network-instances/network-instance/segment-routing/srlbs/srlb/local-id:
