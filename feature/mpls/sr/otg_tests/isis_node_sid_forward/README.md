@@ -8,8 +8,7 @@ MPLS-SR transit forwarding to Node-SID distributed over ISIS
 ## Testbed type
 
 *  [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
-* ATE port1 - used for Traffic source
-* ATE port2-port4 - used for verification of per-interface sid or per-node sid
+
 
 ## Topology
 
@@ -22,6 +21,18 @@ G[ATE:PORT4] <-- IPv4-IPv6 --> H[DUT PORT4];
 ```
 
 ## Procedure
+
+
+### Configuration
+*   Configure Segment Routing Global Block (srgb) lower-bound: 400000 upper-bound: 465001)
+*   Enable Segment Routing for the ISIS
+*   Enable MPLS forwarding.
+
+*  Prefix (1) with node-SID is advertised by the direct ISIS neighbor
+*  Prefix (2) with node-SID is advertised by simulated indirect ISIS speaker
+
+* ATE port1 - used for Traffic source
+* ATE port2-port4 - used for verification of per-interface sid or per-node sid
 
 ### Test
 On DUT1 configure:
