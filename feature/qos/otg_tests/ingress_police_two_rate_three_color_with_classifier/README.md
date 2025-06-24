@@ -1,9 +1,10 @@
-# DP-2.5: Police traffic on input matching all packets using 2 rate, 3 color marker
+# DP-2.6: Police traffic on input matching all packets using 2 rate, 3 color marker with classifier
 
 ## Summary
 
 Use IP address and mac-address from topology shared below. Static Routes can be used for this.
-Configure an ingress scheduler to police traffic using a 2 rate, 3 color policer and attach the scheduler to the interface without a classifier.
+Configure an ingress scheduler to police traffic using a 2 rate, 3 color policer and attach the scheduler to the interface with classifier.
+Lack of match conditions will cause all packets to be matched. 
 Send traffic to validate the policer.
 
 ## Topology
@@ -35,7 +36,6 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
   * atePort1 = Attributes{
 		Desc:    "atePort1",
 		MAC:     "02:01:00:00:00:02",
-		Vlan:    "100",
 		IPv4:    "200.0.0.2/24",
 		IPv6:    "2001:f:d:e::2/126",
 	}
@@ -56,7 +56,7 @@ ATE[ATE] <-- (Port 1) --> DUT[DUT] <-- (Port 2) --> ATE[ATE];
 
 ### SetUp
 
-* Generate config for scheduler polices with an input rate 2Gbps limit
+* Generate config for scheduler polices with an input rate 2Gbps limit and a classifier.
 * Apply them to DUT interface . Dut1 is LAG in provided setup.
 * Use gnmi.Replace to push the config to the DUT.
 
@@ -67,8 +67,64 @@ The configuration required for the 2R3C policer with classifier is included belo
 ```json
 {
   "qos": {
+    "classifiers": {
+      #
+      # The specification for the classifier to be applied to an interface.
+      # The classifier is applied to IPv4 packets.
+      #
+      "classifier": [
+        {
+          "config": {
+            "name": "group_A_2Gb",
+            "type": "IPV4"
+          },
+          "name": "group_A_2Gb",
+          #
+          # The terms that are present in the classifier.
+          # If no condition is provided in term , then everything will be considered as matched.
+          #
+          "terms": {
+            "term": [
+              {
+                # As condition container is absent from term , so no match criteria for 
+                # term in the classifier, so it should be interpreted as match all condition.
+                "actions": {
+                  "config": {
+                    #
+                    # Packets matching this term (i.e., is class-default
+                    # as specified below) are grouped into the 'TRAFFIC_CLASS_3'
+                    # forwarding-group.
+                    #
+                    "target-group": "TRAFFIC_CLASS_3"
+                  }
+                },
+                "config": {
+                  "id": "class-default"
+                },
+                "id": "class-default"
+              }
+            ]
+          }
+        }
+      ]
+    },
     #
-    # output queue (i.e. is QUEUE_3)
+    # The definition of the forwarding groups. Each forwarding
+    # group has a name, and an output queue.
+    #
+    "forwarding-groups": {
+      "forwarding-group": [
+        {
+          "config": {
+            "name": "TRAFFIC_CLASS_3",
+            "output-queue": "QUEUE_3"
+          },
+          "name": "TRAFFIC_CLASS_3"
+        }
+      ]
+    },
+    #
+    # A forwarding-group is mapped to an output queue (i.e. is QUEUE_3)
     #
     "queues": {
       "queue": [
@@ -96,66 +152,84 @@ The configuration required for the 2R3C policer with classifier is included belo
     # A single scheduler policy can be applied per interface.
     #
     "scheduler-policies": {
-      "scheduler-policy": [
-        {
-          "config": {
-            "name": "group_A_2Gb"
-          },
-          "name": "group_A_2Gb",
-          "schedulers": {
-            "scheduler": [
-              {
-                "config": {
-                  "sequence": 1,
-                  "type": "TWO_RATE_THREE_COLOR"
-                },
-                "inputs": {
-                  "input": [
+        "scheduler-policy": [
+          {
+            "config": {
+              "name": "group_A_2Gb"
+            },
+            "name": "group_A_2Gb",
+            "schedulers": {
+              "scheduler": [
+                {
+                  "config": {
+                    "sequence": 1,
+                    "type": "TWO_RATE_THREE_COLOR_with_CLASSIFIER"
+                  },
+                  "inputs": [
                     {
+                      "input": "my input policer 2Gb",
                       "config": {
                         "id": "my input policer 2Gb",
                         "input-type": "QUEUE",
                         "queue": "QUEUE_3"
-                      },
-                      "id": "my input policer 2Gb"
+                      }
                     }
-                  ]
-                },
-                "two-rate-three-color": {
-                  "config": {
-                    "cir": "1000000000",
-                    "pir": "2000000000",
-                    "bc": 100000,
-                    "be": 100000,
-                    "queuing-behavior": "POLICE"
-                  },
-                  "exceed-action": {
+                  ],
+                  "two-rate-three-color": {
                     "config": {
-                      "drop": false
-                    }
-                  },
-                  "violate-action": {
-                    "config": {
-                      "drop": true
+                      "cir": "1000000000",
+                      "pir": "2000000000",
+                      "bc": 100000,
+                      "be": 100000,
+                      "queuing-behavior": "POLICE"
+                    },
+                    "exceed-action": {
+                      "config": {
+                        "drop": false
+                      }
+                    },
+                    "violate-action": {
+                      "config": {
+                        "drop": true
+                      }
                     }
                   }
                 }
-              }
-            ]
+              ]
+            }
           }
-        }
-      ]
-    },
+        ]
+      },
     #
-    # Interfaces input are mapped to the desired scheduler.
+    # For configuration, the interfaces container specifies the
+    # binding between the specified classifiers,schedulers and
+    # an interface.
+    # Interfaces input are mapped to the desired scheduler and classifier.
+    #
     "interfaces": {
       "interface": [
         {
-          "interface-id": "Dut1.100",
+          "interface-id": "Dut1",
           "config": {
-            "interface-id": "Dut1.100"
+            "interface-id": "Dut1"
           },
+          #
+          # An input classifier is applied to the interface by
+          # referencing the classifier name within the /qos/interfaces
+          # list.
+          #
           "input": {
+            "classifers": {
+              "classifier": [
+                {
+                  "config": {
+                    "name": "group_A_2Gb",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                }
+              ]
+            },
             "scheduler-policy": {
               "config": {
                 "name": "group_A_2Gb"
@@ -169,7 +243,7 @@ The configuration required for the 2R3C policer with classifier is included belo
 }
 ```
 
-### DP-2.5.1 Test traffic
+### DP-2.6.1 Test traffic
 
 * Send traffic
   * Send flow traffic from atePort1 to DUT towards atePort2 at 1.5Gbps (note cir is 1Gbps & pir is 2Gbps).
@@ -186,7 +260,7 @@ The configuration required for the 2R3C policer with classifier is included belo
 
 ```yaml
 paths:
-  # qos scheduler config
+  # qos scheduler-policies config
   /qos/scheduler-policies/scheduler-policy/config/name:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir:
@@ -207,17 +281,38 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/set-mpls-tc:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/drop:
 
+  # qos classifier config path
+  /qos/classifiers/classifier/config/name:	
+  /qos/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+
+  # qos forwarding-group config path
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+
+  # qos queue config path
+  /qos/queues/queue/config/name:
+  /qos/queues/queue/config/queue-id:
+
+
   # qos interfaces config
   /qos/interfaces/interface/config/interface-id:
   /qos/interfaces/interface/input/scheduler-policy/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
 
-  # qos interface scheduler counters
+  # qos interface scheduler state path
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/violating-octets:
+
+  # qos interface classifier state path
+  /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets:
+  /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-octets:
 
 rpcs:
   gnmi:
