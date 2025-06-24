@@ -14,14 +14,14 @@ IPv4/IPv6 unicast routes next hop group and next hop.
 
 Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
 
-* Let `X` be the number of ipv4 prefixes to be advertised by eBGP. **(User Adjustable Value)**
-* Let `Y` be the number of ipv6 prefixes to be advertised by eBGP. **(User Adjustable Value)**
+* Let `X` be the number of IPv4 prefixes to be advertised by eBGP. **(User Adjustable Value)**
+* Let `Y` be the number of IPv6 prefixes to be advertised by eBGP. **(User Adjustable Value)**
 * Let `Z` be the number of prefixes to be advertised by IS-IS. **(User Adjustable Value)**
 * IS-IS must be level 2 only with wide metric.
 * IS-IS must be point to point.
-* Send `Z` IPv4 and `Z` IPv6 prefixes from ATE:port1 to DUT:port1.
+* Send `z` IPv4 and `Z` IPv6 prefixes from ATE:port1 to DUT:port1.
 
-Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2
+Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 
 * Configure eBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
 * Advertise `X` IPv4 and `Y` IPv6 prefixes from ATE port1,port2.
@@ -30,7 +30,7 @@ Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2
 
 ### Procedure
 
-* Use gNMI.Set with REPLACE option to push the Test Setup configuration to the DUT.
+* Use gNMI.UPDATE option to push the Test Setup configuration to the DUT.
 * ATE configuration must be pushed.
 
 ### Verifications
