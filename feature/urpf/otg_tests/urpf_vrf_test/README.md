@@ -123,13 +123,119 @@ graph LR;
         - The uRPF drop packet counter should increment and should be equal to the packets sent by the sender tester
         - The packets sent by the sender tester are not equal to the packets on the receiving tester port and also the sum of packets seen by the Port2 should be zero packets.
 
+## Canonical OpenConfig for URPF through another instance
+TODO: URPF OC path are being proposed by  to be updated by [#1307](https://github.com/openconfig/public/pull/1307) and [#1320](https://github.com/openconfig/public/pull/1320)
+
+```json
+{
+  "openconfig-interfaces": {
+    "interfaces": {
+         "interface": [
+          {
+            "name": "example-interface-name",
+            "subinterfaces": {
+              "subinterface": [
+                {
+                  "index": 0,
+                  "ipv4": {
+                    "urpf": {
+                      "config": {
+                        "enabled": true,
+                        "mode": "LOOSE",
+                        "allow-default-route": false,
+                        "allow-drop-next-hop": false,
+                        "allow-feasible-path": false,
+                        "urpf-lookup-network-instance": "URPF-Instance"
+                      },
+                      "state": {
+                        "enabled": true,
+                        "mode": "LOOSE",
+                        "allow-default-route": false,
+                        "allow-drop-next-hop": false,
+                        "allow-feasible-path": false,
+                        "urpf-lookup-network-instance": "URPF-Instance",
+                        "counters": {
+                          "urpf-drop-pkts": 0,
+                          "urpf-drop-bytes": 0
+                        }
+                      }
+                    }
+                  },
+                  "ipv6": {
+                    "urpf": {
+                      "config": {
+                        "enabled": true,
+                        "mode": "LOOSE",
+                        "allow-default-route": false,
+                        "allow-drop-next-hop": false,
+                        "allow-feasible-path": false,
+                        "urpf-lookup-network-instance": "URPF-Instance"
+                      },
+                      "state": {
+                        "enabled": false,
+                        "mode": "LOOSE",
+                        "allow-default-route": false,
+                        "allow-drop-next-hop": false,
+                        "allow-feasible-path": false,
+                        "urpf-lookup-network-instance": "URPF-Instance",
+                        "counters": {
+                          "urpf-drop-pkts": 0,
+                          "urpf-drop-bytes": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+    }
+  }
+}
+```
+
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
-paths:
-    # TODO propose new OC paths for uRPF validation from non-default vrf
+# paths:
+/interfaces/interface/name:
+/interfaces/interface/name/subinterfaces/subinterface/index:
 
-    # telemetry
-        # TODO propose new telemetry OC paths for uRPF drop counters with non-default vrf
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/enabled:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/mode:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/allow-default-route:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/allow-drop-next-hop:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/allow-feasible-path:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/urpf-lookup-network-instance:
+
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/enabled:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/mode:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/allow-default-route:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/allow-drop-next-hop:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/allow-feasible-path:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
+
+# telemetry
+
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/enabled:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/mode:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/allow-default-route:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/allow-drop-next-hop:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/allow-feasible-path:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/urpf-lookup-network-instance:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/counters/urpf-drop-pkts:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/counters/urpf-drop-bytes:
+
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/enabled:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/mode:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/allow-default-route:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/allow-drop-next-hop:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/allow-feasible-path:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/counters/urpf-drop-pkts:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/counters/urpf-drop-bytes:
+
 
 rpcs:
   gnmi:
@@ -143,6 +249,4 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
-  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
   * FFF - fixed form factor
-  * vRX - virtual router device
