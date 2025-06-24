@@ -359,11 +359,13 @@ in https://github.com/openconfig/gnoi/pull/214`
     subcode for "Administrative Reset" i.e. code 6 subcode 4 must be carried in
     the data portion of subcode 9 notification message.
 *   On receipt of the "HARD RESET" Notification message from the DUT, the ATEs
-    MUST flush all the routes. Hence, 100% packet loss MUST be experienced on
-    all the flows irrespective of the ExRR configuration and the
-    `STALE-ROUTE-POLICY`. The test MUST fail if this isnt the behavior seen.
-    Verficiation of packet loss done on the ATE side as well as on the DUT using
-    the following OC path.
+    MUST validate the Notification message and ensure it matches the bullet
+    above.
+*   Given the HARD_RESET received, the DUT must RESET the TCP and flush all
+    routes resulting in 100% packet loss for all the flows irrespective of the
+    ExRR configuration and the `STALE-ROUTE-POLICY`. The test MUST fail if this
+    isnt the behavior seen. Verficiation of packet loss done on the ATE side as
+    well as on the DUT using the following OC path.
     `/interfaces/interface/state/counters/out-unicast-pkts`
 *   As soon as the BGP peering are up again between the ATEs and the DUT,
     traffic flow must be successful and the expected behavior must be the same
