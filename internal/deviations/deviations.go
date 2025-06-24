@@ -1482,3 +1482,8 @@ func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 func SkipInterfaceNameCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipInterfaceNameCheck()
 }
+
+// DefaultPolicyRequiresBgpMatch returns true device needs defined set to limit exporting direct routes into BGP.
+func DefaultPolicyRequiresBgpMatch(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPolicyRequiresBgpMatch()
+}

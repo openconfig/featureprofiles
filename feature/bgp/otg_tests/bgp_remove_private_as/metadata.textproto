@@ -22,4 +22,12 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    default_policy_requires_bgp_match: true
+  }
+}
 tags: TAGS_AGGREGATION
