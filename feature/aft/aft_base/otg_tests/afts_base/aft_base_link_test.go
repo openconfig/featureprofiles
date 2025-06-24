@@ -85,10 +85,7 @@ var (
 	wantIPv6NHs              = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 	wantIPv4NHsPostP2Churn   = map[string]bool{ateP1.IPv4: true}
 	wantIPv6NHsPostP2Churn   = map[string]bool{ateP1.IPv6: true}
-	wantIPv4NHsPostP1P2Churn = map[string]bool{}
-	wantIPv6NHsPostP1P2Churn = map[string]bool{}
 	portNames                = []string{"port1", "port2"}
-	portStates               = map[string]bool{"port1": true, "port2": true}
 )
 
 // configureDUT configures all the interfaces and BGP on the DUT.
