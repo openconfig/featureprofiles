@@ -492,12 +492,6 @@ func (tc *testCase) cache(t *testing.T, wantIPv4, wantIPv6 map[string]bool) (*af
 	return aft, nil
 }
 
-func (tc *testCase) otgInterfaceUp(t *testing.T, portName string) {
-	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(gosnappi.StatePortLinkState.UP)
-	tc.ate.OTG().SetControlState(t, portStateAction)
-}
-
 func (tc *testCase) otgInterfaceDown(t *testing.T, portName string) {
 	portStateAction := gosnappi.NewControlState()
 	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(gosnappi.StatePortLinkState.DOWN)
