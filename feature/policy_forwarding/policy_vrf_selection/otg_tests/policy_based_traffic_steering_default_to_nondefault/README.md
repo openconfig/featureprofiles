@@ -152,7 +152,9 @@ B3 --> B1;
 	* Validate the prefixes advertised by ATE1:Port1 are received on ATE2:Port1 and ATE2:Port2.
 	* Traffic for Prefix 1,2 & 3 received from ATE1:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE2:Port2
 	* Traffic for rest of the prefixes sent by ATE1:Port1 must be routed to ATE2:Port1 via the DEFAULT VRF in the DUT.
-	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports and also should be equal to the sum of packets seen in default & non default VRF.
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester ports.
+	* The sum of flow packets sent for flow prefixes IPv4Prefix1/24, IPv4Prefix2/24 and  IPv6Prefix3/24 by ATE1:Port3 should be equal packets to DUT1:Port3 out-pkts counter.
+	*  The packets sent for flow prefixes IPv6Prefix4/24 should be equal packets to DUT1:Port2 out-pkts counter.
 	* There should be 0 packet loss.
 
 ### PF-1.6.5: Traffic from ATE1 to ATE2, 4 Prefixes migrated to Non-Default VRF using the VRF selection policy
