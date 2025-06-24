@@ -112,7 +112,7 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
+	kneDeviceModelList = []string{"ncptx"}
 )
 
 // configureDUT configures all the interfaces and BGP on the DUT.
