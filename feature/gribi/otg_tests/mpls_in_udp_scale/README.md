@@ -458,7 +458,7 @@ these dimensions.
 
 #### OpenConfig Path and RPC Coverage
 
-``` yaml
+```yaml
 paths:
   # AFTs Next-Hop state (Verification)
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
