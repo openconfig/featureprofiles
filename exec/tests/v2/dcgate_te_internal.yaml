@@ -54,3 +54,12 @@ tests:
   branch: master
   args:
     - '-test.run="TestFibChains"'
+
+- name: FIB-RECYCLE
+  path: feature/gribi/otg_tests/cisco/dcgate
+  timeout: 8400
+  mustpass: true
+  internal: true
+  branch: master
+  args:
+    - '-test.run="TestFRRRecycle"'
