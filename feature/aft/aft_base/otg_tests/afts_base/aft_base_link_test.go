@@ -20,6 +20,11 @@ import (
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 const (
 	advertisedRoutesV4Prefix = 32
 	advertisedRoutesV6Prefix = 128
@@ -85,7 +90,6 @@ var (
 	wantIPv6NHsPostP1P2Churn = map[string]bool{}
 	port1Name                = "port1"
 	port2Name                = "port2"
-	portStates               = map[string]bool{"port1": true, "port2": true}
 )
 
 // configureDUT configures all the interfaces and BGP on the DUT.
@@ -413,20 +417,15 @@ func configureBGPv6Routes(peer gosnappi.BgpV6Peer, IPv6 string, name string, pre
 		SetCount(count)
 }
 
-// precomputedWantPrefixes stores the prefixes generated once.
-var precomputedWantPrefixes map[string]bool
-
 func generateWantPrefixes(t *testing.T) map[string]bool {
-	if precomputedWantPrefixes == nil {
-		precomputedWantPrefixes = make(map[string]bool)
-		for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, bgpRouteCountIPv4) {
-			precomputedWantPrefixes[pfix] = true
-		}
-		for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, bgpRouteCountIPv6) {
-			precomputedWantPrefixes[pfix6] = true
-		}
+	wantPrefixes := make(map[string]bool)
+	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, bgpRouteCountIPv4) {
+		wantPrefixes[pfix] = true
 	}
-	return precomputedWantPrefixes
+	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, bgpRouteCountIPv6) {
+		wantPrefixes[pfix6] = true
+	}
+	return wantPrefixes
 }
 
 // verifyAFTEntry checks for the presence and properties of prefixes in the AFT cache.
@@ -566,7 +565,6 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
 	tc.configureATE(t)
-
 	t.Log("Waiting for BGPv4 neighbor to establish...")
 	if err := tc.waitForBGPSession(t); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
