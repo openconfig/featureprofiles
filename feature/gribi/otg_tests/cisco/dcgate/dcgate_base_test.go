@@ -91,6 +91,7 @@ const (
 	vipIP1               = "192.0.2.111"
 	vipIP2               = "192.0.2.222"
 	vipIP3               = "192.0.2.133"
+	vipIP5               = "192.0.2.155"
 	innerV4DstIP         = "198.18.1.1"
 	innerV4SrcIP         = "198.18.0.255"
 	InnerV6SrcIP         = "2001:DB8::198:1"
@@ -1169,6 +1170,12 @@ func configureVIP3(t *testing.T, args *testArgs) {
 	args.client.AddNH(t, baseNH(4), "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort4DummyIP.IPv4, Mac: magicMac})
 	args.client.AddNHG(t, baseNHG(4), map[uint64]uint64{baseNH(4): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, cidr(vipIP3, 32), baseNHG(4), deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+}
+
+func configureVIP5(t *testing.T, args *testArgs) {
+	args.client.AddNH(t, baseNH(4), "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort5DummyIP.IPv4, Mac: magicMac})
+	args.client.AddNHG(t, baseNHG(4), map[uint64]uint64{baseNH(4): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, cidr(vipIP5, 32), baseNHG(4), deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 }
 
 func configureVIP3NHGWithTunnel(t *testing.T, args *testArgs) {
