@@ -138,6 +138,12 @@ TODO: URPF OC path are being proposed by to be updated by [#1307](https://github
                 {
                   "index": 0,
                   "ipv4": {
+                    "state": {
+                      "counters": {
+                        "urpf-drop-pkts": 0,
+                        "urpf-drop-bytes": 0
+                      }
+                    }
                     "urpf": {
                       "config": {
                         "enabled": true,
@@ -154,14 +160,16 @@ TODO: URPF OC path are being proposed by to be updated by [#1307](https://github
                         "allow-drop-next-hop": false,
                         "allow-feasible-path": false,
                         "urpf-lookup-network-instance": "URPF-Instance",
-                        "counters": {
-                          "urpf-drop-pkts": 0,
-                          "urpf-drop-bytes": 0
-                        }
                       }
                     }
                   },
                   "ipv6": {
+                    "state": {
+                      "counters": {
+                        "urpf-drop-pkts": 0,
+                        "urpf-drop-bytes": 0
+                      }
+                    }
                     "urpf": {
                       "config": {
                         "enabled": true,
@@ -178,10 +186,6 @@ TODO: URPF OC path are being proposed by to be updated by [#1307](https://github
                         "allow-drop-next-hop": false,
                         "allow-feasible-path": false,
                         "urpf-lookup-network-instance": "URPF-Instance",
-                        "counters": {
-                          "urpf-drop-pkts": 0,
-                          "urpf-drop-bytes": 0
-                        }
                       }
                     }
                   }
@@ -198,7 +202,7 @@ TODO: URPF OC path are being proposed by to be updated by [#1307](https://github
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
-# paths:
+  paths:
 
 /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/enabled:
 /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/mode:
@@ -214,19 +218,19 @@ TODO: URPF OC path are being proposed by to be updated by [#1307](https://github
 /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/allow-feasible-path:
 /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
 
-# telemetry
+  telemetry:
 
 /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/enabled:
 /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/mode:
 /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/urpf-lookup-network-instance:
-/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/counters/urpf-drop-pkts:
-/interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/counters/urpf-drop-bytes:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-pkts:
+/interfaces/interface/name/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-bytes:
 
 /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/enabled:
 /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/mode:
 /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
-/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/counters/urpf-drop-pkts:
-/interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/counters/urpf-drop-bytes:xf
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
+/interfaces/interface/name/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
 
 
 rpcs:
