@@ -1,4 +1,4 @@
-# DP-2.2 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
+# DP-2.2: QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
 
 ## Summary
 
@@ -13,7 +13,7 @@ interface.  Send traffic to validate the policer.
 
 ## Test setup
 
-Use DP-2.1 test environment setup.
+Use TE-18.1 test environment setup.
 
 ## Procedure
 

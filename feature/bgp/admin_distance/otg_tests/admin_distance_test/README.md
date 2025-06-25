@@ -68,6 +68,39 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
 *   Validate that the traffic is received on port-1 of the ATE
 
+### RT-1.34.5 [TODO:https://github.com/openconfig/featureprofiles/issues/4233]
+#### Validate traffic with modified eBGP Route-Distance of 9
+*   Configure eBGP Route-Distance to 9 at DUT and eBGP session on ATE port-2
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/internal-route-distance
+*   Validate using gNMI Subscribe with mode 'ONCE' that the correct Route-Distance value of 9 is reported:
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/state/internal-route-distance
+*   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64``` from OTG port 2 over eBGP
+*   Configure static route for same ipv4, ipv6 prefix with next-hop towards port-1 and Route-Distance 13
+*   Disable isis on port-1
+*   Shut-down eBGP session from OTG
+*   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
+*   Validate that the traffic is received on port-1 (towards static) of the ATE
+*   Wait for 10s
+*   Enable eBGP session back from OTG
+*   Validate that the traffic is received on port-2 (eBGP peer) of the ATE 
+
+### RT-1.34.6 [TODO:https://github.com/openconfig/featureprofiles/issues/4233]
+#### Validate traffic with modified eBGP Route-Distance of 9 and iBGP Route-Distance of 250
+*   Remove static route configuration
+*   Configure eBGP Route-Distance to 9 at DUT and eBGP session on ATE port-2
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/internal-route-distance
+*   Configure iBGP Route-Distance to 250 at DUT and iBGP session on ATE port-1
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/internal-route-distance
+*   Validate using gNMI Subscribe with mode 'ONCE' that the correct Route-Distance value of 9 and 250 is reported:
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/state/internal-route-distance
+*   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
+    *   From OTG port 1 over iBGP with one ASN on as-path
+    *   From OTG port 2 over eBGP with six ASN on the path
+*   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
+*   Validate that the traffic is received on port-1 (iBGP peer) of the ATE
+*   Shut down iBGP session on port-1
+*   Validate that the traffic is received on port-2 (eBGP peer) of the ATE
+         
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test. OC

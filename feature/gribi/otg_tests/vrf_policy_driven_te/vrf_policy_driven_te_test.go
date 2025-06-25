@@ -1229,7 +1229,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 
-	// Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+	// Install an 0/0 route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(60).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
@@ -1620,17 +1620,14 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 
 func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 	t.Helper()
-	dut := ondatra.DUT(t, "dut")
 	var packetCheckCount uint32 = 0
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer != nil && packetCheckCount <= 3 {
 			packetCheckCount++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if !deviations.TTLCopyUnsupported(dut) {
-				if ipPacket.TTL != correspondingTTL {
-					t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
-				}
+			if ipPacket.TTL != correspondingTTL {
+				t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
 			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)

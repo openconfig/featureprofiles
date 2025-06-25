@@ -28,21 +28,21 @@ The goal is to validate that packet sampling is working as expected, clients can
     * Ingress and egress interfaces are correct
     * Inner packets can be parsed correctly
 
-### gNPSI 1.2: Verify multiple clients can connect to the gNPSI Service and receive samples. 
+### gNPSI-1.2: Verify multiple clients can connect to the gNPSI Service and receive samples. 
 
 1. Start 2 gRPC clients and subscribe to the gNPSI service on the DUT.
 
 2. Verify each client receives ~1 sample for every 1M packet through the DUT. 
 
 
-### gNPSI 1.3: Verify client reconnection to the gNPSI service. 
+### gNPSI-1.3: Verify client reconnection to the gNPSI service. 
 
 * Start a gRPC client and subscribe to the gRPC service on the DUT, and verify the connection is healthy and samples are received.
 
 * Disconnect and reconnect the client, and verifying the reconnection is successful, and samples are received.
 
 
-### gNPSI 1.4: Verify client connection after gNPSI service restart.
+### gNPSI-1.4: Verify client connection after gNPSI service restart.
 
 * Start a gRPC client and subscribe to the gRPC service on the DUT, and verify the connection is healthy and samples are received.
 
