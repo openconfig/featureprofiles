@@ -1,4 +1,4 @@
-# RT-1.35: BGP Graceful Restart Extended route retention (ERR)
+# RT-1.35: BGP Graceful Restart Extended route retention (ExRR)
 
 ## Summary
 
