@@ -16,8 +16,6 @@ The goal is to validate that packet sampling is working as expected, clients can
     * Varying packet sizes (64, 512, 1500)
   * Start OTG traffic
 
-TODO: Add gNPSI client support to OTG. 
-
 ### gNPSI 1.1: Validate DUT configuration of gNPSI server, connect OTG client and verify samples. 
 
 * Start the gRPC client and subscribe to the gNPSI service on the DUT.
