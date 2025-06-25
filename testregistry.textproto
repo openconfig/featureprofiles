@@ -977,13 +977,13 @@ test: {
 test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/afts_summary/otg_tests/route_summary_counters_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-4.11"
   description: " Scale AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/afts_summary/otg_tests/scale_aft_summary/README.md"
   exec: " "
 }
 
