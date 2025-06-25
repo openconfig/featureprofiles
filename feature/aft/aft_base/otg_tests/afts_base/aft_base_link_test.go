@@ -20,7 +20,6 @@ import (
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -598,4 +597,3 @@ func TestBGP(t *testing.T) {
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
 	verifyAndCache(t, "Verifying BGP prefixes after Port2 up (2 NHs)", wantIPv4NHs, wantIPv6NHs, false, 2)
 }
-
