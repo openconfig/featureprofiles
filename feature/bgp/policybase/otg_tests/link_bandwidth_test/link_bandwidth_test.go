@@ -128,7 +128,7 @@ var (
 	extCommunitySetJuniper = map[string]string{
 		"linkbw_1M":  "link-bandwidth:23456:1M",
 		"linkbw_2G":  "link-bandwidth:23456:2G",
-		"linkbw_any": "^.*:.*$",
+		"linkbw_any": "bandwidth-non-transitive:.*:.*",
 	}
 
 	extCommunitySetArista = map[string]string{
