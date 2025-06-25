@@ -35,6 +35,9 @@ jobs:
       run: |
         go install ./tools/validate_readme_spec
 
+        # TODO: Just use this one line after all READMEs have converted to the new format.
+        # validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+
         function validate() {
           local exemption_flags=()
           while IFS= read -r path; do
