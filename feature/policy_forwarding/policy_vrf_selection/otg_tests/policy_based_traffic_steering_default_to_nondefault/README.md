@@ -246,16 +246,14 @@ B3 --> B1;
 ```yaml
 paths:
   /network-instances/network-instance/name:
-  /network-instances/network-instance/config:
   /network-instances/network-instance/config/name:
   /network-instances/network-instance/config/type:
   /network-instances/network-instance/config/description:
   /network-instances/network-instance/config/router-id:
   /network-instances/network-instance/config/route-distinguisher:
-  /network-instances/network-instance/policy-forwarding/interfaces/interface/configa:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
-  /network-instances/network-instance/state:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
