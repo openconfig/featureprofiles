@@ -17,6 +17,7 @@
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
 /feature/gribi/        @openconfig/featureprofiles-owner-gribi
+/feature/gribi/mpls_in_udp        @openconfig/featureprofiles-owner-gribi-mpls-in-udp
 /feature/interface/    @openconfig/featureprofiles-owner-interface
 /feature/isis/         @openconfig/featureprofiles-owner-isis
 /feature/lldp/         @openconfig/featureprofiles-owner-lldp
