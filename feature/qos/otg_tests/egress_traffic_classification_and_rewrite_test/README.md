@@ -1,4 +1,4 @@
-# DP-1.17: Egress traffic DSCP rewrite
+# DP-1.19: Egress traffic DSCP rewrite
 
 ## Summary
 
