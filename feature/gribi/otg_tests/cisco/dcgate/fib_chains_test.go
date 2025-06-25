@@ -802,3 +802,155 @@ func testPopGateOptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 }
+
+func TestFRRRecycle(t *testing.T) {
+
+	lossTolerance = 0.1
+	defer func() { lossTolerance = 0.0 }()
+
+	dut := ondatra.DUT(t, "dut")
+
+	configureDUT(t, dut, false)
+	// Configure ATE
+	otg := ondatra.ATE(t, "ate")
+	topo := configureOTG(t, otg)
+
+	// configure gRIBI client
+	c := gribi.Client{
+		DUT:         dut,
+		FIBACK:      true,
+		Persistence: true,
+	}
+
+	if err := c.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
+
+	defer c.Close(t)
+	c.BecomeLeader(t)
+	defer c.FlushAll(t)
+
+	// Flush all existing AFT entries on the router
+	c.FlushAll(t)
+
+	args := &testArgs{
+		client: &c,
+		dut:    dut,
+		ate:    otg,
+		topo:   topo,
+	}
+
+	oSrcIp := faTransit.src
+	oDstIp := faTransit.dst
+	faTransit.src = ipv4OuterSrc111
+	faTransit.dst = tunnelDstIP1
+
+	defer func() { faTransit.src = oSrcIp; faTransit.dst = oDstIp }()
+
+	// match in decap vrf, decap traffic and schedule to match in encap vrf
+	args.client.AddNH(t, decapNH(1), "Decap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfEncapA})
+	args.client.AddNHG(t, decapNHG(1), map[uint64]uint64{decapNH(1): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	// encap start
+	args.client.AddNH(t, encapNH(1), "Encap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP2, VrfName: vrfTransit})
+	args.client.AddNHG(t, encapNHG(1), map[uint64]uint64{encapNH(1): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	// inner hdr prefixes
+	args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	// unoptimized repair path
+	args.client.AddNH(t, baseNH(20), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfRepair})
+	args.client.AddNHG(t, baseNHG(20), map[uint64]uint64{baseNH(20): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	// configure repair path with backup
+	// backup to repair
+	args.client.AddNH(t, baseNH(5), "Decap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
+	args.client.AddNHG(t, baseNHG(5), map[uint64]uint64{baseNH(5): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	configureVIP3(t, args)
+	// repair path
+	args.client.AddNH(t, vipNH(3), vipIP3, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNHG(t, vipNHG(3), map[uint64]uint64{vipNH(3): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: baseNHG(5)})
+	args.client.AddIPv4(t, cidr(tunnelDstIP3, 32), vipNHG(3), vrfRepaired, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddNH(t, tunNH(3), "DecapEncap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc222, Dest: tunnelDstIP3, VrfName: vrfRepaired})
+	args.client.AddNHG(t, tunNHG(3), map[uint64]uint64{tunNH(3): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), tunNHG(3), vrfRepair, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, cidr(tunnelDstIP2, 32), tunNHG(3), vrfRepair, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	// transit path
+	configureVIP2(t, args)
+	args.client.AddNH(t, vipNH(2), vipIP2, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
+	args.client.AddNHG(t, vipNHG(2), map[uint64]uint64{vipNH(2): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: baseNHG(20)})
+	args.client.AddIPv4(t, cidr(tunnelDstIP2, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	// set packet attributes
+	faTransit.innerDscp = dscpEncapA1
+	faTransit.ttl = ttl
+	faTransit.innerTtl = 50
+
+	t.Run("Default VRF with default route", func(t *testing.T) {
+		configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
+		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0.0.0.0/0").Config())
+		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0::/0").Config())
+
+		shutPorts(t, args, []string{"port3", "port4"})
+		defer unshutPorts(t, args, []string{"port3", "port4"})
+		// add static route for encap vrf
+		args.client.AddNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
+		args.client.AddNHG(t, baseNHG(1001), map[uint64]uint64{baseNH(1001): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+		t.Log("Delete prefix from encap vrf and verify traffic goes to default vrf")
+		args.client.DeleteIPv4(t, cidr(innerV4DstIP, 32), vrfEncapA, fluent.InstalledInFIB)
+		args.client.DeleteIPv6(t, cidr(InnerV6DstIP, 128), vrfEncapA, fluent.InstalledInFIB)
+
+		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
+		args.capture_ports = []string{"port5"}
+		weights := []float64{0, 0, 0, 1}
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		t.Log("add back prefix to encap vrf")
+		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	})
+
+	t.Run("Default VRF with Recycle ", func(t *testing.T) {
+		// configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
+		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0.0.0.0/0").Config())
+		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0::/0").Config())
+
+		shutPorts(t, args, []string{"port3", "port4"})
+		defer unshutPorts(t, args, []string{"port3", "port4"})
+		// add static route for encap vrf
+		// args.client.AddNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
+		// args.client.AddNHG(t, baseNHG(1001), map[uint64]uint64{baseNH(1001): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		// args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		// args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		configureVIP5(t, args)
+		args.client.AddNH(t, vipNH(3), vipIP5, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.AddNHG(t, baseNHG(1001), map[uint64]uint64{vipNH(3): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+		t.Log("Delete prefix from encap vrf and verify traffic goes to default vrf")
+		args.client.DeleteIPv4(t, cidr(innerV4DstIP, 32), vrfEncapA, fluent.InstalledInFIB)
+		args.client.DeleteIPv6(t, cidr(InnerV6DstIP, 128), vrfEncapA, fluent.InstalledInFIB)
+
+		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
+		args.capture_ports = []string{"port5"}
+		weights := []float64{0, 0, 0, 1}
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		t.Log("add back prefix to encap vrf")
+		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	})
+}
