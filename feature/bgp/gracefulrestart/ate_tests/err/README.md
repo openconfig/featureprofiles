@@ -220,7 +220,8 @@ Create the following connections:
 *   Verify that the restart-time = 220 Secs. Check this using OC data.
 *   Configure and validate a long-duration retention timer. In addition to the
     300-second timer used for the functional tests here, configure the ERR
-    retention-time to a large value (e.g., 180 days or 15552000 seconds) and
+    retention-time to a large value \[minimum 180 days(15552000 seconds) but if
+    the vendor suppots larger value, pick the highest\] and
     verify that the DUT accepts and reflects this value in its configuration
     state. This validates the requirement for long-lived retention, even if
     waiting for expiration is impractical for testing . Revert to 300 seconds
