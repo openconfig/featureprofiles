@@ -81,14 +81,12 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs              = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs              = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	wantIPv4NHsPostP2Churn   = map[string]bool{ateP1.IPv4: true}
-	wantIPv6NHsPostP2Churn   = map[string]bool{"fe80::200:2ff:fe02:202": true}
-	wantIPv4NHsPostP1P2Churn = map[string]bool{}
-	wantIPv6NHsPostP1P2Churn = map[string]bool{}
-	port1Name                = "port1"
-	port2Name                = "port2"
+	wantIPv4NHs            = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	wantIPv6NHs            = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	wantIPv4NHsPostP2Churn = map[string]bool{ateP1.IPv4: true}
+	wantIPv6NHsPostP2Churn = map[string]bool{ateP1.IPv6: true}
+	port1Name              = "port1"
+	port2Name              = "port2"
 )
 
 // configureDUT configures all the interfaces and BGP on the DUT.
