@@ -907,7 +907,7 @@ func TestFRRRecycle(t *testing.T) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
-		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original ttl is 50
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
@@ -919,17 +919,9 @@ func TestFRRRecycle(t *testing.T) {
 	})
 
 	t.Run("Default VRF with Recycle ", func(t *testing.T) {
-		// configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
-		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0.0.0.0/0").Config())
-		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0::/0").Config())
-
 		shutPorts(t, args, []string{"port3", "port4"})
 		defer unshutPorts(t, args, []string{"port3", "port4"})
-		// add static route for encap vrf
-		// args.client.AddNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
-		// args.client.AddNHG(t, baseNHG(1001), map[uint64]uint64{baseNH(1001): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		// args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		// args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
 		configureVIP5(t, args)
 		args.client.AddNH(t, vipNH(3), vipIP5, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.AddNHG(t, baseNHG(1001), map[uint64]uint64{vipNH(3): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -943,7 +935,7 @@ func TestFRRRecycle(t *testing.T) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
-		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original ttl is 50
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
