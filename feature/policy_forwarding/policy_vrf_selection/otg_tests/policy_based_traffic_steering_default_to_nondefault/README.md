@@ -251,7 +251,6 @@ paths:
   /network-instances/network-instance/config/description:
   /network-instances/network-instance/config/router-id:
   /network-instances/network-instance/config/route-distinguisher:
-  /network-instances/network-instance/policy-forwarding/interfaces/interface/config:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy:
