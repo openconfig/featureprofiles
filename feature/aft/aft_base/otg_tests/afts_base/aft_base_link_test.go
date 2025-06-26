@@ -563,7 +563,7 @@ func TestBGP(t *testing.T) {
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("Stopping Port2 interface to create Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
-	aft = verifyAFTState("AFT verification after port 2 churn", 1, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
+	verifyAFTState("AFT verification after port 2 churn", 1, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
 
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
 	t.Log("Stopping Port1 interface to create Churn")
@@ -575,10 +575,10 @@ func TestBGP(t *testing.T) {
 	// Step 4: Start Port1 interface to remove Churn (BGP: 1 NH - Port2 still down)
 	t.Log("Starting Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
-	aft = verifyAFTState("AFT verification after port 1 up", 1, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
+	verifyAFTState("AFT verification after port 1 up", 1, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
 
 	// Step 5: Start Port2 interface to remove Churn (BGP: 2 NHs - full recovery)
 	t.Log("Starting Port2 interface to remove Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
-	aft = verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
+	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }
