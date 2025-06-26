@@ -67,6 +67,7 @@ const (
 var (
 	dut1Port1 = attrs.Attributes{
 		Desc:    "DUT to ATE source",
+		Name:    "port1",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
@@ -81,12 +82,13 @@ var (
 		IPv6Len: plenIPv6,
 	}
 	dut1Port2 = attrs.Attributes{
+		Name:    "port2",
 		Desc:    "DUT1 to DUT2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: plenIPv4,
 	}
 	dut2Port1 = attrs.Attributes{
-		Name:    "DUT2 to DUT1",
+		Name:    "port1",
 		IPv4:    "192.0.2.6",
 		IPv4Len: plenIPv4,
 	}
@@ -114,6 +116,7 @@ func configureDUT(t *testing.T) {
 				ethPort.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
 				ethPort.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
 			}
+			dutInt.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
 		}
 	}
