@@ -1069,9 +1069,9 @@ type Metadata_Deviations struct {
 	// InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
 	InterfaceOutputQueueNonStandardName bool `protobuf:"varint,296,opt,name=interface_output_queue_non_standard_name,json=interfaceOutputQueueNonStandardName,proto3" json:"interface_output_queue_non_standard_name,omitempty"`
 	// MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
-	MplsExpIngressClassifierUnsupported bool `protobuf:"varint,297,opt,name=mpls_exp_ingress_classifier_unsupported,json=mplsExpIngressClassifierUnsupported,proto3" json:"mpls_exp_ingress_classifier_unsupported,omitempty"`
-	unknownFields                       protoimpl.UnknownFields
-	sizeCache                           protoimpl.SizeCache
+	MplsExpIngressClassifierOcUnsupported bool `protobuf:"varint,297,opt,name=mpls_exp_ingress_classifier_oc_unsupported,json=mplsExpIngressClassifierOcUnsupported,proto3" json:"mpls_exp_ingress_classifier_oc_unsupported,omitempty"`
+	unknownFields                         protoimpl.UnknownFields
+	sizeCache                             protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2959,9 +2959,9 @@ func (x *Metadata_Deviations) GetInterfaceOutputQueueNonStandardName() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetMplsExpIngressClassifierUnsupported() bool {
+func (x *Metadata_Deviations) GetMplsExpIngressClassifierOcUnsupported() bool {
 	if x != nil {
-		return x.MplsExpIngressClassifierUnsupported
+		return x.MplsExpIngressClassifierOcUnsupported
 	}
 	return false
 }
@@ -3022,7 +3022,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf0\xa1\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf5\xa1\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3034,7 +3034,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aĘ\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aɘ\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3303,8 +3303,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x0ffr_breakout_fix\x18\xa5\x02 \x01(\bR\rfrBreakoutFix\x12J\n" +
 	"!num_physical_channels_unsupported\x18\xa6\x02 \x01(\bR\x1enumPhysicalChannelsUnsupported\x12Q\n" +
 	"%unsupported_qos_output_service_policy\x18\xa7\x02 \x01(\bR!unsupportedQosOutputServicePolicy\x12V\n" +
-	"(interface_output_queue_non_standard_name\x18\xa8\x02 \x01(\bR#interfaceOutputQueueNonStandardName\x12U\n" +
-	"'mpls_exp_ingress_classifier_unsupported\x18\xa9\x02 \x01(\bR#mplsExpIngressClassifierUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"(interface_output_queue_non_standard_name\x18\xa8\x02 \x01(\bR#interfaceOutputQueueNonStandardName\x12Z\n" +
+	"*mpls_exp_ingress_classifier_oc_unsupported\x18\xa9\x02 \x01(\bR%mplsExpIngressClassifierOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
