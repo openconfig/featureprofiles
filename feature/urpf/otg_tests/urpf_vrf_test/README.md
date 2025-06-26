@@ -201,7 +201,6 @@ TODO: URPF via instance OC path are being proposed by to be updated by [#1320](h
 
 
 ## OpenConfig Path and RPC Coverage
-TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
 
 ```yaml
 paths:
@@ -217,7 +216,9 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-default-route:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-drop-next-hop:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-feasible-path:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
+  # TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
+  # /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
+  
   ## Telemetry Parameter Coverage
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/mode:
@@ -226,10 +227,10 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-bytes:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/mode:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
-
+  # TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
+  # /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
 rpcs:
   gnmi:
     gNMI.Set:
