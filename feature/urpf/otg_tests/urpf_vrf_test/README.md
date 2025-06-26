@@ -206,29 +206,29 @@ TODO: URPF via instance OC path are being proposed by to be updated by [#1320](h
 ```yaml
 paths:
   ## Config Parameter Coverage
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/enabled:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/mode:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/allow-default-route:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/allow-drop-next-hop:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/allow-feasible-path:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/config/urpf-lookup-network-instance:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/enabled:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/mode:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/allow-default-route:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/allow-drop-next-hop:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/allow-feasible-path:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/mode:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/allow-default-route:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/allow-drop-next-hop:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/allow-feasible-path:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/urpf-lookup-network-instance:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/mode:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-default-route:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-drop-next-hop:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-feasible-path:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
   ## Telemetry Parameter Coverage
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/enabled:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/mode:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/urpf/state/urpf-lookup-network-instance:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-pkts:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-bytes:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/enabled:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/mode:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
-  /interfaces/interface/name/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/mode:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/urpf-lookup-network-instance:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-bytes:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/mode:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
 
 rpcs:
   gnmi:
