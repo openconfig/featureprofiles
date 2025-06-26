@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid:  "8bfbf7b1-ab92-47bd-a64b-fe84f5067927"
-plan_id:  "GEN-OCST-0.1"
-description:  "System software version test"
+plan_id:  "System-1.3"
+description:  "System software-version test"
 testbed:  TESTBED_DUT
