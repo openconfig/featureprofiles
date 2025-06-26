@@ -211,7 +211,6 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/allow-default-route:
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/allow-drop-next-hop:
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/allow-feasible-path:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/urpf-lookup-network-instance:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/mode:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-default-route:
