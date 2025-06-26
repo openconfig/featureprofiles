@@ -15,6 +15,7 @@
 package base_bgp_session_parameters_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/confirm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -64,6 +66,7 @@ const (
 	ateHoldTime      = 135
 	dutKeepaliveTime = 30
 	martianIP        = "240.0.0.100"
+	martianIPLen     = 24
 )
 
 type connType string
@@ -459,6 +462,16 @@ func TestPassword(t *testing.T) {
 	bgpClearConfig(t, dut)
 }
 
+// juniperMartianIpUsageEnable is used to configure native cli to allow martian addresses.
+func juniperMartianIpUsageEnable() string {
+	return fmt.Sprintf(`
+		routing-options {
+    		martians {
+        		%s/%d orlonger allow;
+    		}
+		}`, martianIP, martianIPLen)
+}
+
 // TestParameters is to verify normal session establishment and termination
 // in both eBGP and iBGP scenarios using session parameters like explicit
 // router id , timers.
@@ -476,6 +489,17 @@ func TestParameters(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
+
+	if deviations.BgpAllowMartianAddressConfiguration(dut) {
+		t.Logf("Push the CLI config for enabling martian ip usage:%s", dut.Vendor())
+		switch dut.Vendor() {
+		case ondatra.JUNIPER:
+			config := juniperMartianIpUsageEnable()
+			helpers.GnmiCLIConfig(t, dut, config)
+		default:
+			t.Fatalf("BgpAllowMartianAddressConfiguration deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
+		}
+	}
 
 	cases := []struct {
 		name    string

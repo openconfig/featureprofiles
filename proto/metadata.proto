@@ -838,6 +838,10 @@ message Metadata {
     // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
     bool mpls_exp_ingress_classifier_oc_unsupported = 297;
 
+    // Devices need to enable martian ip support through cli.
+    // Juniper : b/428004441
+    bool bgp_allow_martian_address_configuration = 298;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
