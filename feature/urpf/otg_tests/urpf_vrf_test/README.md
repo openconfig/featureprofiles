@@ -124,7 +124,7 @@ graph LR;
         - The packets sent by the sender tester are not equal to the packets on the receiving tester port and also the sum of packets seen by the Port2 should be zero packets.
 
 ## Canonical OpenConfig for URPF through another instance
-TODO: URPF OC path are being proposed by to be updated by [#1307](https://github.com/openconfig/public/pull/1307) and [#1320](https://github.com/openconfig/public/pull/1320)
+TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
 
 ```json
 {
@@ -201,6 +201,7 @@ TODO: URPF OC path are being proposed by to be updated by [#1307](https://github
 
 
 ## OpenConfig Path and RPC Coverage
+TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
 
 ```yaml
 paths:
