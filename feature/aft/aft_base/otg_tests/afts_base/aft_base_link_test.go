@@ -425,19 +425,10 @@ func generateWantPrefixes(t *testing.T) map[string]bool {
 	return wantPrefixes
 }
 
-// verifyAFTEntry checks for the presence and properties of prefixes in the AFT cache.
-func (tc *testCase) verifyAFTEntry(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, expectedNHCount int, expectDeletion bool) error {
+func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, expectedNHCount int) error {
 	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
 		nhgID, ok := aft.Prefixes[pfix]
 
-		if expectDeletion {
-			if ok {
-				return fmt.Errorf("prefix %s found in AFT when expected to be deleted", pfix)
-			}
-			continue // Prefix not found as expected, move to the next.
-		}
-
-		// If not expecting deletion, perform detailed checks
 		if !ok {
 			return fmt.Errorf("prefix %s not found in AFT", pfix)
 		}
@@ -447,7 +438,7 @@ func (tc *testCase) verifyAFTEntry(t *testing.T, aft *aftcache.AFTData, ip strin
 		}
 
 		if len(nhg.NHIDs) != expectedNHCount {
-			return fmt.Errorf("next hop group %d has %d next hops, want %d for prefix %s", nhgID, len(nhg.NHIDs), expectedNHCount, pfix)
+			return fmt.Errorf("next hop group %d has %d next hops, want %d", nhgID, len(nhg.NHIDs), expectedNHCount)
 		}
 
 		var firstWeight uint64 = 0 // Initialize with a value that won't be a valid weight
@@ -485,15 +476,19 @@ func (tc *testCase) verifyAFTEntry(t *testing.T, aft *aftcache.AFTData, ip strin
 	return nil
 }
 
-func (tc *testCase) cache(t *testing.T, wantIPv4, wantIPv6 map[string]bool, isDeletionExpected bool) (*aftcache.AFTData, error) {
+func (tc *testCase) verifyDeletion(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int) error {
+	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
+		_, ok := aft.Prefixes[pfix]
+		if ok {
+			return fmt.Errorf("prefix %s found in AFT after deletion", pfix)
+		}
+	}
+	return nil
+}
+
+func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
 	aftSession := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient, tc.dut.Name())
-	var stoppingCondition aftcache.PeriodicHook
-	if isDeletionExpected {
-		stoppingCondition = aftcache.DeletionStoppingCondition(t, generateWantPrefixes(t))
-	} else {
-		stoppingCondition = aftcache.InitialSyncStoppingCondition(t, generateWantPrefixes(t), wantIPv4, wantIPv6)
-	}
 	aftSession.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
 
 	// Get the AFT from the cache.
@@ -530,34 +525,6 @@ func TestBGP(t *testing.T) {
 		ate:        ate,
 		gnmiClient: gnmiClient,
 	}
-
-	// Helper function for common verification pattern
-	verifyAndCache := func(t *testing.T, msg string, wantIPv4, wantIPv6 map[string]bool, isDeletionExpected bool, expectedBGPNHCount int) *aftcache.AFTData {
-		t.Helper()
-		t.Log(msg)
-		aft, err := tc.cache(t, wantIPv4, wantIPv6, isDeletionExpected)
-		if err != nil {
-			t.Fatalf("failed to get AFT Cache: %v", err)
-		}
-
-		if isDeletionExpected {
-			if err := tc.verifyAFTEntry(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, 0, true); err != nil {
-				t.Errorf("failed to verify IPv4 prefixes after churn: %v", err)
-			}
-			if err := tc.verifyAFTEntry(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, 0, true); err != nil {
-				t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
-			}
-		} else {
-			if err := tc.verifyAFTEntry(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, expectedBGPNHCount, false); err != nil {
-				t.Errorf("failed to verify IPv4 prefixes: %v", err)
-			}
-			if err := tc.verifyAFTEntry(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, expectedBGPNHCount, false); err != nil {
-				t.Errorf("failed to verify IPv6 prefixes: %v", err)
-			}
-		}
-		return aft
-	}
-
 	if err := tc.configureDUT(t); err != nil {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
@@ -566,32 +533,73 @@ func TestBGP(t *testing.T) {
 	if err := tc.waitForBGPSession(t); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
-
-	// Initial state verification
-	aft := verifyAndCache(t, "Verifying initial BGP prefixes (2 NHs)", wantIPv4NHs, wantIPv6NHs, false, 2)
-
-	// ISIS verification (remains separate as its expected NH count is different)
-	if err := tc.verifyAFTEntry(t, aft, startingISISRouteIPv4, isisRouteCount, 1, false); err != nil {
+	// Pre-generate all expected prefixes once for efficiency
+	allWantPrefixes := generateWantPrefixes(t)
+	aft, err := tc.cache(t, aftcache.InitialSyncStoppingCondition(t, allWantPrefixes, wantIPv4NHs, wantIPv6NHs))
+	if err != nil {
+		t.Fatalf("failed to get AFT Cache: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1); err != nil {
 		t.Errorf("failed to verify IPv4 ISIS prefixes: %v", err)
 	}
-	if err := tc.verifyAFTEntry(t, aft, startingISISRouteIPv6, isisRouteCount, 1, false); err != nil {
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
 		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
 	}
 	t.Log("ISIS verification successful")
-
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, 2); err != nil {
+		t.Errorf("failed to verify IPv4 prefixes initial state: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, 2); err != nil {
+		t.Errorf("failed to verify IPv6 prefixes initial state: %v", err)
+	}
 	t.Log("Stopping Port2 interface to create Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
-	verifyAndCache(t, "Verifying BGP prefixes after Port2 churn (1 NH)", wantIPv4NHsPostP2Churn, wantIPv6NHsPostP2Churn, false, 1)
-
+	aft, err = tc.cache(t, aftcache.InitialSyncStoppingCondition(t, allWantPrefixes, wantIPv4NHsPostP2Churn, wantIPv6NHsPostP2Churn))
+	if err != nil {
+		t.Fatalf("failed to get AFT Cache: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, 1); err != nil {
+		t.Errorf("failed to verify IPv4 prefixes after churn: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, 1); err != nil {
+		t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
+	}
 	t.Log("Stopping Port1 interface to create Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
-	verifyAndCache(t, "Verifying BGP prefixes after Port1 and Port2 churn (deletion expected)", nil, nil, true, 0) // expectedBGPNHCount is not applicable for deletion
-
+	aft, err = tc.cache(t, aftcache.DeletionStoppingCondition(t, allWantPrefixes)) // No prefixes expected
+	if err != nil {
+		t.Fatalf("failed to get AFT Cache: %v", err)
+	}
+	if err := tc.verifyDeletion(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4); err != nil {
+		t.Errorf("failed to verify IPv4 prefixes after churn: %v", err)
+	}
+	if err := tc.verifyDeletion(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6); err != nil {
+		t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
+	}
 	t.Log("Starting Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
-	verifyAndCache(t, "Verifying BGP prefixes after Port1 up (1 NH)", wantIPv4NHsPostP2Churn, wantIPv6NHsPostP2Churn, false, 1)
-
+	time.Sleep(5 * time.Minute)
+	aft, err = tc.cache(t, aftcache.InitialSyncStoppingCondition(t, allWantPrefixes, wantIPv4NHsPostP2Churn, wantIPv6NHsPostP2Churn))
+	if err != nil {
+		t.Fatalf("failed to get AFT Cache: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, 1); err != nil {
+		t.Errorf("failed to verify IPv4 prefixes after churn: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, 1); err != nil {
+		t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
+	}
 	t.Log("Starting Port2 interface to remove Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
-	verifyAndCache(t, "Verifying BGP prefixes after Port2 up (2 NHs)", wantIPv4NHs, wantIPv6NHs, false, 2)
+	aft, err = tc.cache(t, aftcache.InitialSyncStoppingCondition(t, allWantPrefixes, wantIPv4NHs, wantIPv6NHs))
+	if err != nil {
+		t.Fatalf("failed to get AFT Cache: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, 2); err != nil {
+		t.Errorf("failed to verify IPv4 prefixes after churn: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, 2); err != nil {
+		t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
+	}
 }
+
