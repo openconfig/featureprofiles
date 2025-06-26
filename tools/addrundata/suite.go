@@ -29,7 +29,7 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(path, "_test.go") {
+		if !strings.HasSuffix(path, "README.md") {
 			return nil // Ignore anything that's not a test, including intermediate directories.
 		}
 		testdir := filepath.Dir(path)
