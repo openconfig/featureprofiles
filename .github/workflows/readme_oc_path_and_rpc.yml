@@ -74,8 +74,8 @@ jobs:
           printf '%s\n' "${affected_readmes[@]}"
 
           echo "########## Validating READMEs in changed directories:"
+          exemption_flags=()
           for f in "${affected_readmes[@]}"; do
-            local exemption_flags=()
             while IFS= read -r path; do
               exemption_flags+="--non-test-readme $path "
             done < ./tools/non_test_readmes.txt
