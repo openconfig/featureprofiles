@@ -45,7 +45,7 @@ B3 --> B1;
     * Statement2: traffic matching IPv4Prefix2/24, forwards the traffic through default vrf
     * Statement3: traffic matching IPv6Prefix3/64, forwards the traffic through default vrf
     * Statement4: traffic matching IPv6Prefix4/64, forwards the traffic through default vrf
-    * DUT must also leak all the routes from the Default VRF to the non-default VRF
+    * Setup the Default VRF and the non-default VRF such that they share the same routes
 
 #### ATE Configuration
 * Configure IBGP[ASN100] on ATE1:Port1
