@@ -824,6 +824,10 @@ message Metadata {
     // FNT only issue, non-breakout ports have breakout config
     bool fr_breakout_fix = 293;
 
+    // Cisco b/421356455
+    // numPhysicalChannels is not supported
+    bool num_physical_channels_unsupported = 294;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
