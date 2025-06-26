@@ -185,46 +185,41 @@ B3 --> B1;
   "network-instances": {
     "network-instance": [
       {
-        "name": "",
-        "config": {
-          "name": "",
-          "type": "",
-          "description": "",
-          "router-id": "",
-          "route-distinguisher": ""
-        },
+        "name": "example-instance",
         "policy-forwarding": {
-          "interfaces": {
-            "interface": [
-              {
-                "config": {
-                  "interface-id": "",
-                  "apply-vrf-selection-policy": ""
-                },
-                "state": {
-                  "apply-vrf-selection-policy": ""
-                }
-              }
-            ]
-          },
           "policies": {
             "policy": [
               {
+                "name": "example-policy",
+                "config": {
+                  "name": "example-policy"
+                },
                 "rules": {
                   "rule": [
                     {
-                      "state": {
-                        "matched-pkts": 0,
-                        "matched-octets": 0
-                      },
-                      "ipv4": {
-                        "state": {
-                          "dscp-set": []
+                      "sequence-id": 10,
+                      "config": {
+                        "sequence-id": 10,
+                        "description": "Match on specific IPv4 source and destination",
+                        "ipv4": {
+                          "source-address": "192.168.1.0/24",
+                          "destination-address": "10.0.0.1/32"
+                        },
+                        "action": {
+                          "network-instance": "DATA_VRF"
                         }
-                      },
-                      "ipv6": {
-                        "state": {
-                          "dscp-set": []
+                      }
+                    },
+                    {
+                      "sequence-id": 20,
+                      "config": {
+                        "sequence-id": 20,
+                        "description": "Match on specific IPv6 source and destination prefix set",
+                        "ipv6": {
+                          "source-address": "2001:db8:1::/64"
+                        },
+                        "action": {
+                          "discard": true
                         }
                       }
                     }
@@ -233,8 +228,7 @@ B3 --> B1;
               }
             ]
           }
-        },
-        "state": {}
+        }
       }
     ]
   }
