@@ -1,4 +1,4 @@
-# ACCTZ-8.1 - gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction
+# ACCTZ-8.1: gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction
 
 ## Summary
 Test Accounting for authentication failures of uni-transaction logins

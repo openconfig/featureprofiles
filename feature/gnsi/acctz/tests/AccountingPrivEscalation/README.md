@@ -1,34 +1,33 @@
-# ACCTZ-10.1 - gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction
+# ACCTZ-9.1: gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation
 
 ## Summary
-Test Accounting for authentication errors in the authentication service
-for multi-transaction logins.  For example, unreachable TACACS+ server(s).
+Test Accounting for changing current privilege level, if supported.
 
 ## Procedure
 
 - Record the time T0 for use later in this test
-- For one of the supported RecordResponse.service_request.service_type that is not authenticated per-transaction:
+- For each of the supported RecordResponse.service_request.service_type that supports privilege escalation:
 	- Connect to the DUT, recording the local and remote IP addresses and port numbers,
-	- Provide a some combination of invalid authentication (eg: valid user but invalid password)
-	- Disconnect
+	- change privilege level,
+	- disconnect
 - Establish gNSI connection to the DUT.
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = T0
 - Verify that accurate accounting records are returned for the commands/RPCs authentication failures.
-- If start/stop accounting is supported, each authentication failure should have an accompanying LOGIN accounting record.
-- For the RecordResponse correlated to the connection made above, check/confirm that:
+- If start/stop accounting is supported, each authentication failure should have an accompanying session_info.status = LOGIN accounting record.
+- For each RecordResponse correlated to each privilege escalation, check/confirm that:
 	- session_info. :
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
 		- channel_id = 0 for ssh and grpc.
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
-		- .status must equal LOGIN:
+		- .status must equal ENABLE:
 			- .authen.type must equal the authentication method used.
-			- .authen.status must equal ERROR, and cause should be populated.
+			- .authen.status must equal FAIL, and cause should be populated.
 			- .authen.cause should be populated with reason(s) for the failure.
 		- .user.identity must match the username sent to authenticate to the DUT
-		- .user.privilege_level should be omitted.
+		- .user.privilege_level must be populated with the new privilege level
 	- timestamp is after (greater than) RecordRequest.timestamp
 	- session_info.service_request.serivce_type must equal the service used.
-	- cmd_service or grpc_service: 
+	- cmd_service. or grpc_service: 
 		- .service_type must equal the service used
 		- all other fields should be omitted.
 	- for authorization:
@@ -48,8 +47,8 @@ paths:
 rpcs:
   gnsi:
     acctz.v1.Acctz.RecordSubscribe:
-        "RecordRequest.timestamp!=0": true
-        "RecordResponse.service_request = CommandService": true
+      "RecordRequest.timestamp!=0": true
+      "RecordResponse.service_request = CommandService": true
 ```
 
 ## Minimum DUT

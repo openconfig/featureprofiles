@@ -1,4 +1,4 @@
-# ACCTZ-7.1 - gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction
+# ACCTZ-7.1: gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction
 
 ## Summary
 Test Accounting for authentication failures of multi-transaction logins
