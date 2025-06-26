@@ -17,7 +17,6 @@
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
 /feature/gribi/        @openconfig/featureprofiles-owner-gribi
-/feature/gribi/mpls_in_udp/       @openconfig/featureprofiles-owner-gribi-mpls-in-udp
 /feature/interface/    @openconfig/featureprofiles-owner-interface
 /feature/isis/         @openconfig/featureprofiles-owner-isis
 /feature/lldp/         @openconfig/featureprofiles-owner-lldp
@@ -26,14 +25,16 @@
 /feature/networkinstance/    @openconfig/featureprofiles-owner-networkinstance
 /feature/platform/           @openconfig/featureprofiles-owner-platform
 /feature/platform/transceiver  @openconfig/featureprofiles-owner-platform-transceiver
-/feature/qos/                @openconfig/featureprofiles-owner-qos
+/feature/qos                 @openconfig/featureprofiles-owner-qos
 /feature/routing_policy/     @swetha-haridasula
 /feature/sampling/           @masood-shah
 /feature/security            @openconfig/featureprofiles-owner-security
+/feature/gnsi/               @openconfig/featureprofiles-owner-security
 /feature/staticroute/        @openconfig/featureprofiles-owner-staticroute
 /feature/stp/                @alokmtri-g
-/feature/system/             @openconfig/featureprofiles-owner-system
+/feature/system              @openconfig/featureprofiles-owner-system
 /feature/vrrp                @amrindrr
 
 # Common OTG utilities 
 /internal/otgutils/  @openconfig/featureprofiles-maintainers-otg
+
