@@ -575,7 +575,6 @@ func TestBGP(t *testing.T) {
 	// Step 4: Start Port1 interface to remove Churn (BGP: 1 NH - Port2 still down)
 	t.Log("Starting Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
-	time.Sleep(5 * time.Minute)
 	aft = verifyAFTState("AFT verification after port 1 up", 1, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
 
 	// Step 5: Start Port2 interface to remove Churn (BGP: 2 NHs - full recovery)
