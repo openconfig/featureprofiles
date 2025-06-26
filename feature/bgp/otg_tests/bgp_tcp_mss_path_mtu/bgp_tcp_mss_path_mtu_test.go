@@ -97,6 +97,7 @@ var (
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T) {
 	dc := gnmi.OC()
+
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
@@ -104,7 +105,6 @@ func configureDUT(t *testing.T) {
 		dut1: {&dut1Port1, &dut1Port2},
 		dut2: {&dut2Port1},
 	}
-
 	t.Log("Configure interfaces on dut.")
 	for dutx, dutports := range dutPortsMap {
 		for _, portx := range dutports {
