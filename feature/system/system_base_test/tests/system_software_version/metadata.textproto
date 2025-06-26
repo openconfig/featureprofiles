@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid:  "8bfbf7b1-ab92-47bd-a64b-fe84f5067927"
-plan_id:  "System-1.4"
+plan_id:  "System-1.5"
 description:  "System software-version test"
 testbed:  TESTBED_DUT
