@@ -51,14 +51,6 @@
 *   Verify correct forwarding using Prefix SIDs.
 *   Verify that corresponding SID forwarding counters are incremented.
 
-### SR-1.2.4: Anycast SID Validation.
-
-*   Configure the DUT to advertise an Anycast SID representing a service reachable via both loopback interfaces.  
-*   Verify that the DUT advertises the Anycast SID.
-*   Send traffic from both ATEs towards the Anycast SID.
-*   Verify that traffic is load-balanced between the DUT's loopback interfaces based on IGP metrics.
-*   Verify that corresponding SID forwarding counters are incremented.
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
