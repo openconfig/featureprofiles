@@ -716,6 +716,7 @@ message Metadata {
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
+
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
@@ -827,6 +828,15 @@ message Metadata {
     // Cisco b/421356455
     // numPhysicalChannels is not supported
     bool num_physical_channels_unsupported = 294;
+
+    // UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
+    bool unsupported_qos_output_service_policy = 295;
+
+    // InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
+    bool interface_output_queue_non_standard_name = 296;
+
+    // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+    bool mpls_exp_ingress_classifier_unsupported = 297;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
