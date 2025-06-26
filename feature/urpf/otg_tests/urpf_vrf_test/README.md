@@ -216,8 +216,6 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-default-route:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-drop-next-hop:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-feasible-path:
-  # TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
-  # /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
   
   ## Telemetry Parameter Coverage
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/enabled:
@@ -229,8 +227,7 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/mode:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
-  # TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
-  # /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
+
 rpcs:
   gnmi:
     gNMI.Set:
