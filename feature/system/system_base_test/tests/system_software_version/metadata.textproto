@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "8bfbf7b1-ab92-47bd-a64b-fe84f5067927"
+plan_id:  "GEN-OCST-0.1"
+description:  "System software version test"
+testbed:  TESTBED_DUT
