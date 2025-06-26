@@ -95,3 +95,13 @@ The test validates that the device completes TPM attestation after initial boots
 2. Provision the device with switch owner mTLS credentials (separate key pair and cert for each control card).
 3. Call `Attest` for active and standby control cards and ensure they use the new mTLS cert for TLS connection and the latest oIAK for attestation.
 4. Do the same verification of attestation responses as in "Initial Install" workflow.
+
+## OpenConfig Path and RPC Coverage
+
+TODO: Update the Paths and RPCs used.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+```
