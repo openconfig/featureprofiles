@@ -20,7 +20,5 @@ platform_exceptions: {
   deviations: {
     default_network_instance: "default"
     isis_single_topology_required: true
-    skip_afi_safi_path_for_bgp_multiple_as: true
-    enable_multipath_under_afi_safi: true
   }
 }
