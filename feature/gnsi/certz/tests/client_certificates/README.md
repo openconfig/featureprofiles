@@ -1,4 +1,4 @@
-# gNSI Client Certificate Tests
+# Certz-1: gNSI Client Certificate Tests
 
 ## Summary
 
