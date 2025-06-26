@@ -67,6 +67,7 @@ const (
 var (
 	dut1Port1 = attrs.Attributes{
 		Desc:    "DUT to ATE source",
+		Name:    "port1",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
@@ -81,12 +82,13 @@ var (
 		IPv6Len: plenIPv6,
 	}
 	dut1Port2 = attrs.Attributes{
+		Name:    "port2",
 		Desc:    "DUT1 to DUT2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: plenIPv4,
 	}
 	dut2Port1 = attrs.Attributes{
-		Name:    "DUT2 to DUT1",
+		Name:    "port1",
 		IPv4:    "192.0.2.6",
 		IPv4Len: plenIPv4,
 	}
@@ -95,7 +97,6 @@ var (
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T) {
 	dc := gnmi.OC()
-
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
@@ -103,6 +104,7 @@ func configureDUT(t *testing.T) {
 		dut1: {&dut1Port1, &dut1Port2},
 		dut2: {&dut2Port1},
 	}
+
 	t.Log("Configure interfaces on dut.")
 	for dutx, dutports := range dutPortsMap {
 		for _, portx := range dutports {
@@ -114,6 +116,7 @@ func configureDUT(t *testing.T) {
 				ethPort.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
 				ethPort.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
 			}
+			dutInt.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
 		}
 	}
