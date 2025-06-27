@@ -20,6 +20,8 @@
 package gribi
 
 import (
+	"context"
+	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
@@ -30,6 +32,7 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -193,6 +196,40 @@ func (c *Client) CheckAftNH(t testing.TB, instance string, programmedIndex, inde
 	}
 }
 
+// TODO: replace with model path once ondatra schema support is added
+func (c *Client) getBackupActive(t testing.TB, nhgIndex uint64, instance string) bool {
+	elems := []string{
+		"/network-instances",
+		fmt.Sprintf("network-instance[name=%v]", instance),
+		"afts",
+		"next-hop-groups",
+		fmt.Sprintf("next-hop-group[id=%v]", nhgIndex),
+		"state",
+		"backup-active",
+	}
+
+	q, err := schemaless.NewWildcard[bool](strings.Join(elems, "/"), "openconfig")
+	if err != nil {
+		t.Fatalf("Error creating querry for /backup-active: %v", err)
+	}
+
+	gnmic, err := ygnmi.NewClient(c.DUT.RawAPIs().GNMI(t))
+	if err != nil {
+		t.Fatalf("Error creating ygnmi client: %v", err)
+	}
+
+	vals, err := ygnmi.GetAll(context.Background(), gnmic, q)
+	if err != nil {
+		t.Fatalf("Error subscribing to /backup-active: %v", err)
+	}
+
+	if len(vals) == 0 {
+		t.Fatalf("Did not receive a response for /backup-active")
+	}
+
+	return vals[0]
+}
+
 // CheckAftNHG checks a next-hop-group against the cached configuration
 func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uint64) {
 	time.Sleep(time.Duration(*ciscoFlags.GRIBIAFTChainCheckWait) * time.Second)
@@ -207,6 +244,7 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 		t.Fatalf("AFT Chain Check failed for aft/next-hop-group. Diff:\n%s", diff)
 	}
 
+	intRefs := []string{}
 	for wantIdx, wantNh := range want.NextHop {
 		found := false
 
@@ -214,6 +252,7 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 			nh := gnmi.Get(t, c.DUT, gnmi.OC().NetworkInstance(instance).Afts().NextHop(gotIdx).State())
 			if *nh.ProgrammedIndex == wantIdx {
 				found = true
+				intRefs = append(intRefs, nh.GetInterfaceRef().GetInterface())
 
 				// if there is only 1 NH we need to ignore this check as fib doesn't store weight
 				if len(got.NextHop) > 1 && *wantNh.Weight != *gotNh.Weight {
@@ -231,6 +270,21 @@ func (c *Client) CheckAftNHG(t testing.TB, instance string, programmedID, id uin
 	}
 
 	if want.BackupNextHopGroup != nil {
+		if got.BackupNextHopGroup == nil {
+			t.Fatalf("AFT Chain Check failed for aft/next-hop-group/backup-next-hop-group got none")
+		}
+
+		primaryUp := false
+		for _, ir := range intRefs {
+			up := gnmi.Get(t, c.DUT, gnmi.OC().Interface(ir).OperStatus().State())
+			primaryUp = primaryUp || (up == oc.Interface_OperStatus_UP)
+		}
+
+		backupActive := c.getBackupActive(t, id, instance)
+		if want, got := !primaryUp, backupActive; want != got {
+			t.Fatalf("AFT Chain Check failed for aft/next-hop-group/backup-active: want %v, got %v", want, got)
+		}
+
 		c.CheckAftNHG(t, instance, *want.BackupNextHopGroup, *got.BackupNextHopGroup)
 	}
 }
