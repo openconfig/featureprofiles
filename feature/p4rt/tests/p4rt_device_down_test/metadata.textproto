@@ -23,3 +23,13 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    component_powerdown_delay: true
+  }
+}
