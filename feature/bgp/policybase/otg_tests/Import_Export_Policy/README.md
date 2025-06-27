@@ -1,4 +1,4 @@
-# RT-1.64 BGP Import/Export Policy (Control plane only) Functional Test Case
+# RT-1.64: BGP Import/Export Policy (Control plane only) Functional Test Case
 
 ## Objective
 
