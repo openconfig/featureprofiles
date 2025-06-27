@@ -185,7 +185,7 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 			return nil, fmt.Errorf("arista: invalid port name format '%s'. Expected format like 'Prefix/SubPortNumber' (e.g., 'Ethernet1/2/3')", originalPortName)
 		}
 
-		baseNamePrefix := originalPortName[:lastSlashIndex+1] 
+		baseNamePrefix := originalPortName[:lastSlashIndex+1]
 		// startSubPortStr := originalPortName[lastSlashIndex+1:] // E.g., "5"
 
 		var newPortNames []string
