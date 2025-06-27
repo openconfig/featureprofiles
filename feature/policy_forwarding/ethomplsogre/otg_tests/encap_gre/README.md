@@ -1,0 +1,837 @@
+# PF-1.11: EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload
+
+## Summary
+
+This test verifies "EthoCWoMPLSoGRE" forwarding of IP traffic using policy-forwarding configuration. 
+
+## Testbed type
+
+*  [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
+
+## Procedure
+
+### Test environment setup
+
+```text
+DUT has an ingress and 2 egress aggregate interfaces.
+
+                         |         | --eBGP-- | ATE Ports 2,3 |
+    [ ATE Ports 1 ]----|   DUT   |          |               |
+                         |         | --eBGP-- | ATE Port 4,5  |
+```
+
+Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
+
+* Ingress Port: Traffic is generated from Aggregate1 (ATE Ports 1).
+
+* Egress Ports: Aggregate2 (ATE Ports 2,3) and Aggregate3 (ATE Ports 4,5) are used as the destination ports for encapsulated traffic.
+
+### PF-1.11.1: Generate DUT Configuration
+
+Aggregate 1 "customer interface" is the ingress port that could either have port mode configuration or attachment mode configuration as described below. 
+
+EACH test should be run twice - once with port mode configuration and once with attachment mode configuration.
+
+#### Aggregate 1 "customer interface" Port mode configuration
+
+* Configure DUT port 1 to be a member of aggregate interface named "customer interface"
+* "customer interface" is a static Layer 2 bundled interface part of pseudowire that accepts packets from all VLANs.
+* MTU default 9216
+
+#### Aggregate 1 "customer interface" Attachment mode configuration
+
+* Configure DUT port 1 to be a member of aggregate interface named "customer interface"
+* Create a sub interface of the aggregated interface and assign a VLAN ID to it. 
+* This sub interface will be a static Layer 2 bundled interface part of pseudowire that accepts packets from vlan ID associated with it. 
+* MTU default 9216
+
+#### Policy Forwarding Configuration 
+
+* Policy-forwarding enabling EthoMPLSoGRE encapsulation of all incoming traffic:
+
+  * The forwarding policy must allow forwarding of incoming traffic across 16 tunnels. 16 Tunnels has 16 source address and a single tunnel destination.
+
+  * Source address must be configurable as:
+    * Loopback address OR
+    * 16 source addresses corresponding to a single tunnel destinations to achieve maximum entropy.
+
+  * DSCP of the innermost IP packet header must be preserved during encapsulation
+
+  * DSCP of the GRE/outermost IP header must be configurable (Default TOS 96) during encapsulation
+
+  * TTL of the outer GRE must be configurable (Default TTL 64)
+
+  * QoS Hardware queues for all traffic must be configurable (default QoS hardaware class selected is 3)
+
+### Pseudowire (PW) Configuration 
+
+* "Customer interface" is endpoint 1 and endpoint 2  is an IP address pointing towards Aggregate2, Aggregare3
+* Two unique static MPLS label for local label and remote label. 
+* Enable control word
+
+### Aggregate 2 configuration
+
+* IPV4 and IPV6 addresses
+
+* MTU (default 9216)
+
+* LACP Member link configuration
+
+* Lag id
+
+* LACP (default: period short)
+
+* Carrier-delay (default up:3000 down:150)
+
+* Statistics load interval (default:30 seconds)
+
+### Routing
+
+* Create static route for tunnel destination pointing towards Aggregate 2. 
+* Static mapping of MPLS label for encapsulation must be configurable
+
+### MPLS Label
+
+* Entire Label block must be reallocated for static MPLS
+* Labels from start/end/mid ranges must be usable and configured corresponding to EthoMPLSoGRE encapsulation
+
+### PF-1.11.2: Verify PF EthoMPLSoGRE encapsulate action for unencrytped IPv4, IPv6 traffic with entropy on ethernet headers
+
+* Generate 1000 different traffic flows on ATE Port 1 at line rate with a mix of both IPV4 and IPv6 traffic. Use 64, 128, 256, 512, 1024 MTU bytes frame size. 
+* Flows should have entropy on Source MAC address, Destination MAC address. Other headers are fixed. 
+
+Verify:
+
+*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
+*  No packet loss when forwarding.
+*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+
+### PF-1.11.3: Verify no hashing of EthoCWoMPLSoGRE encapsulation for unencrytped IPv4 traffic without entropy
+
+* Generate single traffic flow on ATE Port 1 at line rate with IPV4 traffic. Use 64, 128, 256, 512, 1024 MTU bytes frame size. 
+* Flows should have NOT have entropy on any headers. 
+
+Verify:
+
+*  All traffic received on either Aggregate2 only or Aggregate3 and is EthoCWoMPLSoGRE-encapsulated. 
+*  No hashing of traffic between Aggregate2 and Aggregate3.
+*  No packet loss when forwarding.
+*  Traffic only takes one of the 16 GRE destinations.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+
+### PF-1.11.4: Verify PF EthoCWoMPLSoGRE encapsulate action for MACSec encrytped IPv4, IPv6 traffic 
+
+* Generate 1000 different traffic flows on ATE Port 1 at line rate with a mix of both IPV4 and IPv6 traffic. Use 64, 128, 256, 512, 1024 MTU bytes frame size. 
+* Flows are MACSec encrypted when sent from ATE Port 1. 
+* MACSec should encrypt all headers and paylaod of traffic flow, including source mac, destination mac and VLAN tag. 
+* Flows should have entropy on Source MAC address, Destination MAC address. Other headers are fixed. 
+
+Verify:
+
+*  All traffic received on either Aggregate2 only or Aggregate3 only and is EthoCWoMPLSoGRE-encapsulated.
+*  No hashing of traffic between Aggregate2 and Aggregate3
+*  No packet loss when forwarding.
+*  Traffic only takes one of the 16 GRE destinations.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.5: Verify PF EthoCWoMPLSoGRE encapsulate action with Jumbo MTU
+* Use the same traffic profile as PF-1.11.2. However, set the packet size to 9000 bytes 
+
+Verify:
+
+*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
+*  No packet loss when forwarding.
+*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.6: Verify Control word for unencrypted traffic flow
+
+* Use the same traffic profile as PF-1.11.2.
+
+Verify:
+
+*  Verify a “0” (32-bit field ) control word is inserted between the MPLS label stack and the Layer 2 payload (the Ethernet frame). 
+*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
+*  No packet loss when forwarding.
+*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.7: Verify Control word for encrypted traffic flow
+
+* Use the same traffic profile as PF-1.11.4
+
+Verify:
+
+*  Verify a “0” (32-bit field ) control word is inserted between the MPLS label stack and the Layer 2 payload (the Ethernet frame). 
+*  All traffic received on either Aggregate2 only or Aggregate3 only and is EthoCWoMPLSoGRE-encapsulated.
+*  No hashing of traffic between Aggregate2 and Aggregate3
+*  No packet loss when forwarding.
+*  Traffic only takes one of the 16 GRE destinations.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.8: Verify DSCP of EthoCWoMPLSoGRE encapsulated packets
+
+* Use the same traffic profile as PF-1.11.2. 
+
+Verify:
+
+*  DSCP of encapsulated packets is set to 96. 
+*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
+*  No packet loss when forwarding.
+*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.9: Verify DSCP of EthoCWoMPLSoGRE encapsulated packets
+
+* Use the same traffic profile as PF-1.11.2. 
+
+Verify:
+
+*  DSCP of encapsulated packets is set to 96. 
+*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
+*  No packet loss when forwarding.
+*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.10: Verify PF EthoCWoMPLSoGRE encapsulate after single GRE tunnel destination shutdown. 
+
+* Use the same traffic profile as PF-1.11.2. 
+* Start the traffic profile on ATE. 
+* Shutdown or remove a single GRE tunnel destination on the DUT. 
+
+Verify: 
+
+*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
+*  No packet loss when forwarding.
+*  Traffic load-balanced across remaining 15 GRE destinations and distributed equally across 2 egress ports.
+
+### PF-1.11.11: Verify PF EthoCWoMPLSoGRE decasulate action 
+
+Generate traffic on ATE Aggregate2 and Aggregate3 having:
+
+* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
+* Outer destination address: Traffic must fall within the configured GRE tunnel sources in PF-1.11.1 so it cuold be decapsulated.
+* MPLS Label: Should be same as the local label configured in PF-1.11.1
+Inner payload:
+* Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
+
+* Verify:
+
+* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Aggregate1
+* No packet loss when forwarding with counters incrementing corresponding to traffic
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.12: Verify PF EthoCWoMPLSoGRE decasulate action 
+
+Generate traffic on ATE Aggregate2 and Aggregate3 having:
+
+* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
+* Outer destination address: Traffic must fall within the configured GRE tunnel sources in PF-1.11.1 so it cuold be decapsulated.
+* MPLS Label: Should be same as the local label configured in PF-1.11.1
+Inner payload:
+* Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
+
+* Verify:
+
+* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interface under Aggregate1
+* No packet loss when forwarding with counters incrementing corresponding to traffic
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.11.13: Verify VLAN tag after PF EthoCWoMPLSoGRE decasulate action
+
+* Use the same traffic profile as PF-1.11.12.
+* Ensure inner payload Ethernet header has a VLAN tag attached to it. 
+
+* Verify:
+
+* In port mode configuration: Traffic flow is decapsulated and mapped to the resperctive pseudowire and egress interface based on the MPLS label. Inner payload VLAN tag is retained after decapsulation. 
+* In attachment mode configuration: Traffic flow is decapsulated and mapped to the resperctive pseudowire and egress interface based on the MPLS label. VLAN tag of decapsulated packet is same as the VLAN-ID associated with the egress sub-interface.  
+* No packet loss when forwarding with counters incrementing corresponding to traffic
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+
+## OpenConfig Path and RPC Coverage
+
+### Port mode Interface configs
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "CLOUD-CSI",
+          "enabled": true,
+          "mtu": 9080,
+          "name": "Bundle-Ether8",
+          "type": "ieee8023adLag"
+        },
+        "name": "Bundle-Ether8",
+        "rates": {
+          "config": {
+            "load-interval": 30
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "description": "CLOUD-CSI",
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "config": {
+                  "mtu": 9066
+                }
+              },
+              "ipv6": {
+                "config": {
+                  "mtu": 9066
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "aggregation": {
+          "config": {
+            "lag-type": "STATIC"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### VLAN mode Interface configs
+
+```json
+        "config": {
+          "description": "CLOUD-CSI",
+          "enabled": true,
+          "mtu": 9080,
+          "name": "Bundle-Ether9",
+          "type": "ieee8023adLag"
+        },
+        "name": "Bundle-Ether9",
+        "rates": {
+          "config": {
+            "load-interval": 30
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
+                        {
+              "config": {
+                "description": "CLOUD-GEO-PRIVATE [T=qp1309122726287]",
+                "enabled": true,
+                "index": 1709
+              },
+              "index": 1709,
+              "vlan": {
+                "match": {
+                  "single-tagged": {
+                    "config": {
+                      "vlan-id": 1709
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+```
+
+### Pseudowire configs Port mode
+
+```json
+      {
+        "config": {
+          "apply-forwarding-policy": "controlword",
+          "name": "GEO_1",
+          "type": "L2P2P"
+        },
+        "connection-points": {
+          "connection-point": [
+            {
+              "config": {
+                "connection-point-id": "GEO_1"
+              },
+              "connection-point-id": "GEO_1",
+              "endpoints": {
+                "endpoint": [
+                  {
+                    "config": {
+                      "endpoint-id": "LOCAL"
+                    },
+                    "endpoint-id": "LOCAL",
+                    "local": {
+                      "config": {
+                        "interface": "Bundle-Ether8",
+                        "local-label": 361473,
+                        "subinterface": 0
+                      }
+                    }
+                  },
+                  {
+                    "config": {
+                      "endpoint-id": "REMOTE"
+                    },
+                    "endpoint-id": "REMOTE",
+                    "remote": {
+                      "config": {
+                        "remote-label": 361472,
+                        "remote-system": "10.250.15.254",
+                        "virtual-circuit-identifier": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "interfaces": {
+          "interface": [
+            {
+              "config": {
+                "id": "customer_interface",
+                "interface": "Bundle-Ether8",
+                "subinterface": 0
+              },
+              "id": "customer_interface"
+            }
+          ]
+        },
+        "name": "GEO_1"
+      },
+```
+
+### Pseudowire configs VLAN mode
+
+```json
+      {
+        "config": {
+          "apply-forwarding-policy": "controlword",
+          "name": "GEO_4",
+          "type": "L2P2P"
+        },
+        "connection-points": {
+          "connection-point": [
+            {
+              "config": {
+                "connection-point-id": "GEO_4"
+              },
+              "connection-point-id": "GEO_4",
+              "endpoints": {
+                "endpoint": [
+                  {
+                    "config": {
+                      "endpoint-id": "LOCAL"
+                    },
+                    "endpoint-id": "LOCAL",
+                    "local": {
+                      "config": {
+                        "interface": "Bundle-Ether9.1709",
+                        "local-label": 361494,
+                        "subinterface": 1709
+                      }
+                    }
+                  },
+                  {
+                    "config": {
+                      "endpoint-id": "REMOTE"
+                    },
+                    "endpoint-id": "REMOTE",
+                    "remote": {
+                      "config": {
+                        "remote-label": 361478,
+                        "remote-system": "10.250.15.250",
+                        "virtual-circuit-identifier": 4
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "interfaces": {
+          "interface": [
+            {
+              "config": {
+                "id": "customer_interface",
+                "interface": "Bundle-Ether9.1709",
+                "subinterface": 1709
+              },
+              "id": "customer_interface"
+            }
+          ]
+        },
+        "name": "GEO_4"
+      },
+```
+
+### Tunnels/Next-hop group configs Cisco 
+```json
+{
+                  "config": {
+                    "name": "LA_POP per-prefix 10.250.15.250/32 in:361478 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 361478,
+                      "per-prefix": "10.250.15.250/32"
+                    },
+                    "lsp-next-hops": {
+                      "lsp-next-hop": [
+                        {
+                          "config": {
+                            "index": 0,
+                            "interface": "tunnel-ip10049",
+                            "subinterface": 0
+                          },
+                          "index": 0
+                        },
+                        {
+                          "config": {
+                            "index": 1,
+                            "interface": "tunnel-ip10050",
+                            "subinterface": 0
+                          },
+                          "index": 1
+                        },
+                        {
+                          "config": {
+                            "index": 10,
+                            "interface": "tunnel-ip10059",
+                            "subinterface": 0
+                          },
+                          "index": 10
+                        },
+                        {
+                          "config": {
+                            "index": 11,
+                            "interface": "tunnel-ip10060",
+                            "subinterface": 0
+                          },
+                          "index": 11
+                        },
+                        {
+                          "config": {
+                            "index": 12,
+                            "interface": "tunnel-ip10061",
+                            "subinterface": 0
+                          },
+                          "index": 12
+                        },
+                        {
+                          "config": {
+                            "index": 13,
+                            "interface": "tunnel-ip10062",
+                            "subinterface": 0
+                          },
+                          "index": 13
+                        },
+                        {
+                          "config": {
+                            "index": 14,
+                            "interface": "tunnel-ip10063",
+                            "subinterface": 0
+                          },
+                          "index": 14
+                        },
+                        {
+                          "config": {
+                            "index": 15,
+                            "interface": "tunnel-ip10064",
+                            "subinterface": 0
+                          },
+                          "index": 15
+                        },
+                        {
+                          "config": {
+                            "index": 2,
+                            "interface": "tunnel-ip10051",
+                            "subinterface": 0
+                          },
+                          "index": 2
+                        },
+                        {
+                          "config": {
+                            "index": 3,
+                            "interface": "tunnel-ip10052",
+                            "subinterface": 0
+                          },
+                          "index": 3
+                        },
+                        {
+                          "config": {
+                            "index": 4,
+                            "interface": "tunnel-ip10053",
+                            "subinterface": 0
+                          },
+                          "index": 4
+                        },
+                        {
+                          "config": {
+                            "index": 5,
+                            "interface": "tunnel-ip10054",
+                            "subinterface": 0
+                          },
+                          "index": 5
+                        },
+                        {
+                          "config": {
+                            "index": 6,
+                            "interface": "tunnel-ip10055",
+                            "subinterface": 0
+                          },
+                          "index": 6
+                        },
+                        {
+                          "config": {
+                            "index": 7,
+                            "interface": "tunnel-ip10056",
+                            "subinterface": 0
+                          },
+                          "index": 7
+                        },
+                        {
+                          "config": {
+                            "index": 8,
+                            "interface": "tunnel-ip10057",
+                            "subinterface": 0
+                          },
+                          "index": 8
+                        },
+                        {
+                          "config": {
+                            "index": 9,
+                            "interface": "tunnel-ip10058",
+                            "subinterface": 0
+                          },
+                          "index": 9
+                        }
+                      ]
+                    }
+                  },
+                  "name": "LA_POP per-prefix 10.250.15.250/32 in:361478 out:pop"
+                },
+```
+
+### Tunnels/Next-hop group configs
+
+```json
+{
+    "network-instances": {
+        "network-instance": [
+            {
+                "name": "DEFAULT",
+                "config": {
+                    "name": "DEFAULT"
+                },
+    "static": {
+                    "next-hop-groups": {
+                        "net-hop-group": [
+                            {
+                                "config": {
+                                    "name": "MPLS_in_GRE_Encap"
+                                },
+                                "name": "MPLS_in_GRE_Encap",
+                                "next-hops": {
+                                    "next-hop": [
+                                        {
+                                            "index": 1,
+                                            "config": {
+                                                "index": 1
+                                            }
+                                        },
+                                        {
+                                            "index": 2,
+                                            "config": {
+                                                "index": 2
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "next-hops": {
+                        "next-hop": [
+                            {
+                                "index": 1,
+                                "config": {
+                                    "index": 1,
+                                    "next-hop": "nh_ip_addr_1",
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "index": 1,
+                                                "type": "GRE",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst_def",
+                                                    "src-ip": "outer_ipv4_src1",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip-ttl"
+                                                }
+                                            },
+                                            {
+                                                "index": 2,
+                                                "type": "MPLS",
+                                                "config": {
+                                                    "index": 2,
+                                                    "mpls-label-stack": [
+                                                        100
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "index": 2,
+                                "config": {
+                                    "index": 2,
+                                    "next-hop": "nh_ip_addr_2",
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "index": 1,
+                                                "type": "GRE",
+                                                "config": {
+                                                    "dst-ip": "outer_ipv4_dst_def",
+                                                    "src-ip": "outer_ipv4_src2",
+                                                    "dscp": "outer_dscp",
+                                                    "ip-ttl": "outer_ip-ttl"
+                                                }
+                                            },
+                                            {
+                                                "index": 2,
+                                                "type": "MPLS",
+                                                "config": {
+                                                    "index": 2,
+                                                    "mpls-label-stack": [
+                                                        100
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}
+```
+
+```yaml
+paths:
+    # interface configs
+    /interfaces/interface/config/description
+    /interfaces/interface/config/enabled
+    /interfaces/interface/config/mtu
+    /interfaces/interface/config/name
+    /interfaces/interface/config/type
+	  /interfaces/interface/rates/config/load-interval
+    /interfaces/interface/subinterfaces/subinterface/config/description
+    /interfaces/interface/subinterfaces/subinterface/config/enabled
+	  /interfaces/interface/subinterfaces/subinterface/config/index
+    /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
+    /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
+	  /interfaces/interface/aggregation/config/lag-type
+
+    #psuedowire configs
+    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy
+    /network-instances/network-instance/config/name
+    /network-instances/network-instance/config/type
+    /network-instances/network-instance/connection-points/connection-point/config/connection-point-id
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/config/endpoint-id
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/interface
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/remote-system
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier
+    
+    #TODO: Add new OC for local and remote label
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label 
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/remote-label
+
+    #Tunnels/Next-hop group configs
+
+    #TODO: Add new OC for GRE encap headers
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/type:          
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dst-ip:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/src-ip:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dscp:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/ip-ttl:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/index:
+
+
+    # Telemetry paths
+    /interfaces/interface/state/counters/in-discards:
+    /interfaces/interface/state/counters/in-errors:
+    /interfaces/interface/state/counters/in-multicast-pkts:
+    /interfaces/interface/state/counters/in-pkts:
+    /interfaces/interface/state/counters/in-unicast-pkts:
+    /interfaces/interface/state/counters/out-discards:
+    /interfaces/interface/state/counters/out-errors:
+    /interfaces/interface/state/counters/out-multicast-pkts:
+    /interfaces/interface/state/counters/out-pkts:
+    /interfaces/interface/state/counters/out-unicast-pkts:
+
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts:
+
+    # Config paths for GRE decap
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:    
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
+```
+
+## Required DUT platform
+
+* MFF
+* FFF
