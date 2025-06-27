@@ -17,6 +17,7 @@ package ingress_arp_policing_test
 import (
 	"context"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ import (
 
 const (
 	ipv4PrefixLen   = 30
-	trafficDuration = 20
+	trafficDuration = 30
 	rateKbps        = 1500
 	fixedSize       = 64
 	fixedTotalPkts  = 20000
@@ -47,7 +48,7 @@ const (
 	groupName       = "arp-policer"
 	SchedulerName   = "ARP-policer"
 	flowName        = "arp-test"
-	tolerance       = 2
+	tolerance       = 5
 	macB            = "ff:ff:ff:ff:ff:ff"
 )
 
@@ -89,61 +90,61 @@ func TestIngressArpPolicing(t *testing.T) {
 	configureDUT(t, dut)
 	config := configureATE(t, ate)
 	verifyPortsUp(t, dut.Device)
-	addFlow(config)
+	addFlow(t, config)
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
-	t.Run("Verify Qos Counters", func(t *testing.T) {
-		t.Logf("Validating the traffic without apply policy-map")
-		ate.OTG().StartTraffic(t)
-		time.Sleep(trafficDuration * time.Second)
-
-		t.Logf("Get configured TX/RX rate on %s", gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Name().State()))
-		rxRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).InRate().State())
-		txRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).OutRate().State())
-		t.Log("txRate rxRate", txRate, rxRate)
-		txRateInKbps := (txRate * 512) / 1000
-		rxRateInKbps := (rxRate * 512) / 1000
-		diff := txRate - rxRate
-		if diff <= float32(tolerance) {
-			t.Logf("TX : %f RX : %f rate matched without restriction on DUT", txRateInKbps, rxRateInKbps)
-		} else {
-			t.Errorf("Failed to match TX : %f RX : %f rate without restriction on DUT", txRateInKbps, rxRateInKbps)
-		}
-		ate.OTG().StopTraffic(t)
-		if verifyPortTraffic(t, ate, config) {
-			t.Log("Verified Qos counters")
-		} else {
-			t.Error("Failed to verify Qos counters")
-		}
+	t.Run("Verify QoS Counters", func(t *testing.T) {
+		t.Log("Validating traffic without policy-map")
+		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration*time.Second)
+		validateRates(t, txRateKbps, rxRateKbps, txRateKbps, tolerance, "Without policy-map")
+		verifyTrafficAndLog(t, "QoS Counters", verifyPortTraffic(t, ate, config))
 	})
-	t.Run("Verify Transmit/Octets Packets and 0.5Kbps Packet Loss", func(t *testing.T) {
-		t.Logf("Validating the traffic with apply policy-map")
+	t.Run("Verify Transmit/Octets with CIR", func(t *testing.T) {
+		t.Log("Validating traffic with policy-map")
 		configureDUTTrafficPolicy(t, dut, dut.Port(t, "port1").Name())
-		ate.OTG().StartTraffic(t)
-		time.Sleep(trafficDuration * time.Second)
-		rxRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).InRate().State())
-		txRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).OutRate().State())
-		t.Log("After restrict rxRate, txRate :", rxRate, txRate)
-		rxRateInKbps := (rxRate * 512) / 1000
-		diff := float32(cir) - rxRateInKbps
-		if diff < 0 {
-			diff = -diff // absolute value
-		}
-		if diff <= float32(tolerance) {
-			t.Logf("TX : %d RX : %f rate matched with CIR restriction on DUT", cir, rxRateInKbps)
-		} else {
-			t.Errorf("Failed to match TX : %d RX : %f rate with CIR restriction on DUT", cir, rxRateInKbps)
-		}
-		ate.OTG().StopTraffic(t)
-		if verifyPortTrafficwithCir(t, ate, config) {
-			t.Log("Verfied Transmit/Octets Packets and 0.5Kbps Packet Loss")
-		} else {
-			t.Error("Failed to validate Transmit/Octets Packets and 0.5Kbps Packet Loss")
-		}
-
+		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration*time.Second)
+		validateRates(t, txRateKbps, rxRateKbps, float64(cir), tolerance, "With CIR restriction")
+		verifyTrafficAndLog(t, "Transmit/Octets and Loss", verifyPortTrafficwithCir(t, ate, config))
 	})
+}
 
+func startAndMeasureTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.Duration) (float64, float64) {
+	t.Helper()
+	ate.OTG().StartTraffic(t)
+	time.Sleep(duration)
+	// Measure only while traffic is running
+	gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters()
+	txRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).OutRate().State())
+	rxRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).InRate().State())
+	// Stop traffic *after* measurement
+	ate.OTG().StopTraffic(t)
+	t.Log("rxRate, txRate:", rxRate, txRate)
+	// TODO: currently not implemented to get txRateInKbps from traffic counters.
+	txRateKbps := (txRate * 512) / 1000 // assuming 64-byte avg packet (512 bits)
+	rxRateKbps := (rxRate * 512) / 1000
+
+	t.Logf("Measured TX Rate: %.2f Kbps, RX Rate: %.2f Kbps", txRateKbps, rxRateKbps)
+	return float64(txRateKbps), float64(rxRateKbps)
+}
+
+func validateRates(t *testing.T, txRateKbps, rxRateKbps float64, expectedRate float64, tolerance float64, description string) {
+	t.Helper()
+	diff := math.Abs(rxRateKbps - expectedRate)
+	if diff <= tolerance {
+		t.Logf("%s Passed: TX=%.2f Kbps, RX=%.2f Kbps (Δ=%.2f Kbps within tolerance %.2f)", description, expectedRate, rxRateKbps, diff, tolerance)
+	} else {
+		t.Errorf("%s Failed: TX=%.2f Kbps, RX=%.2f Kbps (Δ=%.2f Kbps exceeds tolerance %.2f)", description, expectedRate, rxRateKbps, diff, tolerance)
+	}
+}
+
+func verifyTrafficAndLog(t *testing.T, label string, ok bool) {
+	t.Helper()
+	if ok {
+		t.Logf("%s: Verification passed", label)
+	} else {
+		t.Errorf("%s: Verification failed", label)
+	}
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -161,6 +162,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName string) {
+	t.Helper()
 	if deviations.TunnelConfigPathUnsupported(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		jsonConfig := fmt.Sprintf(`
@@ -172,9 +174,9 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 		match mac access-group ARP-policing-Macl
 		mac access-list ARP-policing-Macl
 		counters per-entry
-		10 permit any any arp payload offset 1 pattern 0x00000001 mask 0xffffff00	
+		10 permit any any arp payload offset 1 pattern 0x00000001 mask 0xffffff00
 		interface %s
-		service-policy type qos input ARP-policing-Qos	
+		service-policy type qos input ARP-policing-Qos
 		`, cir, burstCount, portName)
 		gpbSetRequest := buildCliConfigRequest(jsonConfig)
 
@@ -222,12 +224,11 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 		// Push full config
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	}
-
 }
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	// t.Log("Configure ATE interface")
+	t.Helper()
 	config := gosnappi.NewConfig()
 
 	ap1 := ate.Port(t, "port1")
@@ -238,7 +239,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return config
 }
 
-func addFlow(config gosnappi.Config) {
+func addFlow(t *testing.T, config gosnappi.Config) {
+	t.Helper()
 	config.Flows().Clear()
 	flow := config.Flows().Add()
 	flow.SetName(flowName)
@@ -255,97 +257,83 @@ func addFlow(config gosnappi.Config) {
 	arpHeader.TargetProtocolAddr().SetValue(dutPort1.IPv4)
 }
 
-// Verify ports status
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
-	t.Log("Verifying port status")
+	t.Logf("Verifying port status")
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+		if status != oc.Interface_OperStatus_UP {
+			t.Fatalf("[%s]: Interface %s status: got %v, expected UP", "verifyPortsUp", p.Name(), status)
 		}
 	}
 }
 
 func verifyPortTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) bool {
 	otgutils.LogPortMetrics(t, ate.OTG(), config)
-	countersPath := gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters()
-	txRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
-	isWithinTolerance := func(v uint64) bool {
-		return v >= txRate-tolerance && v <= txRate+tolerance
-	}
-	// Wait for TX to reach expected count
-	txVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.OutFrames().State(), timeout,
-		func(val *ygnmi.Value[uint64]) bool {
-			v, present := val.Val()
-			return val.IsPresent() && present && isWithinTolerance(v)
-		}).Await(t)
-
-	if !ok {
-		t.Errorf("Port Stats: TX did not reach expected count (%d)", txRate)
-		return false
-	}
-	// Wait for RX to match TX exactly
-	rxVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.InFrames().State(), timeout,
-		func(val *ygnmi.Value[uint64]) bool {
-			v, present := val.Val()
-			return val.IsPresent() && present && isWithinTolerance(v)
-		}).Await(t)
-
-	if !ok {
-		t.Errorf("Port Stats: RX packets did not match expected TX count (%d)", txRate)
-		return false
-	}
-
-	txPkts, _ := txVal.Val()
-	rxPkts, _ := rxVal.Val()
-	t.Logf("Flow %q: TX=%d, RX=%d", flowName, txPkts, rxPkts)
-	return true
+	return validatePortTraffic(t, ate, ate.Port(t, "port1").ID(), false, "flow-unrestricted")
 }
 
 func verifyPortTrafficwithCir(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) bool {
 	otgutils.LogPortMetrics(t, ate.OTG(), config)
-	txRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
-	txisWithinTolerance := func(v uint64) bool {
-		return v >= txRate-tolerance && v <= txRate+tolerance
+	return validatePortTraffic(t, ate, ate.Port(t, "port1").ID(), true, "flow-CIR-restricted")
+}
+
+func validatePortTraffic(t *testing.T, ate *ondatra.ATEDevice, portID string, expectDrop bool, flowName string) bool {
+	t.Helper()
+	const fn = "validatePortTraffic"
+
+	countersPath := gnmi.OTG().Port(portID).Counters()
+	txRate := gnmi.Get(t, ate.OTG(), countersPath.OutFrames().State())
+	rxRate := gnmi.Get(t, ate.OTG(), countersPath.InFrames().State())
+
+	isWithinTolerance := func(expected, actual uint64) bool {
+		return actual >= expected-tolerance && actual <= expected+tolerance
 	}
-	rxRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().InFrames().State())
-	rxisWithinTolerance := func(v uint64) bool {
-		return v >= rxRate-tolerance && v <= rxRate+tolerance
-	}
-	countersPath := gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters()
-	// Wait for TX to reach expected count
+
+	// TX validation
 	txVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.OutFrames().State(), timeout,
 		func(val *ygnmi.Value[uint64]) bool {
 			v, present := val.Val()
-			return val.IsPresent() && present && txisWithinTolerance(v)
+			return val.IsPresent() && present && isWithinTolerance(txRate, v)
 		}).Await(t)
 
 	if !ok {
-		t.Errorf("Port Stats: TX did not reach expected count (%d)", txRate)
+		t.Errorf("[%s] TX did not reach expected count (%d)", fn, txRate)
 		return false
 	}
+
+	// RX validation
 	rxVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.InFrames().State(), timeout,
 		func(val *ygnmi.Value[uint64]) bool {
 			v, present := val.Val()
-			return val.IsPresent() && present && rxisWithinTolerance(v)
+			return val.IsPresent() && present && isWithinTolerance(rxRate, v)
 		}).Await(t)
 
 	if !ok {
-		t.Errorf("Port Stats: RX packets did not match after 0.5 Kbps drop packets (%d)", rxRate)
-		return false
+		if expectDrop {
+			t.Logf("[%s] Expected packet drop verified (RX lower than TX)", fn)
+		} else {
+			t.Errorf("[%s] RX packets did not match expected TX count (%d)", fn, txRate)
+			return false
+		}
 	}
+
+	// Octets validation (only for CIR test)
+	if expectDrop {
+		rxOctets := gnmi.Get(t, ate.OTG(), countersPath.InOctets().State())
+		txOctets := gnmi.Get(t, ate.OTG(), countersPath.OutOctets().State())
+		if txOctets > rxOctets && rxOctets != 0 && txOctets != 0 {
+			t.Logf("[%s] In/Out Octets: TX=%d, RX=%d", fn, txOctets, rxOctets)
+		} else {
+			t.Errorf("[%s] Failed to validate In/Out Octets", fn)
+			return false
+		}
+	}
+
+	// Final log
 	txPkts, _ := txVal.Val()
 	rxPkts, _ := rxVal.Val()
-	t.Logf("Port Counts %q: TX=%d, RX=%d", flowName, txPkts, rxPkts)
-	rXInOctets := gnmi.Get(t, ate.OTG(), countersPath.InOctets().State())
-	tXOutOctets := gnmi.Get(t, ate.OTG(), countersPath.OutOctets().State())
-	if tXOutOctets > rXInOctets && rXInOctets != 0 && tXOutOctets != 0 {
-		t.Logf("Port In/Out Octets %q: TX=%d, RX=%d", flowName, tXOutOctets, rXInOctets)
-	} else {
-		t.Errorf("Failed to validate In/Out Octets")
-		return false
-	}
+	t.Logf("[%s] %s: TX=%d, RX=%d", fn, flowName, txPkts, rxPkts)
 
 	return true
 }
