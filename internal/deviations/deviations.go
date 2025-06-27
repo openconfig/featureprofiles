@@ -1503,7 +1503,7 @@ func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
 }
 
-// BgpAllowMartianAddressConfiguration returns true if devices need to enable martian ip support through cli
+// MartianAddressesBlockedByDefault returns true if devices need to enable martian ip support through cli
 func MartianAddressesBlockedByDefault(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMartianAddressesBlockedByDefault()
 }
