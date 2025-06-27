@@ -43,6 +43,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    bgp_allow_martian_address_configuration: true
+    martian_addresses_blocked_by_default: true
   }
 }

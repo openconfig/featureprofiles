@@ -490,14 +490,14 @@ func TestParameters(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateIP)
 
-	if deviations.BgpAllowMartianAddressConfiguration(dut) {
+	if deviations.MartianAddressesBlockedByDefault(dut) {
 		t.Logf("Push the CLI config for enabling martian ip usage:%s", dut.Vendor())
 		switch dut.Vendor() {
 		case ondatra.JUNIPER:
 			config := juniperMartianIpUsageEnable()
 			helpers.GnmiCLIConfig(t, dut, config)
 		default:
-			t.Fatalf("BgpAllowMartianAddressConfiguration deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
+			t.Fatalf("MartianAddressesBlockedByDefault deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
 		}
 	}
 
