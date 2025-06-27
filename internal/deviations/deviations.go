@@ -1498,7 +1498,7 @@ func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceOutputQueueNonStandardName()
 }
 
-// MplsExpIngressClassifierUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
+// MplsExpIngressClassifierOcUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
 func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
 }
