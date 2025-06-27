@@ -28,7 +28,9 @@ platform_exceptions:  {
     static_protocol_name: "STATIC"
     same_policy_attached_to_all_afis: true
     skip_bgp_send_community_type: true
+    default_bgp_instance_name: "BGP"
     skip_setting_disable_metric_propagation: true
+    default_no_igp_metric_propagation: true
   }
 }
 platform_exceptions:  {
