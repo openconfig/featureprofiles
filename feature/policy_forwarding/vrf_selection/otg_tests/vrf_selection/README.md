@@ -38,7 +38,6 @@ B3 --> B1;
 * Port1 of DUT1 is connected to Port1 of ATE1
 * Port2 of DUT1 which maps to Default VRF instance, is connected to Port1 of ATE2
 * Port3 of DUT1 which maps to the non-default VRF instance, is connected to Port2 of ATE2
-* Configure route leaking from the default VRF and non-default VRF and vice versa.
 * Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IPv4/IPv6 address.
 * DUT has the following VRF selection policy initially
     * Statement1: traffic matching IPv4Prefix1/24, forwards the traffic through default vrf
