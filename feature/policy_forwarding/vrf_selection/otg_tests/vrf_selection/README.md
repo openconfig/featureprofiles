@@ -181,46 +181,78 @@ B3 --> B1;
 
 ```json
 {
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Customer A",
+          "name": "eth0",
+          "type": "ethernetCsmacd"
+        },
+        "name": "eth0"
+      }
+    ]
+  },
   "network-instances": {
     "network-instance": [
       {
-        "name": "example-instance",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
         "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "apply-forwarding-policy": "vrf select",
+                  "interface-id": "eth0"
+                },
+                "interface-id": "eth0"
+              }
+            ]
+          },
           "policies": {
             "policy": [
               {
-                "name": "example-policy",
                 "config": {
-                  "name": "example-policy"
+                  "policy-id": "vrf select"
                 },
+                "policy-id": "vrf select",
                 "rules": {
                   "rule": [
                     {
-                      "sequence-id": 10,
-                      "config": {
-                        "sequence-id": 10,
-                        "description": "Match on specific IPv4 source and destination",
-                        "ipv4": {
-                          "source-address": "192.168.1.0/24",
-                          "destination-address": "10.0.0.1/32"
-                        },
-                        "action": {
+                      "action": {
+                        "config": {
                           "network-instance": "DATA_VRF"
                         }
-                      }
+                      },
+                      "config": {
+                        "sequence-id": 10
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address": "10.10.10.1/32",
+                          "source-address": "192.168.1.0/32"
+                        }
+                      },
+                      "sequence-id": 10
                     },
                     {
-                      "sequence-id": 20,
-                      "config": {
-                        "sequence-id": 20,
-                        "description": "Match on specific IPv6 source and destination prefix set",
-                        "ipv6": {
-                          "source-address": "2001:db8:1::/64"
-                        },
-                        "action": {
+                      "action": {
+                        "config": {
                           "discard": true
                         }
-                      }
+                      },
+                      "config": {
+                        "sequence-id": 20
+                      },
+                      "ipv6": {
+                        "config": {
+                          "source-address": "2001:db8:1::/64"
+                        }
+                      },
+                      "sequence-id": 20
                     }
                   ]
                 }
