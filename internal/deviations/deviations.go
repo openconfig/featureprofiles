@@ -1502,3 +1502,9 @@ func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
 func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
 }
+
+// UseBgpSetCommunityOptionTypeReplace returns true if BGP community set REPLACE
+// option is required
+func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
+}
