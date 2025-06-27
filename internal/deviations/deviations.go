@@ -1463,6 +1463,11 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
+func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
+}
+
 // UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
 func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
@@ -1481,4 +1486,19 @@ func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 // SkipInterfaceNameCheck returns if device requires skipping the interface name check.
 func SkipInterfaceNameCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipInterfaceNameCheck()
+}
+
+// UnsupportedQoSOutputServicePolicy returns true if devices do not support qos output service-policy
+func UnsupportedQoSOutputServicePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedQosOutputServicePolicy()
+}
+
+// InterfaceOutputQueueNonStandardName returns true if devices have non-standard output queue names
+func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceOutputQueueNonStandardName()
+}
+
+// MplsExpIngressClassifierUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
+func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
 }

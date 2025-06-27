@@ -25,7 +25,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Egress Ports: Aggregate1
     * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
 
-## PF-1.19.1 Generate config for MPLS in GRE decap and push to DUT
+## PF-1.19.1: Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
 #### Aggregate1 is the egress port having following configuration:
