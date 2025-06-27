@@ -38,3 +38,11 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    martian_addresses_blocked_by_default: true
+  }
+}

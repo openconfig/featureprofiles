@@ -1502,3 +1502,8 @@ func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
 func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
 }
+
+// MartianAddressesBlockedByDefault returns true if devices need to enable martian ip support through cli
+func MartianAddressesBlockedByDefault(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMartianAddressesBlockedByDefault()
+}
