@@ -29,3 +29,13 @@ the root (i.e., a configuration that contains
 `openconfig-metadata:protobuf-metadata` at any level other than under the root
 can be rejected). The WBB device implementation can map this to an internal path
 to store the configuration.
+
+## OpenConfig Path and RPC Coverage
+
+TODO: Update the Paths and RPCs used.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+```
