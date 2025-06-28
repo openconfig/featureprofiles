@@ -15,6 +15,7 @@ platform_exceptions:  {
     interface_enabled:  true
     skip_prefix_set_mode:  true
     enable_table_connections: true
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions:  {
