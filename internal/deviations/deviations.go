@@ -1403,6 +1403,16 @@ func InterfacePolicyForwardingOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
 
+// GueGreDecapUnsupported returns true if gue or gre decap is unsupported
+func GueGreDecapUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGueGreDecapUnsupported()
+}
+
+// StaticMplsUnsupported returns true if static mpls is unsupported
+func StaticMplsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsUnsupported()
+}
+
 // QosShaperStateOCUnsupported returns true if qos shaper state is unsupported
 func QosShaperStateOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosShaperStateUnsupported()
@@ -1451,4 +1461,54 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 // BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
+}
+
+// NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
+func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
+}
+
+// UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
+func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseOldOcPathStaticLspNh()
+}
+
+// ConfigLeafCreateRequired returns true if leaf creation is required
+func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+}
+
+// FrBreakoutFix returns true if the fix is needed
+func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFrBreakoutFix()
+}
+
+// SkipInterfaceNameCheck returns if device requires skipping the interface name check.
+func SkipInterfaceNameCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipInterfaceNameCheck()
+}
+
+// UnsupportedQoSOutputServicePolicy returns true if devices do not support qos output service-policy
+func UnsupportedQoSOutputServicePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedQosOutputServicePolicy()
+}
+
+// InterfaceOutputQueueNonStandardName returns true if devices have non-standard output queue names
+func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceOutputQueueNonStandardName()
+}
+
+// MplsExpIngressClassifierOcUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
+func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
+}
+
+// Devices that do not propagate IGP metric through redistribution
+func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
+}
+
+// SkipBgpPeerGroupSendCommunityType return true if device needs to skip setting BGP send-community-type for peer group
+func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
 }
