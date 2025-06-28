@@ -716,6 +716,7 @@ message Metadata {
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
+
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
@@ -816,9 +817,36 @@ message Metadata {
     // Juniper b/419536104
     bool config_leaf_create_required = 291;
 
+    // SkipInterfaceNameCheck is set to true for devices that do not support
+    // interface name check in AFT.
+    bool skip_interface_name_check = 292;
+
+    // Arista b/426375784
+    // FNT only issue, non-breakout ports have breakout config
+    bool fr_breakout_fix = 293;
+
+    // Cisco b/421356455
+    // numPhysicalChannels is not supported
+    bool num_physical_channels_unsupported = 294;
+
+    // UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
+    bool unsupported_qos_output_service_policy = 295;
+
+    // InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
+    bool interface_output_queue_non_standard_name = 296;
+
+    // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+    bool mpls_exp_ingress_classifier_oc_unsupported = 297;
+
+    // Devices that do not propagate IGP metric through redistribution
+    bool default_no_igp_metric_propagation = 298;
+
+    // Skip setting send-community-type in bgp peer-group config
+    bool skip_bgp_peer_group_send_community_type = 299;
+
     // Devices that do not support transceiver config enable leaf
     // Nokia b/414842051
-    bool transceiver_config_enable_unsupported = 292;
+    bool transceiver_config_enable_unsupported = 300;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
