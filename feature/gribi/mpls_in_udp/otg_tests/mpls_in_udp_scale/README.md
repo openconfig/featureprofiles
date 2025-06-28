@@ -1,4 +1,4 @@
-# TE-18.3 MPLS in UDP Encapsulation Scale Test
+# TE-18.3: MPLS in UDP Encapsulation Scale Test
 
 Building on TE-18.1 and TE-18.2, this test focuses on scaling
 gRIBI-programmed MPLS-over-UDP tunnels and associated forwarding
