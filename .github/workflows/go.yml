@@ -15,7 +15,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.23.x
+        go-version-file: 'go.mod'
     - name: Cache
       uses: actions/cache@v4
       with:
@@ -28,6 +28,7 @@ jobs:
       run: sudo apt-get -y install libpcap-dev
     - name: Build
       run: go build -v ./...
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -35,7 +36,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23.x
+          go-version-file: 'go.mod'
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -51,14 +52,16 @@ jobs:
         uses: shogo82148/actions-goveralls@7b1bd2871942af030d707d6574e5f684f9891fb2
         with:
           path-to-profile: profile.cov
+
   static_analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
     steps:
-    - name: Install go
+    - uses: actions/checkout@v4
+    - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version-file: 'go.mod'
     # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
     # space for the container by removing unnecessary tooling.
     - name: Free additional disk space
@@ -68,8 +71,6 @@ jobs:
         sudo rm -rf /opt/hostedtoolcache/CodeQL
         sudo mv "${HOME}/.cache" /mnt/cache
         ln -s /mnt/cache "${HOME}/.cache"
-    - name: Checkout code
-      uses: actions/checkout@v4
     - name: Cache
       uses: actions/cache@v4
       with:
@@ -81,6 +82,12 @@ jobs:
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
+
+    # === THIS IS THE ONLY CHANGE ===
+    - name: Clean Go build cache before analysis
+      run: go clean -cache
+    # ===============================
+
     - name: Go vet
       run: GOGC=30 go vet ./...
     - name: Gofmt
