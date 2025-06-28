@@ -15,7 +15,7 @@ test requirements include:
   Decapsulation](https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp/README.md)
 * [TE-3.7: Base Hierarchical NHG
   Update](/feature/gribi/otg_tests/base_hierarchical_nhg_update/README.md)
-  * [PF-1.14 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload](https://github.com/openconfig/featureprofiles/blob/61d11a47d37fac58b311f57e8c2b619dc7fb264b/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md)
+    * [PF-1.14 - MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload](https://github.com/openconfig/featureprofiles/blob/61d11a47d37fac58b311f57e8c2b619dc7fb264b/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md)
 * [gNMI-1.13: Telemetry: Optics Power and Bias
   Current](https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md)
 
@@ -52,11 +52,11 @@ NOTE: If the test requires configuration or state which are not defined in the
 [public OC data models]([url](https://github.com/openconfig/public)), then new OC
 paths must be proposed in this README. A "TODO" comment must be provided linking
 to a pull request to add these paths to the public OC models repository. The
-README may be approved and merged before the TODO item(s) are resolved. A heading
-cannot be called "Canonical OC" if it contains invalid OC and each README must have at
-least one "Canonical OC" heading to be validated.
+README may be approved and merged before the TODO item(s) are resolved.
 
 #### TODO: https://github.com/openconfig/public/pull/1234 - Add new leaf to scheduler-policy
+
+#### Canonical OC
 
 ```json
 {
@@ -83,8 +83,8 @@ least one "Canonical OC" heading to be validated.
             }
           }
         },
-        "interface": "PortChannel1.100"
-      },
+        "interface": "PortChannel1.100",
+      }
     ]
   }
 }
@@ -175,7 +175,7 @@ paths:
   # name of chassis and linecard components
   /components/component/state/name:
     platform_type: ["CHASSIS", "LINECARD"]
-  # TODO: Add next-hop-group paths, see [public#1234](https://github.com/openconfig/public/pull/1234)
+  # TODO: Add next-hop-group paths, see https://github.com/openconfig/public/pull/1234
   # /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name
   # /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
 
@@ -190,7 +190,7 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
-  * MFF - A modular form factor device containing LINECARDs, FABRIC and
-    redundant CONTROLLER_CARD components
-  * FFF - fixed form factor
-  * vRX - virtual router device
+    * MFF - A modular form factor device containing LINECARDs, FABRIC and
+      redundant CONTROLLER_CARD components
+    * FFF - fixed form factor
+    * vRX - virtual router device
