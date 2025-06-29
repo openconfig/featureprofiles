@@ -142,10 +142,13 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	p := node.Port(t, portName)
 	d := &oc.Root{}
 	lldp := d.GetOrCreateLldp()
-	lldp.SystemDescription = ygot.String("DUT")
 
 	llint := lldp.GetOrCreateInterface(p.Name())
-	llint.SetName(portName)
+
+	if !deviations.SkipLldpOptionalConfig(node) {
+		lldp.SystemDescription = ygot.String("DUT")
+		llint.SetName(portName)
+	}
 
 	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
 
@@ -216,8 +219,10 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	} else {
 		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
 	}
-	if state.GetSystemDescription() != "DUT" {
-		t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
+	if !deviations.SkipLldpOptionalConfig(node.(*ondatra.DUTDevice)) {
+		if state.GetSystemDescription() != "DUT" {
+			t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
+		}
 	}
 
 	got := state.GetInterface(port.Name()).GetName()
