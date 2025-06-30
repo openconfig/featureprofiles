@@ -27,6 +27,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"regexp"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
