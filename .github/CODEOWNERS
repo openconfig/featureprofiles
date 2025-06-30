@@ -30,6 +30,7 @@
 /feature/routing_policy/     @swetha-haridasula
 /feature/sampling/           @masood-shah
 /feature/security            @openconfig/featureprofiles-owner-security
+/feature/gnsi/		     @openconfig/featureprofiles-owner-security
 /feature/staticroute/        @openconfig/featureprofiles-owner-staticroute
 /feature/stp/                @alokmtri-g
 /feature/system/             @openconfig/featureprofiles-owner-system
