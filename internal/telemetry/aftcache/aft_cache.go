@@ -485,6 +485,32 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 	}
 }
 
+// DeletionStoppingCondition returns a PeriodicHook which can be used to check if all given prefixes have been deleted.
+func DeletionStoppingCondition(t *testing.T, wantDeletePrefixes map[string]bool) PeriodicHook {
+	return PeriodicHook{
+		Description: "Route delete stopping condition",
+		PeriodicFunc: func(c *aftCache) (bool, error) {
+			a, err := c.ToAFT()
+			if err != nil {
+				return false, err
+			}
+			gotPrefixes := a.Prefixes
+			nRem := 0
+			for p := range gotPrefixes {
+				if _, ok := wantDeletePrefixes[p]; ok {
+					nRem++
+				}
+			}
+			t.Logf("Got %d deleted prefixes out of %d wanted prefixes to delete so far.", len(wantDeletePrefixes)-nRem, len(wantDeletePrefixes))
+			if nRem > 0 {
+				return false, nil
+			}
+			t.Logf("Finished checking for deleted routes: %s", time.Now().String())
+			return true, nil
+		},
+	}
+}
+
 // InitialSyncStoppingCondition returns a PeriodicHook which can be used to check if all wanted prefixes have been received with given next hop IP addresses.
 func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, wantIPV6NHDests map[string]bool) PeriodicHook {
 	nhFailCount := 0

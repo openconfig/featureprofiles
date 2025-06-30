@@ -334,7 +334,7 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 	if err := FlowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, top, ate, decapValidationIPv4); err != nil {
+	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv4); err != nil {
 		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
 	}
 }
