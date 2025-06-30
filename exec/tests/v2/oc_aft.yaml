@@ -1,0 +1,11 @@
+name: oc_aft 
+owners: 
+  - kjahed
+testbeds:
+  - 8808-1DUT
+tests:
+- name: OC AFT
+  path: feature/gribi/cisco/aft
+  mustpass: true
+  internal: true
+  branch: master
