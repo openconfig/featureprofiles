@@ -1,9 +1,14 @@
-# This workflow is to make sure we have 1 LGTM for business logic and 1 LGTM for code style
 name: PR Approval Workflow
 on:
   pull_request_review:
     types: [submitted]
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number'
+        required: true
+        type: number
+
 jobs:
   check-approvals:
     if: |
@@ -29,5 +34,5 @@ jobs:
         org_name: openconfig
         min_approvals: 1
         approval_mode: ALL
-        pr_number: ${{ github.event.number }}
+        pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
         require_all_approvals_latest_commit: false
