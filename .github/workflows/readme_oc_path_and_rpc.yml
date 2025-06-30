@@ -75,10 +75,10 @@ jobs:
 
           echo "########## Validating READMEs in changed directories:"
           exemption_flags=()
+          while IFS= read -r path; do
+            exemption_flags+="--non-test-readme $path "
+          done < ./tools/non_test_readmes.txt
           for f in "${affected_readmes[@]}"; do
-            while IFS= read -r path; do
-              exemption_flags+="--non-test-readme $path "
-            done < ./tools/non_test_readmes.txt
             validate_readme_spec --alsologtostderr ${exemption_flags} "${f}"
           done
         fi
