@@ -216,6 +216,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, port1Name, port2Name str
 // disableLinecard powers down the linecard associated with port2
 func disableLinecard(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	expectedDownStatus := oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE
 	t.Logf("Attempting to disable Linecard component associated with port2 (presumed device_id %d)", deviceID2)
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	lc2ComponentName, ok := nodes["port2"]
@@ -240,6 +241,9 @@ func disableLinecard(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient power down response: %v, err: %v", powerDownResponse, err)
+	gnmi.Await(t, dut, gnmi.OC().Component(lc2ComponentName).OperStatus().State(), 10*time.Minute, expectedDownStatus)
+	finalState := gnmi.Get(t, dut, gnmi.OC().Component(lc2ComponentName).OperStatus().State())
+	t.Logf("Component '%s' state AFTER power down command: %v", lc2ComponentName, finalState)
 }
 
 func enableLinecard(t *testing.T, dut *ondatra.DUTDevice) {
@@ -432,6 +436,10 @@ func TestP4rtConnect(t *testing.T) {
 
 	// Disable line card associated with port2
 	disableLinecard(t, dut)
+	if deviations.ComponentPowerdownDelay(dut) {
+		t.Logf("Additional one minute delay")
+		time.Sleep(1 * time.Minute)
+	}
 
 	lldpACLEntry := p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 		{
