@@ -52,7 +52,7 @@ const (
 	isisRoutev6              = "2001:db8::203:0:113:1"
 	startingISISRouteIPv4    = "199.0.0.1/32"
 	startingISISRouteIPv6    = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime       = 15 * time.Minute
+	aftConvergenceTime       = 20 * time.Minute
 	bgpTimeout               = 2 * time.Minute
 )
 
@@ -81,21 +81,22 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs            = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs            = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	wantIPv4NHsPostP2Churn = map[string]bool{ateP1.IPv4: true}
-	wantIPv6NHsPostP2Churn = map[string]bool{ateP1.IPv6: true}
-	portNames              = []string{"port1", "port2"}
+	wantIPv4NHs          = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
+	wantIPv6NHsPostChurn = map[string]bool{"fe80::200:2ff:fe02:202": true}
+	port1Name            = "port1"
+	port2Name            = "port2"
 )
 
 // configureDUT configures all the interfaces and BGP on the DUT.
 func (tc *testCase) configureDUT(t *testing.T) error {
 	dut := tc.dut
-	p1 := dut.Port(t, portNames[0]).Name()
+	p1 := dut.Port(t, port1Name).Name()
 	i1 := dutP1.NewOCInterface(p1, dut)
 	gnmi.Update(t, dut, gnmi.OC().Interface(p1).Config(), i1)
 
-	p2 := dut.Port(t, portNames[1]).Name()
+	p2 := dut.Port(t, port2Name).Name()
 	i2 := dutP2.NewOCInterface(p2, dut)
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2).Config(), i2)
 
@@ -104,8 +105,8 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, portNames[0]))
-		fptest.SetPortSpeed(t, dut.Port(t, portNames[1]))
+		fptest.SetPortSpeed(t, dut.Port(t, port1Name))
+		fptest.SetPortSpeed(t, dut.Port(t, port2Name))
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
@@ -250,8 +251,8 @@ func (tc *testCase) waitForBGPSession(t *testing.T) error {
 
 func (tc *testCase) configureATE(t *testing.T) {
 	ate := tc.ate
-	ap1 := ate.Port(t, portNames[0])
-	ap2 := ate.Port(t, portNames[1])
+	ap1 := ate.Port(t, port1Name)
+	ap2 := ate.Port(t, port2Name)
 	config := gosnappi.NewConfig()
 	// add ports
 	p1 := config.Ports().Add().SetName(ap1.ID())
@@ -475,10 +476,9 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 	return nil
 }
 
-func (tc *testCase) cache(t *testing.T, wantIPv4, wantIPv6 map[string]bool) (*aftcache.AFTData, error) {
+func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
 	aftSession := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient, tc.dut.Name())
-	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, generateWantPrefixes(t), wantIPv4, wantIPv6)
 	aftSession.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
 
 	// Get the AFT from the cache.
@@ -489,9 +489,9 @@ func (tc *testCase) cache(t *testing.T, wantIPv4, wantIPv6 map[string]bool) (*af
 	return aft, nil
 }
 
-func (tc *testCase) otgInterfaceDown(t *testing.T, portName string) {
+func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
 	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(gosnappi.StatePortLinkState.DOWN)
+	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(state)
 	tc.ate.OTG().SetControlState(t, portStateAction)
 }
 
@@ -515,18 +515,43 @@ func TestBGP(t *testing.T) {
 		ate:        ate,
 		gnmiClient: gnmiClient,
 	}
+
+	// Pre-generate all expected prefixes once for efficiency
+	allWantPrefixes := generateWantPrefixes(t)
+
+	// Helper function for verifying AFT state where prefixes are expected to be PRESENT.
+	verifyAFTState := func(desc string, expectedNHCount int, expectedV4NHs, expectedV6NHs map[string]bool) *aftcache.AFTData {
+		t.Helper()
+		t.Log(desc)
+		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, allWantPrefixes, expectedV4NHs, expectedV6NHs)
+		aft, err := tc.cache(t, stoppingCondition)
+		if err != nil {
+			t.Fatalf("failed to get AFT Cache: %v", err)
+		}
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, expectedNHCount); err != nil {
+			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
+		}
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, expectedNHCount); err != nil {
+			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
+		}
+		return aft
+	}
+
+	// --- Test Setup ---
 	if err := tc.configureDUT(t); err != nil {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
 	tc.configureATE(t)
+
 	t.Log("Waiting for BGPv4 neighbor to establish...")
 	if err := tc.waitForBGPSession(t); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
-	aft, err := tc.cache(t, wantIPv4NHs, wantIPv6NHs)
-	if err != nil {
-		t.Fatalf("failed to get AFT Cache: %v", err)
-	}
+
+	// Step 1: Initial state verification (BGP: 2 NHs, ISIS: 1 NH)
+	aft := verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
+
+	// Verify ISIS prefixes are present in AFT.
 	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1); err != nil {
 		t.Errorf("failed to verify IPv4 ISIS prefixes: %v", err)
 	}
@@ -534,22 +559,26 @@ func TestBGP(t *testing.T) {
 		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
 	}
 	t.Log("ISIS verification successful")
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, 2); err != nil {
-		t.Errorf("failed to verify IPv4 prefixes initial state: %v", err)
-	}
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, 2); err != nil {
-		t.Errorf("failed to verify IPv6 prefixes initial state: %v", err)
-	}
+
+	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("Stopping Port2 interface to create Churn")
-	tc.otgInterfaceDown(t, portNames[1])
-	aft, err = tc.cache(t, wantIPv4NHsPostP2Churn, wantIPv6NHsPostP2Churn)
-	if err != nil {
-		t.Fatalf("failed to get AFT Cache: %v", err)
+	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
+	verifyAFTState("AFT verification after port 2 churn", 1, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
+
+	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
+	t.Log("Stopping Port1 interface to create Churn")
+	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
+	if _, err := tc.cache(t, aftcache.DeletionStoppingCondition(t, allWantPrefixes)); err != nil {
+		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, bgpRouteCountIPv4, 1); err != nil {
-		t.Errorf("failed to verify IPv4 prefixes after churn: %v", err)
-	}
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, bgpRouteCountIPv6, 1); err != nil {
-		t.Errorf("failed to verify IPv6 prefixes after churn: %v", err)
-	}
+
+	// Step 4: Start Port1 interface to remove Churn (BGP: 1 NH - Port2 still down)
+	t.Log("Starting Port1 interface to remove Churn")
+	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
+	verifyAFTState("AFT verification after port 1 up", 1, wantIPv4NHsPostChurn, wantIPv6NHsPostChurn)
+
+	// Step 5: Start Port2 interface to remove Churn (BGP: 2 NHs - full recovery)
+	t.Log("Starting Port2 interface to remove Churn")
+	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
+	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }
