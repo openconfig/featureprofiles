@@ -44,10 +44,6 @@ const (
 	inactivePostFECBER   = 0.0
 	inactiveESNR         = 0.0
 	flapInterval         = 30 * time.Second
-	otnIndex1            = uint32(4000)
-	otnIndex2            = uint32(5000)
-	ethernetIndex1       = uint32(40001)
-	ethernetIndex2       = uint32(50001)
 	otnIndexBase         = uint32(4000)
 	ethernetIndexBase    = uint32(40000)
 )
@@ -121,7 +117,8 @@ func appendToTableIfNotNil(t *testing.T, table *tablewriter.Table, portName, lea
 //
 // Returns:
 //   - The operational status of the interface. If any critical data is missing, oc.Interface_OperStatus_UNSET is returned.
-func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface], terminalDeviceData *ygnmi.Value[*oc.TerminalDevice_Channel], portName string) oc.E_Interface_OperStatus {
+func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface], terminalDeviceData *ygnmi.Value[*oc.TerminalDevice_Channel], IngressData *ygnmi.Value[*oc.TerminalDevice_Channel_Ingress], portName string) oc.E_Interface_OperStatus {
+
 	if interfaceData == nil {
 		t.Errorf("Interface Data not received for port %v.", portName)
 		return oc.Interface_OperStatus_UNSET
@@ -211,6 +208,16 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 		appendToTableIfNotNil(t, table, portName, "PostFECBER_avg", otn.GetPostFecBer().GetAvg(), "PostFECBER_avg is empty for port %v")
 		validatePMValue(t, portName, "PostFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPostFECBER, maxAllowedPostFECBER, inactivePostFECBER, operStatus)
 	}
+
+	IngressDataVal, ok := IngressData.Val()
+	if !ok {
+		t.Errorf("Ingress data is empty for port %v.", portName)
+		return operStatus
+	}
+	appendToTableIfNotNil(t, table, portName, "IngressData Transceiver", *IngressDataVal.Transceiver, "Transceiver is empty for port %v")
+	appendToTableIfNotNil(t, table, portName, "IngressData Interface", *IngressDataVal.Interface, "Interface is empty for port %v")
+	appendToTableIfNotNil(t, table, portName, "IngressData PhysicalChannel", IngressDataVal.PhysicalChannel, "PhysicalChannel is empty for port %v")
+
 	table.Render()
 	return operStatus
 }
@@ -232,7 +239,7 @@ func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, 
 	t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
 }
 
-func configureETHandOptChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32) {
+func configureETHandOptChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32, portName string) {
 	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 		Index:              ygot.Uint32(otnIndex),
 		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
@@ -266,19 +273,28 @@ func configureETHandOptChannel(t *testing.T, dut *ondatra.DUTDevice, och string,
 				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 			},
 		},
+		Ingress: &oc.TerminalDevice_Channel_Ingress{
+			Transceiver:     &portName,
+			Interface:       ygot.String(och),
+			PhysicalChannel: []uint16{1},
+		},
 	})
 }
 
 var (
 	otnIndexes = make(map[string]uint32)
+	ethIndexes = make(map[string]uint32)
 )
 
 func configureOTN(t *testing.T, dut *ondatra.DUTDevice) {
 	for i, p := range dut.Ports() {
 		oc := components.OpticalChannelComponentFromPort(t, dut, p)
 		cfgplugins.ConfigOpticalChannel(t, dut, oc, frequency, targetOutputPower, operational_mode)
-		configureETHandOptChannel(t, dut, oc, otnIndexBase+uint32(i), ethernetIndexBase+uint32(i))
+		re := regexp.MustCompile(`[A-Za-z]+GigE`)
+		opticsName := re.ReplaceAllString(p.Name(), "Optics")
+		configureETHandOptChannel(t, dut, oc, otnIndexBase+uint32(i), ethernetIndexBase+uint32(i), opticsName)
 		otnIndexes[p.Name()] = otnIndexBase + uint32(i)
+		ethIndexes[p.Name()] = ethernetIndexBase + uint32(i)
 	}
 }
 
@@ -381,7 +397,7 @@ func validateControllerConfig(t testing.TB, dut *ondatra.DUTDevice) {
 	}
 }
 
-func TestZRProcessRestart(t *testing.T) {
+func TestOTNZRProcessRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	configureOTN(t, dut)
@@ -396,6 +412,7 @@ func TestZRProcessRestart(t *testing.T) {
 
 	// Initiate sample streams
 	otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
+	ingressStreams := make(map[string]*ygnmi.Value[*oc.TerminalDevice_Channel_Ingress])
 	interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
@@ -404,10 +421,13 @@ func TestZRProcessRestart(t *testing.T) {
 		defer interfaceStreams[portName].Close()
 	}
 
+	for portName, ethIndex := range ethIndexes {
+		ingressStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Ingress().State(), samplingInterval).Next()
+	}
 	// Verify the leaves
 	operstatus := make(map[string]oc.E_Interface_OperStatus)
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 
 	// Do process restart
@@ -424,12 +444,12 @@ func TestZRProcessRestart(t *testing.T) {
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 
 }
 
-func TestZRShutPort(t *testing.T) {
+func TestOTNZRShutPort(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	configureOTN(t, dut)
@@ -439,6 +459,7 @@ func TestZRShutPort(t *testing.T) {
 
 	// Initiate sample streams
 	otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
+	ingressStreams := make(map[string]*ygnmi.Value[*oc.TerminalDevice_Channel_Ingress])
 	interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
@@ -447,10 +468,15 @@ func TestZRShutPort(t *testing.T) {
 		defer interfaceStreams[portName].Close()
 	}
 
+	for portName, ethIndex := range ethIndexes {
+		ingressStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Ingress().State(), samplingInterval).Next()
+	}
+
 	// Verify the leaves
 	operstatus := make(map[string]oc.E_Interface_OperStatus)
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
+
 	}
 
 	// Disable interface.
@@ -462,7 +488,7 @@ func TestZRShutPort(t *testing.T) {
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_DOWN)
 
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 
 	// Re-enable transceivers.
@@ -474,12 +500,12 @@ func TestZRShutPort(t *testing.T) {
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 
 }
 
-func TestZRLCReload(t *testing.T) {
+func TestOTNZRLCReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// enable transceivers.
@@ -493,6 +519,7 @@ func TestZRLCReload(t *testing.T) {
 
 	//Initiate sample streams
 	otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
+	ingressStreams := make(map[string]*ygnmi.Value[*oc.TerminalDevice_Channel_Ingress])
 	interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
@@ -501,10 +528,14 @@ func TestZRLCReload(t *testing.T) {
 		defer interfaceStreams[portName].Close()
 	}
 
+	for portName, ethIndex := range ethIndexes {
+		ingressStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Ingress().State(), samplingInterval).Next()
+	}
+
 	// Verify the leaves
 	operstatus := make(map[string]oc.E_Interface_OperStatus)
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 
 	LC := getLineCardFromPort(t, dut, "port1")
@@ -523,13 +554,13 @@ func TestZRLCReload(t *testing.T) {
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 	t.Logf("All Gnmi leaves received successfully after LC Reload")
 
 }
 
-func TestZRRPFO(t *testing.T) {
+func TestOTNZRRPFO(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	configureOTN(t, dut)
@@ -539,6 +570,7 @@ func TestZRRPFO(t *testing.T) {
 
 	// Initiate sample streams
 	otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
+	ingressStreams := make(map[string]*ygnmi.Value[*oc.TerminalDevice_Channel_Ingress])
 	interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 	for portName, otnIndex := range otnIndexes {
 		otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
@@ -547,10 +579,14 @@ func TestZRRPFO(t *testing.T) {
 		defer interfaceStreams[portName].Close()
 	}
 
+	for portName, ethIndex := range ethIndexes {
+		ingressStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Ingress().State(), samplingInterval).Next()
+	}
+
 	// Verify the leaves
 	operstatus := make(map[string]oc.E_Interface_OperStatus)
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 
 	// Do RPFO
@@ -560,6 +596,6 @@ func TestZRRPFO(t *testing.T) {
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
 	for port, stream := range otnStreams {
-		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), port)
+		operstatus[port] = validateSampleStream(t, interfaceStreams[port].Next(), stream.Next(), ingressStreams[port], port)
 	}
 }
