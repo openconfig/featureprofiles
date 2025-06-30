@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/gnmi/internal/setup"
+	"github.com/openconfig/featureprofiles/feature/internal/gnmi/setup"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
