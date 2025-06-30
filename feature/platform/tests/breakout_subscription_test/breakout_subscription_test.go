@@ -784,6 +784,99 @@ func verifyUpdateValue(t testing.TB, notifications []*gpb.Notification, expected
 		}
 	}
 }
+func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string) {
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	powerDownLineCardRequest := &spb.RebootRequest{
+		Method: spb.RebootMethod_POWERDOWN,
+		Subcomponents: []*tpb.Path{
+			components.GetSubcomponentPath(fpc, useNameOnly),
+		},
+	}
+	t.Logf("powerDownLineCardRequest: %v", powerDownLineCardRequest)
+	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownLineCardRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform standby RP powerdown with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
+
+	t.Logf("Wait for 15 seconds to allow the sub component's power down process to complete")
+	time.Sleep(15 * time.Second)
+}
+
+func lineCardUp(t testing.TB, dut *ondatra.DUTDevice, fpc string) {
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	powerDownLineCardRequest := &spb.RebootRequest{
+		Method: spb.RebootMethod_POWERDOWN,
+		Subcomponents: []*tpb.Path{
+			components.GetSubcomponentPath(fpc, useNameOnly),
+		},
+	}
+	t.Logf("powerDownLineCardRequest: %v", powerDownLineCardRequest)
+	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownLineCardRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform standby RP powerdown with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
+
+	t.Logf("Wait for 15 seconds to allow the sub component's power down process to complete")
+	time.Sleep(15 * time.Second)
+}
+
+func findFpcFromPort(t testing.TB, portName string, dut *ondatra.DUTDevice) (string, error) {
+	t.Helper()
+	if dut.Vendor() == ondatra.ARISTA {
+		re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)/\d+(?::\d+)?$`)
+	match := re.FindStringSubmatch(portName)
+	if match == nil {
+		return "", fmt.Errorf("invalid port name format: %s", portName)
+	}
+		return fmt.Sprintf("FPC%s", match[1]), nil
+	}
+	if dut.Vendor() == ondatra.CISCO {
+		re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)/\d+(?::\d+)?$`)
+		match := re.FindStringSubmatch(portName)
+		if match == nil {
+			return "", fmt.Errorf("invalid port name format: %s", portName)
+		}
+		return fmt.Sprintf("FPC%s", match[2]), nil
+	}
+	if dut.Vendor() == ondatra.JUNIPER {
+		re := regexp.MustCompile(`^[A-Za-z]+-(\d+)/(\d+)/\d+(?::\d+)?$`)
+	match := re.FindStringSubmatch(portName)
+	if match == nil {
+		return "", fmt.Errorf("invalid port name format: %s", portName)
+	}
+		return fmt.Sprintf("FPC%s", match[1]), nil
+	}
+	if dut.Vendor() == ondatra.NOKIA {
+		re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)+(?::\d+)?$`)
+		match := re.FindStringSubmatch(portName)
+		if match == nil {
+			return "", fmt.Errorf("invalid port name format: %s", portName)
+		}
+		return fmt.Sprintf("FPC%s", match[1]), nil
+	}
+	return "", fmt.Errorf("unsupported vendor: %s", dut.Vendor())
+}
+func verifyNotificationPathsForPortUpdates(t *testing.T, notifications []*gpb.Notification, selectedPort string) {
+	t.Helper()
+	for _, notification := range notifications {
+		path := ""
+		for _, elem := range notification.GetPrefix().GetElem() {
+			path += "/" + elem.GetName()
+			for key, value := range elem.GetKey() {
+			if value == selectedPort {
+				t.Logf("Notification path: %v has update for port: %v", path, selectedPort)
+				t.Logf("Key: %v, Value: %v", key, value)
+				break
+			}
+		}
+	 }
+	}
+	t.Errorf("Notification is missing update for port: %v", selectedPort)
+}
 
 func TestBreakoutSubscription(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -879,4 +972,26 @@ func TestBreakoutSubscription(t *testing.T) {
 		defer stream.CloseSend()
 		defer ctx.Done()
 	})
+		// Check response after a triggered breakout module reboot
+	t.Run("PLT-1.2.5 Check response after a triggered breakout module reboot", func(t *testing.T) {
+		intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
+		selectedPort := intfsOperStatusUPBeforeReboot[len(intfsOperStatusUPBeforeReboot)-1]
+		fpc, err := findFpcFromPort(t, selectedPort, dut)
+		if err != nil {
+			t.Fatalf("Failed to find FPC from port: %v", err)
+		}
+		linecardDown(t, dut, fpc)
+		stream := newSubscribeRequest(ctx, t, dut)
+		checkSyncResponse(t, stream)
+		lineCardUp(t, dut, fpc)
+		updateTimeout := 10 * time.Second
+		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		if err != nil {
+			t.Logf("Received error(possibly end of updates): %v", err)
+		}
+		verifyNotificationPathsForPortUpdates(t, receivedNotifications, selectedPort)
+		defer stream.CloseSend()
+		defer ctx.Done()
+		})
+}
 }
