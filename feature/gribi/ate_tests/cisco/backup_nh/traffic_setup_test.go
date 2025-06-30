@@ -235,11 +235,11 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 				t.Log("No stats collected as interfaces are down due to LC reload")
 				break
 			} else if got != 100 {
-				t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
+				t.Fatalf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
 			}
 		} else {
 			if got > 0 {
-				t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
+				t.Fatalf("LossPct for flow %s got %g, want 0", f.Name(), got)
 			}
 		}
 
@@ -260,10 +260,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 
 			for k := range dutInPktsAfterTraffic {
 				if got, want := totalInPktsAfterTraffic[k]-totalInPktsBeforeTraffic[k], ateTxPkts[k]; got <= want {
-					t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
+					t.Fatalf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 				}
 				if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateRxPkts[k]; got <= want {
-					t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
+					t.Fatalf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 				}
 			}
 		}
