@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/system/gnmi/benchmarking/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/gnmi/setup"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
