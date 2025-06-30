@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -46,33 +47,29 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64]) {
-	var fec uint64
-	// Try up to 5 times, sleeping 10s between, if FEC uncorrectable blocks are not zero
-	for attempt := 0; attempt < 5; attempt++ {
-		fecStream := stream.Next()
-		if fecStream == nil {
-			t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
-		}
-		fec, ok := fecStream.Val()
-		if !ok {
-			t.Fatalf("Error capturing streaming Fec value")
-		}
-		if reflect.TypeOf(fec).Kind() != reflect.Uint64 {
-			t.Fatalf("fec value is not type uint64")
-		}
-		t.Logf("attempt : %d : Got FecUncorrectableBlocks: %d", attempt, fec)
-		if fec == 0 {
-			break
-		}
-		if attempt < 4 {
-			time.Sleep(10 * time.Second)
-		}
-	}
-	t.Logf("FecUncorrectableBlocks: %d", fec)
-	if fec != 0 {
-		t.Fatalf("Got FecUncorrectableBlocks got %d, want 0", fec)
-	}
+func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64], baselineValue uint64) {
+    dut := ondatra.DUT(t, "dut")
+    fecStream := stream.Next()
+    if fecStream == nil {
+        t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
+    }
+    currentFec, ok := fecStream.Val()
+    if !ok {
+        t.Fatalf("Error capturing streaming Fec value")
+    }
+    if reflect.TypeOf(currentFec).Kind() != reflect.Uint64 {
+        t.Fatalf("fec value is not type uint64")
+    }
+	if deviations.NonIntervalFecErrorCounter(dut) {
+		// Check if the counter is incrementing
+		if currentFec > baselineValue {
+            t.Fatalf("FecUncorrectableBlocks increased after flap: baseline=%d, current=%d, diff=%d",
+                     baselineValue, currentFec, currentFec-baselineValue)
+        }
+        t.Logf("FecUncorrectableBlocks not increasing: baseline=%d, current=%d", baselineValue, currentFec)
+    } else if currentFec != 0 {
+        t.Fatalf("Got FecUncorrectableBlocks got %d, want 0", currentFec)
+    }
 }
 
 func TestZrUncorrectableFrames(t *testing.T) {
@@ -106,7 +103,21 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 			streamFecOtn := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), sampleInterval)
 			defer streamFecOtn.Close()
-			validateFecUncorrectableBlocks(t, streamFecOtn)
+			// Get baseline FEC value 1 second after interface is up
+			time.Sleep(1 * time.Second)
+			baselineFecStream := streamFecOtn.Next()
+			if baselineFecStream == nil {
+				t.Fatalf("Baseline Fec Uncorrectable Blocks was not streamed")
+			}
+			baselineFec, ok := baselineFecStream.Val()
+			if !ok {
+				t.Fatalf("Error capturing baseline Fec value")
+			}
+			// Wait another 10 seconds (total 10 seconds after flap)
+			time.Sleep(10 * time.Second)
+
+			// Validate that FEC errors haven't increased
+			validateFecUncorrectableBlocks(t, streamFecOtn, baselineFec)
 
 			// Toggle interface enabled
 			d := &oc.Root{}
@@ -125,7 +136,21 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
-			validateFecUncorrectableBlocks(t, streamFecOtn)
+			// Get baseline FEC value 1 second after interface is up
+			time.Sleep(1 * time.Second)
+			baselineFecStream1 := streamFecOtn.Next()
+			if baselineFecStream1 == nil {
+				t.Fatalf("Baseline Fec Uncorrectable Blocks was not streamed")
+			}
+			baselineFec1, ok := baselineFecStream1.Val()
+			if !ok {
+				t.Fatalf("Error capturing baseline Fec value")
+			}
+			// Wait another 10 seconds (total 10 seconds after flap)
+			time.Sleep(10 * time.Second)
+
+			// Validate that FEC errors haven't increased
+			validateFecUncorrectableBlocks(t, streamFecOtn, baselineFec1)
 		})
 	}
 }
