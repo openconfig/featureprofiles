@@ -37,3 +37,13 @@ the emergency case that is covered by this requirement.
 ## Config Parameter coverage
 
 ## Telemetry Parameter coverage
+
+## OpenConfig Path and RPC Coverage
+
+TODO: Update the Paths and RPCs used.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+```
