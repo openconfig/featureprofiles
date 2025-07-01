@@ -33,61 +33,62 @@ the DUT properly allows or disallows authentication based on the configured sett
 ## Canonical OC for DUT configuration
 
 ```json
-{
- "data": {
-  "aaa": {
-   "authorizations": {
-    "authorization": [
-     {
-      "type": "exec",
-      "listname": "default",
-      "method1": "tacacs-plus",
-      "method2": "local"
-     },
-     {
-      "type": "commands",
-      "listname": "default",
-      "method1": "tacacs-plus",
-      "method2": "none"
-     }
-    ]
-   }
-  }
- }
-}
-
-{
- "data": {
-  "ssh": {
-   "server": {
-    "dscp": 32,
-    "usernames": {
-     "username": [
-      {
-       "name": "testuser",
-       "keystring": "xxxxxxxxx"
-      },
-     ]
+[
+    {
+        "data": {
+            "aaa": {
+                "authorizations": {
+                    "authorization": [
+                        {
+                            "type": "exec",
+                            "listname": "default",
+                            "method1": "tacacs-plus",
+                            "method2": "local"
+                        },
+                        {
+                            "type": "commands",
+                            "listname": "default",
+                            "method1": "tacacs-plus",
+                            "method2": "none"
+                        }
+                    ]
+                }
+            }
+        }
     },
-    "rate-limit": 600,
-    "rekey-volume": 4095,
-    "v2": [
-     null
-    ],
-    "vrf-table": {
-     "vrf": [
-      {
-       "vrf-name": "yyyyy",
-       "enable": [
-        null
-       ]
-      }
-     ]
+    {
+        "data": {
+            "ssh": {
+                "server": {
+                    "dscp": 32,
+                    "usernames": {
+                        "username": [
+                            {
+                                "name": "testuser",
+                                "keystring": "xxxxxxxxx"
+                            }
+                        ]
+                    },
+                    "rate-limit": 600,
+                    "rekey-volume": 4095,
+                    "v2": [
+                        null
+                    ],
+                    "vrf-table": {
+                        "vrf": [
+                            {
+                                "vrf-name": "yyyyy",
+                                "enable": [
+                                    null
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
     }
-   }
-  }
- }        
-}
+]
 ```
 
 ## OpenConfig Path and RPC Coverage
