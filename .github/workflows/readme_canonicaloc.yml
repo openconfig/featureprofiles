@@ -43,7 +43,7 @@ jobs:
           while IFS= read -r path; do
             exemption_flags+="--non-test-readme $path "
           done < ./tools/non_test_readmes.txt
-          validate_readme_canonicalocspec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
+          validate_readme_canonicalocspec --feature-dir "$1" --alsologtostderr ${exemption_flags}
         }
 
         ##### BEGIN: Validate Changed Test READMEs # TODO: Remove this section after all are converted.
@@ -79,7 +79,7 @@ jobs:
             exemption_flags+="--non-test-readme $path "
           done < ./tools/non_test_readmes.txt
           for f in "${affected_readmes[@]}"; do
-            validate_readme_canonicalocspec --alsologtostderr "${exemption_flags[@]}" "${f}"
+            validate_readme_canonicalocspec --alsologtostderr ${exemption_flags} "${f}"
           done
         fi
 
@@ -87,3 +87,4 @@ jobs:
         
         # TODO: Validate READMEs that have been converted to the new format.
         # echo "########## Validating already-converted READMEs:"
+
