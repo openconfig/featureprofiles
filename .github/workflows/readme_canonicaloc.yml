@@ -1,11 +1,11 @@
-name: README OpenConfig Path and RPC Coverage
+name: README Canonical OC
 
 on:
   push:
     branches: [ main ]
   pull_request:
   schedule:
-    - cron: "49 0 * * *"
+  - cron: "49 0 * * *"
 
 jobs:
   integration-test:
@@ -18,32 +18,32 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe
       with:
-        go-version: stable
+        go-version-file: 'go.mod'
         cache: false
 
-    - name: Validate Validation Script
+    - name: Validate Canonical OC Validation Script
       run: |
-        cd tools/validate_readme_spec
-        ./validate_readme_spec_test.sh
+        cd tools/validate_readme_canonicalocspec
+        ./validate_readme_canonicalocspec_test.sh
 
     - name: Validate Template README
       run: |
-        go install ./tools/validate_readme_spec
-        validate_readme_spec --alsologtostderr doc/test-requirements-template.md
+        go install ./tools/validate_readme_canonicalocspec
+        validate_readme_canonicalocspec --alsologtostderr doc/test-requirements-template.md
 
     - name: Validate Test READMEs
       run: |
-        go install ./tools/validate_readme_spec
+        go install ./tools/validate_readme_canonicalocspec
 
         # TODO: Just use this one line after all READMEs have converted to the new format.
-        # validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+        # validate_readme_canonicalocspec --alsologtostderr "${exemption_flags[@]}"
 
         function validate() {
           local exemption_flags=()
           while IFS= read -r path; do
             exemption_flags+="--non-test-readme $path "
           done < ./tools/non_test_readmes.txt
-          validate_readme_spec --feature-dir "$1" --alsologtostderr ${exemption_flags}
+          validate_readme_canonicalocspec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
         }
 
         ##### BEGIN: Validate Changed Test READMEs # TODO: Remove this section after all are converted.
@@ -79,24 +79,11 @@ jobs:
             exemption_flags+="--non-test-readme $path "
           done < ./tools/non_test_readmes.txt
           for f in "${affected_readmes[@]}"; do
-            validate_readme_spec --alsologtostderr ${exemption_flags} "${f}"
+            validate_readme_canonicalocspec --alsologtostderr "${exemption_flags[@]}" "${f}"
           done
         fi
 
         ##### END: Validate Changed Test READMEs #####
-
-        echo "########## Validating already-converted READMEs:"
-        validate feature/aft
-        validate feature/bgp/policybase/otg_tests/import_export_multi_test
-        validate feature/gnmi
-        validate feature/gnoi
-        validate feature/isis
-        validate feature/mtu
-        validate feature/networkinstance
-        validate feature/security
-        validate feature/staticroute
-        validate feature/system/management
-        validate feature/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
-        validate feature/system/ntp/tests/system_ntp_test
-        validate feature/qos/otg_tests/bursty_traffic_test
-
+        
+        # TODO: Validate READMEs that have been converted to the new format.
+        # echo "########## Validating already-converted READMEs:"
