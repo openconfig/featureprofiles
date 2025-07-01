@@ -17,7 +17,7 @@ func errorf(format string, args ...any) {
 }
 
 func getNonTestREADMEs(featureprofilesDir, nonTestREADMEsfilePath string) (map[string]bool, error) {
-	filePath = filepath.Join(featureprofilesDir, nonTestREADMEsfilePath)
+	filePath := filepath.Join(featureprofilesDir, nonTestREADMEsfilePath)
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
