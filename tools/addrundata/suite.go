@@ -16,8 +16,8 @@ func errorf(format string, args ...any) {
 	os.Stderr.WriteString(buf.String())
 }
 
-func getNonTestREADMEs(featureprofilesDir, filePath string) (map[string]bool, error) {
-	filePath = filepath.Join(featureprofilesDir, filePath)
+func getNonTestREADMEs(featureprofilesDir, nonTestREADMEsfilePath string) (map[string]bool, error) {
+	filePath = filepath.Join(featureprofilesDir, nonTestREADMEsfilePath)
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -303,4 +303,3 @@ func (ts testsuite) write(featuredir string) error {
 	}
 	return nil
 }
-

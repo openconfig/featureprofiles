@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google3/third_party/golang/cmp/cmp"
+	mpb "google3/third_party/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // prepareSuite is like ts.write() but for testing purpose.  It writes out the testsuite
@@ -17,6 +17,11 @@ import (
 // ts.write().
 func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 	newts := make(testsuite)
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(featuredir), "tools"), 0700); err != nil {
+		return nil, err
+	}
+	nonTestReadmePath := filepath.Join(filepath.Dir(featuredir), "tools/non_test_readmes.txt")
+	os.Create(nonTestReadmePath)
 	for reldir, tc := range ts {
 		testdir := filepath.Join(featuredir, reldir)
 		if err := os.MkdirAll(testdir, 0700); err != nil {
@@ -277,6 +282,11 @@ func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 
 	// Populate the featuredir hierarchy with the README.md files and a dummy test file.
 	featuredir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(featuredir), "tools"), 0700); err != nil {
+		t.Fatalf("Cannot create tools directory: %s", filepath.Join(filepath.Dir(featuredir), "tools"))
+	}
+	nonTestReadmePath := filepath.Join(filepath.Dir(featuredir), "tools/non_test_readmes.txt")
+	os.Create(nonTestReadmePath)
 	for reldir, md := range markdowns {
 		testdir := filepath.Join(featuredir, reldir)
 		if err := os.MkdirAll(testdir, 0700); err != nil {
