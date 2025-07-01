@@ -32,7 +32,6 @@ the DUT properly allows or disallows authentication based on the configured sett
 
 ## Canonical OC for DUT configuration
 
-```json
 [
     {
         "data": {
@@ -89,7 +88,6 @@ the DUT properly allows or disallows authentication based on the configured sett
         }
     }
 ]
-```
 
 ## OpenConfig Path and RPC Coverage
 
