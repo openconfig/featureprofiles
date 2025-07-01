@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"google3/third_party/golang/cmp/cmp"
-	mpb "google3/third_party/openconfig/featureprofiles/proto/metadata_go_proto"
+	"github.com/google/go-cmp/cmp"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // prepareSuite is like ts.write() but for testing purpose.  It writes out the testsuite
