@@ -32,6 +32,8 @@ const (
 	authorizedKeysListVersion = "v1.0"
 )
 
+var authorizedKeysListCreatedOn int64
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -39,7 +41,6 @@ func TestMain(m *testing.M) {
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
-	var authorizedKeysListCreatedOn int64
 	authorizedKeysListCreatedOn = time.Now().Unix()
 
 	// Create temporary directory for storing ssh keys/certificates.
