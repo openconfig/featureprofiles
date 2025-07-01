@@ -195,7 +195,7 @@ Verify results are same corresponding to test cases PF-1.18.1 - PF-1.18.9 with:
 * Ingress and egress aggregate links on same PPE
 * Ingress links on multiple PPEs and egress aggregate links on multiple PPEs
 
-## Canonical OC 
+#### Canonical OC 
 NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
 
 ```json
