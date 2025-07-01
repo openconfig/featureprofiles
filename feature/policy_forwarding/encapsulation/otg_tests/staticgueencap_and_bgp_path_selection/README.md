@@ -561,10 +561,10 @@ Inflight
                 "protocols": {
                     "protocol": [
                         {
-                            "identifier": STATIC,
+                            "identifier": "STATIC",
                             "name": "DEFAULT",
                             "config": {
-                                "identifier": STATIC,
+                                "identifier": "STATIC",
                                 "name": "DEFAULT",
                                 "enabled": true
                             },
