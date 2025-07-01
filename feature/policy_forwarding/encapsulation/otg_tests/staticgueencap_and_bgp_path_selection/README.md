@@ -417,8 +417,6 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 
 ### RT-3.52.8: Negative Scenario - EBGP Route for remote tunnel endpoints Removed
 
-Inflight
-
 *   **Situation:**
 
     *   The test begins from the final state of RT-3.52.7 In this state, the DUT
