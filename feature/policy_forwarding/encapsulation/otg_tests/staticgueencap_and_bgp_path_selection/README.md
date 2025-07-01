@@ -598,7 +598,7 @@ Inflight
                                                 "name": "gue_encap_v4_nhg"
                                             }
                                         }
-                                    },
+                                    }
                                 ]
                             }
                         }
@@ -619,7 +619,7 @@ Inflight
                                             "config": {
                                                 "index": 1
                                             }
-                                        },
+                                        }
                                     ]
                                 }
                             }
@@ -643,11 +643,11 @@ Inflight
                                                     "ip-ttl": "outer_ip_ttl",
                                                     "dst-udp-port": "outer_dst_udp_port"
                                                 }
-                                            },
+                                            }
                                         ]
                                     }
                                 }
-                            },
+                            }
                         ]
                     }
                 }
@@ -693,11 +693,11 @@ Inflight
                                             "config": {
                                                 "destination-port": 6080
                                             }
-                                        }
+                                        },
                                         "action": {
                                             "decapsulate-gue": true
-                                        },
-                                    },
+                                        }
+                                    }
                                 ]
                             }
                         }
@@ -707,6 +707,7 @@ Inflight
         }
     }
 }
+
 ```
 
 ## OpenConfig Path and RPC Coverage
