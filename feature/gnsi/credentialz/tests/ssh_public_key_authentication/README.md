@@ -31,55 +31,23 @@ the DUT properly allows or disallows authentication based on the configured sett
           `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
 
 ## Canonical OC for DUT configuration
-
-[
     {
         "data": {
             "aaa": {
-                "authorizations": {
-                    "authorization": [
-                        {
-                            "type": "exec",
-                            "listname": "default",
-                            "method1": "tacacs-plus",
-                            "method2": "local"
-                        },
-                        {
-                            "type": "commands",
-                            "listname": "default",
-                            "method1": "tacacs-plus",
-                            "method2": "none"
-                        }
-                    ]
-                }
-            }
-        }
-    },
-    {
-        "data": {
-            "ssh": {
-                "server": {
-                    "dscp": 32,
-                    "usernames": {
-                        "username": [
+                "authentication": {
+                    "users": {
+                        "user": [
                             {
-                                "name": "testuser",
-                                "keystring": "xxxxxxxxx"
-                            }
-                        ]
-                    },
-                    "rate-limit": 600,
-                    "rekey-volume": 4095,
-                    "v2": [
-                        null
-                    ],
-                    "vrf-table": {
-                        "vrf": [
-                            {
-                                "vrf-name": "yyyyy",
-                                "enable": [
-                                    null
-                                ]
+                                "config": {
+                                    "username": "testuser",
+                                    "password": "xxxxxxx",
+                                    "ssh-key" : "yyyyyyy"
+                                },
+                                "state": {
+                                    "username": "testuser",
+                                    "password": "xxxxxxx",
+                                    "ssh-key" : "yyyyyyy"
+                                },
                             }
                         ]
                     }
@@ -87,8 +55,6 @@ the DUT properly allows or disallows authentication based on the configured sett
             }
         }
     }
-]
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
