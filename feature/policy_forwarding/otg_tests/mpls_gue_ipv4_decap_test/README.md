@@ -168,7 +168,7 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 Verify:
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
-## Canonical  OC
+## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
 ```json
 {
   "network-instances": {
