@@ -140,11 +140,14 @@ func IncrementIPNetwork(ipStr string, numBreakouts uint8, isIPv4 bool, lastOctet
 // Example being 4x100 parent port would be FourHundredGigE0/0/0/10 this will find and return
 // the newly broken out ports of OneHundredGigE0/0/0/0/10/0-4
 func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName string, numBreakouts uint8) ([]string, error) {
+
+	// Input originalPortName is already a breakout port, e.g., "Ethernet5/3/5".
+	// We need to construct sibling names based on numBreakouts.
+	lastSlashIndex := strings.LastIndex(originalPortName, "/")
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		lastSlashIndex := strings.LastIndex(originalPortName, "/")
 		if lastSlashIndex == -1 {
-			return nil, fmt.Errorf("invalid port name format: %v, expected at least one '/'", originalPortName)
+			return nil, fmt.Errorf("Cisco: Invalid port name format: %v, expected at least one '/'", originalPortName)
 		}
 		basePortName := originalPortName[:lastSlashIndex]
 		t.Logf("basePortName is: %s", basePortName)
@@ -165,9 +168,6 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 			}
 		}
 		sortBreakoutPorts(newPortNames)
-		for _, portName := range newPortNames {
-			t.Logf("sorted portName is: %s", portName)
-		}
 		// Check if the number of new ports found is equal to the number of breakouts expected.
 		if len(newPortNames) != int(numBreakouts) {
 			return nil, fmt.Errorf("expected to find %d new ports, found %d", numBreakouts, len(newPortNames))
@@ -176,21 +176,17 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 		return newPortNames, nil
 
 	case ondatra.ARISTA:
-		// Input originalPortName is already a breakout port, e.g., "Ethernet5/3/5".
-		// We need to construct sibling names based on numBreakouts.
 
-		lastSlashIndex := strings.LastIndex(originalPortName, "/")
 		// Ensure there is a slash and it's not the last character (i.e., there's a number after it).
 		if lastSlashIndex == -1 || lastSlashIndex == len(originalPortName)-1 {
-			return nil, fmt.Errorf("arista: invalid port name format '%s'. Expected format like 'Prefix/SubPortNumber' (e.g., 'Ethernet1/2/3')", originalPortName)
+			return nil, fmt.Errorf("Arista: invalid port name format '%s'. Expected format like 'Prefix/SubPortNumber' (e.g., 'Ethernet1/2/3')", originalPortName)
 		}
 
 		baseNamePrefix := originalPortName[:lastSlashIndex+1]
 		// startSubPortStr := originalPortName[lastSlashIndex+1:] // E.g., "5"
 
 		var newPortNames []string
-		for i := 0; i < int(numBreakouts); i++ {
-			currentSubPortNum := i + 1
+		for currentSubPortNum := 1; currentSubPortNum <= int(numBreakouts); i++ {
 			newPortName := baseNamePrefix + strconv.Itoa(currentSubPortNum)
 			newPortNames = append(newPortNames, newPortName)
 		}
