@@ -1,4 +1,4 @@
-### PF-1.18: MPLSoGRE and MPLSoGUE QoS 
+## PF-1.18: MPLSoGRE and MPLSoGUE QoS 
 
 ## Summary
 This test verifies quality of service with MPLSoGRE and MPLSoGUE IP traffic on routed VLAN sub interfaces. The classification, marking and queueing of traffic while being encapsulated and decapsulated based on the outer headers and/or inner payload are the major features verified on the test device.
@@ -195,15 +195,7 @@ Verify results are same corresponding to test cases PF-1.18.1 - PF-1.18.9 with:
 * Ingress and egress aggregate links on same PPE
 * Ingress links on multiple PPEs and egress aggregate links on multiple PPEs
 
-## Canonical OpenConfig for MACsec configuration
-
-TODO: 
-* Finalize and update the below paths after the review and testing on any vendor device
-* MPLSoGRE/MPLSoGUE packet classification OC need to be defined
-* OC for Queueing with shaper need to be defined
-* Add json queueing configs in this file - b/408493684
-
-### JSON Format
+## Canonical OC 
 NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
 
 ```json
@@ -304,7 +296,12 @@ NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Mu
     }
 }
 ```
-
+TODO: 
+* Finalize and update the below paths after the review and testing on any vendor device
+* MPLSoGRE/MPLSoGUE packet classification OC need to be defined
+* OC for Queueing with shaper need to be defined
+* Add json queueing configs in this file - b/408493684
+  
 ## OpenConfig Path and RPC Coverage
 ```yaml
 
