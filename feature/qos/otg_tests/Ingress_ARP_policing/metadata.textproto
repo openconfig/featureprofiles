@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "8f9b64a4-a631-45c2-be53-da004f5b3e41"
+plan_id:  "CPT-1.1"
+description:  "Interface based ARP policer"
+testbed:  TESTBED_DUT_ATE_2LINKS

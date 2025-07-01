@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "1d41b7ab-24e9-4bc4-8705-392ca08ca8b4"
+plan_id:  "PF-1.18"
+description:  "MPLSoGRE and MPLSoGUE QoS"
+testbed:  TESTBED_DUT_ATE_2LINKS
