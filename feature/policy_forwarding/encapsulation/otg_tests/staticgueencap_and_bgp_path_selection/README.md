@@ -545,7 +545,9 @@ Inflight
         /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/prefix
         ```
 
-## Canonical OpenConfig for GUEv1 Encapsulation configuration
+## Canonical OC 
+
+### For GUEv1 Encapsulation configuration
 
 ```json
 {
@@ -637,7 +639,9 @@ Inflight
 }
 ```
 
-## Canonical OpenConfig for GUEv1 Decapsulation configuration
+## Canonical OC 
+
+### For GUEv1 Decapsulation configuration
 
 ```json
 {
