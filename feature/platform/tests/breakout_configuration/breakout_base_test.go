@@ -186,7 +186,7 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 		// startSubPortStr := originalPortName[lastSlashIndex+1:] // E.g., "5"
 
 		var newPortNames []string
-		for currentSubPortNum := 1; currentSubPortNum <= int(numBreakouts); i++ {
+		for currentSubPortNum := 1; currentSubPortNum <= int(numBreakouts); currentSubPortNum++ {
 			newPortName := baseNamePrefix + strconv.Itoa(currentSubPortNum)
 			newPortNames = append(newPortNames, newPortName)
 		}
