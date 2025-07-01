@@ -265,7 +265,7 @@ func TestMPLSOGREEncapIPv4(t *testing.T) {
 		t.Errorf("Validation on flows failed (): %q", err)
 	}
 
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, top, ate, EncapPacketValidation); err != nil {
+	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, EncapPacketValidation); err != nil {
 		packetvalidationhelpers.ClearCapture(t, top, ate)
 		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
 	}
