@@ -15,6 +15,7 @@
 package zr_fec_uncorrectable_frames_test
 
 import (
+	"flag"
 	"fmt"
 	"reflect"
 	"testing"
@@ -34,6 +35,11 @@ const (
 	intUpdateTime  = 2 * time.Minute
 	otnIndexBase   = uint32(4000)
 	ethIndexBase   = uint32(40000)
+)
+
+var (
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -68,6 +74,8 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	)
 
 	ports := []string{"port1", "port2"}
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 
 	for i, port := range ports {
 		dp := dut.Port(t, port)
@@ -83,9 +91,7 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	for _, port := range ports {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
-
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-
 			streamFecOtn := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), sampleInterval)
 			defer streamFecOtn.Close()
 			validateFecUncorrectableBlocks(t, streamFecOtn)
@@ -98,13 +104,13 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			// Disable interface
 			i.Enabled = ygot.Bool(false)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			// Wait for the cooling off period
+			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			// Enable interface
 			i.Enabled = ygot.Bool(true)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			// Wait for the cooling off period
+			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			validateFecUncorrectableBlocks(t, streamFecOtn)

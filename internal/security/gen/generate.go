@@ -61,7 +61,7 @@ var (
 
 var (
 	services = map[string]protoreflect.ServiceDescriptors{
-		"gnmi":                    gnmipb.File_proto_gnmi_gnmi_proto.Services(),
+		"gnmi":                    gnmipb.File_github_com_openconfig_gnmi_proto_gnmi_gnmi_proto.Services(),
 		"gribi":                   gribipb.File_v1_proto_service_gribi_proto.Services(),
 		"gnsi.authz":              authzpb.File_github_com_openconfig_gnsi_authz_authz_proto.Services(),
 		"gnsi.certz":              certzpb.File_github_com_openconfig_gnsi_certz_certz_proto.Services(),
@@ -75,7 +75,7 @@ var (
 		"gnoi.healthz":            hpb.File_healthz_healthz_proto.Services(),
 		"gnoi.layer2":             lpb.File_layer2_layer2_proto.Services(),
 		"gnoi.mppls":              mpb.File_mpls_mpls_proto.Services(),
-		"gnoi.os":                 ospb.File_os_os_proto.Services(),
+		"gnoi.os":                 ospb.File_github_com_openconfig_gnoi_os_os_proto.Services(),
 		"gnoi.otdr":               otpb.File_otdr_otdr_proto.Services(),
 		"gnoi.link_qualification": plqpb.File_packet_link_qualification_packet_link_qualification_proto.Services(),
 		"gnoi.system":             spb.File_system_system_proto.Services(),

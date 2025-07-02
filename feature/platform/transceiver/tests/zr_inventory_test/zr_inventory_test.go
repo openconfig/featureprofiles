@@ -1,10 +1,12 @@
 package zr_inventory_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -13,10 +15,14 @@ import (
 )
 
 const (
-	dp16QAM          = 1
 	samplingInterval = 10 * time.Second
 	timeout          = 5 * time.Minute
 	waitInterval     = 30 * time.Second
+)
+
+var (
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -57,6 +63,8 @@ func TestInventory(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dp1)
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 
@@ -81,11 +89,13 @@ func TestInventory(t *testing.T) {
 		samplestream.New(t, dut, component1.SerialNo().State(), samplingInterval),
 		samplestream.New(t, dut, component1.PartNo().State(), samplingInterval),
 		samplestream.New(t, dut, component1.MfgName().State(), samplingInterval),
-		samplestream.New(t, dut, component1.MfgDate().State(), samplingInterval),
 		samplestream.New(t, dut, component1.HardwareVersion().State(), samplingInterval),
 		samplestream.New(t, dut, component1.FirmwareVersion().State(), samplingInterval),
 		// samplestream.New(t, dut1, component1.Description().State(), samplingInterval),
 	)
+	if !deviations.ComponentMfgDateUnsupported(dut) {
+		p1StreamsStr = append(p1StreamsStr, samplestream.New(t, dut, component1.MfgDate().State(), samplingInterval))
+	}
 	p1StreamsUnion = append(p1StreamsUnion, samplestream.New(t, dut, component1.Type().State(), samplingInterval))
 
 	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)

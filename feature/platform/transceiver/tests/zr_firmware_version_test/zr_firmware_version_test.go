@@ -15,10 +15,12 @@
 package zr_firmware_version_test
 
 import (
+	"flag"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
@@ -29,7 +31,6 @@ import (
 )
 
 const (
-	dp16QAM           = 1
 	targetOutputPower = -10
 	frequency         = 193100000
 )
@@ -37,6 +38,11 @@ const (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
+var (
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel.")
+	operationalMode     uint16
+)
 
 // Topology: dut:port1 <--> port2:dut
 
@@ -46,11 +52,9 @@ func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, en
 	i.Enabled = ygot.Bool(enable)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	component := components.OpticalChannelComponentFromPort(t, dut1, dp)
-	gnmi.Replace(t, dut1, gnmi.OC().Component(component).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		TargetOutputPower: ygot.Float64(targetOutputPower),
-		Frequency:         ygot.Uint64(frequency),
-	})
+	componentName := components.OpticalChannelComponentFromPort(t, dut1, dp)
+	// Set config container leaf for optical channel
+	cfgplugins.ConfigOpticalChannel(t, dut1, componentName, frequency, targetOutputPower, operationalMode)
 }
 
 func verifyFirmwareVersionValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[string]) {
@@ -74,8 +78,10 @@ func TestZRFirmwareVersionState(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	configInterface(t, dut1, dp1, true)
-	configInterface(t, dut1, dp2, true)
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut1, dp1)
+	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR
@@ -97,8 +103,8 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	configInterface(t, dut1, dp1, true)
-	configInterface(t, dut1, dp2, true)
+	cfgplugins.InterfaceConfig(t, dut1, dp1)
+	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR
@@ -111,7 +117,7 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 
 	p1Stream := samplestream.New(t, dut1, component1.FirmwareVersion().State(), 10*time.Second)
 
-	// Wait 60 sec cooling off period
+	// Wait 60 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
 

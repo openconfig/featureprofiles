@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "91120b0a-91ea-493c-8046-f52176ec2029"
+plan_id: "Credentialz-3"
+description: "Host Certificates"
+testbed: TESTBED_DUT

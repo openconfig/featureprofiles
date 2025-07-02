@@ -171,9 +171,9 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 	return names, nil
 }
 
-// FindStandbyRP gets a list of two components and finds out the active and standby rp.
-func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
-	var activeRP, standbyRP string
+// FindStandbyControllerCard gets a list of two components and finds out the active and standby controller_cards.
+func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+	var activeCC, standbyCC string
 	for _, supervisor := range supervisors {
 		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 			return val.IsPresent()
@@ -184,19 +184,19 @@ func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
-			standbyRP = supervisor
+			standbyCC = supervisor
 		} else if role == activeController {
-			activeRP = supervisor
+			activeCC = supervisor
 		} else {
 			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
 		}
 	}
-	if standbyRP == "" || activeRP == "" {
-		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	if standbyCC == "" || activeCC == "" {
+		t.Fatalf("Expected non-empty activeCC and standbyCC, got activeCC: %v, standbyCC: %v", activeCC, standbyCC)
 	}
-	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	t.Logf("Detected activeCC: %v, standbyCC: %v", activeCC, standbyCC)
 
-	return standbyRP, activeRP
+	return standbyCC, activeCC
 }
 
 // OpticalChannelComponentFromPort finds the optical channel component for a port.
