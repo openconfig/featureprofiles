@@ -66,4 +66,3 @@ func renderJSON(s ygot.GoStruct) string {
 	}
 	return string(bs)
 }
-
