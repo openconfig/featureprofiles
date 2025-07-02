@@ -4,9 +4,30 @@
 
 This test verifies "EthoCWoMPLSoGRE" forwarding of IP traffic using policy-forwarding configuration. 
 
+"EthoCWoMPLSoGRE" describes the encapsulation for IPv4/IPv6 packets, including the Ethernet header, all contained within GRE and MPLS headers. In addition 4-byte zero control word (CW) is inserted between the MPLS header and the inner Ethernet header.
+
+       +------------------------------------+
+       |         Outer IP Header            |
+       +------------------------------------+
+       |         GRE Header                 |
+       +------------------------------------+
+       |         MPLS Label Stack           |
+       +------------------------------------+
+       |         Control Word (CW)          |
+       |        (4 bytes - all '0')         |
+       +------------------------------------+
+       |        Inner Ethernet Header       |
+       +------------------------------------+
+       |        Inner IP Header             |
+       +------------------------------------+
+       |        Layer-4 Header              |
+       +------------------------------------+
+       |        Payload                     |
+       +------------------------------------+
+
 ## Testbed type
 
-*  [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
+*  [`featureprofiles/topologies/atedut_5.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_5.testbed)
 
 ## Procedure
 
@@ -16,7 +37,7 @@ This test verifies "EthoCWoMPLSoGRE" forwarding of IP traffic using policy-forwa
 DUT has an ingress and 2 egress aggregate interfaces.
 
                          |         | --eBGP-- | ATE Ports 2,3 |
-    [ ATE Ports 1 ]----|   DUT   |          |               |
+    [ ATE Ports 1 ]----  |   DUT   |          |               |
                          |         | --eBGP-- | ATE Port 4,5  |
 ```
 
@@ -492,154 +513,6 @@ Run the test separately for both port mode and attachment mode "customer interfa
       },
 ```
 
-### Tunnels/Next-hop group configs Cisco 
-```json
-{
-                  "config": {
-                    "name": "LA_POP per-prefix 10.250.15.250/32 in:361478 out:pop"
-                  },
-                  "egress": {
-                    "config": {
-                      "incoming-label": 361478,
-                      "per-prefix": "10.250.15.250/32"
-                    },
-                    "lsp-next-hops": {
-                      "lsp-next-hop": [
-                        {
-                          "config": {
-                            "index": 0,
-                            "interface": "tunnel-ip10049",
-                            "subinterface": 0
-                          },
-                          "index": 0
-                        },
-                        {
-                          "config": {
-                            "index": 1,
-                            "interface": "tunnel-ip10050",
-                            "subinterface": 0
-                          },
-                          "index": 1
-                        },
-                        {
-                          "config": {
-                            "index": 10,
-                            "interface": "tunnel-ip10059",
-                            "subinterface": 0
-                          },
-                          "index": 10
-                        },
-                        {
-                          "config": {
-                            "index": 11,
-                            "interface": "tunnel-ip10060",
-                            "subinterface": 0
-                          },
-                          "index": 11
-                        },
-                        {
-                          "config": {
-                            "index": 12,
-                            "interface": "tunnel-ip10061",
-                            "subinterface": 0
-                          },
-                          "index": 12
-                        },
-                        {
-                          "config": {
-                            "index": 13,
-                            "interface": "tunnel-ip10062",
-                            "subinterface": 0
-                          },
-                          "index": 13
-                        },
-                        {
-                          "config": {
-                            "index": 14,
-                            "interface": "tunnel-ip10063",
-                            "subinterface": 0
-                          },
-                          "index": 14
-                        },
-                        {
-                          "config": {
-                            "index": 15,
-                            "interface": "tunnel-ip10064",
-                            "subinterface": 0
-                          },
-                          "index": 15
-                        },
-                        {
-                          "config": {
-                            "index": 2,
-                            "interface": "tunnel-ip10051",
-                            "subinterface": 0
-                          },
-                          "index": 2
-                        },
-                        {
-                          "config": {
-                            "index": 3,
-                            "interface": "tunnel-ip10052",
-                            "subinterface": 0
-                          },
-                          "index": 3
-                        },
-                        {
-                          "config": {
-                            "index": 4,
-                            "interface": "tunnel-ip10053",
-                            "subinterface": 0
-                          },
-                          "index": 4
-                        },
-                        {
-                          "config": {
-                            "index": 5,
-                            "interface": "tunnel-ip10054",
-                            "subinterface": 0
-                          },
-                          "index": 5
-                        },
-                        {
-                          "config": {
-                            "index": 6,
-                            "interface": "tunnel-ip10055",
-                            "subinterface": 0
-                          },
-                          "index": 6
-                        },
-                        {
-                          "config": {
-                            "index": 7,
-                            "interface": "tunnel-ip10056",
-                            "subinterface": 0
-                          },
-                          "index": 7
-                        },
-                        {
-                          "config": {
-                            "index": 8,
-                            "interface": "tunnel-ip10057",
-                            "subinterface": 0
-                          },
-                          "index": 8
-                        },
-                        {
-                          "config": {
-                            "index": 9,
-                            "interface": "tunnel-ip10058",
-                            "subinterface": 0
-                          },
-                          "index": 9
-                        }
-                      ]
-                    }
-                  },
-                  "name": "LA_POP per-prefix 10.250.15.250/32 in:361478 out:pop"
-                },
-```
-
 ### Tunnels/Next-hop group configs
 
 ```json
@@ -766,6 +639,9 @@ paths:
     /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
     /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
 	  /interfaces/interface/aggregation/config/lag-type
+
+    #TODO: Static next-hop group
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group
 
     #psuedowire configs
     /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy
