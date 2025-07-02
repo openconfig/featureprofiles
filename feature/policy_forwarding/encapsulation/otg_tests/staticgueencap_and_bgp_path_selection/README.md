@@ -629,13 +629,13 @@ Inflight
                                 "static": [
                                     {
                                         "prefix": "fc00:10::1/128",
-                                        "next-hop-group": [
+                                        "next-hop-group": {
                                             {
                                                 "config": {
                                                     "name": "ENCAP-NHG-1"
                                                 }
                                             }
-                                        ]
+                                        }
                                     }
                                 ]
                             }
