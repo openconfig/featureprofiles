@@ -643,7 +643,11 @@ Inflight
                                         "config": {
                                             "prefix": "fc00:10::1/128"
                                         },
-                                        "next-hop-group": "ENCAP-NHG-1"
+                                        "next-hop-group": {
+                                            "config": {
+                                                "name": "ENCAP-NHG-1"
+                                            }
+                                        }
                                     }
                                 ]
                             }
@@ -654,6 +658,7 @@ Inflight
         ]
     }
 }
+
 
 ```
 
