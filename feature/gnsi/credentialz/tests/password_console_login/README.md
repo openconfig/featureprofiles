@@ -55,7 +55,6 @@ authentication of those users properly.
 The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
 
 ```yaml
-```yaml
 paths:
   ## State Paths ##
   /system/aaa/authentication/users/user/state/authorized-keys-list-version:
