@@ -30,7 +30,8 @@ the DUT properly allows or disallows authentication based on the configured sett
           `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-accepts`
           `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
 
-## Canonical OC for DUT configuration
+## Canonical OC
+```json
     {
         "data": {
             "aaa": {
@@ -55,6 +56,8 @@ the DUT properly allows or disallows authentication based on the configured sett
             }
         }
     }
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
