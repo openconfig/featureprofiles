@@ -18,13 +18,12 @@
 package hashing
 
 import (
-	// "fmt"
+	"fmt"
 
 	// "os"
 	// "sort"
 	// "strings"
 	"context"
-	"fmt"
 	// "math/rand"
 	"testing"
 
@@ -201,7 +200,7 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 	//Just to use variable and compile
 	t.Log("R,E,V and Jupiter sites", siteRDUTList, siteEDUTList, siteVDUTList, jupiterDUTList)
 
-	// dvtCiscoDUTList := []*ondatra.DUTDevice{dut1R, dut2R, dut3R, dut4R, dut1E, dut2E}
+	dvtCiscoDUTList := []*ondatra.DUTDevice{dut1R, dut2R, dut3R, dut4R, dut1E, dut2E}
 	tgenParam := helper.TgenConfigParam{
 		DutIntfAttr:      []attrs.Attributes{dutPort1, dutPort2},
 		TgenIntfAttr:     []attrs.Attributes{atePort1, atePort2},
@@ -218,31 +217,30 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 		WantLoss:  false,
 		Flows:     ateFlows,
 	}
-	t.Run("Verify Traffic after init Bringup", func(t *testing.T) {
+	t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
 		helper.TGEN.StartTraffic(t, false, ateFlows, 10*time.Second, topo, false)
 		verifiers.Tgen.ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
 	})
-
-	//Verify Traffic stats on InputIF and match with OutputIF
 	cases := []testCase{
-		{
-			name: "Default",
-			desc: "Default Hash parameters",
-		},
 		// {
-		// 	name:                  "Both auto-global",
-		// 	desc:                  "auto-global Hash parameters for both Extended Entropy and Algorithm Adjust",
-		// 	extendedEntropyOption: &extendedEntropyCLIOptions{perChassis: true},
-		// 	algorithmAdjustOption: &algorithmAdjustCLIOptions{perChassis: true},
-		// 	confHashCLIdutList:               dvtCiscoDUTList,
+		// 	name: "Default",
+		// 	desc: "Default Hash parameters",
 		// },
+		{
+			name:                  "Both auto-global",
+			desc:                  "auto-global Hash parameters for both Extended Entropy and Algorithm Adjust",
+			extendedEntropyOption: &extendedEntropyCLIOptions{perChassis: true},
+			algorithmAdjustOption: &algorithmAdjustCLIOptions{perChassis: true},
+			confHashCLIdutList:    dvtCiscoDUTList,
+		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Log("Configuring hashing parameters")
 			if tt.extendedEntropyOption != nil || tt.algorithmAdjustOption != nil {
-				configureOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList)
+				configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, false)
+				t.Log("Configuring hashing parameters")
 			}
+			defer configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, true)
 			t.Logf("Get AFT Prefix objects for %s", eSiteV4Prefix)
 			afttest := helper.FIB.GetPrefixAFTObjects(t, dut1E, eSiteV4Prefix+"/32", deviations.DefaultNetworkInstance(dut1E))
 			memberList := helper.Interface.GetBundleMembers(t, dut1E, afttest.NextHop[0].NextHopInterface)
@@ -260,7 +258,7 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 			}
 			helper.Interface.ClearInterfaceCountersAll(t, dut1E)
 			time.Sleep(5 * time.Second) // Wait for previous tgen traffic to completely stop.
-			helper.TGEN.StartTraffic(t, false, ateFlows, 60*time.Second, topo, true)
+			helper.TGEN.StartTraffic(t, false, ateFlows, 1*time.Minute, topo, true)
 			time.Sleep(30 * time.Second) // Wait for 30 seconds for XR statsd interface cache to update
 			inputTrafficIF := helper.Loadbalancing.GetIngressTrafficInterfaces(t, dut1E, "ipv4", true)
 			var bundleNHIntf []string
@@ -280,47 +278,65 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 			for _, val := range inputTrafficIF {
 				totalInPackets += val
 			}
-			t.Log("TotalInPackets is", totalInPackets)
+			t.Log("TotalInPackets are: ", totalInPackets)
 
-			t.Log("Verify Bundle non-recursive level loadbalancing")
-			verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, dut1E, OutputIFWeight, trafficTolerance, true, v4TrafficType)
-			t.Log("Verify Bundle member LAG level loadbalancing")
-			verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, dut1E, memberListWeight, trafficTolerance, false, noTrafficType)
+			for _, device := range dvtCiscoDUTList {
+				t.Run(fmt.Sprintf("Verify Bundle NH BGP recursive level loadbalancing on device %s", device), func(t *testing.T) {
+					verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, device, OutputIFWeight, trafficTolerance, true, v4TrafficType)
+				})
+				t.Run(fmt.Sprintf("Verify Bundle member LAG level loadbalancing on device %s", device), func(t *testing.T) {
+					verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, device, memberListWeight, trafficTolerance, false, noTrafficType)
+				})
+			}
 		})
 	}
 }
 
-func configureOptions(t *testing.T, extendHash *extendedEntropyCLIOptions, hashRotate *algorithmAdjustCLIOptions, dutList []*ondatra.DUTDevice) {
+func configureHashCLIOptions(t *testing.T, extendHash *extendedEntropyCLIOptions, hashRotate *algorithmAdjustCLIOptions, dutList []*ondatra.DUTDevice, delete bool) {
 	for _, dut := range dutList {
 		if extendHash != nil {
-			if extendHash.perChassis {
-				// Configure for per chassis
-				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing extended-entropy auto-global")
-			}
-			if extendHash.perNPU {
-				// Configure for per NPU
-				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing extended-entropy auto-instance")
-			}
-			if extendHash.specificVal != 0 {
-				// Configure for specific value
-				config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("cef platform load-balancing extended-entropy profile-index %d", extendHash.specificVal))
+			if delete {
+				// Delete extended entropy configuration for all options
+				t.Log("Deleting extended entropy configuration")
+				config.TextWithGNMI(context.Background(), t, dut, "no cef platform load-balancing extended-entropy auto-global")
+				config.TextWithGNMI(context.Background(), t, dut, "no cef platform load-balancing extended-entropy auto-instance")
+				config.TextWithGNMI(context.Background(), t, dut, "no cef platform load-balancing extended-entropy profile-index")
+			} else {
+				if extendHash.perChassis {
+					// Configure for per chassis
+					config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing extended-entropy auto-global")
+				}
+				if extendHash.perNPU {
+					// Configure for per NPU
+					config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing extended-entropy auto-instance")
+				}
+				if extendHash.specificVal != 0 {
+					// Configure for specific value
+					config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("cef platform load-balancing extended-entropy profile-index %d", extendHash.specificVal))
+				}
 			}
 		}
 		if hashRotate != nil {
-			if hashRotate.perChassis {
-				// Configure for per chassis
-				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing algorithm adjust auto-global")
-			}
-			if hashRotate.perNPU {
-				// Configure for per NPU
-				config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing algorithm adjust auto-instance")
-			}
-			if hashRotate.specificVal != 0 {
-				// Configure for specific value
-				config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("cef platform load-balancing algorithm adjust %d", hashRotate.specificVal))
+			if delete {
+				// Delete hash rotation configuration for all options
+				t.Log("Deleting hash rotate configuration")
+				config.TextWithGNMI(context.Background(), t, dut, "no cef platform load-balancing algorithm adjust auto-global")
+				config.TextWithGNMI(context.Background(), t, dut, "no cef platform load-balancing algorithm adjust auto-instance")
+				config.TextWithGNMI(context.Background(), t, dut, "no cef platform load-balancing algorithm adjust")
+			} else {
+				if hashRotate.perChassis {
+					// Configure for per chassis
+					config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing algorithm adjust auto-global")
+				}
+				if hashRotate.perNPU {
+					// Configure for per NPU
+					config.TextWithGNMI(context.Background(), t, dut, "cef platform load-balancing algorithm adjust auto-instance")
+				}
+				if hashRotate.specificVal != 0 {
+					// Configure for specific value
+					config.TextWithGNMI(context.Background(), t, dut, fmt.Sprintf("cef platform load-balancing algorithm adjust %d", hashRotate.specificVal))
+				}
 			}
 		}
-
 	}
-
 }

@@ -115,6 +115,7 @@ func (otgp *OTGParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
 		OTG: topo,
 	}
 }
+
 // Creates ATE Traffic Flow using TrafficFlowAttr struct.
 func (atep *ATEParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	ate := ondatra.ATE(t, "ate")
@@ -350,10 +351,8 @@ func (tg *TgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow
 		t.Logf("*** Starting traffic ...")
 		if dontReapplyTraffic {
 			ate.Traffic().Start(t)
-			t.Log("PAUSE")
 		} else {
 			ate.Traffic().Start(t, ateFlowList...)
-			t.Log("PAUSE")
 		}
 		time.Sleep(trafficDuration)
 		t.Logf("*** Stop traffic ...")
