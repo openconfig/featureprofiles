@@ -567,99 +567,97 @@ Inflight
 
 ```json
 {
-    "network-instances": {
-        "network-instance": [
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
+        },
+        "name": "default",
+        "protocols": {
+          "protocol": [
             {
-                "name": "default",
-                "config": {
-                    "name": "default"
-                },
-                "static": {
-                    "next-hop-groups": {
-                        "next-hop-group": [
-                            {
-                                "name": "ENCAP-NHG-1",
-                                "config": {
-                                    "name": "ENCAP-NHG-1"
-                                },
-                                "next-hops": {
-                                    "next-hop": [
-                                        {
-                                            "index": "0",
-                                            "config": {
-                                                "index": "0"
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
+              "config": {
+                "identifier": "STATIC",
+                "name": "STATIC"
+              },
+              "identifier": "STATIC",
+              "name": "STATIC",
+              "static-routes": {
+                "static": [
+                  {
+                    "config": {
+                      "prefix": "fc00:10::1/128"
                     },
-                    "next-hops": {
-                        "next-hop": [
-                            {
-                                "index": "0",
-                                "config": {
-                                    "index": "0"
-                                },
-                                "encap-headers": {
-                                    "encap-header": [
-                                        {
-                                            "index": "0",
-                                            "config": {
-                                                "index": "0",
-                                                "type": "UDPV4"
-                                            },
-                                            "udp-v4": {
-                                                "config": {
-                                                    "dscp": 32,
-                                                    "dst-ip": "10.50.50.1",
-                                                    "dst-udp-port": 6080,
-                                                    "ip-ttl": 255,
-                                                    "src-ip": "10.5.5.5",
-                                                    "src-udp-port": 49152
-                                                }
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                },
-                "protocols": {
-                    "protocol": [
-                        {
-                            "identifier": "STATIC",
-                            "name": "STATIC",
-                            "config": {
-                                "identifier": "STATIC",
-                                "name": "STATIC"
-                            },
-                            "static-routes": {
-                                "static": [
-                                    {
-                                        "prefix": "fc00:10::1/128",
-                                        "config": {
-                                            "prefix": "fc00:10::1/128"
-                                        },
-                                        "next-hop-group": {
-                                            "config": {
-                                                "name": "ENCAP-NHG-1"
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
+                    "next-hop-group": {
+                      "config": {
+                        "name": "ENCAP-NHG-1"
+                      }
+                    },
+                    "prefix": "fc00:10::1/128"
+                  }
+                ]
+              }
             }
-        ]
-    }
+          ]
+        },
+        "static": {
+          "next-hop-groups": {
+            "next-hop-group": [
+              {
+                "config": {
+                  "name": "ENCAP-NHG-1"
+                },
+                "name": "ENCAP-NHG-1",
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "config": {
+                        "index": "0"
+                      },
+                      "index": "0"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "next-hops": {
+            "next-hop": [
+              {
+                "config": {
+                  "index": "0"
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 0,
+                        "type": "UDPV4"
+                      },
+                      "index": 0,
+                      "udp-v4": {
+                        "config": {
+                          "dscp": 32,
+                          "dst-ip": "10.50.50.1",
+                          "dst-udp-port": 6080,
+                          "ip-ttl": 255,
+                          "src-ip": "10.5.5.5",
+                          "src-udp-port": 49152
+                        }
+                      }
+                    }
+                  ]
+                },
+                "index": "0"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
 }
-
-
 ```
 
 ## Canonical OC
@@ -668,49 +666,54 @@ Inflight
 
 ```json
 {
-    "network-instances": {
-        "network-instance": {
-            "config": {
-                "name": "DEFAULT"
-            },
-            "name": "DEFAULT",
-            "policy-forwarding": {
-                "policies": {
-                    "policy": [
-                        {
-                            "config": {
-                                "policy-id": "decap-policy"
-                            },
-                            "rules": {
-                                "rule": [
-                                    {
-                                        "sequence-id": 1,
-                                        "config": {
-                                            "sequence-id": 1
-                                        },
-                                        "ipv4": {
-                                            "config": {
-                                                "destination-address-prefix-set": "dst_prefix",
-                                                "protocol": "IP_UDP"
-                                            }
-                                        },
-                                        "transport": {
-                                            "config": {
-                                                "destination-port": 6080
-                                            }
-                                        },
-                                        "action": {
-                                            "decapsulate-gue": true
-                                        }
-                                    }
-                                ]
-                            }
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
+        },
+        "name": "default",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "decap-policy"
+                },
+                "policy-id": "decap-policy",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "decapsulate-gre": true
                         }
-                    ]
+                      },
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address-prefix-set": "dst_prefix",
+                          "protocol": "IP_UDP"
+                        }
+                      },
+                      "sequence-id": 1,
+                      "transport": {
+                        "config": {
+                          "destination-port": 6080
+                        }
+                      }
+                    }
+                  ]
                 }
-            }
+              }
+            ]
+          }
         }
-    }
+      }
+    ]
+  }
 }
 ```
 
