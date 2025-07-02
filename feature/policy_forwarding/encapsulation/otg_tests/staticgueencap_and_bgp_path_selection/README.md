@@ -585,9 +585,9 @@ Inflight
                                 "next-hops": {
                                     "next-hop": [
                                         {
-                                            "index": "0",
+                                            "index": 0,
                                             "config": {
-                                                "index": "0"
+                                                "index": 0
                                             }
                                         }
                                     ]
@@ -598,16 +598,16 @@ Inflight
                     "next-hops": {
                         "next-hop": [
                             {
-                                "index": "0",
+                                "index": 0,
                                 "config": {
-                                    "index": "0"
+                                    "index": 0
                                 },
                                 "encap-headers": {
                                     "encap-header": [
                                         {
-                                            "index": "0",
+                                            "index": 0,
                                             "config": {
-                                                "index": "0",
+                                                "index": 0,
                                                 "type": "UDPV4"
                                             },
                                             "udp-v4": {
