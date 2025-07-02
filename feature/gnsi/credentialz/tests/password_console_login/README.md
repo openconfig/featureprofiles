@@ -68,7 +68,5 @@ rpcs:
     credentialz.v1.Credentialz.RotateAccountCredentials:
 ```
 
-
 ## Minimum DUT platform requirement
-
-N/A
+* KNE
