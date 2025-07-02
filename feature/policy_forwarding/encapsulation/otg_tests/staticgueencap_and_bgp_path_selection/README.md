@@ -666,49 +666,66 @@ Inflight
 
 ```json
 {
-    "network-instances": {
-        "network-instance": {
-            "config": {
-                "name": "DEFAULT"
-            },
-            "name": "DEFAULT",
-            "policy-forwarding": {
-                "policies": {
-                    "policy": [
-                        {
-                            "config": {
-                                "policy-id": "decap-policy"
-                            },
-                            "rules": {
-                                "rule": [
-                                    {
-                                        "sequence-id": 1,
-                                        "config": {
-                                            "sequence-id": 1
-                                        },
-                                        "ipv4": {
-                                            "config": {
-                                                "destination-address-prefix-set": "dst_prefix",
-                                                "protocol": "IP_UDP"
-                                            }
-                                        },
-                                        "transport": {
-                                            "config": {
-                                                "destination-port": 6080
-                                            }
-                                        },
-                                        "action": {
-                                            "decapsulate-gue": true
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
+  "defined-sets": {
+    "ipv4-prefix-sets": {
+      "ipv4-prefix-set": [
+        {
+          "config": {
+            "name": "dst_prefix"
+          },
+          "name": "dst_prefix"
         }
+      ]
     }
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
+        },
+        "name": "default",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "decap-policy"
+                },
+                "policy-id": "decap-policy",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "decapsulate-gre": true
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address-prefix-set": "dst_prefix",
+                          "protocol": "IP_UDP"
+                        }
+                      },
+                      "sequence-id": 1,
+                      "transport": {
+                        "config": {
+                          "destination-port": 6080
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
 }
 ```
 
