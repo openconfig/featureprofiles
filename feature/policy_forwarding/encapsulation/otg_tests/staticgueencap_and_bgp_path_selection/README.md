@@ -567,99 +567,97 @@ Inflight
 
 ```json
 {
-    "network-instances": {
-        "network-instance": [
-            {
-                "name": "default",
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "static": {
+          "next-hop-groups": {
+            "next-hop-group": [
+              {
                 "config": {
-                    "name": "default"
+                  "name": "MPLSinGRENHG"
                 },
-                "static": {
-                    "next-hop-groups": {
-                        "next-hop-group": [
-                            {
-                                "name": "ENCAP-NHG-1",
-                                "config": {
-                                    "name": "ENCAP-NHG-1"
-                                },
-                                "next-hops": {
-                                    "next-hop": [
-                                        {
-                                            "index": "0",
-                                            "config": {
-                                                "index": "0"
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
+                "name": "MPLSinGRENHG",
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "config": {
+                        "index": "Dest A-NH1"
+                      },
+                      "index": "Dest A-NH1"
                     },
-                    "next-hops": {
-                        "next-hop": [
-                            {
-                                "index": "0",
-                                "config": {
-                                    "index": "0"
-                                },
-                                "encap-headers": {
-                                    "encap-header": [
-                                        {
-                                            "index": "0",
-                                            "config": {
-                                                "index": "0",
-                                                "type": "UDPV4"
-                                            },
-                                            "udp-v4": {
-                                                "config": {
-                                                    "dscp": 32,
-                                                    "dst-ip": "10.50.50.1",
-                                                    "dst-udp-port": 6080,
-                                                    "ip-ttl": 255,
-                                                    "src-ip": "10.5.5.5",
-                                                    "src-udp-port": 49152
-                                                }
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
+                    {
+                      "config": {
+                        "index": "Dest A-NH2"
+                      },
+                      "index": "Dest A-NH2"
                     }
-                },
-                "protocols": {
-                    "protocol": [
-                        {
-                            "identifier": "STATIC",
-                            "name": "STATIC",
-                            "config": {
-                                "identifier": "STATIC",
-                                "name": "STATIC"
-                            },
-                            "static-routes": {
-                                "static": [
-                                    {
-                                        "prefix": "fc00:10::1/128",
-                                        "config": {
-                                            "prefix": "fc00:10::1/128"
-                                        },
-                                        "next-hop-group": {
-                                            "config": {
-                                                "name": "ENCAP-NHG-1"
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
+                  ]
                 }
-            }
-        ]
-    }
+              }
+            ]
+          },
+          "next-hops": {
+            "next-hop": [
+              {
+                "config": {
+                  "index": "Dest A-NH1",
+                  "metric": 10,
+                  "next-hop": "1.2.3.4"
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 1
+                      },
+                      "index": 1,
+                      "udp-v4": {
+                        "config": {
+                          "dst-ip": "1.1.1.1",
+                          "dst-udp-port": 6080
+                        }
+                      }
+                    }
+                  ]
+                },
+                "index": "Dest A-NH1"
+              },
+              {
+                "config": {
+                  "index": "Dest A-NH2",
+                  "metric": 10,
+                  "next-hop": "1.2.3.5"
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 1
+                      },
+                      "index": 1,
+                      "udp-v4": {
+                        "config": {
+                          "dst-ip": "2.2.2.2",
+                          "dst-udp-port": 6080
+                        }
+                      }
+                    }
+                  ]
+                },
+                "index": "Dest A-NH2"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
 }
-
-
 ```
 
 ## Canonical OC
