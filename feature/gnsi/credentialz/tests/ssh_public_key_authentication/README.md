@@ -33,28 +33,24 @@ the DUT properly allows or disallows authentication based on the configured sett
 ## Canonical OC
 ```json
 {
-    "data": {
-        "aaa": {
-           "authentication": {
-                "users": {
-                    "user": [
-                        {
-                            "config": {
-                                "username": "testuser",
-                                "password": "xxxxxxx",
-                                "ssh-key" : "yyyyyyy"
-                            },
-                            "state": {
-                                "username": "testuser",
-                                "password": "xxxxxxx",
-                                "ssh-key" : "yyyyyyy"
-                            }
-                        }
-                    ]
-                }
+  "system": {
+    "aaa": {
+      "authentication": {
+        "users": {
+          "user": [
+            {
+              "config": {
+                "password": "xxxxxxx",
+                "ssh-key": "yyyyyyy",
+                "username": "testuser"
+              },
+              "username": "testuser"
             }
+          ]
         }
+      }
     }
+  }
 }
 ```
 
