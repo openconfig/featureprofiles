@@ -124,6 +124,23 @@ type aftNextHop struct {
 	LSPName string
 }
 
+// generateCacheTraversalPaths converts a map of subscription paths to a map of cache traversal paths.
+// For example:
+// input:
+//
+//	map[string][]string{
+//		"prefix": []string{
+//			"network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
+//		},
+//	}
+//
+// output:
+//
+//	map[string][]string{
+//		"prefix": []string{
+//			"network-instances/network-instance/name/DEFAULT/afts/ipv4-unicast/ipv4-entry",
+//		},
+//	}
 func generateCacheTraversalPaths(subs map[string][]string) (map[string][]string, error) {
 	cachePaths := make(map[string][]string)
 	for key, paths := range subs {
