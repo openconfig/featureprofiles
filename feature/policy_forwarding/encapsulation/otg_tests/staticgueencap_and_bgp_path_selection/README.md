@@ -567,85 +567,86 @@ Inflight
 
 ```json
 {
-  "network-instances": {
-    "network-instance": [
-      {
-        "name": "default",
-        "static": {
-          "next-hop-groups": {
-            "next-hop-group": [
-              {
-                "config": {
-                  "name": "ENCAP-NHG-1"
-                }
-                "next-hops": {
-                  "next-hop": [
-                    {
-                      "config": {
-                        "index": 0
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-          "next-hops": {
-            "next-hop": [
-              {
-                "config": {
-                  "index": 0
-                }
-                "encap-headers": {
-                  "encap-header": [
-                    {
-                      "config": {
-                        "index": 0
-                        "type": "UDPV4"
-                      }
-                      "udp-v4": {
-                        "config": {
-                          "dscp": 32
-                          "dst-ip": "10.50.50.1"
-                          "dst-udp-port": "6080"
-                          "ip-ttl": 64
-                          "src-ip": "10.5.5.5"
-                          "src-udp-port": "49152"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-        "protocols": {
-          "protocol": [
+    "network-instances": {
+        "network-instance": [
             {
-              "identifier": "STATIC",
-              "name": "STATIC",
-              "static-routes": {
-                "static": [
-                  {
-                    "prefix": "fc00:10::1/128",
-                    "next-hop-group": [
-                      {
-                        "config": {
-                          "name": "ENCAP-NHG-1"
+                "name": "default",
+                "static": {
+                    "next-hop-groups": {
+                        "next-hop-group": [
+                            {
+                                "config": {
+                                    "name": "ENCAP-NHG-1"
+                                },
+                                "next-hops": {
+                                    "next-hop": [
+                                        {
+                                            "config": {
+                                                "index": 0
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "next-hops": {
+                        "next-hop": [
+                            {
+                                "config": {
+                                    "index": 0,
+                                    "encap-headers": {
+                                        "encap-header": [
+                                            {
+                                                "config": {
+                                                    "index": 0,
+                                                    "type": "UDPV4"
+                                                },
+                                                "udp-v4": {
+                                                    "config": {
+                                                        "dscp": 32,
+                                                        "dst-ip": "10.50.50.1",
+                                                        "dst-udp-port": "6080",
+                                                        "ip-ttl": 255,
+                                                        "src-ip": "10.5.5.5",
+                                                        "src-udp-port": "49152"
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                "protocols": {
+                    "protocol": [
+                        {
+                            "identifier": "STATIC",
+                            "name": "STATIC",
+                            "static-routes": {
+                                "static": [
+                                    {
+                                        "prefix": "fc00:10::1/128",
+                                        "next-hop-group": [
+                                            {
+                                                "config": {
+                                                    "name": "ENCAP-NHG-1"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
                         }
-                      }
                     ]
-                  }
-                ]
-              }
+                }
             }
-          ]
-        }
-      }
-    ]
-  }
+        ]
+    }
 }
+
 ```
 
 ## Canonical OC
@@ -684,11 +685,11 @@ Inflight
                                             "config": {
                                                 "destination-port": 6080
                                             }
-                                        }
+                                        },
                                         "action": {
                                             "decapsulate-gue": true
-                                        },
-                                    },
+                                        }
+                                    }
                                 ]
                             }
                         }
