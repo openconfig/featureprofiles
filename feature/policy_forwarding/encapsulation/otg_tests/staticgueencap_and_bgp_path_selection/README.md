@@ -567,91 +567,84 @@ Inflight
 
 ```json
 {
-    "network-instances": {
-        "network-instance": [
-            {
-                "name": "DEFAULT",
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "default",
+        "static": {
+          "next-hop-groups": {
+            "next-hop-group": [
+              {
                 "config": {
-                    "name": "DEFAULT"
-                },
-                "protocols": {
-                    "protocol": [
-                        {
-                            "identifier": "STATIC",
-                            "name": "DEFAULT",
-                            "config": {
-                                "identifier": "STATIC",
-                                "name": "DEFAULT",
-                                "enabled": true
-                            },
-                            "static-routes": {
-                                "static": [
-                                    {
-                                        "prefix": "destination_ip",
-                                        "config": {
-                                            "prefix": "destination_ip"
-                                        },
-                                        "next-hop-group": {
-                                            "config": {
-                                                "name": "gue_encap_v4_nhg"
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                },
-                "static": {
-                    "next-hop-groups": {
-                        "net-hop-group": [
-                            {
-                                "name": "gue_encap_v4_nhg",
-                                "config": {
-                                    "name": "gue_encap_v4_nhg"
-                                },
-                                "next-hops": {
-                                    "next-hop": [
-                                        {
-                                            "index": 1,
-                                            "config": {
-                                                "index": 1
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    },
-                    "next-hops": {
-                        "next-hop": [
-                            {
-                                "index": 1,
-                                "config": {
-                                    "index": 1,
-                                    "encap-headers": {
-                                        "encap-header": [
-                                            {
-                                                "index": 1,
-                                                "type": "UDPV4",
-                                                "config": {
-                                                    "dst-ip": "outer_ipv4_dst",
-                                                    "src-ip": "outer_ipv4_src",
-                                                    "dscp": "outer_dscp",
-                                                    "ip-ttl": "outer_ip_ttl",
-                                                    "dst-udp-port": "outer_dst_udp_port"
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        ]
-                    }
+                  "name": "ENCAP-NHG-1"
                 }
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "config": {
+                        "index": 0
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+          "next-hops": {
+            "next-hop": [
+              {
+                "config": {
+                  "index": 0
+                }
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 0
+                        "type": "UDPV4"
+                      }
+                      "udp-v4": {
+                        "config": {
+                          "dscp": 32
+                          "dst-ip": "10.50.50.1"
+                          "dst-udp-port": "6080"
+                          "ip-ttl": 64
+                          "src-ip": "10.5.5.5"
+                          "src-udp-port": "49152"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "STATIC",
+              "name": "STATIC",
+              "static-routes": {
+                "static": [
+                  {
+                    "prefix": "fc00:10::1/128",
+                    "next-hop-group": [
+                      {
+                        "config": {
+                          "name": "ENCAP-NHG-1"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
             }
-        ]
-    }
+          ]
+        }
+      }
+    ]
+  }
 }
 ```
 
@@ -691,11 +684,11 @@ Inflight
                                             "config": {
                                                 "destination-port": 6080
                                             }
-                                        },
+                                        }
                                         "action": {
                                             "decapsulate-gue": true
-                                        }
-                                    }
+                                        },
+                                    },
                                 ]
                             }
                         }
@@ -705,7 +698,6 @@ Inflight
         }
     }
 }
-
 ```
 
 ## OpenConfig Path and RPC Coverage
