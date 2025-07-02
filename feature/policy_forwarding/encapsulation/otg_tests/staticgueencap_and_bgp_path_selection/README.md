@@ -666,6 +666,18 @@ Inflight
 
 ```json
 {
+  "defined-sets": {
+    "ipv4-prefix-sets": {
+      "ipv4-prefix-set": [
+        {
+          "config": {
+            "name": "dst_prefix"
+          },
+          "name": "dst_prefix"
+        }
+      ]
+    }
+  },
   "network-instances": {
     "network-instance": [
       {
