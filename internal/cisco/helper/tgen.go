@@ -86,19 +86,19 @@ type OTGParam struct {
 func (atep *ATEParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
 	ate := ondatra.ATE(t, "ate")
 	topo := ate.Topology().New()
-
 	for i, intf := range atep.Params.TgenIntfAttr {
 		intf.AddToATE(topo, atep.Params.TgenPortList[i], &atep.Params.DutIntfAttr[i])
 	}
 
 	t.Logf("Pushing config to ATE and starting protocols...")
-	topo.Push(t).StartProtocols(t)
+	topo.Push(t)
+	time.Sleep(10 * time.Second) // Sleep for 10 seconds to allow ATE to apply the config
+	topo.StartProtocols(t)
 
 	return &TGENTopology{
 		ATE: topo,
 	}
 }
-
 func (otgp *OTGParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
 	otg := ondatra.ATE(t, "ate").OTG()
 	topo := gosnappi.NewConfig()
@@ -115,7 +115,6 @@ func (otgp *OTGParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
 		OTG: topo,
 	}
 }
-
 // Creates ATE Traffic Flow using TrafficFlowAttr struct.
 func (atep *ATEParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	ate := ondatra.ATE(t, "ate")
@@ -336,7 +335,7 @@ func (otgp *OTGParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	}
 }
 
-func (tg *TgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology) {
+func (tg *TgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology, dontReapplyTraffic bool) {
 	if useOTG {
 		otg := ondatra.ATE(t, "ate").OTG()
 		otgTopo := topo.OTG
@@ -349,9 +348,13 @@ func (tg *TgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow
 		ateFlowList := allFlows.ATE
 		ate := ondatra.ATE(t, "ate")
 		t.Logf("*** Starting traffic ...")
-		// ateTopo := topo.ATE
-		// ateTopo.Update(t)
-		ate.Traffic().Start(t, ateFlowList...)
+		if dontReapplyTraffic {
+			ate.Traffic().Start(t)
+			t.Log("PAUSE")
+		} else {
+			ate.Traffic().Start(t, ateFlowList...)
+			t.Log("PAUSE")
+		}
 		time.Sleep(trafficDuration)
 		t.Logf("*** Stop traffic ...")
 		ate.Traffic().Stop(t)

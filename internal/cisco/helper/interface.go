@@ -26,6 +26,18 @@ func (v *InterfaceHelper) GetPerInterfaceCounters(t *testing.T, dut *ondatra.DUT
 	return counters
 }
 
+func (v *InterfaceHelper) GetPerInterfaceV4Counters(t *testing.T, dut *ondatra.DUTDevice, intf string) *oc.Interface_Subinterface_Ipv4_Counters {
+	t.Helper()
+	counters := gnmi.Get(t, dut, (gnmi.OC().Interface(intf).Subinterface(0).Ipv4().Counters().State()))
+	return counters
+}
+
+func (v *InterfaceHelper) GetPerInterfaceV6Counters(t *testing.T, dut *ondatra.DUTDevice, intf string) *oc.Interface_Subinterface_Ipv6_Counters {
+	t.Helper()
+	counters := gnmi.Get(t, dut, (gnmi.OC().Interface(intf).Subinterface(0).Ipv6().Counters().State()))
+	return counters
+}
+
 func (v *InterfaceHelper) GetAllInterfaceInUnicast(t *testing.T, dut *ondatra.DUTDevice, trafficType string) map[string]uint64 {
 	t.Helper()
 	var unicastStats []*ygnmi.Value[uint64]
@@ -37,6 +49,26 @@ func (v *InterfaceHelper) GetAllInterfaceInUnicast(t *testing.T, dut *ondatra.DU
 		unicastStats = gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Subinterface(0).Ipv6().Counters().InPkts().State())
 	default:
 		unicastStats = gnmi.LookupAll(t, dut, (gnmi.OC().InterfaceAny().Counters().InUnicastPkts().State()))
+	}
+	for _, counters := range unicastStats {
+		if intf, ok := counters.Path.Elem[1].Key["name"]; ok {
+			data[intf], _ = counters.Val()
+		}
+	}
+	return data
+}
+
+func (v *InterfaceHelper) GetAllInterfaceOutUnicast(t *testing.T, dut *ondatra.DUTDevice, trafficType string) map[string]uint64 {
+	t.Helper()
+	var unicastStats []*ygnmi.Value[uint64]
+	data := make(map[string]uint64)
+	switch trafficType {
+	case "ipv4":
+		unicastStats = gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Subinterface(0).Ipv4().Counters().OutPkts().State())
+	case "ipv6":
+		unicastStats = gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().Subinterface(0).Ipv6().Counters().OutPkts().State())
+	default:
+		unicastStats = gnmi.LookupAll(t, dut, (gnmi.OC().InterfaceAny().Counters().OutUnicastPkts().State()))
 	}
 	for _, counters := range unicastStats {
 		if intf, ok := counters.Path.Elem[1].Key["name"]; ok {

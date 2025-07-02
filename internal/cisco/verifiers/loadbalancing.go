@@ -17,7 +17,7 @@ import (
 	// "os"
 	// "text/tabwriter"
 	// "github.com/openconfig/ygnmi/ygnmi"
-	// "github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"testing"
 )
 
@@ -30,7 +30,7 @@ type EgressLBDistribution struct {
 	GotDistribution  float64
 }
 
-func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, totalInPackets uint64, trfDistTolerance float64) (map[string]EgressLBDistribution, bool) {
+func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, forBundle bool, trafficType string) (map[string]EgressLBDistribution, bool) {
 	distrStruct := EgressLBDistribution{}
 	trafficDistribution := make(map[string]EgressLBDistribution)
 	var balancedPerWeight bool = true // Initialize as true
@@ -41,10 +41,24 @@ func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t *testing.T, 
 	// Iterate over interfaces and calculate distribution
 	for intf, wt := range outIFWeight {
 		weightList = append(weightList, wt)
-		intfCounter := helper.Interface.GetPerInterfaceCounters(t, dut, intf)
-		outPacketList = append(outPacketList, intfCounter.GetOutUnicastPkts())
+		var intfCounter *oc.Interface_Counters
+		var intfV4Counter *oc.Interface_Subinterface_Ipv4_Counters
+		var intfV6Coubter *oc.Interface_Subinterface_Ipv6_Counters
+		if forBundle && trafficType == "ipv4" {
+			intfV4Counter = helper.Interface.GetPerInterfaceV4Counters(t, dut, intf)
+			outPacketList = append(outPacketList, intfV4Counter.GetOutPkts())
+			distrStruct.OutPkts = intfV4Counter.GetOutPkts()
+		} else if forBundle && trafficType == "ipv6" {
+			intfV6Coubter = helper.Interface.GetPerInterfaceV6Counters(t, dut, intf)
+			outPacketList = append(outPacketList, intfV6Coubter.GetOutPkts())
+			distrStruct.OutPkts = intfV6Coubter.GetOutPkts()
+		} else {
+			intfCounter = helper.Interface.GetPerInterfaceCounters(t, dut, intf)
+			outPacketList = append(outPacketList, intfCounter.GetOutUnicastPkts())
+			distrStruct.OutPkts = intfCounter.GetOutUnicastPkts()
+		}
+
 		distrStruct.Weight = wt
-		distrStruct.OutPkts = intfCounter.GetOutUnicastPkts()
 		trafficDistribution[intf] = distrStruct
 	}
 	wantWeights, _ = helper.Loadbalancing.Normalize(weightList)
@@ -57,7 +71,7 @@ func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t *testing.T, 
 	}
 	// Print table with tabwriter
 	table := tablewriter.NewWriter(os.Stdout)
-	table.Header([]string{"Interface", "Weight", "Out_Packet_Count", "Want_Distribution", "Got_Distribution"})
+	table.Header([]string{"Device", "Interface", "Weight", "Out_Packet_Count", "Want_Distribution", "Got_Distribution"})
 	index := 0
 	for intf, data := range trafficDistribution {
 		var wantDist, gotDist float64
@@ -77,11 +91,12 @@ func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t *testing.T, 
 
 		// Add a row to the table
 		table.Append([]string{
+			dut.Name(),
 			intf,
 			fmt.Sprintf("%d", data.Weight),
 			fmt.Sprintf("%d", data.OutPkts),
-			fmt.Sprintf("%.2f", wantDist),
-			fmt.Sprintf("%.2f", gotDist),
+			fmt.Sprintf("%.4f", wantDist),
+			fmt.Sprintf("%.4f", gotDist),
 		})
 		index++
 	}

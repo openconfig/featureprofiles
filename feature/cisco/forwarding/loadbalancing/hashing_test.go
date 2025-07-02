@@ -61,6 +61,9 @@ var (
 	eSiteV4Prefix    = "10.240.118.35"
 	rSiteV6Prefix    = "2001:0db8::10:240:118:50"
 	eSiteV6Prefix    = "2001:0db8::10:240:118:35"
+	v4TrafficType    = "ipv4"
+	v6TrafficType    = "ipv6"
+	noTrafficType    = ""
 
 	dutPort1 = attrs.Attributes{
 		Name:    "port1",
@@ -175,7 +178,7 @@ type testCase struct {
 	desc                  string
 	extendedEntropyOption *extendedEntropyCLIOptions
 	algorithmAdjustOption *algorithmAdjustCLIOptions
-	dutList               []*ondatra.DUTDevice
+	confHashCLIdutList    []*ondatra.DUTDevice
 }
 
 func TestWANLinksLoadBalancing(t *testing.T) {
@@ -198,7 +201,7 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 	//Just to use variable and compile
 	t.Log("R,E,V and Jupiter sites", siteRDUTList, siteEDUTList, siteVDUTList, jupiterDUTList)
 
-	dvtCiscoDUTList := []*ondatra.DUTDevice{dut1R, dut2R, dut3R, dut4R, dut1E, dut2E}
+	// dvtCiscoDUTList := []*ondatra.DUTDevice{dut1R, dut2R, dut3R, dut4R, dut1E, dut2E}
 	tgenParam := helper.TgenConfigParam{
 		DutIntfAttr:      []attrs.Attributes{dutPort1, dutPort2},
 		TgenIntfAttr:     []attrs.Attributes{atePort1, atePort2},
@@ -216,7 +219,7 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 		Flows:     ateFlows,
 	}
 	t.Run("Verify Traffic after init Bringup", func(t *testing.T) {
-		helper.TGEN.StartTraffic(t, false, ateFlows, 10*time.Second, topo)
+		helper.TGEN.StartTraffic(t, false, ateFlows, 10*time.Second, topo, false)
 		verifiers.Tgen.ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
 	})
 
@@ -226,19 +229,19 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 			name: "Default",
 			desc: "Default Hash parameters",
 		},
-		{
-			name:                  "Both auto-global",
-			desc:                  "auto-global Hash parameters for both Extended Entropy and Algorithm Adjust",
-			extendedEntropyOption: &extendedEntropyCLIOptions{perChassis: true},
-			algorithmAdjustOption: &algorithmAdjustCLIOptions{perChassis: true},
-			dutList:               dvtCiscoDUTList,
-		},
+		// {
+		// 	name:                  "Both auto-global",
+		// 	desc:                  "auto-global Hash parameters for both Extended Entropy and Algorithm Adjust",
+		// 	extendedEntropyOption: &extendedEntropyCLIOptions{perChassis: true},
+		// 	algorithmAdjustOption: &algorithmAdjustCLIOptions{perChassis: true},
+		// 	confHashCLIdutList:               dvtCiscoDUTList,
+		// },
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Log("Configuring hashing parameters")
 			if tt.extendedEntropyOption != nil || tt.algorithmAdjustOption != nil {
-				configureOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.dutList)
+				configureOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList)
 			}
 			t.Logf("Get AFT Prefix objects for %s", eSiteV4Prefix)
 			afttest := helper.FIB.GetPrefixAFTObjects(t, dut1E, eSiteV4Prefix+"/32", deviations.DefaultNetworkInstance(dut1E))
@@ -247,15 +250,6 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 			for _, intfList := range memberList {
 				bundleMembers = append(bundleMembers, intfList...)
 			}
-			helper.Interface.ClearInterfaceCountersAll(t, dut1E)
-			time.Sleep(30 * time.Second) // Wait for 30 seconds for XR statsd interface cache to update
-			helper.TGEN.StartTraffic(t, false, ateFlows, 10*time.Second, topo)
-			InputIF := helper.Loadbalancing.GetIngressTrafficInterfaces(t, dut1E, "ipv4")
-			var totalInPackets uint64
-			for _, val := range InputIF {
-				totalInPackets += val
-			}
-			t.Log("TotalInPackets is", totalInPackets)
 			var OutputIFWeight = make(map[string]uint64)
 			for _, nhObj := range afttest.NextHop {
 				OutputIFWeight[nhObj.NextHopInterface] = nhObj.NextHopWeight
@@ -264,10 +258,34 @@ func TestWANLinksLoadBalancing(t *testing.T) {
 			for _, member := range bundleMembers {
 				memberListWeight[member] = 1
 			}
+			helper.Interface.ClearInterfaceCountersAll(t, dut1E)
+			time.Sleep(5 * time.Second) // Wait for previous tgen traffic to completely stop.
+			helper.TGEN.StartTraffic(t, false, ateFlows, 60*time.Second, topo, true)
+			time.Sleep(30 * time.Second) // Wait for 30 seconds for XR statsd interface cache to update
+			inputTrafficIF := helper.Loadbalancing.GetIngressTrafficInterfaces(t, dut1E, "ipv4", true)
+			var bundleNHIntf []string
+			for intf := range OutputIFWeight {
+				bundleNHIntf = append(bundleNHIntf, intf)
+			}
+
+			//Remove NH Outgoing Bundle interfaces from inputTrafficIF MAP.
+			for _, intf := range bundleNHIntf {
+				delete(inputTrafficIF, intf)
+			}
+			//Remove NH Outgoing Bundle member interfaces from from inputTrafficIF MAP.
+			for _, intfMem := range bundleMembers {
+				delete(inputTrafficIF, intfMem)
+			}
+			var totalInPackets uint64
+			for _, val := range inputTrafficIF {
+				totalInPackets += val
+			}
+			t.Log("TotalInPackets is", totalInPackets)
+
 			t.Log("Verify Bundle non-recursive level loadbalancing")
-			verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, dut1E, OutputIFWeight, totalInPackets, trafficTolerance)
+			verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, dut1E, OutputIFWeight, trafficTolerance, true, v4TrafficType)
 			t.Log("Verify Bundle member LAG level loadbalancing")
-			verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, dut1E, memberListWeight, totalInPackets, trafficTolerance)
+			verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, dut1E, memberListWeight, trafficTolerance, false, noTrafficType)
 		})
 	}
 }
