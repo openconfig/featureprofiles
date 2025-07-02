@@ -138,7 +138,7 @@ const (
 	dutAS                    = 68888
 	ateAS                    = 67777
 	switchovertime           = 315000.0
-	fps                      = 100000
+	fps                      = 10000 //100000
 )
 
 var (
@@ -939,9 +939,9 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	// t.Logf("Flow Configuration: %v", flows)
 	// t.Logf("OTG Configuration: %v", args.topo)
 	otg.PushConfig(t, args.topo)
-	time.Sleep(30 * time.Second) // time for otg ARP to settle
+	// time.Sleep(30 * time.Second) // time for otg ARP to settle
 	otg.StartProtocols(t)
-	time.Sleep(300 * time.Second) // time for otg ARP to settle
+	// time.Sleep(300 * time.Second) // time for otg ARP to settle
 	t.Log("Verify BGP establsihed after OTG start protocols")
 	otgutils.WaitForARP(t, otg, args.topo, "IPv4")
 	otgutils.WaitForARP(t, otg, args.topo, "IPv6")
@@ -953,6 +953,7 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
+	// ondatra.Debug().Breakpoint(t, "wait for traffic to complete")
 
 	if len(opts) != 0 {
 		for _, opt := range opts {

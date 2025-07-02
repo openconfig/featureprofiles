@@ -270,3 +270,7 @@ func TestIPTNLNHUsage(t *testing.T) {
 func TestDcGateOOR(t *testing.T) {
 	testDcGateOOR(t)
 }
+
+func TestDcGateStress(t *testing.T) {
+	testDcGateStress(t)
+}
