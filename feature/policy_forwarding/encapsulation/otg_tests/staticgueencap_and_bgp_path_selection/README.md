@@ -571,16 +571,21 @@ Inflight
         "network-instance": [
             {
                 "name": "default",
+                "config": {
+                    "name": "default"
+                },
                 "static": {
                     "next-hop-groups": {
                         "next-hop-group": [
                             {
+                                "name": "ENCAP-NHG-1",
                                 "config": {
                                     "name": "ENCAP-NHG-1"
                                 },
                                 "next-hops": {
                                     "next-hop": [
                                         {
+                                            "index": "0",
                                             "config": {
                                                 "index": "0"
                                             }
@@ -593,28 +598,30 @@ Inflight
                     "next-hops": {
                         "next-hop": [
                             {
+                                "index": "0",
                                 "config": {
-                                    "index": "0",
-                                    "encap-headers": {
-                                        "encap-header": [
-                                            {
+                                    "index": "0"
+                                },
+                                "encap-headers": {
+                                    "encap-header": [
+                                        {
+                                            "index": "0",
+                                            "config": {
+                                                "index": "0",
+                                                "type": "UDPV4"
+                                            },
+                                            "udp-v4": {
                                                 "config": {
-                                                    "index": "0",
-                                                    "type": "UDPV4"
-                                                },
-                                                "udp-v4": {
-                                                    "config": {
-                                                        "dscp": 32,
-                                                        "dst-ip": "10.50.50.1",
-                                                        "dst-udp-port": "6080",
-                                                        "ip-ttl": 255,
-                                                        "src-ip": "10.5.5.5",
-                                                        "src-udp-port": "49152"
-                                                    }
+                                                    "dscp": 32,
+                                                    "dst-ip": "10.50.50.1",
+                                                    "dst-udp-port": 6080,
+                                                    "ip-ttl": 255,
+                                                    "src-ip": "10.5.5.5",
+                                                    "src-udp-port": 49152
                                                 }
                                             }
-                                        ]
-                                    }
+                                        }
+                                    ]
                                 }
                             }
                         ]
@@ -625,15 +632,18 @@ Inflight
                         {
                             "identifier": "STATIC",
                             "name": "STATIC",
+                            "config": {
+                                "identifier": "STATIC",
+                                "name": "STATIC"
+                            },
                             "static-routes": {
                                 "static": [
                                     {
                                         "prefix": "fc00:10::1/128",
-                                        "next-hop-group": {
-                                            "config": {
-                                                "name": "ENCAP-NHG-1"
-                                            }
-                                        }
+                                        "config": {
+                                            "prefix": "fc00:10::1/128"
+                                        },
+                                        "next-hop-group": "ENCAP-NHG-1"
                                     }
                                 ]
                             }
