@@ -43,5 +43,4 @@ platform_exceptions: {
   deviations: {
     non_interval_fec_error_counter: true
   }
-
 }
