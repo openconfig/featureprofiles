@@ -1,3 +1,6 @@
+// Package main provides an example program that outputs specific JSON for an OpenConfig schema.
+// It demonstrates how to use the ygot library to build and marshal OpenConfig data structures.
+// The program requires the YANG for a particular field to be defined.
 package main
 
 import (
