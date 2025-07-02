@@ -30,6 +30,7 @@ replace: {
 " !\n"
 "!\n"
 " vrf mgmt\n"
+"vty-pool default 0 99 line-template vty\n"
 "grpc\n"
 " vrf mgmt\n"
 " gnmi\n"

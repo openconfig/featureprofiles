@@ -49,6 +49,7 @@ replace: {
       " !\n"
       "!\n"
       "aaa authentication login default local group google-tacacs group tacacs+\n"
+	  "vty-pool default 0 99 line-template vty\n"
       "grpc\n"
       " vrf mgmtVrf\n"
       " dscp cs4\n"

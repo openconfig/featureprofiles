@@ -14,6 +14,7 @@ replace: {
 	  " secret 10 $6$3SCLH1bnpoQBBH1.$X7iMVUuPUVrFpuI2rEzoiwtijd/UENJjIRx6MZmV5iCoc84beyXMI.vOpTm5swFH0vMjFSftDTxYrMf34q9qP/\n"
 	  "!\n"
 	  "aaa authentication login default local\n"
+	  "vty-pool default 0 99 line-template vty\n"
 	  "grpc\n"
 	  " name DEFAULT\n"
 	  " port 57400\n"
