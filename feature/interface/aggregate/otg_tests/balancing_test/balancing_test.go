@@ -634,6 +634,13 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 
 // configureStaticRoute adds v4/v6 default static route on DUT
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+	// set config container leafs corresponding to list key leafs
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	spID := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Update(t, dut, spID.Config(), &oc.NetworkInstance_Protocol{
+		Name:       ygot.String(deviations.StaticProtocolName(dut)),
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+	})
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: ni,
