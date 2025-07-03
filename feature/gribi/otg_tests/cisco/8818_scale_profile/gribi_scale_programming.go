@@ -61,11 +61,13 @@ var (
 	IPBlockEncapB       = "138.2.1.1/16" // IPBlockEncapB represents the ipv4 entries in EncapVRFB
 	IPBlockEncapC       = "138.3.1.1/16" // IPBlockEncapC represents the ipv4 entries in EncapVRFC
 	IPBlockEncapD       = "138.4.1.1/16" // IPBlockEncapD represents the ipv4 entries in EncapVRFD
+	IPBlockEncapE       = "138.5.1.1/16" // IPBlockEncapE represents the ipv4 entries in EncapVRFE
 	IPBlockDecap        = "102.0.0.1/15" // IPBlockDecap represents the ipv4 entries in Decap VRF
 	IPv6BlockEncapA     = "2001:DB8:0:1::/64"
 	IPv6BlockEncapB     = "2001:DB8:1:1::/64"
 	IPv6BlockEncapC     = "2001:DB8:2:1::/64"
 	IPv6BlockEncapD     = "2001:DB8:3:1::/64"
+	IPv6BlockEncapE     = "2001:DB8:4:1::/64"
 	lastNhIndex     int = 50000
 	lastNhgIndex    int
 
@@ -73,11 +75,13 @@ var (
 	encapVrfBIPv4Enries = iputil.GenerateIPs(IPBlockEncapB, encapIPv4Count)
 	encapVrfCIPv4Enries = iputil.GenerateIPs(IPBlockEncapC, encapIPv4Count)
 	encapVrfDIPv4Enries = iputil.GenerateIPs(IPBlockEncapD, encapIPv4Count)
+	encapVrfEIPv4Enries = iputil.GenerateIPs(IPBlockEncapE, encapIPv4Count)
 
 	encapVrfAIPv6Enries = createIPv6Entries(IPv6BlockEncapA, encapIPv6Count)
 	encapVrfBIPv6Enries = createIPv6Entries(IPv6BlockEncapB, encapIPv6Count)
 	encapVrfCIPv6Enries = createIPv6Entries(IPv6BlockEncapC, encapIPv6Count)
 	encapVrfDIPv6Enries = createIPv6Entries(IPv6BlockEncapD, encapIPv6Count)
+	encapVrfEIPv6Enries = createIPv6Entries(IPv6BlockEncapE, encapIPv6Count)
 )
 
 // IPPool for IPs
