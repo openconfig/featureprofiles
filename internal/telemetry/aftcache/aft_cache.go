@@ -80,20 +80,6 @@ var subscriptionPaths = map[string][]string{
 	},
 }
 
-// TODO: - Rework to remove these paths and only use subscriptionPaths.
-var cacheTraversalPaths = map[string][]string{
-	"prefix": {
-		"network-instances/network-instance/default/afts/ipv4-unicast",
-		"network-instances/network-instance/default/afts/ipv6-unicast",
-	},
-	"nhg": {
-		"network-instances/network-instance/default/afts/next-hop-groups",
-	},
-	"nh": {
-		"network-instances/network-instance/default/afts/next-hops",
-	},
-}
-
 // AFTData represents an AFT and provides methods for resolving routes.
 type AFTData struct {
 	// Prefixes contains a map of prefixes to their corresponding next hop group IDs.
@@ -138,6 +124,46 @@ type aftNextHop struct {
 	LSPName string
 }
 
+// generateCacheTraversalPaths converts a map of subscription paths to a map of cache traversal paths.
+// For example:
+// input:
+//
+//	map[string][]string{
+//		"prefix": []string{
+//			"network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
+//		},
+//	}
+//
+// output:
+//
+//	map[string][]string{
+//		"prefix": []string{
+//			"network-instances/network-instance/name/DEFAULT/afts/ipv4-unicast/ipv4-entry",
+//		},
+//	}
+func generateCacheTraversalPaths(subscriptionPaths map[string][]string) (map[string][]string, error) {
+	cachePaths := make(map[string][]string)
+	for key, paths := range subscriptionPaths {
+		var currentPaths []string
+		for _, p := range paths {
+			sp, err := ygot.StringToStructuredPath(p)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing path %s: %w", p, err)
+			}
+			var outParts []string
+			for _, elem := range sp.Elem {
+				outParts = append(outParts, elem.Name)
+				for _, keyVal := range elem.Key {
+					outParts = append(outParts, keyVal)
+				}
+			}
+			currentPaths = append(currentPaths, strings.Join(outParts, "/"))
+		}
+		cachePaths[key] = currentPaths
+	}
+	return cachePaths, nil
+}
+
 // ToAFT Creates AFT maps with cache information.
 func (c *aftCache) ToAFT() (*AFTData, error) {
 	a := newAFT()
@@ -172,6 +198,10 @@ func (c *aftCache) ToAFT() (*AFTData, error) {
 			a.NextHops[nh] = data
 		}
 		return nil
+	}
+	cacheTraversalPaths, err := generateCacheTraversalPaths(subscriptionPaths)
+	if err != nil {
+		return nil, err
 	}
 	parsers := []struct {
 		paths []string
@@ -307,8 +337,10 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 		// No-op for now.
 		return nil
 	}
+	if n.GetUpdate().GetPrefix().Origin == "" {
+		n.GetUpdate().GetPrefix().Origin = "openconfig"
+	}
 	err := c.cache.GnmiUpdate(n.GetUpdate())
-	// fmt.Println("Notification: ", n)
 	if err != nil {
 		return err
 	}
