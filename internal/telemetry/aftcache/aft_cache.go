@@ -141,9 +141,9 @@ type aftNextHop struct {
 //			"network-instances/network-instance/name/DEFAULT/afts/ipv4-unicast/ipv4-entry",
 //		},
 //	}
-func generateCacheTraversalPaths(subs map[string][]string) (map[string][]string, error) {
+func generateCacheTraversalPaths(subscriptionPaths map[string][]string) (map[string][]string, error) {
 	cachePaths := make(map[string][]string)
-	for key, paths := range subs {
+	for key, paths := range subscriptionPaths {
 		var currentPaths []string
 		for _, p := range paths {
 			sp, err := ygot.StringToStructuredPath(p)
