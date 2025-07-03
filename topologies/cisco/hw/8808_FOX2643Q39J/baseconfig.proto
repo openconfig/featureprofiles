@@ -16,6 +16,7 @@ replace: {
     " group cisco-support\n"
     " secret 10 $6$dDNEeH4Y8/d0e...$pAzgObEpNswFXs1lbshIGcKxRvuwvEEANkANw0YXdii88eNuNBE3B125WEyDHzx//vTlsivJjfTsJwFW44f5u/\n"
     "!\n"
+	"vty-pool default 0 99 line-template vty\n"
     "grpc\n"
     " port 57999\n"
     "!\n"

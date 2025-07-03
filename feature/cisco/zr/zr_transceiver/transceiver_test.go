@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/openconfig/featureprofiles/feature/cisco/performance"
@@ -19,6 +20,11 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+)
+
+const (
+	samplingInterval = 10 * time.Second
+	timeout          = 10 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -42,7 +48,7 @@ func findComponentsByTypeNoLogs(t *testing.T, dut *ondatra.DUTDevice, cType oc.E
 	return s
 }
 
-func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state []*oc.Component_Transceiver_Channel) {
+func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state []*oc.Component_Transceiver_Channel, port_state bool) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header([]string{"Transceiver", "Leaf", "Value"})
 
@@ -383,19 +389,20 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 		validatePMValue(t, transceiver, "PostFecBer", pfb.GetInstant(), pfb.GetMin(), pfb.GetMax(), pfb.GetAvg())
 	}
 
-	if prfb := optical_channel.GetPreFecBer(); prfb == nil {
-		t.Errorf("PreFecBer data is empty for port %v", transceiver)
-	} else {
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/instant", prfb.GetInstant(), "PreFecBer_instant is empty for port %v")
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/min", prfb.GetMin(), "PreFecBer_min is empty for port %v")
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/max", prfb.GetMax(), "PreFecBer_max is empty for port %v")
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/avg", prfb.GetAvg(), "PreFecBer_avg is empty for port %v")
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/min-time", prfb.GetMinTime(), "PreFecBer_mintime is empty for port %v")
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/max-time", prfb.GetMaxTime(), "PreFecBer_maxtime is empty for port %v")
-		appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/interval", prfb.GetInterval(), "PreFecBer_interval is empty for port %v")
-		validatePMValue(t, transceiver, "PreFecBer", prfb.GetInstant(), prfb.GetMin(), prfb.GetMax(), prfb.GetAvg())
+	if port_state {
+		if prfb := optical_channel.GetPreFecBer(); prfb == nil {
+			t.Errorf("PreFecBer data is empty for port %v", transceiver)
+		} else {
+			appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/instant", prfb.GetInstant(), "PreFecBer_instant is empty for port %v")
+			appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/min", prfb.GetMin(), "PreFecBer_min is empty for port %v")
+			appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/max", prfb.GetMax(), "PreFecBer_max is empty for port %v")
+			appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/avg", prfb.GetAvg(), "PreFecBer_avg is empty for port %v")
+			appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/min-time", prfb.GetMinTime(), "PreFecBer_mintime is empty for port %v")
+			appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/max-time", prfb.GetMaxTime(), "PreFecBer_maxtime is empty for port %v")
+			appendToTableIfNotNil(t, table, transceiver, "/components/component[name=*]/optical-channel/state/pre-fec-ber/interval", prfb.GetInterval(), "PreFecBer_interval is empty for port %v")
+			validatePMValue(t, transceiver, "PreFecBer", prfb.GetInstant(), prfb.GetMin(), prfb.GetMax(), prfb.GetAvg())
+		}
 	}
-
 	if q := optical_channel.GetQValue(); q == nil {
 		t.Errorf("QValue data is empty for port %v", transceiver)
 	} else {
@@ -515,8 +522,26 @@ func appendToTableIfNotNil(t *testing.T, table *tablewriter.Table, portName, lea
 	table.Append([]string{portName, leaf, formattedValue})
 }
 
+// awaitPortsState waits for all DUT ports to reach the specified operational state (UP or DOWN).
+// It checks each port's operational status using GNMI and waits until the expected state is observed
+// or the timeout is reached. After waiting, it sleeps for 3 times the sampling interval.
+//
+// Parameters:
+// - t: *testing.T - The test context.
+// - dut: *Device - The device under test.
+// - timeout: time.Duration - Maximum time to wait for each port to reach the expected state.
+// - samplingInterval: time.Duration - Time interval between status checks.
+// - expectedState: oc.Interface_OperStatus - The desired operational state (UP or DOWN).
+func awaitPortsState(t *testing.T, dut *ondatra.DUTDevice, timeout, samplingInterval time.Duration, expectedState oc.E_Interface_OperStatus) {
+	for _, p := range dut.Ports() {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, expectedState)
+	}
+	time.Sleep(3 * samplingInterval)
+}
+
 func TestZRProcessRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	portstate := true
 
 	transceiverType := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	transceivers := components.FindComponentsByType(t, dut, transceiverType)
@@ -538,7 +563,7 @@ func TestZRProcessRestart(t *testing.T) {
 
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		checkleaves(t, dut, transceiver, before_state)
+		checkleaves(t, dut, transceiver, before_state, portstate)
 	}
 
 	err := performance.RestartProcess(t, dut, "invmgr")
@@ -559,7 +584,7 @@ func TestZRProcessRestart(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		checkleaves(t, dut, transceiver, after_state)
+		checkleaves(t, dut, transceiver, after_state, portstate)
 	}
 
 	t.Logf("All leaves received successfully after process invmgr restart")
@@ -568,6 +593,7 @@ func TestZRProcessRestart(t *testing.T) {
 
 func TestZRLCReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	portstate := true
 	lc := findComponentsByTypeNoLogs(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
 	t.Logf("%s", lc)
 	transceiverType := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
@@ -578,6 +604,13 @@ func TestZRLCReload(t *testing.T) {
 	matches := re.FindStringSubmatch(dut.Port(t, "port1").Name())
 
 	beforeStateMap := make(map[string][]*oc.Component_Transceiver_Channel)
+
+	// Make sure interface is admin up
+	for _, p := range dut.Ports() {
+		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+	}
+
+	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
 	// Extracting only port1 key
 	if len(matches) > 0 {
@@ -614,11 +647,18 @@ func TestZRLCReload(t *testing.T) {
 
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		checkleaves(t, dut, transceiver, before_state)
+		checkleaves(t, dut, transceiver, before_state, portstate)
 	}
 
 	t.Logf("Restarting LC %s", LC)
 	util.ReloadLinecards(t, []string{LC})
+
+	// Make sure interface is admin up
+	for _, p := range dut.Ports() {
+		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+	}
+
+	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
 	afterStateMap := make(map[string][]*oc.Component_Transceiver_Channel)
 
@@ -639,7 +679,7 @@ func TestZRLCReload(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		checkleaves(t, dut, transceiver, after_state)
+		checkleaves(t, dut, transceiver, after_state, portstate)
 	}
 
 	t.Logf("All Gnmi leaves received successfully after LC Reload")
@@ -657,6 +697,13 @@ func TestZRShutPort(t *testing.T) {
 	re := regexp.MustCompile(`\d+/\d+/\d+/\d+`)
 	matches := re.FindStringSubmatch(dut.Port(t, "port1").Name())
 
+	// Make sure interface is admin up
+	for _, p := range dut.Ports() {
+		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+	}
+
+	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
+
 	// Extracting only port1 key
 	if len(matches) > 0 {
 		extractedKey := matches[0]
@@ -672,9 +719,10 @@ func TestZRShutPort(t *testing.T) {
 		}
 	}
 
+	port_state := true
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		checkleaves(t, dut, transceiver, before_state)
+		checkleaves(t, dut, transceiver, before_state, port_state)
 	}
 
 	t.Logf("Shutting down the port %s", dut.Port(t, "port1").Name())
@@ -698,13 +746,16 @@ func TestZRShutPort(t *testing.T) {
 		}
 	}
 
+	port_state = false
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		checkleaves(t, dut, transceiver, after_state)
+		checkleaves(t, dut, transceiver, after_state, port_state)
 	}
 
 	t.Logf("Un-Shutting down the port %s", dut.Port(t, "port1").Name())
 	cfgplugins.ToggleInterface(t, dut, dut.Port(t, "port1").Name(), true)
+
+	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
 
 	//Snapshot of leaves after trigger
 	if len(matches) > 0 {
@@ -722,9 +773,10 @@ func TestZRShutPort(t *testing.T) {
 		}
 	}
 
+	port_state = true
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		checkleaves(t, dut, transceiver, after_state)
+		checkleaves(t, dut, transceiver, after_state, port_state)
 	}
 
 	t.Logf("All Gnmi leaves received successfully after port shut")
@@ -733,7 +785,7 @@ func TestZRShutPort(t *testing.T) {
 
 func TestZRRPFO(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	portstate := true
 	transceiverType := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 
@@ -754,7 +806,7 @@ func TestZRRPFO(t *testing.T) {
 
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		checkleaves(t, dut, transceiver, before_state)
+		checkleaves(t, dut, transceiver, before_state, portstate)
 	}
 
 	// Do RPFO
@@ -773,7 +825,7 @@ func TestZRRPFO(t *testing.T) {
 
 	// Iterate over the map (afterStateMap)
 	for transceiver, after_state := range afterStateMap {
-		checkleaves(t, dut, transceiver, after_state)
+		checkleaves(t, dut, transceiver, after_state, portstate)
 	}
 
 	t.Logf("All leaves received successfully after RPFO")
