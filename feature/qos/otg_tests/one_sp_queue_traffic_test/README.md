@@ -188,7 +188,7 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/queue:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/weight:
 
-## Canonical OpenConfig for keepalive-interval and hold-time at neighbour and peer-group level for BGP
+## Canonical OC
 {
   "qos": {
     "scheduler-policies": {
