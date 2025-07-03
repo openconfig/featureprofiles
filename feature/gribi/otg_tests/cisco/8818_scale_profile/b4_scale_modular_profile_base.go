@@ -938,7 +938,7 @@ func (gp *GribiProfile) CombineProfileEntries(t *testing.T, dut *ondatra.DUTDevi
 
 	// Iterate over each routeParam
 	for _, pairedEntries := range pairedEntriesSlices {
-		printPairedEntriesDetails(pairedEntries)
+		printPairedEntriesDetails(t, pairedEntries)
 		// Initialize counters for these PairedEntries
 		paramNHs, paramNHGs, paramV4s, paramV6s := 0, 0, 0, 0
 

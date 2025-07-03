@@ -1254,12 +1254,13 @@ type PathInfo struct {
 	//   } else {
 	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
 	//   }
-	PrimaryIntfLcs         any
-	PrimaryPeerLcs         any
-	PrimarySubIntf         map[string]util.LinkIPs
-	PrimarySubintfPathsV4  []string
-	PrimarySubintfPathsV6  []string
-	PrimaryUniqueIntfCards []string // unique linecard numbers for primary interfaces, used for nexthop reference
+	PrimaryIntfLcs             any
+	PrimaryPeerLcs             any
+	PrimarySubIntf             map[string]util.LinkIPs
+	PrimarySubintfPathsV4      []string
+	PrimarySubintfPathsV6      []string
+	PrimaryUniqueIntfCards     []string          // unique linecard numbers for primary interfaces, used for nexthop reference
+	PrimaryPathPeerV4ToSubIntf map[string]string // map from peer IPv4 address to subinterface name
 
 	BackupInterface   []string // bundle interface name of the primary path for bundle case, physical interfaces for physical case
 	BackupPathsV4     []string
@@ -1275,12 +1276,13 @@ type PathInfo struct {
 	//   } else {
 	//       lcs, ok := pathInfo.PrimaryIntfLcs.([]string)     // physical mode
 	//   }
-	BackupIntfLcs         any
-	BackupPeerLcs         any
-	BackupSubIntf         map[string]util.LinkIPs
-	BackupSubintfPathsV4  []string
-	BackupSubintfPathsV6  []string
-	BackupUniqueIntfCards []string // unique linecard numbers for backup interfaces, used for nexthop reference
+	BackupIntfLcs             any
+	BackupPeerLcs             any
+	BackupSubIntf             map[string]util.LinkIPs
+	BackupSubintfPathsV4      []string
+	BackupSubintfPathsV6      []string
+	BackupUniqueIntfCards     []string          // unique linecard numbers for backup interfaces, used for nexthop reference
+	BackupPathPeerV4ToSubIntf map[string]string // map from peer IPv4 address to subinterface name
 }
 
 // GetUniqueLCs extracts unique linecard numbers from the given LC field (which can be []string or [][]string).
@@ -1335,6 +1337,17 @@ func (p *PathInfo) fillPathInfoInterface(
 	p.BackupUniqueIntfCards = GetUniqueLCs(p.BackupIntfLcs)
 }
 
+// GetSubIntfMapByPeerIPv4 creates a map indexed by PeerIPv4 address with the corresponding subinterface as the value.
+func GetSubIntfMapByPeerIPv4(subIntIPMap map[string]util.LinkIPs) map[string]string {
+	subIntfMap := make(map[string]string)
+	for subIntf, link := range subIntIPMap {
+		if link.PeerIPv4 != "" {
+			subIntfMap[link.PeerIPv4] = subIntf
+		}
+	}
+	return subIntfMap
+}
+
 // GetAllSubIntfIPAddresses extracts all IPv4 addresses from a map of subIntIPMap based on the address family type and peer flag.
 func GetAllSubIntfIPAddresses(subIntIPMap map[string]util.LinkIPs, afType string, peer bool) []string {
 	var ipAddresses []string
@@ -1372,8 +1385,10 @@ func (p *PathInfo) fillPathInfoSubInterface(
 	p.BackupSubIntf = backupBundlesubIntfIPMap
 	p.PrimarySubintfPathsV4 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v4", true) // peer addresses are used in nexthop reference
 	p.PrimarySubintfPathsV6 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v6", true)
+	p.PrimaryPathPeerV4ToSubIntf = GetSubIntfMapByPeerIPv4(primaryBundlesubIntfIPMap)
 	p.BackupSubintfPathsV4 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v4", true)
 	p.BackupSubintfPathsV6 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v6", true)
+	p.BackupPathPeerV4ToSubIntf = GetSubIntfMapByPeerIPv4(backupBundlesubIntfIPMap)
 }
 
 // Print prints the PathInfo struct in a human-readable format.

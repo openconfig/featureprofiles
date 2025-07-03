@@ -2125,6 +2125,7 @@ func SshRunCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
 		t.Log(err.Error())
 		return ""
 	}
+
 }
 
 // IsPlatformVXR checks if the platform is a VXR (true) or a HW (false)
