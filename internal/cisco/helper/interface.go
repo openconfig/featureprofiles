@@ -13,11 +13,12 @@ import (
 type InterfaceHelper struct{}
 
 // ClearInterfaceCountersAll executes a 'clear counters' CLI.
-func (v *InterfaceHelper) ClearInterfaceCountersAll(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	// Configure "service cli interactive disable" to disable the interactive prompt
-	config.TextWithGNMI(context.Background(), t, dut, "service cli interactive disable")
-	dut.CLI().Run(t, "clear counters")
+func (v *InterfaceHelper) ClearInterfaceCountersAll(t *testing.T, dut []*ondatra.DUTDevice) {
+	for _, device := range dut {
+		// Configure "service cli interactive disable" to disable the interactive prompt
+		config.TextWithGNMI(context.Background(), t, device, "service cli interactive disable")
+		device.CLI().Run(t, "clear counters")
+	}
 }
 
 func (v *InterfaceHelper) GetPerInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, intf string) *oc.Interface_Counters {
