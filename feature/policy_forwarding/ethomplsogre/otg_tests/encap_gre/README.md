@@ -487,7 +487,7 @@ Run the test separately for both port mode and attachment mode "customer interfa
                     "remote": {
                       "config": {
                         "remote-label": 361478,
-                        "remote-system": "10.250.15.250",
+                        "next-hop-group": "MPLS_in_GRE_Encap",
                         "virtual-circuit-identifier": 4
                       }
                     }
@@ -570,16 +570,6 @@ Run the test separately for both port mode and attachment mode "customer interfa
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
                                             },
-                                            {
-                                                "index": 2,
-                                                "type": "MPLS",
-                                                "config": {
-                                                    "index": 2,
-                                                    "mpls-label-stack": [
-                                                        100
-                                                    ]
-                                                }
-                                            }
                                         ]
                                     }
                                 }
@@ -601,16 +591,6 @@ Run the test separately for both port mode and attachment mode "customer interfa
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
                                             },
-                                            {
-                                                "index": 2,
-                                                "type": "MPLS",
-                                                "config": {
-                                                    "index": 2,
-                                                    "mpls-label-stack": [
-                                                        100
-                                                    ]
-                                                }
-                                            }
                                         ]
                                     }
                                 }
@@ -640,23 +620,20 @@ paths:
     /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
 	  /interfaces/interface/aggregation/config/lag-type
 
-    #TODO: Static next-hop group
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group
-
     #psuedowire configs
-    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy
     /network-instances/network-instance/config/name
     /network-instances/network-instance/config/type
     /network-instances/network-instance/connection-points/connection-point/config/connection-point-id
     /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/config/endpoint-id
     /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/interface
     /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/remote-system
     /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier
     
-    #TODO: Add new OC for local and remote label
+    #TODO: Add new OCs for labels and next-hop-group under connection-point 
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label 
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/remote-label
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/next-hop-group
+
 
     #Tunnels/Next-hop group configs
 
