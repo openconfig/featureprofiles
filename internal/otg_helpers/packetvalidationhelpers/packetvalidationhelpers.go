@@ -44,7 +44,7 @@ Validations = []packetvalidationhelpers.ValidationType{
 		t.Errorf("ValidateLossOnFlows(): got err: %q", err)
 	}
 
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, top, ate, EncapPacketValidation); err != nil {
+	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, EncapPacketValidation); err != nil {
 		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
 	}
 
@@ -156,7 +156,7 @@ func StopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState)
 }
 
 // CaptureAndValidatePackets captures the packets and validates the traffic.
-func CaptureAndValidatePackets(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, packetVal *PacketValidation) error {
+func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *PacketValidation) error {
 	t.Helper()
 	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.PortName))
 	f, err := os.CreateTemp("", "pcap")
