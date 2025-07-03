@@ -1512,3 +1512,8 @@ func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
 func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
 }
+
+// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
+        return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
+}
