@@ -28,7 +28,7 @@ Validate gNOI RPC can get reboot status and cancel the reboot
         *   The reboot status is active.
         *   The reason from reboot status response matches reboot message.
         *   The wait time from reboot status response matches reboot delay.
-        *   Validate that there are no cores formed on the device
+        *   Validate that there are no cores formed on the device post the reboot
     
 ## OpenConfig Path and RPC Coverage
 
