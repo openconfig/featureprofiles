@@ -32,6 +32,7 @@ Validate gNOI RPC can get reboot status and cancel the reboot
 
 ## Canonical OC
 ```json
+
 ```
 
 ## OpenConfig Path and RPC Coverage
