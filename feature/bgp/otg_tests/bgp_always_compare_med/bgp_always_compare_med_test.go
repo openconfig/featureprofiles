@@ -674,7 +674,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 			}
 		}
 
-		// Re-enable neighbors
+		// Re-enable neighbor
 		for _, nbrIP := range nbrIPs {
 			nbrPath := bgpPath.Neighbor(nbrIP)
 			t.Logf("Re-enabling BGP neighbor %s", nbrIP)
