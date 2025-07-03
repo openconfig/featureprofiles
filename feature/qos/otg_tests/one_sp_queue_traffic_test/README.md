@@ -188,6 +188,69 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/queue:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/weight:
 
+## Canonical OpenConfig for keepalive-interval and hold-time at neighbour and peer-group level for BGP
+{
+  "qos": {
+    "scheduler-policies": {
+      "scheduler-policy": {
+        "scheduler": {
+          "schedulers": {
+            "scheduler": {
+              "0": {
+                "inputs": {
+                  "input": {
+                    "NC1": {
+                      "state": {
+                        "weight": 100
+                      }
+                    }
+                  }
+                }
+              },
+              "1": {
+                "inputs": {
+                  "input": {
+                    "AF1": {
+                      "state": {
+                        "weight": 4
+                      }
+                    },
+                    "AF2": {
+                      "state": {
+                        "weight": 8
+                      }
+                    },
+                    "AF3": {
+                      "state": {
+                        "weight": 12
+                      }
+                    },
+                    "AF4": {
+                      "state": {
+                        "weight": 48
+                      }
+                    },
+                    "BE0": {
+                      "state": {
+                        "weight": 1
+                      }
+                    },
+                    "BE1": {
+                      "state": {
+                        "weight": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 rpcs:
   gnmi:
     gNMI.Set:
