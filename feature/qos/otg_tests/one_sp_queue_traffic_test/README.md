@@ -104,7 +104,7 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
                 "inputs": {
                   "input": {
                     "NC1": {
-                      "state": {
+                      "config": {
                         "weight": 100
                       }
                     }
@@ -115,32 +115,32 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
                 "inputs": {
                   "input": {
                     "AF1": {
-                      "state": {
+                      "config": {
                         "weight": 4
                       }
                     },
                     "AF2": {
-                      "state": {
+                      "config": {
                         "weight": 8
                       }
                     },
                     "AF3": {
-                      "state": {
+                      "config": {
                         "weight": 12
                       }
                     },
                     "AF4": {
-                      "state": {
+                      "config": {
                         "weight": 48
                       }
                     },
                     "BE0": {
-                      "state": {
+                      "config": {
                         "weight": 1
                       }
                     },
                     "BE1": {
-                      "state": {
+                      "config": {
                         "weight": 1
                       }
                     }
