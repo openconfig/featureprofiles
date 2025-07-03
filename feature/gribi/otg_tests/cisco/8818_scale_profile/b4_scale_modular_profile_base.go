@@ -1006,7 +1006,7 @@ func (gp *GribiProfile) ClubPairedEntries(t *testing.T, dut *ondatra.DUTDevice, 
 	// Iterate over each PairedEntries slice
 	for k, entries := range pairedEntriesSlices {
 		// Skip if the slice is empty
-		if entries == nil || len(entries) == 0 {
+		if len(entries) == 0 {
 			continue
 		}
 
@@ -3761,29 +3761,28 @@ func printResourcesInRed(t *testing.T, dut *ondatra.DUTDevice, lcLoc string) {
 	}
 }
 
-// splitIntoGroups splits a slice into s groups of roughly equal size.
-func splitInToGroups[T any](input []T, g int) [][]T {
-	n := len(input)
-	partSize := n / g
-	remainder := n % g
+// // splitIntoGroups splits a slice into s groups of roughly equal size.
+// func splitInToGroups[T any](input []T, g int) [][]T {
+// 	n := len(input)
+// 	partSize := n / g
+// 	remainder := n % g
 
-	var result [][]T
-	start := 0
+// 	var result [][]T
+// 	start := 0
 
-	for i := 0; i < g; i++ {
-		end := start + partSize
-		if i < remainder {
-			end++ // distribute the remainder
-		}
-		if end > n {
-			end = n
-		}
-		result = append(result, input[start:end])
-		start = end
-	}
-
-	return result
-}
+// 	for i := 0; i < g; i++ {
+// 		end := start + partSize
+// 		if i < remainder {
+// 			end++ // distribute the remainder
+// 		}
+// 		if end > n {
+// 			end = n
+// 		}
+// 		result = append(result, input[start:end])
+// 		start = end
+// 	}
+// 	return result
+// }
 
 // randomPickTwo returns up to 2 unique elements from a slice.
 // The elements are chosen randomly.
