@@ -223,7 +223,7 @@ Verify:
                     {
                       "action": {
                         "config": {
-                          "decapsulate-udp": true
+                          "decapsulate-gue": true
                         }
                       },
                       "config": {
