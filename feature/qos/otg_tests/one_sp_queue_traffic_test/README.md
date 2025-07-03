@@ -188,7 +188,8 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/queue:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/weight:
 
-## Canonical OC
+#### Canonical OC
+```json
 {
   "qos": {
     "scheduler-policies": {
@@ -250,6 +251,7 @@ paths:
     }
   }
 }
+```
 
 rpcs:
   gnmi:
