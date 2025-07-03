@@ -31,7 +31,7 @@ Validate gNOI RPC can get reboot status and cancel the reboot
         *   Validate that there are no cores formed on the device post the reboot
 
 ## Canonical OC
-```
+```json
 ```
 
 ## OpenConfig Path and RPC Coverage
