@@ -91,6 +91,70 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
     *   NC1 vs AF1
     *   NC1 vs BE1
     *   NC1 vs BE0
+#### Canonical OC
+```json
+{
+  "qos": {
+    "scheduler-policies": {
+      "scheduler-policy": {
+        "scheduler": {
+          "schedulers": {
+            "scheduler": {
+              "0": {
+                "inputs": {
+                  "input": {
+                    "NC1": {
+                      "state": {
+                        "weight": 100
+                      }
+                    }
+                  }
+                }
+              },
+              "1": {
+                "inputs": {
+                  "input": {
+                    "AF1": {
+                      "state": {
+                        "weight": 4
+                      }
+                    },
+                    "AF2": {
+                      "state": {
+                        "weight": 8
+                      }
+                    },
+                    "AF3": {
+                      "state": {
+                        "weight": 12
+                      }
+                    },
+                    "AF4": {
+                      "state": {
+                        "weight": 48
+                      }
+                    },
+                    "BE0": {
+                      "state": {
+                        "weight": 1
+                      }
+                    },
+                    "BE1": {
+                      "state": {
+                        "weight": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 ## Config parameter coverage
 
@@ -187,71 +251,6 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/input-type:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/queue:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/state/weight:
-
-#### Canonical OC
-```json
-{
-  "qos": {
-    "scheduler-policies": {
-      "scheduler-policy": {
-        "scheduler": {
-          "schedulers": {
-            "scheduler": {
-              "0": {
-                "inputs": {
-                  "input": {
-                    "NC1": {
-                      "state": {
-                        "weight": 100
-                      }
-                    }
-                  }
-                }
-              },
-              "1": {
-                "inputs": {
-                  "input": {
-                    "AF1": {
-                      "state": {
-                        "weight": 4
-                      }
-                    },
-                    "AF2": {
-                      "state": {
-                        "weight": 8
-                      }
-                    },
-                    "AF3": {
-                      "state": {
-                        "weight": 12
-                      }
-                    },
-                    "AF4": {
-                      "state": {
-                        "weight": 48
-                      }
-                    },
-                    "BE0": {
-                      "state": {
-                        "weight": 1
-                      }
-                    },
-                    "BE1": {
-                      "state": {
-                        "weight": 1
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
 
 rpcs:
   gnmi:
