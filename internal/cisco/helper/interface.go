@@ -21,25 +21,25 @@ func (v *InterfaceHelper) ClearInterfaceCountersAll(t *testing.T, dut []*ondatra
 	}
 }
 
-func (v *InterfaceHelper) GetPerInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, intf string) *oc.Interface_Counters {
+func (v *InterfaceHelper) GetPerInterfaceCounters(t testing.TB, dut *ondatra.DUTDevice, intf string) *oc.Interface_Counters {
 	t.Helper()
 	counters := gnmi.Get(t, dut, (gnmi.OC().Interface(intf).Counters().State()))
 	return counters
 }
 
-func (v *InterfaceHelper) GetPerInterfaceV4Counters(t *testing.T, dut *ondatra.DUTDevice, intf string) *oc.Interface_Subinterface_Ipv4_Counters {
+func (v *InterfaceHelper) GetPerInterfaceV4Counters(t testing.TB, dut *ondatra.DUTDevice, intf string) *oc.Interface_Subinterface_Ipv4_Counters {
 	t.Helper()
 	counters := gnmi.Get(t, dut, (gnmi.OC().Interface(intf).Subinterface(0).Ipv4().Counters().State()))
 	return counters
 }
 
-func (v *InterfaceHelper) GetPerInterfaceV6Counters(t *testing.T, dut *ondatra.DUTDevice, intf string) *oc.Interface_Subinterface_Ipv6_Counters {
+func (v *InterfaceHelper) GetPerInterfaceV6Counters(t testing.TB, dut *ondatra.DUTDevice, intf string) *oc.Interface_Subinterface_Ipv6_Counters {
 	t.Helper()
 	counters := gnmi.Get(t, dut, (gnmi.OC().Interface(intf).Subinterface(0).Ipv6().Counters().State()))
 	return counters
 }
 
-func (v *InterfaceHelper) GetAllInterfaceInUnicast(t *testing.T, dut *ondatra.DUTDevice, trafficType string) map[string]uint64 {
+func (v *InterfaceHelper) GetAllInterfaceInUnicast(t testing.TB, dut *ondatra.DUTDevice, trafficType string) map[string]uint64 {
 	t.Helper()
 	var unicastStats []*ygnmi.Value[uint64]
 	data := make(map[string]uint64)
@@ -59,7 +59,7 @@ func (v *InterfaceHelper) GetAllInterfaceInUnicast(t *testing.T, dut *ondatra.DU
 	return data
 }
 
-func (v *InterfaceHelper) GetAllInterfaceOutUnicast(t *testing.T, dut *ondatra.DUTDevice, trafficType string) map[string]uint64 {
+func (v *InterfaceHelper) GetAllInterfaceOutUnicast(t testing.TB, dut *ondatra.DUTDevice, trafficType string) map[string]uint64 {
 	t.Helper()
 	var unicastStats []*ygnmi.Value[uint64]
 	data := make(map[string]uint64)
@@ -80,7 +80,7 @@ func (v *InterfaceHelper) GetAllInterfaceOutUnicast(t *testing.T, dut *ondatra.D
 }
 
 // GetBundleMembers retrieves the bundle member interfaces for a given bundle interface.
-func (v *InterfaceHelper) GetBundleMembers(t *testing.T, dut *ondatra.DUTDevice, bundleInterface string) map[string][]string {
+func (v *InterfaceHelper) GetBundleMembers(t testing.TB, dut *ondatra.DUTDevice, bundleInterface string) map[string][]string {
 	t.Helper()
 	// Create a map to store the result
 	bundleMembers := make(map[string][]string)

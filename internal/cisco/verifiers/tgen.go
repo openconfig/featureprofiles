@@ -20,7 +20,7 @@ type TGENFlow struct {
 
 // TGENConfig is the interface to configure TGEN interfaces
 type TGENValidate interface {
-	ValidateTrafficLoss(t *testing.T) bool
+	ValidateTrafficLoss(t testing.TB) bool
 }
 
 // TgenConfigParam holds the configuration input for both ATE and OTG
@@ -39,7 +39,7 @@ type OTGParam struct {
 }
 
 // ValidateTrafficLoss validates the traffic loss for the given flows, returns true if there is traffic loss, else false.
-func (atep *ATEParam) ValidateTrafficLoss(t *testing.T) bool {
+func (atep *ATEParam) ValidateTrafficLoss(t testing.TB) bool {
 	ate := ondatra.ATE(t, "ate")
 	var trafficLoss bool = false
 	for _, flow := range atep.Params.Flows.ATE {
@@ -62,7 +62,7 @@ func (atep *ATEParam) ValidateTrafficLoss(t *testing.T) bool {
 }
 
 // ValidateTrafficLoss validates the traffic loss for the given flows, returns true if there is traffic loss, else false.
-func (otgp *OTGParam) ValidateTrafficLoss(t *testing.T) bool {
+func (otgp *OTGParam) ValidateTrafficLoss(t testing.TB) bool {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 	var trafficLoss bool = false

@@ -14,7 +14,7 @@ type LoadbalancingHelper struct{}
 
 // GetIngressTrafficInterfaces gets list of the interfaces which have active ingress unicast traffic,
 // this is based on counters incremented while traffic is running. "trafficType" is the type of traffic either "ipv4" or "ipv6", default is interface level unicast packets.
-func (v *LoadbalancingHelper) GetIngressTrafficInterfaces(t *testing.T, dut *ondatra.DUTDevice, trafficType string, clearCountersDone bool) map[string]uint64 {
+func (v *LoadbalancingHelper) GetIngressTrafficInterfaces(t testing.TB, dut *ondatra.DUTDevice, trafficType string, clearCountersDone bool) map[string]uint64 {
 	t.Helper()
 	intfMap := make(map[string]uint64)
 	//Get initial counters for all interfaces
@@ -45,7 +45,7 @@ func (v *LoadbalancingHelper) GetIngressTrafficInterfaces(t *testing.T, dut *ond
 }
 
 // GetPrefixOutGoingInterfaces retrieves all outgoing next-hop interfaces with their weights for a given prefix.
-func (v *LoadbalancingHelper) GetPrefixOutGoingInterfaces(t *testing.T, dut *ondatra.DUTDevice, prefix, vrf string) map[string]uint32 {
+func (v *LoadbalancingHelper) GetPrefixOutGoingInterfaces(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) map[string]uint32 {
 	t.Helper()
 	// Validate input
 	NHWeightMap := make(map[string]uint32)

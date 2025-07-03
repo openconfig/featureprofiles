@@ -12,8 +12,8 @@ type TgenHelper struct{}
 
 // TGENConfig is the interface to configure TGEN interfaces
 type TGENConfig interface {
-	ConfigureTgenInterface(t *testing.T) *TGENTopology
-	ConfigureTGENFlows(t *testing.T) *TGENFlow
+	ConfigureTgenInterface(t testing.TB) *TGENTopology
+	ConfigureTGENFlows(t testing.TB) *TGENFlow
 }
 
 // TGENTopology holds either ATE or OTG topology object
@@ -83,7 +83,7 @@ type OTGParam struct {
 	Params *TgenConfigParam
 }
 
-func (atep *ATEParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
+func (atep *ATEParam) ConfigureTgenInterface(t testing.TB) *TGENTopology {
 	ate := ondatra.ATE(t, "ate")
 	topo := ate.Topology().New()
 	for i, intf := range atep.Params.TgenIntfAttr {
@@ -99,7 +99,7 @@ func (atep *ATEParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
 		ATE: topo,
 	}
 }
-func (otgp *OTGParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
+func (otgp *OTGParam) ConfigureTgenInterface(t testing.TB) *TGENTopology {
 	otg := ondatra.ATE(t, "ate").OTG()
 	topo := gosnappi.NewConfig()
 
@@ -117,7 +117,7 @@ func (otgp *OTGParam) ConfigureTgenInterface(t *testing.T) *TGENTopology {
 }
 
 // Creates ATE Traffic Flow using TrafficFlowAttr struct.
-func (atep *ATEParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
+func (atep *ATEParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 	ate := ondatra.ATE(t, "ate")
 	topo := ate.Topology().New()
 	var flows []*ondatra.Flow
@@ -249,7 +249,7 @@ func (atep *ATEParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	}
 }
 
-func (otgp *OTGParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
+func (otgp *OTGParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 	topo := gosnappi.NewConfig()
 	var flows []gosnappi.Flow
 	for _, trafficFlowAttr := range otgp.Params.TrafficFlowParam {
@@ -336,7 +336,7 @@ func (otgp *OTGParam) ConfigureTGENFlows(t *testing.T) *TGENFlow {
 	}
 }
 
-func (tg *TgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology, dontReapplyTraffic bool) {
+func (tg *TgenHelper) StartTraffic(t testing.TB, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology, dontReapplyTraffic bool) {
 	if useOTG {
 		otg := ondatra.ATE(t, "ate").OTG()
 		otgTopo := topo.OTG
