@@ -20,7 +20,12 @@ Validate gNOI RPC can get reboot status and cancel the reboot
     *   Validate that the reboot status is active.
     *   Issue Cancel reboot request RPC to chassis.
     *   Validate that the reboot status is no longer active.
-    
+
+## Canonical OC
+```json
+{}
+```    
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
