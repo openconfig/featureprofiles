@@ -96,61 +96,90 @@ Verify that DUT drops AF4, AF3, AF2, AF1, BE1 and BE0 before NC1.
 {
   "qos": {
     "scheduler-policies": {
-      "scheduler-policy": {
-        "scheduler": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "0"
+          },
+          "name": "0",
           "schedulers": {
-            "scheduler": {
-              "0": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 0
+                },
                 "inputs": {
-                  "input": {
-                    "NC1": {
+                  "input": [
+                    {
                       "config": {
-                        "weight": 100
-                      }
+                        "id": "NC1",
+                        "weight": "100"
+                      },
+                      "id": "NC1"
                     }
-                  }
-                }
-              },
-              "1": {
-                "inputs": {
-                  "input": {
-                    "AF1": {
-                      "config": {
-                        "weight": 4
-                      }
-                    },
-                    "AF2": {
-                      "config": {
-                        "weight": 8
-                      }
-                    },
-                    "AF3": {
-                      "config": {
-                        "weight": 12
-                      }
-                    },
-                    "AF4": {
-                      "config": {
-                        "weight": 48
-                      }
-                    },
-                    "BE0": {
-                      "config": {
-                        "weight": 1
-                      }
-                    },
-                    "BE1": {
-                      "config": {
-                        "weight": 1
-                      }
-                    }
-                  }
-                }
+                  ]
+                },
+                "sequence": 0
               }
-            }
+            ]
+          }
+        },
+        {
+          "config": {
+            "name": "1"
+          },
+          "name": "1",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 1
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "AF1",
+                        "weight": "4"
+                      },
+                      "id": "AF1"
+                    },
+                    {
+                      "config": {
+                        "id": "AF2",
+                        "weight": "48"
+                      },
+                      "id": "AF2"
+                    },
+                    {
+                      "config": {
+                        "id": "AF3",
+                        "weight": "12"
+                      },
+                      "id": "AF3"
+                    },
+                    {
+                      "config": {
+                        "id": "BE0",
+                        "weight": "1"
+                      },
+                      "id": "BE0"
+                    },
+                    {
+                      "config": {
+                        "id": "BE1",
+                        "weight": "1"
+                      },
+                      "id": "BE1"
+                    }
+                  ]
+                },
+                "sequence": 1
+              }
+            ]
           }
         }
-      }
+      ]
     }
   }
 }
