@@ -626,6 +626,8 @@ func TestAlwaysCompareMED(t *testing.T) {
 	t.Run("Remove MED settings on DUT", func(t *testing.T) {
 		t.Log("Disable MED settings on DUT.")
 		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+		// Apply the allow-all policy to remove MED modifications
 		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
 			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
@@ -634,6 +636,61 @@ func TestAlwaysCompareMED(t *testing.T) {
 			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
 		}
 
+		// Get neighbor IPs (make sure these variables are available in scope)
+		nbrIPs := []string{ateDst1.IPv4, ateDst2.IPv4}
+
+		// Force BGP sessions to refresh routes after policy change
+		t.Log("Resetting BGP sessions to force complete route refresh...")
+
+		// Get the BGP instance path for neighbor configuration
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+		// First, disable all neighbors
+		for _, nbrIP := range nbrIPs {
+			nbrPath := bgpPath.Neighbor(nbrIP)
+			t.Logf("Disabling BGP neighbor %s", nbrIP)
+			gnmi.Update(t, dut, nbrPath.Enabled().Config(), false)
+		}
+
+		// Wait for sessions to go down completely
+		t.Log("Waiting for BGP sessions to go down...")
+		time.Sleep(3 * time.Second)
+
+		// Verify sessions are down
+		for _, nbrIP := range nbrIPs {
+			awaitTimeout := 30 * time.Second
+			isConnected := func() bool {
+				nbrPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbrIP)
+				state := gnmi.Get(t, dut, nbrPath.SessionState().State())
+				return state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+			}
+
+			// Wait for session to go down
+			if isConnected() {
+				t.Logf("Waiting for BGP session with %s to go down...", nbrIP)
+				for start := time.Now(); time.Since(start) < awaitTimeout && isConnected(); {
+					time.Sleep(1 * time.Second)
+				}
+			}
+		}
+
+		// Re-enable neighbors
+		for _, nbrIP := range nbrIPs {
+			nbrPath := bgpPath.Neighbor(nbrIP)
+			t.Logf("Re-enabling BGP neighbor %s", nbrIP)
+			gnmi.Update(t, dut, nbrPath.Enabled().Config(), true)
+		}
+
+		// Wait for BGP sessions to re-establish
+		t.Log("Waiting for BGP sessions to re-establish...")
+		verifyBgpTelemetry(t, dut)
+		verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+
+		// Additional wait for route processing
+		t.Log("Waiting for route processing to complete...")
+		time.Sleep(10 * time.Second)
+
+		t.Log("BGP policy change and route refresh completed")
 	})
 
 	t.Run("Verify MED on received routes at ATE Port1 after removing MED settings", func(t *testing.T) {
