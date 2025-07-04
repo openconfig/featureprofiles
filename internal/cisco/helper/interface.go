@@ -90,9 +90,7 @@ func (v *interfaceHelper) GetBundleMembers(t testing.TB, dut *ondatra.DUTDevice,
 
 	// Check if the value is present and extract it
 	if memberList, ok := members.Val(); ok {
-		for _, memberName := range memberList {
-			bundleMembers[bundleInterface] = append(bundleMembers[bundleInterface], memberName)
-		}
+		bundleMembers[bundleInterface] = append(bundleMembers[bundleInterface], memberList...)
 	}
 
 	return bundleMembers

@@ -34,10 +34,10 @@ var (
 	rSiteV6DSTIP           = "2002:af0:7730:a::1"
 	eSiteV6DSTIP           = "2002:af0:7620:e::1"
 	v4TrafficType          = "ipv4"
-	v6TrafficType          = "ipv6"
-	noTrafficType          = ""
-	srcIPFlowCount         = 50000
-	L4FlowCount            = 50000
+	// v6TrafficType          = "ipv6"
+	noTrafficType  = ""
+	srcIPFlowCount = 50000
+	L4FlowCount    = 50000
 )
 
 // DUT and TGEN port attributes
