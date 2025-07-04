@@ -140,7 +140,7 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Transceiver", "Leaf", "Value"})
+	table.Header([]string{"Transceiver", "Leaf", "Value"})
 
 	appendToTableIfNotNil(t, table, portName, "Index", terminalDeviceValue.GetAssignment(1).Index, "Index is empty for port %v")
 
