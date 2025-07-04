@@ -405,6 +405,33 @@ rpcs:
         }
       }
     ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "ALLOW",
+          "config": {
+            "name": "ALLOW"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "20",
+                "config": {
+                  "name": "20"
+                },
+                "actions": {
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
   }
 }
 ```
