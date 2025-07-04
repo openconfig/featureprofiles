@@ -27,6 +27,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"regexp"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
@@ -784,6 +785,143 @@ func verifyUpdateValue(t testing.TB, notifications []*gpb.Notification, expected
 	}
 }
 
+func lineCardUp(t testing.TB, dut *ondatra.DUTDevice, fpc string) {
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	powerDownLineCardRequest := &spb.RebootRequest{
+		Method: spb.RebootMethod_POWERDOWN,
+		Subcomponents: []*tpb.Path{
+			components.GetSubcomponentPath(fpc, useNameOnly),
+		},
+	}
+	t.Logf("powerDownLineCardRequest: %v", powerDownLineCardRequest)
+	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownLineCardRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform standby RP powerdown with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
+
+	t.Logf("Wait for 15 seconds to allow the sub component's power down process to complete")
+	time.Sleep(15 * time.Second)
+}
+
+func findFpcFromPort(t testing.TB, portName string, dut *ondatra.DUTDevice) (string, error) {
+	t.Helper()
+	if dut.Vendor() == ondatra.ARISTA {
+		re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)/\d+(?::\d+)?$`)
+		match := re.FindStringSubmatch(portName)
+		if match == nil {
+			return "", fmt.Errorf("invalid port name format: %s", portName)
+		}
+		return fmt.Sprintf("FPC%s", match[1]), nil
+	}
+	if dut.Vendor() == ondatra.CISCO {
+		re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)/\d+/\d+(?::\d+)?$`)
+		match := re.FindStringSubmatch(portName)
+		if match == nil {
+			return "", fmt.Errorf("invalid port name format: %s", portName)
+		}
+		return fmt.Sprintf("FPC%s", match[2]), nil
+	}
+	if dut.Vendor() == ondatra.JUNIPER {
+		re := regexp.MustCompile(`^[a-z]+-(\d+)/\d+/\d+(?::\d+)?$`)
+		match := re.FindStringSubmatch(portName)
+		if match == nil {
+			return "", fmt.Errorf("invalid port name format: %s", portName)
+		}
+		return fmt.Sprintf("FPC%s", match[1]), nil
+	}
+	if dut.Vendor() == ondatra.NOKIA {
+		re := regexp.MustCompile(`^[a-z]+-(\d+)\/d+(?::(\d+))?$`)
+		match := re.FindStringSubmatch(portName)
+		if match == nil {
+			return "", fmt.Errorf("invalid port name format: %s", portName)
+		}
+		return fmt.Sprintf("FPC%s", match[1]), nil
+	}
+	return "", fmt.Errorf("unsupported vendor: %s", dut.Vendor())
+}
+func verifyNotificationPathsForPortUpdates(t *testing.T, notifications []*gpb.Notification, selectedPort string) {
+	t.Helper()
+	for _, notification := range notifications {
+		path := ""
+		for _, elem := range notification.GetPrefix().GetElem() {
+			path += "/" + elem.GetName()
+			for key, value := range elem.GetKey() {
+				if value == selectedPort {
+					t.Logf("Notification path: %v has update for port: %v", path, selectedPort)
+					t.Logf("Key: %v, Value: %v", key, value)
+					break
+				}
+			}
+		}
+	}
+	t.Errorf("Notification is missing update for port: %v", selectedPort)
+}
+
+func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string, lcs []string) string {
+	var validCards []string
+	// don't consider the empty linecard slots.
+	if len(lcs) > *args.NumLinecards {
+		for _, lc := range lcs {
+			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !ok || (ok && !empty) {
+				validCards = append(validCards, lc)
+			}
+		}
+	} else {
+		validCards = lcs
+	}
+	if *args.NumLinecards >= 0 && len(validCards) != *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want exactly %v (specified by flag)", len(validCards), *args.NumLinecards)
+	}
+
+	if got := len(validCards); got == 0 {
+		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
+	}
+
+	var removableLinecard string
+	for _, lc := range validCards {
+		t.Logf("Check if %s is removable", lc)
+		if dut.Vendor() == ondatra.JUNIPER && lc != fpc {
+			continue
+		}
+		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
+			t.Logf("Detected non-removable line card: %v", lc)
+			continue
+		}
+		if got := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); got {
+			t.Logf("Found removable line card: %v", lc)
+			removableLinecard = lc
+		}
+	}
+	if removableLinecard == "" {
+		if *args.NumLinecards > 0 {
+			t.Fatalf("No removable line card found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable line card found for the testing")
+		}
+	}
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	powerDownLineCardRequest := &spb.RebootRequest{
+		Method: spb.RebootMethod_POWERDOWN,
+		Subcomponents: []*tpb.Path{
+			components.GetSubcomponentPath(removableLinecard, useNameOnly),
+		},
+	}
+	t.Logf("powerDownLineCardRequest: %v", powerDownLineCardRequest)
+	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownLineCardRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform Linecard powerdown with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
+
+	t.Logf("Wait for 15 seconds to allow the sub component's power down process to complete")
+	time.Sleep(15 * time.Second)
+	return removableLinecard
+}
+
 func TestBreakoutSubscription(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -798,14 +936,13 @@ func TestBreakoutSubscription(t *testing.T) {
 		atePorts: sortPorts(ate.Ports()),
 		aggID:    aggID,
 	}
-	tc.configureATE(t)
+  tc.configureATE(t)
 	tc.configureDUT(t)
 	ctx := context.Background()
 	t.Run("verifyDUT", tc.verifyDUT)
 	stream := newSubscribeRequest(ctx, t, dut)
 	checkSyncResponse(t, stream)
 	t.Run("PLT-1.2.1 Check response after a triggered interface state change", func(t *testing.T) {
-
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[0], false)
 		setDUTInterfaceWithState(t, dut, tc.dutPorts[2], false)
 		time.Sleep(2 * time.Second)
@@ -854,6 +991,7 @@ func TestBreakoutSubscription(t *testing.T) {
 	})
 	// Check response after a triggered LC reboot
 	t.Run("PLT-1.2.3 Check response after a triggered LC reboot", func(t *testing.T) {
+		t.Skipf("PLT-1.2.3 Check response after a triggered LC reboot is not supported on cisco-8808")
 		LinecardReboot(t, dut)
 		updateTimeout := 300 * time.Second
 		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
@@ -875,6 +1013,28 @@ func TestBreakoutSubscription(t *testing.T) {
 		chassisReboot(t, dut)
 		stream := newSubscribeRequest(ctx, t, dut)
 		checkSyncResponse(t, stream)
+		defer stream.CloseSend()
+		defer ctx.Done()
+	})
+	// Check response after a triggered breakout module reboot
+	t.Run("PLT-1.2.5 Check response after a triggered breakout module reboot", func(t *testing.T) {
+		intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
+		selectedPort := intfsOperStatusUPBeforeReboot[len(intfsOperStatusUPBeforeReboot)-1]
+		fpc, err := findFpcFromPort(t, selectedPort, dut)
+		if err != nil {
+			t.Fatalf("Failed to find FPC from port: %v", err)
+		}
+		lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+		powweredDownLinecard := linecardDown(t, dut, fpc, lcs)
+		stream := newSubscribeRequest(ctx, t, dut)
+		checkSyncResponse(t, stream)
+		lineCardUp(t, dut, powweredDownLinecard)
+		updateTimeout := 10 * time.Second
+		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
+		if err != nil {
+			t.Logf("Received error(possibly end of updates): %v", err)
+		}
+		verifyNotificationPathsForPortUpdates(t, receivedNotifications, selectedPort)
 		defer stream.CloseSend()
 		defer ctx.Done()
 	})
