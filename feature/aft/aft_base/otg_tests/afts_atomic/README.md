@@ -37,7 +37,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 
 * eBGP must be established state.
 * Use gNMI Subscribe with `ON_CHANGE` option to `/network-instances/network-instance/afts`.
-* Verify the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
+* Verify all the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
 
 
 ## AFT-3.1.1: AFT Atomic Flag check scenario 1
@@ -48,9 +48,7 @@ Bring down the link between ATE:port2 and DUT:port2 using OTG API.
 
 ### Verifications
 
-* eBGP routes advertised from ATE:port1,port2 must have 1 nexthop (pointing to ATE:port1).
-* IS-IS routes advertised from ATE:port1 must have one next hop.
-* Verify the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
+* Verify all the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
 
 ## AFT-3.1.2: AFT Atomic Flag Check Link Down and Up scenario 2
 
@@ -64,7 +62,7 @@ Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG API 
 * ISIS routes advertised from ATE:port1 must be removed from RIB and FIB of the DUT (query result should be nil).
 * Bring up the both links using OTG API.
 * Verify eBGP must be in established state for both peers.
-* Verify the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
+* Verify all the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
 
 ## OpenConfig Path and RPC Coverage
 
