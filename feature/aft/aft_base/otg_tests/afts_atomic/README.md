@@ -16,14 +16,15 @@ Variables
 
 * Let `X` be the number of IPv4 prefixes to be advertised by eBGP. **(User Adjustable Value)**
 * Let `Y` be the number of IPv6 prefixes to be advertised by eBGP. **(User Adjustable Value)**
-* Let `Z` be the number of prefixes to be advertised by IS-IS. **(User Adjustable Value)**
+* Let `Z` be the number of IPv4 prefixes to be advertised by IS-IS. **(User Adjustable Value)**
+* Let `Z1` be the number of IPv6 prefixes to be advertised by IS-IS. **(User Adjustable Value)**
 
 Configure IS-IS session.
 
 * Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
 * IS-IS must be level 2 only with wide metric.
 * IS-IS must be point to point.
-* Send `Z` IPv4 and `Z` IPv6 prefixes from ATE:port1 to DUT:port1.
+* Send `Z` IPv4 and `Z1` IPv6 prefixes from ATE:port1 to DUT:port1.
 * Each prefix advertised by ISIS must have one next hop pointing to ATE port1.
 
 Configure eBGP multipath sessions.
