@@ -56,7 +56,7 @@ Bring down the link between ATE:port2 and DUT:port2 using OTG API.
 
 ### Procedure
 
-Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG API and bring us using OTG API.
+Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG API and bring up using OTG API.
 
 ### Verifications
 
