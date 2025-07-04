@@ -33,6 +33,11 @@ Validate gNOI RPC can get reboot status and cancel the reboot
 
 ## OpenConfig Path and RPC Coverage
 
+## Canonical OC
+```json
+{}
+```
+
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
 ```yaml
