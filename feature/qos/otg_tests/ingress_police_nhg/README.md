@@ -1,4 +1,4 @@
-# DP-2.2 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
+# DP-2.2: QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
 
 ## Summary
 
