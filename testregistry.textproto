@@ -2012,6 +2012,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "SYS-1.1"
+  description: "Test default COPP policy thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/control_plane_traffic/otg_tests/default_copp_test/README.md"
+  exec: " "
+}
+test: {
   id: "URPF-1.1"
   description: "uRPF validation from non-default network-instance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/urpf/otg_tests/urpf_vrf_test/README.md"
