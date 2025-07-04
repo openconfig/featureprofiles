@@ -112,7 +112,6 @@ func TestMain(m *testing.M) {
 //
 
 func TestRebootStatus(t *testing.T) {
-	t.Skipf("b/408031530")
 	dut := ondatra.DUT(t, "dut")
 	gnoiClient := dut.RawAPIs().GNOI(t)
 
@@ -187,7 +186,6 @@ func TestRebootStatus(t *testing.T) {
 }
 
 func TestCancelReboot(t *testing.T) {
-	t.Skipf("b/408031530")
 	dut := ondatra.DUT(t, "dut")
 	gnoiClient := dut.RawAPIs().GNOI(t)
 
