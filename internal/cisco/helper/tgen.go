@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type TgenHelper struct{}
+type tgenHelper struct{}
 
 // TGENConfig is the interface to configure TGEN interfaces
 type TGENConfig interface {
@@ -59,6 +59,8 @@ type TrafficFlowAttr struct {
 	L4SrcPortStart     uint32
 	L4DstPortStart     uint32
 	L4PortRandom       bool // if true, use randomized L4 ports, else use port range
+	L4RandomMin        uint32
+	L4RandomMax        uint32
 	L4FlowStep         uint32
 	L4FlowCount        uint32
 	TrafficPPS         uint64
@@ -151,7 +153,7 @@ func (atep *ATEParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 			outerIPv6Header = ondatra.NewIPv6Header()
 			outerIPv6Header.SrcAddressRange().WithStep(trafficFlowAttr.OuterSrcStep).WithMin(trafficFlowAttr.OuterSrcStart).WithCount(uint32(trafficFlowAttr.OuterSrcFlowCount))
 			outerIPv6Header.DstAddressRange().WithStep(trafficFlowAttr.OuterDstStep).WithMin(trafficFlowAttr.OuterDstStart).WithCount(uint32(trafficFlowAttr.OuterDstFlowCount))
-			outerIPv6Header.WithDSCP(trafficFlowAttr.OuterDSCP).WithHopLimit(trafficFlowAttr.OuterTTL).WithECN(trafficFlowAttr.OuterECN).FlowLabelRange().WithMin(trafficFlowAttr.OuterIPv6Flowlabel).WithRandom()
+			outerIPv6Header.WithDSCP(trafficFlowAttr.OuterDSCP).WithHopLimit(trafficFlowAttr.OuterTTL).WithECN(trafficFlowAttr.OuterECN).FlowLabelRange().WithMin(trafficFlowAttr.OuterIPv6Flowlabel).WithRandom().WithCount(trafficFlowAttr.OuterSrcFlowCount)
 		}
 
 		// Inner IP header configuration
@@ -166,7 +168,7 @@ func (atep *ATEParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 			innerIPv6Header = ondatra.NewIPv6Header()
 			innerIPv6Header.SrcAddressRange().WithStep(trafficFlowAttr.InnerSrcStep).WithMin(trafficFlowAttr.InnerSrcStart).WithCount(uint32(trafficFlowAttr.InnerSrcFlowCount))
 			innerIPv6Header.DstAddressRange().WithStep(trafficFlowAttr.InnerDstStep).WithMin(trafficFlowAttr.InnerDstStart).WithCount(uint32(trafficFlowAttr.InnerDstFlowCount))
-			innerIPv6Header.WithDSCP(trafficFlowAttr.InnerDSCP).WithHopLimit(trafficFlowAttr.InnerTTL).WithECN(trafficFlowAttr.InnerECN).FlowLabelRange().WithMin(trafficFlowAttr.InnerIPv6Flowlabel).WithRandom()
+			innerIPv6Header.WithDSCP(trafficFlowAttr.InnerDSCP).WithHopLimit(trafficFlowAttr.InnerTTL).WithECN(trafficFlowAttr.InnerECN).FlowLabelRange().WithMin(trafficFlowAttr.InnerIPv6Flowlabel).WithRandom().WithCount(trafficFlowAttr.InnerSrcFlowCount)
 		}
 
 		// Layer4 header configuration
@@ -244,6 +246,7 @@ func (atep *ATEParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 		}
 		flows = append(flows, flow)
 	}
+
 	return &TGENFlow{
 		ATE: flows,
 	}
@@ -308,13 +311,13 @@ func (otgp *OTGParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 			if trafficFlowAttr.L4TCP {
 				// TCP header
 				l4TCPHeader = flow.Packet().Add().Tcp()
-				l4TCPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount)
-				l4TCPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount)
+				l4TCPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount).SetMin(trafficFlowAttr.L4SrcPortStart).SetMax(trafficFlowAttr.L4DstPortStart)
+				l4TCPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount).SetMin(trafficFlowAttr.L4SrcPortStart).SetMax(trafficFlowAttr.L4DstPortStart)
 			} else {
 				// UDP header
 				l4UDPHeader = flow.Packet().Add().Udp()
-				l4UDPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount)
-				l4UDPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount)
+				l4UDPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount).SetMin(trafficFlowAttr.L4SrcPortStart).SetMax(trafficFlowAttr.L4DstPortStart)
+				l4UDPHeader.SrcPort().Random().SetCount(trafficFlowAttr.L4FlowCount).SetMin(trafficFlowAttr.L4SrcPortStart).SetMax(trafficFlowAttr.L4DstPortStart)
 			}
 
 		} else { // Use specified L4 port range
@@ -336,7 +339,7 @@ func (otgp *OTGParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 	}
 }
 
-func (tg *TgenHelper) StartTraffic(t testing.TB, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology, dontReapplyTraffic bool) {
+func (tg *tgenHelper) StartTraffic(t testing.TB, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology, dontReapplyTraffic bool) {
 	if useOTG {
 		otg := ondatra.ATE(t, "ate").OTG()
 		otgTopo := topo.OTG
@@ -360,8 +363,8 @@ func (tg *TgenHelper) StartTraffic(t testing.TB, useOTG bool, allFlows *TGENFlow
 	}
 }
 
-// ConfigureTGEN selects the Tgen API ATE vs OTG ased on useOTG flag
-func (h *TgenHelper) ConfigureTGEN(useOTG bool, param *TgenConfigParam) TGENConfig {
+// ConfigureTGEN selects the Tgen  ATE vs OTG API , based on useOTG flag.
+func (h *tgenHelper) ConfigureTGEN(useOTG bool, param *TgenConfigParam) TGENConfig {
 	if useOTG {
 		return &OTGParam{Params: param}
 	}

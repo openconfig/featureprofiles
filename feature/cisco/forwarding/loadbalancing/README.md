@@ -2,6 +2,7 @@
 
 ## Testbed type
 DVT SIM topology Testbed ID: DVT-SIM-TOPO
+Detailed topology in /featureprofiles/feature/cisco/forwarding/loadbalancing/dvt_topology.drawio
 
 ## Summary
 

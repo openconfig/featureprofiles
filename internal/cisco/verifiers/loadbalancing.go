@@ -45,15 +45,15 @@ func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t testing.TB, 
 		var intfV4Counter *oc.Interface_Subinterface_Ipv4_Counters
 		var intfV6Coubter *oc.Interface_Subinterface_Ipv6_Counters
 		if forBundle && trafficType == "ipv4" {
-			intfV4Counter = helper.Interface.GetPerInterfaceV4Counters(t, dut, intf)
+			intfV4Counter = helper.InterfaceHelper().GetPerInterfaceV4Counters(t, dut, intf)
 			outPacketList = append(outPacketList, intfV4Counter.GetOutPkts())
 			distrStruct.OutPkts = intfV4Counter.GetOutPkts()
 		} else if forBundle && trafficType == "ipv6" {
-			intfV6Coubter = helper.Interface.GetPerInterfaceV6Counters(t, dut, intf)
+			intfV6Coubter = helper.InterfaceHelper().GetPerInterfaceV6Counters(t, dut, intf)
 			outPacketList = append(outPacketList, intfV6Coubter.GetOutPkts())
 			distrStruct.OutPkts = intfV6Coubter.GetOutPkts()
 		} else {
-			intfCounter = helper.Interface.GetPerInterfaceCounters(t, dut, intf)
+			intfCounter = helper.InterfaceHelper().GetPerInterfaceCounters(t, dut, intf)
 			outPacketList = append(outPacketList, intfCounter.GetOutUnicastPkts())
 			distrStruct.OutPkts = intfCounter.GetOutUnicastPkts()
 		}
@@ -61,8 +61,8 @@ func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t testing.TB, 
 		distrStruct.Weight = wt
 		trafficDistribution[intf] = distrStruct
 	}
-	wantWeights, _ = helper.Loadbalancing.Normalize(weightList)
-	gotWeights, _ = helper.Loadbalancing.Normalize(outPacketList)
+	wantWeights, _ = helper.LoadbalancingHelper().Normalize(weightList)
+	gotWeights, _ = helper.LoadbalancingHelper().Normalize(outPacketList)
 
 	t.Log("compare", wantWeights, gotWeights)
 	if diff := cmp.Diff(wantWeights, gotWeights, cmpopts.EquateApprox(0, trfDistTolerance)); diff != "" {

@@ -9,7 +9,7 @@ import (
 	// "github.com/openconfig/ondatra/gnmi/oc"
 )
 
-type FIBHelper struct{}
+type fibHelper struct{}
 
 type AFTNHInfo struct {
 	NextHopIndex     uint64
@@ -24,7 +24,7 @@ type FIBAFTObject struct {
 }
 
 // GetPrefixAFTNHG retrieves all outgoing NHG(next hop group) for a given prefix.
-func (v *FIBHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) []uint64 {
+func (v *fibHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) []uint64 {
 	t.Helper()
 	var NHG []uint64
 	aftIPv4Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).State()
@@ -34,7 +34,7 @@ func (v *FIBHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix
 }
 
 // GetPrefixAFTNH returns a map of NH index and corresponding weight for a given NHG.
-func (v *FIBHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NHG uint64, vrf string) map[uint64]uint64 {
+func (v *fibHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NHG uint64, vrf string) map[uint64]uint64 {
 	t.Helper()
 	nhMap := make(map[uint64]uint64)
 	aftNHG := gnmi.OC().NetworkInstance(vrf).Afts().NextHopGroup(NHG).State()
@@ -49,7 +49,7 @@ func (v *FIBHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NH
 }
 
 // GetAFTNHIPAddr retrieves next-hop IP for a given NHIndex list.
-func (v *FIBHelper) GetAFTNHIPAddr(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
+func (v *fibHelper) GetAFTNHIPAddr(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
 	t.Helper()
 	var nhIP []string
 	for _, nhI := range nhIndex {
@@ -62,7 +62,7 @@ func (v *FIBHelper) GetAFTNHIPAddr(t testing.TB, dut *ondatra.DUTDevice, nhIndex
 }
 
 // GetAFTNHInterface retrieves next-hop Interface for a given NHIndex list.
-func (v *FIBHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
+func (v *fibHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
 	t.Helper()
 	var nhInterface []string
 	for _, nhI := range nhIndex {
@@ -74,7 +74,7 @@ func (v *FIBHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIn
 	return nhInterface
 }
 
-func (v *FIBHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) FIBAFTObject {
+func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) FIBAFTObject {
 	t.Helper()
 	aftObj := FIBAFTObject{}
 	NHInfo := AFTNHInfo{}

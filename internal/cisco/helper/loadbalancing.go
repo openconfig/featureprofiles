@@ -10,22 +10,22 @@ import (
 	"testing"
 )
 
-type LoadbalancingHelper struct{}
+type loadbalancingHelper struct{}
 
 // GetIngressTrafficInterfaces gets list of the interfaces which have active ingress unicast traffic,
 // this is based on counters incremented while traffic is running. "trafficType" is the type of traffic either "ipv4" or "ipv6", default is interface level unicast packets.
-func (v *LoadbalancingHelper) GetIngressTrafficInterfaces(t testing.TB, dut *ondatra.DUTDevice, trafficType string, clearCountersDone bool) map[string]uint64 {
+func (v *loadbalancingHelper) GetIngressTrafficInterfaces(t testing.TB, dut *ondatra.DUTDevice, trafficType string, clearCountersDone bool) map[string]uint64 {
 	t.Helper()
 	intfMap := make(map[string]uint64)
 	//Get initial counters for all interfaces
-	beforeCounters := Interface.GetAllInterfaceInUnicast(t, dut, trafficType)
+	beforeCounters := interfaces.GetAllInterfaceInUnicast(t, dut, trafficType)
 
 	if clearCountersDone {
 		return beforeCounters
 	} else {
 		time.Sleep(30 * time.Second) //sleep for 30 seconds for interface statsd cache to update
 		//Get counters for all interfaces after interface statsd cache update
-		afterCounters := Interface.GetAllInterfaceInUnicast(t, dut, trafficType)
+		afterCounters := interfaces.GetAllInterfaceInUnicast(t, dut, trafficType)
 		// Subtract values for each key
 		differenceCounters := make(map[string]uint64)
 		for key, beforeValue := range beforeCounters {
@@ -45,7 +45,7 @@ func (v *LoadbalancingHelper) GetIngressTrafficInterfaces(t testing.TB, dut *ond
 }
 
 // GetPrefixOutGoingInterfaces retrieves all outgoing next-hop interfaces with their weights for a given prefix.
-func (v *LoadbalancingHelper) GetPrefixOutGoingInterfaces(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) map[string]uint32 {
+func (v *loadbalancingHelper) GetPrefixOutGoingInterfaces(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) map[string]uint32 {
 	t.Helper()
 	// Validate input
 	NHWeightMap := make(map[string]uint32)
@@ -59,7 +59,7 @@ func (v *LoadbalancingHelper) GetPrefixOutGoingInterfaces(t testing.TB, dut *ond
 // normalize normalizes the input values so that the output values sum
 // to 1.0 but reflect the proportions of the input.  For example,
 // input [1, 2, 3, 4] is normalized to [0.1, 0.2, 0.3, 0.4].
-func (v *LoadbalancingHelper) Normalize(xs []uint64) (ys []float64, sum uint64) {
+func (v *loadbalancingHelper) Normalize(xs []uint64) (ys []float64, sum uint64) {
 	for _, x := range xs {
 		sum += x
 	}
