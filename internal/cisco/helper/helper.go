@@ -2,10 +2,10 @@
 package helper
 
 var (
-	fib           = &fibHelper{}
-	loadbalancing = &loadbalancingHelper{}
-	interfaces    = &interfaceHelper{}
-	tgen          = &tgenHelper{}
+	fib           *fibHelper
+	loadbalancing *loadbalancingHelper
+	interfaces    *interfaceHelper
+	tgen          *tgenHelper
 	// rib     = &ribHelper{}
 )
 
