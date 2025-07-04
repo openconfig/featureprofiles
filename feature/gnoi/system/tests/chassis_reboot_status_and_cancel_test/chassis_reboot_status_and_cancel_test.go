@@ -59,16 +59,10 @@ type configParams struct {
 	NumBGPNeighbors             int
 }
 
-type activeStandByControllerCards struct {
-	activeRP  string
-	standbyRP string
-}
-
 type setRequest func(t *testing.T, dut *ondatra.DUTDevice) error
 
 var (
 	numPorts           int
-	params             configParams
 	vendorCoreFilePath = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
