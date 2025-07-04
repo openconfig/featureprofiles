@@ -359,23 +359,7 @@ rpcs:
                 "global": {
                   "config": {
                     "hello-padding": "DISABLE"
-                  },
-                  "afi": [
-                    {
-                      "afi-name": "IPV6",
-                      "safi-name": "UNICAST",
-                      "config": {
-                        "afi-name": "IPV6",
-                        "safi-name": "UNICAST"
-                      },
-                      "multi-topology": {
-                        "config": {
-                          "afi-name": "IPV4",
-                          "safi-name": "UNICAST"
-                        }
-                      }
-                    }
-                  ]
+                  }
                 },
                 "interfaces": {
                   "interface": [
