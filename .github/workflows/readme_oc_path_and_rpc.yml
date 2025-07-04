@@ -35,17 +35,15 @@ jobs:
       run: |
         go install ./tools/validate_readme_spec
 
-        exemption_flags=(
-          --non-test-readme feature/security/gnsi/certz/test_data/README.md
-          --non-test-readme feature/p4rt/README.md
-          --non-test-readme feature/security/gnsi/acctz/README.md
-        )
-
         # TODO: Just use this one line after all READMEs have converted to the new format.
         # validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
 
         function validate() {
-          validate_readme_spec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
+          local exemption_flags=()
+          while IFS= read -r path; do
+            exemption_flags+="--non-test-readme $path "
+          done < ./tools/non_test_readmes.txt
+          validate_readme_spec --feature-dir "$1" --alsologtostderr ${exemption_flags}
         }
 
         ##### BEGIN: Validate Changed Test READMEs # TODO: Remove this section after all are converted.
@@ -76,8 +74,12 @@ jobs:
           printf '%s\n' "${affected_readmes[@]}"
 
           echo "########## Validating READMEs in changed directories:"
+          exemption_flags=()
+          while IFS= read -r path; do
+            exemption_flags+="--non-test-readme $path "
+          done < ./tools/non_test_readmes.txt
           for f in "${affected_readmes[@]}"; do
-            validate_readme_spec --alsologtostderr "${exemption_flags[@]}" "${f}"
+            validate_readme_spec --alsologtostderr ${exemption_flags} "${f}"
           done
         fi
 
@@ -94,6 +96,7 @@ jobs:
         validate feature/security
         validate feature/staticroute
         validate feature/system/management
-        validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
+        validate feature/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
         validate feature/system/ntp/tests/system_ntp_test
         validate feature/qos/otg_tests/bursty_traffic_test
+
