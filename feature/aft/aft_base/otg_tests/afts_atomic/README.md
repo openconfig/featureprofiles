@@ -63,7 +63,7 @@ Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG API 
 * eBGP routes advertised from ATE:port1,port2 must be removed from RIB and FIB of the DUT (query results should be nil).
 * ISIS routes advertised from ATE:port1 must be removed from RIB and FIB of the DUT (query result should be nil).
 * Bring up the both links using OTG API.
-* Verify eBGP must be in stablished state.
+* Verify eBGP must be in established state for both peers.
 * Verify the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
 
 ## OpenConfig Path and RPC Coverage
