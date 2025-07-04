@@ -29,14 +29,13 @@ Validate gNOI RPC can get reboot status and cancel the reboot
         *   The reason from reboot status response matches reboot message.
         *   The wait time from reboot status response matches reboot delay.
         *   Validate that there are no cores formed on the device post the reboot
-
-
-## OpenConfig Path and RPC Coverage
-
 ## Canonical OC
 ```json
 {}
 ```
+
+## OpenConfig Path and RPC Coverage
+
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
