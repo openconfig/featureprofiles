@@ -6,7 +6,7 @@ Check the atomic flag in the notification.
 
 ## Testbed
 
-* atedut_2.testbed
+* featureprofiles/topologies/atedut_2.testbed
 
 ## Test Setup
 
@@ -29,6 +29,8 @@ Configure IS-IS session.
 Configure eBGP multipath sessions.
 
 * Configure eBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
+* eBGP DUT AS is 65501 and peer AS is 200.
+* eBGP is enabled for address family IPv4 and IPv6.
 * Advertise `X` IPv4 and `Y` IPv6 prefixes from ATE port1,port2.
 * Each prefix advertised by eBGP must have 2 next hops pointing to ATE port1 and ATE port2.
 
