@@ -38,6 +38,11 @@ DUT port-8 <------> port-8 ATE
 ```
 
 ## Canonical OC
+```json
+{}
+```   
+
+vrf_selection_policy_c
 ```
 network-instances {
     network-instance {
