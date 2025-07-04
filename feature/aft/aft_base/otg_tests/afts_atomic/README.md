@@ -77,10 +77,10 @@ OC paths used for test setup are not listed here.
 paths:
   ## State Paths ##
 
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group:
-  /network-instances/network-instance/afts/next-hops/next-hop:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/index:
 
 rpcs:
   gnmi:
