@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-type LoadbalancingVerifier struct{}
+type loadbalancingVerifier struct{}
 
 type EgressLBDistribution struct {
 	Weight           uint64
@@ -30,7 +30,7 @@ type EgressLBDistribution struct {
 	GotDistribution  float64
 }
 
-func (v *LoadbalancingVerifier) VerifyEgressDistributionPerWeight(t testing.TB, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, forBundle bool, trafficType string) (map[string]EgressLBDistribution, bool) {
+func (v *loadbalancingVerifier) VerifyEgressDistributionPerWeight(t testing.TB, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, forBundle bool, trafficType string) (map[string]EgressLBDistribution, bool) {
 	distrStruct := EgressLBDistribution{}
 	trafficDistribution := make(map[string]EgressLBDistribution)
 	var balancedPerWeight bool = true // Initialize as true

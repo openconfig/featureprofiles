@@ -11,7 +11,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 )
 
-type TgenVerifier struct{}
+type tgenVerifier struct{}
 
 type TGENFlow struct {
 	ATE []*ondatra.Flow
@@ -87,7 +87,7 @@ func (otgp *OTGParam) ValidateTrafficLoss(t testing.TB) bool {
 }
 
 // ConfigureTGEN selects the Tgen API ATE vs OTG ased on useOTG flag
-func (h *TgenVerifier) ValidateTGEN(useOTG bool, param *TgenValidationParam) TGENValidate {
+func (h *tgenVerifier) ValidateTGEN(useOTG bool, param *TgenValidationParam) TGENValidate {
 	if useOTG {
 		return &OTGParam{Params: param}
 	}

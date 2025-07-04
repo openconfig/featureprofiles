@@ -77,7 +77,7 @@ func TestWANLinksRoutedLoadBalancing(t *testing.T) {
 	t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
 		helper.TGENHelper().StartTraffic(t, false, trafficFlows, 10*time.Second, topo, false)
 		time.Sleep(5 * time.Second) // Wait for tgen traffic to completely stop.
-		verifiers.Tgen.ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
+		verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
 	})
 	cases := []testCase{
 		// {
@@ -173,7 +173,7 @@ func TestWANLinksRoutedLoadBalancing(t *testing.T) {
 					t.Logf("TotalInPackets on dut %s are: %d", device, totalInPackets)
 
 					t.Run(fmt.Sprintf("Verify Bundle NH BGP recursive level loadbalancing on device %s", device.Name()), func(t *testing.T) {
-						verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, device, OutputIFWeight, loadBalancingTolerance, true, v4TrafficType)
+						verifiers.Loadbalancingverifier().VerifyEgressDistributionPerWeight(t, device, OutputIFWeight, loadBalancingTolerance, true, v4TrafficType)
 					})
 					for _, bunIntf := range bundleObjList {
 						var memberListWeight = make(map[string]uint64)
@@ -181,7 +181,7 @@ func TestWANLinksRoutedLoadBalancing(t *testing.T) {
 							memberListWeight[member] = 1
 						}
 						t.Run(fmt.Sprintf("Verify Bundle member LAG level loadbalancing on device %s on Bundle %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
-							verifiers.Loadbalancing.VerifyEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, false, noTrafficType)
+							verifiers.Loadbalancingverifier().VerifyEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, false, noTrafficType)
 						})
 					}
 				}
