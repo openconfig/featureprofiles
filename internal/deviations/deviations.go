@@ -1512,3 +1512,8 @@ func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
 func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
 }
+
+// ComponentPowerdownDelay for component that requires additional time after Powerdown action 
+func ComponentPowerdownDelay(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentPowerdownDelay()
+}
