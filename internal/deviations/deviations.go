@@ -1512,3 +1512,8 @@ func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
 func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
 }
+
+// SkipLldpOptionalConfig returns true if device requires skipping optional lldp config
+func SkipLldpOptionalConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipLldpOptionalConfig()
+}
