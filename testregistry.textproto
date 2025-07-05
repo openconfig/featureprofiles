@@ -85,6 +85,18 @@ test: {
   exec: ""
 }
 test: {
+  id: "AFT-2.1"
+  description: "AFTs Prefix Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_prefix_counters/README.md"
+  exec: ""
+}
+test: {
+  id: "AFT-3.1"
+  description: "AFTs Atomic Flag Check"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_atomic/README.md"
+  exec: ""
+}
+test: {
   id: "attestz-1"
   description: "Validate attestz for initial install"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
@@ -1997,18 +2009,6 @@ test: {
   id: "CNTR-2.4"
   description: "Connect to another container on a local node"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
-  exec: " "
-}
-test: {
-  id: "AFT-1.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_base/README.md"
-  exec: " "
-}
-test: {
-  id: "AFT-2.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
   exec: " "
 }
 test: {
