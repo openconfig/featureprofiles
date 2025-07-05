@@ -23,19 +23,24 @@ type FIBAFTObject struct {
 	NextHop      []AFTNHInfo
 }
 
-// GetPrefixAFTNHG retrieves all outgoing NHG(next hop group) for a given prefix.
-func (v *fibHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) []uint64 {
-	t.Helper()
+// GetPrefixAFTNHG retrieves all outgoing NHG(next hop group) for a given prefix , with afiType string "ipv4" or "ipv6".
+func (v *fibHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) []uint64 {
 	var NHG []uint64
-	aftIPv4Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).State()
-	aftGet := gnmi.Get(t, dut, aftIPv4Path)
-	NHG = []uint64{aftGet.GetNextHopGroup()}
+	switch afiType {
+	case "ipv4":
+		aftIPv4Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).State()
+		aftGet := gnmi.Get(t, dut, aftIPv4Path)
+		NHG = []uint64{aftGet.GetNextHopGroup()}
+	case "ipv6":
+		aftIPv6Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv6Entry(prefix).State()
+		aftGet := gnmi.Get(t, dut, aftIPv6Path)
+		NHG = []uint64{aftGet.GetNextHopGroup()}
+	}
 	return NHG
 }
 
 // GetPrefixAFTNH returns a map of NH index and corresponding weight for a given NHG.
 func (v *fibHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NHG uint64, vrf string) map[uint64]uint64 {
-	t.Helper()
 	nhMap := make(map[uint64]uint64)
 	aftNHG := gnmi.OC().NetworkInstance(vrf).Afts().NextHopGroup(NHG).State()
 	aftGet := gnmi.Get(t, dut, aftNHG)
@@ -50,7 +55,6 @@ func (v *fibHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NH
 
 // GetAFTNHIPAddr retrieves next-hop IP for a given NHIndex list.
 func (v *fibHelper) GetAFTNHIPAddr(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
-	t.Helper()
 	var nhIP []string
 	for _, nhI := range nhIndex {
 		aftNH := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHop(nhI).State()
@@ -63,7 +67,6 @@ func (v *fibHelper) GetAFTNHIPAddr(t testing.TB, dut *ondatra.DUTDevice, nhIndex
 
 // GetAFTNHInterface retrieves next-hop Interface for a given NHIndex list.
 func (v *fibHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
-	t.Helper()
 	var nhInterface []string
 	for _, nhI := range nhIndex {
 		aftNH := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHop(nhI).State()
@@ -74,12 +77,11 @@ func (v *fibHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIn
 	return nhInterface
 }
 
-func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) FIBAFTObject {
-	t.Helper()
+func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) FIBAFTObject {
 	aftObj := FIBAFTObject{}
 	NHInfo := AFTNHInfo{}
 	aftObj.Prefix = prefix
-	aftObj.NextHopGroup = v.GetPrefixAFTNHG(t, dut, prefix, vrf)
+	aftObj.NextHopGroup = v.GetPrefixAFTNHG(t, dut, prefix, vrf, afiType)
 	for nhI := range v.GetPrefixAFTNHIndex(t, dut, aftObj.NextHopGroup[0], vrf) {
 		NHInfo.NextHopIndex = nhI
 		NHInfo.NextHopIP = v.GetAFTNHIPAddr(t, dut, []uint64{NHInfo.NextHopIndex}, vrf)[0]
@@ -87,8 +89,14 @@ func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, pr
 		aftObj.NextHop = append(aftObj.NextHop, NHInfo)
 	}
 
+	var nhPfxLength string
+	if afiType == "ipv4" {
+		nhPfxLength = "/32"
+	} else {
+		nhPfxLength = "/128"
+	}
 	for i, NH := range aftObj.NextHop {
-		pathNHG := v.GetPrefixAFTNHG(t, dut, NH.NextHopIP+"/32", deviations.DefaultNetworkInstance(dut))
+		pathNHG := v.GetPrefixAFTNHG(t, dut, NH.NextHopIP+nhPfxLength, deviations.DefaultNetworkInstance(dut), afiType)
 		pathNHI := v.GetPrefixAFTNHIndex(t, dut, pathNHG[0], deviations.DefaultNetworkInstance(dut))
 		for nhI := range pathNHI {
 			pathIntf := v.GetAFTNHInterface(t, dut, []uint64{nhI}, deviations.DefaultNetworkInstance(dut))

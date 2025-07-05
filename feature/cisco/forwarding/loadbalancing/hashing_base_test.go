@@ -32,12 +32,13 @@ var (
 	rSiteV4DSTIP           = "10.240.118.50"
 	eSiteV4DSTIP           = "10.240.118.35"
 	rSiteV6DSTIP           = "2002:af0:7730:a::1"
+	rSiteV6DSTPFX          = "2002:af0:7730:a::"
 	eSiteV6DSTIP           = "2002:af0:7620:e::1"
-	v4TrafficType          = "ipv4"
-	// v6TrafficType          = "ipv6"
-	noTrafficType  = ""
-	srcIPFlowCount = 50000
-	L4FlowCount    = 50000
+	eSiteV6DSTPFX          = "2002:af0:7620:e::"
+	noTrafficType          = ""
+	srcIPFlowCount         = 50000
+	L4FlowCount            = 50000
+	useOTG                 = false
 )
 
 // DUT and TGEN port attributes
@@ -149,7 +150,7 @@ var (
 		OuterSrcFlowCount:  uint32(srcIPFlowCount),
 		OuterDstFlowCount:  1,
 		OuterDstStep:       "::1",
-		OuterDSCP:          104,
+		OuterDSCP:          10,
 		OuterTTL:           155,
 		OuterECN:           1,
 		OuterIPv6Flowlabel: 1000,
@@ -176,7 +177,7 @@ var (
 		OuterSrcFlowCount:  uint32(srcIPFlowCount),
 		OuterDstFlowCount:  1,
 		OuterDstStep:       "::1",
-		OuterDSCP:          104,
+		OuterDSCP:          10,
 		OuterTTL:           155,
 		OuterECN:           1,
 		OuterIPv6Flowlabel: 1000,
@@ -198,7 +199,7 @@ var (
 		FlowName:          "IPinIPR2E",
 		DstMacAddress:     dutPort1.MAC,
 		OuterProtocolType: "IPv4",
-		OuterSrcStart:     transitMagicSrcIP,
+		OuterSrcStart:     "111.111.111.1",
 		OuterDstStart:     eSiteV4DSTIP,
 		OuterSrcStep:      "0.0.0.1",
 		OuterSrcFlowCount: 1,
@@ -234,7 +235,7 @@ var (
 		FlowName:          "IPinIPE2R",
 		DstMacAddress:     dutPort2.MAC,
 		OuterProtocolType: "IPv4",
-		OuterSrcStart:     transitMagicSrcIP,
+		OuterSrcStart:     "111.111.111.1",
 		OuterDstStart:     rSiteV4DSTIP,
 		OuterSrcStep:      "0.0.0.1",
 		OuterSrcFlowCount: 1,
@@ -265,6 +266,82 @@ var (
 		L4FlowCount:       uint32(srcIPFlowCount),
 		TrafficPPS:        200,
 		PacketSize:        128,
+	}
+	// IPv6inIP Traffic flows
+	IPv6inIPR2E = helper.TrafficFlowAttr{
+		FlowName:           "IPv6inIPR2E",
+		DstMacAddress:      dutPort1.MAC,
+		OuterProtocolType:  "IPv4",
+		OuterSrcStart:      "111.111.111.1",
+		OuterDstStart:      eSiteV4DSTIP,
+		OuterSrcStep:       "0.0.0.1",
+		OuterSrcFlowCount:  1,
+		OuterDstFlowCount:  1,
+		OuterDstStep:       "0.0.0.1",
+		OuterDSCP:          10,
+		OuterTTL:           55,
+		OuterECN:           1,
+		InnerProtocolType:  "IPv6",
+		InnerSrcStart:      "2002:af0:a000::",
+		InnerDstStart:      eSiteV6DSTIP,
+		InnerSrcStep:       "::1",
+		InnerSrcFlowCount:  uint32(srcIPFlowCount),
+		InnerDstFlowCount:  1,
+		InnerDstStep:       "::1",
+		InnerDSCP:          104,
+		InnerTTL:           155,
+		InnerECN:           1,
+		InnerIPv6Flowlabel: 1000,
+		TgenSrcPort:        atePort1,
+		TgenDstPorts:       []string{atePort2.Name},
+		L4TCP:              true,
+		L4PortRandom:       true,
+		L4RandomMin:        1000,
+		L4RandomMax:        65000,
+		L4SrcPortStart:     1000,
+		L4DstPortStart:     2000,
+		L4FlowStep:         1,
+		L4FlowCount:        uint32(srcIPFlowCount),
+		TrafficPPS:         200,
+		PacketSize:         128,
+	}
+	IPv6inIPE2R = helper.TrafficFlowAttr{
+		FlowName:          "IPv6inIPE2R",
+		DstMacAddress:     dutPort2.MAC,
+		OuterProtocolType: "IPv4",
+		OuterSrcStart:     "111.111.111.1",
+
+		OuterDstStart:      rSiteV4DSTIP,
+		OuterSrcStep:       "0.0.0.1",
+		OuterSrcFlowCount:  1,
+		OuterDstFlowCount:  1,
+		OuterDstStep:       "0.0.0.1",
+		OuterDSCP:          10,
+		OuterTTL:           55,
+		OuterECN:           1,
+		InnerProtocolType:  "IPv6",
+		InnerSrcStart:      "2002:af0:a000::",
+		InnerDstStart:      rSiteV6DSTIP,
+		InnerSrcStep:       "::1",
+		InnerSrcFlowCount:  uint32(srcIPFlowCount),
+		InnerDstFlowCount:  1,
+		InnerDstStep:       "::1",
+		InnerDSCP:          104,
+		InnerTTL:           155,
+		InnerECN:           1,
+		InnerIPv6Flowlabel: 1000,
+		TgenSrcPort:        atePort2,
+		TgenDstPorts:       []string{atePort1.Name},
+		L4TCP:              true,
+		L4PortRandom:       true,
+		L4RandomMin:        1000,
+		L4RandomMax:        65000,
+		L4SrcPortStart:     1000,
+		L4DstPortStart:     2000,
+		L4FlowStep:         1,
+		L4FlowCount:        uint32(srcIPFlowCount),
+		TrafficPPS:         200,
+		PacketSize:         128,
 	}
 )
 
