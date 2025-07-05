@@ -816,7 +816,6 @@ message Metadata {
     // Create/Replace config leaf required 
     // Juniper b/419536104
     bool config_leaf_create_required = 291;
-
     // SkipInterfaceNameCheck is set to true for devices that do not support
     // interface name check in AFT.
     bool skip_interface_name_check = 292;
