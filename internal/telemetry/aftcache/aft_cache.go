@@ -16,12 +16,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/ondatra"
+	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
 	"github.com/openconfig/gnmi/cache"
 	"github.com/openconfig/gnmi/ctree"
 	"github.com/openconfig/gnmi/metadata"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 
 	log "github.com/golang/glog"
@@ -177,9 +177,7 @@ func (c *aftCache) ToAFT(dut *ondatra.DUTDevice) (*AFTData, error) {
 		if err != nil {
 			return err
 		}
-		if nhg != 0 {
-			a.Prefixes[p] = nhg
-		}
+		a.Prefixes[p] = nhg
 		return nil
 	}
 	nhgFunc := func(n *gnmipb.Notification) error {
@@ -832,4 +830,3 @@ func writeMissingPrefixes(missingPrefixes map[string]bool) (string, error) {
 	}
 	return absFilename, nil
 }
-

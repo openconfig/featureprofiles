@@ -45,7 +45,7 @@ const (
 	bgpRoutev6               = "3001:1::0"
 	startingBGPRouteIPv4     = "200.0.0.0/32"
 	startingBGPRouteIPv6     = "3001:1::0/128"
-	isisRouteCount           = 2
+	isisRouteCount           = 100
 	isisRoute                = "199.0.0.1"
 	isisRoutev6              = "2001:db8::203:0:113:1"
 	startingISISRouteIPv4    = "199.0.0.1/32"
@@ -55,8 +55,8 @@ const (
 	linkLocalAddress         = "fe80::200:2ff:fe02:202"
 	bgpRouteCountIPv4Arista  = 100000
 	bgpRouteCountIPv6Arista  = 100000
-	bgpRouteCountIPv4Default = 2
-	bgpRouteCountIPv6Default = 2
+	bgpRouteCountIPv4Default = 2000000
+	bgpRouteCountIPv6Default = 512000
 )
 
 var (
@@ -597,4 +597,3 @@ func TestBGP(t *testing.T) {
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }
-
