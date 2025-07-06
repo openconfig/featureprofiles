@@ -1,4 +1,4 @@
-package aft_base_link_test
+package afts_base_test
 
 import (
 	"fmt"
