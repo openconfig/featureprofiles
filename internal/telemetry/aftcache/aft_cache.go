@@ -17,6 +17,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/telemetry/schema"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/gnmi/cache"
 	"github.com/openconfig/gnmi/ctree"
 	"github.com/openconfig/gnmi/metadata"
@@ -67,17 +69,20 @@ var unusedPaths = []string{
 	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group-network-instance",
 }
 
-var subscriptionPaths = map[string][]string{
-	"prefix": {
-		"network-instances/network-instance[name=default]/afts/ipv4-unicast/ipv4-entry",
-		"network-instances/network-instance[name=default]/afts/ipv6-unicast/ipv6-entry",
-	},
-	"nhg": {
-		"network-instances/network-instance[name=default]/afts/next-hop-groups/next-hop-group",
-	},
-	"nh": {
-		"network-instances/network-instance[name=default]/afts/next-hops/next-hop",
-	},
+func subscriptionPaths(dut *ondatra.DUTDevice) map[string][]string {
+	defaultNetworkInstance := deviations.DefaultNetworkInstance(dut)
+	return map[string][]string{
+		"prefix": []string{
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv4-unicast/ipv4-entry", defaultNetworkInstance),
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv6-unicast/ipv6-entry", defaultNetworkInstance),
+		},
+		"nhg": []string{
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hop-groups/next-hop-group", defaultNetworkInstance),
+		},
+		"nh": []string{
+			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hops/next-hop", defaultNetworkInstance),
+		},
+	}
 }
 
 // AFTData represents an AFT and provides methods for resolving routes.
@@ -150,7 +155,7 @@ func generateCacheTraversalPaths(subscriptionPaths map[string][]string) (map[str
 			if err != nil {
 				return nil, fmt.Errorf("error parsing path %s: %w", p, err)
 			}
-			var outParts []string
+			outParts := []string{"openconfig"}
 			for _, elem := range sp.Elem {
 				outParts = append(outParts, elem.Name)
 				for _, keyVal := range elem.Key {
@@ -165,14 +170,16 @@ func generateCacheTraversalPaths(subscriptionPaths map[string][]string) (map[str
 }
 
 // ToAFT Creates AFT maps with cache information.
-func (c *aftCache) ToAFT() (*AFTData, error) {
+func (c *aftCache) ToAFT(dut *ondatra.DUTDevice) (*AFTData, error) {
 	a := newAFT()
 	prefixFunc := func(n *gnmipb.Notification) error {
 		p, nhg, err := parsePrefix(n)
 		if err != nil {
 			return err
 		}
-		a.Prefixes[p] = nhg
+		if nhg != 0 {
+			a.Prefixes[p] = nhg
+		}
 		return nil
 	}
 	nhgFunc := func(n *gnmipb.Notification) error {
@@ -199,7 +206,7 @@ func (c *aftCache) ToAFT() (*AFTData, error) {
 		}
 		return nil
 	}
-	cacheTraversalPaths, err := generateCacheTraversalPaths(subscriptionPaths)
+	cacheTraversalPaths, err := generateCacheTraversalPaths(subscriptionPaths(dut))
 	if err != nil {
 		return nil, err
 	}
@@ -337,8 +344,11 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 		// No-op for now.
 		return nil
 	}
-	if n.GetUpdate().GetPrefix().Origin == "" {
+	if n.GetUpdate().GetPrefix().GetOrigin() == "" {
 		n.GetUpdate().GetPrefix().Origin = "openconfig"
+	}
+	if n.GetUpdate().GetPrefix().GetTarget() == "" {
+		n.GetUpdate().GetPrefix().Target = c.target
 	}
 	err := c.cache.GnmiUpdate(n.GetUpdate())
 	if err != nil {
@@ -369,12 +379,12 @@ type aftSubscriptionResponse struct {
 
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
-func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, target string) <-chan *aftSubscriptionResponse {
+func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
 		t.Fatalf("error in Subscribe(): %v", err)
 	}
-	req, err := checkForRoutesRequest(target)
+	req, err := checkForRoutesRequest(dut)
 	if err != nil {
 		t.Fatalf("error preparing subscribe request: %v", err)
 	}
@@ -385,7 +395,6 @@ func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, target
 
 	buffer := make(chan *aftSubscriptionResponse, aftBufferSize)
 	// Don't need to close the buffer channel. We don't need that signal, the stream stopping logic is with the consumer.
-	// TODO: Change logic to remove the need for return after spawning a go routine.
 	go func() {
 		for {
 			n, err := sub.Recv()
@@ -412,10 +421,10 @@ type AFTStreamSession struct {
 }
 
 // NewAFTStreamSession constructs an AFTStreamSession. It subscribes to a given gNMI client.
-func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, target string) *AFTStreamSession {
+func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) *AFTStreamSession {
 	return &AFTStreamSession{
-		buffer: aftSubscribe(ctx, t, c, target),
-		Cache:  newAFTCache(target),
+		buffer: aftSubscribe(ctx, t, c, dut),
+		Cache:  newAFTCache(dut.Name()),
 	}
 }
 
@@ -518,11 +527,11 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 }
 
 // DeletionStoppingCondition returns a PeriodicHook which can be used to check if all given prefixes have been deleted.
-func DeletionStoppingCondition(t *testing.T, wantDeletePrefixes map[string]bool) PeriodicHook {
+func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeletePrefixes map[string]bool) PeriodicHook {
 	return PeriodicHook{
 		Description: "Route delete stopping condition",
 		PeriodicFunc: func(c *aftCache) (bool, error) {
-			a, err := c.ToAFT()
+			a, err := c.ToAFT(dut)
 			if err != nil {
 				return false, err
 			}
@@ -544,7 +553,7 @@ func DeletionStoppingCondition(t *testing.T, wantDeletePrefixes map[string]bool)
 }
 
 // InitialSyncStoppingCondition returns a PeriodicHook which can be used to check if all wanted prefixes have been received with given next hop IP addresses.
-func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, wantIPV6NHDests map[string]bool) PeriodicHook {
+func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20
 	logDuration := func(start time.Time) {
@@ -555,7 +564,7 @@ func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, w
 		PeriodicFunc: func(c *aftCache) (bool, error) {
 			start := time.Now()
 			defer logDuration(start)
-			a, err := c.ToAFT()
+			a, err := c.ToAFT(dut)
 			if err != nil {
 				return false, err
 			}
@@ -575,7 +584,7 @@ func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, w
 			}
 			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
 			if nGot < nPrefixes {
-				t.Logf("%d missing prefixes.", len(missingPrefixes))
+				t.Logf("%d missing prefixes\n", len(missingPrefixes))
 				return false, nil
 			}
 
@@ -595,9 +604,9 @@ func InitialSyncStoppingCondition(t *testing.T, wantPrefixes, wantIPV4NHDests, w
 						got[r.IP] = true
 					}
 				}
-				want := wantIPV4NHDests
+				want := wantIPV4NHs
 				if strings.Contains(p, ":") {
-					want = wantIPV6NHDests
+					want = wantIPV6NHs
 				}
 				diff := cmp.Diff(want, got)
 				if diff == "" {
@@ -701,6 +710,7 @@ func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 
 	// Loop over updates, looking for instances of next hop groups and next hops.
 	updates = schema.NotificationToPoints(n)
+
 	nhg := &aftNextHopGroup{
 		NHIDs:     []uint64{},
 		NHWeights: map[uint64]uint64{},
@@ -731,7 +741,7 @@ func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 		}
 	}
 	if len(nhg.NHIDs) == 0 {
-		log.Warningf("no next hop values were found in notification %v, %w", n, ErrNotExist)
+		log.Warningf("no next hop values were found in notification %v, %v", n, ErrNotExist)
 	}
 	if len(entries) != 1 {
 		err = fmt.Errorf("the NHG values do not match between Prefix and Update parts of message. Notification: %v, %w", n, err)
@@ -757,9 +767,8 @@ func parsePrefix(n *gnmipb.Notification) (string, uint64, error) {
 	if !ok {
 		return "", 0, fmt.Errorf("invalid prefix path")
 	}
-
 	wantFields := map[string]bool{}
-	var nhgID uint64
+	nhgID := uint64(0)
 	for _, u := range updates {
 		path, err := ygot.PathToSchemaPath(u.Path)
 		if err != nil {
@@ -786,15 +795,15 @@ func parsePrefix(n *gnmipb.Notification) (string, uint64, error) {
 	return prefix, nhgID, nil
 }
 
-func checkForRoutesRequest(target string) (*gnmipb.SubscribeRequest, error) {
+func checkForRoutesRequest(dut *ondatra.DUTDevice) (*gnmipb.SubscribeRequest, error) {
 	subReq := &gnmipb.SubscribeRequest_Subscribe{
 		Subscribe: &gnmipb.SubscriptionList{
 			Mode:     gnmipb.SubscriptionList_STREAM,
-			Prefix:   &gnmipb.Path{Origin: "openconfig", Target: target},
+			Prefix:   &gnmipb.Path{Origin: "openconfig", Target: dut.Name()},
 			Encoding: gnmipb.Encoding_PROTO,
 		},
 	}
-	for _, paths := range subscriptionPaths {
+	for _, paths := range subscriptionPaths(dut) {
 		for _, p := range paths {
 			pp, err := ygot.StringToPath(p, ygot.StructuredPath)
 			if err != nil {
@@ -823,3 +832,4 @@ func writeMissingPrefixes(missingPrefixes map[string]bool) (string, error) {
 	}
 	return absFilename, nil
 }
+

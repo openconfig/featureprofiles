@@ -843,6 +843,10 @@ message Metadata {
 
     // Skip setting send-community-type in bgp peer-group config
     bool skip_bgp_peer_group_send_community_type = 299;
+    
+    // IsLinkLocalInsteadOfNh is set to true for devices that do not support
+    // link-local instead of NH in AFT.
+    bool link_local_instead_of_nh = 300;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;

@@ -11,6 +11,7 @@ platform_exceptions: {
   deviations: {
     isis_single_topology_required: true
     skip_interface_name_check: true
+    link_local_instead_of_nh: true
   }
 }
 platform_exceptions: {
