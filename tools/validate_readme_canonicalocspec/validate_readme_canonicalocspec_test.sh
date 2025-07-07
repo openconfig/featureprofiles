@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,28 +16,23 @@
 
 go install ./
 
-filename=invalid_all_empty.md
-if validate_readme_spec --alsologtostderr testdata/"${filename}"; then
+filename=invalid_incorrect_canonical_oc.md
+if validate_readme_canonicalocspec --alsologtostderr testdata/"${filename}"; then
   echo "Validation passed, but failure expected"
   exit 1
 fi
-filename=invalid_empty_rpcs.md
-if validate_readme_spec --alsologtostderr testdata/"${filename}"; then
+filename=invalid_no_canonical_oc.md
+if validate_readme_canonicalocspec --alsologtostderr testdata/"${filename}"; then
   echo "Validation passed, but failure expected"
   exit 1
 fi
-filename=invalid_heading.md
-if validate_readme_spec --alsologtostderr testdata/"${filename}"; then
+filename=invalid_incorrect_json_format.md
+if validate_readme_canonicalocspec --alsologtostderr testdata/"${filename}"; then
   echo "Validation passed, but failure expected"
   exit 1
 fi
-filename=invalid_path.md
-if validate_readme_spec --alsologtostderr testdata/"${filename}"; then
-  echo "Validation passed, but failure expected"
-  exit 1
-fi
-filename=valid_empty_paths.md
-if ! validate_readme_spec --alsologtostderr testdata/"${filename}"; then
+filename=valid_readme.md
+if ! validate_readme_canonicalocspec --alsologtostderr testdata/"${filename}"; then
   echo "Validation failed, but pass expected"
   exit 1
 fi
