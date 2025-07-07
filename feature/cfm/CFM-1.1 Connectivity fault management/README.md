@@ -228,7 +228,7 @@ Verify:
 ### CFM configs
 
 ``` json
-“oam”:
+“oam”: {
  "cfm": {
     "domains": {
       "maintenance-domain": [
