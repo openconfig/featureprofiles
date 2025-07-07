@@ -79,6 +79,12 @@ test: {
   exec: " " 
 }
 test: {
+  id: "AFT-1.1"
+  description: "AFTs Base Link Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_base/README.md"
+  exec: ""
+}
+test: {
   id: "attestz-1"
   description: "Validate attestz for initial install"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
@@ -252,6 +258,12 @@ test: {
   description: "Flow matching using ACL and to Port Mirror/Redirect"
   readme: ""
   exec: " "
+}
+test: {
+  id: "DP-1.19"
+  description: "Egress traffic DSCP rewrite"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/egress_traffic_classification_and_rewrite_test/README.md"
+  exec: ""
 }
 test: {
   id: "DP-1.2"
@@ -965,13 +977,13 @@ test: {
 test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/afts_summary/otg_tests/route_summary_counters_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-4.11"
   description: " Scale AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/afts_summary/otg_tests/scale_aft_summary/README.md"
   exec: " "
 }
 
@@ -1997,5 +2009,17 @@ test: {
   id: "AFT-2.1"
   description: "AFT Streaming"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
+  exec: " "
+}
+test: {
+  id: "SYS-1.1"
+  description: "Test default COPP policy thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/control_plane_traffic/otg_tests/default_copp_test/README.md"
+  exec: " "
+}
+test: {
+  id: "URPF-1.1"
+  description: "uRPF validation from non-default network-instance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/urpf/otg_tests/urpf_vrf_test/README.md"
   exec: " "
 }
