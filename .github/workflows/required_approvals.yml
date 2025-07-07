@@ -27,11 +27,11 @@ jobs:
     steps:
     - name: Check for required approvals
       id: check-approvals
-      uses: a-b-r-o-w-n/wait-for-approvals@v1
+      # Corrected: Using a valid, existing action
+      uses: trilom/wait-for-approvals@v1
       with:
         # The standard GitHub token is all that's needed
         github-token: ${{ secrets.GITHUB_TOKEN }}
         
         # Set the number of approvals you require
         approvals: 1
-        
