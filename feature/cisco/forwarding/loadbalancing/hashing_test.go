@@ -23,9 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
-
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 
 	// "github.com/openconfig/featureprofiles/internal/cisco/verifiers"
 
@@ -34,6 +33,32 @@ import (
 
 	"github.com/openconfig/ondatra"
 	// "github.com/openconfig/featureprofiles/internal/cisco/util"
+)
+
+// per device gRIBI entries info.
+var (
+	gribi1E = gribiParamPerSite{
+		encapV4Prefix:     encapVRFAV4SiteE,
+		nextSiteVIPs:      []string{"10.41.164.1", "10.41.164.3"},
+		selfSiteVIPs:      []string{"10.41.164.0"},
+		nextSiteIntfCount: 2,
+		selfSiteIntfCount: 1,
+		nextSite1VIPNH: []map[string]string{
+			{"Bundle-Ether2": "169.254.0.4"},
+			{"Bundle-Ether3": "169.254.0.6"},
+			{"Bundle-Ether4": "169.254.0.8"},
+			{"Bundle-Ether5": "169.254.0.10"},
+		},
+		nextSite2VIPNH: []map[string]string{
+			{"Bundle-Ether10": "169.254.0.20"},
+			{"Bundle-Ether11": "169.254.0.22"},
+			{"Bundle-Ether56": "169.254.0.112"},
+			{"Bundle-Ether57": "169.254.0.114"},
+		},
+		selfSiteVIPNH: []map[string]string{
+			{"Bundle-Ether1": "169.254.0.2"},
+		},
+	}
 )
 
 func TestWANLinksRoutedLoadBalancing(t *testing.T) {
@@ -53,6 +78,7 @@ func TestWANLinksRoutedLoadBalancing(t *testing.T) {
 	siteEDUTList := []*ondatra.DUTDevice{dut1E, dut2E}
 	siteVDUTList := []*ondatra.DUTDevice{dut1V, dut2V}
 	jupiterDUTList := []*ondatra.DUTDevice{dutJupiterE, dutJupiterR}
+
 	//Just to use variable and compile
 	t.Log("R,E,V and Jupiter sites", siteRDUTList, siteEDUTList, siteVDUTList, jupiterDUTList)
 
@@ -64,6 +90,12 @@ func TestWANLinksRoutedLoadBalancing(t *testing.T) {
 		TgenPortList:     []*ondatra.Port{ondatra.ATE(t, "ate").Port(t, "port1"), ondatra.ATE(t, "ate").Port(t, "port2")},
 		TrafficFlowParam: []*helper.TrafficFlowAttr{&v4R2E, &v4E2R},
 	}
+
+	deviceGribiMap := make(map[*ondatra.DUTDevice]gribiParamPerSite)
+	deviceGribiMap[dut1E] = gribi1E
+
+	t.Log("Program Gribi entries for R, E, V sites")
+	programGribiEntries(t, dut1E, deviceGribiMap[dut1E])
 
 	t.Log("Configure TGEN and set traffic flows")
 	topo := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTgenInterface(t)
@@ -97,10 +129,10 @@ func TestWANLinksRoutedLoadBalancing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			// Configure extended entropy and algorithm adjust CLI options as per the test case
-			// if tt.extendedEntropyOption != nil || tt.algorithmAdjustOption != nil {
-			// 	configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, false)
-			// }
-			// defer configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, true)
+			if tt.extendedEntropyOption != nil || tt.algorithmAdjustOption != nil {
+				configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, false)
+			}
+			defer configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, true)
 
 			t.Log("Clearing interface counters on all the DUTs")
 			helper.InterfaceHelper().ClearInterfaceCountersAll(t, dvtCiscoDUTList)
