@@ -528,3 +528,37 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
+
+func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIp, decapInt, policyName string, policyId int) {
+	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
+	if deviations.DecapsulateGueOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`
+                            ip decap-group type udp destination port %[1]d payload %[2]s 
+                            tunnel type %[2]s-over-udp udp destination port %[1]d
+                            ip decap-group test
+                            tunnel type UDP
+                            tunnel decap-ip %[3]s
+                            tunnel decap-interface %[4]s
+                            `, guePort, ipType, tunIp, decapInt)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+		default:
+			t.Errorf("Deviation decapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+	} else {
+		// TODO: As per the latest OpenConfig GNMI OC schema — the Encapsulation/Decapsulation sub-tree is not fully implemented, need to add OC commands once implemented.
+		d := &oc.Root{}
+		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		npf := ni1.GetOrCreatePolicyForwarding()
+		np := npf.GetOrCreatePolicy(policyName)
+		np.PolicyId = ygot.String(policyName)
+		npRule := np.GetOrCreateRule(uint32(policyId))
+		ip := npRule.GetOrCreateIpv4()
+		ip.DestinationAddressPrefixSet = ygot.String(tunIp)
+		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+		// transport := npRule.GetOrCreateTransport()
+		// transport.SetDestinationPort()
+	}
+}
