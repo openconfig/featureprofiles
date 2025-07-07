@@ -237,7 +237,7 @@ Verify:
 *  No packet loss when forwarding.
 *  Traffic load-balanced across remaining 15 GRE destinations and distributed equally across 2 egress ports.
 
-### PF-1.11.11: Verify PF EthoCWoMPLSoGRE decasulate action 
+### PF-1.11.11: Verify PF EthoCWoMPLSoGRE decapsulate action 
 
 Generate traffic on ATE Aggregate2 and Aggregate3 having:
 
