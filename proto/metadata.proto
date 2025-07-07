@@ -844,6 +844,12 @@ message Metadata {
     // Skip setting send-community-type in bgp peer-group config
     bool skip_bgp_peer_group_send_community_type = 299;
 
+    // Devices does not support static mpls lsp
+    bool static_mpls_lsp_oc_unsupported = 300;
+
+    // Device doesnot support decapsulation group
+    bool decapsulate_gue_oc_unsupported = 301;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
