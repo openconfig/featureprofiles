@@ -27,11 +27,11 @@ jobs:
     steps:
     - name: Check for required approvals
       id: check-approvals
-      # Corrected: Using a verified, existing action
-      uses: approvals/wait-for-approvals@v1
+      # Corrected: Using a verified action from the GitHub Marketplace
+      uses: repo-sync/pull-request-approvals-action@v1
       with:
         # The standard GitHub token is all that's needed
         github-token: ${{ secrets.GITHUB_TOKEN }}
         
         # Set the number of approvals you require
-        approvals: 1
+        required-approvals: 1
