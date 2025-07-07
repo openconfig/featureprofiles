@@ -27,11 +27,27 @@ jobs:
     steps:
     - name: Check for required approvals
       id: check-approvals
-      # Corrected: Using a verified action from the GitHub Marketplace
-      uses: repo-sync/pull-request-approvals-action@v1
-      with:
-        # The standard GitHub token is all that's needed
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+      # This script uses the official GitHub CLI, which is always available.
+      # It has no external dependencies and will not fail to be found.
+      run: |
+        # --- Configuration ---
+        REQUIRED_APPROVALS=1
+        PR_NUMBER=${{ github.event.pull_request.number || github.event.inputs.pr_number }}
         
-        # Set the number of approvals you require
-        required-approvals: 1
+        # --- Get the number of unique users who have approved ---
+        echo "Checking for at least $REQUIRED_APPROVALS approval(s) on PR #$PR_NUMBER"
+        
+        APPROVAL_COUNT=$(gh pr view $PR_NUMBER --json reviews --jq '[.reviews[] | select(.state == "APPROVED")] | unique_by(.author.login) | length')
+        
+        echo "Found $APPROVAL_COUNT unique approval(s)."
+
+        # --- Check if the count is sufficient ---
+        if (( APPROVAL_COUNT < REQUIRED_APPROVALS )); then
+          echo "Error: Not enough approvals. Found $APPROVAL_COUNT, but need $REQUIRED_APPROVALS."
+          exit 1
+        fi
+        
+        echo "Success: Required number of approvals met."
+      env:
+        # The GITHUB_TOKEN is required for the gh CLI to work
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
