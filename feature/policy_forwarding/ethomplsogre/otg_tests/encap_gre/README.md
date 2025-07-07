@@ -255,7 +255,7 @@ Inner payload:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.12: Verify PF EthoCWoMPLSoGRE decasulate action 
+### PF-1.11.12: Verify PF EthoCWoMPLSoGRE decapsulate action 
 
 Generate traffic on ATE Aggregate2 and Aggregate3 having:
 
@@ -273,7 +273,7 @@ Inner payload:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.13: Verify VLAN tag after PF EthoCWoMPLSoGRE decasulate action
+### PF-1.11.13: Verify VLAN tag after PF EthoCWoMPLSoGRE decapsulate action
 
 * Use the same traffic profile as PF-1.11.12.
 * Ensure inner payload Ethernet header has a VLAN tag attached to it. 
