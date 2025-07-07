@@ -25,11 +25,16 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Transit Ports: Aggregate3 (DUT1 port 2 and DUT2 Port 2)
 
-### PF-1.11.1: Generate DUT Configuration
+### CFM-1.1.1: Generate DUT Configuration
 
 Aggregate 1 and Aggregate2 i.e "customer interface's" are the  customer facing ports that could either have port mode configuration or attachment mode configuration as described below. 
 
-EACH test should be run twice - once with port mode configuration and once with attachment mode configuration.
+EACH test should be run twice - once with port mode configuration and once with attachment in sub-interface mode configuration.
+
+
+port mode configuration implies CFM configured on main Port as an attachment and vlan-mode is when cfm is confirued between attachments on ansub-interface.
+
+Port mode will have Link loss forwarding enabled while sub-interface mode may not.
 
 #### Aggregate 1 "customer interface" Port mode configuration
 
@@ -111,3 +116,238 @@ EACH test should be run twice - once with port mode configuration and once with 
 ### CFM 
 
 CFM is cnfigured as UP MEP. The control plane is between the customer attachments on either PF.
+
+### CFM-1.1.2: Verify PF CFM establishment over EthoMPLSoGRE encapsulate 
+
+* Configure CFM session on DUT1 Port 1 and DUT2 Port 1 at line rate with a mix of both IPV4 and IPv6 traffic. Use 64, 128, 256, 512, 1024 MTU bytes frame size. 
+* Adjacent ATE Ports must have an Active L2. 
+
+Verify:
+
+*  CFM session is established with default timers and All ccm PDUs are EthoCWoMPLSoGRE-encapsulated.  
+*  Verify deadtimer at 3.5 (100ms --> 350ms) times the configured keepalive. 
+*  
+*  CCM PDUs are constant flows hence are not ECMP'd across all available tunnels.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### CFM-1.1.3: Verify PF CFM packet integrity
+
+* Use same configuration profile as CFM-1.1.2 (Default Timers).
+
+Verify:
+* CCM PDU Destination is Multicast.
+* CFM OpCode as - Continuity check message (1).
+* Increasing sequence number for consequent CCM packets.
+* Verify interval field in CCM packet for following fields.
+* Transmitted interval 100ms.
+* Max Lifetime 350ms.
+* Min lifetime 325ms.
+
+#### CFM-1.1.3.1: Verify PF CFM Alarm 
+
+* Use same configuration profile as CFM-1.1.2
+* Configure Wrong MD level on on endpoint.
+* Revert MD level and configure different CCM interval (i.e 100ms and (10ms or 1s))
+
+Verify:
+
+* “wrong MD  level”  alarm (when induced) on the endpoints.
+* Verify “wrong interval” alarm (when induced) on the endpoints.
+
+
+### CFM-1.1.4: Verify RDI bit set for CCM PDUs on a CE-PE fault 
+
+* Use  configuration profile as descrbied in CFM-1.1.2
+* turn off TX/Shutdown ATE port 1 (only on one endpoint).
+
+Verify:
+
+* CCM PDU is recieved on the remote endpoint with the RDI flag Set.
+* A "Remote Defect Detected" alarm is raised at the remote end-point.
+
+### CFM-1.1.5: Verify RDI bit set for CCM PDUs on a PE-PE fault 
+
+* Use same configuration profile as descrbied in CFM-1.1.2.
+* turn off  DUT 1 port 2 (only one endpoint).
+
+Verify:
+
+* Both DUT 1 and DUT 2 observe a CCM timeoute Event
+* DUT 1 and DUT 2 emit a CCM PDU  with the RDI flag Set.
+
+
+#### CFM-1.1.5.1: Verify TX actuation on a remote defect or a CCM timeout
+
+* Use  configuration profile as describedd in CFM-1.1.2 (Port mode only).
+* turn off TX/Shutdown ATE port 1 (only on one endpoint).
+* revert TX on ATE port 1 and turn off DUT 1 port 2 (only one endpoint).
+
+Verify:
+
+* CCM PDU is recieved on the remote endpoint with the RDI flag Set.
+* A "Remote Defect Detected" alarm is raised at the remote end-point.
+
+
+### CFM-1.1.6: Verify CFM Loss threshold can be configrued on DUT 
+
+* Use configuration profile as describedd in CFM-1.1.2.
+* re-write defulat Loss threshold (3) knob to 6, 10 , 20, 100 and 255.
+* Shutdown DUT 1 port 2 (only one endpoint).
+
+
+### CFM-1.1.8: Verify CFM Delay measurement.
+
+* Use configuration profile as described in CFM-1.1.2.
+* Configure 2 way DM measurement profiles on CFM session with 60 second measurement intervals.
+
+Verify:
+
+* DUT 1 and DUT 2 observe a min, max and mean Delay measurements at defined.
+
+### CFM-1.1.9: Verify CFM synthetic loss measurement).
+
+* Use configuration profile as described in CFM-1.1.2.
+* 
+
+Verify:
+
+* Both DUT 1 and DUT 2 observe a min, max and mean frame loss ratio for "far-end" & "near-end" with 60 second measurement intervals.
+
+### CFM-1.1.10: Verify CFM scale.
+
+* Use configuration profile as describedd in CFM-1.1.2.
+* Configure 1000 attachments, pseudowires and Establish 1000 CFM sessions between operating at 100ms keepalive:
+
+Verify:
+
+* Device Health and soak for at least 6 hrs.
+
+
+paths:
+    # interface configs
+    /interfaces/interface/config/description
+    /interfaces/interface/config/enabled
+    /interfaces/interface/config/mtu
+    /interfaces/interface/config/name
+    /interfaces/interface/config/type
+	  /interfaces/interface/rates/config/load-interval
+    /interfaces/interface/subinterfaces/subinterface/config/description
+    /interfaces/interface/subinterfaces/subinterface/config/enabled
+	  /interfaces/interface/subinterfaces/subinterface/config/index
+    /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
+    /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
+	  /interfaces/interface/aggregation/config/lag-type
+
+    #psuedowire configs
+    /network-instances/network-instance/config/name
+    /network-instances/network-instance/config/type
+    /network-instances/network-instance/connection-points/connection-point/config/connection-point-id
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/config/endpoint-id
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/interface
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier
+
+    #TODO: Add new OCs for labels and next-hop-group under connection-point 
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label 
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/remote-label
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/next-hop-group
+
+
+    #Tunnels/Next-hop group configs
+
+    #TODO: Add new OC for GRE encap headers
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/type:          
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dst-ip:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/src-ip:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dscp:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/ip-ttl:
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/index:
+
+
+    # Telemetry paths
+    /interfaces/interface/state/counters/in-discards:
+    /interfaces/interface/state/counters/in-errors:
+    /interfaces/interface/state/counters/in-multicast-pkts:
+    /interfaces/interface/state/counters/in-pkts:
+    /interfaces/interface/state/counters/in-unicast-pkts:
+    /interfaces/interface/state/counters/out-discards:
+    /interfaces/interface/state/counters/out-errors:
+    /interfaces/interface/state/counters/out-multicast-pkts:
+    /interfaces/interface/state/counters/out-pkts:
+    /interfaces/interface/state/counters/out-unicast-pkts:
+
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
+    /interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts:
+
+    /oam/cfm/domains/domain/md-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/ma-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/local-mep-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/profile-name:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/id:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/profile-name:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/delay-measurement-state/frame-delay-two-way-average:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/delay-measurement-state/frame-delay-two-way-max:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/delay-measurement-state/frame-delay-two-way-min:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/measurement-type:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/far-end-average-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/far-end-max-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/far-end-min-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/near-end-average-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/near-end-max-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/near-end-min-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/measurement-type:
+
+
+
+    # Config paths for GRE decap
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:    
+
+    # Config Paths for CFM
+    /oam/cfm/domains/domain/config/char-string
+    /oam/cfm/domains/domain/config/level
+    /oam/cfm/domains/domain/config/md-id
+    /oam/cfm/domains/domain/config/md-name-type
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ccm-interval
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/group-name/oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/loss-threshold
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-id
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-name-type
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/unsigned-int16
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/ccm-enabled
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/direction
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/interface
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/local-mep-id
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/config/profile-name
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/rdi/config/transmit-on-defect
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/config/id
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/burst-interval
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/intervals-archived
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/measurement-interval
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/measurement-type
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/packet-per-burst
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/packets-per-meaurement-period
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/profile-name
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/repetition-period
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
+```
+## Required DUT platform
+* MFF
+* FFF
