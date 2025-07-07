@@ -259,11 +259,6 @@ fail.
     *   Use gnmi to push the configuration to the DUT
     *   Ensure no prefixes are exchanged over the IBGP peering between
         `$ATE2_C.IBGP.v6` and `$DUT_lo0.v6`. Validate this using OC
-        ```
-        /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
-        /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
-        /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent
-        ```
     *   Validate DUT using health-1.1 steps
     *   Start flow set 1, 2 and 5
     *   Set 50,000 packets per flow at 1,000pps
@@ -292,12 +287,16 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path
         learned from `$ATE2_C.IBGP.v6/128`, should be placed in the FIB. Other
         prefixes from ATE2 will continue to be learnt via the IBGP peering
         between `$ATE2_PORT1.IBGP.v[46]` and `$DUT_lo0.v[46]` and hence will be
-        in the DUT's FIB.
+        in the DUT's FIB. Please use the AFT paths specified below for
+        verification.
     *   Flows destined for `$ATE2_INTERNAL6.v4/24` and `$ATE2_INTERNAL6.v6/64`
         should be GUE-encapsulated with tunnel destination
         `$ATE2_INTERNAL_TE11.v4` and routed over the EBGP peering between
         `$ATE2_Port3` and `$DUT_Port4`, and these flows must be 100% successful
-        (zero loss).
+        (zero loss). Please check this on the ATE2 (capture 1 packet using OTG
+        from each flow and then decode the packet to validate headers. Remaining
+        packets can be trusted to also be encapsulated.). Verify that traffic is
+        unencapsulated before the migration and encapsulated after the migration. 
     *   The outer header TTL should be 127 upon arrival at `ATE2_Port1` (before
         decapsulation). Please check this on the ATE2.
     *   The outer header DSCP bits should be the same as the inner header DSCP
@@ -399,8 +398,6 @@ time in the following order. Note changes in RT-3.52.5 and RT-3.52.6
 
 ### RT-3.52.8: Negative Scenario - EBGP Route for remote tunnel endpoints Removed
 
-Inflight
-
 *   **Situation:**
 
     *   The test begins from the final state of RT-3.52.7 In this state, the DUT
@@ -451,19 +448,20 @@ Inflight
     *   Routes for `ATE2_INTERNAL[6-10].v[46]`, advertised by ATE2 over the IBGP
         peering `$ATE2_C.IBGP.v6<>$DUT_lo0.v6`, remain active on the DUT.
     *   Verify the FIB entries using the AFT streamed data.
-        ```
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
 
-        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group
-        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol
-        /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix
-        ```
+```
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
+
+/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded
+/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded
+/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group
+/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol
+/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix
+```
 
 *   **Test Steps:**
 
@@ -488,19 +486,20 @@ Inflight
         baseline. Verify the absence of drops or core dumps. If any, the test
         Must fail
     *   AFT paths below to be used for verification.
-        ```
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
 
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/octets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/packets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/next-hop-group
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/origin-protocol
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/prefix
-        ```
+```
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
+
+/network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/octets-forwarded
+/network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/packets-forwarded
+/network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/next-hop-group
+/network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/origin-protocol
+/network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/prefix
+```
 
 ### RT-3.52.10: Establish IBGP Peering over EBGP
 
@@ -531,21 +530,9 @@ Inflight
     *   Post-test health checks should be performed and compared against the
         baseline. Verify the absence of drops or core dumps. If any, the test
         Must fail. Following AFT paths to be used for validation
-        ```
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol
-        /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
 
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/octets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/counters/packets-forwarded
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/next-hop-group
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/origin-protocol
-        /network-instances/network-instance/afts/ipv6-unicast/ipv4-entry/state/prefix
-        ```
+## Canonical OC
 
-## Canonical OC 
 
 ### For GUEv1 Encapsulation configuration
 
@@ -635,58 +622,6 @@ Inflight
                 }
             }
         ]
-    }
-}
-```
-
-## Canonical OC 
-
-### For GUEv1 Decapsulation configuration
-
-```json
-{
-    "network-instances": {
-        "network-instance": {
-            "config": {
-                "name": "DEFAULT"
-            },
-            "name": "DEFAULT",
-            "policy-forwarding": {
-                "policies": {
-                    "policy": [
-                        {
-                            "config": {
-                                "policy-id": "decap-policy"
-                            },
-                            "rules": {
-                                "rule": [
-                                    {
-                                        "sequence-id": 1,
-                                        "config": {
-                                            "sequence-id": 1
-                                        },
-                                        "ipv4": {
-                                            "config": {
-                                                "destination-address-prefix-set": "dst_prefix",
-                                                "protocol": "IP_UDP"
-                                            }
-                                        },
-                                        "transport": {
-                                            "config": {
-                                                "destination-port": 6080
-                                            }
-                                        }
-                                        "action": {
-                                            "decapsulate-gue": true
-                                        },
-                                    },
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        }
     }
 }
 ```
