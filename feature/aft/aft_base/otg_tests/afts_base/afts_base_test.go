@@ -106,7 +106,6 @@ func getRouteCountForVendor(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
 	}
 }
 
-
 // getPostChurnIPv6NH returns the expected IPv6 next hops after a churn event.
 // It returns a map of IP addresses to a boolean indicating if the address is expected.
 func getPostChurnIPv6NH(dut *ondatra.DUTDevice) map[string]bool {
