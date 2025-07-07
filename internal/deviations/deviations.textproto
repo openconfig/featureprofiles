@@ -1,0 +1,53 @@
+# proto-file: /proto/deviations.proto
+# proto-message: DeviationRegistry
+# txtpbfmt: expand_all_children
+# txtpbfmt: sort_repeated_fields_by_content
+deviations: {
+  name: "route_policy_under_afi_unsupported"
+  issue_url: ""
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+   ocpaths: {
+    name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy"
+   }
+    ocpaths: {
+    name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy"
+   }
+  },
+  additional_paths: {
+   ocpaths: {
+    name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy"
+   }
+      ocpaths: {
+    name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy"
+   }
+  }
+  platforms : {
+    vendor: ARISTA
+    hardware_model_regex: "*.*"
+    software_version_regex: "*.*"
+  }
+}
+deviations: {
+  name: "default_network_instance"
+  issue_url: ""
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+   ocpaths: {
+    name: "/network-instances/network-instance/config/name"
+   }
+  }
+  deviation_values : {
+    oc_standard_value: {
+      string_val: "default"
+    }
+    vendor_specific_value: {
+      string_val: "DEFAULT"
+    }
+  }
+  platforms : {
+    vendor: ARISTA
+    hardware_model_regex: "*.*"
+    software_version_regex: "*.*"
+  }
+}
