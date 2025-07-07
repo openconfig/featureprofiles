@@ -27,17 +27,11 @@ jobs:
     steps:
     - name: Check for required approvals
       id: check-approvals
-      uses: skymoore/required-approvals@57612e00c501132dfb35ddaff54615b363f8e076
+      uses: a-b-r-o-w-n/wait-for-approvals@v1
       with:
-        # Corrected: The input should be 'github_token', not 'token'
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        # The standard GitHub token is all that's needed
+        github-token: ${{ secrets.GITHUB_TOKEN }}
         
-        # This now correctly uses the PAT you created and stored as a secret
-        read_org_scoped_token: ${{ secrets.READ_ORG_SCOPED_TOKEN }}
+        # Set the number of approvals you require
+        approvals: 1
         
-        # 'org_name' is not a valid input and should be removed
-        
-        min_approvals: 1
-        approval_mode: ALL
-        pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
-        require_all_approvals_latest_commit: false
