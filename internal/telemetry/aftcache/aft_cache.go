@@ -72,14 +72,14 @@ var unusedPaths = []string{
 func subscriptionPaths(dut *ondatra.DUTDevice) map[string][]string {
 	defaultNetworkInstance := deviations.DefaultNetworkInstance(dut)
 	return map[string][]string{
-		"prefix": []string{
+		"prefix": {
 			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv4-unicast/ipv4-entry", defaultNetworkInstance),
 			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/ipv6-unicast/ipv6-entry", defaultNetworkInstance),
 		},
-		"nhg": []string{
+		"nhg": {
 			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hop-groups/next-hop-group", defaultNetworkInstance),
 		},
-		"nh": []string{
+		"nh": {
 			fmt.Sprintf("network-instances/network-instance[name=%s]/afts/next-hops/next-hop", defaultNetworkInstance),
 		},
 	}
