@@ -15,7 +15,6 @@ platform_exceptions:  {
     interface_enabled:  true
     skip_prefix_set_mode:  true
     enable_table_connections: true
-    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions:  {
@@ -29,7 +28,9 @@ platform_exceptions:  {
     static_protocol_name: "STATIC"
     same_policy_attached_to_all_afis: true
     skip_bgp_send_community_type: true
+    default_bgp_instance_name: "BGP"
     skip_setting_disable_metric_propagation: true
+    default_no_igp_metric_propagation: true
   }
 }
 platform_exceptions:  {
@@ -45,6 +46,7 @@ platform_exceptions:  {
     tc_attribute_propagation_unsupported: true
     tc_subscription_unsupported: true
     default_bgp_instance_name: "default"
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions:  {
