@@ -5,9 +5,10 @@ package openconfig_testing
 
 import (
 	fmt "fmt"
+	math "math"
+
 	proto "github.com/golang/protobuf/proto"
 	proto1 "github.com/openconfig/ondatra/proto"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
