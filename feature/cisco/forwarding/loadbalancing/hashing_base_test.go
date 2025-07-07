@@ -52,8 +52,6 @@ var (
 	useOTG                 = false
 	encapVRFAV4SiteE       = "10.240.119.48/28"
 	encapVRFAV4SiteR       = "10.240.118.32/28"
-	encapTunnelIP1         = "98.1.0.0"
-	encapTunnelIP2         = "98.1.0.1"
 	nextSiteVIPWeight      = uint64(31)
 	selfSiteVIPWeight      = uint64(1)
 )
@@ -397,6 +395,10 @@ type gribiParamPerSite struct {
 	dut               *ondatra.DUTDevice
 	encapV4Prefix     string              // Encap VRF Prefix IP list with prefix length
 	encapV6Prefix     string              // Encap VRF Prefix IP list with prefix length
+	encapTunnelIP1    string              // Encap VRF Tunnel IP.
+	encapTunnelIP2    string              // Encap VRF Tunnel IP.
+	decapV4Prefix     string              // Decap VRF Prefix IP list with prefix length
+	decapV6Prefix     string              // Decap VRF Prefix IP list with prefix length
 	nextSiteVIPs      []string            // Next site VIP Prefix IP list with prefix length
 	selfSiteVIPs      []string            // Self site VIP Prefix IP list  prefix length
 	nextSiteIntfCount int                 // Next site VIP Next Hop Interface count
@@ -475,12 +477,12 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.AddNH(t, 1104, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(dut)})
 	gribiClient.AddNHG(t, 335548321, map[uint64]uint64{1104: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	//gRIBI entries for Encap VRF prefixes
-	gribiClient.AddNH(t, 2342, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: transitMagicSrcIP, Dest: encapTunnelIP1, VrfName: vrfTransit})
-	gribiClient.AddNH(t, 2334, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: transitMagicSrcIP, Dest: encapTunnelIP2, VrfName: vrfTransit})
+	gribiClient.AddNH(t, 2342, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: transitMagicSrcIP, Dest: gribiArgs.encapTunnelIP1, VrfName: vrfTransit})
+	gribiClient.AddNH(t, 2334, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: transitMagicSrcIP, Dest: gribiArgs.encapTunnelIP2, VrfName: vrfTransit})
 	gribiClient.AddNHG(t, 335544321, map[uint64]uint64{2342: 1, 2334: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 335548321})
 	gribiClient.AddIPv4(t, gribiArgs.encapV4Prefix, 335544321, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	t.Logf("Adding %s gRIBI entries for %s", vrfTransit, encapTunnelIP1)
+	t.Logf("Adding %s gRIBI entries for %s", vrfTransit, gribiArgs.encapTunnelIP1)
 	nextSiteNHGtMap := make(map[uint64]uint64)
 	//Add Next Hop Group for Next Site VIPs
 	for i, nhInfo := range gribiArgs.nextSite1VIPNH {
@@ -505,14 +507,14 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.AddNH(t, 2, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfRepair})
 	gribiClient.AddNHG(t, 2, map[uint64]uint64{2: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddNHG(t, 402653184, map[uint64]uint64{2331: nextSiteVIPWeight, 2332: selfSiteVIPWeight}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 2})
-	gribiClient.AddIPv4(t, encapTunnelIP1+v432PfxLen, 402653184, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddIPv4(t, gribiArgs.encapTunnelIP1+v432PfxLen, 402653184, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddIPv4(t, gribiArgs.nextSiteVIPs[0]+v432PfxLen, 402653185, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddIPv4(t, gribiArgs.selfSiteVIPs[0]+v432PfxLen, 402653186, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	t.Logf("Adding %s gRIBI entries for %s", vrfTransit, encapTunnelIP2)
+	t.Logf("Adding %s gRIBI entries for %s", vrfTransit, gribiArgs.encapTunnelIP2)
 	nextSiteNHGtMap = make(map[uint64]uint64)
 	//Add Next Hop Group for Next Site VIPs
-	for i, nhInfo := range gribiArgs.nextSite1VIPNH {
+	for i, nhInfo := range gribiArgs.nextSite2VIPNH {
 		for nhIntf, nhIP := range nhInfo {
 			gribiClient.AddNH(t, 5350+uint64(i), "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: nhIP, Mac: localStationMac, Interface: nhIntf})
 			nextSiteNHGtMap[5350+uint64(i)] = 1
@@ -532,7 +534,7 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.AddNH(t, 5332, gribiArgs.selfSiteVIPs[0], deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	//Add Backup NHG with redirect to Repair VRF.
 	gribiClient.AddNHG(t, 502653184, map[uint64]uint64{5331: nextSiteVIPWeight, 5332: selfSiteVIPWeight}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 2})
-	gribiClient.AddIPv4(t, encapTunnelIP2+v432PfxLen, 502653184, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddIPv4(t, gribiArgs.encapTunnelIP2+v432PfxLen, 502653184, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddIPv4(t, gribiArgs.nextSiteVIPs[1]+v432PfxLen, 502653185, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddIPv4(t, gribiArgs.selfSiteVIPs[0]+v432PfxLen, 502653186, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
@@ -541,18 +543,23 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.AddNH(t, 1, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddNHG(t, 1, map[uint64]uint64{1: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	//encapTunnelIP1 repair VRF entries
-	gribiClient.AddNH(t, 6000, "DecapEncap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: repairedMagicSrcIP, Dest: encapTunnelIP1, VrfName: vrfRepaired})
+	gribiClient.AddNH(t, 6000, "DecapEncap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: repairedMagicSrcIP, Dest: gribiArgs.encapTunnelIP1, VrfName: vrfRepaired})
 	gribiClient.AddNHG(t, 602653184, map[uint64]uint64{6000: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 1})
-	gribiClient.AddIPv4(t, encapTunnelIP1+v432PfxLen, 602653184, vrfRepair, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddIPv4(t, gribiArgs.encapTunnelIP1+v432PfxLen, 602653184, vrfRepair, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	//encapTunnelIP2 repair VRF entries
-	gribiClient.AddNH(t, 7000, "DecapEncap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: repairedMagicSrcIP, Dest: encapTunnelIP1, VrfName: vrfRepaired})
+	gribiClient.AddNH(t, 7000, "DecapEncap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: repairedMagicSrcIP, Dest: gribiArgs.encapTunnelIP1, VrfName: vrfRepaired})
 	gribiClient.AddNHG(t, 702653184, map[uint64]uint64{7000: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 1})
-	gribiClient.AddIPv4(t, encapTunnelIP1+v432PfxLen, 702653184, vrfRepair, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddIPv4(t, gribiArgs.encapTunnelIP1+v432PfxLen, 702653184, vrfRepair, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	t.Logf("Adding %s VRF gRIBI entries", vrfRepaired)
 	gribiClient.AddNH(t, 8000, gribiArgs.nextSiteVIPs[0], deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddNHG(t, 802653184, map[uint64]uint64{8000: 32}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 2})
-	gribiClient.AddIPv4(t, encapTunnelIP1+v432PfxLen, 802653184, vrfRepaired, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddIPv4(t, gribiArgs.encapTunnelIP1+v432PfxLen, 802653184, vrfRepaired, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+	t.Logf("Adding %s VRF gRIBI entries", vrfDecap)
+	gribiClient.AddNH(t, 1000, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddNHG(t, 335548320, map[uint64]uint64{1000: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddIPv4(t, gribiArgs.decapV4Prefix, 335548320, vrfDecap, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.Close(t)
 }
