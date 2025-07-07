@@ -429,15 +429,13 @@ func configureTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, f
 	}
 	t.Log("Pushing config to ATE")
 	otg.PushConfig(t, top)
-	time.Sleep(15 * time.Second)
 	t.Logf("Starting protocols and awaiting for ARP & IS-IS adjacencies")
 	otg.StartProtocols(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, top, "IPv4")
 	otgutils.WaitForARP(t, otg, top, "IPv6")
 	awaitAdjacency(t, dut, agg2ID)
 	awaitAdjacency(t, dut, agg3ID)
-	time.Sleep(15 * time.Second)
 }
 
 func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good []gosnappi.Flow, bad []gosnappi.Flow, nhCount int) {
