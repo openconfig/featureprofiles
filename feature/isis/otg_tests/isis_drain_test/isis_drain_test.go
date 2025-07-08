@@ -45,7 +45,7 @@ const (
 	lag3MAC            = "02:aa:bb:03:00:02"
 	otgLAG2sysID       = "640000000002"
 	otgLAG3sysID       = "640000000003"
-	maxEcmpPaths uint8 = 2
+	maxEcmpPaths uint8 = 16
 )
 
 var (
