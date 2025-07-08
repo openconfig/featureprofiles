@@ -76,7 +76,7 @@ B --EBGP--> C[Port2:ATE];
 ```json
 {}
 ```
-
+### TODO: Add values
 ```json
 {
   "network-instances": {
@@ -129,7 +129,7 @@ B --EBGP--> C[Port2:ATE];
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible:
-
+  
   ## state paths
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode:
@@ -147,15 +147,16 @@ B --EBGP--> C[Port2:ATE];
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/exclude-non-eligible:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/total:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics:
-
-rpcs:
-  gnmi:
-    gNMI.Set:
-      union_replace: true
-      replace: true
-    gNMI.Subscribe:
+  
+  rpcs:
+   gnmi:
+     gNMI.Set:
+       union_replace: true
+       replace: true
+     gNMI.Subscribe:
 ```
 
 ## Required DUT platform
   * vRX - virtual router device
+
 

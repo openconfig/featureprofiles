@@ -111,6 +111,12 @@ NH#101 -> {
   * Validate the ecmp hashing is working fine and load balance is happening 
     across all the 3 ports with tolerance of 1%.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

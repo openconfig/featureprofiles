@@ -279,7 +279,7 @@ Verify:
 *   Repeat `PF-1.9.16` using IPv6oMPLSoUDP (GUE Variant 1)
 
 
-## Canonical OpenConfig
+## Canonical OC
 
 ```json
 {
