@@ -335,7 +335,7 @@ BGP policy configuration with prefix-set matching
                                                         "apply-policy": {
                                                             "config": {
                                                                 "default-import-policy": "ACCEPT_ROUTE",
-                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                                "default-export-policy": "ACCEPT_ROUTE"
                                                             }
                                                         }
                                                     }
@@ -357,7 +357,7 @@ BGP policy configuration with prefix-set matching
                                                         "apply-policy": {
                                                             "config": {
                                                                 "default-import-policy": "ACCEPT_ROUTE",
-                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                                "default-export-policy": "ACCEPT_ROUTE"
                                                             }
                                                         }
                                                     }
@@ -424,7 +424,7 @@ BGP policy configuration with prefix-set matching
                                                         "apply-policy": {
                                                             "config": {
                                                                 "default-import-policy": "ACCEPT_ROUTE",
-                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                                "default-export-policy": "ACCEPT_ROUTE"
                                                             }
                                                         }
                                                     }
@@ -446,7 +446,7 @@ BGP policy configuration with prefix-set matching
                                                         "apply-policy": {
                                                             "config": {
                                                                 "default-import-policy": "ACCEPT_ROUTE",
-                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                                "default-export-policy": "ACCEPT_ROUTE"
                                                             }
                                                         }
                                                     }
