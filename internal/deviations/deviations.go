@@ -1512,3 +1512,8 @@ func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
 func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
 }
+
+// Devices that does have different AS path prepend order.
+func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAsPathPrependOrderMismtach()
+}
