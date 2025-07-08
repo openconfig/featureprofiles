@@ -181,6 +181,11 @@ The configuration required for the 2R3C policer with classifier is included belo
     * Validate that flow to atePort2 experiences ~50% packet loss (+/- 1%)
     * Validate packet loss count as violating-pkts & violating-octets.
 
+#### Canonical OC
+##### TODO: Fix Canonical OC
+```json
+{}
+```
 
 #### OpenConfig Path and RPC Coverage
 

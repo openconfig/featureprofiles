@@ -158,6 +158,11 @@ Apply the routing policy to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 a
                       "config": {
                         "neighbor-address": "192.168.1.1"
                       },
+                      "graceful-restart": {
+                        "config": {
+                          "enabled": true
+                        }
+                      },
                       "neighbor-address": "192.168.1.1"
                     }
                   ]
@@ -174,6 +179,24 @@ Apply the routing policy to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 a
         }
       }
     ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "test_export"
+          },
+          "name": "test_export"
+        },
+        {
+          "config": {
+            "name": "test_import"
+          },
+          "name": "test_import"
+        }
+      ]
+    }
   }
 }
 ```

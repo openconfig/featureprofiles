@@ -195,6 +195,11 @@ It is assumed that DUT supports 8 QOS queues and use the following class mapping
     *   Capture packets on the DUT ATE Port 2 ingress interface to verify packet marking according to the marking table.
     *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

@@ -167,6 +167,12 @@ This test validates the proper functionality of an egress strict priority schedu
     * Loss Rate: Capture packet loss for every generated flow and verify that loss for each flow does not exceed expected loss specified in the tables above.
     * Telemetry: Utilize OpenConfig telemetry parameters to validate that per queue dropped packets statistics corresponds (with error margin) to the packet loss reported for every flow matching that particular queue.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
