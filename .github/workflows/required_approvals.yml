@@ -1,24 +1,10 @@
 name: PR Approval Workflow
 on:
-  pull_request_review:
-    types: [submitted]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'Pull request number'
-        required: true
-        type: number
-
+  pull_request_target:
+    branches:
+    - main
 jobs:
   check-approvals:
-    if: |
-      (
-        github.event_name == 'workflow_dispatch'
-      ) || (
-        github.event_name == 'pull_request_review'
-        && github.event.review.state == 'approved'
-        && github.event.pull_request.base.ref == 'main'
-      )
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -34,5 +20,5 @@ jobs:
         org_name: openconfig
         min_approvals: 1
         approval_mode: ALL
-        pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+        pr_number: ${{ github.event.pull_request.number }}
         require_all_approvals_latest_commit: false
