@@ -52,6 +52,12 @@ rpcs:
           }
         },
         "config": {
+          "name": "ae0"
+        },
+        "name": "ae0"
+      },
+      {
+        "config": {
           "loopback-mode": "FACILITY",
           "name": "eth0"
         },
