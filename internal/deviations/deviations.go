@@ -1517,3 +1517,11 @@ func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAsPathPrependOrderMismtach()
 }
+
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
+}
+
+func NextHopEncapHeaderOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNextHopEncapHeaderOcUnsupported()
+}
