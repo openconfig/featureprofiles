@@ -1517,3 +1517,8 @@ func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkLocalInsteadOfNh()
 }
+
+// LowScaleAFT returns if device requires link-local instead of NH.
+func LowScaleAft(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLowScaleAft()
+}

@@ -53,10 +53,10 @@ const (
 	aftConvergenceTime       = 20 * time.Minute
 	bgpTimeout               = 2 * time.Minute
 	linkLocalAddress         = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4Arista  = 100000
-	bgpRouteCountIPv6Arista  = 100000
+	bgpRouteCountIPv4LowScale  = 100000
+	bgpRouteCountIPv6LowScale  = 100000
 	bgpRouteCountIPv4Default = 2000000
-	bgpRouteCountIPv6Default = 512000
+	bgpRouteCountIPv6Default = 1000000
 )
 
 var (
@@ -91,19 +91,18 @@ var (
 	port2Name            = "port2"
 )
 
-func getRouteCountForVendor(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
+// getRouteCount returns the expected route count for the given dut and IP family.
+func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
+	if deviations.LowScaleAft(dut) {
 		if afi == IPv4 {
-			return bgpRouteCountIPv4Arista
+			return bgpRouteCountIPv4LowScale
 		}
-		return bgpRouteCountIPv6Arista
-	default:
-		if afi == IPv4 {
-			return bgpRouteCountIPv4Default
-		}
-		return bgpRouteCountIPv6Default
+		return bgpRouteCountIPv6LowScale
 	}
+	if afi == IPv4 {
+		return bgpRouteCountIPv4Default
+	}
+	return bgpRouteCountIPv6Default
 }
 
 // getPostChurnIPv6NH returns the expected IPv6 next hops after a churn event.
@@ -419,7 +418,7 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routes.Addresses().Add().
 		SetAddress(bgpRoute).
 		SetPrefix(advertisedRoutesV4Prefix).
-		SetCount(getRouteCountForVendor(tc.dut, IPv4))
+		SetCount(getRouteCount(tc.dut, IPv4))
 
 	routesv6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + "v6route")
 	routesv6.SetNextHopIpv6Address(ipv6.Address()).
@@ -428,15 +427,15 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routesv6.Addresses().Add().
 		SetAddress(bgpRoutev6).
 		SetPrefix(advertisedRoutesV6Prefix).
-		SetCount(getRouteCountForVendor(tc.dut, IPv6))
+		SetCount(getRouteCount(tc.dut, IPv6))
 }
 
 func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCountForVendor(tc.dut, IPv4))) {
+	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(getRouteCountForVendor(tc.dut, IPv6))) {
+	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(getRouteCount(tc.dut, IPv6))) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
@@ -545,10 +544,10 @@ func TestBGP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCountForVendor(dut, IPv4)), wantNHCount); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCountForVendor(dut, IPv6)), wantNHCount); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(dut, IPv6)), wantNHCount); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft
