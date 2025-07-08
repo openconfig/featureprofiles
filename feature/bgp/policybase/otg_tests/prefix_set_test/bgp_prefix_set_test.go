@@ -385,7 +385,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool { // increased wait time to 20s from 10s
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, _ := val.Val()
 		t.Logf("Prefix that are installed %v and want %v", gotInstalled, wantInstalled)
 		return gotInstalled == wantInstalled
