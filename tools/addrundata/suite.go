@@ -323,4 +323,3 @@ func (ts testsuite) write(featuredir string) error {
 	}
 	return nil
 }
-
