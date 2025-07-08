@@ -1513,6 +1513,16 @@ func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
 }
 
+// Devices that does have different AS path prepend order.
+func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAsPathPrependOrderMismtach()
+}
+
+// ExplicitSwapSrcDstMacNeededForLoopbackMode returns true if device needs to explicitly set swap-src-dst-mac for loopback mode
+func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
+}
+
 // TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
 func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
