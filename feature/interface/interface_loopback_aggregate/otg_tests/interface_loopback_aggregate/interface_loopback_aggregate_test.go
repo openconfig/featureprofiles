@@ -120,9 +120,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1Attr.Name + ".Eth").SetMac(atePort1Attr.MAC)
 	iDut1Eth.Connection().SetPortName(port1.Name())
 	t.Logf("Pushing config to ATE and starting protocols...")
-	time.Sleep(30 * time.Second)
 	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
+	time.Sleep(20 * time.Second)
 	otg.StartProtocols(t)
 }
 
@@ -185,10 +184,9 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 
 	cs := gosnappi.NewControlState()
 	t.Run("Admin down OTG port1", func(t *testing.T) {
-		time.Sleep(30 * time.Second)
 		cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-		time.Sleep(30 * time.Second)
 		otg.SetControlState(t, cs)
+		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	})
 
 	t.Run("Verify DUT port-1 is down on DUT", func(t *testing.T) {
@@ -265,9 +263,8 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Admin up OTG port1", func(t *testing.T) {
-		time.Sleep(30 * time.Second)
 		cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
-		time.Sleep(30 * time.Second)
 		otg.SetControlState(t, cs)
+		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	})
 }
