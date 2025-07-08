@@ -991,7 +991,6 @@ func TestBreakoutSubscription(t *testing.T) {
 	})
 	// Check response after a triggered LC reboot
 	t.Run("PLT-1.2.3 Check response after a triggered LC reboot", func(t *testing.T) {
-		t.Skipf("PLT-1.2.3 Check response after a triggered LC reboot is not supported on cisco-8808")
 		LinecardReboot(t, dut)
 		updateTimeout := 300 * time.Second
 		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
