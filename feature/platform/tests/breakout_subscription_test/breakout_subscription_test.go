@@ -936,7 +936,7 @@ func TestBreakoutSubscription(t *testing.T) {
 		atePorts: sortPorts(ate.Ports()),
 		aggID:    aggID,
 	}
-  tc.configureATE(t)
+        tc.configureATE(t)
 	tc.configureDUT(t)
 	ctx := context.Background()
 	t.Run("verifyDUT", tc.verifyDUT)
