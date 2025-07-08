@@ -193,11 +193,190 @@ BGP policy configuration with prefix-set matching
 * Test configuration
   * Generate new policies (bgpInvertIPv4, bgpInvertPv6)
     * Configure BGP policy on DUT to reject IPv4 routes that are NOT covered in IPv4-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv4 route.
-      
+
+#### Canonical OC
+```json
+{
+    "routing-policy": {
+        "policy-definitions": {
+            "policy-definition": [
+                {
+                    "name": "bgpInvertIPv4",
+                    "config": {
+                        "name": "bgpInvertIPv4"
+                    },
+                    "statements": {
+                        "statement": [
+                            {
+                                "name": "stm1",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm1"
+                                },
+                                "openconfig-routing-policy:conditions": {
+                                    "match-prefix-set": {
+                                        "config": {
+                                            "prefix-set": "IPV4-prefix-set-3",
+                                            "match-set-options": "INVERT"
+                                        }
+                                    }
+                                },
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "REJECT_ROUTE"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "stm2",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm2"
+                                },
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "ACCEPT_ROUTE"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+```
     * Configure BGP policy on DUT to reject IPv6 routes that are NOT covered in IPv6-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv6 route.
-
+#### Canonical OC
+```json
+{
+    "routing-policy": {
+        "policy-definitions": {
+            "policy-definition": [
+                {
+                    "name": "bgpInvertIPV6",
+                    "config": {
+                        "name": "bgpInvertIPV6"
+                    },
+                    "statements": {
+                        "statement": [
+                            {
+                                "name": "stm1",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm1"
+                                },
+                                "openconfig-routing-policy:conditions": {
+                                    "match-prefix-set": {
+                                        "config": {
+                                            "prefix-set": "IPV6-prefix-set-3",
+                                            "match-set-options": "INVERT"
+                                        }
+                                    }
+                                },
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "REJECT_ROUTE"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "stm2",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm2"
+                                },
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "ACCEPT_ROUTE"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+```
   * Attach bgpInvertIPv4, bgpInvertIPv6 as import policies to DUT port-1 eBGP session
-
+#### Canonical OC
+```json
+{
+    "network-instances": {
+        "network-instance": [
+            {
+                "name": "DEFAULT",
+                "config": {
+                    "name": "DEFAULT"
+                },
+                "protocols": {
+                    "protocol": [
+                        {
+                            "identifier": "openconfig-policy-types:BGP",
+                            "name": "DEFAULT",
+                            "config": {
+                                "identifier": "openconfig-policy-types:BGP",
+                                "name": "DEFAULT"
+                            },
+                            "bgp": {
+                                "neighbors": {
+                                    "neighbor": [
+                                        {
+                                            "neighbor-address": "<IPv4-port1-ATE-address>",
+                                            "config": {
+                                                "neighbor-address": "<IPv4-port1-ATE-address>"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "import-policy": "bgpInvertIPv4",
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "neighbor-address": "<IPv6-port1-ATE-address>",
+                                            "config": {
+                                                "neighbor-address": "<IPv6-port1-ATE-address>"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "import-policy": "bgpInvertIPv6",
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
   * Push the generated configuration to the DUT using gnmi.Set with replace option.
   * Advertise from OTG port-1 BGP prefixes:
     * 10.23.15.0/26, 10.23.16.0/26, 10.23.17.0/26
@@ -210,7 +389,85 @@ BGP policy configuration with prefix-set matching
 * Test configuration
   * Generate the same config as for RT-1.33.2 above, with following modification:
   * Attach bgpInvertIPv4, bgpInvertIPv6 as export policies to DUT port-1 eBGP session
-
+#### Canonical OC
+```json
+{
+    "network-instances": {
+        "network-instance": [
+            {
+                "name": "DEFAULT",
+                "config": {
+                    "name": "DEFAULT"
+                },
+                "protocols": {
+                    "protocol": [
+                        {
+                            "identifier": "openconfig-policy-types:BGP",
+                            "name": "DEFAULT",
+                            "config": {
+                                "identifier": "openconfig-policy-types:BGP",
+                                "name": "DEFAULT"
+                            },
+                            "bgp": {
+                                "neighbors": {
+                                    "neighbor": [
+                                        {
+                                            "neighbor-address": "<IPv4-port1-ATE-address>",
+                                            "config": {
+                                                "neighbor-address": "<IPv4-port1-ATE-address>"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "import-policy": "bgpInvertIPv4",
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "neighbor-address": "<IPv6-port1-ATE-address>",
+                                            "config": {
+                                                "neighbor-address": "<IPv6-port1-ATE-address>"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "import-policy": "bgpInvertIPv6",
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "defaul-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
   * Push the generated configuration to the DUT using gnmi.Set with replace option.
 * Behaviour validation
   * use the same validation as for RT-1.33.2 above
