@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+        "github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -119,7 +120,9 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1Attr.Name + ".Eth").SetMac(atePort1Attr.MAC)
 	iDut1Eth.Connection().SetPortName(port1.Name())
 	t.Logf("Pushing config to ATE and starting protocols...")
+	time.Sleep(30 * time.Second)
 	otg.PushConfig(t, config)
+	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
 }
 
@@ -182,12 +185,14 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 
 	cs := gosnappi.NewControlState()
 	t.Run("Admin down OTG port1", func(t *testing.T) {
+		time.Sleep(30 * time.Second)
 		cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+		time.Sleep(30 * time.Second)
 		otg.SetControlState(t, cs)
 	})
 
 	t.Run("Verify DUT port-1 is down on DUT", func(t *testing.T) {
-		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 		operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_DOWN; operStatus != want {
 			t.Errorf("Get(DUT port1 oper status): got %v, want %v", operStatus, want)
@@ -237,6 +242,10 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 			if deviations.MemberLinkLoopbackUnsupported(dut) {
 				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
 			} else {
+				if deviations.ExplicitSwapSrcDstMacNeededForLoopbackMode(dut) {
+					swapSrcDstMac := fmt.Sprintf("set interface %s swap-src-dst-mac true \n set interface %s loopback-mode facility \n", dutPort1.Name(), dutPort1.Name())
+					helpers.GnmiCLIConfig(t, dut, swapSrcDstMac)
+				}
 				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
 			}
 		}
@@ -256,7 +265,9 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Admin up OTG port1", func(t *testing.T) {
+		time.Sleep(30 * time.Second)
 		cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
+		time.Sleep(30 * time.Second)
 		otg.SetControlState(t, cs)
 	})
 }

@@ -37,3 +37,34 @@ rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
+```
+
+#### Canonical OC
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "aggregation": {
+          "config": {
+            "lag-type": "LACP",
+            "min-links": 1
+          }
+        },
+        "config": {
+          "loopback-mode": "FACILITY",
+          "name": "eth0"
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "ae0",
+            "duplex-mode": "FULL",
+            "port-speed": "SPEED_10GB"
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  }
+}
+```
