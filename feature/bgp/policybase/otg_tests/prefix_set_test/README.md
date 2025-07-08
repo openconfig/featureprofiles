@@ -103,7 +103,84 @@ BGP policy configuration with prefix-set matching
   * IPv6-prefix-set-1  - exact match on 2001:4860:f804::/48
   * IPv6-prefix-set-2  - 65-128 match on ::/0
   * [TODO] IPv6-prefix-set-3  - exact match on 2001:4860:f804::/48, 2001:4860:f806::/48
-
+#### Canonical OC
+```json
+{
+    "routing-policy": {
+        "defined-sets": {
+            "prefix-sets": {
+                "prefix-set": [
+                    {
+                        "name": "IPV6-prefix-set-1",
+                        "config": {
+                            "name": "IPV6-prefix-set-1",
+                            "mode": "IPV6"
+                        },
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "ip-prefix": "2001:4860:f804::/48",
+                                    "masklength-range": "exact",
+                                    "config": {
+                                        "ip-prefix": "2001:4860:f804::/48",
+                                        "masklength-range": "exact"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "IPV6-prefix-set-2",
+                        "config": {
+                            "name": "IPV6-prefix-set-2",
+                            "mode": "IPV6"
+                        },
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "ip-prefix": "::/0",
+                                    "masklength-range": "65..128",
+                                    "config": {
+                                        "ip-prefix": "::/0",
+                                        "masklength-range": "65..128"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "IPV6-prefix-set-3",
+                        "config": {
+                            "name": "IPV6-prefix-set-3",
+                            "mode": "IPV6"
+                        },
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "ip-prefix": "2001:4860:f804::/48",
+                                    "masklength-range": "exact",
+                                    "config": {
+                                        "ip-prefix": "2001:4860:f804::/48",
+                                        "masklength-range": "exact"
+                                    }
+                                },
+                                {
+                                    "ip-prefix": "2001:4860:f806::/48",
+                                    "masklength-range": "exact",
+                                    "config": {
+                                        "ip-prefix": "2001:4860:f806::/48",
+                                        "masklength-range": "exact"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+```
 ### RT-1.33.1 mach with option ANY  
 * For IPv4 and IPv6:
   * Configure BGP policy on DUT to allow routes based on IPv4-prefix-set-2 and reject routes based on IPv4-prefix-set-1 
