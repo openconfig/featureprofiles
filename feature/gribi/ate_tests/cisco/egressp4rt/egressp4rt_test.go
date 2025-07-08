@@ -96,6 +96,23 @@ func baseconfig(t *testing.T) {
 	}
 }
 
+func addRecycleEntry(t *testing.T, args *testArgs) {
+	t.Helper()
+	// Add recycle entry
+	shutPorts(t, args, []string{"port3", "port4"})
+	defer unshutPorts(t, args, []string{"port3", "port4"})
+
+	configureVIP(t, args)
+	args.client.AddNH(t, vipNH(3), vipIP, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, baseNHG(1001), 0, map[uint64]uint64{vipNH(3): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+	// t.Log("Delete prefix from encap vrf and verify traffic goes to default vrf")
+	// args.client.DeleteIPv4(t, cidr(innerV4DstIP, 32), vrfEncapA, fluent.InstalledInFIB)
+	// args.client.DeleteIPv6(t, cidr(InnerV6DstIP, 128), vrfEncapA, fluent.InstalledInFIB)
+
+}
+
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := gnmi.OC()
@@ -1248,7 +1265,8 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	baseconfig(t)
 
 	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
-	addStaticRoute(t, dut)
+	// addStaticRoute(t, dut)
+	addRecycleEntry(t, args)
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,

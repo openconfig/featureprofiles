@@ -17,8 +17,10 @@ package egressp4rt_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -378,3 +380,54 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 	dutConf := dev.GetOrCreateRoutingPolicy()
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
+
+func shutPorts(t *testing.T, args *testArgs, ports []string) {
+	t.Logf("Shutting down ports %v", ports)
+	for _, port := range ports {
+		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, port).Name()).Subinterface(0).Enabled().Config(), false)
+	}
+}
+func unshutPorts(t *testing.T, args *testArgs, ports []string) {
+	t.Logf("Unshutting ports %v", ports)
+	for _, port := range ports {
+		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, port).Name()).Subinterface(0).Enabled().Config(), true)
+	}
+	time.Sleep(5 * time.Second)
+}
+func configureVIP(t *testing.T, args *testArgs) {
+
+	args.client.AddNH(t, baseNH(4), atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, baseNHG(4), 0, map[uint64]uint64{baseNH(4): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, cidr(vipIP, 32), baseNHG(4), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+
+}
+
+const (
+	vipIP = "192.0.2.155"
+	// dummyIP  = ""
+	// magicMac = "00:00:00:00:00:00"
+	// for Interface prefix
+	baseNHOffset  = 0
+	baseNHGOffset = 100
+	// for VIP prefix
+	vipNHOffset  = 200
+	vipNHGOffset = 300
+	// for Tunnel Prefix
+	tunNHOffset  = 400
+	tunNHGOffset = 500
+	// for encap
+	encapNHOffset  = 600
+	encapNHGOffset = 700
+	// for decap
+	decapNHOffset  = 800
+	decapNHGOffset = 900
+	InstalledInFIB
+	innerV4DstIP = "198.18.1.1"
+	innerV4SrcIP = "198.18.0.255"
+	InnerV6SrcIP = "2001:DB8::198:1"
+	InnerV6DstIP = "2001:DB8:2:0:192::10"
+)
+
+func baseNH(i uint64) uint64  { return i + baseNHOffset }
+func baseNHG(i uint64) uint64 { return i + baseNHGOffset }
+func vipNH(i uint64) uint64   { return i + vipNHOffset }
