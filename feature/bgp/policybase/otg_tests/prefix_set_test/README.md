@@ -19,6 +19,7 @@ BGP policy configuration with prefix-set matching
   * IPv4-prefix-set-1  - exact match on 10.23.15.0/26
   * IPv4-prefix-set-2  - match on 10.23.0.0/16
   * [TODO] IPv4-prefix-set-3  - match on 10.23.15.0/26, 10.23.17.0/26
+  #### Canonical OC
     ```
     {
       "openconfig-routing-policy:routing-policy": {
@@ -101,6 +102,7 @@ BGP policy configuration with prefix-set matching
   * IPv6-prefix-set-1  - exact match on 2001:4860:f804::/48
   * IPv6-prefix-set-2  - 65-128 match on ::/0
   * [TODO] IPv6-prefix-set-3  - exact match on 2001:4860:f804::/48, 2001:4860:f806::/48
+  #### Canonical OC
     ```
     {
       "openconfig-routing-policy:routing-policy": {
@@ -190,6 +192,7 @@ BGP policy configuration with prefix-set matching
 * Test configuration
   * Generate new policies (bgpInvertIPv4, bgpInvertPv6)
     * Configure BGP policy on DUT to reject IPv4 routes that are NOT covered in IPv4-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv4 route.
+    #### Canonical OC
       ```
       {
         "openconfig-routing-policy:routing-policy": {
@@ -241,6 +244,7 @@ BGP policy configuration with prefix-set matching
       }
       ```
     * Configure BGP policy on DUT to reject IPv6 routes that are NOT covered in IPv6-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv6 route.
+    #### Canonical OC
       ```
       {
         "openconfig-routing-policy:routing-policy": {
@@ -292,6 +296,7 @@ BGP policy configuration with prefix-set matching
       }
       ```
   * Attach bgpInvertIPv4, bgpInvertIPv6 as import policies to DUT port-1 eBGP session
+  #### Canonical OC
     ```
     {
       "openconfig-network-instance:network-instances": {
@@ -382,6 +387,7 @@ BGP policy configuration with prefix-set matching
 * Test configuration
   * Generate the same config as for RT-1.33.2 above, with following modification:
   * Attach bgpInvertIPv4, bgpInvertIPv6 as export policies to DUT port-1 eBGP session
+  #### Canonical OC
     ```
     {
       "openconfig-network-instance:network-instances": {
