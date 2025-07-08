@@ -637,3 +637,9 @@ rpcs:
 ## Required DUT platform
 
 * FFF
+
+
+## Canonical OC
+```json
+{}
+```   
