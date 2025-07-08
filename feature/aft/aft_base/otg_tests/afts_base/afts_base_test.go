@@ -25,38 +25,38 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesV4Prefix = 32
-	advertisedRoutesV6Prefix = 128
-	dutAS                    = 65501
-	ateAS                    = 200
-	v4PrefixLen              = 30
-	v6PrefixLen              = 126
-	mtu                      = 1500
-	isisSystemID             = "650000000001"
-	applyPolicyType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	applyPolicyName          = "ALLOW"
-	peerGrpNameV4P1          = "BGP-PEER-GROUP-V4-P1"
-	peerGrpNameV6P1          = "BGP-PEER-GROUP-V6-P1"
-	peerGrpNameV4P2          = "BGP-PEER-GROUP-V4-P2"
-	peerGrpNameV6P2          = "BGP-PEER-GROUP-V6-P2"
-	port1MAC                 = "00:00:02:02:02:02"
-	port2MAC                 = "00:00:03:03:03:03"
-	bgpRoute                 = "200.0.0.0"
-	bgpRoutev6               = "3001:1::0"
-	startingBGPRouteIPv4     = "200.0.0.0/32"
-	startingBGPRouteIPv6     = "3001:1::0/128"
-	isisRouteCount           = 100
-	isisRoute                = "199.0.0.1"
-	isisRoutev6              = "2001:db8::203:0:113:1"
-	startingISISRouteIPv4    = "199.0.0.1/32"
-	startingISISRouteIPv6    = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime       = 20 * time.Minute
-	bgpTimeout               = 2 * time.Minute
-	linkLocalAddress         = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale  = 100000
-	bgpRouteCountIPv6LowScale  = 100000
-	bgpRouteCountIPv4Default = 2000000
-	bgpRouteCountIPv6Default = 1000000
+	advertisedRoutesV4Prefix  = 32
+	advertisedRoutesV6Prefix  = 128
+	dutAS                     = 65501
+	ateAS                     = 200
+	v4PrefixLen               = 30
+	v6PrefixLen               = 126
+	mtu                       = 1500
+	isisSystemID              = "650000000001"
+	applyPolicyType           = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	applyPolicyName           = "ALLOW"
+	peerGrpNameV4P1           = "BGP-PEER-GROUP-V4-P1"
+	peerGrpNameV6P1           = "BGP-PEER-GROUP-V6-P1"
+	peerGrpNameV4P2           = "BGP-PEER-GROUP-V4-P2"
+	peerGrpNameV6P2           = "BGP-PEER-GROUP-V6-P2"
+	port1MAC                  = "00:00:02:02:02:02"
+	port2MAC                  = "00:00:03:03:03:03"
+	bgpRoute                  = "200.0.0.0"
+	bgpRoutev6                = "3001:1::0"
+	startingBGPRouteIPv4      = "200.0.0.0/32"
+	startingBGPRouteIPv6      = "3001:1::0/128"
+	isisRouteCount            = 100
+	isisRoute                 = "199.0.0.1"
+	isisRoutev6               = "2001:db8::203:0:113:1"
+	startingISISRouteIPv4     = "199.0.0.1/32"
+	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
+	aftConvergenceTime        = 20 * time.Minute
+	bgpTimeout                = 2 * time.Minute
+	linkLocalAddress          = "fe80::200:2ff:fe02:202"
+	bgpRouteCountIPv4LowScale = 100000
+	bgpRouteCountIPv6LowScale = 100000
+	bgpRouteCountIPv4Default  = 2000000
+	bgpRouteCountIPv6Default  = 1000000
 )
 
 var (
