@@ -334,7 +334,6 @@ BGP policy configuration with prefix-set matching
                                                         },
                                                         "apply-policy": {
                                                             "config": {
-                                                                "import-policy": "bgpInvertIPv4",
                                                                 "default-import-policy": "ACCEPT_ROUTE",
                                                                 "defaul-export-policy": "ACCEPT_ROUTE"
                                                             }
@@ -357,7 +356,6 @@ BGP policy configuration with prefix-set matching
                                                         },
                                                         "apply-policy": {
                                                             "config": {
-                                                                "import-policy": "bgpInvertIPv6",
                                                                 "default-import-policy": "ACCEPT_ROUTE",
                                                                 "defaul-export-policy": "ACCEPT_ROUTE"
                                                             }
@@ -425,7 +423,6 @@ BGP policy configuration with prefix-set matching
                                                         },
                                                         "apply-policy": {
                                                             "config": {
-                                                                "import-policy": "bgpInvertIPv4",
                                                                 "default-import-policy": "ACCEPT_ROUTE",
                                                                 "defaul-export-policy": "ACCEPT_ROUTE"
                                                             }
@@ -448,7 +445,6 @@ BGP policy configuration with prefix-set matching
                                                         },
                                                         "apply-policy": {
                                                             "config": {
-                                                                "import-policy": "bgpInvertIPv6",
                                                                 "default-import-policy": "ACCEPT_ROUTE",
                                                                 "defaul-export-policy": "ACCEPT_ROUTE"
                                                             }
