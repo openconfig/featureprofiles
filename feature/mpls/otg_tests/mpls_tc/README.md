@@ -105,6 +105,11 @@ A[DUT] <-- Port1/2(IPv4/6) --> B[DUT];
     }
 }
 ```
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

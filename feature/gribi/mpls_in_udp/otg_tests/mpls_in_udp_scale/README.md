@@ -443,6 +443,12 @@ these dimensions.
   running a variation of Profile 5 using the multi-VRF setup from
   Profile 2 or 3 as the baseline state.
 
+#### Canonical OC
+##### TODO: Fix Canonical OC
+```json
+{}
+```
+
 #### OpenConfig Path and RPC Coverage
 
 ```yaml

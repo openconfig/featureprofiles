@@ -69,6 +69,12 @@ that certificate using the included trust_bundle.
 
 Perform this test with both RSA dn ECDSA key-types.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.

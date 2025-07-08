@@ -94,7 +94,11 @@ Perform this test with both the RSA and ECDSA types.
 
    5) Verify that the server is now serving the previous certifcate properly.
 
-
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

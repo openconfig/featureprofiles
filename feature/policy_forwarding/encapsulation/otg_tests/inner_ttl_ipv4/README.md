@@ -82,6 +82,12 @@ set inner packet TTL = 1.
   * Validate inner packet ttl as 1.
   * Validate outer packet ttl to be "outer_ip-ttl"
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
