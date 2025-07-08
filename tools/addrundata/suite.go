@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const featurePrefix = "feature/"
+
 func errorf(format string, args ...any) {
 	var buf strings.Builder
 	fmt.Fprintf(&buf, format, args...)
@@ -40,6 +42,19 @@ func getNonTestREADMEs(featureprofilesDir, nonTestREADMEsfilePath string) (map[s
 	return nonTestREADMEs, nil
 }
 
+func validPath(testDir string) bool {
+	index := strings.Index(testDir, featurePrefix)
+	if index == -1 {
+		return false
+	}
+	testDir = testDir[index+len(featurePrefix):]
+	dirs := strings.Split(testDir, "/")
+	if len(dirs) < 3 || len(dirs) > 4 {
+		return false
+	}
+	return true
+}
+
 // testsuite maps from the test package directory to the various rundata extracted from
 // it.
 type testsuite map[string]*testcase
@@ -65,6 +80,11 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 			return nil
 		}
 		testdir := filepath.Dir(path)
+		if !validPath(testdir) {
+			errorf("Test found in a bad path: %s", testdir)
+			ok = false
+			return nil
+		}
 		if !isTestKind(testKind(testdir)) {
 			relpath, err := filepath.Rel(filepath.Dir(featuredir), path)
 			if err != nil {
@@ -303,3 +323,4 @@ func (ts testsuite) write(featuredir string) error {
 	}
 	return nil
 }
+
