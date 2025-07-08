@@ -427,47 +427,55 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Initiate traffic from ATE Port-1 towards the DUT destined ```ipv6-network-2``` i.e. ```2024:db8:64:64::/64```
     *   Validate that the traffic is received on ATE Port-2
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
 
-## Config parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/config
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-*   /routing-policy/policy-definitions/policy-definition/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
+The below yaml defines the OC paths intended to be covered by this test.
 
-## Telemetry parameter coverage
+```yaml
+paths:
+    ## Config parameter coverage
+    /routing-policy/policy-definitions/policy-definition/config/name:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
 
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index
 
-## Protocol/RPC Parameter Coverage
+    ## Telemetry parameter coverage
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index:
 
-* gNMI
-  * Get
-  * Set
+    ## Protocol/RPC Parameter Coverage
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+```
 
 ## Required DUT platform
 

@@ -105,57 +105,70 @@ decap process.
     *   BE1
     *   BE0
 
-## Config parameter coverage
+## Canonical OC
+### TODO: Fix the Canonical OC
+```json
+{}
+```
 
-*   Classifiers
+## OpenConfig Path and RPC Coverage
 
-    *   /qos/classifiers/classifier/config/name
-    *   /qos/classifiers/classifier/config/type
-    *   /qos/classifiers/classifier/terms/term/actions/config/target-group
-    *   /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set
-    *   qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set
-    *   /qos/classifiers/classifier/terms/term/config/id
+The below yaml defines the OC paths intended to be covered by this test.
 
-*   Forwarding Groups
+```yaml
+paths:
+    ## Config parameter coverage
+    
+    ## Classifiers
+    /qos/classifiers/classifier/config/name:
+    /qos/classifiers/classifier/config/type:
+    /qos/classifiers/classifier/terms/term/actions/config/target-group:
+    /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set:
+    /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set:
+    /qos/classifiers/classifier/terms/term/config/id:
+      
+    ## Forwarding Groups
+    /qos/forwarding-groups/forwarding-group/config/name:
+    /qos/forwarding-groups/forwarding-group/config/output-queue:
 
-    *   /qos/forwarding-groups/forwarding-group/config/name
-    *   /qos/forwarding-groups/forwarding-group/config/output-queue
+    ## Queue   
+    /qos/queues/queue/config/name:
 
-*   Queue
+    ## Interfaces
+    /qos/interfaces/interface/input/classifiers/classifier/config/name:
+    /qos/interfaces/interface/output/queues/queue/config/name:
+    /qos/interfaces/interface/output/scheduler-policy/config/name:
+    /qos/interfaces/interface/output/queues/queue/config/queue-management-profile:
 
-    *   /qos/queues/queue/config/name
+    ## Scheduler policy
+    /qos/scheduler-policies/scheduler-policy/config/name:
+    /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
+    /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
+    /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+    /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
+    /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
+    /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
+    /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight:
 
-*   Interfaces
+    ## ECN
+    /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold:
+    /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold:
+    /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn:
+    /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight:
+    /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop:
+    /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent:
 
-    *   /qos/interfaces/interface/input/classifiers/classifier/config/name
-    *   /qos/interfaces/interface/output/queues/queue/config/name
-    *   /qos/interfaces/interface/output/scheduler-policy/config/name
-    *   /qos/interfaces/interface/output/queues/queue/config/queue-management-profile
+    ## Telemetry parameter coverage
+    
+    /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
+    /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
+    /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+    /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
+    
+    ## Protocol/RPC Parameter Coverage
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+```
 
-*   Scheduler policy
-
-    *   /qos/scheduler-policies/scheduler-policy/config/name
-    *   /qos/scheduler-policies/scheduler
-        -policy/schedulers/scheduler/config/priority
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue
-    *   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/weight
-
-*   ECN
-
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop
-    *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent
-
-## Telemetry parameter coverage
-
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
