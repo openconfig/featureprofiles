@@ -19,9 +19,10 @@ BGP policy configuration with prefix-set matching
   * IPv4-prefix-set-1  - exact match on 10.23.15.0/26
   * IPv4-prefix-set-2  - match on 10.23.0.0/16
   * [TODO] IPv4-prefix-set-3  - match on 10.23.15.0/26, 10.23.17.0/26
+    
 #### Canonical OC
-    ```
-    {
+```json
+{
     "routing-policy": {
         "defined-sets": {
             "prefix-sets": {
@@ -44,13 +45,32 @@ BGP policy configuration with prefix-set matching
                                 }
                             ]
                         }
+                    },
+                    {
+                        "config": {
+                            "mode": "IPV4",
+                            "name": "IPv4-prefix-set-2"
+                        },
+                        "name": "IPv4-prefix-set-2",
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "config": {
+                                        "ip-prefix": "10.23.0.0/16",
+                                        "masklength-range": "16..32"
+                                    },
+                                    "ip-prefix": "10.23.0.0/16",
+                                    "masklength-range": "16..32"
+                                }
+                            ]
+                        }
                     }
                 ]
             }
         }
     }
 }
-    ```
+```
 * For IPv6:
   * Create three prefix-sets as below:
   * IPv6-prefix-set-1  - exact match on 2001:4860:f804::/48
