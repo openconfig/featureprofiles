@@ -326,6 +326,12 @@ G[ATE:PORT4] <--IPv4-IPv6--> H[DUT:PORT4];
     * Verify the resource utilization of the device in terms of memory
       consumption for the ACL's attached to the DUT ports.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
+
 ## Canonical OC Configuration
 
 ### IPv4 ACL

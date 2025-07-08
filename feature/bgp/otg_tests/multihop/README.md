@@ -59,6 +59,12 @@ B ----> C[Port2:ATE] --> eBGP peer;
 2) Verify forwarding: Confirm that the DUT correctly forwards the traffic to the eBGP peer via ATE port-2. This demonstrates that the multihop eBGP session is functioning as expected and that the DUT is using the learned routes to direct traffic appropriately.
 3) Monitor traffic counters: Examine the traffic counters on the relevant DUT and ATE interfaces to verify that traffic is flowing as expected and that there are no drops or errors.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

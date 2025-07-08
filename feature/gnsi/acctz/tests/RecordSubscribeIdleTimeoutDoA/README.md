@@ -10,6 +10,12 @@ Test RecordSubscribe connection termination after idle timeout without making Re
 - Wait at least longer than the idletimeout period (default: 120s)
 - Verify that the DUT closes the gNSI connection at or shortly after the idletimeout period.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.

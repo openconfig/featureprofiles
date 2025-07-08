@@ -52,6 +52,11 @@ The goal is to validate that packet sampling is working as expected, clients can
 
 * Verify that the samples are received.
 
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

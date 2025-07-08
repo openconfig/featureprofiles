@@ -116,6 +116,11 @@ certificates:
 
    5) Validate that the connection is properly torn down by the DUT.
    
+## Canonical OC
+### TODO: Fix Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

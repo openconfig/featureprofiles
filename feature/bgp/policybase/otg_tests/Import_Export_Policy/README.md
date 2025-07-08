@@ -127,40 +127,48 @@ Apply the routing policy to the BGP neighbor 10.1.1.1 & 2607:f8b0:8007:614f::1 a
 * Import Policy: The DUT's AFT table should only contain the BGP prefixes 192.0.2.1/32 and 192.0.2.2/32 & 2001:db8:300:100::0/127 and 2001:db8:300:101::0/127 learned from ATE. Prefixes with longer AS-Paths should be filtered and not appear in the DUT's AFT table.
 
 
-## Canonical OpenConfig
+## Canonical OC
 
 ```json
-
-## Config Paths:
-
 {
   "network-instances": {
     "network-instance": [
       {
-        "name": "<network_instance_name>",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
         "protocols": {
           "protocol": [
             {
-              "identifier": "<protocol_identifier>",
               "bgp": {
                 "neighbors": {
                   "neighbor": [
                     {
-                      "neighbor-address": "<neighbor_ip_address>",
                       "apply-policy": {
                         "config": {
+                          "export-policy": [
+                            "test_export"
+                          ],
                           "import-policy": [
                             "test_import"
                           ]
-                          "export-policy": [
-                            "test_export"
-                          ]
                         }
-                      }
+                      },
+                      "config": {
+                        "neighbor-address": "192.168.1.1"
+                      },
+                      "neighbor-address": "192.168.1.1"
                     }
                   ]
                 }
-              }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
             }
           ]
         }
@@ -198,5 +206,6 @@ rpcs:
 
 * FFF
 * MFF
+
 
 
