@@ -1517,3 +1517,8 @@ func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
 func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAsPathPrependOrderMismtach()
 }
+
+// ExplicitSwapSrcDstMacNeededForLoopbackMode returns true if device needs to explicitly set swap-src-dst-mac for loopback mode
+func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
+}

@@ -35,5 +35,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    explicit_swap_src_dst_mac_needed_for_loopback_mode: true
   }
 }
