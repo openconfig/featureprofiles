@@ -64,6 +64,33 @@ BGP policy configuration with prefix-set matching
                                 }
                             ]
                         }
+                    },
+                    {
+                        "config": {
+                            "mode": "IPV4",
+                            "name": "IPv4-prefix-set-3"
+                        },
+                        "name": "IPv4-prefix-set-3",
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "config": {
+                                        "ip-prefix": "10.23.15.0/26",
+                                        "masklength-range": "exact"
+                                    },
+                                    "ip-prefix": "10.23.15.0/26",
+                                    "masklength-range": "exact"
+                                },
+                                {
+                                    "config": {
+                                        "ip-prefix": "10.23.17.0/26",
+                                        "masklength-range": "exact"
+                                    },
+                                    "ip-prefix": "10.23.17.0/26",
+                                    "masklength-range": "exact"
+                                }
+                            ]
+                        }
                     }
                 ]
             }
