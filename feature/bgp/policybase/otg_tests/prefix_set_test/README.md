@@ -149,9 +149,9 @@ BGP policy configuration with prefix-set matching
                         }
                     },
                     {
-                        "name": "IPV6-prefix-set-3",
+                        "name": "IPv6-prefix-set-3",
                         "config": {
-                            "name": "IPV6-prefix-set-3",
+                            "name": "IPv6-prefix-set-3",
                             "mode": "IPV6"
                         },
                         "prefixes": {
@@ -215,7 +215,7 @@ BGP policy configuration with prefix-set matching
                                 "openconfig-routing-policy:conditions": {
                                     "match-prefix-set": {
                                         "config": {
-                                            "prefix-set": "IPV4-prefix-set-3",
+                                            "prefix-set": "IPv4-prefix-set-3",
                                             "match-set-options": "INVERT"
                                         }
                                     }
@@ -267,7 +267,7 @@ BGP policy configuration with prefix-set matching
                                 "openconfig-routing-policy:conditions": {
                                     "match-prefix-set": {
                                         "config": {
-                                            "prefix-set": "IPV6-prefix-set-3",
+                                            "prefix-set": "IPv6-prefix-set-3",
                                             "match-set-options": "INVERT"
                                         }
                                     }
@@ -321,9 +321,9 @@ BGP policy configuration with prefix-set matching
                                 "neighbors": {
                                     "neighbor": [
                                         {
-                                            "neighbor-address": "<IPv4-port1-ATE-address>",
+                                            "neighbor-address": "192.0.2.2",
                                             "config": {
-                                                "neighbor-address": "<IPv4-port1-ATE-address>"
+                                                "neighbor-address": "192.0.2.2"
                                             },
                                             "afi-safis": {
                                                 "afi-safi": [
@@ -343,9 +343,9 @@ BGP policy configuration with prefix-set matching
                                             }
                                         },
                                         {
-                                            "neighbor-address": "<IPv6-port1-ATE-address>",
+                                            "neighbor-address": "2001:db8::192:0:2:2",
                                             "config": {
-                                                "neighbor-address": "<IPv6-port1-ATE-address>"
+                                                "neighbor-address": "2001:db8::192:0:2:2"
                                             },
                                             "afi-safis": {
                                                 "afi-safi": [
@@ -410,9 +410,9 @@ BGP policy configuration with prefix-set matching
                                 "neighbors": {
                                     "neighbor": [
                                         {
-                                            "neighbor-address": "<IPv4-port1-ATE-address>",
+                                            "neighbor-address": "192.0.2.2",
                                             "config": {
-                                                "neighbor-address": "<IPv4-port1-ATE-address>"
+                                                "neighbor-address": "192.0.2.2"
                                             },
                                             "afi-safis": {
                                                 "afi-safi": [
@@ -432,9 +432,9 @@ BGP policy configuration with prefix-set matching
                                             }
                                         },
                                         {
-                                            "neighbor-address": "<IPv6-port1-ATE-address>",
+                                            "neighbor-address": "2001:db8::192:0:2:2",
                                             "config": {
-                                                "neighbor-address": "<IPv6-port1-ATE-address>"
+                                                "neighbor-address": "2001:db8::192:0:2:2"
                                             },
                                             "afi-safis": {
                                                 "afi-safi": [
