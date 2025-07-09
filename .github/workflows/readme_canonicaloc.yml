@@ -64,9 +64,10 @@ jobs:
           readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
           affected_readmes=()
-          for f in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | xargs -r dirname | sort -u | sed 's/$/\/README.md/'); do
-            if [ -f "$f" ]; then
-              affected_readmes+=("$f")
+          for dir in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | xargs -r dirname | sort -u); do
+            readme_file="${dir}/README.md"
+            if [ -f "$readme_file" ]; then
+              affected_readmes+=("$readme_file")
             fi
           done
 
@@ -84,7 +85,8 @@ jobs:
         fi
 
         ##### END: Validate Changed Test READMEs #####
-        
+
         # TODO: Validate READMEs that have been converted to the new format.
         # echo "########## Validating already-converted READMEs:"
+
 
