@@ -852,6 +852,21 @@ message Metadata {
     // Nokia b/430183279
     bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
 
+    // SRGB and SLGB config through OC is not reflecting
+    bool isis_srgb_srlb_unsupported = 302;
+
+    // Prefix segment configuration not supported
+    bool isis_sr_prefix_segment_config_unsupported = 303;
+
+    // node segment configuration not supported
+    bool isis_sr_node_segment_config_unsupported = 304;
+
+    // DUT not returning value for sid counters
+    bool skip_verify_sid_counters = 305;
+
+    // DUT not supporting with anycast SID configuration
+    bool skip_verify_anycast_sid = 306;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
