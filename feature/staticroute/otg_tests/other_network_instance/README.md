@@ -107,8 +107,61 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
 
 ### Telemetry Parameter Coverage
 ```yaml
-/network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0.0.0.0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
-/network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0::0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "vrf1",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "STATIC",
+              "name": "STATIC",
+              "static-routes": {
+                "static": [
+                  {
+                    "prefix": "0.0.0.0/0",
+                    "config": {
+                      "prefix": "0.0.0.0/0"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-network-instance": "default"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                   {
+                    "prefix": "0::0/0",
+                    "config": {
+                      "prefix": "0::0/0"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-network-instance": "default"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
 
 rpcs:
   gnmi:
