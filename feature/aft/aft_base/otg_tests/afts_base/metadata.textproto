@@ -22,6 +22,5 @@ platform_exceptions: {
     default_network_instance: "default"
     isis_single_topology_required: true
     low_scale_aft: true
-
   }
 }
