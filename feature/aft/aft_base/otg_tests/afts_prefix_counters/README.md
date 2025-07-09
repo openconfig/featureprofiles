@@ -147,6 +147,8 @@ From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
 *  The difference between final and initial value must match with the counter value in ATE, then the test is marked as passed.
 *  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
+bsjdvbskvbkn
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
