@@ -104,9 +104,8 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
   - Traffic should be equally received on Port2 and Port3. No traffic loss should be observed.
   - Config cleanup should be successful
 
-### Config paths
+#### Canonical OC
 
-### Canonical OC
 ```json
 {
   "network-instances": {
@@ -165,15 +164,18 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
 }
 ```
 
-### Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
+
 ```yaml
 /network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0.0.0.0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
 /network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0::0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
 
 rpcs:
   gnmi:
-    gNMI.Subscribe:
     gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
 ``` 
 ## Required DUT platform
 *   FFF
