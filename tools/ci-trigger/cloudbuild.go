@@ -143,7 +143,7 @@ func createTGZArchive(f fs.FS) (*bytes.Buffer, error) {
 					return err
 				}
 			} else {
-				glog.Warning("Skipping unsupported symlink %s in tar archive", path)
+				glog.Warningf("Skipping unsupported symlink %s in tar archive", path)
 				return nil
 			}
 		}
