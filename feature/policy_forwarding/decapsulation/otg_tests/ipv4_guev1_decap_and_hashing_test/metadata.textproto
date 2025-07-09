@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "55c4eb1d-a363-44b9-94df-a9e73c9e1234"
+plan_id:  "PF-1.22"
+description:  "GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload"
+testbed:  TESTBED_DUT_ATE_2LINKS

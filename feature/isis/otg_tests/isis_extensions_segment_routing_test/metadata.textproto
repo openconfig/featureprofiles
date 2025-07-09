@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "ff85241a-e7db-4f82-8b66-07320cdd7132"
+plan_id:  "RT-2.15"
+description:  "IS-IS Extensions for Segment Routing"
+testbed:  TESTBED_DUT_ATE_2LINKS

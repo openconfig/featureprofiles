@@ -141,12 +141,12 @@ B[DUT] <-- Port2(IPv4/6) --> C[ATE];
     *   Log the CPU utilization to ensure it remains < 100% under traffic stress
         *   `/system/cpus/cpu/state/total/instant`
 
-## Canonical OC Configuration
+## Canonical OC
 
 ***NOTE:*** When the goal evolves to testing configurable CoPP, this section would ideally contain the (future) standardized OC CoPP config model
 
 ```json
-Not applicable
+{}
 ```
 
 ## OpenConfig Path and RPC Coverage

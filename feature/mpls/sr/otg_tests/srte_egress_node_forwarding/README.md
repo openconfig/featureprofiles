@@ -174,6 +174,7 @@ Verify that:
   }
 }
 ```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

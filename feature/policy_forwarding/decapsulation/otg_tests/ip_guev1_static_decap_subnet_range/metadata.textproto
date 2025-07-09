@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "cbd90220-62bb-430f-bfe2-ec2ea73ef124"
+plan_id:  "PF-1.4"
+description:  "GUEv1 Decapsulation rule using destination-address-prefix-set and TTL and DSCP behavior test"
+testbed:  TESTBED_DUT_ATE_2LINKS

@@ -17,6 +17,11 @@ import (
 // ts.write().
 func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 	newts := make(testsuite)
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(featuredir), "tools"), 0700); err != nil {
+		return nil, err
+	}
+	nonTestReadmePath := filepath.Join(filepath.Dir(featuredir), "tools/non_test_readmes.txt")
+	os.Create(nonTestReadmePath)
 	for reldir, tc := range ts {
 		testdir := filepath.Join(featuredir, reldir)
 		if err := os.MkdirAll(testdir, 0700); err != nil {
@@ -52,14 +57,14 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 func TestSuite_Read(t *testing.T) {
 	featuredir := t.TempDir()
 	want, err := prepareSuite(featuredir, testsuite{
-		"foo/bar/ate_tests/qux_test": &testcase{
+		"feature/foo/bar/ate_tests/qux_test": &testcase{
 			fixed: &mpb.Metadata{
 				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
 				PlanId:      "XX-2.1",
 				Description: "Qux Functional Test",
 			},
 		},
-		"foo/bar/otg_tests/qux_test": &testcase{
+		"feature/foo/bar/otg_tests/qux_test": &testcase{
 			fixed: &mpb.Metadata{
 				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
 				PlanId:      "XX-2.1",
@@ -84,7 +89,7 @@ func TestSuite_Read(t *testing.T) {
 func TestSuite_Read_BadPath(t *testing.T) {
 	featuredir := t.TempDir()
 	_, err := prepareSuite(featuredir, testsuite{
-		"foo/bar/qux_test": &testcase{
+		"feature/foo/bar/qux_test": &testcase{
 			fixed: &mpb.Metadata{
 				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
 				PlanId:      "XX-2.1",
@@ -163,42 +168,42 @@ func TestSuite_Check(t *testing.T) {
 	}{{
 		name: "NeedsUpdate",
 		ts: testsuite{
-			"foo/bar/tests/qux_test": quxMarkdownOnly,
+			"feature/foo/bar/tests/qux_test": quxMarkdownOnly,
 		},
 		ok: false,
 	}, {
 		name: "Updated",
 		ts: testsuite{
-			"foo/bar/tests/qux_test":  qux,
-			"foo/bar/tests/quuz_test": quuz,
+			"feature/foo/bar/tests/qux_test":  qux,
+			"feature/foo/bar/tests/quuz_test": quuz,
 		},
 		ok: true,
 	}, {
 		name: "DuplicateTestPlanID",
 		ts: testsuite{
-			"foo/bar/tests/qux_test":  qux,
-			"foo/bar/tests/quuz_test": quuzDupPlanID,
+			"feature/foo/bar/tests/qux_test":  qux,
+			"feature/foo/bar/tests/quuz_test": quuzDupPlanID,
 		},
 		ok: false,
 	}, {
 		name: "DuplicateUUID",
 		ts: testsuite{
-			"foo/bar/tests/qux_test":  qux,
-			"foo/bar/tests/quuz_test": quuzDupUUID,
+			"feature/foo/bar/tests/qux_test":  qux,
+			"feature/foo/bar/tests/quuz_test": quuzDupUUID,
 		},
 		ok: false,
 	}, {
 		name: "SameATEOTG",
 		ts: testsuite{
-			"foo/bar/ate_tests/qux_test": qux,
-			"foo/bar/otg_tests/qux_test": qux,
+			"feature/foo/bar/ate_tests/qux_test": qux,
+			"feature/foo/bar/otg_tests/qux_test": qux,
 		},
 		ok: true,
 	}, {
 		name: "DifferentATEOTG",
 		ts: testsuite{
-			"foo/bar/ate_tests/qux_test": qux,
-			"foo/bar/otg_tests/qux_test": quuz,
+			"feature/foo/bar/ate_tests/qux_test": qux,
+			"feature/foo/bar/otg_tests/qux_test": quuz,
 		},
 		ok: false,
 	}}
@@ -227,16 +232,16 @@ func TestSuite_Fix(t *testing.T) {
 	}
 
 	ts := testsuite{
-		"foo/bar/ate_tests/qux_test": copyCase(*quxMarkdownOnly),
-		"foo/bar/otg_tests/qux_test": copyCase(*quxMarkdownOnly),
+		"feature/foo/bar/ate_tests/qux_test": copyCase(*quxMarkdownOnly),
+		"feature/foo/bar/otg_tests/qux_test": copyCase(*quxMarkdownOnly),
 	}
 
 	if !ts.fix() {
 		t.Error("testsuite.fix failed")
 	}
 
-	ateFixed := ts["foo/bar/ate_tests/qux_test"].fixed
-	otgFixed := ts["foo/bar/otg_tests/qux_test"].fixed
+	ateFixed := ts["feature/foo/bar/ate_tests/qux_test"].fixed
+	otgFixed := ts["feature/foo/bar/otg_tests/qux_test"].fixed
 
 	if diff := cmp.Diff(ateFixed, otgFixed, tcopts...); diff != "" {
 		t.Errorf("After fix, ATE and OTG rundata differ (-ate,+otg):\n%s", diff)
@@ -261,15 +266,15 @@ func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map
 
 func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 	markdowns := map[string]*mpb.Metadata{
-		"foo/bar/ate_tests/qux_test": {
+		"feature/foo/bar/ate_tests/qux_test": {
 			PlanId:      "XX-2.1",
 			Description: "Qux Functional Test",
 		},
-		"foo/bar/otg_tests/qux_test": {
+		"feature/foo/bar/otg_tests/qux_test": {
 			PlanId:      "XX-2.1",
 			Description: "Qux Functional Test",
 		},
-		"foo/bar/tests/quuz_test": {
+		"feature/foo/bar/tests/quuz_test": {
 			PlanId:      "XX-2.2",
 			Description: "Quuz Functional Test",
 		},
@@ -277,6 +282,11 @@ func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 
 	// Populate the featuredir hierarchy with the README.md files and a dummy test file.
 	featuredir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(featuredir), "tools"), 0700); err != nil {
+		t.Fatalf("Cannot create tools directory: %s", filepath.Join(filepath.Dir(featuredir), "tools"))
+	}
+	nonTestReadmePath := filepath.Join(filepath.Dir(featuredir), "tools/non_test_readmes.txt")
+	os.Create(nonTestReadmePath)
 	for reldir, md := range markdowns {
 		testdir := filepath.Join(featuredir, reldir)
 		if err := os.MkdirAll(testdir, 0700); err != nil {
