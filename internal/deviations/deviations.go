@@ -1498,7 +1498,27 @@ func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceOutputQueueNonStandardName()
 }
 
-// MplsExpIngressClassifierUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
+// MplsExpIngressClassifierOcUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
 func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
+}
+
+// Devices that do not propagate IGP metric through redistribution
+func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
+}
+
+// SkipBgpPeerGroupSendCommunityType return true if device needs to skip setting BGP send-community-type for peer group
+func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
+}
+
+// Devices that does have different AS path prepend order.
+func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAsPathPrependOrderMismtach()
+}
+
+// ExplicitSwapSrcDstMacNeededForLoopbackMode returns true if device needs to explicitly set swap-src-dst-mac for loopback mode
+func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }

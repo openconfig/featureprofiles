@@ -838,6 +838,20 @@ message Metadata {
     // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
     bool mpls_exp_ingress_classifier_oc_unsupported = 297;
 
+    // Devices that do not propagate IGP metric through redistribution
+    bool default_no_igp_metric_propagation = 298;
+
+    // Skip setting send-community-type in bgp peer-group config
+    bool skip_bgp_peer_group_send_community_type = 299;
+    
+    // Devices that does have different AS path prepend order.
+    // juniper : b/425632068
+    bool bgp_as_path_prepend_order_mismtach = 300;
+
+    // Devices that need explicit swap_src_dst_mac set with loopback_mode
+    // Nokia b/430183279
+    bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
