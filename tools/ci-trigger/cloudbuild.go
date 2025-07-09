@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/golang/glog"
 	"google.golang.org/api/cloudbuild/v1"
 	"gopkg.in/yaml.v2"
 )
@@ -121,7 +122,33 @@ func createTGZArchive(f fs.FS) (*bytes.Buffer, error) {
 			return err
 		}
 
-		header, err := tar.FileInfoHeader(info, "")
+		// readLinkFS is the interface implemented by a file system that
+		// supports reading symbolic links.
+		//
+		// TODO(bstoll): readLinkFS is expected to be introduced in a future go
+		// release as fs.ReadLinkFS. Once fs.ReadLinkFS is available, we can
+		// remove this interface and add a test case to validate that the total
+		// number of files matches added to the archive matches the number
+		// intended to be there. For earlier versions of go we will ignore
+		// processing symlinks and log a warning. This interface allows for
+		// forward-compatibility with symlinks once it becomes available.
+		type readLinkFS interface {
+			ReadLink(name string) (string, error)
+		}
+		var link string
+		if info.Mode()&fs.ModeSymlink == fs.ModeSymlink {
+			if rfs, ok := f.(readLinkFS); ok {
+				link, err = rfs.ReadLink(path)
+				if err != nil {
+					return err
+				}
+			} else {
+				glog.Warning("Skipping unsupported symlink %s in tar archive", path)
+				return nil
+			}
+		}
+
+		header, err := tar.FileInfoHeader(info, link)
 		if err != nil {
 			return err
 		}
@@ -131,7 +158,7 @@ func createTGZArchive(f fs.FS) (*bytes.Buffer, error) {
 			return err
 		}
 
-		if d.IsDir() {
+		if d.IsDir() || link != "" {
 			return nil
 		}
 
