@@ -38,6 +38,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
   - No traffic loss should be observed.
   - Config cleanup should be successful
 
+
 ## RT-1.65.2: Default static route (v4, v6) in default network-instance pointing to a non-default network-instance
 * Configure DUT and ATE
   - Configure and assosiate ATE1:Port1 <-> LAG1 to `vrf1` network-instance and ATE1:Port2 <-> LAG2 to non-default network-instance `vrf2`
@@ -105,8 +106,8 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
 
 ### Config paths
 
-### Telemetry Parameter Coverage
-```yaml
+### Canonical OC
+```json
 {
   "network-instances": {
     "network-instance": [
@@ -162,6 +163,12 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
     ]
   }
 }
+```
+
+### Telemetry Parameter Coverage
+```yaml
+/network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0.0.0.0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
+/network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0::0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
 
 rpcs:
   gnmi:
