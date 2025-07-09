@@ -22,7 +22,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
  * Connect DUT port-1, port-2, port-3 and port-4 to ATE port-1, port-2, port-3 and port-4 respectively
  * Configure IPv4/IPv6 addresses on DUT and ATE the interfaces
 
-## RT-1.65.1: Default static route (v4, v6) in non-default network-instance pointing to a default network-instance
+### RT-1.65.1: Default static route (v4, v6) in non-default network-instance pointing to a default network-instance
 * Configure DUT and ATE
   - Configure and assosiate ATE1:Port1 <-> LAG1 to `default` network-instance and ATE1:Port2 <-> LAG2 to non-default network-instance `vrf1`
   - Configure ipv4 and ipv6 address at ATE:Port1 and DUT: ipv4-network = '203.0.113.0/24' and ipv6-network = '2001:db8:128:128::/64'
@@ -38,8 +38,67 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
   - No traffic loss should be observed.
   - Config cleanup should be successful
 
+#### TODO: https://github.com/openconfig/public/pull/1274 - Add new leaf to next-network-instance
 
-## RT-1.65.2: Default static route (v4, v6) in default network-instance pointing to a non-default network-instance
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "vrf1",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "STATIC",
+              "name": "STATIC",
+              "static-routes": {
+                "static": [
+                  {
+                    "prefix": "0.0.0.0/0",
+                    "config": {
+                      "prefix": "0.0.0.0/0"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-network-instance": "default"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                   {
+                    "prefix": "0::0/0",
+                    "config": {
+                      "prefix": "0::0/0"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-network-instance": "default"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+### RT-1.65.2: Default static route (v4, v6) in default network-instance pointing to a non-default network-instance
 * Configure DUT and ATE
   - Configure and assosiate ATE1:Port1 <-> LAG1 to `vrf1` network-instance and ATE1:Port2 <-> LAG2 to non-default network-instance `vrf2`
   - Configure ipv4 and ipv6 address at ATE:Port1 and DUT: ipv4-network = '203.0.113.0/24' and ipv6-network = '2001:db8:128:128::/64'
@@ -55,7 +114,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
   - No traffic loss should be observed.
   - Config cleanup should be successful
 
-## RT-1.65.3: More specific static route (v4, v6) in non-default network-instance pointing to a non-default network-instance
+### RT-1.65.3: More specific static route (v4, v6) in non-default network-instance pointing to a non-default network-instance
 * Configure DUT and ATE
   - Configure and assosiate ATE1:Port1 <-> LAG1 to `vrf1` network-instance and ATE1:Port2 <-> LAG2 to non-default network-instance `vrf2`
   - Configure ipv4 and ipv6 address at ATE:Port1 and DUT: ipv4-network = '203.0.113.0/24' and ipv6-network = '2001:db8:128:128::/64'
@@ -71,7 +130,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
   - No traffic loss should be observed.
   - Config cleanup should be successful
 
-## RT-1.65.4: More specific static route (v4, v6) in non-default network-instance pointing to a default network-instance
+### RT-1.65.4: More specific static route (v4, v6) in non-default network-instance pointing to a default network-instance
 * Configure DUT and ATE
   - Configure and assosiate ATE1:Port1 <-> LAG1 to `default` network-instance and ATE1:Port2 <-> LAG2 to non-default network-instance `vrf1`
   - Configure ipv4 and ipv6 address at ATE:Port1 and DUT: ipv4-network = '203.0.113.0/24' and ipv6-network = '2001:db8:128:128::/64'
@@ -87,7 +146,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
   - No traffic loss should be observed.
   - Config cleanup should be successful
 
-## RT-1.65.5: Default static route (v4, v6) in non-default network-instance pointing to multiple non-default network-instances
+### RT-1.65.5: Default static route (v4, v6) in non-default network-instance pointing to multiple non-default network-instances
 * Configure DUT and ATE
   - Configure and assosiate ATE1:Port1 <-> LAG1 to `vrf1` network-instance, ATE1:Port2 <-> LAG2 to non-default network-instance `vrf2` and ATE1:Port3 <-> LAG3 to non-default network-instance `vrf3`
   - Configure ipv4 and ipv6 address at ATE:Port1 and DUT: ipv4-network = '203.0.113.0/24' and ipv6-network = '2001:db8:128:128::/64'
@@ -167,8 +226,9 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-/network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0.0.0.0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
-/network-instances/network-instance[name=vrf1]/protocols/protocol[identifier=STATIC][name=STATIC]/static-routes/static[prefix=0::0/0]/next-hops/next-hop[index=0]/config/next-network-instance[name=default]
+paths:
+ #TODO: Add next-network-instance, see [public#1274](https://github.com/openconfig/public/pull/1274)
+ #/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-network-instance
 
 rpcs:
   gnmi:
