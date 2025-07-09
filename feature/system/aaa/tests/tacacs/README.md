@@ -121,11 +121,6 @@ This test suite aims to thoroughly validate the correct implementation  of the A
 *   Verification:
     *   Use gNMI to get the device's configuration and validate that the accounting settings are correctly implemented as intended.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
 
 ## OpenConfig Path and RPC Coverage
 

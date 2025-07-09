@@ -175,12 +175,6 @@ Verify that:
 }
 ```
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

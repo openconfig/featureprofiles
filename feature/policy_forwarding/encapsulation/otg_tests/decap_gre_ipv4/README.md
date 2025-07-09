@@ -137,12 +137,6 @@ Traffic:
 Verification:
 -  Traffic is forwarded to ATE Port 2 unchanged.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

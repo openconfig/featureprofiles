@@ -105,12 +105,6 @@ decap process.
     *   BE1
     *   BE0
 
-## Canonical OC
-### TODO: Fix the Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.

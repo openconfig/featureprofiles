@@ -94,12 +94,6 @@ trust_bundles and certificates.
 
    5) Validate that the connection is properly torn down by the DUT.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.

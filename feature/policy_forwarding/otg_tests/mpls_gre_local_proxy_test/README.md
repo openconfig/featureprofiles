@@ -167,12 +167,6 @@ TODO: Finalize and update the below paths after the review and testing on any ve
   },
   ```
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
 

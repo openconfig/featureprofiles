@@ -130,12 +130,6 @@ decapsulate MPLS in UDP.
 * Generate traffic from ATE port 1
 * Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

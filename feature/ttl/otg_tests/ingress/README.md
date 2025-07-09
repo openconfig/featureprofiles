@@ -259,11 +259,6 @@ TODO: New OC paths to be proposed are present in below JSON
 }
 ```
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
 
 ## OpenConfig Path and RPC Coverage
 

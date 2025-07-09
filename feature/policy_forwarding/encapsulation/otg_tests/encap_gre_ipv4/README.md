@@ -112,12 +112,6 @@ Verify:
 
 *  DUT generates "Fragmentation Needed" message back to ATE source.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

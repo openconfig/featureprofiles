@@ -130,12 +130,6 @@ TODO: URPF via instance OC path are being proposed by to be updated by [#1320](h
 }
 ```
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
 

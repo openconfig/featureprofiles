@@ -194,12 +194,6 @@ by the bootz process. If the artifacts are incomplete an error will be returned.
 6. Validate device state
     * System configuration is as expected.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 

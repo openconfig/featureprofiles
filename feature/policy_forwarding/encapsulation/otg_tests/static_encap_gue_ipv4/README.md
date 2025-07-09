@@ -211,12 +211,7 @@ Verify:
 *   Modify the flows in `RT-3.53.11` to use IPv6 destination IPv6-DST-NET 
     and repeat the traffic generation and validation.
 
-
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
+- Canonical OpenConfig
 
 ```json
 {

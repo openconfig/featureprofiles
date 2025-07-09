@@ -54,12 +54,6 @@ C[ATE:PORT2] <--IPv4-IPv6--> D[DUT:PORT2];
 *   Start the traffic from ATE-port1 and ATE-port2
 *   Validate that traffic is flowing in both directions with 0% traffic loss.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## Canonical OC Configuration
 ```json
 /network-instances/network-instance[name=VRF-1]/protocols/protocol[identifier=BGP][name=BGP]/bgp:

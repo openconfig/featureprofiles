@@ -51,12 +51,6 @@
 *   Verify correct forwarding using Prefix SIDs.
 *   Verify that corresponding SID forwarding counters are incremented.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

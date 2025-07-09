@@ -71,11 +71,8 @@ B --EBGP--> C[Port2:ATE];
 4)  Verify that the BMP station does not receive route monitoring messages for 172.16.0.0/16 and 2001:DB8::/32 (excluded by policy)
 
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
+## OC paths in json format:
+
 ### TODO: Add values
 ```json
 {

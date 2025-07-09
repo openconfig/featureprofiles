@@ -25,12 +25,6 @@ Storage File System Check
   *  /components/component/storage/state/counters/percentage-used:
      Check if the response is an integer 
   
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

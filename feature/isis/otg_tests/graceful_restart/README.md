@@ -245,12 +245,6 @@
 *   Verify traffic is recived on ATE port-2 during restart time ( no losses )
 *   Wait 60 sec.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.

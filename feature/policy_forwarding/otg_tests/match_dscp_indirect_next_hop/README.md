@@ -68,12 +68,6 @@ Verify:
 *  Traffic follows fallbacks static routes (ST1).
 *  No packet loss when forwarding.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

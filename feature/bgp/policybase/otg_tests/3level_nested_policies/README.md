@@ -427,12 +427,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Initiate traffic from ATE Port-1 towards the DUT destined ```ipv6-network-2``` i.e. ```2024:db8:64:64::/64```
     *   Validate that the traffic is received on ATE Port-2
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.

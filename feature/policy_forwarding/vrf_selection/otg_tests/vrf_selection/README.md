@@ -178,10 +178,6 @@ B3 --> B1;
 	* There should be 0 packet loss.
 
 ## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
 
 ```json
 {

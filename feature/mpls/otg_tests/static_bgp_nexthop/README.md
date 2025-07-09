@@ -99,12 +99,6 @@ network-instances:
 *   Start traffic flow with MPLS[lbl-1000006] and IPv6 destination set to IPV6-DST.
 *   Verify that traffic is discarded.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

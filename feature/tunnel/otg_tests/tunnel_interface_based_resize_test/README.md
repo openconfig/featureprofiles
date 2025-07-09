@@ -102,12 +102,6 @@ TODO: OpenConfig definition required for Tunnel protocol under interfaces/interf
         *   state/counters/out-forwarded-octets 
         *   state/counters/out-discarded-pkts
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 ```yaml
 rpcs:

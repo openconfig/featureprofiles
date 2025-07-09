@@ -249,12 +249,6 @@ This test aims to validate the functionality of ingress traffic classification a
 
 ```
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.

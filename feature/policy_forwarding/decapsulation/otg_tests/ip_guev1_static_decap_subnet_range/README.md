@@ -229,12 +229,6 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 }
 ```
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

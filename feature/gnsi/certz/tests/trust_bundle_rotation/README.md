@@ -81,12 +81,6 @@ Perform this test with both the RSA and ECDSA types.
 
    5) Verify that the server is still serving the certifcate properly.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.

@@ -58,13 +58,6 @@ Using RT-7.6.1 set up conduct following changes:
 2. Reconfigure a single peer in peering group DOWNSTREAM to iBGP
 3. Repeat test RT-7.6.1 for iBGP.
 
-## Canonical OC
-### TODO: Fix Canonical OC
-```json
-{}
-```
-
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
