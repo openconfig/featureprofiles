@@ -1523,12 +1523,12 @@ func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }
 
-// LinkLocalInsteadOfNH returns if device requires link-local instead of NH.
+// LinkLocalInsteadOfNh returns true if device requires link-local instead of NH.
 func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkLocalInsteadOfNh()
 }
 
-// LowScaleAFT returns if device requires link-local instead of NH.
+// LowScaleAft returns if device requires link-local instead of NH.
 func LowScaleAft(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLowScaleAft()
 }
