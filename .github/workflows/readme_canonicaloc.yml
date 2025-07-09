@@ -64,10 +64,10 @@ jobs:
           readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
           affected_readmes=()
-          for dir in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | xargs -r dirname | sort -u); do
+          for path in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | sort -u); do
             readme_file="${dir}/README.md"
-            if [ -f "$readme_file" ]; then
-              affected_readmes+=("$readme_file")
+            if [[ "$file" == *README.md ]]; then
+              affected_readmes+=("$file")
             fi
           done
 
