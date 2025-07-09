@@ -65,9 +65,8 @@ jobs:
 
           affected_readmes=()
           for path in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | sort -u); do
-            readme_file="${dir}/README.md"
-            if [[ "$file" == *README.md ]]; then
-              affected_readmes+=("$file")
+            if [[ "$path" == *README.md ]]; then
+              affected_readmes+=("$path")
             fi
           done
 
@@ -88,5 +87,4 @@ jobs:
 
         # TODO: Validate READMEs that have been converted to the new format.
         # echo "########## Validating already-converted READMEs:"
-
 
