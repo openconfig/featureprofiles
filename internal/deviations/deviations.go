@@ -1522,3 +1522,12 @@ func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
 func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }
+
+// Snycast SID config not supported
+func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
+}
+
+func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyRuleCountersOcUnsupported()
+}

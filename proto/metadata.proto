@@ -852,6 +852,12 @@ message Metadata {
     // Nokia b/430183279
     bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
 
+    // GUE decapsulation unsupoprted
+    bool decapsulate_gue_oc_unsupported = 302;
+
+    // policy rule based counters unsupported
+    bool policy_rule_counters_oc_unsupported = 303;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }

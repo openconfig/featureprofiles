@@ -528,3 +528,52 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
+
+// Configure GUE decap configuration
+func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, ipType string, guePort int, tunIp string, intfName string, policyName string, policyId uint32) {
+	if deviations.DecapsulateGueOCUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig = fmt.Sprintf(`
+		                    ip decap-group type udp destination port %v payload %s
+							tunnel type %s-over-udp udp destination port %v
+							ip decap-group test
+							tunnel type UDP
+							tunnel decap-ip %s
+							tunnel decap-interface %s
+							`, guePort, ipType, ipType, guePort, tunIp, intfName)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf("Deviation DecapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+	} else {
+		d := &oc.Root{}
+
+		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+
+		npf := ni1.GetOrCreatePolicyForwarding()
+		np := npf.GetOrCreatePolicy(policyName)
+		np.PolicyId = ygot.String(policyName)
+		npRule := np.GetOrCreateRule(policyId)
+
+		if ipType == "ipv4" {
+			ip := npRule.GetOrCreateIpv4()
+			ip.DestinationAddressPrefixSet = ygot.String(tunIp)
+			npAction := npRule.GetOrCreateAction()
+			npAction.DecapsulateGue = ygot.Bool(true)
+		} else {
+			ip := npRule.GetOrCreateIpv6()
+			ip.DestinationAddressPrefixSet = ygot.String(tunIp)
+			npAction := npRule.GetOrCreateAction()
+			npAction.DecapsulateGue = ygot.Bool(true)
+		}
+		t.Logf("Applying forwarding policy on interface %v ... ", intfName)
+
+		intf := npf.GetOrCreateInterface(intfName)
+		intf.ApplyForwardingPolicy = ygot.String(policyName)
+		intf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	}
+}
