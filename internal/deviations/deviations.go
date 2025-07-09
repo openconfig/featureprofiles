@@ -1532,4 +1532,3 @@ func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
 func LowScaleAft(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLowScaleAft()
 }
-
