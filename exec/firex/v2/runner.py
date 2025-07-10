@@ -1821,7 +1821,7 @@ def InvokeAutoTriage(self, test_name, script_output, logs_dir, debug_output):
 
         logger.print(f'Found log files: {log_files}')
 
-        cmd = "/ws/mastarke-sjc/py311_env/bin/python /ws/mastarke-sjc/my_local_git/CIT-Tool/production-site/data-labeler/scripts/ai-scripts/on_demand_ai_debugger.py"
+        cmd = "/ws/mastarke-sjc/py311_env/bin/python /auto/b4ws/repos/data-labeler/scripts/ai-scripts/on_demand_ai_debugger.py"
         cmd += f' --logs-file {" ".join(log_files)} --test-name {test_name} --output {debug_output}'
         logger.print(check_output(cmd))
     except:

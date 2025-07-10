@@ -24,6 +24,7 @@ username cisco
   key 7 304E17790117455301364063015C7C775B523E0C162F6D504F
  !
 !
+vty-pool default 0 99 line-template vty
 grpc
  vrf mgmt
  port 57999

@@ -10,6 +10,7 @@ replace: {
       " group cisco-support\n"
       " secret 10 $6$3dBGsOX2C6V1s...$3nM5V6ql5dW.zaxfFWtXK6U5Md90tanQOf9T/RW8Uc1rQ.V43QUYhNZHDCiv9Zzg9SGTOQpMSu9OTbhXpy4VG1\n"
       "!\n"
+	  "vty-pool default 0 99 line-template vty\n"
       "grpc\n"
       " vrf mgmtVrf\n"
       " tls-mutual\n"

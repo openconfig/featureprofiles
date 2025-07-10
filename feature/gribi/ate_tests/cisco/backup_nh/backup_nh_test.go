@@ -1035,7 +1035,7 @@ func testValidateForwardingChain(ctx context.Context, t *testing.T, args *testAr
 
 	var pref []string
 	if err1 != nil && err2 != nil && err3 != nil && err4 != nil {
-		t.Errorf("Cannot Get")
+		t.Fatalf("Cannot Get")
 	}
 
 	entries1 := getResponse1.GetEntry()
@@ -1061,7 +1061,7 @@ func testValidateForwardingChain(ctx context.Context, t *testing.T, args *testAr
 	}
 
 	if diff := cmp.Diff(data, pref); diff != "" {
-		t.Errorf("Prefixes differed (-want +got):\n%v", diff)
+		t.Fatalf("Prefixes differed (-want +got):\n%v", diff)
 	}
 }
 
@@ -2488,7 +2488,7 @@ func testFaultInjectUpdateNHG(ctx context.Context, t *testing.T, args *testArgs)
 	}); strings.Contains(*errMsg, "Add NHG ID: 60>, Status: FIB_FAILED") {
 		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 	} else {
-		t.Errorf("This update should have failed ")
+		t.Fatalf("This update should have failed ")
 	}
 
 }
