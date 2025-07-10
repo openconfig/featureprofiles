@@ -85,6 +85,7 @@ OnChange Subscription Test for Breakout Interfaces
     "interfaces": {
       "interface": [
         {
+         "name": "Ethernet1",
           "members": {
             "member": [
               {
