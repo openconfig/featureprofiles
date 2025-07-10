@@ -32,6 +32,7 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 const (
@@ -273,4 +274,14 @@ func TestDcGateOOR(t *testing.T) {
 
 func TestDcGateStress(t *testing.T) {
 	testDcGateStress(t)
+}
+func TestDcGateTunnelPathFlaps(t *testing.T) {
+	testDcGateTunnelPathFlaps(t)
+}
+
+func TestSubintShut(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	batchSet := &gnmi.SetBatch{}
+	gnmi.BatchUpdate(batchSet, gnmi.OC().Interface("Bundle-Ether101").Subinterface(4).Enabled().Config(), false)
+	batchSet.Set(t, dut)
 }

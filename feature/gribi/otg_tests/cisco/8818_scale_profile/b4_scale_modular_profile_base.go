@@ -31,7 +31,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/exp/rand"
 )
 
@@ -1805,6 +1804,7 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	// add static route on peer for the tunnel destination for encap, decap+encap traffic
 	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	configStaticRoute(t, peer, "100.101.0.0/16", otgDst.IPv4, "", "", false)
+	gnmi.Replace(t, peer, gnmi.OC().System().MacAddress().RoutingMac().Config(), magicMac)
 	gArgs = tcArgs
 	bConfig.setConfigured(true)
 	return tcArgs
@@ -3618,13 +3618,7 @@ func testDcGateOOR(t *testing.T) {
 	// })
 }
 
-func getDcGateProfile(t *testing.T, availableForUseResourceIDs int) *GribiProfile {
-	// initial setting
-	if gArgs == nil && !bConfig.isConfigured() {
-		gArgs = configureBaseInfra(t, bConfig)
-	}
-	tcArgs := gArgs
-	tcArgs.client.Start(tcArgs.ctx, t)
+func getDcGateProfile(t *testing.T, tcArgs *testArgs, availableForUseResourceIDs int) *GribiProfile {
 
 	batches := 8
 	vrfCount := 4
@@ -3807,7 +3801,7 @@ func testDcGateStress(t *testing.T) {
 	t.Logf("Stress test completed after running %d iterations", iteration)
 }
 
-func testDcGateTunnelFlaps(t *testing.T) {
+func testDcGateTunnelPathFlaps(t *testing.T) {
 	// initial setting
 	if gArgs == nil && !bConfig.isConfigured() {
 		gArgs = configureBaseInfra(t, bConfig)
@@ -3834,11 +3828,24 @@ func testDcGateTunnelFlaps(t *testing.T) {
 	}
 	defer tcArgs.client.Stop(t)
 
-	// get free resource IDs
-	// gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
-	availableForUseResourceIDs := maxTunnelResources //reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
+	// this test will use only subinterfaces for tunnel flaps
+	old_primary_paths := tcArgs.primaryPaths
+	old_frr1_paths := tcArgs.frr1Paths
 
-	gp := getDcGateProfile(t, availableForUseResourceIDs)
+	defer func() {
+		tcArgs.primaryPaths = old_primary_paths
+		tcArgs.frr1Paths = old_frr1_paths
+	}()
+
+	tcArgs.primaryPaths = pathInfo.PrimarySubintfPathsV4
+	tcArgs.frr1Paths = pathInfo.BackupSubintfPathsV4
+
+	// Chose scale for gribi profile - fixed resources, or percentage of available resources
+	// gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
+	// availableForUseResourceIDs := reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
+	availableForUseResourceIDs := maxTunnelResources
+
+	gp := getDcGateProfile(t, tcArgs, availableForUseResourceIDs)
 
 	tcArgs.client.StartSending(tcArgs.ctx, t)
 	if err := awaitTimeout(tcArgs.ctx, tcArgs.client, t, time.Minute); err != nil {
@@ -3861,38 +3868,109 @@ func testDcGateTunnelFlaps(t *testing.T) {
 		t.Logf("Iteration: %d, resource consumption in steady state", iteration)
 		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, pathInfo.PrimaryUniqueIntfCards)
 
-		retain, delete := SplitSliceDisjoint([]int{0, 1, 2, 3, 4, 5, 6, 7})
-		if len(retain) == 0 {
-			t.Logf("No batches to retain, creating batches again for splitting and retaining")
-			continue
-		}
-		t.Logf("Deleting batches: %v, retained batches %v", delete, retain)
-		gp.DeleteBatchConfig(t, tcArgs, delete)
+		// divide set of primary interfaces into vip1 and vip2
+		primaryVips := SplitSliceByCount(tcArgs.primaryPaths, 8, 2)
+		primaryVip1 := primaryVips[0]
+		primaryVip2 := primaryVips[1]
+		randomVip1 := DivideSliceRandomly(primaryVip1, 8, true)
+		randomVip2 := DivideSliceRandomly(primaryVip2, 8, true)
+		randomAllVips := DivideSliceRandomly(tcArgs.primaryPaths, 8, true)
+		randomAllFrr1Paths := DivideSliceRandomly(tcArgs.frr1Paths, 8, true)
+		primaryAndFrr1Paths := tcArgs.primaryPaths
+		primaryAndFrr1Paths = append(primaryAndFrr1Paths, tcArgs.frr1Paths...)
 
-		t.Logf("Iteration: %d, resource consumption after deleting %v batches", iteration, delete)
-		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, pathInfo.PrimaryUniqueIntfCards)
-
-		t.Run("Validating encap traffic for retained batches after deleting some batches", func(t *testing.T) {
-			t.Logf("Iteration: %d, validating encap traffic for retained batches", iteration)
-			testEncapTrafficFlows(t, tcArgs, gp, retain)
+		// move primary traffic to VIP2
+		t.Run("Validating encap traffic after shutting primary VIP1 paths randomly", func(t *testing.T) {
+			for _, vipIps := range randomVip1 {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
+			}
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
 		})
 
-		t.Run("Validating /32 decap traffic for retained batches after deleting some batches", func(t *testing.T) {
+		// move traffic to frr1 path
+		t.Run("Validating encap traffic after shutting primary VIP2 paths randomly", func(t *testing.T) {
+			for _, vipIps := range randomVip2 {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
+			}
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		})
+
+		// move primary traffic to VIP1
+		t.Run("Validating encap traffic after unshutting primary VIP1 paths randomly", func(t *testing.T) {
+			for _, vipIps := range randomVip1 {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
+			}
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		})
+
+		// move primary traffic to VIP1
+		t.Run("Validating encap traffic after unshutting primary VIP2 paths randomly", func(t *testing.T) {
+			for _, vipIps := range randomVip2 {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
+			}
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		})
+
+		// randomly flap primary paths
+		t.Run("Validating encap traffic after shutting all primary paths randomly", func(t *testing.T) {
+			for _, vipIps := range randomAllVips {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
+			}
+
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		})
+
+		// randomly flap primary paths
+		t.Run("Validating encap traffic after unshutting all primary paths randomly", func(t *testing.T) {
+			for _, vipIps := range randomAllVips {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
+			}
+
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		})
+
+		// randomly flap frr1 paths
+		t.Run("Validating encap traffic after shutting all frr1 paths randomly", func(t *testing.T) {
+			for _, vipIps := range randomAllFrr1Paths {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.BackupPathPeerV4ToSubIntf, false, false)
+			}
+
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		})
+
+		// randomly flap frr1 and primary paths
+		t.Run("Validating encap traffic after unshut shut unshhut frr1 and primary paths randomly", func(t *testing.T) {
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), true, false)
+			}
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), false, true)
+			}
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), false, true)
+			}
+			// make all paths up
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), true, false)
+			}
+			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		})
+
+		t.Run("Validating /32 decap traffic after path flaps", func(t *testing.T) {
 			t.Logf("Iteration: %d, validating /32 decap traffic", iteration)
-			for _, b := range randomPickTwo(retain) {
+			for _, b := range randomPickTwo([]int{0, 1, 2, 3, 4, 5, 6, 7}) {
 				for _, encap := range randomPickTwo([]string{"A", "B", "C", "D"}) {
 					testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
 				}
 			}
 		})
 
-		t.Run("Validating variable prefix decap traffic for retained batches after deleting some batches", func(t *testing.T) {
+		t.Run("Validating variable prefix decap traffic after path flaps", func(t *testing.T) {
 			t.Logf("Iteration: %d, validating variable prefix decap traffic", iteration)
-			testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, randomPickTwo(retain), []string{"A", "B", "C", "D"})
+			testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, randomPickTwo([]int{0, 1, 2, 3, 4, 5, 6, 7}), []string{"A", "B", "C", "D"})
 		})
-		t.Logf("Adding back the deleted batches: %v", delete)
-		gp.pushBatchConfig(t, tcArgs, delete)
-		time.Sleep(1 * time.Minute)
+		t.Logf("Iteration: %d, resource consumption after path flaps", iteration)
+		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, pathInfo.PrimaryUniqueIntfCards)
 		iteration++
 	}
 
@@ -4146,8 +4224,13 @@ func distributeBatchesAcrossGroups(t *testing.T, input []string, batches int, bl
 	return result
 }
 
-func setInterfaceAdminStateBatch(t *testing.T, dut *ondatra.DUTDevice, ipAddrs []string, subifMap map[string]string, oper bool) {
+// setInterfaceAdminStateBatch sets the admin state of the given interfaces in a batch.
+// It returns the list of interfaces on which the operation was performed.
+func setInterfaceAdminStateBatch(t *testing.T, dut *ondatra.DUTDevice, ipAddrs []string, subifMap map[string]string, oper bool, random bool) {
 	batchSet := &gnmi.SetBatch{}
+
+	rand.Seed(uint64(time.Now().UnixNano()))
+
 	interfaces := []string{}
 	for _, ip := range ipAddrs {
 		subIntf, exists := subifMap[ip]
@@ -4162,9 +4245,125 @@ func setInterfaceAdminStateBatch(t *testing.T, dut *ondatra.DUTDevice, ipAddrs [
 		}
 		intf := splitSubintf[0]
 		index, _ := strconv.Atoi(splitSubintf[1])
-		gnmi.BatchUpdate(batchSet, gnmi.OC().Interface(intf).Subinterface(uint32(index)).Config(), &oc.Interface_Subinterface{Enabled: ygot.Bool(oper)})
+		if random {
+			oper = rand.Intn(2) == 0
+		}
+		gnmi.BatchUpdate(batchSet, gnmi.OC().Interface(intf).Subinterface(uint32(index)).Enabled().Config(), oper)
 		interfaces = append(interfaces, subIntf)
 	}
-	batchSet.Set(t, dut)
-	t.Logf("Successfully performed %v operation on interfaces: %v", oper, interfaces)
+
+	if len(interfaces) > 0 {
+		t.Logf("Setting admin state to %v on interfaces: %v", getOperString(oper, random), interfaces)
+		batchSet.Set(t, dut)
+		t.Logf("Successfully performed %v operation on interfaces: %v", getOperString(oper, random), interfaces)
+	} else {
+		t.Logf("No valid interfaces found for the operation")
+	}
+}
+
+// getOperString returns the string representation of the operation.
+// If `oper` is true, it returns "unshut"; otherwise, it returns "shut".
+// If `random` is true, it returns "random" instead of "unshut" or "shut".
+func getOperString(oper bool, random bool) string {
+	if random {
+		return "random"
+	}
+	if oper {
+		return "unshut"
+	}
+	return "shut"
+}
+
+// SplitMapByCount splits a map into `k` groups, with each group containing `count` entries.
+// The entries are distributed across the groups in a round-robin fashion.
+func SplitMapByCount(inputMap map[string]string, count int, k int) [][]string {
+	// Initialize a slice of slices to store the grouped results
+	result := make([][]string, k) // Create `k` slices
+	for i := 0; i < k; i++ {
+		result[i] = []string{} // Initialize each group as an empty slice
+	}
+
+	// Convert the inputMap keys into a slice for ordered iteration
+	keys := make([]string, 0, len(inputMap))
+	for key := range inputMap {
+		keys = append(keys, key)
+	}
+
+	// Iterate over the keys and distribute entries across `k` groups
+	for i, key := range keys {
+		groupIndex := (i / count) % k // Determine which group (0 to k-1) this entry belongs to
+		result[groupIndex] = append(result[groupIndex], fmt.Sprintf("%s:%s", key, inputMap[key]))
+	}
+
+	return result
+}
+
+// SplitSliceByCount distributes elements of a slice into g groups, based on the count.
+func SplitSliceByCount(inputSlice []string, count int, g int) [][]string {
+	// Initialize a slice of slices to store the grouped results
+	result := make([][]string, g) // Create `g` slices
+	for i := 0; i < g; i++ {
+		result[i] = []string{} // Initialize each group as an empty slice
+	}
+
+	// Iterate over the slice and distribute entries across `g` groups
+	for i, element := range inputSlice {
+		groupIndex := (i / count) % g // Determine which group (0 to g-1) this entry belongs to
+		result[groupIndex] = append(result[groupIndex], element)
+	}
+
+	return result
+}
+
+// DivideSliceRandomly divides the input slice into a random number of slices.
+// If `random` is true, resulting slices need not be a multiple of `s`.
+func DivideSliceRandomly(input []string, s int, random bool) [][]string {
+	rand.Seed(uint64(time.Now().UnixNano())) // Seed the random number generator
+	var result [][]string
+	n := len(input)
+
+	if random {
+		// Randomly decide the number of slices between 1 and n
+		numSlices := rand.Intn(n) + 1
+
+		// Distribute items randomly among numSlices
+		for i := 0; i < numSlices; i++ {
+			result = append(result, []string{})
+		}
+
+		for _, item := range input {
+			// Randomly choose a slice to add the item to
+			index := rand.Intn(numSlices)
+			result[index] = append(result[index], item)
+		}
+	} else {
+		// Calculate the number of slices based on the multiple s
+		numSlices := n / s
+		if n%s != 0 {
+			numSlices++
+		}
+
+		// Distribute items into slices of size s
+		for i := 0; i < n; i += s {
+			end := i + s
+			if end > n {
+				end = n
+			}
+			result = append(result, input[i:end])
+		}
+	}
+
+	return result
+}
+
+// Generic function to merge two maps
+func MergeMaps[K comparable, V any](m1, m2 map[K]V) map[K]V {
+	result := make(map[K]V)
+	for k, v := range m1 {
+		result[k] = v
+	}
+	for k, v := range m2 {
+		result[k] = v
+	}
+	return result
 }
