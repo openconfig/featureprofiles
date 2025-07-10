@@ -43,7 +43,7 @@ jobs:
           while IFS= read -r path; do
             exemption_flags+="--non-test-readme $path "
           done < ./tools/non_test_readmes.txt
-          validate_readme_canonicalocspec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
+          validate_readme_canonicalocspec --feature-dir "$1" --alsologtostderr ${exemption_flags}
         }
 
         ##### BEGIN: Validate Changed Test READMEs # TODO: Remove this section after all are converted.
@@ -64,9 +64,9 @@ jobs:
           readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
           affected_readmes=()
-          for f in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | xargs -r dirname | sort -u | sed 's/$/\/README.md/'); do
-            if [ -f "$f" ]; then
-              affected_readmes+=("$f")
+          for path in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | sort -u); do
+            if [[ "$path" == *README.md ]]; then
+              affected_readmes+=("$path")
             fi
           done
 
@@ -79,11 +79,12 @@ jobs:
             exemption_flags+="--non-test-readme $path "
           done < ./tools/non_test_readmes.txt
           for f in "${affected_readmes[@]}"; do
-            validate_readme_canonicalocspec --alsologtostderr "${exemption_flags[@]}" "${f}"
+            validate_readme_canonicalocspec --alsologtostderr ${exemption_flags} "${f}"
           done
         fi
 
         ##### END: Validate Changed Test READMEs #####
-        
+
         # TODO: Validate READMEs that have been converted to the new format.
         # echo "########## Validating already-converted READMEs:"
+
