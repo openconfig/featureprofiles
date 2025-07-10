@@ -48,6 +48,7 @@ OnChange Subscription Test for Breakout Interfaces
   "components": {
     "component": [
       {
+        "name": "Linecard0",
         "state": {
           "name": "Linecard0",
           "oper-status": "ACTIVE"
