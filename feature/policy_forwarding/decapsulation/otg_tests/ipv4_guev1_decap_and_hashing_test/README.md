@@ -306,6 +306,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 }
 
 ```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:

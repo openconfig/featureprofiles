@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "85c3cba5-3e2e-4727-9473-3293c7bab06d"
+plan_id:  "ACCTZ-6.1"
+description:  "gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - DoA client"
+testbed:  TESTBED_DUT_ATE_2LINKS
