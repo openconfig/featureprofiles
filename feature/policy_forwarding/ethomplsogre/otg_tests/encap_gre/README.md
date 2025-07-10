@@ -287,9 +287,9 @@ Run the test separately for both port mode and attachment mode "customer interfa
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
 
-## OpenConfig Path and RPC Coverage
+## Canonical OC  
 
-### Port mode Interface configs
+Port mode Interface configs  
 
 ```json
 {
@@ -344,7 +344,9 @@ Run the test separately for both port mode and attachment mode "customer interfa
 }
 ```
 
-### VLAN mode Interface configs
+## Canonical OC  
+
+VLAN mode Interface configs  
 
 ```json
         "config": {
@@ -383,7 +385,9 @@ Run the test separately for both port mode and attachment mode "customer interfa
         },
 ```
 
-### Pseudowire configs Port mode
+## Canonical OC  
+
+Pseudowire configs Port mode  
 
 ```json
       {
@@ -448,7 +452,9 @@ Run the test separately for both port mode and attachment mode "customer interfa
       },
 ```
 
-### Pseudowire configs VLAN mode
+## Canonical OC  
+
+Pseudowire configs VLAN mode  
 
 ```json
       {
@@ -513,7 +519,9 @@ Run the test separately for both port mode and attachment mode "customer interfa
       },
 ```
 
-### Tunnels/Next-hop group configs
+## Canonical OC  
+
+Tunnels/Next-hop group configs  
 
 ```json
 {
@@ -603,6 +611,7 @@ Run the test separately for both port mode and attachment mode "customer interfa
     }
 }
 ```
+## OpenConfig Path and RPC Coverage  
 
 ```yaml
 paths:
@@ -612,13 +621,13 @@ paths:
     /interfaces/interface/config/mtu
     /interfaces/interface/config/name
     /interfaces/interface/config/type
-	  /interfaces/interface/rates/config/load-interval
+    /interfaces/interface/rates/config/load-interval
     /interfaces/interface/subinterfaces/subinterface/config/description
     /interfaces/interface/subinterfaces/subinterface/config/enabled
-	  /interfaces/interface/subinterfaces/subinterface/config/index
+    /interfaces/interface/subinterfaces/subinterface/config/index
     /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
     /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
-	  /interfaces/interface/aggregation/config/lag-type
+    /interfaces/interface/aggregation/config/lag-type
 
     #psuedowire configs
     /network-instances/network-instance/config/name
