@@ -96,7 +96,761 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 wouldn't export routes to IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3 since they are missing from the DUT's forwarding table.
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
    
-
+####Canonical OC
+```json
+{
+    "openconfig-network-instance:bgp": {
+        "global": {
+            "afi-safis": {
+                "afi-safi": [
+                    {
+                        "add-paths": {
+                            "config": {
+                                "receive": false,
+                                "send": false
+                            }
+                        },
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "config": {
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "enabled": true
+                        },
+                        "route-selection-options": {
+                            "config": {
+                                "ignore-next-hop-igp-metric": false
+                            }
+                        },
+                        "use-multiple-paths": {
+                            "config": {
+                                "enabled": false
+                            },
+                            "ebgp": {
+                                "config": {
+                                    "maximum-paths": 1
+                                }
+                            },
+                            "ibgp": {
+                                "config": {
+                                    "maximum-paths": 1
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "add-paths": {
+                            "config": {
+                                "receive": false,
+                                "send": false
+                            }
+                        },
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "config": {
+                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                            "enabled": true
+                        },
+                        "route-selection-options": {
+                            "config": {
+                                "ignore-next-hop-igp-metric": false
+                            }
+                        },
+                        "use-multiple-paths": {
+                            "config": {
+                                "enabled": false
+                            },
+                            "ebgp": {
+                                "config": {
+                                    "maximum-paths": 1
+                                }
+                            },
+                            "ibgp": {
+                                "config": {
+                                    "maximum-paths": 1
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "config": {
+                "as": 65501,
+                "router-id": "10.61.63.45"
+            }
+        },
+        "neighbors": {
+            "neighbor": [
+                {
+                    "afi-safis": {
+                        "afi-safi": [
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                    "enabled": true
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            },
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                    "enabled": false
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "enabled": true,
+                        "neighbor-address": "192.0.2.2",
+                        "peer-as": 65502,
+                        "peer-group": "BGP-PEER-GROUP1",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "neighbor-address": "192.0.2.2",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                },
+                {
+                    "afi-safis": {
+                        "afi-safi": [
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                    "enabled": false
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            },
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                    "enabled": true
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "enabled": true,
+                        "neighbor-address": "2001:db8::192:0:2:2",
+                        "peer-as": 65502,
+                        "peer-group": "BGP-PEER-GROUP3",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "neighbor-address": "2001:db8::192:0:2:2",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                },
+                {
+                    "afi-safis": {
+                        "afi-safi": [
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                    "enabled": false
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            },
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                    "enabled": true
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "enabled": true,
+                        "neighbor-address": "2001:db8::203:0:113:10",
+                        "peer-as": 65501,
+                        "peer-group": "BGP-PEER-GROUP4",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "neighbor-address": "2001:db8::203:0:113:10",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "local-address": "2607:f8b0:f800:c00::2d",
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                },
+                {
+                    "afi-safis": {
+                        "afi-safi": [
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                    "enabled": true
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            },
+                            {
+                                "add-paths": {
+                                    "config": {
+                                        "receive": false,
+                                        "send": false
+                                    }
+                                },
+                                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                "apply-policy": {
+                                    "config": {
+                                        "default-export-policy": "REJECT_ROUTE",
+                                        "default-import-policy": "REJECT_ROUTE"
+                                    }
+                                },
+                                "config": {
+                                    "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                    "enabled": false
+                                },
+                                "use-multiple-paths": {
+                                    "config": {
+                                        "enabled": false
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "enabled": true,
+                        "neighbor-address": "203.0.113.10",
+                        "peer-as": 65501,
+                        "peer-group": "BGP-PEER-GROUP2",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "neighbor-address": "203.0.113.10",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "local-address": "10.61.63.45",
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                }
+            ]
+        },
+        "peer-groups": {
+            "peer-group": [
+                {
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "peer-as": 65502,
+                        "peer-group-name": "BGP-PEER-GROUP1",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "peer-group-name": "BGP-PEER-GROUP1",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                },
+                {
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "peer-as": 65501,
+                        "peer-group-name": "BGP-PEER-GROUP2",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "peer-group-name": "BGP-PEER-GROUP2",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                },
+                {
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "peer-as": 65502,
+                        "peer-group-name": "BGP-PEER-GROUP3",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "peer-group-name": "BGP-PEER-GROUP3",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                },
+                {
+                    "apply-policy": {
+                        "config": {
+                            "default-export-policy": "REJECT_ROUTE",
+                            "default-import-policy": "REJECT_ROUTE"
+                        }
+                    },
+                    "as-path-options": {
+                        "config": {
+                            "allow-own-as": 0,
+                            "disable-peer-as-filter": false,
+                            "replace-peer-as": false
+                        }
+                    },
+                    "config": {
+                        "peer-as": 65501,
+                        "peer-group-name": "BGP-PEER-GROUP4",
+                        "route-flap-damping": false,
+                        "send-community": "NONE"
+                    },
+                    "ebgp-multihop": {
+                        "config": {
+                            "enabled": false
+                        }
+                    },
+                    "error-handling": {
+                        "config": {
+                            "treat-as-withdraw": false
+                        }
+                    },
+                    "logging-options": {
+                        "config": {
+                            "log-neighbor-state-changes": true
+                        }
+                    },
+                    "peer-group-name": "BGP-PEER-GROUP4",
+                    "route-reflector": {
+                        "config": {
+                            "route-reflector-client": false
+                        }
+                    },
+                    "timers": {
+                        "config": {
+                            "hold-time": 90,
+                            "keepalive-interval": 30,
+                            "minimum-advertisement-interval": 30
+                        }
+                    },
+                    "transport": {
+                        "config": {
+                            "mtu-discovery": false,
+                            "passive-mode": false
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "openconfig-network-instance:config": {
+        "identifier": "openconfig-policy-types:BGP",
+        "name": "BGP"
+    },
+    "openconfig-network-instance:identifier": "openconfig-policy-types:BGP",
+    "openconfig-network-instance:name": "BGP"
+}
+```
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
