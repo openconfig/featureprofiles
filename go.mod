@@ -29,6 +29,7 @@ require (
 	github.com/openconfig/gnmic/pkg/api v0.1.9
 	github.com/openconfig/gnoi v0.6.0
 	github.com/openconfig/gnoigo v0.0.0-20240820205259-23ac4e061cc2
+	github.com/openconfig/gnpsi v0.3.2
 	github.com/openconfig/gnsi v1.7.0
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.6.0
@@ -49,6 +50,7 @@ require (
 	github.com/pkg/sftp v1.13.6
 	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
+	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6-0.20201009195203-85dd5c8bc61c
 	github.com/spf13/viper v1.19.0
@@ -151,7 +153,6 @@ require (
 	github.com/olekukonko/errors v0.0.0-20250405072817-4e6d85265da6 // indirect
 	github.com/olekukonko/ll v0.0.8 // indirect
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
-	github.com/openconfig/gnpsi v0.3.2 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
@@ -166,7 +167,6 @@ require (
 	github.com/scrapli/scrapligo v1.1.11 // indirect
 	github.com/scrapli/scrapligocfg v1.0.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
-	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.3.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect

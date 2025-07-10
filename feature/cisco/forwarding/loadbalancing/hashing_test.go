@@ -18,6 +18,7 @@
 package hashing
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -32,8 +33,13 @@ import (
 
 // per device gribiParamPerSite param.
 var (
-	gribi1R = gribiParamPerSite{
+	encapVRFAV4SiteE = "10.240.118.32/28"
+	encapVRFAV4SiteR = "10.240.119.48/28"
+	encapVRFAV6SiteE = "2002:af0:7730::/44"
+	encapVRFAV6SiteR = "2002:af0:7620::/44"
+	gribi1R          = gribiParamPerSite{
 		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
 		decapV4Prefix:     "98.1.0.0/20",
@@ -57,13 +63,14 @@ var (
 	}
 	gribi2R = gribiParamPerSite{
 		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
 		decapV4Prefix:     "98.1.0.0/20",
-		nextSiteVIPs:      []string{"10.41.164.3", "10.41.164.1"},
+		nextSiteVIPs:      []string{"10.41.164.3", "10.41.164.3"},
 		selfSiteVIPs:      []string{"10.41.164.0"},
-		nextSiteIntfCount: 2,
-		selfSiteIntfCount: 1,
+		nextSiteIntfCount: 1,
+		selfSiteIntfCount: 0,
 		nextSite1VIPNH: []map[string]string{
 			{"Bundle-Ether4": "169.254.0.8"},
 			{"Bundle-Ether5": "169.254.0.10"},
@@ -80,13 +87,14 @@ var (
 	}
 	gribi3R = gribiParamPerSite{
 		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
 		decapV4Prefix:     "98.1.0.0/20",
-		nextSiteVIPs:      []string{"10.41.164.3", "10.41.164.1"},
+		nextSiteVIPs:      []string{"10.41.164.3", "10.41.164.3"},
 		selfSiteVIPs:      []string{"10.41.164.0"},
-		nextSiteIntfCount: 2,
-		selfSiteIntfCount: 1,
+		nextSiteIntfCount: 1,
+		selfSiteIntfCount: 0,
 		nextSite1VIPNH: []map[string]string{
 			{"Bundle-Ether4": "169.254.0.8"},
 			{"Bundle-Ether5": "169.254.0.10"},
@@ -103,13 +111,14 @@ var (
 	}
 	gribi4R = gribiParamPerSite{
 		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
 		decapV4Prefix:     "98.1.0.0/20",
-		nextSiteVIPs:      []string{"10.41.164.3", "10.41.164.1"},
+		nextSiteVIPs:      []string{"10.41.164.3", "10.41.164.3"},
 		selfSiteVIPs:      []string{"10.41.164.0"},
-		nextSiteIntfCount: 2,
-		selfSiteIntfCount: 1,
+		nextSiteIntfCount: 1,
+		selfSiteIntfCount: 0,
 		nextSite1VIPNH: []map[string]string{
 			{"Bundle-Ether4": "169.254.0.8"},
 			{"Bundle-Ether5": "169.254.0.10"},
@@ -125,7 +134,8 @@ var (
 		},
 	}
 	gribi1E = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV4Prefix:     encapVRFAV4SiteR,
+		encapV6Prefix:     encapVRFAV6SiteE,
 		encapTunnelIP1:    "98.1.0.0",
 		encapTunnelIP2:    "98.1.0.1",
 		decapV4Prefix:     "98.2.0.0/20",
@@ -150,7 +160,8 @@ var (
 		},
 	}
 	gribi2E = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV4Prefix:     encapVRFAV4SiteR,
+		encapV6Prefix:     encapVRFAV6SiteE,
 		encapTunnelIP1:    "98.1.0.0",
 		encapTunnelIP2:    "98.1.0.1",
 		decapV4Prefix:     "98.2.0.0/20",
@@ -365,6 +376,16 @@ func TestGribiFlowsLoadBalancing(t *testing.T) {
 	siteVDUTList := []*ondatra.DUTDevice{dut1V, dut2V}
 	jupiterDUTList := []*ondatra.DUTDevice{dutJupiterE, dutJupiterR}
 
+	test := verifiers.Interfaceverifier().VerifyShowInterfaceCLI(t, context.Background(), dut1E, "Bundle-Ether1")
+
+	t.Log(test)
+	for i, entry := range test {
+		fmt.Printf("=== Entry %d ===\n", i)
+		for key, val := range entry {
+			fmt.Printf("%s: %s\n", key, val)
+		}
+		fmt.Println()
+	}
 	//Just to use variable and compile
 	t.Log("R,E,V and Jupiter sites", siteRDUTList, siteEDUTList, siteVDUTList, jupiterDUTList)
 
