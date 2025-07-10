@@ -41,7 +41,36 @@ OnChange Subscription Test for Breakout Interfaces
 
   * Issue a reboot to the device and check if all the paths can be subscribed to.
 
- 
+## Canonical OC
+
+```json
+{
+  "platform_type": ["INTEGRATED_CIRCUIT", "LINECARD"],
+  "paths": [
+    "/interfaces/interface/state/id",
+    "/interfaces/interface/state/hardware-port",
+    "/interfaces/interface/state/admin-status",
+    "/interfaces/interface/state/oper-status",
+    "/interfaces/interface/state/forwarding-viable",
+    "/interfaces/interface/ethernet/state/port-speed",
+    "/interfaces/interface/ethernet/state/mac-address",
+    "/lacp/interfaces/interface/members/member/interface",
+    "/components/component/state/parent",
+    "/components/component/state/oper-status",
+    "/components/component/state/name",
+    "/components/component/integrated-circuit/state/node-id"
+  ],
+  "rpcs": {
+    "gnmi": {
+      "gNMI.Subscribe": { "Mode": ["ON_CHANGE"] },
+      "gNMI.Set": {}
+    },
+    "gnoi": {
+      "system.System.Reboot": {},
+      "system.System.RebootStatus": {}
+    }
+  }
+}
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
