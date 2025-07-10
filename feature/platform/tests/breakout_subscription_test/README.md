@@ -67,7 +67,6 @@ OnChange Subscription Test for Breakout Interfaces
         "name": "Ethernet1",
         "state": {
           "id": "Ethernet1",
-          "hardware-port": "Ethernet1",
           "admin-status": "UP",
           "oper-status": "UP",
           "forwarding-viable": "true"
