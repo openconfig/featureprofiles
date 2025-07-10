@@ -854,10 +854,10 @@ message Metadata {
 
     // link_local_instead_of_nh is set to true for devices that give
     // link-local address instead of NH in AFT.
-    bool link_local_instead_of_nh = 300;
+    bool link_local_instead_of_nh = 302;
 
     // low_scale_aft returns true if device requires low scale AFT.
-    bool low_scale_aft = 301;
+    bool low_scale_aft = 303;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
