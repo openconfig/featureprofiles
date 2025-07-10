@@ -45,29 +45,53 @@ OnChange Subscription Test for Breakout Interfaces
 
 ```json
 {
-  "platform_type": ["INTEGRATED_CIRCUIT", "LINECARD"],
-  "paths": [
-    "/interfaces/interface/state/id",
-    "/interfaces/interface/state/hardware-port",
-    "/interfaces/interface/state/admin-status",
-    "/interfaces/interface/state/oper-status",
-    "/interfaces/interface/state/forwarding-viable",
-    "/interfaces/interface/ethernet/state/port-speed",
-    "/interfaces/interface/ethernet/state/mac-address",
-    "/lacp/interfaces/interface/members/member/interface",
-    "/components/component/state/parent",
-    "/components/component/state/oper-status",
-    "/components/component/state/name",
-    "/components/component/integrated-circuit/state/node-id"
-  ],
-  "rpcs": {
-    "gnmi": {
-      "gNMI.Subscribe": { "Mode": ["ON_CHANGE"] },
-      "gNMI.Set": {}
-    },
-    "gnoi": {
-      "system.System.Reboot": {},
-      "system.System.RebootStatus": {}
+  "components": {
+    "component": [
+      {
+        "state": {
+          "name": "Linecard0",
+          "oper-status": "UP"
+        },
+        "integrated-circuit": {
+          "state": {
+            "node-id": "IC0"
+          }
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "state": {
+          "id": "Ethernet1",
+          "hardware-port": "1/1",
+          "admin-status": "UP",
+          "oper-status": "UP",
+          "forwarding-viable": "true"
+        },
+        "ethernet": {
+          "state": {
+            "port-speed": "SPEED_100G",
+            "mac-address": "00:1A:2B:3C:4D:5E"
+          }
+        }
+      }
+    ]
+  },
+  "lacp": {
+    "interfaces": {
+      "interface": [
+        {
+          "members": {
+            "member": [
+              {
+                "interface": "Ethernet1"
+              }
+            ]
+          }
+        }
+      ]
     }
   }
 }
