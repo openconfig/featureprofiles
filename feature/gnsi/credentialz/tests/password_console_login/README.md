@@ -5,6 +5,32 @@
 Test that Credentialz properly creates users and the associated password and that the DUT handles
 authentication of those users properly.
 
+## Testbed type
+* [`featureprofiles/topologies/dut.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut.testbed)
+
+## Canonical OC
+```json
+{
+  "system": {
+    "aaa": {
+      "authentication": {
+        "users": {
+          "user": [
+            {
+              "config": {
+                "password": "xxxxxxx",
+                "ssh-key": "yyyyyyy",
+                "username": "testuser"
+              },
+              "username": "testuser"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+```
 
 ## Procedure
 
@@ -29,12 +55,17 @@ authentication of those users properly.
 The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
 
 ```yaml
+paths:
+  ## State Paths ##
+  /system/aaa/authentication/users/user/state/authorized-keys-list-version:
+  /system/aaa/authentication/users/user/state/authorized-keys-list-created-on:
+  /system/ssh-server/state/counters/access-accepts:
+  /system/ssh-server/state/counters/last-access-accept:
+
 rpcs:
   gnsi:
     credentialz.v1.Credentialz.RotateAccountCredentials:
 ```
 
-
 ## Minimum DUT platform requirement
-
-N/A
+* KNE
