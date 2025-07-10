@@ -96,7 +96,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 wouldn't export routes to IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3 since they are missing from the DUT's forwarding table.
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
    
-####Canonical OC
+#### Canonical OC
 ```json
 {
   "routing-policy": {
