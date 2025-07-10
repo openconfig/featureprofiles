@@ -50,7 +50,7 @@ OnChange Subscription Test for Breakout Interfaces
       {
         "state": {
           "name": "Linecard0",
-          "oper-status": "UP"
+          "oper-status": "ACTIVE"
         },
         "integrated-circuit": {
           "state": {
