@@ -106,4 +106,3 @@ rpcs:
 ```
 ## Required DUT platform
 Single DUT
-
