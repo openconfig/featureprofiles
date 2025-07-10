@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/ondatra/gnmi"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -46,6 +45,8 @@ func TestCredentialz(t *testing.T) {
 	// Setup test user and password.
 	credz.SetupUser(t, dut, username)
 	password := credz.GeneratePassword()
+
+	t.Logf("Rotating user password on DUT")
 	credz.RotateUserPassword(t, dut, username, password, passwordVersion, uint64(passwordCreatedOn))
 
 	testCases := []struct {
@@ -73,7 +74,6 @@ func TestCredentialz(t *testing.T) {
 			expectFail:    true,
 		},
 	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Verify ssh succeeds/fails based on expected result.
@@ -92,18 +92,12 @@ func TestCredentialz(t *testing.T) {
 			// Verify password telemetry.
 			userState := gnmi.Get(t, dut, gnmi.OC().System().Aaa().Authentication().User(username).State())
 			gotPasswordVersion := userState.GetPasswordVersion()
-			if !cmp.Equal(gotPasswordVersion, passwordVersion) {
-				t.Fatalf(
-					"Telemetry reports password version is not correctn\tgot: %s\n\twant: %s",
-					gotPasswordVersion, passwordVersion,
-				)
+			if got, want := gotPasswordVersion, passwordVersion; got != want {
+				t.Fatalf("Telemetry reports password version is not correct\n\tgot: %s\n\twant: %s", got, want)
 			}
 			gotPasswordCreatedOn := userState.GetPasswordCreatedOn()
-			if !cmp.Equal(time.Unix(0, int64(gotPasswordCreatedOn)), time.Unix(passwordCreatedOn, 0)) {
-				t.Fatalf(
-					"Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d",
-					gotPasswordCreatedOn, passwordCreatedOn,
-				)
+			if got, want := gotPasswordCreatedOn, uint64(passwordCreatedOn); got != want {
+				t.Fatalf("Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d", got, want)
 			}
 		})
 	}
