@@ -214,11 +214,11 @@ ip decap-group gre-decap
 !`
 
 	staticLSPArista = `
-mpls static top-label 99991 169.254.0.12 pop payload-type ipv4 access-list bypass
-mpls static top-label 99992 2600:2d00:0:1:8000:10:0:ca32 pop payload-type ipv6 access-list bypass
-mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypass
-mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
-`
+	mpls static top-label 99991 169.254.0.12 pop payload-type ipv4 access-list bypass
+	mpls static top-label 99992 2600:2d00:0:1:8000:10:0:ca32 pop payload-type ipv6 access-list bypass
+	mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypass
+	mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
+	`
 )
 
 // InterfacelocalProxyConfig configures the interface local-proxy-arp.
@@ -521,6 +521,23 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			helpers.GnmiCLIConfig(t, dut, staticLSPArista)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
+		}
+	} else {
+		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
+	}
+}
+
+func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops []string, labels []int, ocPFParams OcPolicyForwardingParams) {
+	if deviations.StaticMplsUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var mplsStaticLspConfig string
+			for i, nexthop := range nexthops {
+				mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", labels[i], nexthop)
+			}
+			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfig)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
 		}
