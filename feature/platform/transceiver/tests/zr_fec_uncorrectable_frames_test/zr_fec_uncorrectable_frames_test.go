@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -48,28 +48,28 @@ func TestMain(m *testing.M) {
 }
 
 func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64], baselineValue uint64) {
-    dut := ondatra.DUT(t, "dut")
-    fecStream := stream.Next()
-    if fecStream == nil {
-        t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
-    }
-    currentFec, ok := fecStream.Val()
-    if !ok {
-        t.Fatalf("Error capturing streaming Fec value")
-    }
-    if reflect.TypeOf(currentFec).Kind() != reflect.Uint64 {
-        t.Fatalf("fec value is not type uint64")
-    }
+	dut := ondatra.DUT(t, "dut")
+	fecStream := stream.Next()
+	if fecStream == nil {
+		t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
+	}
+	currentFec, ok := fecStream.Val()
+	if !ok {
+		t.Fatalf("Error capturing streaming Fec value")
+	}
+	if reflect.TypeOf(currentFec).Kind() != reflect.Uint64 {
+		t.Fatalf("fec value is not type uint64")
+	}
 	if deviations.NonIntervalFecErrorCounter(dut) {
 		// Check if the counter is incrementing
 		if currentFec > baselineValue {
-            t.Fatalf("FecUncorrectableBlocks increased after flap: baseline=%d, current=%d, diff=%d",
-                     baselineValue, currentFec, currentFec-baselineValue)
-        }
-        t.Logf("FecUncorrectableBlocks not increasing: baseline=%d, current=%d", baselineValue, currentFec)
-    } else if currentFec != 0 {
-        t.Fatalf("Got FecUncorrectableBlocks got %d, want 0", currentFec)
-    }
+			t.Fatalf("FecUncorrectableBlocks increased after flap: baseline=%d, current=%d, diff=%d",
+				baselineValue, currentFec, currentFec-baselineValue)
+		}
+		t.Logf("FecUncorrectableBlocks not increasing: baseline=%d, current=%d", baselineValue, currentFec)
+	} else if currentFec != 0 {
+		t.Fatalf("Got FecUncorrectableBlocks got %d, want 0", currentFec)
+	}
 }
 
 func TestZrUncorrectableFrames(t *testing.T) {
@@ -154,4 +154,3 @@ func TestZrUncorrectableFrames(t *testing.T) {
 		})
 	}
 }
-
