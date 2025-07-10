@@ -3579,43 +3579,43 @@ func testDcGateOOR(t *testing.T) {
 	t.Logf("Ceiling value of resources to trigger OOR: %d", nhgForOOR*nhsPerNHG)
 
 	t.Logf("Triggering OOR by confinguring %d NHGs with %d NHsPerNHG in PrimaryLevel3E", nhgForOOR, nhsPerNHG)
-	// oorGp := NewGribiProfile(t, 1, false, false, tcArgs.dut,
-	// 	&routesParam{segment: "PrimaryLevel3E", ipEntries: iputil.GenerateIPs(IPBlockEncapE, nhgForOOR*nhsPerNHG),
-	// 		numUniqueNHGs: nhgForOOR, numNHPerNHG: nhsPerNHG, nextHopWeight: generateNextHopWeights(L3Weight, nhsPerNHG)},
-	// )
+	oorGp := NewGribiProfile(t, 1, false, false, tcArgs.dut,
+		&routesParam{segment: "PrimaryLevel3E", ipEntries: iputil.GenerateIPs(IPBlockEncapE, nhgForOOR*nhsPerNHG),
+			numUniqueNHGs: nhgForOOR, numNHPerNHG: nhsPerNHG, nextHopWeight: generateNextHopWeights(L3Weight, nhsPerNHG)},
+	)
 
-	// t.Run("Validating encap traffic after OOR", func(t *testing.T) {
-	// 	oorGp.pushBatchConfig(t, tcArgs, []int{0})
-	// 	printResourcesInRed(t, tcArgs.dut, max2Cards[0])
-	// 	getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, max2Cards)
+	t.Run("Validating encap traffic after OOR", func(t *testing.T) {
+		oorGp.pushBatchConfig(t, tcArgs, []int{0})
+		printResourcesInRed(t, tcArgs.dut, max2Cards[0])
+		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, max2Cards)
 
-	// 	t.Logf("Validating encap traffic after triggering OOR")
-	// 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
-	// })
+		t.Logf("Validating encap traffic after triggering OOR")
+		testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+	})
 
-	// t.Run("Validating encap traffic after clearing OOR", func(t *testing.T) {
-	// 	oorGp.DeleteBatchConfig(t, tcArgs, []int{0})
-	// 	// oorGp.DiscreteDeleteBatchConfig(t, tcArgs, []int{0})
-	// 	t.Logf("Validating encap traffic after clearing OOR")
-	// 	testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
-	// 	printResourcesInRed(t, tcArgs.dut, max2Cards[0])
-	// })
+	t.Run("Validating encap traffic after clearing OOR", func(t *testing.T) {
+		oorGp.DeleteBatchConfig(t, tcArgs, []int{0})
+		// oorGp.DiscreteDeleteBatchConfig(t, tcArgs, []int{0})
+		t.Logf("Validating encap traffic after clearing OOR")
+		testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+		printResourcesInRed(t, tcArgs.dut, max2Cards[0])
+	})
 
-	// t.Run("Validating /32 decap traffic after clearning OOR", func(t *testing.T) {
-	// 	t.Logf("Validating /32 decap traffic")
-	// 	for _, b := range randomPickTwo([]int{0, 1, 2, 3, 4, 5, 6, 7}) {
-	// 		for _, encap := range randomPickTwo([]string{"A", "B", "C", "D"}) {
-	// 			testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
-	// 		}
-	// 	}
-	// })
+	t.Run("Validating /32 decap traffic after clearning OOR", func(t *testing.T) {
+		t.Logf("Validating /32 decap traffic")
+		for _, b := range randomPickTwo([]int{0, 1, 2, 3, 4, 5, 6, 7}) {
+			for _, encap := range randomPickTwo([]string{"A", "B", "C", "D"}) {
+				testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
+			}
+		}
+	})
 
-	// t.Run("Validating variable prefix decap traffic after clearning OOR", func(t *testing.T) {
-	// 	t.Logf("Validating variable prefix decap traffic")
-	// 	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2}, []string{"A", "B", "C", "D"})
-	// 	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{3, 4, 5}, []string{"A", "B", "C", "D"})
-	// 	testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{6, 7}, []string{"A", "B", "C", "D"})
-	// })
+	t.Run("Validating variable prefix decap traffic after clearning OOR", func(t *testing.T) {
+		t.Logf("Validating variable prefix decap traffic")
+		testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{0, 1, 2}, []string{"A", "B", "C", "D"})
+		testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{3, 4, 5}, []string{"A", "B", "C", "D"})
+		testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, []int{6, 7}, []string{"A", "B", "C", "D"})
+	})
 }
 
 func getDcGateProfile(t *testing.T, tcArgs *testArgs, availableForUseResourceIDs int) *GribiProfile {
@@ -3868,14 +3868,16 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 		t.Logf("Iteration: %d, resource consumption in steady state", iteration)
 		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, pathInfo.PrimaryUniqueIntfCards)
 
+		nhPerNhg := gp.PrimaryLevel1.numNHPerNHG
+		frr1NhPerNhg := gp.Frr1Level1.numNHPerNHG
 		// divide set of primary interfaces into vip1 and vip2
-		primaryVips := SplitSliceByCount(tcArgs.primaryPaths, 8, 2)
+		primaryVips := SplitSliceByCount(tcArgs.primaryPaths, nhPerNhg, 2)
 		primaryVip1 := primaryVips[0]
 		primaryVip2 := primaryVips[1]
-		randomVip1 := DivideSliceRandomly(primaryVip1, 8, true)
-		randomVip2 := DivideSliceRandomly(primaryVip2, 8, true)
-		randomAllVips := DivideSliceRandomly(tcArgs.primaryPaths, 8, true)
-		randomAllFrr1Paths := DivideSliceRandomly(tcArgs.frr1Paths, 8, true)
+		randomVip1 := DivideSliceRandomly(primaryVip1, nhPerNhg, true)
+		randomVip2 := DivideSliceRandomly(primaryVip2, nhPerNhg, true)
+		randomAllVips := DivideSliceRandomly(tcArgs.primaryPaths, nhPerNhg, true)
+		randomAllFrr1Paths := DivideSliceRandomly(tcArgs.frr1Paths, frr1NhPerNhg, true)
 		primaryAndFrr1Paths := tcArgs.primaryPaths
 		primaryAndFrr1Paths = append(primaryAndFrr1Paths, tcArgs.frr1Paths...)
 
