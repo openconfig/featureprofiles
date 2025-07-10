@@ -75,7 +75,7 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	outpupacket := outpackets[0]
 	fmt.Printf("*********************oupackets is %+v", outpackets)
 	fmt.Printf("*********************inputpackets is %+v", inpackets)
-	//time.Sleep(2*time.Minute)
+	
 	baseConfigTele := setupQosTele(t, args.dut)
 	baseConfigInterface := setup.GetAnyValue(baseConfigTele.Interface)
 	interfaceTelemetryPath := gnmi.OC().Qos().Interface("Bundle-Ether120").State()
@@ -132,7 +132,7 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 
 // testSchedulerwrr tests the Weighted Round Robin (WRR) scheduling on the DUT (Device Under Test).
 func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
-	//defer flushServer(t, args)
+	defer flushServer(t, args)
 	t.Logf("clear qos counters on all interfaces")
 	cliHandle := args.dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
@@ -177,7 +177,6 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	ixiastats := make(map[string]uint64)
 	queueNames := []string{}
 
-	//EgressInterface := "Bundle-Ether121"
 	for _, EgressInterface := range interfaceList {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(EgressInterface).State()
 		t.Run(fmt.Sprintf("Get Interface Telemetry %s", EgressInterface), func(t *testing.T) {
