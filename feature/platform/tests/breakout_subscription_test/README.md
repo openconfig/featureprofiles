@@ -64,6 +64,7 @@ OnChange Subscription Test for Breakout Interfaces
   "interfaces": {
     "interface": [
       {
+        "name": "et-0/0/0",
         "state": {
           "id": "Ethernet1",
           "hardware-port": "1/1",
