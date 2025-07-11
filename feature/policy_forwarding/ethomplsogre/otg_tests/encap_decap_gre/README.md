@@ -349,40 +349,42 @@ Port mode Interface configs
 VLAN mode Interface configs  
 
 ```json
-        "config": {
-          "description": "CLOUD-CSI",
-          "enabled": true,
-          "mtu": 9080,
-          "name": "Bundle-Ether9",
-          "type": "ieee8023adLag"
-        },
+  {
+    "config": {
+        "description": "CLOUD-CSI",
+        "enabled": true,
+        "mtu": 9080,
         "name": "Bundle-Ether9",
-        "rates": {
-          "config": {
+        "type": "ieee8023adLag"
+    },
+    "name": "Bundle-Ether9",
+    "rates": {
+        "config": {
             "load-interval": 30
-          }
-        },
-        "subinterfaces": {
-          "subinterface": [
-                        {
-              "config": {
-                "description": "CLOUD-GEO-PRIVATE [T=qp1309122726287]",
-                "enabled": true,
-                "index": 1709
-              },
-              "index": 1709,
-              "vlan": {
-                "match": {
-                  "single-tagged": {
-                    "config": {
-                      "vlan-id": 1709
+        }
+    },
+    "subinterfaces": {
+        "subinterface": [
+            {
+                "config": {
+                    "description": "CLOUD-GEO-PRIVATE [T=qp1309122726287]",
+                    "enabled": true,
+                    "index": 1709
+                },
+                "index": 1709,
+                "vlan": {
+                    "match": {
+                        "single-tagged": {
+                            "config": {
+                                "vlan-id": 1709
+                            }
+                        }
                     }
-                  }
                 }
-              }
             }
-          ]
-        },
+        ]
+    }
+  }
 ```
 
 ## Canonical OC  
@@ -532,7 +534,7 @@ Tunnels/Next-hop group configs
                 "config": {
                     "name": "DEFAULT"
                 },
-    "static": {
+                "static": {
                     "next-hop-groups": {
                         "net-hop-group": [
                             {
@@ -577,7 +579,7 @@ Tunnels/Next-hop group configs
                                                     "dscp": "outer_dscp",
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
-                                            },
+                                            }
                                         ]
                                     }
                                 }
@@ -598,7 +600,7 @@ Tunnels/Next-hop group configs
                                                     "dscp": "outer_dscp",
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
-                                            },
+                                            }
                                         ]
                                     }
                                 }
