@@ -26,7 +26,7 @@ system must be able to support more than one key type at any
 point in time in order to support key algorithm change events.)
 
 A trust bundle may have one or more certificates contained in
-it, systems should be able to support at least one thousand
+it, systems should be able to support at least twenty thousand
 CA keys in such a bundle.
 
 
@@ -65,7 +65,8 @@ Load the server certificate and key from each of the following CA sets:
    * ca-20000
 
 Each service must be configured to use the appropriate certificate and validate
-that certificate using the included trust_bundle.
+that certificate using the included trust_bundle. Loading a new trust_bundle
+should not take longer than 120 seconds.
 
 Perform this test with both RSA dn ECDSA key-types.
 
