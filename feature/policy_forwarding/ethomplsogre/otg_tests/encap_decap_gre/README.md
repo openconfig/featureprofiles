@@ -616,27 +616,27 @@ Tunnels/Next-hop group configs
 ```yaml
 paths:
     # interface configs
-    /interfaces/interface/config/description
-    /interfaces/interface/config/enabled
-    /interfaces/interface/config/mtu
-    /interfaces/interface/config/name
-    /interfaces/interface/config/type
-    /interfaces/interface/rates/config/load-interval
-    /interfaces/interface/subinterfaces/subinterface/config/description
-    /interfaces/interface/subinterfaces/subinterface/config/enabled
-    /interfaces/interface/subinterfaces/subinterface/config/index
-    /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
-    /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
-    /interfaces/interface/aggregation/config/lag-type
+    /interfaces/interface/config/description:
+    /interfaces/interface/config/enabled:
+    /interfaces/interface/config/mtu:
+    /interfaces/interface/config/name:
+    /interfaces/interface/config/type:
+    /interfaces/interface/rates/config/load-interval:
+    /interfaces/interface/subinterfaces/subinterface/config/description:
+    /interfaces/interface/subinterfaces/subinterface/config/enabled:
+    /interfaces/interface/subinterfaces/subinterface/config/index:
+    /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
+    /interfaces/interface/aggregation/config/lag-type:
 
     # psuedowire configs
-    /network-instances/network-instance/config/name
-    /network-instances/network-instance/config/type
-    /network-instances/network-instance/connection-points/connection-point/config/connection-point-id
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/config/endpoint-id
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/interface
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier
+    /network-instances/network-instance/config/name:
+    /network-instances/network-instance/config/type:
+    /network-instances/network-instance/connection-points/connection-point/config/connection-point-id:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/config/endpoint-id:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/interface:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier:
     
     #TODO: Add new OCs for labels and next-hop-group under connection-point 
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label 
