@@ -236,8 +236,8 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 # paths:
 
 /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
 
