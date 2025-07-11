@@ -629,7 +629,7 @@ paths:
     /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
     /interfaces/interface/aggregation/config/lag-type
 
-    #psuedowire configs
+    # psuedowire configs
     /network-instances/network-instance/config/name
     /network-instances/network-instance/config/type
     /network-instances/network-instance/connection-points/connection-point/config/connection-point-id
