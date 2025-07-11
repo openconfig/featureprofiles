@@ -1,4 +1,4 @@
-# PF-1.11: EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload
+# PF-1.23: EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload
 
 ## Summary
 
