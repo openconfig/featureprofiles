@@ -195,116 +195,63 @@ Verify results are same corresponding to test cases PF-1.18.1 - PF-1.18.9 with:
 * Ingress and egress aggregate links on same PPE
 * Ingress links on multiple PPEs and egress aggregate links on multiple PPEs
 
-## Canonical OpenConfig for MACsec configuration
+#### Canonical OC 
+NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
 
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
+        },
+        "mpls": {
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "Customer IPV4 in:40571 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40571,
+                      "next-hop": "169.254.1.138"
+                    }
+                  },
+                  "name": "Customer IPV4 in:40571 out:pop"
+                },
+                {
+                  "config": {
+                    "name": "Customer IPV6 in:40572 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40572,
+                      "next-hop": "2600:2d00:0:1:4000:15:69:2072"
+                    }
+                  },
+                  "name": "Customer IPV6 in:40572 out:pop"
+                }
+              ]
+            }
+          }
+        },
+        "name": "default"
+      }
+    ]
+  }
+}        
+```
 TODO: 
 * Finalize and update the below paths after the review and testing on any vendor device
 * MPLSoGRE/MPLSoGUE packet classification OC need to be defined
 * OC for Queueing with shaper need to be defined
 * Add json queueing configs in this file - b/408493684
-
-### JSON Format
-NOTE: Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
-
-```json
-{
-    "network-instances": {
-        "network-instance": {
-            "DEFAULT": {
-                "mpls": {
-                    "global": {
-                        "interface-attributes": {
-                            "interface": [
-                                {
-                                    "config": {
-                                        "interface-id": "Aggregate4",
-                                        "mpls-enabled": false
-                                    },
-                                    "interface-id": "Aggregate4"
-                                }
-                            ]
-                        }
-                    },
-                    "lsps": {
-                        "static-lsps": {
-                            "static-lsp": [
-                                {
-                                    "config": {
-                                        "name": "Customer IPV4 in:40571 out:pop"
-                                    },
-                                    "egress": {
-                                        "config": {
-                                            "incoming-label": 40571,
-                                            "next-hop": "169.254.1.138",
-                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                                        }
-                                    }
-                                },
-                                {
-                                    "config": {
-                                        "name": "Customer IPV6 in:40572 out:pop"
-                                    },
-                                    "egress": {
-                                        "config": {
-                                            "incoming-label": 40572,
-                                            "next-hop": "2600:2d00:0:1:4000:15:69:2072",
-                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                                        }
-                                    }
-                                },
-                                {
-                                    "config": {
-                                        "name": "Customer multicast in:40573 out:pop"
-                                    },
-                                    "egress": {
-                                        "config": {
-                                            "incoming-label": 40573,
-                                            "next-hop": "239.0.1.1",
-                                            "pipe-mode": true # TODO: Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                },
-                "name": "default",
-                "policy-forwarding": {
-                    "policies": {
-                        "policy": [
-                            {
-                                "config": {
-                                    "policy-id": "decap MPLS in GRE"
-                                },
-                                "rules": {
-                                    "rule": [
-                                        {
-                                            "action": {
-                                                "decapsulate-mpls-in-udp": true
-                                            },
-                                            "config": {
-                                                "sequence-id": 1
-                                            },
-                                            "ipv4": {
-                                                "config": {
-                                                    "destination-address": "169.254.125.155/28",
-                                                    "protocol": "IP"
-                                                }
-                                            },
-                                            "sequence-id": 1
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
+* Add to OC data models following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2 :"pipe-mode": true
+* 
+  
 ## OpenConfig Path and RPC Coverage
 ```yaml
 
