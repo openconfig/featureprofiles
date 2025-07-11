@@ -1522,3 +1522,8 @@ func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
 func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }
+
+// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
+        return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
+}
