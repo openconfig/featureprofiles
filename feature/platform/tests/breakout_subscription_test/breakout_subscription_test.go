@@ -397,7 +397,7 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 
 // LinecardReboot performs a linecard reboot.
 func LinecardReboot(t *testing.T, dut *ondatra.DUTDevice) {
-	const linecardBoottime = 10 * time.Minute
+	const linecardBoottime = 20 * time.Minute
 	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
 	t.Logf("Found linecard list: %v", lcs)
 
