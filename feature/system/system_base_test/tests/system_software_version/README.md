@@ -18,10 +18,7 @@ any security setup for connecting to the services.
 #### Canonical OC
 ```json
 {
-  "Path": "system/state/software-version",
-  "values": {
-    "system/state/software-version": "1.4.2"
-  }
+  "system/state/software-version": "1.4.2"
 }
 ```
 
