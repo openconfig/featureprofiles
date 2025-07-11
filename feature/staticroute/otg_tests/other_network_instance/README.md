@@ -117,7 +117,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
                           "index": "0",
                           "config": {
                             "index": "0",
-                            "next-network-instance": "default"
+                            "next-network-instance": "DEFAULT"
                           }
                         }
                       ]
@@ -134,7 +134,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
                           "index": "0",
                           "config": {
                             "index": "0",
-                            "next-network-instance": "default"
+                            "next-network-instance": "DEFAULT"
                           }
                         }
                       ]
