@@ -45,6 +45,59 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
   "network-instances": {
     "network-instance": [
       {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "STATIC",
+              "name": "STATIC",
+              "static-routes": {
+                "static": [
+                  {
+                    "prefix": "10.0.0.0/8",
+                    "config": {
+                      "prefix": "10.0.0.0/8",
+                      "set-tag": 1
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-hop": "DROP",
+                            "preference": 5
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "prefix": "2000::/4",
+                    "config": {
+                      "prefix": "2000::/4",
+                      "set-tag": 1
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-hop": "DROP",
+                            "preference": 5
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
         "name": "vrf1",
         "protocols": {
           "protocol": [
@@ -64,13 +117,13 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
                           "index": "0",
                           "config": {
                             "index": "0",
-                            "next-network-instance": "DEFAULT"
+                            "next-network-instance": "default"
                           }
                         }
                       ]
                     }
                   },
-                   {
+                  {
                     "prefix": "0::0/0",
                     "config": {
                       "prefix": "0::0/0"
@@ -81,7 +134,7 @@ B[DUT] <--LAG3--> D[ATE1:Port3];
                           "index": "0",
                           "config": {
                             "index": "0",
-                            "next-network-instance": "DEFAULT"
+                            "next-network-instance": "default"
                           }
                         }
                       ]
