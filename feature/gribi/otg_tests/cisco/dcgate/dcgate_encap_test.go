@@ -24,7 +24,7 @@ func TestBasicEncap(t *testing.T) {
 
 	// Configure ATE
 	otg := ondatra.ATE(t, "ate")
-	//topo := configureOTG(t, otg)
+	topo := configureOTG(t, otg)
 
 	// configure gRIBI client
 	c := gribi.Client{
@@ -47,7 +47,7 @@ func TestBasicEncap(t *testing.T) {
 		client: &c,
 		dut:    dut,
 		ate:    otg,
-		//	topo:   topo,
+		topo:   topo,
 	}
 	programEntries(t, dut, &c, tcArgs)
 
@@ -231,7 +231,7 @@ func TestBasicEncap(t *testing.T) {
 				defer unshutPorts(t, tcArgs, []string{"port3", "port4"})
 			}
 			if otgMutliPortCaptureSupported {
-				//	enableCapture(t, otg.OTG(), topo, tc.capturePorts)
+				enableCapture(t, otg.OTG(), topo, tc.capturePorts)
 				t.Log("Start capture and send traffic")
 				sendTraffic(t, tcArgs, tc.flows, true)
 				t.Log("Validate captured packet attributes")
@@ -239,10 +239,10 @@ func TestBasicEncap(t *testing.T) {
 				if tc.validateEncapRatio {
 					validateTunnelEncapRatio(t, tunCounter)
 				}
-				//	clearCapture(t, otg.OTG(), topo)
+				clearCapture(t, otg.OTG(), topo)
 			} else {
 				for _, port := range tc.capturePorts {
-					//		enableCapture(t, otg.OTG(), topo, []string{port})
+					enableCapture(t, otg.OTG(), topo, []string{port})
 					t.Log("Start capture and send traffic")
 					sendTraffic(t, tcArgs, tc.flows, true)
 					t.Log("Validate captured packet attributes")
@@ -250,7 +250,7 @@ func TestBasicEncap(t *testing.T) {
 					if tc.validateEncapRatio {
 						validateTunnelEncapRatio(t, tunCounter)
 					}
-					//	clearCapture(t, otg.OTG(), topo)
+					clearCapture(t, otg.OTG(), topo)
 				}
 			}
 			t.Log("Validate traffic flows")

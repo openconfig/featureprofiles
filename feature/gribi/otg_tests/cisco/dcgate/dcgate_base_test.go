@@ -797,14 +797,12 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p3 := ate.Port(t, "port3")
 	p4 := ate.Port(t, "port4")
 	p5 := ate.Port(t, "port5")
-	// p6 := ate.Port(t, "port6")
 
 	otgPort1.AddToOTG(topo, p1, &dutPort1)
 	otgPort2.AddToOTG(topo, p2, &dutPort2)
 	otgPort3.AddToOTG(topo, p3, &dutPort3)
 	otgPort4.AddToOTG(topo, p4, &dutPort4)
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
-	// otgPort6.AddToOTG(topo, p6, &dutPort6)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
