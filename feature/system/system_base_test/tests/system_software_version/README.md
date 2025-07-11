@@ -15,6 +15,16 @@ any security setup for connecting to the services.
 1. Configure DUT with service configurations for all required services
 2. The test will verify if the software-version state path can be read and is non-empty.
 
+#### Canonical OC
+```json
+{
+  "Path": "system/state/software-version",
+  "values": {
+    "system/state/software-version": "1.4.2"
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
