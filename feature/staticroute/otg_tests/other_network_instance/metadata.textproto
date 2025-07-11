@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "17102974-c880-4b61-9dc3-3086499ccfed"
+plan_id: "RT-1.65"
+description: "Static Route to Other Network-Instance"
+testbed: TESTBED_DUT_ATE_2LINKS
