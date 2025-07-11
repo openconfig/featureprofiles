@@ -35,6 +35,7 @@ const (
 	vrfRepair          = "REPAIR"
 	vrfDecap           = "DECAP_TE_VRF"
 	localStationMac    = "00:1a:11:17:5f:80"
+	trafficRatePPS 	   = 10000
 )
 
 // Traffic flow and common variables.
@@ -122,7 +123,7 @@ var (
 		L4DstPortStart:    2000,
 		L4FlowStep:        1,
 		L4FlowCount:       uint32(srcIPFlowCount),
-		TrafficPPS:        100,
+		TrafficPPS:        trafficRatePPS,
 		PacketSize:        128,
 	}
 	v4E2R = helper.TrafficFlowAttr{
@@ -148,7 +149,7 @@ var (
 		L4DstPortStart:    2000,
 		L4FlowStep:        1,
 		L4FlowCount:       uint32(srcIPFlowCount),
-		TrafficPPS:        100,
+		TrafficPPS:        trafficRatePPS,
 		PacketSize:        128,
 	}
 
@@ -241,7 +242,7 @@ var (
 		L4DstPortStart:    2000,
 		L4FlowStep:        1,
 		L4FlowCount:       uint32(srcIPFlowCount),
-		TrafficPPS:        100,
+		TrafficPPS:        trafficRatePPS,
 		PacketSize:        128,
 	}
 	IPinIPE2R = helper.TrafficFlowAttr{
@@ -277,7 +278,7 @@ var (
 		L4DstPortStart:    2000,
 		L4FlowStep:        1,
 		L4FlowCount:       uint32(srcIPFlowCount),
-		TrafficPPS:        100,
+		TrafficPPS:        trafficRatePPS,
 		PacketSize:        128,
 	}
 	// IPv6inIP Traffic flows
