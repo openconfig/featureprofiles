@@ -47,7 +47,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Egress Ports: Aggregate2 (ATE Ports 2,3) and Aggregate3 (ATE Ports 4,5) are used as the destination ports for encapsulated traffic.
 
-### PF-1.11.1: Generate DUT Configuration
+### PF-1.23.1: Generate DUT Configuration
 
 Aggregate 1 "customer interface" is the ingress port that could either have port mode configuration or attachment mode configuration as described below. 
 
@@ -116,7 +116,7 @@ EACH test should be run twice - once with port mode configuration and once with 
 * Entire Label block must be reallocated for static MPLS
 * Labels from start/end/mid ranges must be usable and configured corresponding to EthoMPLSoGRE encapsulation
 
-### PF-1.11.2: Verify PF EthoMPLSoGRE encapsulate action for unencrytped IPv4, IPv6 traffic with entropy on ethernet headers
+### PF-1.23.2: Verify PF EthoMPLSoGRE encapsulate action for unencrytped IPv4, IPv6 traffic with entropy on ethernet headers
 
 * Generate 1000 different traffic flows on ATE Port 1 at line rate with a mix of both IPV4 and IPv6 traffic. Use 64, 128, 256, 512, 1024 MTU bytes frame size. 
 * Flows should have entropy on Source MAC address, Destination MAC address. Other headers are fixed. 
@@ -130,7 +130,7 @@ Verify:
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
 
-### PF-1.11.3: Verify no hashing of EthoCWoMPLSoGRE encapsulation for unencrytped IPv4 traffic without entropy
+### PF-1.23.3: Verify no hashing of EthoCWoMPLSoGRE encapsulation for unencrytped IPv4 traffic without entropy
 
 * Generate single traffic flow on ATE Port 1 at line rate with IPV4 traffic. Use 64, 128, 256, 512, 1024 MTU bytes frame size. 
 * Flows should have NOT have entropy on any headers. 
@@ -145,7 +145,7 @@ Verify:
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
 
-### PF-1.11.4: Verify PF EthoCWoMPLSoGRE encapsulate action for MACSec encrytped IPv4, IPv6 traffic 
+### PF-1.23.4: Verify PF EthoCWoMPLSoGRE encapsulate action for MACSec encrytped IPv4, IPv6 traffic 
 
 * Generate 1000 different traffic flows on ATE Port 1 at line rate with a mix of both IPV4 and IPv6 traffic. Use 64, 128, 256, 512, 1024 MTU bytes frame size. 
 * Flows are MACSec encrypted when sent from ATE Port 1. 
@@ -161,8 +161,8 @@ Verify:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.5: Verify PF EthoCWoMPLSoGRE encapsulate action with Jumbo MTU
-* Use the same traffic profile as PF-1.11.2. However, set the packet size to 9000 bytes 
+### PF-1.23.5: Verify PF EthoCWoMPLSoGRE encapsulate action with Jumbo MTU
+* Use the same traffic profile as PF-1.23.2. However, set the packet size to 9000 bytes 
 
 Verify:
 
@@ -172,9 +172,9 @@ Verify:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.6: Verify Control word for unencrypted traffic flow
+### PF-1.23.6: Verify Control word for unencrypted traffic flow
 
-* Use the same traffic profile as PF-1.11.2.
+* Use the same traffic profile as PF-1.23.2.
 
 Verify:
 
@@ -185,9 +185,9 @@ Verify:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.7: Verify Control word for encrypted traffic flow
+### PF-1.23.7: Verify Control word for encrypted traffic flow
 
-* Use the same traffic profile as PF-1.11.4
+* Use the same traffic profile as PF-1.23.4
 
 Verify:
 
@@ -199,22 +199,9 @@ Verify:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.8: Verify DSCP of EthoCWoMPLSoGRE encapsulated packets
+### PF-1.23.8: Verify DSCP of EthoCWoMPLSoGRE encapsulated packets
 
-* Use the same traffic profile as PF-1.11.2. 
-
-Verify:
-
-*  DSCP of encapsulated packets is set to 96. 
-*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
-*  No packet loss when forwarding.
-*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
-
-Run the test separately for both port mode and attachment mode "customer interface" configuration. 
-
-### PF-1.11.9: Verify DSCP of EthoCWoMPLSoGRE encapsulated packets
-
-* Use the same traffic profile as PF-1.11.2. 
+* Use the same traffic profile as PF-1.23.2. 
 
 Verify:
 
@@ -225,9 +212,22 @@ Verify:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.10: Verify PF EthoCWoMPLSoGRE encapsulate after single GRE tunnel destination shutdown. 
+### PF-1.23.9: Verify DSCP of EthoCWoMPLSoGRE encapsulated packets
 
-* Use the same traffic profile as PF-1.11.2. 
+* Use the same traffic profile as PF-1.23.2. 
+
+Verify:
+
+*  DSCP of encapsulated packets is set to 96. 
+*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
+*  No packet loss when forwarding.
+*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
+
+Run the test separately for both port mode and attachment mode "customer interface" configuration. 
+
+### PF-1.23.10: Verify PF EthoCWoMPLSoGRE encapsulate after single GRE tunnel destination shutdown. 
+
+* Use the same traffic profile as PF-1.23.2. 
 * Start the traffic profile on ATE. 
 * Shutdown or remove a single GRE tunnel destination on the DUT. 
 
@@ -237,13 +237,13 @@ Verify:
 *  No packet loss when forwarding.
 *  Traffic load-balanced across remaining 15 GRE destinations and distributed equally across 2 egress ports.
 
-### PF-1.11.11: Verify PF EthoCWoMPLSoGRE decapsulate action 
+### PF-1.23.11: Verify PF EthoCWoMPLSoGRE decapsulate action 
 
 Generate traffic on ATE Aggregate2 and Aggregate3 having:
 
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
-* Outer destination address: Traffic must fall within the configured GRE tunnel sources in PF-1.11.1 so it cuold be decapsulated.
-* MPLS Label: Should be same as the local label configured in PF-1.11.1
+* Outer destination address: Traffic must fall within the configured GRE tunnel sources in PF-1.23.1 so it cuold be decapsulated.
+* MPLS Label: Should be same as the local label configured in PF-1.23.1
 Inner payload:
 * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
@@ -255,13 +255,13 @@ Inner payload:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.12: Verify PF EthoCWoMPLSoGRE decapsulate action 
+### PF-1.23.12: Verify PF EthoCWoMPLSoGRE decapsulate action 
 
 Generate traffic on ATE Aggregate2 and Aggregate3 having:
 
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
-* Outer destination address: Traffic must fall within the configured GRE tunnel sources in PF-1.11.1 so it cuold be decapsulated.
-* MPLS Label: Should be same as the local label configured in PF-1.11.1
+* Outer destination address: Traffic must fall within the configured GRE tunnel sources in PF-1.23.1 so it cuold be decapsulated.
+* MPLS Label: Should be same as the local label configured in PF-1.23.1
 Inner payload:
 * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
@@ -273,9 +273,9 @@ Inner payload:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.11.13: Verify VLAN tag after PF EthoCWoMPLSoGRE decapsulate action
+### PF-1.23.13: Verify VLAN tag after PF EthoCWoMPLSoGRE decapsulate action
 
-* Use the same traffic profile as PF-1.11.12.
+* Use the same traffic profile as PF-1.23.12.
 * Ensure inner payload Ethernet header has a VLAN tag attached to it. 
 
 * Verify:
