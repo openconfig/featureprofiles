@@ -61,31 +61,6 @@ func TestBasicEncap(t *testing.T) {
 		skip               bool
 	}{
 		{
-			name:               fmt.Sprintf("Basic Default Route Installation %d", dscpEncapA1),
-			pattr:              packetAttr{protocol: ipipProtocol, dscp: dscpEncapA1, ttl: 99},
-			flows:              []gosnappi.Flow{fa4.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)},
-			weights:            []float64{0, 0, 0, 1},
-			capturePorts:       []string{"port5"},
-			validateEncapRatio: true,
-		},
-		{
-			name:  fmt.Sprintf("Process Recovery %d", dscpEncapA1),
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
-			flows: []gosnappi.Flow{fa4.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1),
-				fa4.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)},
-			weights:            []float64{0, 0, 0, 1},
-			capturePorts:       []string{"port5"},
-			validateEncapRatio: true,
-		},
-		{
-			name:               fmt.Sprintf("Next-hop Unavailability Recirculation Test %d", dscpEncapA1),
-			pattr:              packetAttr{protocol: ipipProtocol, dscp: dscpEncapA1, ttl: 99},
-			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
-			weights:            []float64{0, 0, 0, 1}, // Traffic should shift to the first available next-hop
-			capturePorts:       []string{"port5"},
-			validateEncapRatio: true,
-		},
-		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapA1),
 			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
@@ -152,6 +127,22 @@ func TestBasicEncap(t *testing.T) {
 			validateEncapRatio: false,
 		},
 		{
+			name:               fmt.Sprintf("Basic Default Route Installation %d", dscpEncapA1),
+			pattr:              packetAttr{protocol: ipipProtocol, dscp: dscpEncapA1, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)},
+			weights:            []float64{0, 0, 0, 1},
+			capturePorts:       []string{"port5"},
+			validateEncapRatio: true,
+		},
+		{
+			name:               fmt.Sprintf("Next-hop Unavailability Recirculation Test %d", dscpEncapA1),
+			pattr:              packetAttr{protocol: ipipProtocol, dscp: dscpEncapA1, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
+			weights:            []float64{0, 0, 0, 1}, // Traffic should shift to the first available next-hop
+			capturePorts:       []string{"port5"},
+			validateEncapRatio: true,
+		},
+		{
 			name: fmt.Sprintf("LOOKUP NH Backup NHG Test %d", dscpEncapA1),
 			// This test verifies that a backup NHG with a single LOOKUP NH
 			// correctly gets the LOOKUP action set
@@ -177,6 +168,35 @@ func TestBasicEncap(t *testing.T) {
 			validateEncapRatio: true,
 			skip:               false,
 		},
+		{
+			name:  fmt.Sprintf("Process Recovery %d", dscpEncapA1),
+			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows: []gosnappi.Flow{fa4.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1),
+				fa4.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)},
+			weights:            []float64{0, 0, 0, 1},
+			capturePorts:       []string{"port5"},
+			validateEncapRatio: true,
+		},
+		{
+			name:  fmt.Sprintf("Default Route Modification %d", dscpEncapA1),
+			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows: []gosnappi.Flow{fa4.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1),
+				fa4.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)},
+			weights:            []float64{0, 0, 0, 1},
+			capturePorts:       []string{"port5"},
+			validateEncapRatio: true,
+		},
+		{
+			name:  fmt.Sprintf("VRF Scale Testing %d", dscpEncapA1),
+			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows: []gosnappi.Flow{
+				fa4.getFlow("ipv4", "vrf_scale", dscpEncapA1),
+			},
+			weights:            wantWeights,
+			capturePorts:       otgDstPorts[:2], // Only use first two ports
+			validateEncapRatio: true,
+			skip:               false,
+		},
 	}
 
 	for _, tc := range test {
@@ -185,17 +205,8 @@ func TestBasicEncap(t *testing.T) {
 			if tc.skip {
 				t.SkipNow()
 			}
-			if strings.Contains(tc.name, "Basic Default Route Installation") {
-				configDefaultRoute(t, dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
-				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
-				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
-
-			}
 			// Add EMSD restart test
 			if strings.Contains(tc.name, "Process Recovery") {
-				configDefaultRoute(t, dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
-				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
-				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
 				t.Logf("Restarting emsd at %s", time.Now())
 				perf.RestartProcess(t, dut, "emsd")
 				t.Logf("Restart emsd finished at %s", time.Now())
@@ -215,12 +226,9 @@ func TestBasicEncap(t *testing.T) {
 			}
 			if strings.Contains(tc.name, "Next-hop Unavailability Recirculation") {
 				// Configure default route
-				configDefaultRoute(t, dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
-				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
 				shutPorts(t, tcArgs, []string{"port3", "port4"})
 				defer unshutPorts(t, tcArgs, []string{"port3", "port4"})
-				//shutInterface(t, tcArgs, []string{dut.Port(t, "port3").Name()})
 			}
 			if otgMutliPortCaptureSupported {
 				//	enableCapture(t, otg.OTG(), topo, tc.capturePorts)
@@ -279,46 +287,45 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 	c.AddNHG(t, defaultRouteNHGID, map[uint64]uint64{defaultRouteNHID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, defaultRoute, defaultRouteNHGID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	// Test Case: LOOKUP action for VRF encapsulation
-	// First create a direct NH in the target VRF (vrfEncapA) that will be used for lookup
-	targetVrfNHID := uint64(501)
-	targetVrfNHGID := uint64(502)
+	// Test Case: VRF Lookup with Default Route Fallback
+	// First ensure default route exists in target VRF for lookup failures
+	defaultVrfNHID := uint64(501)
+	defaultVrfNHGID := uint64(502)
 
-	// Create direct NH in vrfEncapA for the lookup target
-	t.Logf("Creating direct NH %d in VRF %s using port2", targetVrfNHID, vrfTransit)
-	c.AddNH(t, targetVrfNHID, "MACwithInterface", vrfTransit, fluent.InstalledInFIB, &gribi.NHOptions{
+	// Create direct NH for default route in target VRF
+	t.Logf("Creating default route NH %d in VRF %s using port2", defaultVrfNHID, vrfTransit)
+	c.AddNH(t, defaultVrfNHID, "MACwithInterface", vrfTransit, fluent.InstalledInFIB, &gribi.NHOptions{
 		Interface: dut.Port(t, "port2").Name(),
 		Mac:       magicMac,
 	})
 
-	// Create NHG in vrfEncapA
-	t.Logf("Creating NHG %d in VRF %s with direct NH", targetVrfNHGID, vrfTransit)
-	c.AddNHG(t, targetVrfNHGID, map[uint64]uint64{targetVrfNHID: 1}, vrfTransit, fluent.InstalledInFIB)
+	// Create NHG for default route in target VRF
+	t.Logf("Creating default route NHG %d in VRF %s", defaultVrfNHGID, vrfTransit)
+	c.AddNHG(t, defaultVrfNHGID, map[uint64]uint64{defaultVrfNHID: 1}, vrfTransit, fluent.InstalledInFIB)
 
-	// Add route in vrfEncapA that will be looked up
-	lookupTargetPrefix := "198.51.100.0/24"
-	t.Logf("Adding target route %s in VRF %s", lookupTargetPrefix, vrfTransit)
-	c.AddIPv4(t, lookupTargetPrefix, targetVrfNHGID, vrfTransit, vrfTransit, fluent.InstalledInFIB)
+	// Add default route in target VRF to handle lookup failures
+	t.Logf("Adding default route in VRF %s", vrfTransit)
+	c.AddIPv4(t, "0.0.0.0/0", defaultVrfNHGID, vrfTransit, vrfTransit, fluent.InstalledInFIB)
 
-	// Now create the VRF lookup NH and NHG in default VRF
+	// Now create VRF lookup configuration in default VRF
 	lookupNHID := uint64(503)
 	lookupNHGID := uint64(504)
 
-	// Create LOOKUP NH pointing to vrfEncapA
+	// Create LOOKUP NH pointing to target VRF
 	t.Logf("Creating LOOKUP NH %d pointing to VRF %s", lookupNHID, vrfTransit)
 	c.AddNH(t, lookupNHID, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{
 		VrfName: vrfTransit,
 	})
 
-	// Create NHG with single LOOKUP NH
-	t.Logf("Creating NHG %d with LOOKUP NH pointing to VRF %s", lookupNHGID, vrfTransit)
+	// Create NHG with LOOKUP NH in default VRF
+	t.Logf("Creating NHG %d with LOOKUP NH", lookupNHGID)
 	c.AddNHG(t, lookupNHGID, map[uint64]uint64{lookupNHID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	// Add route in default VRF that uses LOOKUP NHG
-	t.Logf("Adding route in default VRF using LOOKUP NHG %d", lookupNHGID)
-	c.AddIPv4(t, lookupTargetPrefix, lookupNHGID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	c.AddIPv4(t, lookupTargetPrefix, lookupNHGID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
+	// Add test prefix in default VRF that will trigger VRF lookup
+	// This prefix doesn't exist in target VRF, so it will hit default route
+	lookupTestPrefix := "198.51.100.0/24"
+	t.Logf("Adding test prefix %s in default VRF (will use default route in %s)", lookupTestPrefix, vrfTransit)
+	c.AddIPv4(t, lookupTestPrefix, lookupNHGID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	// Default route lookup NH
 	c.AddNH(t, defaultRouteNHID, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(dut)})
 	c.AddNHG(t, defaultRouteNHGID, map[uint64]uint64{defaultRouteNHID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
@@ -360,53 +367,4 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-	// // VRF Default Route Lookup Test Configuration
-	// // Create a LOOKUP NH in vrfEncapA pointing to vrfEncapB
-	// vrfLookupNHID := uint64(601)
-	// vrfLookupNHGID := uint64(602)
-
-	// t.Logf("Creating LOOKUP NH %d in VRF %s pointing to VRF %s", vrfLookupNHID, vrfEncapA, vrfEncapB)
-	// c.AddNH(t, vrfLookupNHID, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{
-	// 	VrfName: vrfEncapB,
-	// })
-
-	// // Create NHG containing the LOOKUP NH
-	// t.Logf("Creating NHG %d with LOOKUP NH %d", vrfLookupNHGID, vrfLookupNHID)
-	// c.AddNHG(t, vrfLookupNHGID, map[uint64]uint64{vrfLookupNHID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-	// // Install default route in vrfEncapA pointing to LOOKUP NH into vrfEncapB
-	// t.Logf("Adding default route in VRF %s pointing to NHG %d for VRF lookup into %s", vrfEncapA, vrfLookupNHGID, vrfEncapB)
-	// c.AddIPv4(t, "0.0.0.0/0", vrfLookupNHGID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-	// // Test Configuration: Verify NHGs don't inherit LOOKUP action from backup NHs
-	// inheritTestNHGID := uint64(701)
-	// inheritTestBackupNHID := uint64(702)
-	// inheritTestBackupNHGID := uint64(703)
-	// inheritTestPrefix := "203.0.113.1/32"
-
-	// // Create a LOOKUP NH for the backup path pointing to vrfEncapA
-	// t.Logf("Creating backup LOOKUP NH %d pointing to VRF %s", inheritTestBackupNHID, vrfEncapA)
-	// c.AddNH(t, inheritTestBackupNHID, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{
-	// 	VrfName: vrfEncapA,
-	// })
-
-	// // Create backup NHG with the LOOKUP NH
-	// t.Logf("Creating backup NHG %d with LOOKUP NH %d", inheritTestBackupNHGID, inheritTestBackupNHID)
-	// c.AddNHG(t, inheritTestBackupNHGID, map[uint64]uint64{inheritTestBackupNHID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-	// // Create primary NHG with direct next-hops to port2 and port3
-	// // This NHG should NOT inherit LOOKUP action from its backup
-	// t.Logf("Creating primary NHG %d with direct forwarding to ports 2 and 3", inheritTestNHGID)
-	// c.AddNHG(t, inheritTestNHGID, map[uint64]uint64{
-	// 	nh10ID: 1, // port2
-	// 	nh11ID: 1, // port3
-	// }, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{
-	// 	BackupNHG: inheritTestBackupNHGID,
-	// })
-
-	// // Install test prefix using the primary NHG
-	// // Traffic should be forwarded directly to port2/port3 without LOOKUP
-	// t.Logf("Adding prefix %s pointing to primary NHG %d with backup NHG %d", inheritTestPrefix, inheritTestNHGID, inheritTestBackupNHGID)
-	// c.AddIPv4(t, inheritTestPrefix, inheritTestNHGID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 }
