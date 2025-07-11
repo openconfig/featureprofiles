@@ -449,7 +449,7 @@ Pseudowire configs Port mode
           ]
         },
         "name": "GEO_1"
-      },
+      }
 ```
 
 ## Canonical OC  
@@ -516,7 +516,7 @@ Pseudowire configs VLAN mode
           ]
         },
         "name": "GEO_4"
-      },
+      }
 ```
 
 ## Canonical OC  
