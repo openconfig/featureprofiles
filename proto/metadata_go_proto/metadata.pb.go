@@ -1074,9 +1074,15 @@ type Metadata_Deviations struct {
 	DefaultNoIgpMetricPropagation bool `protobuf:"varint,298,opt,name=default_no_igp_metric_propagation,json=defaultNoIgpMetricPropagation,proto3" json:"default_no_igp_metric_propagation,omitempty"`
 	// Skip setting send-community-type in bgp peer-group config
 	SkipBgpPeerGroupSendCommunityType bool `protobuf:"varint,299,opt,name=skip_bgp_peer_group_send_community_type,json=skipBgpPeerGroupSendCommunityType,proto3" json:"skip_bgp_peer_group_send_community_type,omitempty"`
+	// Devices that does have different AS path prepend order.
+	// juniper : b/425632068
+	BgpAsPathPrependOrderMismtach bool `protobuf:"varint,300,opt,name=bgp_as_path_prepend_order_mismtach,json=bgpAsPathPrependOrderMismtach,proto3" json:"bgp_as_path_prepend_order_mismtach,omitempty"`
+	// Devices that need explicit swap_src_dst_mac set with loopback_mode
+	// Nokia b/430183279
+	ExplicitSwapSrcDstMacNeededForLoopbackMode bool `protobuf:"varint,301,opt,name=explicit_swap_src_dst_mac_needed_for_loopback_mode,json=explicitSwapSrcDstMacNeededForLoopbackMode,proto3" json:"explicit_swap_src_dst_mac_needed_for_loopback_mode,omitempty"`
 	// Juniper  b/428613305
 	// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
-	NonIntervalFecErrorCounter bool `protobuf:"varint,300,opt,name=non_interval_fec_error_counter,json=nonIntervalFecErrorCounter,proto3" json:"non_interval_fec_error_counter,omitempty"`
+	NonIntervalFecErrorCounter bool `protobuf:"varint,302,opt,name=non_interval_fec_error_counter,json=nonIntervalFecErrorCounter,proto3" json:"non_interval_fec_error_counter,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -2987,6 +2993,20 @@ func (x *Metadata_Deviations) GetSkipBgpPeerGroupSendCommunityType() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetBgpAsPathPrependOrderMismtach() bool {
+	if x != nil {
+		return x.BgpAsPathPrependOrderMismtach
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetExplicitSwapSrcDstMacNeededForLoopbackMode() bool {
+	if x != nil {
+		return x.ExplicitSwapSrcDstMacNeededForLoopbackMode
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetNonIntervalFecErrorCounter() bool {
 	if x != nil {
 		return x.NonIntervalFecErrorCounter
@@ -3050,7 +3070,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ڣ\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x8f\xa5\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3062,7 +3082,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xae\x9a\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe3\x9b\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3334,8 +3354,10 @@ const file_metadata_proto_rawDesc = "" +
 	"(interface_output_queue_non_standard_name\x18\xa8\x02 \x01(\bR#interfaceOutputQueueNonStandardName\x12Z\n" +
 	"*mpls_exp_ingress_classifier_oc_unsupported\x18\xa9\x02 \x01(\bR%mplsExpIngressClassifierOcUnsupported\x12I\n" +
 	"!default_no_igp_metric_propagation\x18\xaa\x02 \x01(\bR\x1ddefaultNoIgpMetricPropagation\x12S\n" +
-	"'skip_bgp_peer_group_send_community_type\x18\xab\x02 \x01(\bR!skipBgpPeerGroupSendCommunityType\x12C\n" +
-	"\x1enon_interval_fec_error_counter\x18\xac\x02 \x01(\bR\x1anonIntervalFecErrorCounterJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"'skip_bgp_peer_group_send_community_type\x18\xab\x02 \x01(\bR!skipBgpPeerGroupSendCommunityType\x12J\n" +
+	"\"bgp_as_path_prepend_order_mismtach\x18\xac\x02 \x01(\bR\x1dbgpAsPathPrependOrderMismtach\x12g\n" +
+	"2explicit_swap_src_dst_mac_needed_for_loopback_mode\x18\xad\x02 \x01(\bR*explicitSwapSrcDstMacNeededForLoopbackMode\x12C\n" +
+	"\x1enon_interval_fec_error_counter\x18\xae\x02 \x01(\bR\x1anonIntervalFecErrorCounterJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

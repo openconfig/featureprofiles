@@ -1527,3 +1527,4 @@ func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
         return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
 }
+
