@@ -26,6 +26,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/cisco/verifiers"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
@@ -377,15 +378,9 @@ func TestGribiFlowsLoadBalancing(t *testing.T) {
 	jupiterDUTList := []*ondatra.DUTDevice{dutJupiterE, dutJupiterR}
 
 	test := verifiers.Interfaceverifier().VerifyShowInterfaceCLI(t, context.Background(), dut1E, "Bundle-Ether1")
+	pps := util.StringToInt(t,test.GetAllThirtySecOutputPps()[0])
+	t.Logf("pps is %v", pps)
 
-	t.Log(test)
-	for i, entry := range test {
-		fmt.Printf("=== Entry %d ===\n", i)
-		for key, val := range entry {
-			fmt.Printf("%s: %s\n", key, val)
-		}
-		fmt.Println()
-	}
 	//Just to use variable and compile
 	t.Log("R,E,V and Jupiter sites", siteRDUTList, siteEDUTList, siteVDUTList, jupiterDUTList)
 

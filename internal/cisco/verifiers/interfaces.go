@@ -9,6 +9,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/ondatra"
+	textfsm "github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
 )
 
 type interfaceVerifier struct{}
@@ -20,16 +21,13 @@ func (v *interfaceVerifier) VerifyInterfaceOperStatus(t testing.T, dut *ondatra.
 }
 
 // VerifyShowInterfaceCLI returns interface data from the show CLI.
-func (v *interfaceVerifier) VerifyShowInterfaceCLI(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, intfName string) []map[string]any {
-	// cwd, err := os.Getwd()
-	// if err != nil {
-	// 	t.Fatalf("error")
-	// }
-	interfaceTextfsmPath := "/Users/arvbaska/hash_lb_suite2/featureprofiles/internal/cisco/verifiers/textfsm_templates/interface/show_interface.textfsm"
+func (v *interfaceVerifier) VerifyShowInterfaceCLI(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, intfName string) textfsm.ShowInterface{
 	cliOutput := config.CMDViaGNMI(ctx, t, dut, fmt.Sprintf("show interface %s", intfName))
-	results, err := ProcessTextFSM(interfaceTextfsmPath, cliOutput)
-	if err != nil {
-		t.Fatalf("error")
+	intfTextfsm := textfsm.ShowInterface{}
+	if err := intfTextfsm.Parse(cliOutput); err != nil {
+		t.Fatalf("%v", err)
 	}
-	return results
+	t.Logf("%+v\n", intfTextfsm)
+	t.Log("WAIT")
+	return intfTextfsm
 }

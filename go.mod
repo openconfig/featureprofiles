@@ -17,6 +17,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/kr/pretty v0.3.1
 	github.com/ogier/pflag v0.0.1
 	github.com/olekukonko/tablewriter v1.0.7

@@ -1,0 +1,24 @@
+Value Key dest_addr (\S+)
+Value Filldown count (\d+) 
+Value timeout (\d+) 
+Value tx_count (\d+)
+Value rx_count (\d+)
+Value success_rate ([\d\.]+)
+Value round_trip_min (\d+)
+Value round_trip_avg (\d+)
+Value round_trip_max (\d+)
+Value domain_name (\S+)
+Value service_name (\S+)
+Value source_mep_id (\d+)
+Value source_interface (\S+)
+Value target_mac_address (\S+)
+Value target_mep_id (\d+)
+Value level_number (\d+)
+
+Start
+  ^Sending ${count} CFM ${dest_addr}, timeout is ${timeout} seconds -
+  ^Domain ${domain_name} \(level ${level_number}\), Service ${service_name}
+  ^Source: MEP ID ${source_mep_id}, interface ${source_interface}
+  ^Target: ${target_mac_address} \(MEP ID ${target_mep_id}\)
+  ^\s*Success\s+rate\s+is\s+${success_rate}\s+percent\s+\(${rx_count}/${tx_count}\),\s+round-trip\s+min/avg/max\s+=\s+${round_trip_min}/${round_trip_avg}/${round_trip_max}\s+ms -> Record
+  ^\s*Success\s+rate\s+is\s+${success_rate}\s+percent\s+\(${rx_count}/${tx_count}\) -> Record
