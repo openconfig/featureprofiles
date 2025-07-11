@@ -852,7 +852,7 @@ message Metadata {
     // Nokia b/430183279
     bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
 
-   // Juniper  b/428613305
+    // Juniper  b/428613305
     // FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
     bool non_interval_fec_error_counter = 302;
 
