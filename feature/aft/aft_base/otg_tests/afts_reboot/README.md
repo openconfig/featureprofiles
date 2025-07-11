@@ -42,7 +42,7 @@ Configure eBGP multipath sessions.
 
 ### Verifications
 
-* Using gNMI Subscribe with an ON_CHANGE subscription, confirm that /`network-instances/network-instance/protocols/protocol/bgp/neighbors/` neighbor/state/session-state is `ESTABLISHED` for each BGP neighbor.
+* Using gNMI Subscribe with an ON_CHANGE subscription, confirm that /`network-instances/network-instance/protocols/protocol/bgp/neighbors/` `neighbor/state/session-state` is `ESTABLISHED` for each BGP neighbor.
 * Initiate a gNMI Subscribe stream with ON_CHANGE mode to the path `/network-instances/network-instance[name=DEFAULT]/afts/.`
 * For each eBGP prefix received, verify that the AFT entry points to a next-hop-group that contains two next-hops.
 * For each IS-IS prefix received, verify that the AFT entry points to a next-hop-group that contains one next-hop.
