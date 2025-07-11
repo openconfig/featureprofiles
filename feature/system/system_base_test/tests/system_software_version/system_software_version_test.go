@@ -17,27 +17,24 @@
 package system_software_version_test
 
 import (
-	"testing"
+        "testing"
 
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
+        "github.com/openconfig/featureprofiles/internal/fptest"
+        "github.com/openconfig/ondatra"
+        "github.com/openconfig/ondatra/gnmi"
 )
+
+func TestMain(m *testing.M) {
+        fptest.RunTests(m)
+}
 
 // TestSoftwareVersion verifies that the software version state path can be read and is not empty.
 // telemetry_path:/system/state/software-version
-
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
-}
-
 func TestSoftwareVersion(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	state := gnmi.OC().System().SoftwareVersion()
-	t.Run("Test Software Version", func(t *testing.T) {
-		stateGot := gnmi.Get(t, dut, state.State())
-		if stateGot == "" {
-			t.Error("Telemetry software version is empty, want non-empty")
-		}
-	})
+        dut := ondatra.DUT(t, "dut")
+        state := gnmi.OC().System().SoftwareVersion()
+        stateGot := gnmi.Get(t, dut, state.State())
+        if stateGot == "" {
+                t.Error("Telemetry software version is empty, want non-empty")
+        }
 }
