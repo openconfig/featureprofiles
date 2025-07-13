@@ -35,7 +35,7 @@ const (
 	vrfRepair          = "REPAIR"
 	vrfDecap           = "DECAP_TE_VRF"
 	localStationMac    = "00:1a:11:17:5f:80"
-	trafficRatePPS 	   = 10000
+	trafficRatePPS     = 10000
 )
 
 // Traffic flow and common variables.

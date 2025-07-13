@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -2442,4 +2443,68 @@ func SortOndatraPortsByID(ports []*ondatra.Port) {
 		// Compare the numeric parts
 		return id1 < id2
 	})
+}
+
+// CompareRequiredFields compares the non-zero fields of two structs of same type recursively.
+func CompareStructRequiredFields(want, got interface{}) error {
+	vWant := reflect.ValueOf(want)
+	vGot := reflect.ValueOf(got)
+
+	// Dereference pointers
+	if vWant.Kind() == reflect.Pointer {
+		vWant = vWant.Elem()
+	}
+	if vGot.Kind() == reflect.Pointer {
+		vGot = vGot.Elem()
+	}
+
+	if vWant.Type() != vGot.Type() {
+		return fmt.Errorf("struct types do not match: %s vs %s", vWant.Type(), vGot.Type())
+	}
+
+	t := vWant.Type()
+
+	for i := 0; i < vWant.NumField(); i++ {
+		field := t.Field(i)
+		wantField := vWant.Field(i)
+		gotField := vGot.Field(i)
+
+		// Only check fields that are non-zero in 'want'
+		if wantField.IsZero() {
+			continue
+		}
+
+		// Handle slice comparison
+		if wantField.Kind() == reflect.Slice {
+			wantSlice := wantField
+			gotSlice := gotField
+
+			if wantSlice.Len() > gotSlice.Len() {
+				return fmt.Errorf("field '%s' mismatch: want slice has more elements than got slice", field.Name)
+			}
+
+			for j := 0; j < wantSlice.Len(); j++ {
+				wantElem := wantSlice.Index(j)
+				gotElem := gotSlice.Index(j)
+
+				// Recursively compare elements in the slice
+				if err := CompareStructRequiredFields(wantElem.Interface(), gotElem.Interface()); err != nil {
+					return fmt.Errorf("field '%s' mismatch in slice element %d: %v", field.Name, j, err)
+				}
+			}
+		} else if wantField.Kind() == reflect.Struct {
+			// Handle nested struct comparison
+			if err := CompareStructRequiredFields(wantField.Interface(), gotField.Interface()); err != nil {
+				return fmt.Errorf("field '%s' mismatch: %v", field.Name, err)
+			}
+		} else {
+			// Compare primitive fields directly
+			if !reflect.DeepEqual(gotField.Interface(), wantField.Interface()) {
+				return fmt.Errorf(
+					"field '%s' mismatch:\n  want = %v\n  got  = %v",
+					field.Name, wantField.Interface(), gotField.Interface())
+			}
+		}
+	}
+	return nil
 }

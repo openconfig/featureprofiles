@@ -24,9 +24,10 @@ import (
 	"testing"
 	"time"
 
+	textfsm "github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	// "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/cisco/verifiers"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
@@ -377,9 +378,22 @@ func TestGribiFlowsLoadBalancing(t *testing.T) {
 	siteVDUTList := []*ondatra.DUTDevice{dut1V, dut2V}
 	jupiterDUTList := []*ondatra.DUTDevice{dutJupiterE, dutJupiterR}
 
-	test := verifiers.Interfaceverifier().VerifyShowInterfaceCLI(t, context.Background(), dut1E, "Bundle-Ether1")
-	pps := util.StringToInt(t,test.GetAllThirtySecOutputPps()[0])
-	t.Logf("pps is %v", pps)
+	want := &textfsm.ShowInterface{
+		Rows: []textfsm.ShowInterfaceRow{
+			{
+				IntfState: "up",
+				HwAddr:    "7839.3366.2004",
+			},
+		},
+	}
+	test, ok := verifiers.Interfaceverifier().VerifyShowInterfaceCLI(t, context.Background(), dut1E, "Bundle-Ether1", want)
+	if !ok {
+		t.Logf("Failed to get interface data from show CLI")
+	}
+
+	t.Logf("test is %v", test)
+	// pps := util.StringToInt(t, test.GetAllThirtySecOutputPps()[0])
+	// t.Logf("pps is %v", pps)
 
 	//Just to use variable and compile
 	t.Log("R,E,V and Jupiter sites", siteRDUTList, siteEDUTList, siteVDUTList, jupiterDUTList)
