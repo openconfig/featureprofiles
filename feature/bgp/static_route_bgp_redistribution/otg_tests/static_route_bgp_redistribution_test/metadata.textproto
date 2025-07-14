@@ -55,7 +55,6 @@ platform_exceptions:  {
   }
   deviations:  {
     skip_bgp_send_community_type: true
-    skip_setting_disable_metric_propagation: true
     routing_policy_tag_set_embedded: true
     bgp_community_set_refs_unsupported: true
     bgp_set_med_action_unsupported: true
