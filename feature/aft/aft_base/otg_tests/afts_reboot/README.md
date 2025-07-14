@@ -89,7 +89,7 @@ paths:
 
 rpcs:
   gnmi:
-    gNMI Subscribe:
+    gNMI.Subscribe:
 ```
 ## Canonical OC
 
