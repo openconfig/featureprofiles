@@ -118,7 +118,7 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		gotAuthorizedKeysListCreatedOn := int64(userState.GetAuthorizedKeysListCreatedOn())
-		if got, want := gotAuthorizedKeysListCreatedOn, authorizedKeysListCreatedOn; got != want {
+		if got, want := gotAuthorizedKeysListCreatedOn, authorizedKeysListCreatedOn*1e9; got != want {
 			t.Errorf("Telemetry reports authorized keys list created on is not correct, got: %d, want: %d", got, want)
 		}
 
