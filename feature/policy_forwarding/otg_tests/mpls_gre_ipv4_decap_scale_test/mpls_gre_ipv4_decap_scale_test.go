@@ -160,7 +160,6 @@ var (
 	}
 	// TODO: uncomment this
 	// TODO: Change the variables otgIPs, otgIPsv6 to use pointer
-	// TODO: LAG ECMP validation
 	// Custom IMIX settings for all flows.
 	// sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
 	// 	{Size: 64, Weight: 20},
@@ -178,12 +177,6 @@ var (
 	flowResolveArp = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name}},
 	}
-	// nextHopResolutionIPv4 = &otgvalidationhelpers.OTGValidation{
-	// 	Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[0].Name, agg1.Interfaces[2].Name, agg1.Interfaces[3].Name, agg1.Interfaces[4].Name}},
-	// }
-	// nextHopResolutionIPv6 = &otgvalidationhelpers.OTGValidation{
-	// 	Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg1.Interfaces[1].Name, agg1.Interfaces[2].Name}},
-	// }
 	// FlowOuterIPv4 Decap IPv4 Interface IPv4 Payload traffic params Outer Header.
 	FlowOuterIPv4 = &otgconfighelpers.Flow{
 		TxNames:           []string{agg2.Interfaces[0].Name + ".IPv4"},
@@ -230,14 +223,25 @@ var (
 	}
 	validationsIPv4 = []packetvalidationhelpers.ValidationType{
 		packetvalidationhelpers.ValidateIPv4Header,
-		packetvalidationhelpers.ValidateTCPHeader,
+	}
+	validationsIPv6 = []packetvalidationhelpers.ValidationType{
+		packetvalidationhelpers.ValidateIPv6Header,
 	}
 	decapValidationIPv4 = &packetvalidationhelpers.PacketValidation{
 		PortName:    "port1",
 		CaptureName: "ipv4_decap",
 		Validations: validationsIPv4,
 		IPv4Layer:   &packetvalidationhelpers.IPv4Layer{DstIP: "21.1.1.1", Tos: 10, TTL: 64, Protocol: packetvalidationhelpers.TCP},
-		TCPLayer:    &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 80},
+	}
+	decapValidationIPv6 = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port2",
+		CaptureName: "ipv6_decap",
+		Validations: validationsIPv6,
+		IPv6Layer:   &packetvalidationhelpers.IPv6Layer{DstIP: "3000:1::1", TrafficClass: 10, HopLimit: 64},
+	}
+	lagECMPValidation = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowOuterIPv4.FlowName},
 	}
 )
 
@@ -398,11 +402,15 @@ func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	t.Log("Verify MPLSoGRE decapsulate action for IPv4 and IPv6 payload")
 	createflow(t, top, FlowOuterIPv4, FlowInnerIPv4, true)
-	createflow(t, top, FlowOuterIPv6, FlowInnerIPv6, false)
 	sendTraffic(t, ate)
 	if err := FlowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
+	if err := lagECMPValidation.ValidateECMPonLAG(t, ate); err != nil {
+		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
+	}
+	createflow(t, top, FlowOuterIPv6, FlowInnerIPv6, false)
+	sendTraffic(t, ate)
 	if err := FlowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
@@ -419,6 +427,12 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv4); err != nil {
+		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
+	}
+	updateFlow(t, FlowOuterIPv6, FlowInnerIPv6, true, 100, 1000)
+	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv6)
+	sendTrafficCapture(t, ate)
+	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv6); err != nil {
 		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
 	}
 }
@@ -481,12 +495,6 @@ func updateFlow(t *testing.T, paramsOuter *otgconfighelpers.Flow, paramsInner *o
 	if paramsInner.IPv4Flow != nil {
 		paramsInner.IPv4Flow.RawPriorityCount = 0
 		paramsInner.IPv4Flow.RawPriority = 10
-		if paramsInner.TCPFlow != nil {
-			paramsInner.TCPFlow.TCPSrcCount = 0
-			paramsInner.TCPFlow.TCPSrcPort = 49152
-		}
-		paramsOuter.IPv4Flow.IPv4Src = "100.64.0.1"
-		paramsOuter.IPv4Flow.IPv4Dst = "11.1.1.1"
 	}
 	createflow(t, top, paramsOuter, paramsInner, clearFlows)
 }
