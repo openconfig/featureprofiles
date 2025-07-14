@@ -3,7 +3,6 @@ package mpls_gre_ipv4_decap_test
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -29,58 +28,24 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	mplsLabelCount = 20
-	vlanCount      = 20
+	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	mplsLabelCount  = 2000
+	intCount        = 2000
+	dutIntStartIP   = "169.254.0.1"
+	otgIntStartIP   = "169.254.0.2"
+	dutIntStartIpV6 = "2000:0:0:1::1"
+	otgIntStartIpV6 = "2000:0:0:1::2"
+	intStepV4       = "0.0.0.4"
+	intStepV6       = "0:0:0:1::"
 )
 
 var (
-	top          = gosnappi.NewConfig()
-	aggID        string
-	custPorts    = []string{"port1", "port2"}
-	corePorts    = []string{"port3", "port4"}
-	custIntfIPv4 = attrs.Attributes{
-		Desc:         "Customer_connect",
-		MTU:          1500,
-		IPv4:         "169.254.0.11",
-		IPv4Len:      29,
-		Subinterface: 20,
-	}
-	custIntfIPv6 = attrs.Attributes{
-		Desc:         "Customer_connectv6",
-		MTU:          1500,
-		IPv6:         "2600:2d00:0:1:8000:10:0:ca31",
-		IPv6Sec:      "2600:2d00:0:1:8000:10:0:ca33",
-		IPv6Len:      125,
-		Subinterface: 21,
-	}
-
-	custIntfdualStack = attrs.Attributes{
-		Desc:         "Customer_connect_dualstack",
-		MTU:          1500,
-		IPv4:         "169.254.0.27",
-		IPv4Len:      29,
-		IPv6:         "2600:2d00:0:1:7000:10:0:ca31",
-		IPv6Sec:      "2600:2d00:0:1:7000:10:0:ca33",
-		IPv6Len:      125,
-		Subinterface: 22,
-	}
-	custIntfIPv4MultiCloud = attrs.Attributes{
-		Desc:         "Customer_connect_multicloud",
-		MTU:          1500,
-		IPv4:         "169.254.0.33",
-		IPv4Len:      30,
-		Subinterface: 23,
-	}
-	custIntfIPv4JumboMTU = attrs.Attributes{
-		Desc:         "Customer_connect",
-		MTU:          9066,
-		IPv4:         "169.254.0.53",
-		IPv4Len:      29,
-		Subinterface: 26,
-	}
-	coreIntf = attrs.Attributes{
+	top       = gosnappi.NewConfig()
+	aggID     string
+	custPorts = []string{"port1", "port2"}
+	corePorts = []string{"port3", "port4"}
+	coreIntf  = attrs.Attributes{
 		Desc:    "Core_Interface",
 		IPv4:    "194.0.2.1",
 		IPv6:    "2001:10:1:6::1",
@@ -105,49 +70,6 @@ var (
 		IsLag:       true,
 	}
 
-	// interface1 = &otgconfighelpers.InterfaceProperties{
-	// 	IPv4:        "169.254.0.12",
-	// 	IPv4Gateway: "169.254.0.11",
-	// 	Name:        "Port-Channel1.20",
-	// 	MAC:         "02:00:01:01:01:08",
-	// 	Vlan:        20,
-	// 	IPv4Len:     29,
-	// }
-	// interface2 = &otgconfighelpers.InterfaceProperties{
-	// 	IPv6:        "2600:2d00:0:1:8000:10:0:ca32",
-	// 	IPv6Gateway: "2600:2d00:0:1:8000:10:0:ca31",
-	// 	MAC:         "02:00:01:01:01:09",
-	// 	Name:        "Port-Channel1.21",
-	// 	Vlan:        21,
-	// 	IPv6Len:     125,
-	// }
-	// interface3 = &otgconfighelpers.InterfaceProperties{
-	// 	IPv4:        "169.254.0.26",
-	// 	IPv4Gateway: "169.254.0.27",
-	// 	IPv6:        "2600:2d00:0:1:7000:10:0:ca32",
-	// 	IPv6Gateway: "2600:2d00:0:1:7000:10:0:ca31",
-	// 	MAC:         "02:00:01:01:01:10",
-	// 	Name:        "Port-Channel1.22",
-	// 	Vlan:        22,
-	// 	IPv4Len:     29,
-	// 	IPv6Len:     125,
-	// }
-	// interface4 = &otgconfighelpers.InterfaceProperties{
-	// 	IPv4:        "169.254.0.34",
-	// 	IPv4Gateway: "169.254.0.33",
-	// 	Name:        "Port-Channel1.23",
-	// 	MAC:         "02:00:01:01:01:11",
-	// 	Vlan:        23,
-	// 	IPv4Len:     30,
-	// }
-	// interface8 = &otgconfighelpers.InterfaceProperties{
-	// 	IPv4:        "169.254.0.54",
-	// 	IPv4Gateway: "169.254.0.53",
-	// 	Name:        "Port-Channel1.26",
-	// 	MAC:         "02:00:01:01:01:13",
-	// 	Vlan:        26,
-	// 	IPv4Len:     29,
-	// }
 	agg2interface = &otgconfighelpers.InterfaceProperties{
 		IPv4:        "194.0.2.2",
 		IPv6:        "2001:10:1:6::2",
@@ -158,20 +80,15 @@ var (
 		IPv4Len:     29,
 		IPv6Len:     126,
 	}
-	// TODO: uncomment this
-	// TODO: Change the variables otgIPs, otgIPsv6 to use pointer
-	// Custom IMIX settings for all flows.
-	// sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
-	// 	{Size: 64, Weight: 20},
-	// 	{Size: 128, Weight: 20},
-	// 	{Size: 256, Weight: 20},
-	// 	{Size: 512, Weight: 10},
-	// 	{Size: 1500, Weight: 28},
-	// 	{Size: 9000, Weight: 2},
-	// }
 
+	// Custom IMIX settings for all flows.
 	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
-		{Size: 1500, Weight: 100},
+		{Size: 64, Weight: 20},
+		{Size: 128, Weight: 20},
+		{Size: 256, Weight: 20},
+		{Size: 512, Weight: 10},
+		{Size: 1500, Weight: 28},
+		{Size: 9000, Weight: 2},
 	}
 
 	flowResolveArp = &otgvalidationhelpers.OTGValidation{
@@ -208,7 +125,7 @@ var (
 		FlowName:          "MPLSOGRE traffic IPv6 interface IPv6 Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 10000},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 100992, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 110993, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
 		GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
 	}
 	// FlowOuterIPv6Validation MPLSOGRE traffic IPv6 interface IPv6 Payload.
@@ -245,6 +162,46 @@ var (
 	}
 )
 
+type NetworkConfig struct {
+	DutIPs   []string
+	OtgIPs   []string
+	OtgMACs  []string
+	DutIPsV6 []string
+	OtgIPsV6 []string
+}
+
+func GenerateNetConfig(intCount int) (*NetworkConfig, error) {
+	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIP, intCount, intStepV4)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate DUT IPs: %w", err)
+	}
+
+	otgIPs, err := iputil.GenerateIPsWithStep(otgIntStartIP, intCount, intStepV4)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate OTG IPs: %w", err)
+	}
+
+	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
+
+	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIpV6, intCount, intStepV6)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
+	}
+
+	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIpV6, intCount, intStepV6)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate OTG IPv6s: %w", err)
+	}
+
+	return &NetworkConfig{
+		DutIPs:   dutIPs,
+		OtgIPs:   otgIPs,
+		OtgMACs:  otgMACs,
+		DutIPsV6: dutIPsV6,
+		OtgIPsV6: otgIPsV6,
+	}, nil
+}
+
 func ConfigureOTG(t *testing.T) {
 	t.Helper()
 	top.Captures().Clear()
@@ -260,21 +217,18 @@ func ConfigureOTG(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 }
 
-// PF-1.12.1: Generate DUT Configuration
-func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, otgIps []string, otgIpsV6 []string, mplsStaticLabels []int, mplsStaticLabelsForIpv6 []int, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+// PF-1.13.1: Generate DUT Configuration
+func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *NetworkConfig, mplsStaticLabels []int, mplsStaticLabelsForIpv6 []int, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	aggID = netutil.NextAggregateInterface(t, dut)
-	dutIps, _ := iputil.GenerateIPsWithStep("169.254.0.1", vlanCount, "0.0.0.4")
-
-	dutIpsV6, _ := iputil.GenerateIPv6sWithStep("2000:0:0:1::1", vlanCount, "0:0:0:1::")
 
 	interfaces := []*attrs.Attributes{}
-	for i := range vlanCount {
+	for i := range intCount {
 		iface := &attrs.Attributes{
 			Desc:         "Customer_connect",
 			MTU:          1500,
-			IPv4:         dutIps[i],
+			IPv4:         netConfig.DutIPs[i],
 			IPv4Len:      30,
-			IPv6:         dutIpsV6[i],
+			IPv6:         netConfig.DutIPsV6[i],
 			IPv6Len:      126,
 			Subinterface: uint32(i + 1),
 		}
@@ -282,41 +236,22 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, otgIps []string, otgIpsV
 	}
 
 	configureInterfaces(t, dut, custPorts, interfaces, aggID)
-	// for _, int := range interfaces {
-	// 	configureInterfaceProperties(t, dut, aggID, int, ocPFParams)
-	// }
 	aggID = netutil.NextAggregateInterface(t, dut)
 	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
 	configureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-	DecapMPLSInGRE(t, dut, pf, ni, otgIps, otgIpsV6, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
+	DecapMPLSInGRE(t, dut, pf, ni, netConfig, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
 
-}
-
-type IPPool struct {
-	ips   []string
-	index int
-	rw    sync.RWMutex
-}
-
-// NewIPPool creates a new IPPool
-func NewIPPool(entries []string) *IPPool {
-	return &IPPool{
-		ips:   entries,
-		index: -1,
-	}
 }
 
 func TestSetup(t *testing.T) {
 	t.Log("PF-1.13.1: Generate DUT Configuration")
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	dutIps, _ := iputil.GenerateIPsWithStep("169.254.0.1", vlanCount, "0.0.0.4")
-	otgIps, _ := iputil.GenerateIPsWithStep("169.254.0.2", vlanCount, "0.0.0.4")
-	otgMacs := iputil.GenerateMACs("00:00:00:00:00:AA", vlanCount, "00:00:00:00:00:01")
-
-	otgIpsV6, _ := iputil.GenerateIPv6sWithStep("2000:0:0:1::2", vlanCount, "0:0:0:1::")
-	dutIpsV6, _ := iputil.GenerateIPv6sWithStep("2000:0:0:1::1", vlanCount, "0:0:0:1::")
+	netConfig, err := GenerateNetConfig(intCount)
+	if err != nil {
+		t.Fatalf("Error generating net config: %v", err)
+	}
 	mplsStaticLabels := func() []int {
 		r := make([]int, mplsLabelCount)
 		for i := range r {
@@ -328,24 +263,24 @@ func TestSetup(t *testing.T) {
 	mplsStaticLabelsForIpv6 := func() []int {
 		r := make([]int, mplsLabelCount)
 		for i := range r {
-			r[i] = 100992 + i
+			r[i] = 110993 + i
 		}
 		return r
 	}()
 
 	var interfaces []*otgconfighelpers.InterfaceProperties
 
-	for i := range vlanCount {
+	for i := range intCount {
 		iface := &otgconfighelpers.InterfaceProperties{
 			Name:        fmt.Sprintf("agg1port%d", i+1),
-			IPv4:        otgIps[i],
-			IPv4Gateway: dutIps[i],
+			IPv4:        netConfig.OtgIPs[i],
+			IPv4Gateway: netConfig.DutIPs[i],
 			Vlan:        uint32(i + 1),
 			IPv4Len:     30,
-			IPv6:        otgIpsV6[i],
-			IPv6Gateway: dutIpsV6[i],
+			IPv6:        netConfig.OtgIPsV6[i],
+			IPv6Gateway: netConfig.DutIPsV6[i],
 			IPv6Len:     126,
-			MAC:         otgMacs[i],
+			MAC:         netConfig.OtgMACs[i],
 		}
 		interfaces = append(interfaces, iface)
 	}
@@ -355,7 +290,7 @@ func TestSetup(t *testing.T) {
 	ocPFParams := GetDefaultOcPolicyForwardingParams()
 
 	// Pass ocPFParams to ConfigureDut
-	ConfigureDut(t, dut, otgIps, otgIpsV6, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
+	ConfigureDut(t, dut, netConfig, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
 	FlowOuterIPv4Validation.Interface.Names = append(FlowOuterIPv4Validation.Interface.Names, agg1.Interfaces[0].Name)
 	FlowOuterIPv4.RxNames = append(FlowOuterIPv4.RxNames, agg1.Interfaces[0].Name+".IPv4")
 	FlowOuterIPv6Validation.Interface.Names = append(FlowOuterIPv6Validation.Interface.Names, agg1.Interfaces[0].Name)
@@ -374,24 +309,14 @@ func GetDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	}
 }
 
-func configureInterfaceProperties(t *testing.T, dut *ondatra.DUTDevice, aggID string, a *attrs.Attributes, ocPFParams cfgplugins.OcPolicyForwardingParams) {
-	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-
-	if a.IPv4 != "" {
-		cfgplugins.InterfacelocalProxyConfig(t, dut, a, aggID)
-	}
-	cfgplugins.InterfaceQosClassificationConfig(t, dut, a, aggID)
-	cfgplugins.InterfacePolicyForwardingConfig(t, dut, a, aggID, pf, ocPFParams)
-}
-
 // function should also include the OC config , within these deviations there should be a switch statement is needed
 // Modified to accept pf, ni, and ocPFParams
-func DecapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, otgIps []string, otgIpsV6 []string, mplsStaticLabels []int, mplsStaticLabelsForIpv6 []int, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+func DecapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, netConfig *NetworkConfig, mplsStaticLabels []int, mplsStaticLabelsForIpv6 []int, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	cfgplugins.DecapGroupConfigGre(t, dut, pf, ocPFParams)
-	cfgplugins.MPLSStaticLSPScaleConfig(t, dut, ni, otgIps, mplsStaticLabels, otgIpsV6, mplsStaticLabelsForIpv6, ocPFParams)
+	cfgplugins.MPLSStaticLSPScaleConfig(t, dut, ni, netConfig.OtgIPs, mplsStaticLabels, netConfig.OtgIPsV6, mplsStaticLabelsForIpv6, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		PushPolicyForwardingConfig(t, dut, ni)
 	}
@@ -440,10 +365,12 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(20 * time.Second)
 	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StopTraffic(t)
+	time.Sleep(20 * time.Second)
 }
 
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
@@ -495,6 +422,8 @@ func updateFlow(t *testing.T, paramsOuter *otgconfighelpers.Flow, paramsInner *o
 	if paramsInner.IPv4Flow != nil {
 		paramsInner.IPv4Flow.RawPriorityCount = 0
 		paramsInner.IPv4Flow.RawPriority = 10
+		paramsOuter.IPv4Flow.IPv4Src = "100.64.0.1"
+		paramsOuter.IPv4Flow.IPv4Dst = "11.1.1.1"
 	}
 	createflow(t, top, paramsOuter, paramsInner, clearFlows)
 }
