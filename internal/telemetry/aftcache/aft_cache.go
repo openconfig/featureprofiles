@@ -135,7 +135,7 @@ type aftNextHop struct {
 //
 //	map[string][]string{
 //		"prefix": []string{
-//			"openconfig/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
+//			"network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
 //		},
 //	}
 //
