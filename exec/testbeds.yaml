@@ -477,6 +477,24 @@ testbeds:
     baseconf:
       dut1: topologies/cisco/pyvxr/8812-2DUT/DUT1_baseconfig.conf
       dut2: topologies/cisco/pyvxr/8812-2DUT/DUT2_baseconfig.conf
+  8818-ATE-16P:
+    sim: true
+    topology: topologies/cisco/pyvxr/8818-ATE-16P/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8818-ATE-16P/baseconfig.conf    
+  DVT-SIM-TOPO:
+    sim: true
+    topology: topologies/cisco/pyvxr/DVT-SIM-TOPO/topo.yaml
+    baseconf:
+      dut1R: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/df1r.conf
+      dut2R: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/df2r.conf    
+      dut3R: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/df3r.conf
+      dut4R: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/df4r.conf
+      dut1E: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/df1e.conf
+      dut2E: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/df2e.conf
+      dut1V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/1v.conf
+      dut2V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/2v.conf 
+      JupiterR: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_r.conf
+      JupiterE: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_e.conf                            
       
   # OTG
   8201-32FH-FLM254306M8_OTG:

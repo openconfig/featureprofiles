@@ -1,0 +1,57 @@
+Value header (.*)
+Value nexthop_idx ([0-9]+)
+Value ldi_flag (.*)
+Value lspa_obj_id (.*)
+Value Filldown pathlist_count (\S+)
+Value Filldown obj_id (.*)
+Value nexthop (.*)
+Value next_hop_intf (\S+)
+Value lspa_count (\S+)
+Value List o_label (.*)
+Value List l_label ([\S\d\-:]+)
+Value List label_obj_id (.*)
+Value List nhinfo_intf (\S+)
+Value List nhinfo_obj_id (.*)
+Value List leaf_obj_id (.*)
+Value Filldown dep_ext_info ([\S\s]+\s*\[\S+\])
+Value Filldown dep_ext_pathlist ([\S\s]+timestamp:[\S\s]+\])
+Value dep_ext_path_id (\d+)
+Value dep_ext_p_nh ([\d\.\:]*)
+Value dep_ext_p_ifh (\S+)
+Value dep_ext_p_tbl ([a-z\d]+)
+Value dep_ext_p_type (\S+)
+Value dep_ext_p_flags (\[\S+\])
+Value dep_ext_p_depth (\d+)
+Value dep_ext_p_depth_flags (\[\S+\])
+Value Fillup dep_ext_queue_extension (\[[\S\s]+\]\[\S+\])
+
+Start
+  ^\s+LDI\s=>\s(.*)flags:${ldi_flag}(.*)$$ -> Record
+  ^IPv4\:(.*) -> LSPA
+  ^IPv6\:(.*) -> LSPA
+  ^\s+${header}\s=>(.*)count:${pathlist_count}(.*)obj-id:${obj_id}(.*)$$ -> Record Pathlist
+  
+
+LSPA
+  ^\s+${header}\s=>(.*)count:${lspa_count}(.*)obj-id:${lspa_obj_id}\s*$$
+  ^\s+LABEL_INFO\s=>\s\[\S+\s\[o-label\:\{${o_label}\}\sl-label\:${l_label}(.*)\]\sobj-id:${label_obj_id}\]\}\s*$$
+  ^\s+LDI\s=>\s(.*)flags:${ldi_flag}timestamp(.*)$$ -> Record Start
+
+Pathlist
+  ^\s+${nexthop_idx}\=\{
+  ^\s+\[\[nh:${nexthop}\sifh:${next_hop_intf}\s(.*)
+  ^\s+LEAF(.*)obj-id:${leaf_obj_id}\s*
+  ^\s+NHINFO(.*)ifh:${nhinfo_intf},\s(.*)obj-id:${nhinfo_obj_id}\s*
+  ^\s+(.*)\#\#\#\]\} -> Record Pathlist
+  ^\s*DEP-EXT\s*=>\s*\[$dep_ext_info\] -> DEP_EXT
+
+DEP_EXT
+  ^\s*DEP-EXT\s*=>\s*\[$dep_ext_info\]
+  ^\s*PATHLIST\s*=>\s*$dep_ext_pathlist -> DEP_EXT_PATHLIST
+
+DEP_EXT_PATHLIST
+  ^\s*$dep_ext_path_id=\{
+  ^\s*\[\[nh:$dep_ext_p_nh ifh:$dep_ext_p_ifh tbl:$dep_ext_p_tbl type:$dep_ext_p_type flags:$dep_ext_p_flags\]
+  ^\s*\[depth:$dep_ext_p_depth flags:$dep_ext_p_depth_flags ###\]\} -> Record
+  ^\s*\d+=\{ -> DEP_EXT_PATHLIST
+  ^\s*QUEUE-EXTENSION => $dep_ext_queue_extension	

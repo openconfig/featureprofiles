@@ -10,6 +10,7 @@ replace: {
 " group cisco-support\n"
 " secret 10 $6$uyJpX1TJxsJDCX1.$PM1jtTPucT1pUiUH61jBV8Pl/6xV4Qo4a6pXf7UcHwYjtnnhKey0gSgl/HCV6fZNNprXUz2/aukENGc3FtGOq0\n"
 "!\n"
+"vty-pool default 0 99 line-template vty\n"
 "grpc\n"
 " vrf mgmt\n"
 " port 57778\n"

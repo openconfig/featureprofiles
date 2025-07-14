@@ -72,5 +72,15 @@
   type: "command"
   errorPatterns:
     - "FAILURE"
-"show tech-support install":
+"show tech-support cef platform":
+  type: "show-tech"
+"show tech-support ofa":
+  type: "show-tech"
+"show tech-support cef":
+  type: "show-tech"
+"show tech-support service layer":
+  type: "show-tech"
+"show tech-support fabric":
+  type: "show-tech"
+"show tech-support platform fwd":
   type: "show-tech"
