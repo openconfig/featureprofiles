@@ -19,9 +19,9 @@ syntax = "proto3";
 
 package openconfig.deviations;
 
-import "third_party/openconfig/featureprofiles/proto/metadata.proto";
-import "third_party/openconfig/featureprofiles/proto/ocpaths.proto";
-import "third_party/openconfig/gnmi/proto/gnmi/gnmi.proto";
+import "github.com/openconfig/featureprofiles/proto/metadata.proto";
+import "github.com/openconfig/featureprofiles/proto/ocpaths.proto";
+import "github.com/openconfig/gnmi/proto/gnmi/gnmi.proto";
 
 option go_package = "github.com/openconfig/featureprofiles/proto/deviations_go_proto;deviations";
 
