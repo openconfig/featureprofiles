@@ -411,7 +411,7 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + ".BGP6.peer")
 	bgp6Peer.SetPeerAddress(ipv6.Gateway()).SetAsNumber(uint32(ateAS)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + "v4route")
+	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ".v4route")
 	routes.SetNextHopIpv4Address(ipv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
@@ -420,11 +420,11 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 		SetPrefix(advertisedRoutesV4Prefix).
 		SetCount(getRouteCount(tc.dut, IPv4))
 
-	routesv6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + "v6route")
-	routesv6.SetNextHopIpv6Address(ipv6.Address()).
+	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ".v6route")
+	routesV6.SetNextHopIpv6Address(ipv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	routesv6.Addresses().Add().
+	routesV6.Addresses().Add().
 		SetAddress(bgpRoutev6).
 		SetPrefix(advertisedRoutesV6Prefix).
 		SetCount(getRouteCount(tc.dut, IPv6))
