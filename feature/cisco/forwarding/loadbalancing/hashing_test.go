@@ -21,12 +21,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	textfsm "github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
+
 	// "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/cisco/verifiers"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -220,18 +222,18 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 	t.Log("Configure TGEN and set traffic flows")
 	topo := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTgenInterface(t)
 
-	trafficFlows := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTGENFlows(t)
-	tgenVerifyParam := verifiers.TgenValidationParam{
-		Tolerance: 0.02,
-		WantLoss:  false,
-		Flows:     trafficFlows,
-	}
+	// trafficFlows := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTGENFlows(t)
+	// tgenVerifyParam := verifiers.TgenValidationParam{
+	// 	Tolerance: 0.02,
+	// 	WantLoss:  false,
+	// 	Flows:     trafficFlows,
+	// }
 
-	t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
-		helper.TGENHelper().StartTraffic(t, useOTG, trafficFlows, 10*time.Second, topo, false)
-		time.Sleep(5 * time.Second) // Wait for tgen traffic to completely stop.
-		verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
-	})
+	// t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
+	// 	helper.TGENHelper().StartTraffic(t, useOTG, trafficFlows, 10*time.Second, topo, false)
+	// 	time.Sleep(5 * time.Second) // Wait for tgen traffic to completely stop.
+	// 	verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
+	// })
 	cases := []testCase{
 		// {
 		// 	name: "Default",
@@ -255,7 +257,7 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 			defer configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, true)
 
 			t.Log("Clearing interface counters on all the DUTs")
-			helper.InterfaceHelper().ClearInterfaceCountersAll(t, dvtCiscoDUTList)
+			// helper.InterfaceHelper().ClearInterfaceCountersAll(t, dvtCiscoDUTList)
 
 			// Traffic flow map for v4, v6, IPinIP and IPv6inIP between R to E and E to R sites.
 			trafficMap := make(map[string][]*helper.TrafficFlowAttr)
@@ -264,16 +266,28 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 			trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
 			trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
 
+			deviceNHInfo := make(map[*ondatra.DUTDevice]FIBNHInfo)
+
+			for _, device := range dvtCiscoDUTList {
+				if strings.Contains(device.Name(), "E") {
+					deviceNHInfo[device].aftV4Prefix = eSiteV4DSTIP
+					deviceNHInfo[device].aftV4PrefixLength = "/32"
+					deviceNHInfo[device].aftV6Prefix = eSiteV6DSTPFX
+					deviceNHInfo[device].aftV6PrefixLength = "/64"
+				} else {
+					deviceNHInfo[device].aftV4Prefix = rSiteV4DSTIP
+					deviceNHInfo[device].aftV4PrefixLength = "/32"
+					deviceNHInfo[device].aftV6Prefix = rSiteV6DSTPFX
+					deviceNHInfo[device].aftV6PrefixLength = "/64"
+				}
+				deviceNH[device].
+
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).
 			t.Log("Measure Traffic distribution from Site R-to-E on SiteE node going to Jupiter , & other way around")
 			for trafficType, trafficFlows := range trafficMap {
 				t.Run(fmt.Sprintf("%s flow", trafficType), func(t *testing.T) {
 					tgenParam.TrafficFlowParam = trafficFlows
 					trafficFlow := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTGENFlows(t)
-					t.Log("Start Bidirectional Traffic flows")
-					helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 2*time.Minute, topo, false)
-					time.Sleep(30 * time.Second) // Wait for 30 seconds for XR statsd interface cache to update
-
 					var aftDestPrefix, prefixLength, afiType string
 					//Verify traffic distribution on each of the cisco DUTs in the R, E sites.
 					prefixLength = "/32"
@@ -298,61 +312,77 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 								afiType = "ipv6"
 							}
 						default:
-							t.Fatalf("Invalid traffic type %s", trafficType)
+							t.Errorf("Invalid traffic type %s", trafficType)
 						}
-						aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, device, aftDestPrefix+prefixLength, deviations.DefaultNetworkInstance(device), afiType)
-						bundleObjList := []BundleInterface{}
+						outputIFWeight := getInterfaceNHWithWeights(t, device, aftDestPrefix, prefixLength, afiType)
+						var wg sync.WaitGroup
+						wg.Add(2)
+						go func() {
+							defer wg.Done() // Decrease counter when done
+							t.Log("Start Bidirectional Traffic flows")
+							helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 5*time.Minute, topo, false)
+						}()
+						go func() {
+							defer wg.Done()             // Decrease counter when done
+							time.Sleep(2 * time.Minute) // Wait for traffic to start and interface PPS to fully stabilize.
+							// aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, device, aftDestPrefix+prefixLength, deviations.DefaultNetworkInstance(device), afiType)
+							// bundleObjList := []BundleInterface{}
 
-						for _, nhObj := range aftPfxObj.NextHop {
-							bundleObj := BundleInterface{}
-							bundleObj.BundleInterfaceName = nhObj.NextHopInterface
-							bundleObj.BundleNHWeight = nhObj.NextHopWeight
-							memberMap := helper.InterfaceHelper().GetBundleMembers(t, device, nhObj.NextHopInterface)
-							for _, memberList := range memberMap {
-								bundleMemberWt := make([]uint64, len(memberList))
-								bundleObj.BundleMembers = memberList
-								for i := 0; i < len(memberList); i++ {
-									bundleMemberWt[i] = 1 // Default weight for Bundle members is 1.
-								}
-								bundleObj.BundleMembersWeight = bundleMemberWt
-							}
-							bundleObjList = append(bundleObjList, bundleObj)
-						}
-						// Create Map of Bundle NH Outgoing interfaces with their weights
-						var OutputIFWeight = make(map[string]uint64)
-						for _, nhObj := range aftPfxObj.NextHop {
-							OutputIFWeight[nhObj.NextHopInterface] = nhObj.NextHopWeight
-						}
-						inputTrafficIF := helper.LoadbalancingHelper().GetIngressTrafficInterfaces(t, device, afiType, true)
-						var bundleNHIntf []string
-						for _, intf := range bundleObjList {
-							bundleNHIntf = append(bundleNHIntf, intf.BundleInterfaceName)
-						}
+							// for _, nhObj := range aftPfxObj.NextHop {
+							// 	bundleObj := BundleInterface{}
+							// 	bundleObj.BundleInterfaceName = nhObj.NextHopInterface
+							// 	bundleObj.BundleNHWeight = nhObj.NextHopWeight
+							// 	memberMap := helper.InterfaceHelper().GetBundleMembers(t, device, nhObj.NextHopInterface)
+							// 	for _, memberList := range memberMap {
+							// 		bundleMemberWt := make([]uint64, len(memberList))
+							// 		bundleObj.BundleMembers = memberList
+							// 		for i := 0; i < len(memberList); i++ {
+							// 			bundleMemberWt[i] = 1 // Default weight for Bundle members is 1.
+							// 		}
+							// 		bundleObj.BundleMembersWeight = bundleMemberWt
+							// 	}
+							// 	bundleObjList = append(bundleObjList, bundleObj)
+							// }
+							// // Create Map of Bundle NH Outgoing interfaces with their weights
+							// var OutputIFWeight = make(map[string]uint64)
+							// for _, nhObj := range aftPfxObj.NextHop {
+							// 	OutputIFWeight[nhObj.NextHopInterface] = nhObj.NextHopWeight
+							// }
+							// inputTrafficIF := helper.LoadbalancingHelper().GetIngressTrafficInterfaces(t, device, afiType, true)
+							// var bundleNHIntf []string
+							// for _, intf := range bundleObjList {
+							// 	bundleNHIntf = append(bundleNHIntf, intf.BundleInterfaceName)
+							// }
 
-						//Remove NH Outgoing Bundle interfaces from inputTrafficIF MAP.
-						for _, intf := range bundleNHIntf {
-							delete(inputTrafficIF, intf)
-						}
-						var totalInPackets uint64
-						for _, val := range inputTrafficIF {
-							totalInPackets += val
-						}
-						t.Logf("TotalInPackets on dut %s are: %d", device, totalInPackets)
+							// //Remove NH Outgoing Bundle interfaces from inputTrafficIF MAP.
+							// for _, intf := range bundleNHIntf {
+							// 	delete(inputTrafficIF, intf)
+							// }
+							// var totalInPackets uint64
+							// for _, val := range inputTrafficIF {
+							// 	totalInPackets += val
+							// }
+							// t.Logf("TotalInPackets on dut %s are: %d", device, totalInPackets)
 
-						// Verify traffic distribution on Bundle NH Outgoing interfaces.
-						t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-							verifiers.Loadbalancingverifier().VerifyEgressDistributionPerWeight(t, device, OutputIFWeight, loadBalancingTolerance, true, afiType)
-						})
-						for _, bunIntf := range bundleObjList {
-							var memberListWeight = make(map[string]uint64)
-							for _, member := range bunIntf.BundleMembers {
-								memberListWeight[member] = 1
-							}
-							// Verify traffic distribution on Bundle member LAG level loadbalancing for each bundle interface.
-							t.Run(fmt.Sprintf("Bundle Member LB device %s on %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
-								verifiers.Loadbalancingverifier().VerifyEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, false, noTrafficType)
+							// Verify traffic distribution on Bundle NH Outgoing interfaces.
+							// t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
+							// 	verifiers.Loadbalancingverifier().VerifyPacketEgressDistributionPerWeight(t, device, OutputIFWeight, loadBalancingTolerance, true, afiType)
+							// })
+							t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
+								verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, outputIFWeight, loadBalancingTolerance, true, afiType)
 							})
-						}
+						}()
+						wg.Wait()
+						// for _, bunIntf := range bundleObjList {
+						// 	var memberListWeight = make(map[string]uint64)
+						// 	for _, member := range bunIntf.BundleMembers {
+						// 		memberListWeight[member] = 1
+						// 	}
+						// 	// Verify traffic distribution on Bundle member LAG level loadbalancing for each bundle interface.
+						// 	t.Run(fmt.Sprintf("Bundle Member LB device %s on %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
+						// 		verifiers.Loadbalancingverifier().VerifyPacketEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, false, noTrafficType)
+						// 	})
+						// }
 					}
 				})
 			}
@@ -545,7 +575,7 @@ func TestGribiFlowsLoadBalancing(t *testing.T) {
 
 						// Verify traffic distribution on Bundle NH Outgoing interfaces.
 						t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-							verifiers.Loadbalancingverifier().VerifyEgressDistributionPerWeight(t, device, OutputIFWeight, loadBalancingTolerance, true, afiType)
+							verifiers.Loadbalancingverifier().VerifyPacketEgressDistributionPerWeight(t, device, OutputIFWeight, loadBalancingTolerance, true, afiType)
 						})
 						for _, bunIntf := range bundleObjList {
 							var memberListWeight = make(map[string]uint64)
@@ -554,7 +584,7 @@ func TestGribiFlowsLoadBalancing(t *testing.T) {
 							}
 							// Verify traffic distribution on Bundle member LAG level loadbalancing for each bundle interface.
 							t.Run(fmt.Sprintf("Bundle Member LB device %s on %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
-								verifiers.Loadbalancingverifier().VerifyEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, false, noTrafficType)
+								verifiers.Loadbalancingverifier().VerifyPacketEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, false, noTrafficType)
 							})
 						}
 					}

@@ -35,12 +35,12 @@ const (
 	vrfRepair          = "REPAIR"
 	vrfDecap           = "DECAP_TE_VRF"
 	localStationMac    = "00:1a:11:17:5f:80"
-	trafficRatePPS     = 10000
+	trafficRatePPS     = 20000
 )
 
 // Traffic flow and common variables.
 var (
-	loadBalancingTolerance = 0.03
+	loadBalancingTolerance = 0.02
 	rSiteV4DSTIP           = "10.240.118.50"
 	eSiteV4DSTIP           = "10.240.118.35"
 	rSiteV6DSTIP           = "2002:af0:7730:a::1"
@@ -178,7 +178,7 @@ var (
 		L4DstPortStart:     2000,
 		L4FlowStep:         1,
 		L4FlowCount:        uint32(srcIPFlowCount),
-		TrafficPPS:         200,
+		TrafficPPS:         trafficRatePPS,
 		PacketSize:         128,
 	}
 	v6E2R = helper.TrafficFlowAttr{
@@ -205,7 +205,7 @@ var (
 		L4DstPortStart:     2000,
 		L4FlowStep:         1,
 		L4FlowCount:        uint32(srcIPFlowCount),
-		TrafficPPS:         200,
+		TrafficPPS:         trafficRatePPS,
 		PacketSize:         128,
 	}
 	// IPinIP Traffic flows
@@ -316,7 +316,7 @@ var (
 		L4DstPortStart:     2000,
 		L4FlowStep:         1,
 		L4FlowCount:        uint32(srcIPFlowCount),
-		TrafficPPS:         200,
+		TrafficPPS:         trafficRatePPS,
 		PacketSize:         128,
 	}
 	IPv6inIPE2R = helper.TrafficFlowAttr{
@@ -354,7 +354,7 @@ var (
 		L4DstPortStart:     2000,
 		L4FlowStep:         1,
 		L4FlowCount:        uint32(srcIPFlowCount),
-		TrafficPPS:         200,
+		TrafficPPS:         trafficRatePPS,
 		PacketSize:         128,
 	}
 )
@@ -388,6 +388,15 @@ type BundleInterface struct {
 	BundleNHWeight      uint64
 	BundleMembers       []string
 	BundleMembersWeight []uint64
+}
+
+type FIBNHInfo struct {
+	egressNHWeight map[string]uint64
+	aftV4Prefix    string
+	aftV4PrefixLen string
+	aftV6Prefix    string
+	aftV6PrefixLen string
+	afiType        string
 }
 
 type gribiParamPerSite struct {
@@ -574,4 +583,45 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.AddNHG(t, 335548320, map[uint64]uint64{1000: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddIPv4(t, gribiArgs.decapV4Prefix, 335548320, vrfDecap, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.Close(t)
+}
+
+func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, afiType string) map[string]uint64 {
+	var outputIFWeight = make(map[string]uint64) // Get the interface next hops
+	aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, dut, prefix+prefixLength, deviations.DefaultNetworkInstance(dut), afiType)
+	bundleObjList := []BundleInterface{}
+
+	for _, nhObj := range aftPfxObj.NextHop {
+		bundleObj := BundleInterface{}
+		bundleObj.BundleInterfaceName = nhObj.NextHopInterface
+		bundleObj.BundleNHWeight = nhObj.NextHopWeight
+		memberMap := helper.InterfaceHelper().GetBundleMembers(t, dut, nhObj.NextHopInterface)
+		for _, memberList := range memberMap {
+			bundleMemberWt := make([]uint64, len(memberList))
+			bundleObj.BundleMembers = memberList
+			for i := range memberList {
+				bundleMemberWt[i] = 1 // Default weight for Bundle members is 1.
+			}
+			bundleObj.BundleMembersWeight = bundleMemberWt
+		}
+		bundleObjList = append(bundleObjList, bundleObj)
+	}
+	// Create Map of Bundle NH Outgoing interfaces with their weights
+	for _, nhObj := range aftPfxObj.NextHop {
+		outputIFWeight[nhObj.NextHopInterface] = nhObj.NextHopWeight
+	}
+	inputTrafficIF := helper.LoadbalancingHelper().GetIngressTrafficInterfaces(t, dut, afiType, true)
+	var bundleNHIntf []string
+	for _, intf := range bundleObjList {
+		bundleNHIntf = append(bundleNHIntf, intf.BundleInterfaceName)
+	}
+
+	//Remove NH Outgoing Bundle interfaces from inputTrafficIF MAP.
+	for _, intf := range bundleNHIntf {
+		delete(inputTrafficIF, intf)
+	}
+	var totalInPackets uint64
+	for _, val := range inputTrafficIF {
+		totalInPackets += val
+	}
+	return outputIFWeight
 }

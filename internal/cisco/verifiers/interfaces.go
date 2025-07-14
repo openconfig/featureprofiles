@@ -4,6 +4,7 @@ package verifiers
 import (
 	"context"
 	"fmt"
+
 	// "os"
 	"testing"
 
@@ -21,7 +22,8 @@ type interfaceVerifier struct{}
 // 	return false
 // }
 
-// VerifyShowInterfaceCLI returns interface data from the show CLI.
+// VerifyShowInterfaceCLI returns interface data from the "show interface" CLI. 'want' is optional parameter,
+// if its input it compares the want data with the corresponding fields in the CLI got output.
 func (v *interfaceVerifier) VerifyShowInterfaceCLI(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, intfName string, want ...*textfsm.ShowInterface) (textfsm.ShowInterface, bool) {
 	matches := true
 	cliOutput := config.CMDViaGNMI(ctx, t, dut, fmt.Sprintf("show interface %s", intfName))
@@ -32,11 +34,19 @@ func (v *interfaceVerifier) VerifyShowInterfaceCLI(t *testing.T, ctx context.Con
 	t.Logf("%+v\n", intfTextfsm)
 	for _, w := range want {
 		if err := util.CompareStructRequiredFields(w, intfTextfsm); err != nil {
-			fmt.Println("FAILED:", err)
-		} else {
-			fmt.Println("PASS")
+			matches = false
 		}
-		t.Log("WAIT")
 	}
 	return intfTextfsm, matches
+}
+
+// GetInterfaceInPPS returns the input packets per second for a given interface.
+func GetInterfaceOutPPS(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) uint64 {
+	ctx := context.Background()
+	var pps uint64
+	showIntf, _ := Interfaceverifier().VerifyShowInterfaceCLI(t, ctx, dut, interfaceName)
+	for _, rate := range showIntf.GetAllThirtySecOutputPps() {
+		pps = uint64(util.StringToInt(t, rate))
+	}
+	return pps
 }
