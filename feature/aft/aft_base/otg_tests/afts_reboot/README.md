@@ -54,13 +54,14 @@ Configure eBGP multipath sessions.
 ### Procedure
 
 * Initiate a reboot on the DUT using the gNOI.System.Reboot RPC.
-* After initiating the reboot, continuously poll the `/system/state/boot-time` leaf via gNMI Get requests. Wait for the DUT to respond and for the BGP peerings to re-establish by polling `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state` until it returns to `ESTABLISHED`.
+* After initiating the reboot, continuously poll the `/system/state/boot-time` leaf via gNMI subscribe once request. Wait for the DUT to respond and for the BGP peerings to re-establish by polling `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state` until it returns to `ESTABLISHED`.
 
 ### Verifications
 
 * Verify that the value of `/system/state/boot-time` after the reboot is greater than the value read before the reboot.
+* During reboot gNMI connection will terminate, retry must be there till the device comes up.
 * Confirm that `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state` is `ESTABLISHED` for all BGP neighbors.
-* Using the existing gNMI Subscribe stream for `/network-instances/network-instance[name=DEFAULT]/afts/`, re-verify the state of the AFTs:
+* Using the gNMI Subscribe stream for `/network-instances/network-instance[name=DEFAULT]/afts/`, re-verify the state of the AFTs:
 * Confirm eBGP prefixes have next-hop-groups with two next-hops.
 * Confirm IS-IS prefixes have next-hop-groups with one next-hop.
 * Confirm all next-hops point to the correct egress interfaces.
@@ -88,7 +89,7 @@ paths:
 
 rpcs:
   gnmi:
-    gNMI.Subscribe:
+    gNMI Subscribe:
 ```
 ## Canonical OC
 
