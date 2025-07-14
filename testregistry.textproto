@@ -97,6 +97,12 @@ test: {
   exec: ""
 }
 test: {
+  id: "AFT-5.1"
+  description: "AFTs DUT Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_reboot/README.md"
+  exec: ""
+}
+test: {
   id: "attestz-1"
   description: "Validate attestz for initial install"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
