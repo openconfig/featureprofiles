@@ -135,7 +135,7 @@ type aftNextHop struct {
 //
 //	map[string][]string{
 //		"prefix": []string{
-//			"network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
+//			"openconfig/network-instances/network-instance[name=DEFAULT]/afts/ipv4-unicast/ipv4-entry",
 //		},
 //	}
 //
@@ -143,7 +143,7 @@ type aftNextHop struct {
 //
 //	map[string][]string{
 //		"prefix": []string{
-//			"network-instances/network-instance/name/DEFAULT/afts/ipv4-unicast/ipv4-entry",
+//			"openconfig/network-instances/network-instance/name/DEFAULT/afts/ipv4-unicast/ipv4-entry",
 //		},
 //	}
 func generateCacheTraversalPaths(subscriptionPaths map[string][]string) (map[string][]string, error) {
