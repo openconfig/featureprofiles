@@ -474,8 +474,8 @@ with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as
 
     if command in ["stop", "restart", "sim"]:
         print(f"Stopping OTG")
-        check_output(start_cmd)
+        check_output(stop_cmd)
 
     if command in ["start", "restart"]:
         print(f"Starting OTG")
-        check_output(stop_cmd)
+        check_output(start_cmd)

@@ -483,7 +483,6 @@ tests:
       - fmolina
     mustpass: true
     priority: 0
-    groups: [ancx,P3]
   - name: System-1.3 (System hostname test)
     path: feature/system/system_base_test/tests/hostname_test
     owners:
@@ -498,7 +497,6 @@ tests:
       - fmolina
     mustpass: true
     priority: 0
-    groups: [ancx,P3]
   - name: MTU-1.3 (Large IP Packet Transmission)
     path: feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission
     owners:

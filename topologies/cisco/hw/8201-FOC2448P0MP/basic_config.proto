@@ -11,6 +11,7 @@ replace: {
     " secret 10 $6$NsWVl/iMMQ445l/.$6prOddOxJK2Pb7Oz3v10ed9q2L/fGtr4GInoGvq/kRKovNyA/Grgx65YXoB4dHJtYWDLQOlk75fWP.vKZ/6oJ.\n"
     "!\n"
     "aaa accounting commands default start-stop local\n"
+    "vty-pool default 0 99 line-template vty\n"
     "grpc\n"
     " port 57400\n"
     " tls-mutual\n"
