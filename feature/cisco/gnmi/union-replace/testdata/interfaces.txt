@@ -317,7 +317,7 @@ update {
       "sampler-map OC-FSM-GLOBAL-INGRESS\n"
       " random 1 out-of 10000\n"
       "!\n"
-      "hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
+      "hw-module profile netflow sflow-enable location 0/0/CPU0\n"
       "interface tunnel-ip1215\n"
       " ipv4 unnumbered Loopback0\n"
       " tunnel mode gre ipv4 encap\n"

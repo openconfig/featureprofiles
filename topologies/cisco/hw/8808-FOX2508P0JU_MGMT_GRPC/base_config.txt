@@ -7,6 +7,7 @@ username cafyauto
  group cisco-support
  secret 10 $6$ymqNNgRK4bZ/N...$LI6ixV0OvuH.6RWHTE0z/FLVoZ3NPIoLedmrH0QJeBPce0Plu2qpulW.nThYDvOtdUGT5zM7NH4jmpjo0j0L00
 !
+vty-pool default 0 99 line-template vty
 grpc
  vrf mgmt
  port 57400

@@ -30,6 +30,7 @@ func TestShowVersion(t *testing.T) {
 		"show version",
 		"show install fixes active",
 		"show platform",
+		"show inventory",
 		"show context",
 		"terminal length 0\nshow running-config",
 	}

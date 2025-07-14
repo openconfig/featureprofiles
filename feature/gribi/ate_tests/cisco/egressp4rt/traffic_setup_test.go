@@ -1,0 +1,419 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package egressp4rt_test
+
+import (
+	"context"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	//ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/gnmi"
+)
+
+type TGNoptions struct {
+	SrcIP    string
+	DstIP    string
+	SrcIf    string
+	Scalenum int
+	Ifname   string
+}
+
+type Countoptions struct {
+	portin  []string
+	portinp []string
+	tcp     bool
+	udp     bool
+	tcpd    uint16
+	tcps    uint16
+	udps    uint16
+	udpd    uint16
+}
+
+// configureATE configures port1, port2 and port3 on the ATE.
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+	t.Helper()
+
+	top := ate.Topology().New()
+
+	p1 := ate.Port(t, "port1")
+	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
+	i1.IPv4().
+		WithAddress(atePort1.IPv4CIDR()).
+		WithDefaultGateway(dutPort1.IPv4)
+	i1.IPv6().
+		WithAddress(atePort1.IPv6CIDR()).
+		WithDefaultGateway(dutPort1.IPv6)
+
+	p2 := ate.Port(t, "port2")
+	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
+	i2.IPv4().
+		WithAddress(atePort2.IPv4CIDR()).
+		WithDefaultGateway(dutPort2.IPv4)
+	i2.IPv6().
+		WithAddress(atePort2.IPv6CIDR()).
+		WithDefaultGateway(dutPort2.IPv6)
+
+	p3 := ate.Port(t, "port3")
+	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
+	i3.Ethernet()
+
+	p4 := ate.Port(t, "port4")
+	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
+	i4.Ethernet()
+
+	p5 := ate.Port(t, "port5")
+	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
+	i5.IPv4().
+		WithAddress(atePort5.IPv4CIDR()).
+		WithDefaultGateway(dutPort5.IPv4)
+	i5.IPv6().
+		WithAddress(atePort5.IPv6CIDR()).
+		WithDefaultGateway(dutPort5.IPv6)
+
+	p7 := ate.Port(t, "port7")
+	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
+	i7.IPv4().
+		WithAddress(atePort7.IPv4CIDR()).
+		WithDefaultGateway(dutPort7.IPv4)
+	i7.IPv6().
+		WithAddress(atePort7.IPv6CIDR()).
+		WithDefaultGateway(dutPort7.IPv6)
+
+	p6 := ate.Port(t, "port6")
+	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
+	i6.IPv4().
+		WithAddress(atePort6.IPv4CIDR()).
+		WithDefaultGateway(dutPort6.IPv4)
+	i6.IPv6().
+		WithAddress(atePort6.IPv6CIDR()).
+		WithDefaultGateway(dutPort6.IPv6)
+
+	p8 := ate.Port(t, "port8")
+	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
+	i8.Ethernet()
+
+	return top
+
+}
+func cidr(ipv4 string, ones int) string {
+	return ipv4 + "/" + strconv.Itoa(ones)
+}
+
+func (a *attributes) ConfigureSubATE(t *testing.T, top *ondatra.ATETopology, ate *ondatra.ATEDevice) {
+	t.Helper()
+	p := ate.Port(t, a.Name)
+	t.Log(atePort7.Attributes.Name + "xxxx")
+	// Configure source port on ATE : Port1.
+	if a.numSubIntf == 0 {
+		ip := a.ip(0)
+		gateway := a.gateway(0)
+		intf := top.AddInterface(ip).WithPort(p)
+		intf.IPv4().WithAddress(cidr(ip, 30))
+		intf.IPv4().WithDefaultGateway(gateway)
+		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
+	}
+	// Configure destination port on ATE : Port2.
+	for i := uint32(1); i <= a.numSubIntf; i++ {
+		ip := a.ip(uint8(i))
+		gateway := a.gateway(uint8(i))
+		intf := top.AddInterface(ip).WithPort(p)
+		intf.IPv4().WithAddress(cidr(ip, 30))
+		intf.IPv4().WithDefaultGateway(gateway)
+		intf.Ethernet().WithVLANID(uint16(i))
+		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s and VlanID: %d", cidr(ip, 30), gateway, i)
+	}
+}
+
+// addPrototoAte
+func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
+	t.Helper()
+
+	intfs := top.Interfaces()
+	intfs["port7"].WithIPv4Loopback("100.100.100.100/32")
+	top.Push(t).StartProtocols(t)
+}
+
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap, portval, sourceport bool, ttl, ttl2 int, inDst, inSrc, outDst, outSrc string, opts ...*Countoptions) (string, string, int) {
+
+	dut := ondatra.DUT(t, "dut")
+	var intfName, intfs string
+	// ATE source endpoint.
+	if sourceport {
+		intfName = atePort1.Name
+		intfs = "atePort1"
+	} else {
+		intfName = atePort3.Name
+		intfs = "atePort3"
+	}
+	srcEndPoint := top.Interfaces()[intfName]
+	dstEndPoints := []ondatra.Endpoint{}
+
+	for intf, intf_data := range top.Interfaces() {
+		if intf != intfs {
+			dstEndPoints = append(dstEndPoints, intf_data)
+		}
+	}
+	var innerdst string
+	if !encap {
+		innerdst = innerdstPfxMin_bgp
+	} else {
+		innerdst = inDst
+	}
+	var fps int
+	ct := 30000
+	if ttl == 1 {
+		fps = 5
+	} else {
+		fps = 300
+	}
+	// Configure Ethernet+IPv4 headers.
+	var cliHandle binding.CLIClient
+	if portval || (intfName == atePort3.Name && !sourceport) {
+		cliHandle = dut.RawAPIs().CLI(t)
+	}
+
+	ethHeader := ondatra.NewEthernetHeader().WithSrcAddress(tracerouteSrcMAC)
+	if intfName == atePort3.Name && !sourceport {
+		cmd := fmt.Sprintf("show interface %s", "Bundle-Ether120")
+		output, _ := cliHandle.RunCommand(context.Background(), cmd)
+		re := regexp.MustCompile(`address is (\w+.\w+.\w+)\s`)
+		match := re.FindStringSubmatch(output.Output())
+		s := match[1]
+		b1 := s[:4]
+		b2 := s[5:9]
+		b3 := s[10:]
+		bb := b1 + b2 + b3
+		re = regexp.MustCompile(`.{2}`)
+		parts := re.FindAllString(bb, -1)
+		dstddress := strings.Join(parts, ":")
+		ethHeader = ondatra.NewEthernetHeader().WithSrcAddress(tracerouteSrcMAC).WithDstAddress(dstddress)
+	}
+	ipv4Header := ondatra.NewIPv4Header()
+	ipv4Header.WithSrcAddress(outSrc)
+	ipv4Header.WithDSCP(dscpEncapA1)
+	ipv4Header.WithDstAddress(outDst)
+	ipv4Header.WithTTL(uint8(ttl))
+
+	innerIpv4Header := ondatra.NewIPv4Header()
+	innerIpv6Header := ondatra.NewIPv6Header()
+
+	tcpHeader := ondatra.NewTCPHeader()
+	udpHeader := ondatra.NewUDPHeader()
+
+	if count == 5 || count == 6 {
+		innerIpv4Header.SrcAddressRange().WithMin(inSrc).WithCount(1).WithStep("0.0.0.1")
+		innerIpv4Header.DstAddressRange().WithMin(innerdst).WithCount(1).WithStep("0.0.0.1")
+		innerIpv4Header.WithTTL(uint8(ttl2))
+		innerIpv4Header.WithDSCP(8)
+
+	} else if count == 2 || count == 22 {
+		innerIpv6Header.SrcAddressRange().WithMin(inSrc).WithCount(1).WithStep("::1")
+		innerIpv6Header.DstAddressRange().WithMin(inDst).WithCount(uint32(1)).WithStep("::1")
+		innerIpv6Header.WithHopLimit(uint8(ttl2))
+		innerIpv6Header.WithDSCP(8)
+	}
+
+	flow := ate.Traffic().NewFlow("flow").
+		WithSrcEndpoints(srcEndPoint).
+		WithDstEndpoints(dstEndPoints...)
+
+	if outDst != inDst {
+		if count == 2 || count == 22 {
+			flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv6Header).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+			if len(opts) != 0 {
+				for _, opt := range opts {
+					if opt.tcp {
+						tcpHeader.WithDstPort(opt.tcpd)
+						tcpHeader.WithSrcPort(opt.tcps)
+						flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv6Header, tcpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					} else if opt.udp {
+						udpHeader.WithSrcPort(opt.udps)
+						udpHeader.WithDstPort(opt.udpd)
+						flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv6Header, udpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					}
+				}
+			}
+		} else {
+			flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv4Header).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+			if len(opts) != 0 {
+				for _, opt := range opts {
+					if opt.tcp {
+						tcpHeader.WithDstPort(opt.tcpd)
+						tcpHeader.WithSrcPort(opt.tcps)
+
+						flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv4Header, tcpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					} else if opt.udp {
+						udpHeader.WithSrcPort(opt.udps)
+						udpHeader.WithDstPort(opt.udpd)
+						flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv4Header, udpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					}
+				}
+			}
+		}
+	} else {
+		if count == 2 || count == 22 {
+			if count == 22 {
+				innerIpv6Header.WithHopLimit(1)
+			}
+			innerIpv6Header.WithDSCP(dscpEncapA1)
+			flow = flow.WithHeaders(ethHeader, innerIpv6Header).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+			if len(opts) != 0 {
+				for _, opt := range opts {
+					if opt.tcp {
+						tcpHeader.WithDstPort(opt.tcpd)
+						tcpHeader.WithSrcPort(opt.tcps)
+
+						flow = flow.WithHeaders(ethHeader, innerIpv6Header, tcpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					} else if opt.udp {
+						udpHeader.WithSrcPort(opt.udps)
+						udpHeader.WithDstPort(opt.udpd)
+						flow = flow.WithHeaders(ethHeader, innerIpv6Header, udpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					}
+				}
+			}
+		} else {
+			if count == 6 {
+				innerIpv4Header.WithTTL(1)
+			}
+			innerIpv4Header.WithDSCP(dscpEncapA1)
+
+			flow = flow.WithHeaders(ethHeader, innerIpv4Header).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+			if len(opts) != 0 {
+				for _, opt := range opts {
+					if opt.tcp {
+						tcpHeader.WithDstPort(opt.tcpd)
+						tcpHeader.WithSrcPort(opt.tcps)
+
+						flow = flow.WithHeaders(ethHeader, innerIpv4Header, tcpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					} else if opt.udp {
+						udpHeader.WithSrcPort(opt.udps)
+						udpHeader.WithDstPort(opt.udpd)
+						flow = flow.WithHeaders(ethHeader, innerIpv4Header, udpHeader).WithFrameRateFPS(uint64(fps)).WithFrameSize(300)
+					}
+				}
+			}
+		}
+	}
+	dports := make(map[string]uint64)
+	dportsinp := make(map[string]uint64)
+
+	dportsf := make(map[string]uint64)
+	dportsfin := make(map[string]uint64)
+
+	if portval {
+
+		if len(opts) != 0 {
+			for _, opt := range opts {
+				for _, p := range opt.portin {
+					cmd := fmt.Sprintf("show interface %s", p)
+					output, _ := cliHandle.RunCommand(context.Background(), cmd)
+					re := regexp.MustCompile(`(\d+)\spackets output`)
+					match := re.FindStringSubmatch(output.Output())
+					val, _ := strconv.Atoi(match[1])
+					dports[p] = uint64(val)
+				}
+			}
+		}
+
+		for _, opt := range opts {
+			for _, pi := range opt.portinp {
+				fmt.Println("poorttt")
+				fmt.Println(pi)
+
+				cmd := fmt.Sprintf("show interface %s", pi)
+				output, _ := cliHandle.RunCommand(context.Background(), cmd)
+				re := regexp.MustCompile(`(\d+)\spackets input`)
+				match := re.FindStringSubmatch(output.Output())
+				val, _ := strconv.Atoi(match[1])
+				dportsinp[pi] = uint64(val)
+			}
+		}
+	}
+
+	ate.Traffic().Start(t, flow)
+	if ttl == 1 {
+		time.Sleep(10 * time.Second)
+	} else {
+		time.Sleep(2 * time.Minute)
+	}
+	ate.Traffic().Stop(t)
+	flowPath := gnmi.OC().Flow(flow.Name())
+	got := gnmi.Get(t, args.ate, flowPath.LossPct().State())
+	if ttl == 1 {
+		if got != 100 {
+			t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", flow.Name(), got)
+		}
+	} else {
+		if got > 0 {
+			t.Errorf("LossPct for flow %s: got %g, want 0", flow.Name(), got)
+		}
+	}
+	var portid, portidin string
+	if portval {
+
+		time.Sleep(30 * time.Second)
+		if len(opts) != 0 {
+			for _, opt := range opts {
+				for _, p := range opt.portin {
+					cmd := fmt.Sprintf("show interface %s", p)
+					output, _ := cliHandle.RunCommand(context.Background(), cmd)
+					re := regexp.MustCompile(`(\d+)\spackets output`)
+					match := re.FindStringSubmatch(output.Output())
+					val, _ := strconv.Atoi(match[1])
+					if val == 0 {
+						val = 10
+					}
+					dportsf[p] = uint64(val)
+
+					if dportsf[p]-dports[p] >= uint64(ct) {
+						portid = p
+					}
+				}
+			}
+			for _, opt := range opts {
+				for _, pi := range opt.portinp {
+					cmd := fmt.Sprintf("show interface %s", pi)
+					output, _ := cliHandle.RunCommand(context.Background(), cmd)
+					re := regexp.MustCompile(`(\d+)\spackets input`)
+					match := re.FindStringSubmatch(output.Output())
+					val, _ := strconv.Atoi(match[1])
+					if val == 0 {
+						val = 10
+					}
+					dportsfin[pi] = uint64(val)
+
+					if dportsfin[pi]-dportsinp[pi] >= uint64(ct) {
+						portidin = pi
+					}
+				}
+			}
+		}
+	}
+	outPkts := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().Counters().OutPkts().State())
+
+	total := 0
+
+	for _, count := range outPkts {
+		total += int(count)
+	}
+
+	return portid, portidin, total
+}

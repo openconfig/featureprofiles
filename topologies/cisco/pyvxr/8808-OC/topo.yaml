@@ -22,14 +22,14 @@ devices:
     ixia_images: 
       chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
       load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
-      windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.30.2309.34.qcow2
+      windows: /auto/b4ws/images/ixia/IxNetworkWeb_KVM_OTG_9.30.2309.34.qcow2
     platform: ixia
   dut: 
     cvac: $BASE_CONF_PATH
     dual_rp: true
     num_linecards: 1
     linecard_types: 
-      - 8800-LC-36FH-2
+      - 88-LC0-36FH-M
     platform: spitfire_d
     xr_hostname: dut
     xr_password: cisco123

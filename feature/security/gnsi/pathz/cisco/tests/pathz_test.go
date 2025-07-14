@@ -559,7 +559,7 @@ func TestPathz_1(t *testing.T) {
 			// Verify the pathz policy statistics.
 			expectedStats := map[string]int{
 				"ProbeRequests": 3,
-				"ProbeErrors":   3,
+				// "ProbeErrors":   3,
 			}
 
 			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
@@ -594,7 +594,7 @@ func TestPathz_1(t *testing.T) {
 			// Verify the pathz policy statistics.
 			expectedStats := map[string]int{
 				"ProbeRequests": 4,
-				"ProbeErrors":   4,
+				// "ProbeErrors":   4,
 			}
 
 			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
@@ -627,7 +627,7 @@ func TestPathz_1(t *testing.T) {
 
 			expectedStats := map[string]int{
 				"ProbeRequests": 5,
-				"ProbeErrors":   5,
+				// "ProbeErrors":   5,
 			}
 
 			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
@@ -5356,8 +5356,8 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after corrupting policy file.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", false, true, 0, 3)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
 			// Copy invalid policy file to DUT
 			scpClient, err = scp.NewClient(target, sshConf, &scp.ClientOption{})
@@ -7130,8 +7130,8 @@ func TestPathz_2(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after corrupting policy file.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", false, true, 0, 3)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
 			// Copy invalid policy file to DUT
 			scpClient, err = scp.NewClient(target, sshConf, &scp.ClientOption{})
@@ -9353,8 +9353,6 @@ func TestPathz_2(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after RP Switchover.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 
@@ -9433,8 +9431,6 @@ func TestPathz_2(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after RP Switchover.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}

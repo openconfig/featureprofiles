@@ -20,8 +20,15 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/system"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -31,10 +38,12 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 const (
@@ -46,6 +55,19 @@ const (
 	pLen6          = 126
 	PTBGP          = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	BGPAS          = 65000
+)
+
+// used by SupervisorSwitchover to test Supervisor Switchover
+const (
+	maxSwitchoverTime = 900
+	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+)
+
+const (
+	active_rp  = "0/RP0/CPU0"
+	standby_rp = "0/RP1/CPU0"
 )
 
 // FlapInterface flaps Interface and check State
@@ -88,6 +110,40 @@ func SetInterfaceState(t *testing.T, dut *ondatra.DUTDevice, interfaceName strin
 	} else {
 		t.Logf("Interface adminState set to :%v", adminState)
 	}
+}
+
+func FlapBulkInterfaces(t *testing.T, dut *ondatra.DUTDevice, intfList []string) {
+
+	var flapDuration time.Duration = 2
+	var adminState bool
+
+	adminState = false
+	SetInterfaceStateScale(t, dut, intfList, adminState)
+	time.Sleep(flapDuration * time.Second)
+	adminState = true
+	SetInterfaceStateScale(t, dut, intfList, adminState)
+}
+
+func SetInterfaceStateScale(t *testing.T, dut *ondatra.DUTDevice, intfList []string,
+	adminState bool) {
+
+	var intfType oc.E_IETFInterfaces_InterfaceType
+	batchConfig := &gnmi.SetBatch{}
+
+	for i := 0; i < len(intfList); i++ {
+		if intfList[i][:6] == "Bundle" {
+			intfType = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		} else {
+			intfType = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		}
+		j := &oc.Interface{
+			Enabled: ygot.Bool(adminState),
+			Name:    ygot.String(intfList[i]),
+			Type:    intfType,
+		}
+		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intfList[i]).Config(), j)
+	}
+	batchConfig.Set(t, dut)
 }
 
 // GetIPPrefix returns the ip range with prefix
@@ -150,7 +206,7 @@ func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // GNMIWithText applies the cisco text config using gnmi
-func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, config string) {
+func GNMIWithText(ctx context.Context, t testing.TB, dut *ondatra.DUTDevice, config string) {
 	r := &gnmipb.SetRequest{
 		Update: []*gnmipb.Update{
 			{
@@ -161,7 +217,7 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 	}
 	_, err := dut.RawAPIs().GNMI(t).Set(ctx, r)
 	if err != nil {
-		t.Errorf("There is error when applying the config")
+		t.Fatalf("error applying config: %v", err)
 	}
 }
 
@@ -236,6 +292,128 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	updateResponse := gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(), member)
 	t.Logf("Update response : %v", updateResponse)
 	SetInterfaceState(t, dut, bundleName, true)
+}
+
+func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) *oc.Interface {
+	// Get or create the interface
+	i := d.GetOrCreateInterface(interfaceName)
+	i.Name = ygot.String(interfaceName) // Explicitly set the name field
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	// Get or create the subinterface
+	s := i.GetOrCreateSubinterface(index)
+
+	// Configure VLAN if applicable
+	if vlanID != 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+		}
+	}
+
+	// Configure IPv4
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4Addr)
+	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+
+	// Configure IPv6
+	s6 := s.GetOrCreateIpv6()
+	a1 := s6.GetOrCreateAddress(ipv6Addr)
+	a1.PrefixLength = ygot.Uint8(uint8(ipv6PrefixLen))
+
+	// Return the interface configuration
+	return i
+}
+
+// LinkIPs holds the IPv4/IPv6 addresses for DUT and Peer for a interface link.
+type LinkIPs struct {
+	DutIPv4  string `json:"dut_ipv4"`
+	DutIPv6  string `json:"dut_ipv6"`
+	PeerIPv4 string `json:"peer_ipv4"`
+	PeerIPv6 string `json:"peer_ipv6"`
+}
+
+// ExtractLinkIPsField returns a slice of the requested field from a map[string]LinkIPs.
+// field can be "dutipv4", "dutipv6", "peeripv4", or "peeripv6".
+func ExtractLinkIPsField(linkMap map[string]LinkIPs, field string) []string {
+	var result []string
+	var getField func(LinkIPs) string
+
+	switch strings.ToLower(field) {
+	case "dutipv4":
+		getField = func(l LinkIPs) string { return l.DutIPv4 }
+	case "dutipv6":
+		getField = func(l LinkIPs) string { return l.DutIPv6 }
+	case "peeripv4":
+		getField = func(l LinkIPs) string { return l.PeerIPv4 }
+	case "peeripv6":
+		getField = func(l LinkIPs) string { return l.PeerIPv6 }
+	default:
+		return result
+	}
+
+	for _, v := range linkMap {
+		result = append(result, getField(v))
+	}
+	return result
+}
+
+// createSubInterfaces creates subinterfaces for the given links, configuring both DUT and Peer interfaces.
+// It assigns /31 for IPv4 and /127 for IPv6 addresses.
+func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6 net.IP) (net.IP, net.IP, map[string]LinkIPs) {
+	t.Helper()
+	t.Logf("Creating subinterfaces for %d links", len(links))
+
+	// Calculate the number of subinterfaces per link and the remainder
+	subIntPerLink := subIntCount / len(links)
+	remainder := subIntCount % len(links)
+
+	// Create batch configurations for DUT and Peer
+	dutBatchConfig := &gnmi.SetBatch{}
+	peerBatchConfig := &gnmi.SetBatch{}
+	subIntfIPMap := make(map[string]LinkIPs)
+
+	for i, link := range links {
+		// Determine the number of subinterfaces for this link
+		subIntForThisLink := subIntPerLink
+		if i < remainder {
+			subIntForThisLink++ // Distribute the remainder among the first few links
+		}
+		t.Logf("Creating %d subinterfaces for link %s", subIntForThisLink, link)
+		for subIntID := 1; subIntID <= subIntForThisLink; subIntID++ {
+			// Generate DUT subinterface config
+			dutIPv4 := nextIPv4
+			dutIPv6 := nextIPv6
+			dutConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Config(), dutConfig)
+			nextIPv4 = incrementIP(nextIPv4, 1)
+			nextIPv6 = incrementIPv6(nextIPv6)
+
+			peerIPv4 := nextIPv4
+			peerIPv6 := nextIPv6
+			// Generate Peer subinterface config
+			peerConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Interface(link).Config(), peerConfig)
+			// Save peer subinterface IPv4 address
+			subIntfIPMap[fmt.Sprintf("%s.%d", link, subIntID)] = LinkIPs{
+				DutIPv4:  dutIPv4.String(),
+				DutIPv6:  dutIPv6.String(),
+				PeerIPv4: peerIPv4.String(),
+				PeerIPv6: peerIPv6.String(),
+			}
+			nextIPv4 = incrementIP(nextIPv4, 1)
+			nextIPv6 = incrementIPv6(nextIPv6)
+		}
+	}
+	// Push batch configurations to DUT and Peer
+	dutBatchConfig.Set(t, dut)
+	peerBatchConfig.Set(t, peer)
+
+	return nextIPv4, nextIPv6, subIntfIPMap
 }
 
 // GetSubInterface returns subinterface
@@ -487,6 +665,35 @@ func AddISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
+// addISISOC, configures ISIS on DUT
+func AddISISOCWithSysAreaID(t *testing.T, device *ondatra.DUTDevice, ifaceName, sysID, areaID, instanceName string) {
+	t.Helper()
+
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTISIS, instanceName)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaID, sysID)}
+	glob.LevelCapability = 2
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf := isis.GetOrCreateInterface(ifaceName)
+	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+	intf.Enabled = ygot.Bool(true)
+	intf.HelloPadding = 1
+	intf.Passive = ygot.Bool(false)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = 2
+
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, instanceName)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, instanceName)
+	gnmi.Update(t, device, dutNode.Config(), dutConf)
+}
+
 // addBGPOC, configures ISIS on DUT
 func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	t.Helper()
@@ -658,6 +865,146 @@ func ReloadLinecards(t *testing.T, lcList []string) {
 	t.Logf("It took %v minutes to reboot linecards.", time.Since(startTime).Minutes())
 }
 
+func ParallelReloadLineCards(t *testing.T, dut *ondatra.DUTDevice, wgg *sync.WaitGroup) error {
+
+	defer wgg.Done()
+
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	wg := sync.WaitGroup{}
+	relaunched := make([]string, 0)
+
+	for _, lc := range lcs {
+		t.Logf("Restarting LC %v\n", lc)
+		if empty := gnmi.Get(t, dut, gnmi.OC().Component(lc).Empty().State()); empty {
+			t.Logf("Linecard Component %s is empty, skipping", lc)
+		}
+		if removable := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); !removable {
+			t.Logf("Linecard Component %s is non-removable, skipping", lc)
+		}
+		oper := gnmi.Get(t, dut, gnmi.OC().Component(lc).OperStatus().State())
+
+		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+			t.Logf("Linecard Component %s is already INACTIVE, skipping", lc)
+		}
+
+		lineCardPath := components.GetSubcomponentPath(lc, false)
+		resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+			Method:  spb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Reboot line card without delay",
+			Subcomponents: []*tpb.Path{
+				lineCardPath,
+			},
+			Force: true,
+		})
+		if err == nil {
+			wg.Add(1)
+			relaunched = append(relaunched, lc)
+		} else {
+			t.Fatalf("Reboot failed %v", err)
+		}
+		t.Logf("Reboot response: \n%v\n", resp)
+	}
+
+	// wait for all line cards to be back up
+	for _, lc := range relaunched {
+		go func(lc string) {
+			defer wg.Done()
+			timeout := time.Minute * 30
+			t.Logf("Awaiting relaunch of linecard: %s", lc)
+			oper := gnmi.Await[oc.E_PlatformTypes_COMPONENT_OPER_STATUS](
+				t, dut,
+				gnmi.OC().Component(lc).OperStatus().State(),
+				timeout,
+				oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+			)
+			if val, ok := oper.Val(); !ok {
+				t.Errorf("Reboot timed out, received status: %s", val)
+				// check status if failed
+			}
+		}(lc)
+	}
+
+	wg.Wait()
+	t.Log("All linecards successfully relaunched")
+
+	return nil
+}
+
+func ParallelProcessRestart(t *testing.T, dut *ondatra.DUTDevice, processName string, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+
+	waitForRestart := true
+	pid := system.FindProcessIDByName(t, dut, processName)
+	if pid == 0 {
+		t.Fatalf("process %s not found on device", processName)
+	}
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	killProcessRequest := &spb.KillProcessRequest{
+		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
+		Name:    processName,
+		Pid:     uint32(pid),
+		Restart: true,
+	}
+	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+	time.Sleep(30 * time.Second)
+
+	if waitForRestart {
+		gnmi.WatchAll(
+			t,
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gnmipb.SubscriptionMode_ON_CHANGE)),
+			gnmi.OC().System().ProcessAny().State(),
+			time.Minute,
+			func(p *ygnmi.Value[*oc.System_Process]) bool {
+				val, ok := p.Val()
+				if !ok {
+					return false
+				}
+				return val.GetName() == processName && val.GetPid() != pid
+			},
+		)
+	}
+}
+
+func ProcessRestart(t *testing.T, dut *ondatra.DUTDevice, processName string) {
+
+	waitForRestart := true
+	pid := system.FindProcessIDByName(t, dut, processName)
+	if pid == 0 {
+		t.Fatalf("process %s not found on device", processName)
+	}
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	killProcessRequest := &spb.KillProcessRequest{
+		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
+		Name:    processName,
+		Pid:     uint32(pid),
+		Restart: true,
+	}
+	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+	time.Sleep(30 * time.Second)
+
+	if waitForRestart {
+		gnmi.WatchAll(
+			t,
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gnmipb.SubscriptionMode_ON_CHANGE)),
+			gnmi.OC().System().ProcessAny().State(),
+			time.Minute,
+			func(p *ygnmi.Value[*oc.System_Process]) bool {
+				val, ok := p.Val()
+				if !ok {
+					return false
+				}
+				return val.GetName() == processName && val.GetPid() != pid
+			},
+		)
+	}
+}
+
 // RebootDevice reboots the device gracefully and waits for the device to come back up.
 func RebootDevice(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -717,19 +1064,283 @@ func RebootDevice(t *testing.T) {
 	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
 }
 
+// ToStringSlice converts an input of type []string or [][]string to a flat []string.
+// If the input is []string, it returns it as-is.
+// If the input is [][]string, it flattens all inner slices into a single []string.
+// For any other type, it returns nil.
+func ToStringSlice(val any) []string {
+	switch v := val.(type) {
+	case []string:
+		return v
+	case [][]string:
+		var flat []string
+		for _, inner := range v {
+			flat = append(flat, inner...)
+		}
+		return flat
+	default:
+		return nil
+	}
+}
+
+func ParallelReloadRouter(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) error {
+
+	defer wg.Done()
+
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	Resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
+	t.Logf("Reload Response %v ", Resp)
+
+	startReboot := time.Now()
+	time.Sleep(5 * time.Second)
+	const maxRebootTime = 30
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(90 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+	return nil
+
+}
+
+func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
+
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	Resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
+	t.Logf("Reload Response %v ", Resp)
+
+	startReboot := time.Now()
+	time.Sleep(5 * time.Second)
+	const maxRebootTime = 30
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(90 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+	return nil
+}
+
 type InterfacePhysicalLink struct {
 	Intf               *oc.Interface
 	IntfName           string
+	IntfV4Addr         string
+	IntfV6Addr         string
 	LineCardNumber     string
+	Npu                string
 	PeerIntfName       string
+	PeerV4Addr         string
+	PeerV6Addr         string
 	PeerIntf           *oc.Interface
 	PeerLineCardNumber string
+	PeerNpu            string
+}
+
+type BundleLinks struct {
+	Name       string
+	IntfV4Addr string
+	IntfV6Addr string
+	PeerV4Addr string
+	PeerV6Addr string
+	Links      []InterfacePhysicalLink
+}
+
+// var bundles []BundleLinks
+
+// ExtractBundleLinkField returns a slice of the requested field from all InterfacePhysicalLink in all bundles.
+// field can be "intf", "intfv4addr", or "intfname".
+// ExtractBundleLinkField returns a slice of the requested field from all InterfacePhysicalLink in all bundles.
+// field can be any field in InterfacePhysicalLink or "name" for the bundle name.
+func ExtractBundleLinkField(bundles []BundleLinks, field string) any {
+	switch strings.ToLower(field) {
+	case "name":
+		var result []string
+		for _, bundle := range bundles {
+			result = append(result, bundle.Name)
+		}
+		return result
+	case "intfv4addr":
+		var result []string
+		for _, bundle := range bundles {
+			result = append(result, bundle.IntfV4Addr)
+		}
+		return result
+	case "intfv6addr":
+		var result []string
+		for _, bundle := range bundles {
+			result = append(result, bundle.IntfV6Addr)
+		}
+		return result
+	case "peerintfv4addr":
+		var result []string
+		for _, bundle := range bundles {
+			result = append(result, bundle.PeerV4Addr)
+		}
+		return result
+	case "peerintfv6addr":
+		var result []string
+		for _, bundle := range bundles {
+			result = append(result, bundle.PeerV6Addr)
+		}
+		return result
+	case "peerlinecardnumber":
+		var result [][]string
+		for _, bundle := range bundles {
+			var lcList []string
+			for _, link := range bundle.Links {
+				lcList = append(lcList, link.PeerLineCardNumber)
+			}
+			result = append(result, lcList)
+		}
+		return result
+	case "linecardnumber":
+		var result [][]string
+		for _, bundle := range bundles {
+			var lcList []string
+			for _, link := range bundle.Links {
+				lcList = append(lcList, link.PeerLineCardNumber)
+			}
+			result = append(result, lcList)
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+// GetNpuAndLcOrRpForInterfaces returns a map of interface name to (npu, card) tuple for all interfaces.
+// It uses LookupAll for hardware port and processes each interface.
+func GetNpuAndLcOrRpForInterfaces(t testing.TB, dut *ondatra.DUTDevice, intfNameList []string) map[string][2]string {
+	result := make(map[string][2]string)
+	hwPorts := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().HardwarePort().State())
+	hwPortMap := make(map[string]string)
+	for _, hw := range hwPorts {
+		ifName := hw.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := hw.Val(); ok {
+			hwPortMap[ifName] = v
+		}
+	}
+	// Use LookupAll to get all parent components for hardware ports outside the loop
+	parentLookups := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Parent().State())
+	parentMap := make(map[string]string)
+	for _, pl := range parentLookups {
+		compName := pl.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := pl.Val(); ok {
+			parentMap[compName] = v
+		}
+	}
+
+	// Use LookupAll to get all component types outside the loop
+	typeLookups := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Type().State())
+	typeMap := make(map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT)
+	for _, tl := range typeLookups {
+		compName := tl.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := tl.Val(); ok {
+			if enumVal, ok := v.(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT); ok {
+				typeMap[compName] = enumVal
+			}
+		}
+	}
+
+	for _, ifName := range intfNameList {
+		v, ok := hwPortMap[ifName]
+		if !ok {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		node, ok := parentMap[v]
+		if !ok {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		ct, ok := typeMap[node]
+		if !ok || ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		npu, card := getNpuandLCorRP(node)
+		result[ifName] = [2]string{npu, card}
+	}
+	return result
+}
+
+// getNpuandLCorRP parses the NPU component name and returns the NPU and the matched LC/RP string.
+// Example input: "0/1/CPU0-NPU0" -> returns ("NPU0", "0/1/CPU0")
+// Example input: "0/RP0/CPU0-NPU0" -> returns ("NPU0", "0/RP0/CPU0")
+func getNpuandLCorRP(npu string) (string, string) {
+	// Extract the NPU part after the last '-'
+	parts := strings.Split(npu, "-")
+	if len(parts) < 2 {
+		return "", ""
+	}
+	npuPart := parts[len(parts)-1]
+
+	// Extract the LC/RP match using the pattern
+	pattern := `\d+/(RP\d*|\d*)/CPU\d+`
+	regex := regexp.MustCompile(pattern)
+	card := regex.FindString(npu)
+	return npuPart, card
 }
 
 // Assumptions
 // dut is connected only to peer (no other lldp device in the topology)
 // no  bundle is configured before calling this function
-func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, memberCount int) map[string][]InterfacePhysicalLink {
+func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, memberCount int, ipv4Subnet, ipv6Subnet string) []BundleLinks {
 
 	if !enableLldp(t, dut) {
 		t.Fatalf("LLDP configuration for device %s failed", dut.Name())
@@ -760,9 +1371,22 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	if !enableInterfaceLldp(t, peer, peerInterfaces) {
 		t.Fatalf("Failed to enable LLDP on all interfaces for device %s", peer.Name())
 	}
+	// Fixed sleep time for the LLDP convergence
+	time.Sleep(35 * time.Second)
+	// update dut interface after enabling the interface
+	dutInterfaces = getAllInterfaces(t, dut)
+	t.Logf("DUT interface list: %v", dutInterfaces)
+	time.Sleep(35 * time.Second)
+	// update dut interface after enabling the interface
+	dutInterfaces = getAllInterfaces(t, dut)
 
 	// Get only enabled interfaces of DUT
 	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)
+	dutIntfNames := make([]string, 0, len(dutEnabledInterfaces))
+	for _, intf := range dutEnabledInterfaces {
+		dutIntfNames = append(dutIntfNames, intf.GetName())
+	}
+	dutNpuSlot := GetNpuAndLcOrRpForInterfaces(t, dut, dutIntfNames)
 	linkInfos := make([]InterfacePhysicalLink, 0)
 
 	lldpIntfStatePathAny := gnmi.OC().Lldp().InterfaceAny().State()
@@ -770,22 +1394,14 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 
 	peerIntfPathAny := gnmi.OC().InterfaceAny().State()
 	peerIntfAny := gnmi.GetAll(t, peer, peerIntfPathAny)
-
+	peerHostName := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State())
 	// logic to create the link by using LLDP neighbour
-	// re := regexp.MustCompile(`\d`)
-	re := regexp.MustCompile(`\d+/(\d+)/\d+/\d+`)
 	for _, dutIntf := range dutEnabledInterfaces {
 		intfName := dutIntf.GetName()
-		// lcNumber := re.FindString(intfName)
-		matches := re.FindStringSubmatch(intfName)
-		var lcNumber string
-		if len(matches) > 1 {
-			lcNumber = matches[1]
-		}
+		npu, lcNumber := dutNpuSlot[intfName][0], dutNpuSlot[intfName][1]
 
 		// Get the peer interface name using LLDP data
-		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName)
-
+		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName, peerHostName)
 		// TODO logic to fectch the NPU
 		// npu := getNpu(t,dut,intfName)
 		// PeerNpu := getNpu(t,peer,peerIntfName)
@@ -803,24 +1419,35 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 			}
 
 			if peerIntf != nil {
-				// peerLcNumber := re.FindString(peerIntfName)
-				peerMatches := re.FindStringSubmatch(peerIntfName)
-				var peerLcNumber string
-				if len(peerMatches) > 1 {
-					peerLcNumber = peerMatches[1]
-				}
 				linkInfo := InterfacePhysicalLink{
 					Intf:           dutIntf,
 					IntfName:       intfName,
 					LineCardNumber: lcNumber,
-					// Npu:				npu,
-					PeerIntfName:       peerIntfName,
-					PeerIntf:           peerIntf,
-					PeerLineCardNumber: peerLcNumber,
+					Npu:            npu,
+					PeerIntfName:   peerIntfName,
+					PeerIntf:       peerIntf,
+					// PeerLineCardNumber: peerLcNumber,
 					// PeerNpu:		  	peerNpu,
 				}
 				linkInfos = append(linkInfos, linkInfo)
 			}
+		}
+	}
+
+	// Extract all peer interface names from linkInfos
+	peerIntfNames := make([]string, 0, len(linkInfos))
+	for _, link := range linkInfos {
+		if link.PeerIntfName != "" {
+			peerIntfNames = append(peerIntfNames, link.PeerIntfName)
+		}
+	}
+	// Get NPU and LC/RP info for all peer interfaces
+	peerNpuSlot := GetNpuAndLcOrRpForInterfaces(t, peer, peerIntfNames)
+	// Fill PeerLineCardNumber and PeerNpu in linkInfos
+	for idx, link := range linkInfos {
+		if npuAndSlot, ok := peerNpuSlot[link.PeerIntfName]; ok {
+			linkInfos[idx].PeerNpu = npuAndSlot[0]            // npu
+			linkInfos[idx].PeerLineCardNumber = npuAndSlot[1] // lc or RP
 		}
 	}
 
@@ -837,95 +1464,114 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	}
 
 	// Create the map with keys as bundle names and values as slices of InterfacePhysicalLink
-	bundleMap := make(map[string][]InterfacePhysicalLink)
+	// bundles := make([]BundleLinks, numBundles)
+	// for i := 0; i < numBundles; i++ {
+	// 	bundleName := fmt.Sprintf("Bundle-Ether%d", 100+i)
+	// 	bundleMap[bundleName] = []InterfacePhysicalLink{}
+	// }
+	var bundles []BundleLinks
 	for i := 0; i < numBundles; i++ {
 		bundleName := fmt.Sprintf("Bundle-Ether%d", 100+i)
-		bundleMap[bundleName] = []InterfacePhysicalLink{}
+		bundles = append(bundles, BundleLinks{Name: bundleName, Links: []InterfacePhysicalLink{}})
 	}
 
 	// Distribute the sortedLinkInfos into bundles in a round-robin fashion
 	for i, link := range sortedLinkInfos {
-		bundleName := fmt.Sprintf("Bundle-Ether%d", 100+(i%numBundles))
-		bundleMap[bundleName] = append(bundleMap[bundleName], link)
+		bundleIdx := i % numBundles
+		bundles[bundleIdx].Links = append(bundles[bundleIdx].Links, link)
 	}
 
 	t.Logf("Total Links: %d, Member Count: %d, Number of Bundles: %d\n", linkCount, memberCount, numBundles)
-
-	for bundleName, links := range bundleMap {
-		t.Logf("Bundle: %s\n", bundleName)
-		for _, link := range links {
+	for _, bundle := range bundles {
+		t.Logf("Bundle: %s\n", bundle.Name)
+		for _, link := range bundle.Links {
 			t.Logf("  DUT Interface: %v, DUT LC: %v, Peer Interface: %v, Peer LC: %v\n",
 				link.IntfName, link.LineCardNumber, link.PeerIntfName, link.PeerLineCardNumber)
 		}
 	}
 
 	// Create bundles in both DUT and Peer devices
-	createBundles(t, dut, peer, bundleMap)
+	Bundles(bundles).CreateBundles(t, dut, peer, ipv4Subnet, ipv6Subnet)
 
-	return bundleMap
+	return bundles
 }
 
-func configureBundle(ocRoot *oc.Root, bundleName string, bundleIP net.IP) {
+func configureBundle(ocRoot *oc.Root, bundleName string, bundleIP net.IP, ipv6Addr net.IP) {
 	bundle := ocRoot.GetOrCreateInterface(bundleName)
 	bundle.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 	bundle.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	bundle.Enabled = ygot.Bool(true)
-	// subIntf := bundle.GetOrCreateSubinterface(0)
-	// //  subIntf.Enabled = ygot.Bool(true)  // deviation
-	// subIntfV4 := subIntf.GetOrCreateIpv4()
-	// //  subIntfV4.Enabled = ygot.Bool(true)  // deviation
-	// address4 := subIntfV4.GetOrCreateAddress(bundleIP.String())
-	// address4.PrefixLength = ygot.Uint8(30)
-	// address4.Type = oc.IfIp_Ipv4AddressType_PRIMARY
-	// subIntfV6 := subIntf.GetOrCreateIpv6()
-	// //  subIntfV6.Enabled = ygot.Bool(true)  // deviation
-	// ipv6Address := fmt.Sprintf("2002::%s:%s", hex.EncodeToString(bundleIP[:2]), hex.EncodeToString(bundleIP[2:]))
-	// address6 := subIntfV6.GetOrCreateAddress(ipv6Address)
-	// address6.PrefixLength = ygot.Uint8(126)
-	// address6.Type = oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST
+	// Configure subinterface 0 with IPv4 address
+	subIntf := bundle.GetOrCreateSubinterface(0)
+	subIntfV4 := subIntf.GetOrCreateIpv4()
+	address4 := subIntfV4.GetOrCreateAddress(bundleIP.String())
+	address4.PrefixLength = ygot.Uint8(30)
+	// Configure subinterface 0 with IPv6 address
+	subIntfV6 := subIntf.GetOrCreateIpv6()
+	address6 := subIntfV6.GetOrCreateAddress(ipv6Addr.String())
+	address6.PrefixLength = ygot.Uint8(126)
 }
 
-func createBundles(t *testing.T, dut, peer *ondatra.DUTDevice, bundleMap map[string][]InterfacePhysicalLink) {
+type Bundles []BundleLinks
+
+func (bundles Bundles) CreateBundles(t *testing.T, dut, peer *ondatra.DUTDevice, ipv4Subnet, ipv6Subnet string) {
 	dutBatchConfig := &gnmi.SetBatch{}
 	peerBatchConfig := &gnmi.SetBatch{}
-	ipAddress := net.IP{192, 192, 1, 0}
-	for bundleName, links := range bundleMap {
+	// ipAddress := net.IP{192, 192, 1, 0}
+	_, ipnet, err := net.ParseCIDR(ipv4Subnet)
+	if err != nil {
+		t.Fatalf("Failed to parse subnet: %v", err)
+	}
+	ipAddress := ipnet.IP
+
+	_, ipnet6, err := net.ParseCIDR(ipv6Subnet)
+	if err != nil {
+		t.Fatalf("Failed to parse IPv6 subnet: %v", err)
+	}
+	ipv6Addr := ipnet6.IP
+
+	for i, bundle := range bundles {
 		ipAddress = incrementIP(ipAddress, 1)
+		ipv6Addr = incrementIPv6(ipv6Addr)
+
 		// Create bundle interface on DUT
 		dutRoot := &oc.Root{}
-		configureBundle(dutRoot, bundleName, ipAddress)
+		configureBundle(dutRoot, bundle.Name, ipAddress, ipv6Addr)
+		bundles[i].IntfV4Addr = ipAddress.String()
+		bundles[i].IntfV6Addr = ipv6Addr.String()
 
 		// Add member interfaces to the bundle on DUT
-		for _, link := range links {
+		for _, link := range bundle.Links {
 			member := dutRoot.GetOrCreateInterface(link.IntfName)
-			member.GetOrCreateEthernet().AggregateId = ygot.String(bundleName)
+			member.GetOrCreateEthernet().AggregateId = ygot.String(bundle.Name)
 			member.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
 		}
-		// gnmi.Update(t, dut, gnmi.OC().Config(), dutRoot)
 		gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Config(), dutRoot)
 
-		// increment the ip
 		ipAddress = incrementIP(ipAddress, 1)
+		ipv6Addr = incrementIPv6(ipv6Addr)
 		// Create bundle interface on Peer
 		peerRoot := &oc.Root{}
-		configureBundle(peerRoot, bundleName, ipAddress)
+		configureBundle(peerRoot, bundle.Name, ipAddress, ipv6Addr)
+		bundles[i].PeerV4Addr = ipAddress.String()
+		bundles[i].PeerV6Addr = ipv6Addr.String()
 
 		// Add member interfaces to the bundle on Peer
-		for _, link := range links {
+		for _, link := range bundle.Links {
 			member := peerRoot.GetOrCreateInterface(link.PeerIntfName)
-			member.GetOrCreateEthernet().AggregateId = ygot.String(bundleName)
+			member.GetOrCreateEthernet().AggregateId = ygot.String(bundle.Name)
 			member.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		}
 		gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Config(), peerRoot)
-		// gnmi.Update(t, peer, gnmi.OC().Config(), peerRoot)
 		ipAddress = incrementIP(ipAddress, 2)
+		ipv6Addr = incrementIPv6(ipv6Addr)
+		ipv6Addr = incrementIPv6(ipv6Addr)
 	}
 	dutBatchConfig.Set(t, dut)
 	peerBatchConfig.Set(t, peer)
 }
 
-// Function to increment the ip address by `increment` times
+// Function to increment the ipv4 address by `increment` times
 func incrementIP(ip net.IP, increment int) net.IP {
 	ip = ip.To4()
 	if ip == nil {
@@ -1013,7 +1659,7 @@ func enableInterfaceLldp(t *testing.T, device *ondatra.DUTDevice, interfaces []*
 }
 
 // getPeerInterfaceName retrieves the peer interface name using LLDP data.
-func getPeerInterfaceName(lldpIntfStateAny []*oc.Lldp_Interface, intfName string) string {
+func getPeerInterfaceName(lldpIntfStateAny []*oc.Lldp_Interface, intfName string, peerHostName string) string {
 	// Retrieve the LLDP interface state
 	// lldpIntfStatePathAny := gnmi.OC().Lldp().InterfaceAny().State()
 	// lldpIntfStateAny := gnmi.GetAll(t, device, lldpIntfStatePathAny)
@@ -1025,7 +1671,7 @@ func getPeerInterfaceName(lldpIntfStateAny []*oc.Lldp_Interface, intfName string
 			// Check if neighbors are present
 			if lldpIntfState != nil && lldpIntfState.Neighbor != nil {
 				for _, neighbor := range lldpIntfState.Neighbor {
-					if neighbor.PortId != nil && strings.Contains(*neighbor.PortId, "Gig") {
+					if neighbor.PortId != nil && strings.Contains(*neighbor.PortId, "Gig") && *neighbor.SystemName == peerHostName {
 						return *neighbor.PortId
 					}
 				}
@@ -1180,12 +1826,150 @@ func GetActiveGrpcStreams(t *testing.T, dut *ondatra.DUTDevice, expectedStreams 
 	return activeStreams
 }
 
+// incrementSubnetCIDR takes a CIDR and an increment index to generate the next subnet CIDR.
+func IncrementSubnetCIDR(cidr string, index int) (string, error) {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", fmt.Errorf("parsing CIDR failed: %v", err)
+	}
+
+	// Determine the number of bits for the subnet.
+	ones, bits := ipnet.Mask.Size()
+
+	// Calculate the new subnet based on the index and number of hosts.
+	subnetIncrement := big.NewInt(1)
+	subnetIncrement.Lsh(subnetIncrement, uint(bits-ones))
+	subnetIncrement.Mul(subnetIncrement, big.NewInt(int64(index)))
+
+	ipBigInt := big.NewInt(0).SetBytes(ip)
+	ipBigInt.Add(ipBigInt, subnetIncrement)
+
+	// Convert big.Int back to net.IP.
+	newIP := make(net.IP, len(ip))
+	if len(ip) == net.IPv4len {
+		ipBigInt.FillBytes(newIP[12:16]) // IPv4 addresses are the last 4 bytes of the IPv6 space.
+	} else {
+		newIP = ipBigInt.FillBytes(make([]byte, net.IPv6len))
+	}
+
+	return (&net.IPNet{IP: newIP, Mask: ipnet.Mask}).String(), nil
+}
+
+func incrementIPv6(ip net.IP) net.IP {
+	ip = ip.To16()
+	ipInt := big.NewInt(0).SetBytes(ip)
+
+	ipInt.Add(ipInt, big.NewInt(1))
+
+	ipBytes := ipInt.Bytes()
+	newIP := make(net.IP, net.IPv6len)
+	copy(newIP[net.IPv6len-len(ipBytes):], ipBytes)
+
+	return newIP
+}
+
+// getUsableIPs takes a subnet and returns the first and second usable IP addresses.
+func GetUsableIPs(cidr string) (net.IP, net.IP) {
+	_, subnet, _ := net.ParseCIDR(cidr)
+	if subnet.IP.To4() != nil {
+		// It's an IPv4 address
+		firstIP := incrementIP(subnet.IP, 1)
+		secondIP := incrementIP(firstIP, 1)
+		return firstIP, secondIP
+	} else {
+		// It's an IPv6 address
+		firstIP := incrementIPv6(subnet.IP)
+		secondIP := incrementIPv6(firstIP)
+		return firstIP, secondIP
+	}
+}
+
+// generateMAC is a placeholder for a function that generates a MAC address based on some logic.
+func generateMAC(vlanID int) string {
+	return fmt.Sprintf("00:1A:11:%02X:00:01", vlanID)
+}
+
+// generateSubnetAttributes calculates subnet attributes based on a base IPv4 and IPv6 address, VLAN ID, and an index.
+func GenerateSubnetAttributes(baseIPv4, baseIPv6 string, vlanID, index int) (attrs.Attributes, attrs.Attributes, error) {
+
+	newIPv4Subnet, err := IncrementSubnetCIDR(baseIPv4, index)
+	if err != nil {
+		return attrs.Attributes{}, attrs.Attributes{}, err
+	}
+
+	newIPv6Subnet, err := IncrementSubnetCIDR(baseIPv6, index)
+	if err != nil {
+		return attrs.Attributes{}, attrs.Attributes{}, err
+	}
+
+	dutIPv4, ateIPv4 := GetUsableIPs(newIPv4Subnet)
+	dutIPv6, ateIPv6 := GetUsableIPs(newIPv6Subnet)
+
+	dutMAC := generateMAC(vlanID)
+	ateMAC := generateMAC(vlanID)
+
+	dutAttrs := attrs.Attributes{
+		Name:    fmt.Sprintf("DUTport%d", vlanID),
+		IPv4:    dutIPv4.String(),
+		IPv6:    dutIPv6.String(),
+		MAC:     dutMAC,
+		Desc:    fmt.Sprintf("DUT Port %d", vlanID),
+		IPv4Len: 30,
+		IPv6Len: 126,
+	}
+
+	ateAttrs := attrs.Attributes{
+		Name:    fmt.Sprintf("ATEport%d", vlanID),
+		IPv4:    ateIPv4.String(),
+		IPv6:    ateIPv6.String(),
+		MAC:     ateMAC,
+		Desc:    fmt.Sprintf("ATE Port %d", vlanID),
+		IPv4Len: 30,
+		IPv6Len: 126,
+	}
+
+	return dutAttrs, ateAttrs, nil
+}
+
+func GnmiProtoSetConfigPush(t *testing.T, dut *ondatra.DUTDevice, configFilePath string, timeout time.Duration) {
+	b, err := os.ReadFile(configFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	setReq := &gnmipb.SetRequest{}
+
+	if err := prototext.Unmarshal(b, setReq); err != nil {
+		panic(err)
+	}
+
+	gNMIC := dut.RawAPIs().GNMI(t)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if _, err = gNMIC.Set(ctx, setReq); err != nil {
+		t.Fatalf("gnmi Set Config Push failed with unexpected error: %v", err)
+	}
+}
+
+// SwitchoverReady checks if the RP is ready for switchover.
+func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, controller string, timeout time.Duration) bool {
+	switchoverReady := gnmi.OC().Component(controller).SwitchoverReady()
+	_, ok := gnmi.Watch(t, dut, switchoverReady.State(), timeout, func(val *ygnmi.Value[bool]) bool {
+		ready, present := val.Val()
+		return present && ready
+	}).Await(t)
+	return ok
+}
+
 // GetVersion fetches the software version from the device and splits it into components.
 func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
-	// Simulate fetching the version string from the device.
+	// fetching the version string from the device.
 	path := gnmi.OC().System().SoftwareVersion()
 	versionString := gnmi.Get(t, dut, path.State())
+	return splitVersionString(t, versionString)
+}
 
+func splitVersionString(t *testing.T, versionString string) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
 	// Split the version string by '.' to get the parts.
 	parts := strings.Split(versionString, ".")
 	t.Logf("Debug: Split version string into parts: %v\n", parts)
@@ -1212,4 +1996,450 @@ func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersio
 	}
 
 	return majorVersion, minorVersion, runningVersion, labelVersion, nil
+}
+
+// SupervisorSwitchover does a SSO on the dut device and also checkes the interfaces are up after SSO
+func SupervisorSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
+
+	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
+	t.Logf("Found controller card list: %v", controllerCards)
+
+	if *args.NumControllerCards >= 0 && len(controllerCards) != *args.NumControllerCards {
+		t.Errorf("Incorrect number of controller cards: got %v, want exactly %v (specified by flag)", len(controllerCards), *args.NumControllerCards)
+	}
+
+	if got, want := len(controllerCards), 2; got < want {
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+	}
+
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
+
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+
+	intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
+	t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
+	if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
+		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.ID(), got, want)
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := rpStandbyBeforeSwitch
+	got := ""
+	if deviations.GNOISubcomponentPath(dut) {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+	}
+	if got, want := switchoverResponse.GetVersion(), ""; got == want {
+		t.Errorf("switchoverResponse.GetVersion(): got %v, want non-empty version", got)
+	}
+	if got := switchoverResponse.GetUptime(); got == 0 {
+		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
+	}
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeSwitch, 5*time.Minute)
+
+	t.Log("Validate OC Switchover time/reason.")
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+
+	swTime, swTimePresent := gnmi.Watch(t, dut, activeRP.LastSwitchoverTime().State(), 1*time.Minute, func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }).Await(t)
+	if !swTimePresent {
+		t.Errorf("activeRP.LastSwitchoverTime().Watch(t).IsPresent(): got %v, want %v", false, true)
+	} else {
+		st, _ := swTime.Val()
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", st)
+		// TODO: validate that last switchover time is correct
+	}
+
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+}
+
+// Helper function to run a command on the DUT and return the output
+func SshRunCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+	sshClient := dut.RawAPIs().CLI(t)
+
+	if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+		t.Logf("%s> %s", dut.ID(), cmd)
+		t.Log(result.Output())
+		return result.Output()
+	} else {
+		t.Logf("%s> %s", dut.ID(), cmd)
+		t.Log(err.Error())
+		return ""
+	}
+}
+
+// IsPlatformVXR checks if the platform is a VXR (true) or a HW (false)
+func IsPlatformVXR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) bool {
+	resp := config.CMDViaGNMI(ctx, t, dut, "show version")
+	t.Logf("Response: %s", resp)
+
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Platform is VXR")
+		return true
+	}
+	return false
+}
+
+// IsMajorVersionSame checks if the major version of the DUT is the same as the expected version.
+func IsMajorVersionSame(t *testing.T, dut *ondatra.DUTDevice, expectedVersion string) (b bool, e error) {
+	majorVersionDut, _, _, _, err := GetVersion(t, dut)
+	if err != nil {
+		return false, err
+	}
+	majorVersionExpected, _, _, _, err := splitVersionString(t, expectedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if majorVersionDut == majorVersionExpected {
+		return true, nil
+	}
+	return
+}
+
+// IsMinorVersionSame checks if the minor version of the DUT is the same as the expected version.
+func IsMinorVersionSame(t *testing.T, dut *ondatra.DUTDevice, expectedVersion string) (b bool, e error) {
+	_, minorVersionDut, _, _, err := GetVersion(t, dut)
+	if err != nil {
+		return false, err
+	}
+	_, minorVersionExpected, _, _, err := splitVersionString(t, expectedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if minorVersionDut == minorVersionExpected {
+		return true, nil
+	}
+	return
+}
+
+// EnableVxrInternalPxeBoot executes the command to initiate PXE boot on the device.
+// only applicable for VXR platform
+// reference: http://pyvxr.cisco.com/pyvxr/README.html#internal-pxe
+func EnableVxrInternalPxeBoot(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	if IsPlatformVXR(ctx, t, dut) {
+		t.Log("Platform is VXR and version differs, initiating PXE boot.")
+		sshClient := dut.RawAPIs().CLI(t)
+		removeBootDirCmd := "run rm -r /boot/efi/EFI"
+		removeBootDirCmdResult, err := sshClient.RunCommand(ctx, removeBootDirCmd)
+		if err != nil {
+			t.Error("failed to enable vxr internal PXE boot")
+		}
+		t.Logf("%s> %s\n%v", dut.Name(), removeBootDirCmd, removeBootDirCmdResult.Output())
+
+		treeBootDirCmd := "run tree /boot/efi/EFI"
+		treeBootDirCmdResult, err := sshClient.RunCommand(ctx, treeBootDirCmd)
+		if err != nil {
+			if strings.Contains(treeBootDirCmdResult.Output(), "BOOT") {
+				t.Fatal("failed to remove /boot/efi/EFI")
+			}
+		}
+		t.Logf("%s> %s\n%v", dut.Name(), treeBootDirCmd, treeBootDirCmdResult.Output())
+	} else {
+		t.Fatal("Error Not a VXR platform")
+	}
+}
+
+func ParallelRPFO(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+
+	var supervisors []string
+	active_state := gnmi.OC().Component(active_rp).Name().State()
+	active := gnmi.Get(t, dut, active_state)
+	standby_state := gnmi.OC().Component(standby_rp).Name().State()
+	standby := gnmi.Get(t, dut, standby_state)
+	supervisors = append(supervisors, active, standby)
+
+	// find active and standby RP
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
+	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+
+	// make sure standby RP is reach
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+	// gnoiClient := dut.RawAPIs().GNOI(t)
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	//useNameOnly := deviations.GNOISubcomponentPath(dut)
+	useNameOnly := false
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := rpStandbyBeforeSwitch
+	got := ""
+	if useNameOnly {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+	}
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	t.Log("Validate OC Switchover time/reason.")
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
+	}
+
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+}
+
+func RPFO(t *testing.T, dut *ondatra.DUTDevice) {
+
+	var supervisors []string
+	active_state := gnmi.OC().Component(active_rp).Name().State()
+	active := gnmi.Get(t, dut, active_state)
+	standby_state := gnmi.OC().Component(standby_rp).Name().State()
+	standby := gnmi.Get(t, dut, standby_state)
+	supervisors = append(supervisors, active, standby)
+
+	// find active and standby RP
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
+	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+
+	// make sure standby RP is reach
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+	// gnoiClient := dut.RawAPIs().GNOI(t)
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	//useNameOnly := deviations.GNOISubcomponentPath(dut)
+	useNameOnly := false
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+	}
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := rpStandbyBeforeSwitch
+	got := ""
+	if useNameOnly {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+	}
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	t.Log("Validate OC Switchover time/reason.")
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
+	}
+
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+}
+
+// CMDViaGNMI runs a command on the DUT via GNMI and returns the output
+func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	gnmiC := dut.RawAPIs().GNMI(t)
+	getRequest := &gnmipb.GetRequest{
+		Prefix: &gnmipb.Path{
+			Origin: "cli",
+		},
+		Path: []*gnmipb.Path{
+			{
+				Elem: []*gnmipb.PathElem{{
+					Name: cmd,
+				}},
+			},
+		},
+		Encoding: gnmipb.Encoding_ASCII,
+	}
+	log.V(1).Infof("get cli (%s) via GNMI: \n %s", cmd, prototext.Format(getRequest))
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	resp, err := gnmiC.Get(ctx, getRequest)
+	if err != nil {
+		t.Fatalf("running cmd (%s) via GNMI is failed: %v", cmd, err)
+	}
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(resp))
+	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+}
+
+var re = regexp.MustCompile(`\d+$`) // Regex to match the trailing digits
+
+func extractPortNumber(portID string) int {
+	match := re.FindString(portID) // Find the trailing numeric part
+	if num, err := strconv.Atoi(match); err == nil {
+		return num
+	}
+	return 0
+}
+
+// SortOndatraPortsByID sorts a slice of *ondatra.Port by their ID in ascending order.
+func SortOndatraPortsByID(ports []*ondatra.Port) {
+	sort.Slice(ports, func(i, j int) bool {
+		// Extract the numeric part of ports[i].ID() and ports[j].ID()
+		id1 := extractPortNumber(ports[i].ID())
+		id2 := extractPortNumber(ports[j].ID())
+
+		// Compare the numeric parts
+		return id1 < id2
+	})
 }

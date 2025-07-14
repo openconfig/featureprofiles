@@ -37,7 +37,7 @@ const (
 )
 
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
-	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
+	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49, 10}
 	ondatraFlowList := []*ondatra.Flow{}
 	for _, dscp := range dscpList {
 
@@ -106,7 +106,7 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 
 }
 func testTrafficsreaming(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
-	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
+	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49, 10}
 	ondatraFlowList := []*ondatra.Flow{}
 	for _, dscp := range dscpList {
 
@@ -156,7 +156,7 @@ func testTrafficsreaming(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, 
 
 }
 func testTrafficipv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, dstEndPoint *ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8) {
-	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
+	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49, 10}
 	ondatraFlowList := []*ondatra.Flow{}
 	for _, dscp := range dscpList {
 
@@ -185,9 +185,7 @@ func testTrafficipv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top 
 	} else {
 		t.Error("Traffic doesn't work as expected")
 	}
-
 	ate.Traffic().Stop(t)
-
 	time.Sleep(time.Minute)
 }
 
@@ -336,20 +334,24 @@ func testTrafficqoswrr(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, to
 	// srcmacaddress := []string{"00:16:01:00:00:01", "00:17:01:00:00:01"}
 	trafficFlows := map[string]*trafficData{
 
-		"flow1-tc7": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[0]},
-		"flow1-tc6": {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[0]},
-		"flow1-tc5": {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[0]},
-		"flow1-tc4": {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[0]},
-		"flow1-tc3": {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[0]},
-		"flow1-tc2": {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[0]},
-		"flow1-tc1": {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[0]},
-		"flow2-tc7": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[1]},
-		"flow2-tc6": {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[1]},
-		"flow2-tc5": {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[1]},
-		"flow2-tc4": {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[1]},
-		"flow2-tc3": {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[1]},
-		"flow2-tc2": {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[1]},
-		"flow2-tc1": {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[1]},
+		"flow1-tc7":      {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[0]},
+		"flow1-tc6":      {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[0]},
+		"flow1-tc5":      {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[0]},
+		"flow1-tc4":      {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[0]},
+		"flow1-tc3":      {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[0]},
+		"flow1-tc2":      {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[0]},
+		"flow1-tc1":      {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[0]},
+		"flow1-SYSTEM":   {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "SYSTEM", srcendpoint: srcEndPoints[0]},
+		"flow2-tc7":      {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[1]},
+		"flow2-tc6":      {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[1]},
+		"flow2-tc5":      {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[1]},
+		"flow2-tc4":      {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[1]},
+		"flow2-tc3":      {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[1]},
+		"flow2-tc2":      {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[1]},
+		"flow2-tc1":      {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[1]},
+		"flow2-SYSTEM":   {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "SYSTEM", srcendpoint: srcEndPoints[1]},
+		"flow2-default":  {frameSize: 1000, trafficRate: 18, dscp: 20, queue: "SYSTEM", srcendpoint: srcEndPoints[1]},
+		"flow2-default1": {frameSize: 1000, trafficRate: 18, dscp: 0, queue: "SYSTEM", srcendpoint: srcEndPoints[1]},
 	}
 	for trafficID, data := range trafficFlows {
 
@@ -648,20 +650,24 @@ func testTrafficqoswrrgoogmix(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 	srcmacaddress := []string{"00:11:01:00:00:01", "00:17:01:00:00:01"}
 	trafficFlows := map[string]*trafficData{
 
-		"flow1-tc7": {frameSize: 1000, trafficRate: 0.1, dscp: 56, queue: "tc7", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
-		"flow1-tc6": {frameSize: 1000, trafficRate: 18, dscp: 48, queue: "tc6", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
-		"flow1-tc5": {frameSize: 1000, trafficRate: 40, dscp: 33, queue: "tc5", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
-		"flow1-tc4": {frameSize: 1000, trafficRate: 8, dscp: 25, queue: "tc4", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
-		"flow1-tc3": {frameSize: 1000, trafficRate: 12, dscp: 17, queue: "tc3", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
-		"flow1-tc2": {frameSize: 1000, trafficRate: 1, dscp: 9, queue: "tc2", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
-		"flow1-tc1": {frameSize: 1000, trafficRate: 1, dscp: 1, queue: "tc1", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
-		"flow2-tc7": {frameSize: 1000, trafficRate: 0.9, dscp: 56, queue: "tc7", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
-		"flow2-tc6": {frameSize: 1000, trafficRate: 20, dscp: 48, queue: "tc6", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
-		"flow2-tc5": {frameSize: 1000, trafficRate: 24, dscp: 33, queue: "tc5", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
-		"flow2-tc4": {frameSize: 1000, trafficRate: 24, dscp: 25, queue: "tc4", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
-		"flow2-tc3": {frameSize: 1000, trafficRate: 4, dscp: 17, queue: "tc3", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
-		"flow2-tc2": {frameSize: 1000, trafficRate: 7, dscp: 9, queue: "tc2", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
-		"flow2-tc1": {frameSize: 1000, trafficRate: 1, dscp: 1, queue: "tc1", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow1-tc7":      {frameSize: 1000, trafficRate: 0.1, dscp: 56, queue: "tc7", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc6":      {frameSize: 1000, trafficRate: 18, dscp: 48, queue: "tc6", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc5":      {frameSize: 1000, trafficRate: 40, dscp: 33, queue: "tc5", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc4":      {frameSize: 1000, trafficRate: 8, dscp: 25, queue: "tc4", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc3":      {frameSize: 1000, trafficRate: 12, dscp: 17, queue: "tc3", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc2":      {frameSize: 1000, trafficRate: 1, dscp: 9, queue: "tc2", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-tc1":      {frameSize: 1000, trafficRate: 1, dscp: 1, queue: "tc1", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow1-SYSTEM":   {frameSize: 1000, trafficRate: 1, dscp: 10, queue: "SYSTEM", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow2-tc7":      {frameSize: 1000, trafficRate: 0.9, dscp: 56, queue: "tc7", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc6":      {frameSize: 1000, trafficRate: 20, dscp: 48, queue: "tc6", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc5":      {frameSize: 1000, trafficRate: 24, dscp: 33, queue: "tc5", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc4":      {frameSize: 1000, trafficRate: 24, dscp: 25, queue: "tc4", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc3":      {frameSize: 1000, trafficRate: 4, dscp: 17, queue: "tc3", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc2":      {frameSize: 1000, trafficRate: 7, dscp: 9, queue: "tc2", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-tc1":      {frameSize: 1000, trafficRate: 1, dscp: 1, queue: "tc1", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-SYSTEM":   {frameSize: 1000, trafficRate: 1, dscp: 10, queue: "SYSTEM", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
+		"flow2-default":  {frameSize: 1000, trafficRate: 18, dscp: 20, queue: "SYSTEM", srcmac: srcmacaddress[0], dstmac: dstmacaddress[0], srcendpoint: srcEndPoints[0]},
+		"flow2-default1": {frameSize: 1000, trafficRate: 18, dscp: 0, queue: "SYSTEM", srcmac: srcmacaddress[1], dstmac: dstmacaddress[1], srcendpoint: srcEndPoints[1]},
 	}
 	for trafficID, data := range trafficFlows {
 
@@ -774,13 +780,8 @@ func testTrafficqoswrrgoog2Pwrrburst(t *testing.T, expectPass bool, ate *ondatra
 	for _, loss := range lossPcts {
 		if loss > 0 {
 			t.Errorf("loss is more than 0")
-
 		}
-
 	}
-
 	ate.Traffic().Stop(t)
-
 	time.Sleep(5 * time.Minute)
-
 }

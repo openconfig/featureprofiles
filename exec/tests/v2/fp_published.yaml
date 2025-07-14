@@ -1,6 +1,6 @@
 name: fp_pubished
 owners:
-  - mbagherz
+  - arvbaska
 priority: 1
 testbeds:
   - 8808_FOX2506P2QT
@@ -36,6 +36,13 @@ tests:
       - arvbaska
     priority: 1
     mustpass: true
+    groups: [ancx,P2]
+  - name: PLT-1.1 (System Configuration)
+    path: feature/interface/singleton/tests/singleton_with_breakouts
+    owners:
+      - fmolinar
+    mustpass: true
+    groups: [ancx,P0]
   - name: TE-15.1 (gRIBI Compliance)
     path: feature/gribi/otg_tests/gribigo_compliance_test
     priority: 2
@@ -48,7 +55,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2962  
+    pr: 1448
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/otg_tests/base_leader_election_test
     owners:
@@ -79,7 +86,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2962  
+    internal: false
+    pr: 4082
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -126,7 +134,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2962  
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -171,6 +178,14 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+  - name: PLT-1.1 (Interface breakout Test)
+    path: feature/interface/singleton/tests/singleton_with_breakouts
+    priority: 0
+    testbeds: 
+    - 8808-36FH_FOX2613PHWL_BREAKOUT
+    owners:
+      - arvbaska
+    groups: [ancx]
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
     owners:
@@ -182,12 +197,14 @@ tests:
       - '-osfile="$IMAGE_PATH"'
       - '-osver="$IMAGE_VERSION"'
     skip: true
+    groups: [ancx,P3]
   - name: gNOI-5.1 (Ping Test)
     path: feature/gnoi/system/tests/ping_test
     owners:
       - arvbaska
     priority: 8
     mustpass: true
+    groups: [ancx,P2]
   - name: P4RT-1.1 (Base P4RT Functionality)
     path: feature/p4rt/otg_tests/base_p4rt
     owners:
@@ -295,15 +312,21 @@ tests:
     mustpass: true
     priority: 37
     pr: 2864
-    groups: [ancx]
+    groups: [ancx,P1]
   - name: RT-5.6 (Interface Loopback mode)
     path: feature/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate
     owners:
       - agvarghe
     mustpass: true
     priority: 38
+
     pr: 3015
-    groups: [ancx]
+  - name: RT-5.7 (Aggregate Not Viable All)
+    path: feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test
+    owners:
+      - sprem
+    mustpass: true
+    priority: 38
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/otg_tests/balancing_test
     owners:
@@ -311,7 +334,7 @@ tests:
     mustpass: true
     priority: 38
     pr: 2805
-    groups: [ancx]
+    groups: [ancx,P0]
     otg_version:
       controller: 0.1.0-81
       hw: 0.13.2-2
@@ -322,13 +345,15 @@ tests:
       - agvarghe
     mustpass: true
     priority: 39
-    groups: [ancx]
+    groups: [ancx,P0]
   - name: RT-5.8 (IPv6 Link Local)
     path: feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test
     owners:
       - arvbaska
     mustpass: true
     priority: 39
+    pr: 4002
+    internal: false 
     groups: [Common]    
   - name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection)
     path: feature/policy_forwarding/policy_vrf_selection/otg_tests/protocol_dscp_rules_for_vrf_selection_test
@@ -344,11 +369,10 @@ tests:
     priority: 30
   - name: RT-5.1 (Singleton Interface)
     path: feature/interface/singleton/otg_tests/singleton_test
-    timeout: 7200
     owners:
-      - agvarghe
+      - fmolinar
     mustpass: true
-    priority: 31
+    groups: [ancx,P0]
     pr: 2805
   - name: gNMI-1.20 (Telemetry Optics Thresholds)
     path: feature/platform/tests/optics_thresholds_test
@@ -356,6 +380,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 32
+    groups: [ancx,P1]
   - name: gNMI-1.5 (Telemetry Port Speed Test)
     path: feature/gnmi/otg_tests/telemetry_port_speed_test
     owners:
@@ -371,17 +396,16 @@ tests:
       - agvarghe
     mustpass: true
     priority: 65
-    pr: 3536
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    groups: [ancx,P0]
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
-    path: feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
+    path: feature/interface/otg_tests/telemetry_interface_packet_counters_test
     owners:
       - agvarghe
     priority: 35
     mustpass: true
-    pr: 2805
-    groups: [ancx]
+    groups: [ancx,P1]
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
@@ -390,6 +414,8 @@ tests:
     priority: 37
     skip: false
     timeout: 4200
+    internal: false
+    pr: 4040
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
     path: feature/system/gnmi/metadata/tests/annotation_test
     owners:
@@ -404,6 +430,7 @@ tests:
     mustpass: false
     priority: 41
     skip: false
+    groups: [ancx,P3]
   - name: gNOI-5.2 (Traceroute Test)
     path: feature/gnoi/system/tests/traceroute_test
     owners:
@@ -411,12 +438,16 @@ tests:
     mustpass: true
     priority: 41
     skip: false
+    groups: [ancx,P2]
   - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation)
     path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
+    testbeds:
+      - 8808-1DUT
     owners:
       - arvbaska
     mustpass: true
     priority: 42
+    groups: [ancx,P2]
   - name: SEC-3.1 (Authentication)
     path: feature/security/aaa/kne_tests/tls_authentication_over_grpc_test
     owners:
@@ -438,21 +469,68 @@ tests:
     priority: 45
     pr: 1150
     internal: true
-  - name: OC-1.1 (System Configuration)
-    path: feature/system/tests/system_base_test
+    groups: [ancx,P0]
+  - name: System-1.1 (System banner test)
+    path: feature/system/system_base_test/tests/system_banner_test
     owners:
-      - agvarghe
+      - fmolinar
     mustpass: true
-    priority: 46
-    pr: 2605
+    groups: [ancx,P0]
+  - name: System-1.2 (System g protocol test)
+    path: feature/system/system_base_test/tests/system_g_protocol_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
+  - name: System-1.3 (System hostname test)
+    path: feature/system/system_base_test/tests/hostname_test
+    owners:
+      - hammadkh
+      - fmolinar
+    mustpass: true
+    groups: [ancx,P1]
+  - name: System-1.4 (System time test)
+    path: feature/system/system_base_test/tests/system_time_test
+    owners:
+      - hammadkh
+      - fmolina
+    mustpass: true
+    priority: 0
+  - name: MTU-1.3 (Large IP Packet Transmission)
+    path: feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission
+    owners:
+      - arvbaska
+    priority: 0
+    groups: [ancx,P1]
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/bgp/otg_tests/base_bgp_session_parameters
+    testbeds:
+      - 8201-32FH_FLM254206E7
     owners:
       - arvbaska
     mustpass: true
     priority: 47
     skip: false
-    groups: [ancx]
+    groups: [ancx,P1]
+  - name: RT-1.54 (BGP Override AS-path split Horizon)
+    path: feature/bgp/otg_tests/bgp_override_as_path_split_horizon_test
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx,P1]
+  - name: RT-1.52 (BGP multipath UCMP support with Link Bandwith Community)
+    path: feature/bgp/multipath/otg_tests/bgp_multipath_wecmp_lbw_community_test
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx,P1]
+  - name: RT-1.55 (BGP session mode)
+    path: feature/bgp/bgp_session_mode/otg_tests/bgp_session_mode_configuration_test
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx,P1]
   - name: RT-2.2 (IS-IS LSP Updates)
     path: feature/isis/otg_tests/lsp_updates_test
     owners:
@@ -461,7 +539,7 @@ tests:
     priority: 48
     skip: false 
     pr: 2963
-    groups: [ancx]
+    groups: [ancx,P1]
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/isis/otg_tests/base_adjacencies_test
     owners:
@@ -469,7 +547,7 @@ tests:
     mustpass: true
     priority: 49
     skip: false
-    groups: [ancx]
+    groups: [ancx,P1]
   - name: RT-2.13 (Weighted-ECMP for IS-IS)
     path: feature/isis/otg_tests/weighted_ecmp_test
     owners:
@@ -478,6 +556,12 @@ tests:
     priority: 49
     pr: 3328
     skip: false
+  - name: RT-2.5 (IS IS Hello Padding at interface level)
+    path: feature/isis/otg_tests/isis_interface_hello_padding_enable_test
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx,P1]
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
     owners:
@@ -486,6 +570,18 @@ tests:
     priority: 1002
     testbeds:
       - 2DUT-TB2
+  - name: SR-1.1 (Forwarding to Node-SID)
+    path: feature/mpls/sr/otg_tests/isis_node_sid_forward
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx,P1]
+  - name: MPLS-1.1 (MPLS Label Block Definition)
+    path: feature/mpls/otg_tests/label_block
+    owners:
+      - arvbaska
+    priority: 1
+    groups: [ancx,P1]
   - name: RT-1.3 (BGP Route Propagation)
     path: feature/bgp/addpath/otg_tests/route_propagation_test
     owners:
@@ -500,7 +596,7 @@ tests:
     mustpass: true
     priority: 53
     skip: false
-    groups: [ancx]
+    groups: [ancx,P1]
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
@@ -515,7 +611,7 @@ tests:
     mustpass: true
     priority: 1002
     testbeds:
-      - 2DUT-TB2
+      - 8808-2DUT
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
@@ -524,7 +620,7 @@ tests:
     skip: false
     priority: 6
     timeout: 4200
-    groups: [ancx]
+    groups: [ancx,P1]
   - name: RT-1.11 (BGP remove private AS)
     path: feature/bgp/otg_tests/bgp_remove_private_as
     owners:
@@ -538,6 +634,11 @@ tests:
       - sprem
     mustpass: true
     priority: 52
+    groups: [ancx,P1]
+  - name: RT-7.11 (BGP always compare MED)
+    path: feature/bgp/policybase/otg_tests/import_export_multi_test
+    mustpass: true
+    priority: 52
   - name: RT-1.14 (BGP Long-Lived Graceful Restart)
     path: feature/bgp/ate_tests/bgp_long_lived_graceful_restart
     owners:
@@ -545,6 +646,7 @@ tests:
     mustpass: false
     priority: 52
     timeout: 4200
+    groups: [ancx,P3]
   - name: RT-1.19 (BGP 2-Byte and 4-Byte ASN support)
     path: feature/bgp/otg_tests/bgp_2byte_4byte_asn
     owners:
@@ -559,7 +661,6 @@ tests:
     mustpass: false
     priority: 52
     timeout: 4200
-    groups: [ancx]
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/tests/telemetry_inventory_test
     owners:
@@ -574,6 +675,8 @@ tests:
       - 8201-32FH_FLM254206E7
   - name: gNOI-3.3 (Supervisor Switchover)
     path: feature/gnoi/system/tests/supervisor_switchover_test
+    testbeds:
+      - 8808-1DUT
     owners:
       - arvbaska
     mustpass: true
@@ -582,8 +685,11 @@ tests:
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    groups: [ancx,P2]
   - name: gNOI-3.2 (Per-Component Reboot)
     path: feature/gnoi/system/tests/per_component_reboot_test
+    testbeds:
+      - 8808-1DUT
     owners:
       - arvbaska
     mustpass: true
@@ -592,6 +698,7 @@ tests:
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    groups: [ancx,P2]
   - name: TE-8.2 (Supervisor Failure)
     path: feature/gribi/otg_tests/supervisor_failure_test
     owners:
@@ -686,14 +793,16 @@ tests:
     owners:
       - kjahed
     mustpass: true
-    pr: 3573
+    pr: 1476
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: gNMI-1.15 (Set Requests)
     path: feature/system/gnmi/set/tests/gnmi_set_test
     owners:
       - mbagherz
     mustpass: true
     internal: true
-    branch: liawalsh/gnmi-container-replace-fix
+    pr: 1476
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
@@ -701,7 +810,8 @@ tests:
     mustpass: true
     priority: 1001
     testbeds:
-      - 2DUT-TB2
+      - 8808_FOX2506P2QT_B2B
+    groups: [ancx,P3]
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
@@ -709,6 +819,8 @@ tests:
     mustpass: true
     timeout: 3600
     skip: true # danger?
+    priority: 10000
+    groups: [ancx,P3]
   - name: FP-1.1 (Power admin DOWN/UP Test)
     path: feature/platform/tests/power_admin_down_up_test
     owners:
@@ -717,10 +829,10 @@ tests:
     timeout: 2400
     priority: 65
     pr: 2552
-    groups: [ancx]
+    groups: [ancx,P0]
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
-  - name: AUTHZFP (Authz Functional Tests with spiffe id)
+  - name: AUTHZ (Authz Functional Tests with spiffe id)
     path: feature/security/gnsi/authz/tests/authz
     args:
       - '-test_infra_id="cafyauto"'
@@ -733,13 +845,84 @@ tests:
       - harikri4
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
-    
+  - name: ACCTZ-1.1 (Record Subscribe Full)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_full
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-2.1 (Record Subscribe Partial)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-4.1 (Record History Truncation)
+    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: ACCTZ-4.2 (Record Payload Truncation)
+    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-1 (Password console login)
+    path: feature/security/gnsi/credentialz/tests/password_console_login
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-2 (SSH Password Login Disallowed)
+    path: feature/security/gnsi/credentialz/tests/ssh_password_login_disallowed
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-3 (Host Certificates)
+    path: feature/security/gnsi/credentialz/tests/host_certificates
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-4 (SSH Public Key Authentication)
+    path: feature/security/gnsi/credentialz/tests/ssh_public_key_authentication
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+  - name: Credentialz-5 (Hiba Authentication)
+    path: feature/security/gnsi/credentialz/tests/hiba_authentication
+    mustpass: false
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+           
   #?
   - name: Health-1.1 (Generic Health Check)
     path: feature/system/health/tests/system_generic_health_check
     owners:
       - wdolaast
     mustpass: false
+    groups: [ancx,P2]
   - name: RT-2.6 (IS-IS Hello-Padding enabled at interface level)
     path: feature/isis/otg_tests/isis_interface_hello_padding_enable_test
     owners:
@@ -755,12 +938,13 @@ tests:
     owners:
       - mananpat
     mustpass: true
-    groups: [ancx]
+    groups: [ancx,P1]
   - name: RT-1.23 (BGP AFI SAFI OC DEFAULTS)
     path: feature/bgp/otg_tests/bgp_afi_safi_defaults
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx,P1]
   - name: RT-1.24 (BGP 2-Byte and 4-Byte ASN support with policy)
     path: feature/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test
     owners:
@@ -781,50 +965,56 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx,P1]
   - name: RT-2.10 (IS-IS change LSP lifetime)
     path: feature/isis/otg_tests/isis_change_lsp_lifetime_test
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx,P1]
   - name: RT-2.11 (IS-IS Passive is enabled at the area level)
     path: feature/isis/otg_tests/isis_interface_level_passive_test
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx,P1]
   - name: RT-2.12 (Static route to IS-IS redistribution)
     path: feature/isis/otg_tests/static_route_isis_redistribution
     owners:
       - mastarke
     mustpass: true
-    groups: [ancx]
   - name: RT-5.5 (Interface hold-times)
     path: feature/interface/holdtime/otg_tests/holdtime_test
     owners:
       - mastarke
     mustpass: true
-    groups: [ancx]
+    groups: [ancx,P0]
   - name: RT-1.25 (Management network-instance default static route)
     path: feature/staticroute/tests/static_route_test
     owners:
       - mastarke
     mustpass: true
-    groups: [ancx]
+    groups: [ancx,P0]
   - name: TE-9.2 (MPLS based forwarding Static LSP)
-    path: feature/gribi/otg_tests/static_lsp_test
+    path: feature/mpls/otg_tests/static_lsp_test
     owners:
       - mastarke
     mustpass: true
-    groups: [ancx]
+    pr: 1499
+    groups: [ancx,P0]
   - name: TUN-1.9 (GRE inner packet DSCP)
     path: feature/tunnel/otg_tests/tunnel_acl_based_test
     owners:
       - mananpat
     mustpass: false
+    groups: [ancx,P2]
   - name: RT-1.26 (Basic static route support)
     path: feature/staticroute/otg_tests/basic_static_route_support_test
     owners:
       - mananpat
     mustpass: true
+    pr: 3639
+    internal: false
   - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
     path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
     owners:
@@ -842,11 +1032,15 @@ tests:
     path: feature/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
-    timeout: 3600  
+    timeout: 3600
+    pr: 1428
+    internal: true
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7    
   - name: TE-16.2 (DCGate - encap FRR test)
+    testbeds:
+          - 8808-FOX2508P0JU_MGMT_GRPC
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
@@ -864,7 +1058,6 @@ tests:
       - arvbaska
     mustpass: true
     priority: 3
-    internal: false
   - name: TE-11.31 (DCGate - Backup NHG Actions with PBF)
     path: feature/gribi/otg_tests/backup_nhg_action_pbf
     owners:
@@ -891,12 +1084,14 @@ tests:
       - sprem
     mustpass: true
     pr: 3613
+    groups: [ancx,P1]
   - name: RT-1.33 (BGP Policy with prefix-set matching)
     path: feature/bgp/policybase/otg_tests/prefix_set_test
     priority: 2
     owners:
       - arvbaska
-    mustpass: true    
+    mustpass: true   
+    groups: [ancx,P2]  
   - name: RT-1.51 (BGP multipath ECMP)
     path: feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test
     priority: 2
@@ -905,12 +1100,14 @@ tests:
     mustpass: true  
     testbeds:
       - 8201-32FH_FLM254206E7   
+    groups: [ancx,P1]
   - name: RT-7.2 (BGP Policy Community Set)
     path: feature/bgp/policybase/otg_tests/community_test
     priority: 2
     owners:
       - arvbaska
     mustpass: true
+    groups: [ancx,P2]
   - name: RT-7.3 (BGP Policy AS Path Set)
     path: feature/bgp/policybase/otg_tests/aspath_test
     priority: 2
@@ -918,6 +1115,7 @@ tests:
       - arvbaska
     mustpass: true
     timeout: 4200
+    groups: [ancx,P2]
   - name: RT-4.10 (AFTs Route Summary)
     path: feature/aft/aft_summary/otg_tests/route_summary_counters_test
     priority: 2
@@ -925,6 +1123,1267 @@ tests:
       - mastarke
     mustpass: true
     timeout: 4200
-    
-    
+  - name: TRANSCEIVER-1 (Telemetry 400ZR Chromatic Dispersion(CD) telemetry values streaming)
+    path: feature/platform/transceiver/chromatic_dispersion/tests/zr_cd_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-1_ZRP (Telemetry 400ZRP Chromatic Dispersion(CD) telemetry values streaming)
+    path: feature/platform/transceiver/chromatic_dispersion/tests/zrp_cd_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-3 (Telemetry 400ZR Optics firmware version streaming)
+    path: feature/platform/transceiver/firmware_version/tests/zr_firmware_version_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-3_ZRP (Telemetry 400ZRP Optics firmware version streaming)
+    path: feature/platform/transceiver/firmware_version/tests/zrp_firmware_version_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-4 (Telemetry 400ZR RX input and TX output power telemetry values streaming)
+    path: feature/platform/transceiver/input_output_power/tests/zr_input_output_power_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-4_ZRP (Telemetry 400ZRP RX input and TX output power telemetry values streaming)
+    path: feature/platform/transceiver/input_output_power/tests/zrp_input_output_power_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-5 (Configuration 400ZR channel frequency, output TX launch power and operational mode setting)
+    path: feature/platform/transceiver/tunable_parameters/tests/zr_tunable_parameters_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-5_ZRP (Configuration 400ZRP channel frequency, output TX launch power and operational mode setting)
+    path: feature/platform/transceiver/tunable_parameters/tests/zrp_tunable_parameters_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-7 (Telemetry 400ZR Optics inventory info streaming)
+    path: feature/platform/transceiver/inventory/tests/zr_inventory_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-7_ZRP (Telemetry 400ZRP Optics inventory info streaming)
+    path: feature/platform/transceiver/inventory/tests/zrp_inventory_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+    pr: 4188
+  - name: TRANSCEIVER-8 (Telemetry 400ZR Optics module temperature streaming.)
+    path: feature/platform/transceiver/temperature/tests/zr_temperature_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-8_ZRP (Telemetry 400ZRP Optics module temperature streaming.)
+    path: feature/platform/transceiver/temperature/tests/zrp_temperature_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-9 (Telemetry 400ZR TX laser bias current telemetry values streaming.)
+    path: feature/platform/transceiver/laser_bias_current/tests/zr_laser_bias_current_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    internal: false
+  - name: TRANSCEIVER-9_ZRP (Telemetry 400ZRP TX laser bias current telemetry values streaming.)
+    path: feature/platform/transceiver/laser_bias_current/tests/zrp_laser_bias_current_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+    internal: false
+  - name: TRANSCEIVER-10 (Telemetry 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
+    path: feature/platform/transceiver/fec_uncorrectable_frames/tests/zr_fec_uncorrectable_frames_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-10_ZRP (Telemetry 400ZRP Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
+    path: feature/platform/transceiver/fec_uncorrectable_frames/tests/zrp_fec_uncorrectable_frames_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-11 (Telemetry 400ZR Optics logical channels provisioning and related telemetry)
+    path: feature/platform/transceiver/logical_channels/tests/zr_logical_channels_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    internal: false
+    pr: 4028
+  - name: TRANSCEIVER-11_ZRP (Telemetry 400ZRP Optics logical channels provisioning and related telemetry)
+    path: feature/platform/transceiver/logical_channels/tests/zrp_logical_channels_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+    internal: false
+    pr: 4028
+  - name: TRANSCEIVER-12 (Telemetry 400ZR Transceiver Supply Voltage streaming.)
+    path: feature/platform/transceiver/supply_voltage/tests/zr_supply_voltage_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-12_ZRP (Telemetry 400ZRP Transceiver Supply Voltage streaming.)
+    path: feature/platform/transceiver/supply_voltage/tests/zrp_supply_voltage_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: RT-7.1 (BGP default policies.)
+    path: feature/bgp/policybase/otg_tests/default_policies_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: RT-5.11 (IPv6 ND suppression)
+    path: feature/interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P2]
+  - name: gNMI-1.16 (Fabric module redundancy)
+    path: feature/platform/fabric/otg_tests/fabric_redundancy_test
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P2]
+  - name: MTU-1.5 (IPv4 and IPv6 PMTUD handling)
+    path: feature/mtu/otg_tests/pmtu_handing
+    owners:
+      - fmolinar
+    mustpass: true
+    groups: [ancx,P2]
+  - name: RT-1.8 (BGP Route Reflector Test at scale)
+    path: feature/bgp/routereflector
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P2]
+  - name: RT-1.32 (BGP policy actions - MED, LocPref, prepend, flow-control)
+    path: feature/bgp/policybase/otg_tests/actions_med_localpref_prepend_flow_control
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P2]
+  - name: RT-7.4 (BGP Policy AS Path Set and Community Set)
+    path: feature/bgp/policybase/otg_tests/aspath_and_community_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+    timeout: 4200
+    groups: [ancx,P2]
+  - name: RT-7.8 (BGP Policy Match Standard Community and Add Community Import/Export Policy)
+    path: feature/bgp/policybase/otg_tests/comm_match_action_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+    timeout: 4200
+    groups: [ancx,P2]
+  - name: SFLOW-1 (sFlow Configuration and Traffic Sampling)
+    path: feature/sflow/otg_tests/sflow_base_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P2]
+  - name: TR-6.1 (System logging remote syslog)
+    path: feature/system/logging/otg_tests/remote_syslog
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P2]
+  - name: TR-6.2 (Local logging destinations)
+    path: feature/system/logging/otg_tests/console_vty_file
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P2]
+  - name: gNMI-1.19 (gNMI ConfigPush ConfigGet after Control Card switchover)
+    path: feature/platform/controllercard/tests/SetRequest_controll_card_switchover
+    owners:
+      - arvbaska
+    mustpass: true
+    skip: false
+    groups: [ancx,P3]
+  - name: RT-1.15 (BGP Add Path (Scale))
+    path: feature/bgp/addpath/otg_tests/addpath_scale
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P3]
+  - name: RT-1.16 (BGP Add Path (Scale) with policy)
+    path: feature/bgp/addpath/otg_tests/addpath_scal
+    owners:
+      - arvbaska
+    mustpass: true
+    groups: [ancx,P3]
+  - name: RT-14.2 (GRIBI Route Test)
+    path: feature/gribi/otg_tests/gribi_route_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: TUN-1.4 (Interface based IPv6 GRE Encapsulation)
+    path: feature/tunnel/otg_tests/tunnel_interface_based_ipv6_gre_encapsulation_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: RT-1.24 (BGP 2-Byte and 4-Byte ASN support with policy)
+    path: feature/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: RT-1.14 (BGP Long-Lived Graceful Restart)
+    path: feature/bgp/ate_tests/bgp_long_lived_graceful_restart
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: SFLOW-1 (sFlow Configuration and Sampling)
+    path: feature/sflow/otg_tests/sflow_base_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    pr: 3978
+    groups: [newfnt]
+  - name: gNMI-1.18 (gNMI subscribe with sample mode for backplane capacity counters)
+    path: feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: TUN-1.9 (GRE inner packet DSCP)
+    path: feature/tunnel/otg_tests/tunnel_acl_based_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Replay-1.2 (P4RT Replay Test)
+    path: feature/replay/tests/p4rt_replay
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: TE-9.3 (FIB FAILURE DUE TO HARDWARE RESOURCE EXHAUST)
+    path: feature/gribi/otg_tests/fib_failed_due_to_hw_res_exhaust_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: gNMI-1.21 (Integrated Circuit Hardware Resource Utilization Test)
+    path: feature/platform/integrated_circuit/otg_tests/utilization_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    pr: 3726
+    groups: [newfnt]
+  - name: DP-1.17 (DSCP Transparency with ECN)
+    path: feature/qos/ecn/otg_tests/dscp_transparency_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    pr: 3709
+    groups: [newfnt]
+  - name: Credentialz-2 (SSH Password Login Disallowed)
+    path: feature/security/gnsi/credentialz/tests/ssh_password_login_disallowed
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Credentialz-4 (SSH Public Key Authentication)
+    path: feature/security/gnsi/credentialz/tests/ssh_public_key_authentication
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-4.2 (Record Payload Truncation)
+    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Credentialz-3 (Host Certificates)
+    path: feature/security/gnsi/credentialz/tests/host_certificates
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-2.1 (Record Subscribe Partial)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-4.1 (Record History Truncation)
+    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Credentialz-5 (Hiba Authentication)
+    path: feature/security/gnsi/credentialz/tests/hiba_authentication
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: Credentialz-1 (Password console login)
+    path: feature/security/gnsi/credentialz/tests/password_console_login
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-1.1 (Record Subscribe Full)
+    path: feature/security/gnsi/acctz/tests/record_subscribe_full
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: false
+    timeout: 4200
+    groups: [newfnt]
+  - name: ACCTZ-10.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction)
+    path: feature/security/gnsi/acctz/AccountingAuthenErrorMulti
+    owners:
+    - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
 
+  - name: ACCTZ-5.1 (gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - client becomes silent)
+    path: feature/security/gnsi/acctz/RecordSubscribeIdleTimeout
+    owners:
+    - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: ACCTZ-6.1 (gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - DoA client)
+    path: feature/security/gnsi/acctz/RecordSubscribeIdleTimeoutDoA
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+  - name: ACCTZ-7.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction)
+    path: feature/security/gnsi/acctz/AccountingAuthenFailMulti
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: ACCTZ-8.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction)
+    path: feature/security/gnsi/acctz/AccountingAuthenFailUni
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: ACCTZ-9.1 (gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation)
+    path: feature/security/gnsi/acctz/AccountingPrivEscalation
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: ACL-1.2 (ACL Update (Make-before-break))
+    path: main/feature/acl/otg_tests/acl_update_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: ACL-1.3 (Large Scale ACL with TCAM profile)
+    path: main/feature/acl/otg_tests/large_scale_acl
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: attestz-1 (Validate attestz for initial install)
+    path: main/feature/system/attestz/tests
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: attestz-2 (Validate oIAK and oIDevID rotation)
+    path: main/feature/system/attestz/tests
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: attestz-3 (Validate post-install re-attestation)
+    path: main/feature/system/attestz/tests
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+    
+  - name: Certz-1
+    path: feature/security/gnsi/certz/client_certificates
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: Certz-2
+    path: feature/security/gnsi/certz/server_certificates
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: Certz-3
+    path: feature/security/gnsi/certz/server_certificate_rotation
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: Certz-4
+    path: feature/security/gnsi/certz/trust_bundle
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: Certz-5
+    path: feature/ssecurity/gnsi/certz/trust_bundle_rotation
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  # - name: DP-1.12 (ECN enabled traffic test)
+  #   path: feature/qos/ecn/ate_tests/ecn_enabled_traffic_test
+  #   owners:
+  #     - mananpat
+  #   mustpass: false
+  # #   priority: 3
+  #   groups: [newfnt]
+
+  # - name: DP-1.13 (DSCP and ECN bits are copied over during IPinIP encap and decap)
+  #   path: feature/qos/ecn/ate_tests/dscp_ecn_encap_decap_test
+  #   owners:
+  #     - mananpat
+  #   mustpass: false
+  #   priority: 3
+  #   groups: [newfnt]
+
+  - name: DP-1.15 (Egress Strict Priority scheduler)
+    path: main/feature/qos/otg_tests/egress_strict_priority_scheduler_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: DP-1.16 (Ingress traffic classification and rewrite)
+    path: main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: DP-1.5 (Egress Strict Priority scheduler with bursty traffic)
+    path: main/feature/qos/otg_tests/egress_strict_priority_scheduler_with_bursty_traffic_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: DP-2.2
+    path: main/feature/qos/otg_tests/ingress_police_nhg
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: DP-2.4
+    path: main/feature/qos/otg_tests/ingress_police_default
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: Health-1.2 (Healthz component status paths)
+    path: feature/platform/healthz/tests/status
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: gnmi-1.21 (Integrated Circuit Utilization and Thresholds)
+    path: feature/platform/integrated_circuit/otg_tests/utilization
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: MGT-1 (Management HA test)
+    path: blob/main/feature/system/management
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: MTU-1.4 (Large IP Packet through GRE/GUE tunnel Transmission)
+    path: main/feature/mtu/largeippacket/otg_tests/large_ip_packet_gre_gue_tunnel_transmission
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: MTU-1.5 (Path MTU handling)
+    path: tree/main/feature/mtu/otg_tests/pmtu_handing
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: P4RT-1.3
+    path: main/feature/p4rt/tests/p4rt_device_down_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.1 (IPv4/IPv6 policy-forwarding to indirect NH matching DSCP/TC)
+    path: main/feature/policy_forwarding/otg_tests/match_dscp_indirect_next_hop
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.2 (Policy-based traffic GRE Encapsulation to IPv4 GRE tunnel)
+    path: feature/policy_forwarding/encapsulation/otg_tests/encap_gre_ipv4
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.3 (Policy-based Static GUE Encapsulation to IPv4 tunnel)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.4 (Interface based GUE Decapsulation to IPv4 tunnel)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.5 (Interface based MPLSoGUE Decapsulation to IPv4 tunnel)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.7 (Decapsulate MPLS in GRE and UDP)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_udp_decap_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.10 (DSCP Egress handling, all egress packets IP, IPoGRE, IPoMPLSoGRE and IPoGUE, IPoMPLSoGUE should have their DSCP values re-written to 0x0 via egress QOS policy (or equivalent))
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.11 (Rewrite the ingress innner packet TTL)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.12 (PF-1.12 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.13 (PF-1.13 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload scale test)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_scale_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.14 (MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.15 (MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_scale_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.16 (MPLSoGRE IPV4 encapsulation IPV4/IPV6 local proxy test)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_local_proxy_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.17 (MPLSoGRE and MPLSoGUE MACsec)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_udp_macsec
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.18 (MPLSoGRE and MPLSoGUE MACsec)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gre_udp_qos
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.19 (MPLSoGRE and MPLSoGUE MACsec)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.20 (MPLSoGRE and MPLSoGUE MACsec)
+    path: main/feature/policy_forwarding/otg_tests/mpls_gue_ipv4_decap_scale_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.21 (IPv6 flow labels corresponding to IPV6 tunnels)
+    path: main/feature/policy_forwarding/otg_tests/flow_label_ipv6_tunnel
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-1.22 (ECMP hashing for GUE flows with IPv4|UDP outer header)
+    path: main/feature/policy_forwarding/otg_tests/ipv4_gue_hashing_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PLT-1.2 (Interface parent component Test)
+    path: main/feature/platform/tests/interface_parent_component
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.29 (BGP chained import/export policy attachment)
+    path: feature/bgp/policybase/otg_tests/chained_policies
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.30 (BGP nested import/export policy attachment)
+    path: feature/bgp/policybase/otg_tests/nested_policies
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.31 (BGP 3 levels of nested import/export policy with match-set-options)
+    path: feature/bgp/policybase/otg_tests/3level_nested_policies
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.32 (BGP policy actions - MED, LocPref, prepend, flow-control)
+    path: feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.34 (Administrative Distance test for iBGP and eBGP)
+    path: blob/main/feature/bgp/admin_distance
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.53 (Prefix-set test)
+    path: main/feature/policy_forwarding/otg_tests/prefix_set_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.56 (BGP extended Next-hop support (RFC 5549))
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.57 (Support [E|I]BGP updates for IPv6 NLRI (including ULA/64 address space) with IPv4 Next-hop.)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.58 (Support for learning IPv6 ULA/64 address space over [E|I]BGP sessions)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.59 (Support for configuring static IPv6 ULA/64 routes with higher administrative distance)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.60 (ECMP hashing support for [E|I]BGP learnt ULA/64 address space)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.61 (ECMP hashing support for statically confifgured ULA/64 address space)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.62 (ECMP hash testing for [E|I]BGP learnt IPv6 NLRI (including ULA/64 address space) with IPv4 Next-hop.)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-1.63 (BGP Multihop)
+    path: blob/main/feature/bgp/multihop
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-2.14 (ISIS Drain Test)
+    path: main/feature/isis/otg_tests/isis_drain_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-2.15 (IS-IS Extensions for Segment Routing)
+    path: main/feature/isis/otg_tests/isis_extensions_segment_routing_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-2.16 (IS-IS Graceful Restart Helper)
+    path: feature/experimental/isis/otg_tests/graceful_restart_helper
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-2.17 (Graceful Restart Restarting)
+    path: featureprofiles/feature/isis/otg_tests/graceful_restart_restarting
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-3.52 (Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking based on tunnel destination.)
+    path: feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-4.11 ( Scale AFTs Route Summary)
+    path: feature/aft/aft_summary/otg_tests/scale_aft_summary
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-5.10 (IPv6 Link Local generated by SLAAC)
+    path: interface/ip/ipv6_slaac_link_local_test/otg_tests/ipv6_slaac_link_local_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-5.9 (Interface IPv6 ND RA disable)
+    path: interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-5.11 (Interface LACP Intervals)
+    path: feature/interface/lacp/tests/lacp_interval_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-5.12 (Suppress IPv6 ND Router Advertisement [Depreciated])
+    path: interface/ip/ipv6_ND/otg_tests/suppress_ipv6_nd_ra_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-5.13 (Ethernet Interface Flow control)
+    path: feature/interface/singleton/otg_tests/flow_control
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-7.4 (BGP Policy AS Path Set and Community Set)
+    path: feature/bgp/policybase/otg_tests/aspath_and_community_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-7.5 (BGP Policy - Set Link Bandwidth Community)
+    path: main/feature/bgp/otg_tests/link_bandwidth_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-7.7 (BGP Link Bandwidth Community - Set Bandwidth)
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-7.8 (BGP Policy Match Standard Community and Add Community Import/Export Policy)
+    path: feature/bgp/policybase/otg_tests/comm_match_action_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-7.9 (Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label))
+    path:  
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-7.10 (Routing policy statement insertion and removal)
+    path: feature/bgp/policybase/otg_tests/statement_insertion_removal
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-8 (Singleton with breakouts)
+    path: feature/interface/singleton/tests/singleton_with_breakouts
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-9 (Interface IPv6 ND RA disable)
+    path: feature/interface/holdtime/otg_tests/holdtime_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-9.1 (Equal distribution of traffic)
+    path: blob/main/feature/isis/weighted_ECMP
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: RT-9.2 (Unequal distribution of traffic)
+    path: blob/main/feature/isis/weighted_ECMP
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TE-10 (gRIBI MPLS Forwarding)
+    path: main/feature/gribi/otg_tests/mpls_forwarding
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TE-16.3 (gRIBI Traffic Engineering Encapsulation with Re-encap NI FRR scenarios)
+    path: main/feature/gribi/otg_tests/encap_frr_with_reencap_vrf_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TE-18.3
+    path: main/feature/gribi/otg_tests/mpls_in_udp_scale
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TE-9.1 (Push MPLS Labels to MPLS payload)
+    path: main/feature/gribi/otg_tests/mpls_compliance
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TR-6.1 (system logging remote syslog)
+    path: feature/system/logging/remote_syslog/otg_tests
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TR-6.2 (Local logging destinations)
+    path: feature/system/logging/console_vty_file/tests
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TRANSCEIVER-13
+    path: main/feature/platform/transceiver/zr_low_power_mode_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: TRANSCEIVER-6 (400ZR Optics performance metrics (pm) streaming.)
+    path: main/feature/platform/transceiver/zr_pm_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: bootz (Bootz FNT)
+    path: main/feature/system/bootz/tests
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    pr: 2411
+    groups: [newfnt]
+
+  - name: gNMI-1.16 (Fabric module redundancy)
+    path: feature/platform/fabric/otg_tests/fabric_redundancy_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: gNMI-1.17 (Controller Card module redundancy)
+    path: feature/platform/controllercard/tests/controller_card_redundancy_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: gNMI-1.19 (gNMI ConfigPush after Control Card switchover)
+    path: feature/platform/controllercard/tests/SetRequest_controll_card_switchover
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: gNMI-1.22 (Controller card port attributes)
+    path: feature/platform/controllercard/tests/port
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: gNMI-1.23 (Telemetry Aggregate Interface Counters)
+    path: main/feature/gnmi/otg_tests/aggregate_interface_counters_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: gNMI-2 (Gnmi Subscriptionlist Test)
+    path: feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  # - name: gNPSI-1 (Sampling and Subscription Test)
+  #   path: main/feature/gnpsi/otg_tests/sampling_test
+  #   owners:
+  #     - mananpat
+  #   mustpass: false
+  #   priority: 3
+  #   groups: [newfnt]
+
+  - name: ContainerZ (Deploy and Start a Container)
+    path: feature/container/containerz/tests/container_lifecycle
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: AFT-1.1 (AFT Streaming)
+    path: feature/aft/aft_base/otg_tests/aft_base
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: AFT-2.1 (AFT Streaming)
+    path: feature/aft/aft_base/otg_tests/aft_prefixcounters
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]

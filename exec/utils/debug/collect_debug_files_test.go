@@ -53,45 +53,62 @@ type Targets struct {
 
 var (
 	showTechList = []string{
+		// FWD custom show techs
+		"aib",
+		"arp",
 		"cef",
-		"cef platform",
 		"ofa",
-		"insight",
+		"pfi",
 		"rib",
-		"fabric",
-		"service-layer",
-		"mgbl",
+		"rsi",
 		"spi",
+		"spp",
+		"bcdl",
+		"grid",
+		"lldp",
+		"spio",
+		"bcdlv2",
+		"fabric",
+		"hw-ack",
+		"insight",
+		"ipv6 nd",
+		"cef platform",
+		"platform-fwd",
+		"service-layer",
+		"lwm process fib_mgr",
+		"ssh",
+		// GRPC show techs
+		"gsp",
+		"ztp",
+		"gnsi",
+		"mgbl",
+		"p4rt",
+		"sysdb",
+		"optics",
+		"tacacs",
+		"install",
+		"yserver",
+		"interface",
+		"linux networking",
+		"ethernet interfaces",
+		"fabric link-include",
+		"telemetry model-driven",
+		"insight include-database",
+		"ethernet service-activation-test",
 		"hw-ac",
 		"bundles",
 		"cfgmgr",
 		"ctrace",
-		"ethernet interfaces",
-		"fabric link-include",
-		"p4rt",
-		"interface",
-		"optics",
-		"pfi",
-		"platform-fwd",
 		"pbr",
 		"rdsfs",
-		"sysdb",
-		"telemetry model-driven",
 		"routing isis",
 		"routing bgp",
-		"linux networking",
-		"install",
 		"health",
-		"lldp",
-		"spio",
-		"gnsi",
+		"ipinfra",
+		"static",
 	}
 
 	pipedCmdList = []string{
-		"show grpc trace all",
-		"show telemetry model-driven trace all",
-		"show cef global gribi aft internal location all",
-		"show logging",
 		"show version",
 		"show platform",
 		"show install fixes active",
@@ -101,6 +118,23 @@ var (
 		"show redundancy",
 		"show reboot history detail",
 		"show insight database entry all",
+	}
+
+	extendedPipedCmdList = []string{
+		"show grpc",
+		"show grpc trace all",
+		"show telemetry model-driven trace all",
+		"show cef global gribi aft internal location all",
+		"show logging",
+		"show gnoi statistics",
+		"show install history all",
+		"show install history all errors global",
+		"show install active all",
+		"show install request verbose",
+		"show install available all",
+		// GRPC
+		"show health gsp",
+		"show health sysdb",
 	}
 )
 
@@ -137,6 +171,9 @@ func TestCollectDebugFiles(t *testing.T) {
 
 	if *cmds != "" {
 		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
+	}
+	if *collectTech {
+		pipedCmdList = append(pipedCmdList, extendedPipedCmdList...)
 	}
 
 	commands := []string{}
@@ -299,21 +336,21 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 	var bindingFile string
 
 	if bf == nil {
-		t.Logf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
-		return fmt.Errorf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
+		t.Logf("binding file not set correctly : [%s]", bf.Value.String())
+		return fmt.Errorf("binding file not set correctly : [%s]", bf.Value.String())
 	}
 
 	bindingFile = bf.Value.String()
 
 	in, err := os.ReadFile(bindingFile)
 	if err != nil {
-		t.Logf(fmt.Sprintf("Error reading binding file: [%v]", err))
-		return fmt.Errorf(fmt.Sprintf("Error reading binding file: [%v]", err))
+		t.Logf("Error reading binding file: [%v]", err)
+		return fmt.Errorf("Error reading binding file: [%v]", err)
 	}
 
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
-		return fmt.Errorf(fmt.Sprintf("Error unmarshalling binding file: [%v]", err))
+		return fmt.Errorf("Error unmarshalling binding file: [%v]", err)
 	}
 
 	for _, dut := range b.Duts {

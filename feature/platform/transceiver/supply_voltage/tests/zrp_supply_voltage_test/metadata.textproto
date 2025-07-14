@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "b8aa3809-068a-4da1-9c29-7ce34c67c965"
+plan_id:  "TRANSCEIVER-12 (400ZR_PLUS)"
+description:  "Telemetry: 400ZR_PLUS Transceiver Supply Voltage streaming."
+testbed:  TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}

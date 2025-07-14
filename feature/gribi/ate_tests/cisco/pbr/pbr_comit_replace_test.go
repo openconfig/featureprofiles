@@ -13,7 +13,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -26,7 +25,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
 	defer flushServer(t, args)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	// disable hwmodule and expect the traffic to be failed even after adding gribi routes
@@ -39,7 +38,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 	})
 
 	// enable hwmodule and expect the traffic to be passed after adding gribi routes
@@ -53,7 +52,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 	})
 
 	// router reload and expect the traffic to be passed after adding gribi routes
@@ -70,7 +69,7 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
+		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 	})
 }
 
@@ -135,7 +134,7 @@ func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testA
 	baseConfigWithoutPBR := removePBRFromBaseConfing(t, baseConfig)
 	baseConfigWithoutPBRAndInterface := removeInterfacePBRFromBaseConfing(t, baseConfigWithoutPBR)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	t.Log("Adding GRIBI Entries")
@@ -148,55 +147,55 @@ func testRemAddPBRWithGNMIReplace(ctx context.Context, t *testing.T, args *testA
 	// remove PBR and expect the traffic to be failed even after adding gribi routes
 	t.Log("Remowing PBR Config and Intreface and checking traffic, the traffic should fail")
 	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfigWithoutPBRAndInterface)
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 
 	// add PBR config back and expect the traffic to be passed after adding gribi routes
 	t.Log("Adding PBR Config and Intreface again and checking traffic, the traffic should pass")
 	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }
 
-func getBasePBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interface{}) {
-	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r1.SequenceId = ygot.Uint32(1)
-	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		Protocol: oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
-	}
-	r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+// func getBasePBROCConfig() (ygnmi.PathStruct, interface{}) {
+// 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r1.SequenceId = ygot.Uint32(1)
+// 	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		Protocol: oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP,
+// 	}
+// 	r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r2.SequenceId = ygot.Uint32(2)
-	r2.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet: []uint8{*ygot.Uint8(16)},
-	}
-	r2.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+// 	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r2.SequenceId = ygot.Uint32(2)
+// 	r2.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		DscpSet: []uint8{*ygot.Uint8(16)},
+// 	}
+// 	r2.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	r3 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r3.SequenceId = ygot.Uint32(3)
-	r3.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet: []uint8{*ygot.Uint8(18)},
-	}
-	r3.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
+// 	r3 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r3.SequenceId = ygot.Uint32(3)
+// 	r3.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		DscpSet: []uint8{*ygot.Uint8(18)},
+// 	}
+// 	r3.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
 
-	r4 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
-	r4.SequenceId = ygot.Uint32(4)
-	r4.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		DscpSet: []uint8{*ygot.Uint8(48)},
-	}
-	r4.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
+// 	r4 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
+// 	r4.SequenceId = ygot.Uint32(4)
+// 	r4.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
+// 		DscpSet: []uint8{*ygot.Uint8(48)},
+// 	}
+// 	r4.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
-	p := oc.NetworkInstance_PolicyForwarding_Policy{}
-	p.PolicyId = ygot.String(pbrName)
-	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
-	p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
+// 	p := oc.NetworkInstance_PolicyForwarding_Policy{}
+// 	p.PolicyId = ygot.String(pbrName)
+// 	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+// 	p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1, 2: &r2, 3: &r3, 4: &r4}
 
-	policy := oc.NetworkInstance_PolicyForwarding{}
-	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
+// 	policy := oc.NetworkInstance_PolicyForwarding{}
+// 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
-}
+// 	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
+// }
 
-func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interface{}) {
+func getPartialPBROCConfig(t *testing.T, args *testArgs) {
 	fptest.ConfigureDefaultNetworkInstance(t, args.dut)
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
@@ -232,8 +231,7 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, inte
 
 	policy := oc.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-
-	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
+	gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Config(), &policy)
 }
 
 func removeHWModuleFromBaseConfing(t *testing.T, baseConfig string) string {
@@ -310,32 +308,32 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 	defer config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
 	baseConfigWithoutHWModule := removeHWModuleFromBaseConfing(t, baseConfig)
 	baseConfigWithoutPBR := removePBRFromBaseConfing(t, baseConfig)
-	baseConfigWithoutPBR = addHWModule(t, baseConfigWithoutPBR) // in case if it is missing
-	fmt.Print(baseConfigWithoutPBR)
+	baseConfigWithoutPBR = addHWModule(t, baseConfigWithoutPBR)
+	t.Logf("BaseConfig: %s", baseConfig)
+	t.Logf("BaseConfigWithoutPBR: %s", baseConfigWithoutPBR)
 
-	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
+	// weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 
 	//remove  HWModule and set PBR to wrong config,  and  expect the traffic to be failed even after adding gribi routes
 	t.Log("Remove  HWModule and set PBR to wrong config, reload the router and check the traffic")
-	path, wrongPolicy := getPartialPBROCConfig(t, args)
-	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutHWModule, path, wrongPolicy)
+	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfigWithoutHWModule)
+	getPartialPBROCConfig(t, args)
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
-	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, false, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 
 	// add PBR with OC and HWModule with text, and expect the traffic to be passed after adding gribi routes
-	path, basePolicy := getBasePBROCConfig(t, args)
-	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutPBR, path, basePolicy)
 	t.Log("Add HWModule and set PBR to the right config, reload the router and check the traffic")
+	config.GNMICommitReplace(context.Background(), t, args.dut, baseConfig)
 	args.clientA.StartWithNoCache(t)
 	args.clientA.BecomeLeader(t)
 	configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 	configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
-	testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
+	testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 0)
 }

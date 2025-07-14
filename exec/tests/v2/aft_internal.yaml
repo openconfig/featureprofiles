@@ -1,0 +1,28 @@
+name: AFT
+owners:
+  - mastarke
+
+tests:
+  - name: Decap
+    path:  feature/aft/cisco/ate_tests/dcgate_decap_nh_counters_test
+    timeout: 4200
+    mustpass: true
+    internal: true
+    branch: master
+
+
+  - name: Encap
+    path: feature/aft/cisco/otg_tests/basic_encap_nh_counters
+    timeout: 8400
+    mustpass: true
+    internal: true
+    branch: master
+
+  - name: Encap-FRR
+    path: feature/aft/cisco/otg_tests/dcgate_aft_frr_couters_test
+    timeout: 8400
+    mustpass: true
+    internal: true
+    branch: master
+
+

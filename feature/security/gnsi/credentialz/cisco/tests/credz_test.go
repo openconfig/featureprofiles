@@ -1284,7 +1284,7 @@ func TestCredentialz_5(t *testing.T) {
 	if strings.Contains(out, "rsa-cert") {
 		log.Infof("Authentication type of user(%s) is rsa-cert as expected", accountName)
 	} else {
-		t.Fatalf(fmt.Sprintf("Authentication type of user(%s) is not rsa-cert", accountName))
+		t.Fatalf("Authentication type of user(%s) is not rsa-cert", accountName)
 	}
 	pcreq = credz.AuthorizedPrincipalCheckRequest{
 		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(0),

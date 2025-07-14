@@ -10,6 +10,5 @@ testbed: TESTBED_DUT
 #    vendor: NOKIA
 #  }
 #  deviations: {
-#    explicit_port_speed: true
 #  }
 #}

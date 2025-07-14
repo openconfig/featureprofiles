@@ -1,0 +1,12 @@
+name: static_route
+owners: 
+  - shpaulch
+testbeds:
+  - 2DUT-TB1
+tests:
+- name: static_route_test
+  path: feature/cisco/static-route
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
