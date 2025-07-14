@@ -132,7 +132,7 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 
 // testSchedulerwrr tests the Weighted Round Robin (WRR) scheduling on the DUT (Device Under Test).
 func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
-	defer flushServer(t, args)
+	defer args.clientA.FlushServer(t)
 	t.Logf("clear qos counters on all interfaces")
 	cliHandle := args.dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
