@@ -75,7 +75,6 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	outpupacket := outpackets[0]
 	fmt.Printf("*********************oupackets is %+v", outpackets)
 	fmt.Printf("*********************inputpackets is %+v", inpackets)
-	
 	baseConfigTele := setupQosTele(t, args.dut)
 	baseConfigInterface := setup.GetAnyValue(baseConfigTele.Interface)
 	interfaceTelemetryPath := gnmi.OC().Qos().Interface("Bundle-Ether120").State()
@@ -1381,7 +1380,6 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1500,7 +1498,6 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
-	
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
@@ -1616,7 +1613,6 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
-	
 	qos := d.GetOrCreateQos()
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	ind = 1
