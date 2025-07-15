@@ -1532,3 +1532,8 @@ func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
 func LowScaleAft(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLowScaleAft()
 }
+
+// MissingSystemDescriptionConfigPath returns true if device does not support config lldp system-description leaf
+func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
+}
