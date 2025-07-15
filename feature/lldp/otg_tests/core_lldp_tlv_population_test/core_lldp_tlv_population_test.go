@@ -218,8 +218,10 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	} else {
 		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
 	}
-	if state.GetSystemDescription() != "DUT" {
-		t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
+	if !deviations.MissingSystemDescriptionConfigPath(node) {
+		if state.GetSystemDescription() != "DUT" {
+			t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
+		}
 	}
 
 	got := state.GetInterface(port.Name()).GetName()
