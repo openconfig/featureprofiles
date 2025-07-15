@@ -200,6 +200,7 @@ var (
 	primaryBundlesubIntfIPMap = map[string]util.LinkIPs{}
 	backupBundlesubIntfIPMap  = map[string]util.LinkIPs{}
 	pathInfo                  = PathInfo{}
+	dutPeerLink               = util.LinkIPs{}
 
 	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
@@ -1487,6 +1488,13 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		applyForwardingPolicy(t, aggID1, clusterPolicy, false)
 		//Apply WAN facing policy on DUT-TGEN Bundle2 interface
 		applyForwardingPolicy(t, aggID2, wanPolicy, false)
+
+		// update dutPeerLink with the actual IP addresses that can be used for static router configuration
+		dutPeerLink.DutIPv4 = bundleBgpIsis.IntfV4Addr
+		dutPeerLink.DutIPv6 = bundleBgpIsis.IntfV6Addr
+		dutPeerLink.PeerIPv4 = bundleBgpIsis.PeerV4Addr
+		dutPeerLink.PeerIPv6 = bundleBgpIsis.PeerV6Addr
+
 	} else if interfaceMode == "physical" {
 		t.Log("Configure DUT-TGEN Physical Interfaces")
 		// TODO: Implement physical interface configuration logic
@@ -1495,6 +1503,11 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		// configureDUTPhysicalInterfaces(t, dut)
 		// configureDeviceBGP(t, dut, peer, physicalIntfList)
 		// configureDeviceISIS(t, dut, peer, physicalIntfList)
+		// update dutPeerLink with the actual IP addresses that can be used for static router configuration
+		// dutPeerLink.DutIPv4 = bundleBgpIsis.IntfV4Addr
+		// dutPeerLink.DutIPv6 = bundleBgpIsis.IntfV6Addr
+		// dutPeerLink.PeerIPv4 = bundleBgpIsis.PeerV4Addr
+		// dutPeerLink.PeerIPv6 = bundleBgpIsis.PeerV6Addr
 	} else {
 		t.Fatalf("Unknown mode: %s. Must be 'bundle' or 'physical'", interfaceMode)
 	}

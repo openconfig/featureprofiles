@@ -1804,6 +1804,7 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	// add static route on peer for the tunnel destination for encap, decap+encap traffic
 	configStaticRoute(t, peer, "200.200.0.0/16", otgDst.IPv4, "", "", false)
 	configStaticRoute(t, peer, "100.101.0.0/16", otgDst.IPv4, "", "", false)
+
 	gnmi.Replace(t, peer, gnmi.OC().System().MacAddress().RoutingMac().Config(), magicMac)
 	gArgs = tcArgs
 	bConfig.setConfigured(true)
@@ -3630,7 +3631,7 @@ func getDcGateProfile(t *testing.T, tcArgs *testArgs, availableForUseResourceIDs
 	// plan resouce distribution among various tunnel types for DCGate profile
 	t.Logf("Available for use resource IDs: %d", availableForUseResourceIDs)
 	nhsPerNHG := 8 // for encap and decapEncap tunnels
-
+	level2NHsPerNHG := 2
 	reserveForDecapF := 1024
 	reserveForDecapV := 48
 	reserveForDecapEncap := 704 // use closest value to it which can be equally divided in batches*nhsPerNHG
@@ -3639,7 +3640,7 @@ func getDcGateProfile(t *testing.T, tcArgs *testArgs, availableForUseResourceIDs
 	avaialableForEncap := availableForUseResourceIDs - reserveForDecapF - reserveForDecapV - reserveForDecapEncap
 	// get closest floor value of nhgs for encapDecap tunnels that can be divided in batches with nhsPerNHG size
 	// pass on leftover values to be used by encap tunnels
-	frr1NHG, frr1NHLeftover, _ := DivideAndAdjust(reserveForDecapEncap, nhsPerNHG, batches)
+	frr1NHG, frr1NHLeftover, _ := DivideAndAdjust(reserveForDecapEncap, level2NHsPerNHG, batches)
 	t.Logf("Frr1NHGs: %d, frr1NHLeftover: %d from reserveForDecapEncap: %d", frr1NHG, frr1NHLeftover, reserveForDecapEncap)
 	// use frr1NHLeftovers for encap tunnels
 	// distribute the available resource IDs to NHGs such that it can be divided in batches.
@@ -3655,13 +3656,13 @@ func getDcGateProfile(t *testing.T, tcArgs *testArgs, availableForUseResourceIDs
 
 	gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
 		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
-		&routesParam{segment: "PrimaryLevel2", ipEntries: tunUniqDsts, numUniqueNHGs: 256, numNHPerNHG: 2},
+		&routesParam{segment: "PrimaryLevel2", ipEntries: tunUniqDsts, numUniqueNHGs: 256, numNHPerNHG: level2NHsPerNHG},
 		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[0]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_A
 		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[1]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_B
 		&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[2]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_C
 		&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[3]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_D
-		&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.frr1Paths, numUniqueNHGs: 8, numNHPerNHG: 8},
-		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: frr1NHG, numNHPerNHG: nhsPerNHG},
+		&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, frr1NHG*level2NHsPerNHG), nextHops: tcArgs.frr1Paths, numUniqueNHGs: 64, numNHPerNHG: 8},
+		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: frr1NHG, numNHPerNHG: level2NHsPerNHG, nextHops: iputil.GenerateIPs(VipFrr1IPBlock, frr1NHG*level2NHsPerNHG)},
 		&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(1, 1)},
 		&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
 	)
@@ -3696,51 +3697,11 @@ func testDcGateStress(t *testing.T) {
 	}
 	defer tcArgs.client.Stop(t)
 
-	batches := 8
-	vrfCount := 4
-	// get free resource IDs
+	// Chose scale for gribi profile - fixed resources, or percentage of available resources
 	// gridRsrc := getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
-	getGridPoolUsageViaGNMI(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP)
-	availableForUseResourceIDs := maxTunnelResources //reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
-
-	// plan resouce distribution among various tunnel types for DCGate profile
-	t.Logf("Available for use resource IDs: %d", availableForUseResourceIDs)
-	nhsPerNHG := 8 // for encap and decapEncap tunnels
-
-	reserveForDecapF := 1024
-	reserveForDecapV := 48
-	reserveForDecapEncap := 704 // use closest value to it which can be equally divided in batches*nhsPerNHG
-	nhgForDecapF := reserveForDecapF
-	nhgForDecapV := reserveForDecapV
-	avaialableForEncap := availableForUseResourceIDs - reserveForDecapF - reserveForDecapV - reserveForDecapEncap
-	// get closest floor value of nhgs for encapDecap tunnels that can be divided in batches with nhsPerNHG size
-	// pass on leftover values to be used by encap tunnels
-	frr1NHG, frr1NHLeftover, _ := DivideAndAdjust(reserveForDecapEncap, nhsPerNHG, batches)
-	t.Logf("Frr1NHGs: %d, frr1NHLeftover: %d from reserveForDecapEncap: %d", frr1NHG, frr1NHLeftover, reserveForDecapEncap)
-	// use frr1NHLeftovers for encap tunnels
-	// distribute the available resource IDs to NHGs such that it can be divided in batches.
-	// remaining resource IDs will be used to configure using a single NHG with nhs count = nhLeftover
-	nhg, nhLeftover, _ := DivideAndAdjust(avaialableForEncap+frr1NHLeftover, nhsPerNHG, batches*vrfCount)
-	t.Logf("Reserving resources %d for decapF, %d for decapV, %d for decapEncap, %d for encap", reserveForDecapF, reserveForDecapV, reserveForDecapEncap, avaialableForEncap+frr1NHLeftover)
-	t.Logf("Possible NHG: %d, with NHsPerNHG: %d, leftover: %d with available %d resource IDs", nhg, nhsPerNHG, nhLeftover, avaialableForEncap+frr1NHLeftover)
-
-	// generate unique next hops for tunnels for each Encap Vrf
-	tunUniqDsts := iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG)
-	// uniqDstsPerEncap := splitInToGroups(tunUniqDsts, 4)
-	uniqDstsPerEncap := distributeBatchesAcrossGroups(t, tunUniqDsts, batches, 4)
-
-	gp := NewGribiProfile(t, batches, true, true, tcArgs.dut,
-		&routesParam{segment: "PrimaryLevel1", nextHops: tcArgs.primaryPaths, numUniqueNHGs: 512, numNHPerNHG: 8}, //primary path
-		&routesParam{segment: "PrimaryLevel2", ipEntries: tunUniqDsts, numUniqueNHGs: 256, numNHPerNHG: 2},
-		&routesParam{segment: "PrimaryLevel3A", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[0]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_A
-		&routesParam{segment: "PrimaryLevel3B", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[1]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_B
-		&routesParam{segment: "PrimaryLevel3C", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[2]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_C
-		&routesParam{segment: "PrimaryLevel3D", numUniqueNHGs: nhg / vrfCount, numNHPerNHG: nhsPerNHG, nextHops: uniqDstsPerEncap[3]}, // allocate quarter of the available nhgs for ENCAP_TE_VRF_D
-		&routesParam{segment: "Frr1Level1", ipEntries: iputil.GenerateIPs(VipFrr1IPBlock, 64), nextHops: tcArgs.frr1Paths, numUniqueNHGs: 8, numNHPerNHG: 8},
-		&routesParam{segment: "Frr1Level2", ipEntries: iputil.GenerateIPs(V4TunnelIPBlock, nhg*nhsPerNHG), numUniqueNHGs: frr1NHG, numNHPerNHG: nhsPerNHG},
-		&routesParam{segment: "DecapWan", numUniqueNHGs: nhgForDecapF, numNHPerNHG: 1, ipEntries: iputil.GenerateIPs(IPBlockDecap, reserveForDecapF), nextHopWeight: generateNextHopWeights(1, 1)},
-		&routesParam{segment: "DecapWanVar", numUniqueNHGs: nhgForDecapV, numNHPerNHG: 1},
-	)
+	// availableForUseResourceIDs := reduceToPercent(gridRsrc.AvailableResourceIDs, UsableResoucePercent)
+	availableForUseResourceIDs := maxTunnelResources
+	gp := getDcGateProfile(t, tcArgs, availableForUseResourceIDs)
 
 	tcArgs.client.StartSending(tcArgs.ctx, t)
 	if err := awaitTimeout(tcArgs.ctx, tcArgs.client, t, time.Minute); err != nil {
@@ -3856,37 +3817,61 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 
 	max2Cards := randomPickTwo(pathInfo.PrimaryUniqueIntfCards)
 	gp.measurePerf = &tunTypes{location: max2Cards[0], tunType: []string{"iptnlnh", "iptnlencap", "iptnldecap"}}
-	gp.pushBatchConfig(t, tcArgs, []int{0, 1, 2, 3, 4, 5, 6, 7})
+
+	allProfileBatches := []int{0, 1, 2, 3, 4, 5, 6, 7}
+	gp.pushBatchConfig(t, tcArgs, allProfileBatches)
 	t.Logf("Waiting for 10 seconds for the gRIBI entries to be programmed")
 	time.Sleep(10 * time.Second)
 
 	currentTime := time.Now()
 	maxTime := currentTime.Add(time.Duration(*stress_duration) * time.Hour)
+
+	nhPerNhg := gp.PrimaryLevel1.numNHPerNHG
+	frr1NhPerNhg := gp.Frr1Level1.numNHPerNHG
+	// divide set of primary interfaces into vip1 and vip2
+	primaryVips := SplitSliceByCount(tcArgs.primaryPaths, nhPerNhg, 2)
+	primaryVip1 := primaryVips[0]
+	primaryVip2 := primaryVips[1]
+	randomBatchSize := false
 	iteration := 1
 	t.Logf("Stress test will run for %d hours", *stress_duration)
 	for time.Now().Before(maxTime) {
 		t.Logf("Iteration: %d, resource consumption in steady state", iteration)
 		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, pathInfo.PrimaryUniqueIntfCards)
 
-		nhPerNhg := gp.PrimaryLevel1.numNHPerNHG
-		frr1NhPerNhg := gp.Frr1Level1.numNHPerNHG
-		// divide set of primary interfaces into vip1 and vip2
-		primaryVips := SplitSliceByCount(tcArgs.primaryPaths, nhPerNhg, 2)
-		primaryVip1 := primaryVips[0]
-		primaryVip2 := primaryVips[1]
-		randomVip1 := DivideSliceRandomly(primaryVip1, nhPerNhg, true)
-		randomVip2 := DivideSliceRandomly(primaryVip2, nhPerNhg, true)
-		randomAllVips := DivideSliceRandomly(tcArgs.primaryPaths, nhPerNhg, true)
-		randomAllFrr1Paths := DivideSliceRandomly(tcArgs.frr1Paths, frr1NhPerNhg, true)
+		randomBatchSize = !randomBatchSize
+		randomVip1 := DivideSliceRandomly(primaryVip1, nhPerNhg, randomBatchSize)
+		randomVip2 := DivideSliceRandomly(primaryVip2, nhPerNhg, randomBatchSize)
+		randomAllVips := DivideSliceRandomly(tcArgs.primaryPaths, nhPerNhg, randomBatchSize)
+		randomAllFrr1Paths := DivideSliceRandomly(tcArgs.frr1Paths, frr1NhPerNhg, randomBatchSize)
 		primaryAndFrr1Paths := tcArgs.primaryPaths
 		primaryAndFrr1Paths = append(primaryAndFrr1Paths, tcArgs.frr1Paths...)
+
+		// move primary traffic to VIP2
+		t.Run("Validating encap traffic after shutting primary VIP1, VIP2 and FRR1 paths", func(t *testing.T) {
+			setInterfaceAdminStateBatch(t, tcArgs.dut, primaryVip1, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
+			setInterfaceAdminStateBatch(t, tcArgs.dut, primaryVip2, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
+			// validate encap traffic after triggering frr1
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
+
+			// enable static routes for encap prefixes in default vrf for frr2 to be successful
+			enableEncapStaticRoutes(t, tcArgs, false)
+
+			setInterfaceAdminStateBatch(t, tcArgs.dut, tcArgs.frr1Paths, pathInfo.BackupPathPeerV4ToSubIntf, false, false)
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
+			setInterfaceAdminStateBatch(t, tcArgs.dut, tcArgs.frr1Paths, pathInfo.BackupPathPeerV4ToSubIntf, true, false)
+			setInterfaceAdminStateBatch(t, tcArgs.dut, tcArgs.primaryPaths, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
+
+			// disable static routes for encap prefixes in default vrf to avoid any false positive
+			enableEncapStaticRoutes(t, tcArgs, true)
+		})
 
 		// move primary traffic to VIP2
 		t.Run("Validating encap traffic after shutting primary VIP1 paths randomly", func(t *testing.T) {
 			for _, vipIps := range randomVip1 {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
 			}
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
 		// move traffic to frr1 path
@@ -3894,7 +3879,7 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 			for _, vipIps := range randomVip2 {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
 			}
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
 		// move primary traffic to VIP1
@@ -3902,7 +3887,7 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 			for _, vipIps := range randomVip1 {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
 			}
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
 		// move primary traffic to VIP1
@@ -3910,7 +3895,7 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 			for _, vipIps := range randomVip2 {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
 			}
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
 		// randomly flap primary paths
@@ -3919,7 +3904,7 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
 			}
 
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
 		// randomly flap primary paths
@@ -3928,7 +3913,7 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
 			}
 
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
 		// randomly flap frr1 paths
@@ -3937,30 +3922,37 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.BackupPathPeerV4ToSubIntf, false, false)
 			}
 
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
 		// randomly flap frr1 and primary paths
 		t.Run("Validating encap traffic after unshut shut unshhut frr1 and primary paths randomly", func(t *testing.T) {
-			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+
+			// enable static routes for encap prefixes in default vrf for frr2 to be successful
+			enableEncapStaticRoutes(t, tcArgs, false)
+
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, nhPerNhg, randomBatchSize) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), true, false)
 			}
-			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, nhPerNhg, randomBatchSize) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), false, true)
 			}
-			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, nhPerNhg, randomBatchSize) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), false, true)
 			}
 			// make all paths up
-			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, 8, true) {
+			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, nhPerNhg, randomBatchSize) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), true, false)
 			}
-			testEncapTrafficFlows(t, tcArgs, gp, []int{0, 1, 2, 3, 4, 5, 6, 7})
+			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
+
+			// disable static routes for encap prefixes in default vrf to avoid any false positive
+			enableEncapStaticRoutes(t, tcArgs, true)
 		})
 
 		t.Run("Validating /32 decap traffic after path flaps", func(t *testing.T) {
 			t.Logf("Iteration: %d, validating /32 decap traffic", iteration)
-			for _, b := range randomPickTwo([]int{0, 1, 2, 3, 4, 5, 6, 7}) {
+			for _, b := range randomPickTwo(allProfileBatches) {
 				for _, encap := range randomPickTwo([]string{"A", "B", "C", "D"}) {
 					testDecapTrafficFlowsForEncap(t, tcArgs, gp, []int{b}, []string{encap})
 				}
@@ -3969,7 +3961,7 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 
 		t.Run("Validating variable prefix decap traffic after path flaps", func(t *testing.T) {
 			t.Logf("Iteration: %d, validating variable prefix decap traffic", iteration)
-			testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, randomPickTwo([]int{0, 1, 2, 3, 4, 5, 6, 7}), []string{"A", "B", "C", "D"})
+			testDecapTrafficFlowsForVariablePrefix(t, tcArgs, gp, randomPickTwo(allProfileBatches), []string{"A", "B", "C", "D"})
 		})
 		t.Logf("Iteration: %d, resource consumption after path flaps", iteration)
 		getResouceConsumption(t, tcArgs.dut, 1, 4, tcArgs.DUT.ActiveRP, pathInfo.PrimaryUniqueIntfCards)
@@ -4368,4 +4360,44 @@ func MergeMaps[K comparable, V any](m1, m2 map[K]V) map[K]V {
 		result[k] = v
 	}
 	return result
+}
+
+// enableEncapStaticRoutes enables encap static routes
+// If `delete` is true, it deletes the static routes instead.
+func enableEncapStaticRoutes(t *testing.T, tcArgs *testArgs, delete bool) {
+	if !delete {
+		t.Logf("Enabling encap static routes on %s and %s", tcArgs.dut.ID(), tcArgs.peer.ID())
+	} else {
+		t.Logf("Deleting encap static routes on %s and %s", tcArgs.dut.ID(), tcArgs.peer.ID())
+	}
+	for _, ipBlock := range []string{IPv6BlockEncapA, IPv6BlockEncapB, IPv6BlockEncapC, IPv6BlockEncapD, IPv6BlockEncapE} {
+		ipNet, err := ConvertToNetworkBlock(ipBlock)
+		if err != nil {
+			t.Errorf("Error converting IP block %s to network block: %v", ipBlock, err)
+			return
+		}
+
+		configStaticRoute(t, tcArgs.dut, "", "", ipNet, dutPeerLink.PeerIPv6, delete)
+		configStaticRoute(t, tcArgs.peer, "", "", ipNet, otgDst.IPv6, delete)
+	}
+
+	for _, ipBlock := range []string{IPBlockEncapA, IPBlockEncapB, IPBlockEncapC, IPBlockEncapD, IPBlockEncapE} {
+		ipNet, err := ConvertToNetworkBlock(ipBlock)
+		if err != nil {
+			t.Errorf("Error converting IP block %s to network block: %v", ipBlock, err)
+			return
+		}
+		configStaticRoute(t, tcArgs.dut, ipNet, dutPeerLink.PeerIPv4, "", "", delete)
+		configStaticRoute(t, tcArgs.peer, ipNet, otgDst.IPv4, "", "", delete)
+	}
+}
+
+// ConvertToNetworkBlock converts an IP block string to a network block string.
+// It returns the network block string and an error if the conversion fails.
+func ConvertToNetworkBlock(ipBlock string) (string, error) {
+	_, ipnet, err := net.ParseCIDR(ipBlock)
+	if err != nil {
+		return "", err
+	}
+	return ipnet.String(), nil
 }
