@@ -1522,3 +1522,18 @@ func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
 func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }
+
+// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
+
+// GreDecapsulationUnsupported returns true if decapsulation is not supported
+func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
+}
+
+// DecapGroupOCUnsupported returns true if decapsulation group is not supported
+func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
+}
