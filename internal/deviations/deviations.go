@@ -1522,3 +1522,13 @@ func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
 func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }
+
+// LinkLocalInsteadOfNh returns true if device requires link-local instead of NH.
+func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalInsteadOfNh()
+}
+
+// LowScaleAft returns if device requires link-local instead of NH.
+func LowScaleAft(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLowScaleAft()
+}
