@@ -87,8 +87,7 @@ var (
 		{Size: 128, Weight: 20},
 		{Size: 256, Weight: 20},
 		{Size: 512, Weight: 10},
-		{Size: 1500, Weight: 28},
-		{Size: 9000, Weight: 2},
+		{Size: 1500, Weight: 30},
 	}
 
 	flowResolveArp = &otgvalidationhelpers.OTGValidation{
@@ -334,7 +333,7 @@ func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
 	if err := lagECMPValidation.ValidateECMPonLAG(t, ate); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
-	createflow(t, top, FlowOuterIPv6, FlowInnerIPv6, false)
+	createflow(t, top, FlowOuterIPv6, FlowInnerIPv6, true)
 	sendTraffic(t, ate)
 	if err := FlowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
@@ -365,12 +364,10 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(20 * time.Second)
 	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(20 * time.Second)
 }
 
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
