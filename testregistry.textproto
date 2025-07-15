@@ -85,6 +85,24 @@ test: {
   exec: ""
 }
 test: {
+  id: "AFT-2.1"
+  description: "AFTs Prefix Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_prefix_counters/README.md"
+  exec: ""
+}
+test: {
+  id: "AFT-3.1"
+  description: "AFTs Atomic Flag Check"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_atomic/README.md"
+  exec: ""
+}
+test: {
+  id: "AFT-5.1"
+  description: "AFTs DUT Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_reboot/README.md"
+  exec: ""
+}
+test: {
   id: "attestz-1"
   description: "Validate attestz for initial install"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
@@ -860,6 +878,12 @@ test: {
   id: "RT-1.64"
   description: "BGP Import/Export Policy Functional Test Case"
   readme: "https://github.com/openconfig/feature/bgp/import-export-policy/otg_tests/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.65"
+  description: "Static Route to Other Network-Instance Test Case"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/other_network_instance/README.md"
   exec: " "
 }
 test: {
@@ -2000,15 +2024,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "AFT-1.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_base/README.md"
-  exec: " "
-}
-test: {
-  id: "AFT-2.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
+  id: "SYS-1.1"
+  description: "Test default COPP policy thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/control_plane_traffic/otg_tests/default_copp_test/README.md"
   exec: " "
 }
 test: {
