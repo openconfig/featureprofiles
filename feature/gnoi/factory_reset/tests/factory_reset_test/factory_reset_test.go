@@ -16,8 +16,8 @@ package factory_reset_test
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/rand"
+	"crypto/sha256"
 	"io"
 	"path/filepath"
 	"regexp"
