@@ -858,6 +858,10 @@ message Metadata {
 
     // low_scale_aft returns true if device requires low scale AFT.
     bool low_scale_aft = 303;
+    
+    // Devices that do not support system-description config path
+    // Nokia b/431929861
+    bool missing_system_description_config_path = 304;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
