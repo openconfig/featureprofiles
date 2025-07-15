@@ -214,11 +214,11 @@ ip decap-group gre-decap
 !`
 
 	staticLSPArista = `
-	mpls static top-label 99991 169.254.0.12 pop payload-type ipv4 access-list bypass
-	mpls static top-label 99992 2600:2d00:0:1:8000:10:0:ca32 pop payload-type ipv6 access-list bypass
-	mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypass
-	mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
-	`
+mpls static top-label 99991 169.254.0.12 pop payload-type ipv4 access-list bypass
+mpls static top-label 99992 2600:2d00:0:1:8000:10:0:ca32 pop payload-type ipv6 access-list bypass
+mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypass
+mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
+`
 )
 
 // InterfacelocalProxyConfig configures the interface local-proxy-arp.
