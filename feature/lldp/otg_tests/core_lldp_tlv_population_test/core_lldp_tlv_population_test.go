@@ -142,10 +142,10 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	p := node.Port(t, portName)
 	d := &oc.Root{}
 	lldp := d.GetOrCreateLldp()
-	lldp.SystemDescription = ygot.String("DUT")
+	gnmi.Replace(t, node, gnmi.OC().Lldp().SystemDescription().Config(), "DUT")
 
 	llint := lldp.GetOrCreateInterface(p.Name())
-	llint.SetName(portName)
+	llint.SetName(p.Name())
 
 	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
 
@@ -358,3 +358,4 @@ func cliSetRequest(config string) *gpb.SetRequest {
 		}},
 	}
 }
+
