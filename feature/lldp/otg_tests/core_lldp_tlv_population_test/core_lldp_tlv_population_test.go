@@ -193,6 +193,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.
 func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, conf *oc.Lldp, lldpEnabled bool) {
+	dut := ondatra.DUT(t, "dut")
 	if conf == nil {
 		return
 	}
@@ -218,7 +219,7 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	} else {
 		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
 	}
-	if !deviations.MissingSystemDescriptionConfigPath(node) {
+	if !deviations.MissingSystemDescriptionConfigPath(dut) {
 		if state.GetSystemDescription() != "DUT" {
 			t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
 		}
