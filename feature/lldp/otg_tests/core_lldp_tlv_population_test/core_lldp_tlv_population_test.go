@@ -147,7 +147,7 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	llint := lldp.GetOrCreateInterface(p.Name())
 	llint.SetName(portName)
 
-	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
+	gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Enabled().Config(), lldpEnabled)
 
 	if lldpEnabled {
 		gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
