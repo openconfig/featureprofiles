@@ -863,6 +863,9 @@ message Metadata {
     // Nokia b/431929861
     bool missing_system_description_config_path = 304;
 
+    // Devices that do not support import export policies configured in network instance
+    bool network_instance_import_export_policy_oc_unsuppored = 305;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
