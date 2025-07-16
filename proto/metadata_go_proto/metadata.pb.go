@@ -906,9 +906,6 @@ type Metadata_Deviations struct {
 	// CISCO: b/376241033
 	// CISCO: b/340859662
 	EnableMultipathUnderAfiSafi bool `protobuf:"varint,230,opt,name=enable_multipath_under_afi_safi,json=enableMultipathUnderAfiSafi,proto3" json:"enable_multipath_under_afi_safi,omitempty"`
-	// Device have different default value for allow own as.
-	// Juniper : b/373559004
-	BgpAllowownasDiffDefaultValue bool `protobuf:"varint,231,opt,name=bgp_allowownas_diff_default_value,json=bgpAllowownasDiffDefaultValue,proto3" json:"bgp_allowownas_diff_default_value,omitempty"`
 	// Cisco numbering for OTN channel assignment starts from 1 instead of 0
 	OtnChannelAssignmentCiscoNumbering bool `protobuf:"varint,232,opt,name=otn_channel_assignment_cisco_numbering,json=otnChannelAssignmentCiscoNumbering,proto3" json:"otn_channel_assignment_cisco_numbering,omitempty"`
 	// Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
@@ -1000,10 +997,100 @@ type Metadata_Deviations struct {
 	SkipTransceiverDescription bool `protobuf:"varint,265,opt,name=skip_transceiver_description,json=skipTransceiverDescription,proto3" json:"skip_transceiver_description,omitempty"`
 	// Devices that do not support containerz config via OpenConfig.
 	ContainerzOcUnsupported bool `protobuf:"varint,266,opt,name=containerz_oc_unsupported,json=containerzOcUnsupported,proto3" json:"containerz_oc_unsupported,omitempty"`
+	// Device does not support BGP OC distance
+	BgpDistanceOcPathUnsupported bool `protobuf:"varint,267,opt,name=bgp_distance_oc_path_unsupported,json=bgpDistanceOcPathUnsupported,proto3" json:"bgp_distance_oc_path_unsupported,omitempty"`
+	// Devices that do not support ISIS MPLS
+	IsisMplsUnsupported bool `protobuf:"varint,268,opt,name=isis_mpls_unsupported,json=isisMplsUnsupported,proto3" json:"isis_mpls_unsupported,omitempty"`
+	// Devices that do not support oc path for auto-negotiate
+	// Nokia b/417843274
+	AutoNegotiateUnsupported bool `protobuf:"varint,269,opt,name=auto_negotiate_unsupported,json=autoNegotiateUnsupported,proto3" json:"auto_negotiate_unsupported,omitempty"`
+	// Devices that do not support oc path for duplex-mode
+	// Nokia b/417843274
+	DuplexModeUnsupported bool `protobuf:"varint,270,opt,name=duplex_mode_unsupported,json=duplexModeUnsupported,proto3" json:"duplex_mode_unsupported,omitempty"`
+	// Devices that do not support oc path for port-speed
+	// Nokia b/417843274
+	PortSpeedUnsupported bool `protobuf:"varint,271,opt,name=port_speed_unsupported,json=portSpeedUnsupported,proto3" json:"port_speed_unsupported,omitempty"`
+	// Set-Med-Action is not supported for BGP
+	// Cisco b/414333771
+	BgpSetMedActionUnsupported bool `protobuf:"varint,272,opt,name=bgp_set_med_action_unsupported,json=bgpSetMedActionUnsupported,proto3" json:"bgp_set_med_action_unsupported,omitempty"`
+	// Devices that do not support next-hop-group config
+	// Arista b/390507957
+	NextHopGroupConfigUnsupported bool `protobuf:"varint,273,opt,name=next_hop_group_config_unsupported,json=nextHopGroupConfigUnsupported,proto3" json:"next_hop_group_config_unsupported,omitempty"`
+	// Arista b/390507780
+	QosShaperConfigUnsupported bool `protobuf:"varint,274,opt,name=qos_shaper_config_unsupported,json=qosShaperConfigUnsupported,proto3" json:"qos_shaper_config_unsupported,omitempty"`
+	// Arista b/390507780
+	QosShaperStateUnsupported bool `protobuf:"varint,275,opt,name=qos_shaper_state_unsupported,json=qosShaperStateUnsupported,proto3" json:"qos_shaper_state_unsupported,omitempty"`
+	// Arista b/393178770
+	EthernetOverMplsogreUnsupported bool `protobuf:"varint,276,opt,name=ethernet_over_mplsogre_unsupported,json=ethernetOverMplsogreUnsupported,proto3" json:"ethernet_over_mplsogre_unsupported,omitempty"`
+	// Arista b/390507408
+	SflowUnsupported bool `protobuf:"varint,277,opt,name=sflow_unsupported,json=sflowUnsupported,proto3" json:"sflow_unsupported,omitempty"`
+	// Arista b/390507402
+	MplsUnsupported bool `protobuf:"varint,278,opt,name=mpls_unsupported,json=mplsUnsupported,proto3" json:"mpls_unsupported,omitempty"`
+	// Arista b/390507399
+	MacsecUnsupported bool `protobuf:"varint,279,opt,name=macsec_unsupported,json=macsecUnsupported,proto3" json:"macsec_unsupported,omitempty"`
+	// Arista b/390506900
+	GueGreDecapUnsupported bool `protobuf:"varint,280,opt,name=gue_gre_decap_unsupported,json=gueGreDecapUnsupported,proto3" json:"gue_gre_decap_unsupported,omitempty"`
+	// Arista b/390506584
+	MplsLabelClassificationUnsupported bool `protobuf:"varint,281,opt,name=mpls_label_classification_unsupported,json=mplsLabelClassificationUnsupported,proto3" json:"mpls_label_classification_unsupported,omitempty"`
+	// Arista b/390506395
+	LocalProxyUnsupported bool `protobuf:"varint,282,opt,name=local_proxy_unsupported,json=localProxyUnsupported,proto3" json:"local_proxy_unsupported,omitempty"`
+	// Arista b/390506513
+	StaticMplsUnsupported bool `protobuf:"varint,283,opt,name=static_mpls_unsupported,json=staticMplsUnsupported,proto3" json:"static_mpls_unsupported,omitempty"`
+	// Arista b/390504878
+	QosClassificationUnsupported bool `protobuf:"varint,284,opt,name=qos_classification_unsupported,json=qosClassificationUnsupported,proto3" json:"qos_classification_unsupported,omitempty"`
+	// Arista b/390503348
+	PolicyForwardingUnsupported bool `protobuf:"varint,285,opt,name=policy_forwarding_unsupported,json=policyForwardingUnsupported,proto3" json:"policy_forwarding_unsupported,omitempty"`
+	// Arista b/393177745
+	CfmUnsupported bool `protobuf:"varint,286,opt,name=cfm_unsupported,json=cfmUnsupported,proto3" json:"cfm_unsupported,omitempty"`
+	// Arista b/390506903
+	LabelRangeUnsupported bool `protobuf:"varint,287,opt,name=label_range_unsupported,json=labelRangeUnsupported,proto3" json:"label_range_unsupported,omitempty"`
+	// Arista b/390506907
+	StaticArpUnsupported bool `protobuf:"varint,288,opt,name=static_arp_unsupported,json=staticArpUnsupported,proto3" json:"static_arp_unsupported,omitempty"`
+	// Arista b/390506907
+	InterfacePolicyForwardingUnsupported bool `protobuf:"varint,289,opt,name=interface_policy_forwarding_unsupported,json=interfacePolicyForwardingUnsupported,proto3" json:"interface_policy_forwarding_unsupported,omitempty"`
+	// UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
+	// issues/404301960
+	UseOldOcPathStaticLspNh bool `protobuf:"varint,290,opt,name=use_old_oc_path_static_lsp_nh,json=useOldOcPathStaticLspNh,proto3" json:"use_old_oc_path_static_lsp_nh,omitempty"`
+	// Create/Replace config leaf required
+	// Juniper b/419536104
+	ConfigLeafCreateRequired bool `protobuf:"varint,291,opt,name=config_leaf_create_required,json=configLeafCreateRequired,proto3" json:"config_leaf_create_required,omitempty"`
+	// SkipInterfaceNameCheck is set to true for devices that do not support
+	// interface name check in AFT.
+	SkipInterfaceNameCheck bool `protobuf:"varint,292,opt,name=skip_interface_name_check,json=skipInterfaceNameCheck,proto3" json:"skip_interface_name_check,omitempty"`
+	// Arista b/426375784
+	// FNT only issue, non-breakout ports have breakout config
+	FrBreakoutFix bool `protobuf:"varint,293,opt,name=fr_breakout_fix,json=frBreakoutFix,proto3" json:"fr_breakout_fix,omitempty"`
+	// Cisco b/421356455
+	// numPhysicalChannels is not supported
+	NumPhysicalChannelsUnsupported bool `protobuf:"varint,294,opt,name=num_physical_channels_unsupported,json=numPhysicalChannelsUnsupported,proto3" json:"num_physical_channels_unsupported,omitempty"`
+	// UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
+	UnsupportedQosOutputServicePolicy bool `protobuf:"varint,295,opt,name=unsupported_qos_output_service_policy,json=unsupportedQosOutputServicePolicy,proto3" json:"unsupported_qos_output_service_policy,omitempty"`
+	// InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
+	InterfaceOutputQueueNonStandardName bool `protobuf:"varint,296,opt,name=interface_output_queue_non_standard_name,json=interfaceOutputQueueNonStandardName,proto3" json:"interface_output_queue_non_standard_name,omitempty"`
+	// MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+	MplsExpIngressClassifierOcUnsupported bool `protobuf:"varint,297,opt,name=mpls_exp_ingress_classifier_oc_unsupported,json=mplsExpIngressClassifierOcUnsupported,proto3" json:"mpls_exp_ingress_classifier_oc_unsupported,omitempty"`
+	// Devices that do not propagate IGP metric through redistribution
+	DefaultNoIgpMetricPropagation bool `protobuf:"varint,298,opt,name=default_no_igp_metric_propagation,json=defaultNoIgpMetricPropagation,proto3" json:"default_no_igp_metric_propagation,omitempty"`
+	// Skip setting send-community-type in bgp peer-group config
+	SkipBgpPeerGroupSendCommunityType bool `protobuf:"varint,299,opt,name=skip_bgp_peer_group_send_community_type,json=skipBgpPeerGroupSendCommunityType,proto3" json:"skip_bgp_peer_group_send_community_type,omitempty"`
+	// Devices that does have different AS path prepend order.
+	// juniper : b/425632068
+	BgpAsPathPrependOrderMismtach bool `protobuf:"varint,300,opt,name=bgp_as_path_prepend_order_mismtach,json=bgpAsPathPrependOrderMismtach,proto3" json:"bgp_as_path_prepend_order_mismtach,omitempty"`
+	// Devices that need explicit swap_src_dst_mac set with loopback_mode
+	// Nokia b/430183279
+	ExplicitSwapSrcDstMacNeededForLoopbackMode bool `protobuf:"varint,301,opt,name=explicit_swap_src_dst_mac_needed_for_loopback_mode,json=explicitSwapSrcDstMacNeededForLoopbackMode,proto3" json:"explicit_swap_src_dst_mac_needed_for_loopback_mode,omitempty"`
+	// link_local_instead_of_nh is set to true for devices that give
+	// link-local address instead of NH in AFT.
+	LinkLocalInsteadOfNh bool `protobuf:"varint,302,opt,name=link_local_instead_of_nh,json=linkLocalInsteadOfNh,proto3" json:"link_local_instead_of_nh,omitempty"`
+	// low_scale_aft returns true if device requires low scale AFT.
+	LowScaleAft bool `protobuf:"varint,303,opt,name=low_scale_aft,json=lowScaleAft,proto3" json:"low_scale_aft,omitempty"`
+	// Devices that do not support system-description config path
+	// Nokia b/431929861
+	MissingSystemDescriptionConfigPath bool `protobuf:"varint,304,opt,name=missing_system_description_config_path,json=missingSystemDescriptionConfigPath,proto3" json:"missing_system_description_config_path,omitempty"`
 	// Devices does not support static mpls lsp
-	StaticMplsLspOcUnsupported bool `protobuf:"varint,269,opt,name=static_mpls_lsp_oc_unsupported,json=staticMplsLspOcUnsupported,proto3" json:"static_mpls_lsp_oc_unsupported,omitempty"`
+	StaticMplsLspOcUnsupported bool `protobuf:"varint,305,opt,name=static_mpls_lsp_oc_unsupported,json=staticMplsLspOcUnsupported,proto3" json:"static_mpls_lsp_oc_unsupported,omitempty"`
 	// Device doesnot support gre enacapsulation
-	GreDecapsulationOcUnsupported bool `protobuf:"varint,270,opt,name=gre_decapsulation_oc_unsupported,json=greDecapsulationOcUnsupported,proto3" json:"gre_decapsulation_oc_unsupported,omitempty"`
+	GreDecapsulationOcUnsupported bool `protobuf:"varint,306,opt,name=gre_decapsulation_oc_unsupported,json=greDecapsulationOcUnsupported,proto3" json:"gre_decapsulation_oc_unsupported,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -2452,13 +2539,6 @@ func (x *Metadata_Deviations) GetEnableMultipathUnderAfiSafi() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetBgpAllowownasDiffDefaultValue() bool {
-	if x != nil {
-		return x.BgpAllowownasDiffDefaultValue
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetOtnChannelAssignmentCiscoNumbering() bool {
 	if x != nil {
 		return x.OtnChannelAssignmentCiscoNumbering
@@ -2690,6 +2770,272 @@ func (x *Metadata_Deviations) GetContainerzOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetBgpDistanceOcPathUnsupported() bool {
+	if x != nil {
+		return x.BgpDistanceOcPathUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisMplsUnsupported() bool {
+	if x != nil {
+		return x.IsisMplsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAutoNegotiateUnsupported() bool {
+	if x != nil {
+		return x.AutoNegotiateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDuplexModeUnsupported() bool {
+	if x != nil {
+		return x.DuplexModeUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetPortSpeedUnsupported() bool {
+	if x != nil {
+		return x.PortSpeedUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpSetMedActionUnsupported() bool {
+	if x != nil {
+		return x.BgpSetMedActionUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetNextHopGroupConfigUnsupported() bool {
+	if x != nil {
+		return x.NextHopGroupConfigUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosShaperConfigUnsupported() bool {
+	if x != nil {
+		return x.QosShaperConfigUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosShaperStateUnsupported() bool {
+	if x != nil {
+		return x.QosShaperStateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetEthernetOverMplsogreUnsupported() bool {
+	if x != nil {
+		return x.EthernetOverMplsogreUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSflowUnsupported() bool {
+	if x != nil {
+		return x.SflowUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMplsUnsupported() bool {
+	if x != nil {
+		return x.MplsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMacsecUnsupported() bool {
+	if x != nil {
+		return x.MacsecUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetGueGreDecapUnsupported() bool {
+	if x != nil {
+		return x.GueGreDecapUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMplsLabelClassificationUnsupported() bool {
+	if x != nil {
+		return x.MplsLabelClassificationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLocalProxyUnsupported() bool {
+	if x != nil {
+		return x.LocalProxyUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetStaticMplsUnsupported() bool {
+	if x != nil {
+		return x.StaticMplsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosClassificationUnsupported() bool {
+	if x != nil {
+		return x.QosClassificationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetPolicyForwardingUnsupported() bool {
+	if x != nil {
+		return x.PolicyForwardingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCfmUnsupported() bool {
+	if x != nil {
+		return x.CfmUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLabelRangeUnsupported() bool {
+	if x != nil {
+		return x.LabelRangeUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetStaticArpUnsupported() bool {
+	if x != nil {
+		return x.StaticArpUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfacePolicyForwardingUnsupported() bool {
+	if x != nil {
+		return x.InterfacePolicyForwardingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetUseOldOcPathStaticLspNh() bool {
+	if x != nil {
+		return x.UseOldOcPathStaticLspNh
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetConfigLeafCreateRequired() bool {
+	if x != nil {
+		return x.ConfigLeafCreateRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipInterfaceNameCheck() bool {
+	if x != nil {
+		return x.SkipInterfaceNameCheck
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFrBreakoutFix() bool {
+	if x != nil {
+		return x.FrBreakoutFix
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetNumPhysicalChannelsUnsupported() bool {
+	if x != nil {
+		return x.NumPhysicalChannelsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetUnsupportedQosOutputServicePolicy() bool {
+	if x != nil {
+		return x.UnsupportedQosOutputServicePolicy
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfaceOutputQueueNonStandardName() bool {
+	if x != nil {
+		return x.InterfaceOutputQueueNonStandardName
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMplsExpIngressClassifierOcUnsupported() bool {
+	if x != nil {
+		return x.MplsExpIngressClassifierOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDefaultNoIgpMetricPropagation() bool {
+	if x != nil {
+		return x.DefaultNoIgpMetricPropagation
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipBgpPeerGroupSendCommunityType() bool {
+	if x != nil {
+		return x.SkipBgpPeerGroupSendCommunityType
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpAsPathPrependOrderMismtach() bool {
+	if x != nil {
+		return x.BgpAsPathPrependOrderMismtach
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetExplicitSwapSrcDstMacNeededForLoopbackMode() bool {
+	if x != nil {
+		return x.ExplicitSwapSrcDstMacNeededForLoopbackMode
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLinkLocalInsteadOfNh() bool {
+	if x != nil {
+		return x.LinkLocalInsteadOfNh
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLowScaleAft() bool {
+	if x != nil {
+		return x.LowScaleAft
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMissingSystemDescriptionConfigPath() bool {
+	if x != nil {
+		return x.MissingSystemDescriptionConfigPath
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetStaticMplsLspOcUnsupported() bool {
 	if x != nil {
 		return x.StaticMplsLspOcUnsupported
@@ -2760,7 +3106,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf3\x93\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x8c\xa7\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -2772,7 +3118,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aǊ\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe0\x9d\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -2978,8 +3324,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1fssh_server_counters_unsupported\x18\xe3\x01 \x01(\bR\x1csshServerCountersUnsupported\x12A\n" +
 	"\x1coperational_mode_unsupported\x18\xe4\x01 \x01(\bR\x1aoperationalModeUnsupported\x12Q\n" +
 	"&bgp_session_state_idle_in_passive_mode\x18\xe5\x01 \x01(\bR bgpSessionStateIdleInPassiveMode\x12E\n" +
-	"\x1fenable_multipath_under_afi_safi\x18\xe6\x01 \x01(\bR\x1benableMultipathUnderAfiSafi\x12I\n" +
-	"!bgp_allowownas_diff_default_value\x18\xe7\x01 \x01(\bR\x1dbgpAllowownasDiffDefaultValue\x12S\n" +
+	"\x1fenable_multipath_under_afi_safi\x18\xe6\x01 \x01(\bR\x1benableMultipathUnderAfiSafi\x12S\n" +
 	"&otn_channel_assignment_cisco_numbering\x18\xe8\x01 \x01(\bR\"otnChannelAssignmentCiscoNumbering\x12F\n" +
 	" cisco_pre_fec_ber_inactive_value\x18\xe9\x01 \x01(\bR\x1bciscoPreFecBerInactiveValue\x12L\n" +
 	"#bgp_afi_safi_wildcard_not_supported\x18\xeb\x01 \x01(\bR\x1ebgpAfiSafiWildcardNotSupported\x129\n" +
@@ -3012,10 +3357,48 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1bload_interval_not_supported\x18\x87\x02 \x01(\bR\x18loadIntervalNotSupported\x12Z\n" +
 	"*skip_optical_channel_output_power_interval\x18\x88\x02 \x01(\bR%skipOpticalChannelOutputPowerInterval\x12A\n" +
 	"\x1cskip_transceiver_description\x18\x89\x02 \x01(\bR\x1askipTransceiverDescription\x12;\n" +
-	"\x19containerz_oc_unsupported\x18\x8a\x02 \x01(\bR\x17containerzOcUnsupported\x12C\n" +
-	"\x1estatic_mpls_lsp_oc_unsupported\x18\x8d\x02 \x01(\bR\x1astaticMplsLspOcUnsupported\x12H\n" +
-	" gre_decapsulation_oc_unsupported\x18\x8e\x02 \x01(\bR\x1dgreDecapsulationOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01\x1a\xa0\x01\n" +
+	"\x19containerz_oc_unsupported\x18\x8a\x02 \x01(\bR\x17containerzOcUnsupported\x12G\n" +
+	" bgp_distance_oc_path_unsupported\x18\x8b\x02 \x01(\bR\x1cbgpDistanceOcPathUnsupported\x123\n" +
+	"\x15isis_mpls_unsupported\x18\x8c\x02 \x01(\bR\x13isisMplsUnsupported\x12=\n" +
+	"\x1aauto_negotiate_unsupported\x18\x8d\x02 \x01(\bR\x18autoNegotiateUnsupported\x127\n" +
+	"\x17duplex_mode_unsupported\x18\x8e\x02 \x01(\bR\x15duplexModeUnsupported\x125\n" +
+	"\x16port_speed_unsupported\x18\x8f\x02 \x01(\bR\x14portSpeedUnsupported\x12C\n" +
+	"\x1ebgp_set_med_action_unsupported\x18\x90\x02 \x01(\bR\x1abgpSetMedActionUnsupported\x12I\n" +
+	"!next_hop_group_config_unsupported\x18\x91\x02 \x01(\bR\x1dnextHopGroupConfigUnsupported\x12B\n" +
+	"\x1dqos_shaper_config_unsupported\x18\x92\x02 \x01(\bR\x1aqosShaperConfigUnsupported\x12@\n" +
+	"\x1cqos_shaper_state_unsupported\x18\x93\x02 \x01(\bR\x19qosShaperStateUnsupported\x12L\n" +
+	"\"ethernet_over_mplsogre_unsupported\x18\x94\x02 \x01(\bR\x1fethernetOverMplsogreUnsupported\x12,\n" +
+	"\x11sflow_unsupported\x18\x95\x02 \x01(\bR\x10sflowUnsupported\x12*\n" +
+	"\x10mpls_unsupported\x18\x96\x02 \x01(\bR\x0fmplsUnsupported\x12.\n" +
+	"\x12macsec_unsupported\x18\x97\x02 \x01(\bR\x11macsecUnsupported\x12:\n" +
+	"\x19gue_gre_decap_unsupported\x18\x98\x02 \x01(\bR\x16gueGreDecapUnsupported\x12R\n" +
+	"%mpls_label_classification_unsupported\x18\x99\x02 \x01(\bR\"mplsLabelClassificationUnsupported\x127\n" +
+	"\x17local_proxy_unsupported\x18\x9a\x02 \x01(\bR\x15localProxyUnsupported\x127\n" +
+	"\x17static_mpls_unsupported\x18\x9b\x02 \x01(\bR\x15staticMplsUnsupported\x12E\n" +
+	"\x1eqos_classification_unsupported\x18\x9c\x02 \x01(\bR\x1cqosClassificationUnsupported\x12C\n" +
+	"\x1dpolicy_forwarding_unsupported\x18\x9d\x02 \x01(\bR\x1bpolicyForwardingUnsupported\x12(\n" +
+	"\x0fcfm_unsupported\x18\x9e\x02 \x01(\bR\x0ecfmUnsupported\x127\n" +
+	"\x17label_range_unsupported\x18\x9f\x02 \x01(\bR\x15labelRangeUnsupported\x125\n" +
+	"\x16static_arp_unsupported\x18\xa0\x02 \x01(\bR\x14staticArpUnsupported\x12V\n" +
+	"'interface_policy_forwarding_unsupported\x18\xa1\x02 \x01(\bR$interfacePolicyForwardingUnsupported\x12?\n" +
+	"\x1duse_old_oc_path_static_lsp_nh\x18\xa2\x02 \x01(\bR\x17useOldOcPathStaticLspNh\x12>\n" +
+	"\x1bconfig_leaf_create_required\x18\xa3\x02 \x01(\bR\x18configLeafCreateRequired\x12:\n" +
+	"\x19skip_interface_name_check\x18\xa4\x02 \x01(\bR\x16skipInterfaceNameCheck\x12'\n" +
+	"\x0ffr_breakout_fix\x18\xa5\x02 \x01(\bR\rfrBreakoutFix\x12J\n" +
+	"!num_physical_channels_unsupported\x18\xa6\x02 \x01(\bR\x1enumPhysicalChannelsUnsupported\x12Q\n" +
+	"%unsupported_qos_output_service_policy\x18\xa7\x02 \x01(\bR!unsupportedQosOutputServicePolicy\x12V\n" +
+	"(interface_output_queue_non_standard_name\x18\xa8\x02 \x01(\bR#interfaceOutputQueueNonStandardName\x12Z\n" +
+	"*mpls_exp_ingress_classifier_oc_unsupported\x18\xa9\x02 \x01(\bR%mplsExpIngressClassifierOcUnsupported\x12I\n" +
+	"!default_no_igp_metric_propagation\x18\xaa\x02 \x01(\bR\x1ddefaultNoIgpMetricPropagation\x12S\n" +
+	"'skip_bgp_peer_group_send_community_type\x18\xab\x02 \x01(\bR!skipBgpPeerGroupSendCommunityType\x12J\n" +
+	"\"bgp_as_path_prepend_order_mismtach\x18\xac\x02 \x01(\bR\x1dbgpAsPathPrependOrderMismtach\x12g\n" +
+	"2explicit_swap_src_dst_mac_needed_for_loopback_mode\x18\xad\x02 \x01(\bR*explicitSwapSrcDstMacNeededForLoopbackMode\x127\n" +
+	"\x18link_local_instead_of_nh\x18\xae\x02 \x01(\bR\x14linkLocalInsteadOfNh\x12#\n" +
+	"\rlow_scale_aft\x18\xaf\x02 \x01(\bR\vlowScaleAft\x12S\n" +
+	"&missing_system_description_config_path\x18\xb0\x02 \x01(\bR\"missingSystemDescriptionConfigPath\x12C\n" +
+	"\x1estatic_mpls_lsp_oc_unsupported\x18\xb1\x02 \x01(\bR\x1astaticMplsLspOcUnsupported\x12H\n" +
+	" gre_decapsulation_oc_unsupported\x18\xb2\x02 \x01(\bR\x1dgreDecapsulationOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
