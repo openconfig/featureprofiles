@@ -12,6 +12,10 @@ criteria.
 
 * https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
 
+## Canonical OC
+```json
+{}
+```
 ## Procedure
 
 * Testbed configuration - Setup eBGP sessions and prefixes.
