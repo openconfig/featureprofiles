@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -45,16 +46,40 @@ func init() {
 	opmode = 1
 }
 
-// Initialize assigns OpMode with value received through operationalMode flag.
-func Initialize(operationalMode uint16) {
+// InterfaceInitialize assigns OpMode with value received through operationalMode flag.
+func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationalMode uint16) uint16 {
 	once.Do(func() {
-		if operationalMode != 0 {
-			opmode = operationalMode
+		t.Helper()
+		if initialOperationalMode == 0 { // '0' signals to use vendor-specific default
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				opmode = 5003
+				t.Logf("cfgplugins.Initialize: Cisco DUT, setting opmode to default: %d", opmode)
+			case ondatra.ARISTA:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Arista DUT, setting opmode to default: %d", opmode)
+			case ondatra.JUNIPER:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Juniper DUT, setting opmode to default: %d", opmode)
+			case ondatra.NOKIA:
+				opmode = 1083
+				t.Logf("cfgplugins.Initialize: Nokia DUT, setting opmode to default: %d", opmode)
+			default:
+				opmode = 1
+				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", opmode)
+			}
 		} else {
-			fmt.Sprintln("Please specify the vendor-specific operational-mode flag")
-			return
+			opmode = initialOperationalMode
+			t.Logf("cfgplugins.Initialize: Using provided initialOperationalMode: %d", opmode)
 		}
+		t.Logf("cfgplugins.Initialize: Initialization complete. Final opmode set to: %d", opmode)
 	})
+	return InterfaceGetOpMode()
+}
+
+// InterfaceGetOpMode returns the opmode value after the Initialize function has been called
+func InterfaceGetOpMode() uint16 {
+	return opmode
 }
 
 // InterfaceConfig configures the interface with the given port.
@@ -79,7 +104,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
-func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, targetOutputPowerdBm float64, targetFrequencyMHz uint64, targetOutputPowerTolerancedBm float64, targetFrequencyToleranceMHz float64) {
 	t.Helper()
 	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
@@ -119,6 +144,7 @@ func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, freq
 // ConfigOTNChannel configures the OTN channel.
 func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32) {
 	t.Helper()
+	t.Logf(" otnIndex:%v, ethIndex: %v", otnIndex, ethIndex)
 	if deviations.OTNChannelTribUnsupported(dut) {
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
@@ -135,18 +161,12 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 			},
 		})
 	} else {
-		t.Logf(" otnIndex:%v, ethIndex: %v", otnIndex, ethIndex)
-		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
-			Description:        ygot.String("ETH Logical Channel"),
-			Index:              ygot.Uint32(ethIndex),
-			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
-			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-		})
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				0: {
 					Index:          ygot.Uint32(0),
@@ -154,13 +174,6 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					Description:    ygot.String("OTN to Optical Channel"),
 					Allocation:     ygot.Float64(400),
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-				},
-				1: {
-					Index:          ygot.Uint32(1),
-					LogicalChannel: ygot.Uint32(ethIndex),
-					Description:    ygot.String("OTN to ETH"),
-					Allocation:     ygot.Float64(400),
-					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 				},
 			},
 		})
@@ -196,9 +209,46 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress:            ingress,
 		Assignment:         assignment,
+		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 	}
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
 	}
 	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), channel)
+}
+
+// SetupAggregateAtomically sets up the aggregate interface atomically.
+func SetupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
+	d := &oc.Root{}
+
+	d.GetOrCreateLacp().GetOrCreateInterface(aggID)
+
+	agg := d.GetOrCreateInterface(aggID)
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	agg.Type = ieee8023adLag
+
+	for _, port := range dutAggPorts {
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
+		i.Type = ethernetCsmacd
+
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+	}
+
+	p := gnmi.OC()
+	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", dut), p.Config(), d)
+	gnmi.Update(t, dut, p.Config(), d)
+}
+
+// DeleteAggregate deletes the aggregate interface.
+func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
+	// Clear the aggregate minlink.
+	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
+
+	// Clear the members of the aggregate.
+	for _, port := range dutAggPorts {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+	}
 }
