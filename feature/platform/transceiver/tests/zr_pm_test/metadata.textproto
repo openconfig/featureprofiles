@@ -11,5 +11,28 @@ platform_exceptions:  {
   }
   deviations:  {
     default_network_instance:  "default"
+    channel_assignment_rate_class_parameters_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+    eth_channel_assignment_cisco_numbering: true
+    cisco_pre_fec_ber_inactive_value: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    eth_channel_ingress_parameters_unsupported: true
+    cisco_pre_fec_ber_inactive_value: true
   }
 }

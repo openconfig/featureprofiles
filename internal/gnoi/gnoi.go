@@ -40,17 +40,19 @@ var (
 		},
 		ondatra.CISCO: {
 			GRIBI:   "emsd",
+			OCAGENT: "emsd",
 			P4RT:    "emsd",
 			ROUTING: "emsd",
 		},
 		ondatra.JUNIPER: {
 			GRIBI:   "rpd",
+			OCAGENT: "mgd-api",
 			P4RT:    "p4-switch",
 			ROUTING: "rpd",
 		},
 		ondatra.NOKIA: {
 			GRIBI:   "sr_grpc_server",
-			OCAGENT: "oc_mgmt_server",
+			OCAGENT: "sr_oc_mgmt_server",
 			P4RT:    "sr_grpc_server",
 			ROUTING: "sr_bgp_mgr",
 		},
@@ -71,8 +73,17 @@ const (
 	ROUTING Daemon = "ROUTING"
 )
 
+// signal type of termination request
+const (
+	SigTerm        = spb.KillProcessRequest_SIGNAL_TERM
+	SigKill        = spb.KillProcessRequest_SIGNAL_KILL
+	SigHup         = spb.KillProcessRequest_SIGNAL_HUP
+	SigAbort       = spb.KillProcessRequest_SIGNAL_ABRT
+	SigUnspecified = spb.KillProcessRequest_SIGNAL_UNSPECIFIED
+)
+
 // KillProcess terminates the daemon on the DUT.
-func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitForRestart bool) {
+func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb.KillProcessRequest_Signal, restart bool, waitForRestart bool) {
 	t.Helper()
 
 	daemonName, err := FetchProcessName(dut, daemon)
@@ -86,12 +97,14 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitForRes
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	killProcessRequest := &spb.KillProcessRequest{
-		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
+		Signal:  signal,
 		Name:    daemonName,
 		Pid:     uint32(pid),
-		Restart: true,
+		Restart: restart,
 	}
 	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+
+	time.Sleep(120 * time.Second)
 
 	if waitForRestart {
 		gnmi.WatchAll(

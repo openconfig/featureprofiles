@@ -97,8 +97,12 @@ const (
 	ipv4OuterSrc222Addr    = "198.51.100.222"
 	gribiIPv4EntryVRF1111  = "203.0.113.1"
 	gribiIPv4EntryVRF1112  = "203.0.113.2"
+	gribiIPv4EntryVRF1113  = "203.100.113.1"
+	gribiIPv4EntryVRF1114  = "203.100.113.2"
 	gribiIPv4EntryVRF2221  = "203.0.113.100"
 	gribiIPv4EntryVRF2222  = "203.0.113.101"
+	gribiIPv4EntryVRF2223  = "203.100.113.100"
+	gribiIPv4EntryVRF2224  = "203.100.113.101"
 	gribiIPv4EntryEncapVRF = "138.0.11.0"
 
 	dutAreaAddress = "49.0001"
@@ -247,13 +251,6 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 	}
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
-	}
-
-	if p.PMD() == ondatra.PMD100GBASEFR {
-		e := i.GetOrCreateEthernet()
-		e.AutoNegotiate = ygot.Bool(false)
-		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 	}
 
 	ipv4, ok := portsIPv4[id]
@@ -1142,11 +1139,10 @@ func TestEncapFrr(t *testing.T) {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1300).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2221).WithNextHopNetworkInstance(niTEVRF222),
+						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2223).WithNextHopNetworkInstance(niTEVRF222),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1301).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).WithNextHopNetworkInstance(niTEVRF222),
-
+						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2224).WithNextHopNetworkInstance(niTEVRF222),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1000).AddNextHop(1300, 1),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1155,14 +1151,34 @@ func TestEncapFrr(t *testing.T) {
 				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
+				res := args.client.Results(t)
+				operIndexList := []uint64{1000, 1001}
+				for _, operIndex := range operIndexList {
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopOperation(operIndex).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopGroupOperation(operIndex).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+				}
 			}
 			if tc.TestID == "teVrf111NoMatch" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(201).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, "203.100.113.1").
+						WithIndex(201).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1113).
 						WithNextHopNetworkInstance(niTEVRF111),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(202).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, "203.100.113.2").
+						WithIndex(202).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1114).
 						WithNextHopNetworkInstance(niTEVRF111),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(101).AddNextHop(201, 1).AddNextHop(202, 3).WithBackupNHG(2001),
@@ -1170,6 +1186,31 @@ func TestEncapFrr(t *testing.T) {
 				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
+				res := args.client.Results(t)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopOperation(201).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopOperation(202).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopGroupOperation(101).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)

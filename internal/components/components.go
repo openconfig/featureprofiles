@@ -171,9 +171,9 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 	return names, nil
 }
 
-// FindStandbyRP gets a list of two components and finds out the active and standby rp.
-func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
-	var activeRP, standbyRP string
+// FindStandbyControllerCard gets a list of two components and finds out the active and standby controller_cards.
+func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+	var activeCC, standbyCC string
 	for _, supervisor := range supervisors {
 		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 			return val.IsPresent()
@@ -184,19 +184,19 @@ func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
-			standbyRP = supervisor
+			standbyCC = supervisor
 		} else if role == activeController {
-			activeRP = supervisor
+			activeCC = supervisor
 		} else {
 			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
 		}
 	}
-	if standbyRP == "" || activeRP == "" {
-		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	if standbyCC == "" || activeCC == "" {
+		t.Fatalf("Expected non-empty activeCC and standbyCC, got activeCC: %v, standbyCC: %v", activeCC, standbyCC)
 	}
-	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	t.Logf("Detected activeCC: %v, standbyCC: %v", activeCC, standbyCC)
 
-	return standbyRP, activeRP
+	return standbyCC, activeCC
 }
 
 // OpticalChannelComponentFromPort finds the optical channel component for a port.
@@ -212,18 +212,13 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}
 	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
+	transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	if transceiverName == "" {
+		t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
 	}
+	opticalChannelName := gnmi.Get(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Channel(0).AssociatedOpticalChannel().State())
+	if opticalChannelName == "" {
+		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
+	}
+	return opticalChannelName
 }
