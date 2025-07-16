@@ -124,6 +124,7 @@ func TestDecapGre(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otgConfig := ate.OTG()
 	config := configureOTG(t, ate)
+	sfBatch := &gnmi.SetBatch{}
 
 	// Configuring Static Route: DECAP-DST --> Null0
 	configStaticRoute(t, dut, "203.0.113.0/24", nullRoute)
@@ -135,11 +136,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst1, otgPort2.IPv6)
 
 	// Configure Static Route: MPLS label binding
-	if deviations.StaticMplsLspOCUnsupported(dut) {
-		cfgplugins.DeviationStaticMplsLspOCUnsupported(t, dut, LBL1, dut.Port(t, "port2").Name(), otgPort2.IPv4, "ipv4")
-	} else {
-		cfgplugins.NewStaticMPLSLabel(t, dut, "lsp1", LBL1, otgPort2.IPv4)
-	}
+	cfgplugins.NewStaticMPLSLabel(t, sfBatch, dut, "lsp1", LBL1, otgPort2.IPv4, dut.Port(t, "port2").Name(), "ipv4")
 
 	// Configure Static Route: IPV4-DST2 --> ATE Port 2
 	configStaticRoute(t, dut, IPv4Dst2, otgPort2.IPv4)
@@ -148,11 +145,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst2, otgPort2.IPv6)
 
 	// Policy Based Forwading Rule-1
-	if deviations.GreDecapsulationOCUnsupported(dut) {
-		cfgplugins.DeviationGREDecapsulation(t, dut, strings.Split(decapDesIpv4IP, "/")[0], decapGrpName)
-	} else {
-		cfgplugins.NewConfigureGRETunnel(t, dut, strings.Split(decapDesIpv4IP, "/")[0], "PBR-Policy", "port1")
-	}
+	cfgplugins.NewConfigureGRETunnel(t, sfBatch, dut, strings.Split(decapDesIpv4IP, "/")[0], "PBR-Policy", "port1", decapGrpName)
 
 	// Test cases.
 	type testCase struct {
