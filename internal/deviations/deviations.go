@@ -1537,3 +1537,18 @@ func LowScaleAft(dut *ondatra.DUTDevice) bool {
 func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
 }
+
+// PolicyForwardingToNextHopUnsupported returns true if policy forwarding to next hop is not supported on vendors
+func PolicyForwardingToNextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopUnsupported()
+}
+
+// PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func PolicyForwardingGREEncapsulationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationUnsupported()
+}
+
+// PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func QosClassifierDscpRemarkUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkUnsupported()
+}
