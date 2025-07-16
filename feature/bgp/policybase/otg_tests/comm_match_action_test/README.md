@@ -14,8 +14,205 @@ criteria.
 
 ## Canonical OC
 ```json
-{}
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
+        },
+        "name": "default",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "EXPORT-POLICY"
+                                ],
+                                "import-policy": [
+                                  "IMPORT-POLICY"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST"
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "127.0.0.1"
+                      },
+                      "neighbor-address": "127.0.0.1"
+                    }
+                  ]
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "apply-policy": {
+                        "config": {
+                          "export-policy": [
+                            "EXPORT-POLICY"
+                          ],
+                          "import-policy": [
+                            "IMPORT-POLICY"
+                          ]
+                        }
+                      },
+                      "config": {
+                        "peer-group-name": "DEFAULT"
+                      },
+                      "peer-group-name": "DEFAULT"
+                    }
+                  ]
+                },
+                "rib": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "IPV4_UNICAST",
+                        "ipv4-unicast": {
+                          "neighbors": {
+                            "neighbor": [
+                              {
+                                "adj-rib-in-post": {
+                                  "routes": {
+                                    "route": [
+                                      {
+                                        "path-id": 0,
+                                        "prefix": "0.0.0.0/0"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "neighbor-address": "127.0.0.1"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "afi-safi-name": "IPV6_UNICAST",
+                        "ipv6-unicast": {
+                          "neighbors": {
+                            "neighbor": [
+                              {
+                                "adj-rib-in-post": {
+                                  "routes": {
+                                    "route": [
+                                      {
+                                        "path-id": 0,
+                                        "prefix": "::/0"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "neighbor-address": "127.0.0.1"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "defined-sets": {
+      "bgp-defined-sets": {
+        "community-sets": {
+          "community-set": [
+            {
+              "community-set-name": "CS1",
+              "config": {
+                "community-member": [
+                  "1:1"
+                ],
+                "community-set-name": "CS1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "EXPORT-POLICY"
+          },
+          "name": "EXPORT-POLICY"
+        },
+        {
+          "config": {
+            "name": "IMPORT-POLICY"
+          },
+          "name": "IMPORT-POLICY"
+        },
+        {
+          "config": {
+            "name": "POLICY1"
+          },
+          "name": "POLICY1",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "set-community": {
+                      "reference": {
+                        "config": {
+                          "community-set-ref": "CS1"
+                        }
+                      }
+                    }
+                  }
+                },
+                "conditions": {
+                  "bgp-conditions": {
+                    "match-community-set": {
+                      "config": {
+                        "match-set-options": "ANY"
+                      }
+                    }
+                  }
+                },
+                "config": {
+                  "name": "10"
+                },
+                "name": "10"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
 ```
+
 ## Procedure
 
 * Testbed configuration - Setup eBGP sessions and prefixes.
