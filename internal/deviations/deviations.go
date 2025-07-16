@@ -1537,3 +1537,11 @@ func LowScaleAft(dut *ondatra.DUTDevice) bool {
 func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
 }
+
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
+}
+
+func NextHopEncapHeaderOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNextHopEncapHeaderOcUnsupported()
+}
