@@ -347,6 +347,7 @@ func (tg *tgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow
 		otgTopo.Flows().Append(allFlows.OTG...)
 		otg.PushConfig(t, otgTopo)
 		otg.StartTraffic(t)
+		time.Sleep(trafficDuration)
 		otg.StopTraffic(t)
 	} else {
 		ateFlowList := allFlows.ATE
