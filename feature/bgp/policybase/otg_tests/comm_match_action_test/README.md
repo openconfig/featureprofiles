@@ -15,95 +15,6 @@ criteria.
 ## Canonical OC
 ```json
 {
-  "routing-policy": {
-    "defined-sets": {
-      "bgp-defined-sets": {
-        "community-sets": {
-          "community-set": [
-            {
-              "community-set-name": "add_std_comms",
-              "config": {
-                "community-set-name": "add_std_comms"
-              },
-              "state": {
-                "community-set-name": "add_std_comms"
-              }
-            }
-          ]
-        }
-      }
-    },
-    "policy-definitions": {
-      "policy-definition": [
-        {
-          "name": "PERMIT-ALL",
-          "config": {
-            "name": "PERMIT-ALL"
-          },
-          "state": {
-            "name": "PERMIT-ALL"
-          },
-          "statements": {
-            "statement": [
-              {
-                "name": "10",
-                "config": {
-                  "name": "10"
-                },
-                "state": {
-                  "name": "10"
-                },
-                "conditions": {
-                  "match-tag-set": {
-                    "state": {
-                      "match-set-options": "ANY"
-                    }
-                  },
-                  "bgp-conditions": {
-                    "match-as-path-set": {
-                      "state": {
-                        "match-set-options": "ANY"
-                      }
-                    },
-                    "match-community-set": {
-                      "state": {
-                        "match-set-options": "ANY"
-                      }
-                    },
-                    "match-ext-community-set": {
-                      "state": {
-                        "match-set-options": "ANY"
-                      }
-                    }
-                  }
-                },
-                "actions": {
-                  "config": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  },
-                  "state": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  },
-                  "bgp-actions": {
-                    "set-community": {
-                      "state": {
-                        "method": "REFERENCE"
-                      }
-                    },
-                    "set-ext-community": {
-                      "state": {
-                        "method": "REFERENCE"
-                      }
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        }
-      ]
-    }
-  },
   "network-instances": {
     "network-instance": [
       {
@@ -233,6 +144,65 @@ criteria.
         }
       }
     ]
+  },
+  "routing-policy": {
+    "defined-sets": {
+      "bgp-defined-sets": {
+        "community-sets": {
+          "community-set": [
+            {
+              "community-set-name": "CS1",
+              "config": {
+                "community-member": [
+                  "1:1"
+                ],
+                "community-set-name": "CS1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "POLICY1"
+          },
+          "name": "POLICY1",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "bgp-actions": {
+                    "set-community": {
+                      "reference": {
+                        "config": {
+                          "community-set-ref": "CS1"
+                        }
+                      }
+                    }
+                  }
+                },
+                "conditions": {
+                  "bgp-conditions": {
+                    "match-community-set": {
+                      "config": {
+                        "match-set-options": "ANY"
+                      }
+                    }
+                  }
+                },
+                "config": {
+                  "name": "10"
+                },
+                "name": "10"
+              }
+            ]
+          }
+        }
+      ]
+    }
   }
 }
 ```
