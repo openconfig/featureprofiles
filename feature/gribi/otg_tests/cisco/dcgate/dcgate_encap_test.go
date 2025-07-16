@@ -20,7 +20,6 @@ func TestBasicEncap(t *testing.T) {
 	// Configure DUT
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut, true)
-	defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
 
 	// Configure ATE
 	otg := ondatra.ATE(t, "ate")
@@ -138,7 +137,7 @@ func TestBasicEncap(t *testing.T) {
 			name:               fmt.Sprintf("Next-hop Unavailability Recirculation Test %d", dscpEncapA1),
 			pattr:              packetAttr{protocol: ipipProtocol, dscp: dscpEncapA1, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
-			weights:            []float64{0, 0, 0, 1}, // Traffic should shift to the first available next-hop
+			weights:            []float64{1, 0, 0, 0}, // Traffic should shift to the first available next-hop
 			capturePorts:       []string{"port5"},
 			validateEncapRatio: true,
 		},
@@ -268,19 +267,18 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 		c.AddNH(t, nh10ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort2DummyIP.IPv4, Mac: magicMac})
 		c.AddNH(t, nh11ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort3DummyIP.IPv4, Mac: magicMac})
 		c.AddNH(t, nh100ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort4DummyIP.IPv4, Mac: magicMac})
-		//		c.AddNH(t, nh101ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort5DummyIP.IPv4, Mac: magicMac})
-
+		c.AddNH(t, nh101ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort5DummyIP.IPv4, Mac: magicMac})
 	} else {
 		c.AddNH(t, nh10ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: magicMac})
 		c.AddNH(t, nh11ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port3").Name(), Mac: magicMac})
 		c.AddNH(t, nh100ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port4").Name(), Mac: magicMac})
-		//	c.AddNH(t, nh101ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
+		c.AddNH(t, nh101ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
 	}
 	c.AddNHG(t, nhg2ID, map[uint64]uint64{nh10ID: 1, nh11ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(vipIP1, 32), nhg2ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	// c.AddNHG(t, nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	// c.AddIPv4(t, cidr(vipIP2, 32), nhg3ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddNHG(t, nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddIPv4(t, cidr(vipIP2, 32), nhg3ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	// Default route lookup NH
 	c.AddNH(t, defaultRouteNHID, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(dut)})
@@ -288,34 +286,20 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 	c.AddIPv4(t, defaultRoute, defaultRouteNHGID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	// Test Case: VRF Lookup with Default Route Fallback
-	// First ensure default route exists in target VRF for lookup failures
-	defaultVrfNHID := uint64(501)
-	defaultVrfNHGID := uint64(502)
-
-	// Create direct NH for default route in target VRF
-	t.Logf("Creating default route NH %d in VRF %s using port2", defaultVrfNHID, vrfTransit)
-	c.AddNH(t, defaultVrfNHID, "MACwithInterface", vrfTransit, fluent.InstalledInFIB, &gribi.NHOptions{
-		Interface: dut.Port(t, "port2").Name(),
-		Mac:       magicMac,
-	})
-
+	
+	t.Logf("Creating default route NH %d in VRF %s using port5", defaultVrfNHID, vrfTransit)
+	t.Logf("Creating default route NH %d in VRF %s using port5", defaultVrfNHID, vrfTransit)
+	c.AddNH(t, defaultVrfNHID, "MACwithInterface", vrfTransit, fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
 	// Create NHG for default route in target VRF
 	t.Logf("Creating default route NHG %d in VRF %s", defaultVrfNHGID, vrfTransit)
 	c.AddNHG(t, defaultVrfNHGID, map[uint64]uint64{defaultVrfNHID: 1}, vrfTransit, fluent.InstalledInFIB)
-
 	// Add default route in target VRF to handle lookup failures
 	t.Logf("Adding default route in VRF %s", vrfTransit)
 	c.AddIPv4(t, "0.0.0.0/0", defaultVrfNHGID, vrfTransit, vrfTransit, fluent.InstalledInFIB)
 
-	// Now create VRF lookup configuration in default VRF
-	lookupNHID := uint64(503)
-	lookupNHGID := uint64(504)
-
 	// Create LOOKUP NH pointing to target VRF
 	t.Logf("Creating LOOKUP NH %d pointing to VRF %s", lookupNHID, vrfTransit)
-	c.AddNH(t, lookupNHID, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{
-		VrfName: vrfTransit,
-	})
+	c.AddNH(t, lookupNHID, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrfTransit})
 
 	// Create NHG with LOOKUP NH in default VRF
 	t.Logf("Creating NHG %d with LOOKUP NH", lookupNHGID)
@@ -331,38 +315,27 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 	c.AddNHG(t, defaultRouteNHGID, map[uint64]uint64{defaultRouteNHID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, defaultRoute, defaultRouteNHGID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	// LOOKUP NH test configuration
-	// Create primary NHG with LOOKUP NH
-	lookupNHGID = uint64(501)
-	primaryLookupNHID := uint64(502)
-
+	lookupNHGID := uint64(501)
 	// Create DIRECT NH for primary path
 	t.Logf("Creating primary direct NH %d using interface port2", primaryLookupNHID)
-	c.AddNH(t, primaryLookupNHID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{
-		Interface: dut.Port(t, "port2").Name(),
-		Mac:       magicMac, // Add MAC address for direct NH
-	})
+	c.AddNH(t, primaryLookupNHID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: magicMac})
 
 	t.Logf("Creating primary NHG %d with direct NH", lookupNHGID)
-	c.AddNHG(t, lookupNHGID, map[uint64]uint64{
-		primaryLookupNHID: 1,
-	}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{
-		BackupNHG: nhg2ID, // Use existing NHG as backup
-	})
+	c.AddNHG(t, lookupNHGID, map[uint64]uint64{primaryLookupNHID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: nhg2ID})
 
 	// Install IPv4 entry using primary NHG that has backup configured
 	t.Logf("Adding IPv4 entry %s pointing to primary NHG %d with backup NHG %d", lookupTestIPv4, lookupNHGID, backupNHGID)
 	c.AddIPv4(t, lookupTestIPv4, lookupNHGID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	c.AddNH(t, nh1ID, vipIP1, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	//	c.AddNH(t, nh2ID, vipIP2, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	c.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddNH(t, nh2ID, vipIP2, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1, nh2ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(tunnelDstIP1, 32), nhg1ID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(tunnelDstIP2, 32), nhg1ID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	c.AddNH(t, nh201ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP1, VrfName: vrfTransit})
 	c.AddNH(t, nh202ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP2, VrfName: vrfTransit})
-	c.AddNHG(t, nhg10ID, map[uint64]uint64{nh201ID: 1, nh202ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddNHG(t, nhg10ID, map[uint64]uint64{nh201ID: 1, nh202ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)

@@ -89,6 +89,11 @@ const (
 	bundleEther1NHID     = 5000
 	bundleEther2NHID     = 5100
 	bundleEther3NHID     = 5200
+	lookupNHID           = 503
+	lookupNHGID          = 504
+	primaryLookupNHID    = 502
+	defaultVrfNHID       = 601
+	defaultVrfNHGID      = 602
 	dscpEncapA1          = 10
 	dscpEncapA2          = 18
 	dscpEncapB1          = 20
@@ -127,14 +132,12 @@ const (
 	otgMutliPortCaptureSupported     = false
 	ipv4PrefixDoesNotExistInEncapVrf = "140.0.0.1"
 	ipv6PrefixDoesNotExistInEncapVrf = "2016::140:0:0:1"
-	// Next-hop IDs for LOOKUP testing
-	lookupNHID     = uint64(3001)
-	backupNHGID    = uint64(3002)
-	primaryNHGID   = uint64(3003)
-	primaryNH1ID   = uint64(3004)
-	primaryNH2ID   = uint64(3005)
-	lookupTestVRF  = "lookup-test-vrf"
-	lookupTestIPv4 = "192.168.100.0/24"
+	backupNHGID                      = uint64(3002)
+	primaryNHGID                     = uint64(3003)
+	primaryNH1ID                     = uint64(3004)
+	primaryNH2ID                     = uint64(3005)
+	lookupTestVRF                    = "lookup-test-vrf"
+	lookupTestIPv4                   = "192.168.100.0/24"
 )
 
 const (
