@@ -105,9 +105,139 @@ criteria.
     }
   }
 }
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
+        },
+        "name": "default",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "export-policy": [
+                                  "EXPORT-POLICY"
+                                ],
+                                "import-policy": [
+                                  "IMPORT-POLICY"
+                                ]
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST"
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "127.0.0.1"
+                      },
+                      "neighbor-address": "127.0.0.1"
+                    }
+                  ]
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "apply-policy": {
+                        "config": {
+                          "export-policy": [
+                            "EXPORT-POLICY"
+                          ],
+                          "import-policy": [
+                            "IMPORT-POLICY"
+                          ]
+                        }
+                      },
+                      "config": {
+                        "peer-group-name": "DEFAULT"
+                      },
+                      "peer-group-name": "DEFAULT"
+                    }
+                  ]
+                },
+                "rib": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "IPV4_UNICAST",
+                        "ipv4-unicast": {
+                          "neighbors": {
+                            "neighbor": [
+                              {
+                                "adj-rib-in-post": {
+                                  "routes": {
+                                    "route": [
+                                      {
+                                        "path-id": 0,
+                                        "prefix": "0.0.0.0/0",
+                                        "state": {
+                                          "community-index": "1"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "neighbor-address": "127.0.0.1"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "afi-safi-name": "IPV6_UNICAST",
+                        "ipv6-unicast": {
+                          "neighbors": {
+                            "neighbor": [
+                              {
+                                "adj-rib-in-post": {
+                                  "routes": {
+                                    "route": [
+                                      {
+                                        "path-id": 0,
+                                        "prefix": "::/0",
+                                        "state": {
+                                          "community-index": "1"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "neighbor-address": "127.0.0.1"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
 ```
-
-#### TODO: Add Canonical OC for /network-instances/network-instance/protocols/protocol/bgp path
 
 ## Procedure
 
