@@ -1539,16 +1539,16 @@ func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 }
 
 // PolicyForwardingToNextHopUnsupported returns true if policy forwarding to next hop is not supported on vendors
-func PolicyForwardingToNextHopUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopUnsupported()
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
 }
 
 // PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
-func PolicyForwardingGREEncapsulationUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationUnsupported()
+func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
 
 // PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
-func QosClassifierDscpRemarkUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkUnsupported()
+func QosClassifierDscpRemarkOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkOcUnsupported()
 }

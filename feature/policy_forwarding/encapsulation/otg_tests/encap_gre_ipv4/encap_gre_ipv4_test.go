@@ -15,6 +15,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -511,14 +512,23 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	configStaticRoute(t, dut, "2001:DB8:0::0/126", "2001:DB8:0::10", "0")
 }
 
+// Congigure Static Routes on DUT
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
-	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	static.SetEnabled(true)
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop(index)
-	nh.NextHop = oc.UnionString(nexthop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+	b := &gnmi.SetBatch{}
+	if nexthop == "Null0" {
+		nexthop = "DROP"
+	}
+	routeCfg := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefix,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			index: oc.UnionString(nexthop),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, routeCfg, dut); err != nil {
+		t.Fatalf("Failed to configure static route: %v", err)
+	}
+	b.Set(t, dut)
 }
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
@@ -552,7 +562,7 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 
 func configurePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice) {
 	interfaceName := dut.Port(t, "port1").Name()
-	if deviations.PolicyForwardingToNextHopUnsupported(dut) || deviations.PolicyForwardingGREEncapsulationUnsupported(dut) {
+	if deviations.PolicyForwardingToNextHopOcUnsupported(dut) || deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
 		t.Logf("Configuring pf through CLI")
 		configurePolicyForwardingFromCLI(t, dut, trafficPolicyName, interfaceName)
 	} else {
@@ -618,7 +628,7 @@ func configureQoSClassifier(t *testing.T, dut *ondatra.DUTDevice) {
 	classifierName := "qos-classifier-1"
 	ipv4DscpValues := []uint8{0, 8, 16, 24, 32, 40, 48, 56}
 	ipv6DscpValues := []uint8{0, 32, 64, 96, 128, 160, 192, 224}
-	if deviations.QosClassifierDscpRemarkUnsupported(dut) {
+	if deviations.QosClassifierDscpRemarkOcUnsupported(dut) {
 		t.Logf("Configuring qos through CLI")
 		configureQoSClassifierFromCLI(t, dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
 	} else {
@@ -773,7 +783,7 @@ func trafficPolicyCliConfig(dut *ondatra.DUTDevice, policyName string, interface
 }
 
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	if deviations.PolicyForwardingGREEncapsulationUnsupported(dut) {
+	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
 		checkPolicyStatisticsFromCLI(t, dut, tc)
 	} else {
 		checkPolicyStatisticsFromOC(t, dut, tc)
