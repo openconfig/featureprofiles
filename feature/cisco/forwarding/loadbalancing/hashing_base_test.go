@@ -391,12 +391,14 @@ type BundleInterface struct {
 }
 
 type FIBNHInfo struct {
-	egressNHWeight map[string]uint64
-	aftV4Prefix    string
-	aftV4PrefixLen string
-	aftV6Prefix    string
-	aftV6PrefixLen string
-	afiType        string
+	egressV4NHWeight    map[string]uint64
+	egressV6NHWeight    map[string]uint64
+	bundleInterfaceInfo []BundleInterface
+	aftV4Prefix         string
+	aftV4PrefixLen      string
+	aftV6Prefix         string
+	aftV6PrefixLen      string
+	afiType             string
 }
 
 type gribiParamPerSite struct {
@@ -585,7 +587,8 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.Close(t)
 }
 
-func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, afiType string) map[string]uint64 {
+// getInterfaceNHWithWeights returns the interface next hops with their respective weights, and BundleInterface struct, for a given prefix and prefix length.
+func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, afiType string) (map[string]uint64, []BundleInterface) {
 	var outputIFWeight = make(map[string]uint64) // Get the interface next hops
 	aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, dut, prefix+prefixLength, deviations.DefaultNetworkInstance(dut), afiType)
 	bundleObjList := []BundleInterface{}
@@ -609,19 +612,5 @@ func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, pre
 	for _, nhObj := range aftPfxObj.NextHop {
 		outputIFWeight[nhObj.NextHopInterface] = nhObj.NextHopWeight
 	}
-	inputTrafficIF := helper.LoadbalancingHelper().GetIngressTrafficInterfaces(t, dut, afiType, true)
-	var bundleNHIntf []string
-	for _, intf := range bundleObjList {
-		bundleNHIntf = append(bundleNHIntf, intf.BundleInterfaceName)
-	}
-
-	//Remove NH Outgoing Bundle interfaces from inputTrafficIF MAP.
-	for _, intf := range bundleNHIntf {
-		delete(inputTrafficIF, intf)
-	}
-	var totalInPackets uint64
-	for _, val := range inputTrafficIF {
-		totalInPackets += val
-	}
-	return outputIFWeight
+	return outputIFWeight, bundleObjList
 }

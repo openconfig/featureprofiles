@@ -104,7 +104,7 @@ func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testi
 	return trafficDistribution, balancedPerWeight
 }
 
-func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, forBundle bool, trafficType string) (map[string]EgressLBDistribution, bool) {
+func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, bunIntfName ...string) (map[string]EgressLBDistribution, bool) {
 	distrStruct := EgressLBDistribution{}
 	trafficDistribution := make(map[string]EgressLBDistribution)
 	var balancedPerWeight bool = true // Initialize as true
@@ -129,9 +129,19 @@ func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.
 		balancedPerWeight = false
 		t.Errorf("Packet distribution ratios -want,+got:\n%s", diff)
 	}
+
+	//bundleName only for when measuring distrubution across bundle members, and need to add name in table.
+	bundleName := ""
+
 	// Print table with tabwriter
 	table := tablewriter.NewWriter(os.Stdout)
-	table.Header([]string{"Device", "Interface", "Weight", "OutPPS", "Want_Distribution", "Got_Distribution"})
+	if len(bunIntfName) > 0 {
+		bundleName = bunIntfName[0]
+		table.Header([]string{"Device", "BundleInterface", "MemberInterface", "Weight", "OutPPS", "Want_Distribution", "Got_Distribution"})
+	} else {
+		table.Header([]string{"Device", "Interface", "Weight", "OutPPS", "Want_Distribution", "Got_Distribution"})
+	}
+
 	index := 0
 	for intf, data := range trafficDistribution {
 		var wantDist, gotDist float64
@@ -148,16 +158,31 @@ func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.
 		data.WantDistribution = wantDist
 		data.GotDistribution = gotDist
 		trafficDistribution[intf] = data
+		var row []string
+		if len(bunIntfName) > 0 {
+			row = []string{
+				dut.Name(), // Device name
+				bundleName, // Bundle interface name
+				intf,       // Member interface name
+				fmt.Sprintf("%d", data.Weight),
+				fmt.Sprintf("%d", data.OutPPS),
+				fmt.Sprintf("%.4f", wantDist),
+				fmt.Sprintf("%.4f", gotDist),
+			}
+		} else {
+			row = []string{
+				dut.Name(), // Device name
+				intf,       // Bundle interface name
+				fmt.Sprintf("%d", data.Weight),
+				fmt.Sprintf("%d", data.OutPPS),
+				fmt.Sprintf("%.4f", wantDist),
+				fmt.Sprintf("%.4f", gotDist),
+			}
+		}
+		// Prepare row data
 
-		// Add a row to the table
-		table.Append([]string{
-			dut.Name(),
-			intf,
-			fmt.Sprintf("%d", data.Weight),
-			fmt.Sprintf("%d", data.OutPPS),
-			fmt.Sprintf("%.4f", wantDist),
-			fmt.Sprintf("%.4f", gotDist),
-		})
+		// Add the row to the table
+		table.Append(row)
 		index++
 	}
 	table.Render()

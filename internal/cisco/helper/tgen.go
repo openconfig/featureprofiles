@@ -339,15 +339,15 @@ func (otgp *OTGParam) ConfigureTGENFlows(t testing.TB) *TGENFlow {
 	}
 }
 
-func (tg *tgenHelper) StartTraffic(t testing.TB, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology, dontReapplyTraffic bool) {
+func (tg *tgenHelper) StartTraffic(t *testing.T, useOTG bool, allFlows *TGENFlow, trafficDuration time.Duration, topo *TGENTopology, dontReapplyTraffic bool) {
 	if useOTG {
 		otg := ondatra.ATE(t, "ate").OTG()
 		otgTopo := topo.OTG
 		otgTopo.Flows().Clear().Items()
 		otgTopo.Flows().Append(allFlows.OTG...)
 		otg.PushConfig(t, otgTopo)
-		otg.StopProtocols(t)
-
+		otg.StartTraffic(t)
+		otg.StopTraffic(t)
 	} else {
 		ateFlowList := allFlows.ATE
 		ate := ondatra.ATE(t, "ate")

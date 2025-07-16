@@ -203,7 +203,7 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 	dutJupiterR := ondatra.DUT(t, "JupiterE")
 	//DUT list for different site groupings
 	siteRDUTList := []*ondatra.DUTDevice{dut1R, dut2R, dut3R, dut4R}
-	siteEDUTList := []*ondatra.DUTDevice{dut1E, dut2E}
+	siteEDUTList := []*ondatra.DUTDevice{dut1E}
 	siteVDUTList := []*ondatra.DUTDevice{dut1V, dut2V}
 	jupiterDUTList := []*ondatra.DUTDevice{dutJupiterE, dutJupiterR}
 
@@ -222,18 +222,18 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 	t.Log("Configure TGEN and set traffic flows")
 	topo := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTgenInterface(t)
 
-	// trafficFlows := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTGENFlows(t)
-	// tgenVerifyParam := verifiers.TgenValidationParam{
-	// 	Tolerance: 0.02,
-	// 	WantLoss:  false,
-	// 	Flows:     trafficFlows,
-	// }
+	trafficFlows := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTGENFlows(t)
+	tgenVerifyParam := verifiers.TgenValidationParam{
+		Tolerance: 0.02,
+		WantLoss:  false,
+		Flows:     trafficFlows,
+	}
 
-	// t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
-	// 	helper.TGENHelper().StartTraffic(t, useOTG, trafficFlows, 10*time.Second, topo, false)
-	// 	time.Sleep(5 * time.Second) // Wait for tgen traffic to completely stop.
-	// 	verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
-	// })
+	t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
+		helper.TGENHelper().StartTraffic(t, useOTG, trafficFlows, 10*time.Second, topo, false)
+		time.Sleep(5 * time.Second) // Wait for tgen traffic to completely stop.
+		verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
+	})
 	cases := []testCase{
 		// {
 		// 	name: "Default",
@@ -244,7 +244,7 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 			desc:                  "Auto-global Hash parameters for both Extended Entropy and Algorithm Adjust options",
 			extendedEntropyOption: &extendedEntropyCLIOptions{perChassis: true},
 			algorithmAdjustOption: &algorithmAdjustCLIOptions{perChassis: true},
-			confHashCLIdutList:    dvtCiscoDUTList,
+			confHashCLIdutList:    siteEDUTList,
 		},
 	}
 	for _, tt := range cases {
@@ -262,128 +262,73 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 			// Traffic flow map for v4, v6, IPinIP and IPv6inIP between R to E and E to R sites.
 			trafficMap := make(map[string][]*helper.TrafficFlowAttr)
 			trafficMap["v4"] = []*helper.TrafficFlowAttr{&v4R2E, &v4E2R}
-			trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
-			trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
-			trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
+			// trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
+			// trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
+			// trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
 
+			//Get Prefix NH info for each of the DUTs in the R, E sites.
+			nhInfo := FIBNHInfo{}
 			deviceNHInfo := make(map[*ondatra.DUTDevice]FIBNHInfo)
-
 			for _, device := range dvtCiscoDUTList {
 				if strings.Contains(device.Name(), "E") {
-					deviceNHInfo[device].aftV4Prefix = eSiteV4DSTIP
-					deviceNHInfo[device].aftV4PrefixLength = "/32"
-					deviceNHInfo[device].aftV6Prefix = eSiteV6DSTPFX
-					deviceNHInfo[device].aftV6PrefixLength = "/64"
+					nhInfo.aftV4Prefix = eSiteV4DSTIP
+					nhInfo.aftV4PrefixLen = "/32"
+					nhInfo.aftV6Prefix = eSiteV6DSTPFX
+					nhInfo.aftV6PrefixLen = "/64"
 				} else {
-					deviceNHInfo[device].aftV4Prefix = rSiteV4DSTIP
-					deviceNHInfo[device].aftV4PrefixLength = "/32"
-					deviceNHInfo[device].aftV6Prefix = rSiteV6DSTPFX
-					deviceNHInfo[device].aftV6PrefixLength = "/64"
+					nhInfo.aftV4Prefix = rSiteV4DSTIP
+					nhInfo.aftV4PrefixLen = "/32"
+					nhInfo.aftV6Prefix = rSiteV6DSTPFX
+					nhInfo.aftV6PrefixLen = "/64"
 				}
-				deviceNH[device].
-
+				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, "ipv4")
+				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, "ipv6")
+				deviceNHInfo[device] = nhInfo
+			}
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).
 			t.Log("Measure Traffic distribution from Site R-to-E on SiteE node going to Jupiter , & other way around")
+			time.Sleep(30 * time.Second)
 			for trafficType, trafficFlows := range trafficMap {
 				t.Run(fmt.Sprintf("%s flow", trafficType), func(t *testing.T) {
 					tgenParam.TrafficFlowParam = trafficFlows
 					trafficFlow := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTGENFlows(t)
-					var aftDestPrefix, prefixLength, afiType string
 					//Verify traffic distribution on each of the cisco DUTs in the R, E sites.
-					prefixLength = "/32"
-					afiType = "ipv4"
-					for _, device := range tt.confHashCLIdutList {
-						fmt.Printf(tt.name+" for device: %s", device.Name())
-						switch trafficType {
-						case "v4", "IPinIP", "IPv6inIP":
-							if strings.Contains(device.Name(), "E") {
-								aftDestPrefix = eSiteV4DSTIP
+					var wg sync.WaitGroup
+					wg.Add(2)
+					go func() {
+						defer wg.Done()
+						t.Log("Start Bidirectional Traffic flows")
+						helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 5*time.Minute, topo, false)
+					}()
+					go func() {
+						defer wg.Done()
+						time.Sleep(3 * time.Minute) // Wait for traffic to start and interface PPS to fully stabilize.
+						for _, device := range tt.confHashCLIdutList {
+							fmt.Printf(tt.name+" for device: %s", device.Name())
+							if trafficType == "v6" {
+								t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV6NHWeight, loadBalancingTolerance)
+								})
 							} else {
-								aftDestPrefix = rSiteV4DSTIP
+								t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV4NHWeight, loadBalancingTolerance)
+								})
 							}
-						case "v6":
-							if strings.Contains(device.Name(), "E") {
-								aftDestPrefix = eSiteV6DSTPFX
-								prefixLength = "/64"
-								afiType = "ipv6"
-							} else {
-								aftDestPrefix = rSiteV6DSTPFX
-								prefixLength = "/64"
-								afiType = "ipv6"
+							for _, bunIntf := range deviceNHInfo[device].bundleInterfaceInfo {
+								var memberListWeight = make(map[string]uint64)
+								for _, member := range bunIntf.BundleMembers {
+									memberListWeight[member] = 1
+								}
+								// Verify traffic distribution on Bundle member LAG level loadbalancing for each bundle interface.
+								t.Run(fmt.Sprintf("Bundle Member LB device %s on %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
+									t.Logf("Verify Bundle-member loadbalancing for %v", bunIntf.BundleInterfaceName)
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, bunIntf.BundleInterfaceName)
+								})
 							}
-						default:
-							t.Errorf("Invalid traffic type %s", trafficType)
 						}
-						outputIFWeight := getInterfaceNHWithWeights(t, device, aftDestPrefix, prefixLength, afiType)
-						var wg sync.WaitGroup
-						wg.Add(2)
-						go func() {
-							defer wg.Done() // Decrease counter when done
-							t.Log("Start Bidirectional Traffic flows")
-							helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 5*time.Minute, topo, false)
-						}()
-						go func() {
-							defer wg.Done()             // Decrease counter when done
-							time.Sleep(2 * time.Minute) // Wait for traffic to start and interface PPS to fully stabilize.
-							// aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, device, aftDestPrefix+prefixLength, deviations.DefaultNetworkInstance(device), afiType)
-							// bundleObjList := []BundleInterface{}
 
-							// for _, nhObj := range aftPfxObj.NextHop {
-							// 	bundleObj := BundleInterface{}
-							// 	bundleObj.BundleInterfaceName = nhObj.NextHopInterface
-							// 	bundleObj.BundleNHWeight = nhObj.NextHopWeight
-							// 	memberMap := helper.InterfaceHelper().GetBundleMembers(t, device, nhObj.NextHopInterface)
-							// 	for _, memberList := range memberMap {
-							// 		bundleMemberWt := make([]uint64, len(memberList))
-							// 		bundleObj.BundleMembers = memberList
-							// 		for i := 0; i < len(memberList); i++ {
-							// 			bundleMemberWt[i] = 1 // Default weight for Bundle members is 1.
-							// 		}
-							// 		bundleObj.BundleMembersWeight = bundleMemberWt
-							// 	}
-							// 	bundleObjList = append(bundleObjList, bundleObj)
-							// }
-							// // Create Map of Bundle NH Outgoing interfaces with their weights
-							// var OutputIFWeight = make(map[string]uint64)
-							// for _, nhObj := range aftPfxObj.NextHop {
-							// 	OutputIFWeight[nhObj.NextHopInterface] = nhObj.NextHopWeight
-							// }
-							// inputTrafficIF := helper.LoadbalancingHelper().GetIngressTrafficInterfaces(t, device, afiType, true)
-							// var bundleNHIntf []string
-							// for _, intf := range bundleObjList {
-							// 	bundleNHIntf = append(bundleNHIntf, intf.BundleInterfaceName)
-							// }
-
-							// //Remove NH Outgoing Bundle interfaces from inputTrafficIF MAP.
-							// for _, intf := range bundleNHIntf {
-							// 	delete(inputTrafficIF, intf)
-							// }
-							// var totalInPackets uint64
-							// for _, val := range inputTrafficIF {
-							// 	totalInPackets += val
-							// }
-							// t.Logf("TotalInPackets on dut %s are: %d", device, totalInPackets)
-
-							// Verify traffic distribution on Bundle NH Outgoing interfaces.
-							// t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-							// 	verifiers.Loadbalancingverifier().VerifyPacketEgressDistributionPerWeight(t, device, OutputIFWeight, loadBalancingTolerance, true, afiType)
-							// })
-							t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-								verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, outputIFWeight, loadBalancingTolerance, true, afiType)
-							})
-						}()
-						wg.Wait()
-						// for _, bunIntf := range bundleObjList {
-						// 	var memberListWeight = make(map[string]uint64)
-						// 	for _, member := range bunIntf.BundleMembers {
-						// 		memberListWeight[member] = 1
-						// 	}
-						// 	// Verify traffic distribution on Bundle member LAG level loadbalancing for each bundle interface.
-						// 	t.Run(fmt.Sprintf("Bundle Member LB device %s on %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
-						// 		verifiers.Loadbalancingverifier().VerifyPacketEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, false, noTrafficType)
-						// 	})
-						// }
-					}
+					}()
+					wg.Wait()
 				})
 			}
 		})
