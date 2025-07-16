@@ -167,6 +167,18 @@ criteria.
       "policy-definition": [
         {
           "config": {
+            "name": "EXPORT-POLICY"
+          },
+          "name": "EXPORT-POLICY"
+        },
+        {
+          "config": {
+            "name": "IMPORT-POLICY"
+          },
+          "name": "IMPORT-POLICY"
+        },
+        {
+          "config": {
             "name": "POLICY1"
           },
           "name": "POLICY1",
