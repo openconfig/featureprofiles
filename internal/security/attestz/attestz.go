@@ -286,23 +286,23 @@ func (cc *ControlCard) verifyVendorCert(t *testing.T, dut *ondatra.DUTDevice, ve
 	// Formatting time to RFC3339 to ensure ease for comparing.
 	expectedTime, _ := time.Parse(time.RFC3339, "9999-12-31T23:59:59Z")
 	if !expectedTime.Equal(vendorCert.NotAfter) {
-		t.Fatalf("Did not get expected NotAfter date, got: %v, want: %v", vendorCert.NotAfter, expectedTime)
+		t.Errorf("Did not get expected NotAfter date, got: %v, want: %v", vendorCert.NotAfter, expectedTime)
 	}
 
 	// Ensure that NotBefore is in the past (should be creation date of the cert, which should always be in the past).
 	currentTime := time.Now()
 	if currentTime.Before(vendorCert.NotBefore) {
-		t.Fatalf("Did not get expected NotBefore date, got: %v, want: earlier than %v", vendorCert.NotBefore, currentTime)
+		t.Errorf("Did not get expected NotBefore date, got: %v, want: earlier than %v", vendorCert.NotBefore, currentTime)
 	}
 
 	// Verify cert matches the serial number of the card queried.
 	serialNo := gnmi.Get[string](t, dut, gnmi.OC().Component(cc.Name).SerialNo().State())
 	if vendorCert.Subject.SerialNumber != serialNo {
-		t.Fatalf("Got wrong serial number, got: %v, want: %v", vendorCert.Subject.SerialNumber, serialNo)
+		t.Errorf("Got wrong serial number, got: %v, want: %v", vendorCert.Subject.SerialNumber, serialNo)
 	}
 
 	if !strings.EqualFold(vendorCert.Subject.Organization[0], dut.Vendor().String()) {
-		t.Fatalf("Wrong signature on Sub Org. got: %v, want: %v", strings.ToLower(vendorCert.Subject.Organization[0]), strings.ToLower(dut.Vendor().String()))
+		t.Errorf("Wrong signature on Sub Org. got: %v, want: %v", strings.ToLower(vendorCert.Subject.Organization[0]), strings.ToLower(dut.Vendor().String()))
 	}
 
 	// Verify cert is signed by switch vendor ca.
@@ -315,7 +315,7 @@ func (cc *ControlCard) verifyVendorCert(t *testing.T, dut *ondatra.DUTDevice, ve
 		// Verify digital signature with oIAK cert.
 		err = rsa.VerifyPKCS1v15(vendorCaPubKey, crypto.SHA384, certHash, vendorCert.Signature)
 		if err != nil {
-			t.Fatalf("Failed verifying vendor cert's signature: %v", err)
+			t.Errorf("Failed verifying vendor cert's signature: %v", err)
 		}
 	default:
 		t.Errorf("Cannot verify signature for %v for cert: %s", vendorCert.SignatureAlgorithm, PrettyPrint(vendorCert))
@@ -494,7 +494,7 @@ func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, a
 		// Verify quote signature with oIAK cert.
 		err = rsa.VerifyPKCS1v15(oIAKPubKey, hashAlgo, quoteHash, quoteTpmsSignature.Sig.Buffer)
 		if err != nil {
-			t.Fatalf("Failed verifying quote signature. error: %v", err)
+			t.Errorf("Failed verifying quote signature. error: %v", err)
 		}
 	default:
 		t.Errorf("Cannot verify signature for %v. quote signature: %s", quoteTpmtSignature.SigAlg, PrettyPrint(quoteTpmtSignature))
@@ -520,12 +520,12 @@ func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, a
 
 	// Verify recomputed PCR digest matches with pcr digest in quote.
 	if !cmp.Equal(gotPcrDigest, wantPcrDigest) {
-		t.Fatalf("Did not receive expected pcr digest from attest rpc, got: %v, want: %v", gotPcrDigest, wantPcrDigest)
+		t.Errorf("Did not receive expected pcr digest from attest rpc, got: %v, want: %v", gotPcrDigest, wantPcrDigest)
 	}
 
 	// Verify nonce.
 	gotNonce := quoted.ExtraData.Buffer
 	if !cmp.Equal(gotNonce, wantNonce) {
-		t.Logf("Did not receive expected nonce, got: %v, want: %v", gotNonce, wantNonce)
+		t.Errorf("Did not receive expected nonce, got: %v, want: %v", gotNonce, wantNonce)
 	}
 }
