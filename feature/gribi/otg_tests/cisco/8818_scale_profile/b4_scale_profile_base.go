@@ -138,8 +138,8 @@ const (
 	advertisedRoutesv6Prefix = 64
 	dutAS                    = 68888
 	ateAS                    = 67777
-	switchovertime           = 315000.0
-	fps                      = 10000 //100000
+	switchovertime           = 315000.0 //msec
+	fps                      = 10000    //100000
 )
 
 var (

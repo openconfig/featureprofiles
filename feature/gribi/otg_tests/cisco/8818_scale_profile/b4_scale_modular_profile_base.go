@@ -3846,26 +3846,7 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 		randomAllFrr1Paths := DivideSliceRandomly(tcArgs.frr1Paths, frr1NhPerNhg, randomBatchSize)
 		primaryAndFrr1Paths := tcArgs.primaryPaths
 		primaryAndFrr1Paths = append(primaryAndFrr1Paths, tcArgs.frr1Paths...)
-
-		// move primary traffic to VIP2
-		t.Run("Validating encap traffic after shutting primary VIP1, VIP2 and FRR1 paths", func(t *testing.T) {
-			setInterfaceAdminStateBatch(t, tcArgs.dut, primaryVip1, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
-			setInterfaceAdminStateBatch(t, tcArgs.dut, primaryVip2, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
-			// validate encap traffic after triggering frr1
-			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
-
-			// enable static routes for encap prefixes in default vrf for frr2 to be successful
-			enableEncapStaticRoutes(t, tcArgs, false)
-
-			setInterfaceAdminStateBatch(t, tcArgs.dut, tcArgs.frr1Paths, pathInfo.BackupPathPeerV4ToSubIntf, false, false)
-			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
-			setInterfaceAdminStateBatch(t, tcArgs.dut, tcArgs.frr1Paths, pathInfo.BackupPathPeerV4ToSubIntf, true, false)
-			setInterfaceAdminStateBatch(t, tcArgs.dut, tcArgs.primaryPaths, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
-
-			// disable static routes for encap prefixes in default vrf to avoid any false positive
-			enableEncapStaticRoutes(t, tcArgs, true)
-		})
-
+		waitForFrr := 120
 		// move primary traffic to VIP2
 		t.Run("Validating encap traffic after shutting primary VIP1 paths randomly", func(t *testing.T) {
 			for _, vipIps := range randomVip1 {
@@ -3879,6 +3860,9 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 			for _, vipIps := range randomVip2 {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
 			}
+			// wait for frr1 to get triggered.
+			time.Sleep(time.Second * time.Duration(waitForFrr))
+
 			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
@@ -3887,14 +3871,21 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 			for _, vipIps := range randomVip1 {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
 			}
+			// wait for recovering back from frr1.
+			time.Sleep(time.Second * time.Duration(waitForFrr))
+
 			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
-		// move primary traffic to VIP1
+		// move primary traffic to VIP2+VIP1
 		t.Run("Validating encap traffic after unshutting primary VIP2 paths randomly", func(t *testing.T) {
 			for _, vipIps := range randomVip2 {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
 			}
+
+			// wait for recovering back from frr1.
+			time.Sleep(time.Second * time.Duration(waitForFrr))
+
 			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
 
@@ -3903,6 +3894,8 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 			for _, vipIps := range randomAllVips {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, false, false)
 			}
+			// wait for frr1 to be tiggered.
+			time.Sleep(time.Second * time.Duration(waitForFrr))
 
 			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
@@ -3912,9 +3905,17 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 			for _, vipIps := range randomAllVips {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, pathInfo.PrimaryPathPeerV4ToSubIntf, true, false)
 			}
+			// wait for reverse frr1 to be tiggered.
+			// please note that keeping smaller values for sleep may fail this test. This is because of
+			// slow frr - CSCwp27002.
+			t.Log("check if CSCwp27002 has got fixed, then reduce below sleep time")
+			time.Sleep(time.Second * time.Duration(300))
 
 			testEncapTrafficFlows(t, tcArgs, gp, allProfileBatches)
 		})
+
+		// enable static routes for encap prefixes in default vrf for frr2 to be successful
+		enableEncapStaticRoutes(t, tcArgs, false)
 
 		// randomly flap frr1 paths
 		t.Run("Validating encap traffic after shutting all frr1 paths randomly", func(t *testing.T) {
@@ -3927,9 +3928,6 @@ func testDcGateTunnelPathFlaps(t *testing.T) {
 
 		// randomly flap frr1 and primary paths
 		t.Run("Validating encap traffic after unshut shut unshhut frr1 and primary paths randomly", func(t *testing.T) {
-
-			// enable static routes for encap prefixes in default vrf for frr2 to be successful
-			enableEncapStaticRoutes(t, tcArgs, false)
 
 			for _, vipIps := range DivideSliceRandomly(primaryAndFrr1Paths, nhPerNhg, randomBatchSize) {
 				setInterfaceAdminStateBatch(t, tcArgs.dut, vipIps, MergeMaps(pathInfo.PrimaryPathPeerV4ToSubIntf, pathInfo.BackupPathPeerV4ToSubIntf), true, false)
@@ -4250,8 +4248,6 @@ func setInterfaceAdminStateBatch(t *testing.T, dut *ondatra.DUTDevice, ipAddrs [
 		t.Logf("Setting admin state to %v on interfaces: %v", getOperString(oper, random), interfaces)
 		batchSet.Set(t, dut)
 		t.Logf("Successfully performed %v operation on interfaces: %v", getOperString(oper, random), interfaces)
-	} else {
-		t.Logf("No valid interfaces found for the operation")
 	}
 }
 
