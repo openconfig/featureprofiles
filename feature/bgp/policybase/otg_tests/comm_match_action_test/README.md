@@ -90,10 +90,7 @@ criteria.
                                     "route": [
                                       {
                                         "path-id": 0,
-                                        "prefix": "0.0.0.0/0",
-                                        "state": {
-                                          "community-index": "1"
-                                        }
+                                        "prefix": "0.0.0.0/0"
                                       }
                                     ]
                                   }
@@ -115,10 +112,7 @@ criteria.
                                     "route": [
                                       {
                                         "path-id": 0,
-                                        "prefix": "::/0",
-                                        "state": {
-                                          "community-index": "1"
-                                        }
+                                        "prefix": "::/0"
                                       }
                                     ]
                                   }
