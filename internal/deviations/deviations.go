@@ -1540,5 +1540,5 @@ func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 
 // FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
 func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
+	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
 }
