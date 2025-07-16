@@ -103,7 +103,7 @@ criteria.
         }
       ]
     }
-  }
+  },
   "network-instances": {
     "network-instance": [
       {
