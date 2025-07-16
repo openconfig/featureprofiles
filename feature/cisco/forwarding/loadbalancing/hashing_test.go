@@ -447,7 +447,7 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 				t.Run(fmt.Sprintf("%s flow", trafficType), func(t *testing.T) {
 					tgenParam.TrafficFlowParam = trafficFlows
 					trafficFlow := helper.TGENHelper().ConfigureTGEN(useOTG, &tgenParam).ConfigureTGENFlows(t)
-					//Verify traffic distribution on each of the cisco DUTs in the R, E sites.
+					//Parallel verification of traffic distribution on each of the cisco DUTs in the R, E sites, while traffic is running.
 					var wg sync.WaitGroup
 					wg.Add(2)
 					go func() {
