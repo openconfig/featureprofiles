@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "8ca0676b-d1f2-4944-92c2-e65933066ca3"
+plan_id:  "TRANSCEIVER-13 (400ZR_PLUS)"
+description:  "Configuration: 400ZR_PLUS Transceiver Low Power Mode Setting."
+testbed:  TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}

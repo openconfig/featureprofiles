@@ -11,8 +11,9 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    bgp_extended_next_hop_encoding_leaf_unsupported: true
+    bgp_global_extended_next_hop_encoding_unsupported: true
     bgp_afi_safi_wildcard_not_supported: true
+
   }
 }
 platform_exceptions: {
@@ -28,6 +29,9 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    skip_bgp_session_check_without_afisafi: true
+    explicit_interface_in_default_vrf: true
+    bgp_global_extended_next_hop_encoding_unsupported: true
     interface_enabled: true
   }
 }
@@ -36,7 +40,6 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     network_instance_table_deletion_required: true
     interface_enabled: true
