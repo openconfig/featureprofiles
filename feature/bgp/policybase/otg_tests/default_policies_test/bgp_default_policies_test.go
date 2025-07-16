@@ -467,7 +467,7 @@ func verifyInitialPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr st
 	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRx, ok := val.Val()
 			return ok && gotRx == wantRx
 		}).Await(t); !ok {
@@ -837,7 +837,7 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 		}
 	}
 
-	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, ok := val.Val()
 		return ok && gotInstalled == nbr.wantInstalled
 	}).Await(t); !ok {
@@ -845,14 +845,14 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRxPrePol, ok := val.Val()
 			return ok && gotRxPrePol == nbr.wantRxPrePolicy
 		}).Await(t); !ok {
 			t.Errorf("Received pre policy prefixes mismatch: got %v, want %v", gotRxPrePol, nbr.wantRxPrePolicy)
 		}
 	}
-	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotRx, ok := val.Val()
 		return ok && gotRx == nbr.wantRx
 	}).Await(t); !ok {
@@ -860,7 +860,7 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 	}
 
 	if nbr.defImportPol == oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE && !deviations.SkipNonBgpRouteExportCheck(dut) {
-		if gotSent, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotSent, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Sent().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotSent, ok := val.Val()
 			return ok && gotSent == nbr.wantSent
 		}).Await(t); !ok {

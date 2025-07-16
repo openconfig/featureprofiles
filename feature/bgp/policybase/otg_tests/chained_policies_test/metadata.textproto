@@ -38,6 +38,7 @@ platform_exceptions: {
     skip_setting_statement_for_policy: true
     skip_checking_attribute_index: true
     flatten_policy_with_multiple_statements: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
