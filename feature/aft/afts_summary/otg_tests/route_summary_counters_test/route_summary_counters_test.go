@@ -104,6 +104,10 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 
 	t.Log("Starting protocols on ATE...")
 	ts.PushAndStart(t)
+	_, err := ts.AwaitAdjacency()
+	if err != nil {
+		t.Fatalf("No IS-IS adjacency formed: %v", err)
+	}
 	ts.MustAdjacency(t)
 }
 

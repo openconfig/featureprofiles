@@ -1,0 +1,32 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "a506db0a-cea0-4047-8b65-8cdc15aa9405"
+plan_id: "MPLS-1.1"
+description: "MPLS label blocks using ISIS"
+testbed: TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_counter_manual_address_drop_from_areas_unsupported: true
+    isis_counter_part_changes_unsupported: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    isis_metric_style_telemetry_unsupported: true
+    isis_timers_csnp_interval_unsupported: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    sr_igp_config_unsupported: true
+  }
+}
