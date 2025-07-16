@@ -30,6 +30,7 @@ type EgressLBDistribution struct {
 	GotDistribution  float64
 }
 
+// VerifyPacketEgressDistributionPerWeight verifies if loadbalancing distribution packet count is per give interface:weight map using OC IF counters.
 func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, forBundle bool, trafficType string) (map[string]EgressLBDistribution, bool) {
 	distrStruct := EgressLBDistribution{}
 	trafficDistribution := make(map[string]EgressLBDistribution)
@@ -104,6 +105,7 @@ func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testi
 	return trafficDistribution, balancedPerWeight
 }
 
+// VerifyPPSEgressDistributionPerWeight verifies if loadbalancing distribution PPS is per give interface:weight map, using show interface CLI.
 func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, bunIntfName ...string) (map[string]EgressLBDistribution, bool) {
 	distrStruct := EgressLBDistribution{}
 	trafficDistribution := make(map[string]EgressLBDistribution)
