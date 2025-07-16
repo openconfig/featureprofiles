@@ -1523,7 +1523,22 @@ func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }
 
+// LinkLocalInsteadOfNh returns true if device requires link-local instead of NH.
+func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalInsteadOfNh()
+}
+
+// LowScaleAft returns if device requires link-local instead of NH.
+func LowScaleAft(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLowScaleAft()
+}
+
+// MissingSystemDescriptionConfigPath returns true if device does not support config lldp system-description leaf
+func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
+}
+
 // FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
 func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
+        return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
 }
