@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "f9cbcdfa-5c51-4eea-a505-cb3145793738"
+plan_id:  "SYS-1.1"
+description:  "Test default COPP policy thresholds for Arista"
+testbed:  TESTBED_DUT_ATE_2LINKS

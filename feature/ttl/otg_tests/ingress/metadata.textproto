@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "3f1d5c2a-6385-4d32-be4e-0e6fc05a9087"
+plan_id:  "PF-1.8"
+description:  "Ingress handling of TTL"
+testbed:  TESTBED_DUT_ATE_2LINKS

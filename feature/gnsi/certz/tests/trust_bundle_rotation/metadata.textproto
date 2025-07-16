@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "5f2b3291-9cf4-4702-b7cb-0ebb2c48e900"
+plan_id:  "Certz-5"
+description:  "Trust Bundle Rotation"
+testbed:  TESTBED_DUT_ATE_2LINKS

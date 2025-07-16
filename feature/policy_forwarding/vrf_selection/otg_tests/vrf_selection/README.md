@@ -177,7 +177,7 @@ B3 --> B1;
 	* DUT1:Port3 port out-pkts counter should match packets sent by ATE1:PORT1.
 	* There should be 0 packet loss.
 
-## Canonical OpenConfig
+## Canonical OC
 
 ```json
 {
