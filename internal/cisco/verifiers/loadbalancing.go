@@ -117,7 +117,7 @@ func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.
 	// Iterate over interfaces and calculate distribution
 	for intf, wt := range outIFWeight {
 		weightList = append(weightList, wt)
-		distrStruct.OutPPS = GetInterfaceOutPPS(t, dut, intf)
+		distrStruct.OutPPS = Interfaceverifier().GetInterfaceOutPPS(t, dut, intf)
 		outPacketPPS = append(outPacketPPS, distrStruct.OutPPS)
 
 		distrStruct.Weight = wt

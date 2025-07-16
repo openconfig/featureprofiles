@@ -40,8 +40,8 @@ func (v *interfaceVerifier) VerifyShowInterfaceCLI(t *testing.T, ctx context.Con
 	return intfTextfsm, matches
 }
 
-// GetInterfaceInPPS returns the input packets per second for a given interface.
-func GetInterfaceOutPPS(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) uint64 {
+// GetInterfaceOutPPS returns the Output packets per second (PPS) for a given interface usin Show interface CLI.
+func (v *interfaceVerifier) GetInterfaceOutPPS(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) uint64 {
 	ctx := context.Background()
 	var pps uint64
 	showIntf, _ := Interfaceverifier().VerifyShowInterfaceCLI(t, ctx, dut, interfaceName)
