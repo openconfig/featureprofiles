@@ -3450,7 +3450,7 @@ func TestIpv6NDRABundleSubIntfScale(t *testing.T) {
 	for _, interfaces := range interfaceList {
 		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 	}
-	defer unConfigureDUTLagSubIntf(t, dut, true)
+	// defer unConfigureDUTLagSubIntf(t, dut, true)
 	otgConfig := configureATEIpv6Ra(t, dut, ate, true)
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
