@@ -575,13 +575,13 @@ func TestWithDCBackUp(t *testing.T) {
 		}
 	}
 
-	p3 = dut.Port(t, "port1")
+	//p3 = dut.Port(t, "port1")
 	p4 := dut.Port(t, "port9")
 	p5 := dut.Port(t, "port10")
-	unconfigbasePBR(t, dut, "PBR", []string{p3.Name(), p4.Name(), p5.Name()})
+	unconfigbasePBR(t, dut, "PBR", []string{"Bundle-Ether120", p4.Name(), p5.Name()})
 
 	configPBR(t, dut, vrfRepaired, false)
-	configureIntfPBR(t, dut, "PBR", p3.Name())
+	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
 	configvrfInt(t, dut, vrfRepaired, "Loopback22")
@@ -712,11 +712,11 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	p1 := dut.Port(t, "port9")
 	p2 := dut.Port(t, "port10")
-	p3 := dut.Port(t, "port1")
+	//p3 := dut.Port(t, "port1")
 
-	unconfigbasePBR(t, dut, "PBR", []string{p1.Name(), p2.Name(), p3.Name()})
+	unconfigbasePBR(t, dut, "PBR", []string{p1.Name(), p2.Name(), "Bundle-Ether120"})
 	configPBR(t, dut, "PBR", true)
-	configureIntfPBR(t, dut, "PBR", p3.Name())
+	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configureIntfPBR(t, dut, "PBR", p2.Name())
 	configureIntfPBR(t, dut, "PBR", p1.Name())
 	configvrfInt(t, dut, vrfEncapA, "Loopback22")
@@ -1006,13 +1006,13 @@ func TestWithDCUnoptimized(t *testing.T) {
 	// })
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 
-	p3 = dut.Port(t, "port1")
+	//p3 = dut.Port(t, "port1")
 	p4 := dut.Port(t, "port9")
 	p5 := dut.Port(t, "port10")
-	unconfigbasePBR(t, dut, "PBR", []string{p3.Name(), p4.Name(), p5.Name()})
+	unconfigbasePBR(t, dut, "PBR", []string{"Bundle-Ether120", p4.Name(), p5.Name()})
 
 	configPBR(t, dut, vrfRepaired, false)
-	configureIntfPBR(t, dut, "PBR", p3.Name())
+	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
 	configvrfInt(t, dut, vrfRepaired, "Loopback22")
@@ -1145,13 +1145,13 @@ func TestRepairedDecapmin(t *testing.T) {
 	addStaticRoute(t, dut, "202.1.0.0/16", true)
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 
-	p3 := dut.Port(t, "port1")
+	//p3 := dut.Port(t, "port1")
 	p4 := dut.Port(t, "port9")
 	p5 := dut.Port(t, "port10")
-	unconfigbasePBR(t, dut, "PBR", []string{p3.Name(), p4.Name(), p5.Name()})
+	unconfigbasePBR(t, dut, "PBR", []string{"Bundle-Ether120", p4.Name(), p5.Name()})
 
 	configPBR(t, dut, vrfRepaired, false)
-	configureIntfPBR(t, dut, "PBR", p3.Name())
+	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
 	configvrfInt(t, dut, vrfRepaired, "Loopback22")
@@ -1388,14 +1388,14 @@ func TestWithPoPBackUp(t *testing.T) {
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 
 	popgateconfig(t)
-	p3 := dut.Port(t, "port1")
+	//p3 := dut.Port(t, "port1")
 	p4 := dut.Port(t, "port9")
 	p5 := dut.Port(t, "port10")
 
-	unconfigbasePBR(t, dut, "PBR", []string{p3.Name(), p4.Name(), p5.Name()})
+	unconfigbasePBR(t, dut, "PBR", []string{"Bundle-Ether120", p4.Name(), p5.Name()})
 
 	configPBR(t, dut, "TE", false)
-	configureIntfPBR(t, dut, "PBR", p3.Name())
+	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
 	configvrfInt(t, dut, vrf1, "Loopback22")
