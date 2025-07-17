@@ -1178,9 +1178,9 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 	validateTrafficFlows(t, tcArgs, flows, false, true)
 
 	if len(opts) != 0 {
+		enableEncapStaticRoutes(t, tcArgs, false)
 		for _, opt := range opts {
 			if opt.measureConvergence {
-
 				t.Run("Convergence with first frr & recovery", func(t *testing.T) {
 					validateTrafficFlows(t, tcArgs, flows, false, true, &ConvOptions{convFRRFirst: "1"})
 				})
@@ -1195,6 +1195,7 @@ func testDecapTrafficFlows(t *testing.T, tcArgs *testArgs, gp *GribiProfile, bat
 				})
 			}
 		}
+		enableEncapStaticRoutes(t, tcArgs, true)
 	}
 }
 
