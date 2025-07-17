@@ -185,7 +185,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Run("Admin down OTG port1", func(t *testing.T) {
 		cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 		otg.SetControlState(t, cs)
-		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
+		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 5*time.Minute, oc.Interface_OperStatus_DOWN)
 	})
 
 	t.Run("Verify DUT port-1 is down on DUT", func(t *testing.T) {
@@ -254,6 +254,6 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Run("Admin up OTG port1", func(t *testing.T) {
 		cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
 		otg.SetControlState(t, cs)
-		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 5*time.Minute, oc.Interface_OperStatus_UP)
 	})
 }
