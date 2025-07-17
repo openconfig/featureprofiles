@@ -109,7 +109,9 @@ func baseconfig(t *testing.T) {
 		//Configure the DUT
 		dut := ondatra.DUT(t, "dut")
 		configureDUT(t, dut)
-		configbasePBR(t, dut, vrf1, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+		//configbasePBR(t, dut, vrf1, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+		configbasePBR(t, dut, vrf1, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", "Bundle-Ether120", false)
+
 		//configure route-policy
 		configRP(t, dut)
 		//configure ISIS on DUT
@@ -258,12 +260,12 @@ func TestWithDCBackUp(t *testing.T) {
 
 	p2 := dut.Port(t, "port10")
 	configurePort(t, dut, p2.Name(), nhip2, nhip26, 30, 126)
-	p3 := dut.Port(t, "port1")
+	//p3 := dut.Port(t, "port1")
 
-	unconfigbasePBR(t, dut, "PBR", []string{p1.Name(), p2.Name(), p3.Name()})
+	unconfigbasePBR(t, dut, "PBR", []string{p1.Name(), p2.Name(), "Bundle-Ether120"})
 
 	configPBR(t, dut, "PBR", true)
-	configureIntfPBR(t, dut, "PBR", p3.Name())
+	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configureIntfPBR(t, dut, "PBR", p2.Name())
 	configureIntfPBR(t, dut, "PBR", p1.Name())
 
