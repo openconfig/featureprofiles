@@ -38,8 +38,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-
-	// "github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -164,9 +162,7 @@ func configInterfaceIPv6RA(t *testing.T, dut *ondatra.DUTDevice, interfaces Inte
 		routerAdvert.SetEnable(false)
 		routerAdvert.SetInterval(routerAdvertisementTimeInterval)
 	case "Suppress":
-		// routerAdvert.Enable = ygot.Bool(true)
 		routerAdvert.SetEnable(false)
-		// routerAdvert.SetSuppress(routerAdvertisementDisabled)
 	case "ModeAll":
 		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_ALL)
 	case "Unsolicited":
@@ -210,12 +206,6 @@ func configureOTG(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	}
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
 	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
-
-	// // Add multicast IPv6 address configuration
-	// multicastIPv6 := "ff02::1" // Example multicast address
-	// dstIpv6Multicast := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".MulticastIPv6")
-	// dstIpv6Multicast.SetAddress(multicastIPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
-
 	topo.Captures().Add().SetName("raCapture").SetPortNames([]string{dstPort.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	t.Logf("OTG configuration completed!")
 	topo.Flows().Clear().Items()
@@ -528,7 +518,6 @@ func testRPFO(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top 
 			t.Fatalf("gRIBI Connection could not be established: %v", err)
 		}
 	}
-	// ctx := context.Background()
 
 	//aft check
 	if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
@@ -1181,7 +1170,7 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 10)
 
 		// Restart the processs
-		process_list := []string{"ipv6_nd", "ipv6_ma", "ifmgr"} // "sysdb" "cfmgr"
+		process_list := []string{"ipv6_nd", "ipv6_ma", "ifmgr"}
 		for _, process := range process_list {
 			t.Run(fmt.Sprintf("Restart the Process - %s", process), func(t *testing.T) {
 				ctx := context.Background()
@@ -1251,7 +1240,6 @@ func TestIpv6NDRAPhysical(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
@@ -1801,7 +1789,6 @@ func TestIpv6NDRAPhysicalSubIntf(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
@@ -2759,7 +2746,6 @@ func TestIpv6NDRABundle(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
@@ -3307,7 +3293,6 @@ func TestIpv6NDRABundleSubIntf(t *testing.T) {
 	})
 
 	t.Run("TestCase-13: Verify IPv6 RA after RPFO.", func(t *testing.T) {
-		t.Skip()
 		// Configure the RA Interval
 		for _, interfaces := range interfaceList {
 			configInterfaceIPv6RA(t, dut, interfaces, "Interval")
@@ -3461,11 +3446,11 @@ func TestIpv6NDRABundleSubIntfScale(t *testing.T) {
 	agg2.subIntf = 1
 	aggIDs := configureDUTLag(t, dut)
 	configureBundleSubIfs(t, dut, interfaceList[1])
-	// defer unConfigInterface(t, dut, interfaceList)
+	defer unConfigInterface(t, dut, interfaceList)
 	for _, interfaces := range interfaceList {
 		configInterfaceIPv6RA(t, dut, interfaces, "Interval")
 	}
-	// defer unConfigureDUTLagSubIntf(t, dut, true)
+	defer unConfigureDUTLagSubIntf(t, dut, true)
 	otgConfig := configureATEIpv6Ra(t, dut, ate, true)
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
