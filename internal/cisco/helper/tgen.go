@@ -1,11 +1,12 @@
 package helper
 
 import (
-	gosnappi "github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/ondatra"
 	"testing"
 	"time"
+
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/ondatra"
 )
 
 type tgenHelper struct{}

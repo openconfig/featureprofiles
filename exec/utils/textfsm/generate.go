@@ -3,13 +3,12 @@ package main
 import (
 	"bytes"
 	"go/format"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
-	"text/template"
-
-	"os"
 	"strings"
+	"text/template"
 
 	"github.com/iancoleman/strcase"
 	"github.com/sirikothe/gotextfsm"
@@ -22,6 +21,14 @@ func fileNameWithoutExtension(fileName string) string {
 	return fileName
 }
 
+// insert adds a string to a sorted slice of strings while maintaining the sort order.
+//
+// Parameters:
+// - ss: A sorted slice of strings.
+// - s: The string to insert.
+//
+// Returns:
+// - []string: A new slice with the string inserted in sorted order.
 func insert(ss []string, s string) []string {
 	i := sort.SearchStrings(ss, s)
 	ss = append(ss, "")
@@ -30,6 +37,14 @@ func insert(ss []string, s string) []string {
 	return ss
 }
 
+// contains checks if a slice contains a specific string.
+//
+// Parameters:
+// - slice: The slice of strings to search.
+// - s: The string to look for.
+//
+// Returns:
+// - bool: True if the string is found, false otherwise.
 func contains(slice []string, s string) bool {
 	for _, str := range slice {
 		if str == s {
@@ -39,6 +54,8 @@ func contains(slice []string, s string) bool {
 	return false
 }
 
+// main is the entry point of the program.
+// It reads all `.textfsm` files from the `textfsm` directory and generates Go code for each file.
 func main() {
 	entries, err := os.ReadDir("textfsm")
 	if err != nil {
@@ -52,6 +69,11 @@ func main() {
 	}
 }
 
+// generate processes a `.textfsm` file and generates Go code based on its content.
+//
+// Parameters:
+// - filename: The path to the `.textfsm` file.
+// - packageName: The name of the Go package to generate the code in.
 func generate(filename string, packageName string) {
 	textFsmTemplate, err := os.ReadFile(filename)
 	if err != nil {
@@ -66,11 +88,12 @@ func generate(filename string, packageName string) {
 		panic(err)
 	}
 
-	fields := []string{}
-	fieldTypes := []string{}
+	var fields []string
+	var fieldTypes []string
 
+	// Extract fields and their types from the TextFSM template.
 	for field := range fsm.Values {
-		// insert in alphabetical sorted order for my own sanity (and determinism)
+		// insert in alphabetical sorted order for determinism
 		fields = insert(fields, field)
 	}
 
@@ -87,6 +110,7 @@ func generate(filename string, packageName string) {
 	// 	fields = append(fields, field)
 	// }
 
+	// Prepare data for the code generation template.
 	templateData := struct {
 		TemplateContent string
 		TemplateName    string
@@ -100,12 +124,12 @@ func generate(filename string, packageName string) {
 		Fields:          fields,
 		FieldTypes:      fieldTypes,
 	}
-
+	// Create the package directory if it doesn't exist.
 	err = os.MkdirAll(packageName, 0755)
 	if err != nil {
 		panic(err)
 	}
-
+	// Parse and execute the code generation template.
 	codeGenForOutfile, err := template.New("codeGenForOutfile").Funcs(funcMap).Parse(genTemplate)
 	if err != nil {
 		panic(err)
@@ -116,12 +140,12 @@ func generate(filename string, packageName string) {
 	if err != nil {
 		panic(err)
 	}
-
+	// Format the generated code.
 	formatted, err := format.Source(buffer.Bytes())
 	if err != nil {
 		panic(err)
 	}
-
+	// Write the formatted code to a file.
 	err = os.WriteFile(filepath.Join(packageName, strcase.ToSnake(rawName))+".gen.go", formatted, 0644)
 	if err != nil {
 		panic(err)
@@ -129,6 +153,7 @@ func generate(filename string, packageName string) {
 }
 
 var (
+	// funcMap defines custom template functions for string manipulation.
 	funcMap = template.FuncMap{
 		"toCamel": func(s string) string {
 			return strcase.ToCamel(s)
@@ -138,6 +163,7 @@ var (
 		},
 	}
 
+	// genTemplate is the Go template used for code generation.
 	genTemplate = `// Code generated from textfsm file
 package {{ .PackageName }}
 
