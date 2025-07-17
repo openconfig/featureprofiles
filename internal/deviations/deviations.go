@@ -1538,7 +1538,12 @@ func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
 }
 
-// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
+}
+
+// StaticMplsLspUhttps://github.com/openconfig/featureprofiles/pull/4139/conflict?name=internal%252Fdeviations%252Fdeviations.go&ancestor_oid=ed8a79ca57bc422d81476ae6f877015080e6922e&base_oid=ef279dca0da1b584a8fd9bf198b79be1926e683e&head_oid=7827f026d129c43ac86847951477aeac5d40e74cnsupported returns true if static mpls lsp parameters are unsupported
 func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
 }
