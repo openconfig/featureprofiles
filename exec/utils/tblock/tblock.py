@@ -176,7 +176,8 @@ def _get_actual_locked(ids, locked_tbs, json_output=False):
             for h in hw:
                 if not h in ids:
                     _release_helper(_get_testbed(h, json_output))
-                    del locked_tbs_map[h]
+                    if h in locked_tbs_map:
+                        del locked_tbs_map[h]
 
     return list(locked_tbs_map.values())
             
