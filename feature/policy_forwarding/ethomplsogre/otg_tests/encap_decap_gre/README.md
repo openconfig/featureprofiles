@@ -400,76 +400,7 @@ Pseudowire configs Port mode
   "network-instances": {
     "network-instance": [
       {
-        "name": "GEO_1",
-        "config": {
-          "apply-forwarding-policy": "controlword",
-          "name": "GEO_1",
-          "type": "L2P2P"
-        },
-        "connection-points": {
-          "connection-point": [
-            {
-              "connection-point-id": "GEO_1",
-              "config": {
-                "connection-point-id": "GEO_1"
-              },
-              "endpoints": {
-                "endpoint": [
-                  {
-                    "endpoint-id": "LOCAL",
-                    "config": {
-                      "endpoint-id": "LOCAL"
-                    },
-                    "local": {
-                      "config": {
-                        "interface": "Bundle-Ether8",
-                        "subinterface": 0
-                      },
-                      "local-label": 361473
-                    }
-                  },
-                  {
-                    "endpoint-id": "REMOTE",
-                    "config": {
-                      "endpoint-id": "REMOTE"
-                    },
-                    "remote": {
-                      "config": {
-                        "remote-system": "10.250.15.254",
-                        "virtual-circuit-identifier": 1
-                      },
-                      "remote-label": 361472
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        "interfaces": {
-          "interface": [
-            {
-              "id": 0,
-              "config": {
-                "id": 0,
-                "interface": "Bundle-Ether8",
-                "subinterface": 0
-              }
-            }
-          ]
-        }
-      }
-    ]
-  }
-}
-```
-
-## Canonical OC  
-
-Pseudowire configs VLAN mode  
-
-```json
-      {
+        "name": "GEO_4",
         "config": {
           "apply-forwarding-policy": "controlword",
           "name": "GEO_4",
@@ -478,30 +409,30 @@ Pseudowire configs VLAN mode
         "connection-points": {
           "connection-point": [
             {
+              "connection-point-id": "GEO_4",
               "config": {
                 "connection-point-id": "GEO_4"
               },
-              "connection-point-id": "GEO_4",
               "endpoints": {
                 "endpoint": [
                   {
+                    "endpoint-id": "LOCAL",
                     "config": {
                       "endpoint-id": "LOCAL"
                     },
-                    "endpoint-id": "LOCAL",
                     "local": {
                       "config": {
-                        "interface": "Bundle-Ether9.1709",
+                        "interface": "Bundle-Ether9",
                         "local-label": 361494,
-                        "subinterface": 1709
+                        "subinterface": 0
                       }
                     }
                   },
                   {
+                    "endpoint-id": "REMOTE",
                     "config": {
                       "endpoint-id": "REMOTE"
                     },
-                    "endpoint-id": "REMOTE",
                     "remote": {
                       "config": {
                         "remote-label": 361478,
@@ -518,17 +449,92 @@ Pseudowire configs VLAN mode
         "interfaces": {
           "interface": [
             {
+              "id": 0,
               "config": {
-                "id": "customer_interface",
-                "interface": "Bundle-Ether9.1709",
-                "subinterface": 1709
+                "id": 0,
+                "interface": "Bundle-Ether9",
+                "subinterface": 0
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+## Canonical OC  
+
+Pseudowire configs VLAN mode  
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "GEO_4",
+        "config": {
+          "apply-forwarding-policy": "controlword",
+          "name": "GEO_4",
+          "type": "L2P2P"
+        },
+        "connection-points": {
+          "connection-point": [
+            {
+              "connection-point-id": "GEO_4",
+              "config": {
+                "connection-point-id": "GEO_4"
               },
-              "id": "customer_interface"
+              "endpoints": {
+                "endpoint": [
+                  {
+                    "endpoint-id": "LOCAL",
+                    "config": {
+                      "endpoint-id": "LOCAL"
+                    },
+                    "local": {
+                      "config": {
+                        "interface": "Bundle-Ether9.1709",
+                        "local-label": 361494,
+                        "subinterface": 1709
+                      }
+                    }
+                  },
+                  {
+                    "endpoint-id": "REMOTE",
+                    "config": {
+                      "endpoint-id": "REMOTE"
+                    },
+                    "remote": {
+                      "config": {
+                        "remote-label": 361478,
+                        "next-hop-group": "MPLS_in_GRE_Encap",
+                        "virtual-circuit-identifier": 4
+                      }
+                    }
+                  }
+                ]
+              }
             }
           ]
         },
-        "name": "GEO_4"
+        "interfaces": {
+          "interface": [
+            {
+              "id": 0,
+              "config": {
+                "id": 0,
+                "interface": "Bundle-Ether9.1709",
+                "subinterface": 1709
+              }
+            }
+          ]
+        }
       }
+    ]
+  }
+}
 ```
 
 ## Canonical OC  
@@ -652,7 +658,7 @@ paths:
     
     #TODO: Add new OCs for labels and next-hop-group under connection-point 
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label 
-    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/remote-label
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/remote-label
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/next-hop-group
 
 
