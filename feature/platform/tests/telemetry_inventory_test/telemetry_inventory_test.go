@@ -526,6 +526,12 @@ func TestTempSensor(t *testing.T) {
 		}
 
 		sName := sensor.GetName()
+
+		if !strings.Contains(sName, "Temp") {
+			t.Logf("Skipping sensor %q: Not a Temperature sensor", sName)
+			continue
+		}
+
 		t.Run(sName, func(t *testing.T) {
 
 			t.Logf("TempSensor %s Id: %s", sName, sensor.GetId())
