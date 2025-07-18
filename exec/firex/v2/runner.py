@@ -714,6 +714,7 @@ def b4_chain_provider(ws, testsuite_id,
                         test_debug=False,
                         test_verbose=True,
                         collect_debug_files=True,
+                        force_collect_debug_files=False,
                         override_test_args_from_env=True,
                         testbed=None,
                         sanitizer=None,
@@ -747,6 +748,7 @@ def b4_chain_provider(ws, testsuite_id,
                     otg_keng_layer23_hw_server=otg_keng_layer23_hw_server,
                     otg_gnmi_server=otg_gnmi_server,
                     collect_debug_files=collect_debug_files,
+                    force_collect_debug_files=force_collect_debug_files,
                     override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
 
@@ -824,7 +826,7 @@ def b4_chain_provider(ws, testsuite_id,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
-        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
+        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, force_collect_debug_files=False, 
         collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False,
         test_enable_grpc_logs=False):
@@ -941,7 +943,8 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
-        core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
+        collect_debug_files = collect_debug_files or force_collect_debug_files
+        core_check_only = (test_did_pass and not force_collect_debug_files) or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
             ws=ws,
             internal_fp_repo_dir=internal_fp_repo_dir, 
