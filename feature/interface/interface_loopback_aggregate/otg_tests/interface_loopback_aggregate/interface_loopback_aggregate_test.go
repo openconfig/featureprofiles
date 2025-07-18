@@ -155,7 +155,7 @@ func configAggregateIntf(dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attri
 	g.LagType = lagType
 }
 
-// TestInterfaceLoopbackMode is to test loopback mode FACILITY.
+// TestInterfaceLoopbackMode is to test loopback mode TERMINAL.
 func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
@@ -230,7 +230,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		}
 	})
 
-	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
+	t.Run("Configure interface loopback mode TERMINAL on DUT AE interface", func(t *testing.T) {
 		if deviations.MemberLinkLoopbackUnsupported(dut) {
 			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
 		} else {
