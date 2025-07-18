@@ -330,9 +330,7 @@ Port mode Interface configs
               }
             }
           ]
-        }
-      },
-      {
+        },
         "aggregation": {
           "config": {
             "lag-type": "STATIC"
