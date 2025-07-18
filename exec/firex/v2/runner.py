@@ -656,7 +656,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                 c |= CheckTestbed.s(tgen=is_tgen, otg=is_otg)
             if install_image:
                 c |= SoftwareUpgrade.s(force_install=force_install)
-                force_reboot = False
         if smus:
             c |= InstallSMUs.s(smus=smus)
         if force_reboot:
@@ -1315,15 +1314,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
 
     env = dict(os.environ)
     env.update(_get_go_env(ws))
-    output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
-    #TODO: find a better way?
-    if not 'Image already installed' in output:
-        self.enqueue_child(ForceReboot.s(
-            ws=ws,
-            internal_fp_repo_dir=internal_fp_repo_dir, 
-            reserved_testbed=reserved_testbed,
-        ))
-
+    check_output(su_command, env=env, cwd=internal_fp_repo_dir)
     Path(reserved_testbed['install_lock_file']).touch()
 
 # noinspection PyPep8Naming
