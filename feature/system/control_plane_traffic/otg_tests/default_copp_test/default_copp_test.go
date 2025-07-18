@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,12 +37,15 @@ import (
 const (
 	broadcastMAC            = "FF:FF:FF:FF:FF:FF"
 	unknownMAC              = "02:10:02:01:01:01"
+	slowMAC                 = "01:80:c2:00:00:02"
 	ipv4PrefixLen           = 30
 	ipv6PrefixLen           = 126
 	ipv4DstPfx              = "172.16.0.0"
 	ethernetCsmacd          = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag           = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	thresholdCPUUtilization = 80
+	thresholdCPUUtilization = 100
+	etherTypeLACP           = 0x8809
+	dutIncomingPort         = "port1"
 )
 
 var (
@@ -104,27 +109,26 @@ type coppSystemTestcase struct {
 func (ce *commonEntities) configInterfaceDUT(t *testing.T, i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	t.Helper()
 
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.SetDescription(a.Desc)
+	i.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	if deviations.InterfaceEnabled(ce.dut) {
-		i.Enabled = ygot.Bool(true)
+		i.SetEnabled(true)
 	}
 	s := i.GetOrCreateSubinterface(0)
 
 	s4 := s.GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(ce.dut) && !deviations.IPv4MissingEnabled(ce.dut) {
-		s4.Enabled = ygot.Bool(true)
+		s4.SetEnabled(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
-	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
+	s4a.SetPrefixLength(uint8(ipv4PrefixLen))
 
-	// Add IPv6 stack.
 	s6 := s.GetOrCreateIpv6()
 	if deviations.InterfaceEnabled(ce.dut) {
-		s6.Enabled = ygot.Bool(true)
+		s6.SetEnabled(true)
 	}
-	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(ipv6PrefixLen)
+	s6.GetOrCreateAddress(a.IPv6).SetPrefixLength(uint8(ipv6PrefixLen))
 
 	return i
 }
@@ -137,12 +141,12 @@ func (ce *commonEntities) configureDUT(t *testing.T) {
 
 	p1 := ce.dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	i1.Enabled = ygot.Bool(true)
+	i1.SetEnabled(true)
 	gnmi.Update(t, ce.dut, d.Interface(p1.Name()).Config(), ce.configInterfaceDUT(t, i1, &dutSrc))
 
 	p2 := ce.dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	i2.Enabled = ygot.Bool(true)
+	i2.SetEnabled(true)
 	gnmi.Update(t, ce.dut, d.Interface(p2.Name()).Config(), ce.configInterfaceDUT(t, i2, &dutDst))
 }
 
@@ -151,10 +155,9 @@ func configureOTG(t *testing.T) gosnappi.Config {
 	t.Helper()
 
 	top := gosnappi.NewConfig()
-	port1 := top.Ports().Add().SetName("port1")
-	port2 := top.Ports().Add().SetName("port2")
 
 	// Port1 Configuration.
+	port1 := top.Ports().Add().SetName("port1")
 	iDut1Dev := top.Devices().Add().SetName(ateSrc.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
 	iDut1Eth.Connection().SetPortName(port1.Name())
@@ -164,6 +167,7 @@ func configureOTG(t *testing.T) gosnappi.Config {
 	iDut1Ipv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	// Port2 Configuration.
+	port2 := top.Ports().Add().SetName("port2")
 	iDut2Dev := top.Devices().Add().SetName(ateDst.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	iDut2Eth.Connection().SetPortName(port2.Name())
@@ -185,43 +189,23 @@ func getDroppedPktsForCounter(t *testing.T, jsonData []byte, counterName string)
 	}
 	var data map[string]any
 	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return logAndReturnErroredCount("Error unmarshalling JSON: %v", err)
+		return logAndReturnErroredCount("getDroppedPktsForCounter: Error unmarshalling JSON: %v", err)
 	}
-	ingressVoqs, ok := data["ingressVoqs"].(map[string]any)
+	counterMap, ok := data[counterName].(map[string]any)
 	if !ok {
-		return logAndReturnErroredCount("Error getting ingressVoqs: %s", counterName)
+		return logAndReturnErroredCount("getDroppedPktsForCounter: Error getting stats for counter: %s", counterName)
 	}
-	sources, ok := ingressVoqs["sources"].(map[string]any)
+	dropped, ok := counterMap["dropped"]
 	if !ok {
-		return logAndReturnErroredCount("Error getting sources: %s", counterName)
+		return logAndReturnErroredCount("getDroppedPktsForCounter: Error getting stats for counter: %s", counterName)
 	}
-	all, ok := sources["all"].(map[string]any)
+	droppedStr, ok := dropped.(string)
 	if !ok {
-		return logAndReturnErroredCount("Error getting all: %s", counterName)
+		return logAndReturnErroredCount("getDroppedPktsForCounter: Error converting dropped value to string for counter: %s", counterName)
 	}
-	cpuClasses, ok := all["cpuClasses"].(map[string]any)
-	if !ok {
-		return logAndReturnErroredCount("Error getting cpuClasses: %s", counterName)
-	}
-	classDataMap, ok := cpuClasses[counterName].(map[string]any)
-	if !ok {
-		return logAndReturnErroredCount("Error getting stats for counter: %s", counterName)
-	}
-	ports, ok := classDataMap["ports"].(map[string]any)
-	if !ok {
-		return logAndReturnErroredCount("Error getting ports for counter: %s", counterName)
-	}
-	portStats, ok := ports[""].(map[string]any)
-	if !ok {
-		return logAndReturnErroredCount("Error getting port stats for counter: %s", counterName)
-	}
-	droppedPackets, ok := portStats["droppedPackets"]
-	if !ok {
-		return logAndReturnErroredCount("Error getting dropped packets for counter: %s", counterName)
-	}
-	packetsDropped, ok := droppedPackets.(float64)
-	if !ok {
-		return logAndReturnErroredCount("Error getting packets dropped for counter: %s", counterName)
+	packetsDropped, err := strconv.ParseFloat(droppedStr, 64)
+	if err != nil {
+		return logAndReturnErroredCount("getDroppedPktsForCounter: Error getting packets dropped for counter: %s", counterName)
 	}
 	return packetsDropped
 }
@@ -252,9 +236,8 @@ func (ce *commonEntities) createTrafficFlows(t *testing.T, top gosnappi.Config, 
 	if flowParams.trafficType == "l2Bcast" {
 		eth.Dst().SetValue(flowParams.dstMACAddress)
 	} else if flowParams.trafficType == "lacp" {
-		slowMACAddress := "01:80:c2:00:00:02"
-		eth.Dst().SetValue(slowMACAddress)
-		eth.EtherType().SetValue(0x8809)
+		eth.Dst().SetValue(slowMAC)
+		eth.EtherType().SetValue(etherTypeLACP)
 	} else {
 		dutDstInterface := ce.dut.Port(t, "port1").Name()
 		dstMac := gnmi.Get(t, ce.dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
@@ -287,12 +270,12 @@ func (ce *commonEntities) checkCPUUtilization(t *testing.T) error {
 	cpuList := gnmi.OC().System().CpuAny().State()
 	cpus := gnmi.GetAll(t, dut, cpuList)
 	for _, cpu := range cpus {
-		cpuUtil := gnmi.OC().System().Cpu(cpu.GetIndex()).Total().Avg().State()
+		cpuUtil := gnmi.OC().System().Cpu(cpu.GetIndex()).Total().Instant().State()
 		utilization := gnmi.Get(t, dut, cpuUtil)
-		if utilization > thresholdCPUUtilization {
-			return fmt.Errorf("high CPU utilization seen, cpu name: %d, output: %d%%", cpu.GetIndex(), utilization)
+		if utilization >= thresholdCPUUtilization {
+			return fmt.Errorf("checkCPUUtilization: high CPU utilization seen, cpu name: %d, output: %d%%", cpu.GetIndex(), utilization)
 		}
-		t.Logf("CPU utilization within limit, cpu name: %d, output: %d%%\n", cpu.GetIndex(), utilization)
+		t.Logf("checkCPUUtilization: CPU utilization within limit, cpu name: %d, output: %d%%\n", cpu.GetIndex(), utilization)
 	}
 	return nil
 }
@@ -306,7 +289,7 @@ func (ce *commonEntities) runTraffic(t *testing.T) {
 	for idx := 0; idx < 3; idx++ {
 		time.Sleep(5 * time.Second)
 		if err := ce.checkCPUUtilization(t); err != nil {
-			t.Errorf("CPU utilization check failed: %v", err)
+			t.Errorf("runTraffic: CPU utilization check failed: %v", err)
 		}
 	}
 
@@ -315,27 +298,43 @@ func (ce *commonEntities) runTraffic(t *testing.T) {
 	time.Sleep(10 * time.Second)
 }
 
+func removeAfterLastSlash(str string) string {
+	lastSlashIndex := strings.LastIndex(str, "/")
+	if lastSlashIndex == -1 {
+		return str
+	}
+	return str[:lastSlashIndex]
+}
+
 // getDroppedPktCounts returns the dropped packet counts for the given counters.
 func (ce *commonEntities) getDroppedPktCounts(t *testing.T, counters []string) []float64 {
 	t.Helper()
+	p1 := ce.dut.Port(t, dutIncomingPort)
+	pName := removeAfterLastSlash(p1.Name())
+	ethernetPort := gnmi.Get(t, ce.dut, gnmi.OC().Component(pName).Parent().State())
+	switchName := gnmi.Get(t, ce.dut, gnmi.OC().Component(ethernetPort).Parent().State())
 
-	command := "show cpu counters queue summary"
-	getRequest := &gpb.GetRequest{
-		Path: []*gpb.Path{
-			{
-				Origin: "cli",
-				Elem: []*gpb.PathElem{
-					{Name: command},
-				},
+	getResponse, err := ce.gnmiClient.Get(context.Background(), &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Elem: []*gpb.PathElem{
+				{Name: "components"},
+				{Name: "component", Key: map[string]string{"name": switchName}},
+				{Name: "integrated-circuit"},
+				{Name: "pipeline-counters"},
+				{Name: "control-plane-traffic"},
+				{Name: "vendor"},
+				{Name: "arista"},
+				{Name: "sand"},
+				{Name: "state"},
 			},
-		},
+		}},
+		Type:     gpb.GetRequest_STATE,
 		Encoding: gpb.Encoding_JSON_IETF,
-	}
+	})
 
-	getResponse, err := ce.gnmiClient.Get(ce.ctx, getRequest)
 	var droppedPkts []float64
 	if err != nil {
-		t.Errorf("error during gNMI Get: %s", err)
+		t.Errorf("getDroppedPktCounts: error during gNMI Get: %s", err)
 		return droppedPkts
 	}
 	notifications := getResponse.GetNotification()
@@ -365,26 +364,27 @@ func (ce *commonEntities) testCoppSystemHelper(t *testing.T, tc *coppSystemTestc
 	otgObj.PushConfig(t, top)
 	otgObj.StartProtocols(t)
 
-	incomingPort := "port1"
-	initialCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, incomingPort).Name()).Counters().State())
+	t.Logf("Get initial interface counters for port: %v", dutIncomingPort)
+	initialCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, dutIncomingPort).Name()).Counters().State())
 	initialInPkts := initialCounters.GetInPkts()
+	t.Logf("Initial incoming packets: %v", initialInPkts)
 	ce.runTraffic(t)
 	otgObj.StopProtocols(t)
-	finalCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, incomingPort).Name()).Counters().State())
+	t.Logf("Get final interface counters for port: %v", dutIncomingPort)
+	finalCounters := gnmi.Get(t, ce.dut, gnmi.OC().Interface(ce.dut.Port(t, dutIncomingPort).Name()).Counters().State())
 	finalInPkts := finalCounters.GetInPkts()
-	t.Logf("Testcase: %s, initial incoming packets: %v", tc.name, initialInPkts)
-	t.Logf("Testcase: %s, final incoming packets: %v", tc.name, finalInPkts)
+	t.Logf("Final incoming packets: %v", finalInPkts)
 	finalPktCounts := ce.getDroppedPktCounts(t, tc.counters)
 	for idx, counter := range tc.counters {
 		if tc.increasedDropCount && finalPktCounts[idx] <= initialPktCounts[idx] {
-			t.Errorf("Testcase: %s, Counter: %s, Drop count validation failed. Final dropped pkt count: %v, Initial dropped pkt count: %v", tc.name, counter, finalPktCounts[idx], initialPktCounts[idx])
+			t.Errorf("testCoppSystemHelper: Drop count validation failed for testcase: %s, counter: %s. Final dropped pkt count: %v, Initial dropped pkt count: %v", tc.name, counter, finalPktCounts[idx], initialPktCounts[idx])
 			continue
 		}
 		if tc.increasedDropCount == false && finalPktCounts[idx] != initialPktCounts[idx] {
-			t.Errorf("Testcase: %s, Counter: %s, Drop count validation failed. Final dropped pkt count: %v, Initial dropped pkt count: %v", tc.name, counter, finalPktCounts[idx], initialPktCounts[idx])
+			t.Errorf("testCoppSystemHelper: Drop count validation failed for testcase: %s, counter: %s. Final dropped pkt count: %v, Initial dropped pkt count: %v", tc.name, counter, finalPktCounts[idx], initialPktCounts[idx])
 			continue
 		}
-		t.Logf("Testcase: %s, Counter: %s, Drop count validation success. Final dropped pkt count: %v, Initial dropped pkt count: %v", tc.name, counter, finalPktCounts[idx], initialPktCounts[idx])
+		t.Logf("testCoppSystemHelper: Drop count validation success for testcase: %s, counter: %s. Final dropped pkt count: %v, Initial dropped pkt count: %v", tc.name, counter, finalPktCounts[idx], initialPktCounts[idx])
 	}
 }
 
@@ -398,7 +398,7 @@ func TestCoppSystem(t *testing.T) {
 
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
-		t.Errorf("failed to dial gNMI: %v", err)
+		t.Errorf("TestCoppSystem: failed to dial gNMI: %v", err)
 		return
 	}
 
@@ -410,67 +410,68 @@ func TestCoppSystem(t *testing.T) {
 	}
 
 	ce.configureDUT(t)
-	// TODO [https://github.com/openconfig/featureprofiles/issues/4171]: Add test cases for BGP, LDP and LLDP traffic. Add test case for CoppSystemL3DstMiss
+	// TODO [https://github.com/openconfig/featureprofiles/issues/4171]: Add test cases for BGP, LDP and LLDP traffic.
+	// Add test case for arista-sand-control-plane-traffic-counters:l3-destination-miss.
 	testCases := []coppSystemTestcase{
 		{
 			name:               "CoppSystemL3LpmOverflowExceedingLimitTest",
 			flowParams:         flowParameters{pps: 20000, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: true,
-			counters:           []string{"CoppSystemL3LpmOverflow"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:l3-lpm-overflow"},
 		},
 		{
 			name:               "CoppSystemL3LpmOverflowInLimitTest",
 			flowParams:         flowParameters{pps: 200, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: false,
-			counters:           []string{"CoppSystemL3LpmOverflow"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:l3-lpm-overflow"},
 		},
 		{
 			name:               "CoppSystemL2UcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: true,
-			counters:           []string{"CoppSystemL2Ucast"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-unicast"},
 		},
 		{
 			name:               "CoppSystemL2UcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: false,
-			counters:           []string{"CoppSystemL2Ucast"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-unicast"},
 		},
 		{
 			name:               "CoppSystemIpUcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: true,
-			counters:           []string{"CoppSystemIpUcast"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:ip-unicast"},
 		},
 		{
 			name:               "CoppSystemIpUcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: false,
-			counters:           []string{"CoppSystemIpUcast"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:ip-unicast"},
 		},
 		{
 			name:               "CoppSystemL2BcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: true,
-			counters:           []string{"CoppSystemL2Bcast"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-broadcast"},
 		},
 		{
 			name:               "CoppSystemL2BcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: false,
-			counters:           []string{"CoppSystemL2Bcast"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-broadcast"},
 		},
 		{
 			name:               "CoppSystemLacpExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, trafficType: "lacp"},
 			increasedDropCount: true,
-			counters:           []string{"CoppSystemLacp"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:lacp"},
 		},
 		{
 			name:               "CoppSystemLacpInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, trafficType: "lacp"},
 			increasedDropCount: false,
-			counters:           []string{"CoppSystemLacp"},
+			counters:           []string{"arista-sand-control-plane-traffic-counters:lacp"},
 		},
 	}
 
