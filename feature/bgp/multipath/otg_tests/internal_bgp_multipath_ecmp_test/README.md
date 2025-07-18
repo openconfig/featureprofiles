@@ -40,6 +40,107 @@ Validate internal BGP in multipath scenario
     *   Check entire IPv6 traffic should only be forwarded by one of DUT port2, port3
         or port4
 
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAYLT",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "DEFAULT",
+              "config": {
+                "identifier": "openconfig-policy-types:BGP",
+                "name": "DEFAULT"
+              },
+              "bgp": {
+                "global": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "enabled": true
+                        },
+                        "use-multiple-paths": {
+                          "ibgp": {
+                            "config": {
+                              "maximum-paths": 64,
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                          "enabled": true
+                        },
+                        "use-multiple-paths": {
+                          "ibgp": {
+                            "config": {
+                              "maximum-paths": 64,
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "iBGP",
+                      "config": {
+                        "peer-group-name": "iBGP"
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "enabled": true
+                            },
+                            "use-multiple-paths": {
+                              "config": {
+                                "enabled": true
+                              }
+                            }
+                          },
+                          {
+                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                              "enabled": true
+                            },
+                            "use-multiple-paths": {
+                              "config": {
+                                "enabled": true
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 *   RT-1.63.2: Enforcing multipath hence ECMP scope to only one peer AS
 
     *   Configure ATE devices(ports) on same AS 2-3 on same AS as DUT
@@ -56,6 +157,106 @@ Validate internal BGP in multipath scenario
         port2, port3 or port4
     *   Check entire IPv6 traffic should only be equally forwarded by any two among DUT
         port2, port3 or port4
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAYLT",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "DEFAULT",
+              "config": {
+                "identifier": "openconfig-policy-types:BGP",
+                "name": "DEFAULT"
+              },
+              "bgp": {
+                "global": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "enabled": true
+                        },
+                        "use-multiple-paths": {
+                          "ibgp": {
+                            "config": {
+                              "maximum-paths": 2,
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                          "enabled": true
+                        },
+                        "use-multiple-paths": {
+                          ibgp": {
+                            "config": {
+                              "maximum-paths": 2,
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "iBGP",
+                      "config": {
+                        "peer-group-name": "iBGP"
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "enabled": true
+                            },
+                            "use-multiple-paths": {
+                              "config": {
+                                "enabled": true
+                              }
+                            }
+                          },
+                          {
+                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                              "enabled": true
+                            },
+                            "use-multiple-paths": {
+                              "config": {
+                                "enabled": true
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ## Config Parameter Coverage
 
@@ -74,6 +275,8 @@ Validate internal BGP in multipath scenario
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+
+
 rpcs:
   gnmi:
     gNMI.Get:
