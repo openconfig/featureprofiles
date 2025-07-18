@@ -397,62 +397,70 @@ Pseudowire configs Port mode
 
 ```json
 {
-  "config": {
-    "apply-forwarding-policy": "controlword",
-    "name": "GEO_1",
-    "type": "L2P2P"
-  },
-  "connection-points": {
-    "connection-point": [
+  "network-instances": {
+    "network-instance": [
       {
+        "name": "GEO_1",
         "config": {
-          "connection-point-id": "GEO_1"
+          "apply-forwarding-policy": "controlword",
+          "name": "GEO_1",
+          "type": "L2P2P"
         },
-        "connection-point-id": "GEO_1",
-        "endpoints": {
-          "endpoint": [
+        "connection-points": {
+          "connection-point": [
             {
+              "connection-point-id": "GEO_1",
               "config": {
-                "endpoint-id": "LOCAL"
+                "connection-point-id": "GEO_1"
               },
-              "endpoint-id": "LOCAL",
-              "local": {
-                "config": {
-                  "interface": "Bundle-Ether8",
-                  "local-label": 361473,
-                  "subinterface": 0
-                }
+              "endpoints": {
+                "endpoint": [
+                  {
+                    "endpoint-id": "LOCAL",
+                    "config": {
+                      "endpoint-id": "LOCAL"
+                    },
+                    "local": {
+                      "config": {
+                        "interface": "Bundle-Ether8",
+                        "subinterface": 0
+                      },
+                      "local-label": 361473
+                    }
+                  },
+                  {
+                    "endpoint-id": "REMOTE",
+                    "config": {
+                      "endpoint-id": "REMOTE"
+                    },
+                    "remote": {
+                      "config": {
+                        "remote-system": "10.250.15.254",
+                        "virtual-circuit-identifier": 1
+                      },
+                      "remote-label": 361472
+                    }
+                  }
+                ]
               }
-            },
+            }
+          ]
+        },
+        "interfaces": {
+          "interface": [
             {
+              "id": 0,
               "config": {
-                "endpoint-id": "REMOTE"
-              },
-              "endpoint-id": "REMOTE",
-              "remote": {
-                "config": {
-                  "remote-label": 361472,
-                  "remote-system": "10.250.15.254",
-                  "virtual-circuit-identifier": 1
-                }
+                "id": 0,
+                "interface": "Bundle-Ether8",
+                "subinterface": 0
               }
             }
           ]
         }
       }
     ]
-  },
-  "interfaces": {
-    "interface": [
-      {
-        "config": {
-          "interface": "Bundle-Ether8",
-          "subinterface": 0
-        }
-      }
-    ]
-  },
-  "name": "GEO_1"
+  }
 }
 ```
 
