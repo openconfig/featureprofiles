@@ -149,11 +149,11 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	llint := lldp.GetOrCreateInterface(p.Name())
 	llint.SetName(p.Name())
 
-	gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Enabled().Config(), lldpEnabled)
-
-	if lldpEnabled {
-		gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
-	}
+	llint.Enabled = ygot.Bool(true)
+	// Enable lldp at interface level
+	gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
+	// Configure lldp at root level
+	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
 
 	if deviations.InterfaceEnabled(node) {
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
