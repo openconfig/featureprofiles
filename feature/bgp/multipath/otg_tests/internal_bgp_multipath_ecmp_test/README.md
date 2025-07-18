@@ -188,7 +188,7 @@ Validate internal BGP in multipath scenario
                         "use-multiple-paths": {
                           "ibgp": {
                             "config": {
-                              "maximum-paths": 2,
+                              "maximum-paths": 2
                             }
                           }
                         }
@@ -200,9 +200,9 @@ Validate internal BGP in multipath scenario
                           "enabled": true
                         },
                         "use-multiple-paths": {
-                          ibgp": {
+                          "ibgp": {
                             "config": {
-                              "maximum-paths": 2,
+                              "maximum-paths": 2
                             }
                           }
                         }
