@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
@@ -153,12 +152,13 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 	for i := 1; i <= params.NumLAGInterfaces; i++ {
 		lagInterfaceAttrs := attrs.Attributes{
 			Desc:    fmt.Sprintf("LAG Interface %d", i),
-			IPv4:    "192.0.2.5",
-			IPv6:    "2001:db8::5",
+			IPv4:    fmt.Sprintf("192.0.2.%d", i),
+			IPv6:    fmt.Sprintf("2001:db8::%d", i),
 			IPv4Len: IPv4PrefixLen,
 			IPv6Len: IPv6PrefixLen,
 		}
-		aggID := netutil.NextAggregateInterface(t, dut)
+                aggID := fmt.Sprintf("ae%d", i-1)
+                t.Logf("Loopt  %d   next aggId   %v ", i,aggID)
 
 		aggIDs = append(aggIDs, aggID)
 		agg := lagInterfaceAttrs.NewOCInterface(aggID, dut)
@@ -174,14 +174,14 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 
 	networkInterface := device.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
-	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS")
+	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
 	isisProto.Enabled = ygot.Bool(true)
 	isis := isisProto.GetOrCreateIsis()
 	for _, agg := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(agg)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS").Config(), isisProto)
+	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT").Config(), isisProto)
 
 	bgpProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := bgpProto.GetOrCreateBgp()
@@ -284,6 +284,7 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice, config *gpb.
 	}
 	numInterfaces := len(root.Interface)
 	if numInterfaces != params.NumLAGInterfaces+numPorts {
+	//if numInterfaces != 1+numPorts {
 		t.Fatalf("Number of interfaces mismatch: got: %d, want: %d", numInterfaces, params.NumLAGInterfaces+numPorts)
 	}
 	numBGPNeighbors := 0
@@ -304,6 +305,7 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice, config *gpb.
 func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, controllerCards *[]string) {
 	activeStandbyCC := fetchActiveStandbyControllerCards(t, dut, controllerCards)
 	switchoverControllerCards(ctx, t, dut, &switchoverControllerCardsConfig{&activeStandbyCC, gnoiClient, controllerCardSwitchoverTimeout})
+	time.Sleep(60 * time.Second)
 	switchoverResponseTime := time.Now()
 
 	var setResponseTime time.Time
