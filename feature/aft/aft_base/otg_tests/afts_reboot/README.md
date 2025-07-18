@@ -1,101 +1,71 @@
-# AFT-1.1: AFTs Base
+# AFT-5.1: AFTs DUT Reboot
 
 ## Summary
 
-IPv4/IPv6 unicast routes next hop group and next hop.
+This test verifies that eBGP multipath and IS-IS routes are correctly reflected in AFT telemetry and that these routes, along with their next-hop information, are successfully restored after a DUT reboot.
 
 ## Testbed
 
-* atedut_2.testbed
+* featureprofiles/topologies/atedut_2.testbed
 
 ## Test Setup
 
 ### Generate DUT and ATE Configuration
 
-Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
+Variables
 
 * Let `X` be the number of IPv4 prefixes to be advertised by eBGP. **(User Adjustable Value)**
 * Let `Y` be the number of IPv6 prefixes to be advertised by eBGP. **(User Adjustable Value)**
-* Let `Z` be the number of prefixes to be advertised by IS-IS. **(User Adjustable Value)**
+* Let `Z` be the number of IPv4 prefixes to be advertised by IS-IS. **(User Adjustable Value)**
+* Let `Z1` be the number of IPv6 prefixes to be advertised by IS-IS. **(User Adjustable Value)**
+
+Configure IS-IS session.
+
+* Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
 * IS-IS must be level 2 only with wide metric.
 * IS-IS must be point to point.
-* Send `Z` IPv4 and `Z` IPv6 prefixes from ATE:port1 to DUT:port1.
-
-Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
-
-* Configure eBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
-* Advertise `X` IPv4 and `Y` IPv6 prefixes from ATE port1,port2.
-* Each prefix advertised by eBGP must have 2 next hops pointing to ATE port1 and ATE port2.
+* Send `Z` IPv4 and `Z1` IPv6 prefixes from ATE:port1 to DUT:port1.
 * Each prefix advertised by ISIS must have one next hop pointing to ATE port1.
+
+Configure eBGP multipath sessions.
+
+* Configure eBGP sessions over the interface IPs between `ATE:port1/port2` and `DUT:port1/port2`.
+* eBGP DUT AS is 65501 and peer AS is 200.
+* Enable IPv4 and IPv6 address families for BGP.
+* From both ATE:port1 and ATE:port2, advertise the same set of `X` IPv4 and `Y` IPv6 prefixes. This setup ensures the DUT learns two next-hops for each prefix, enabling multipath routing.
+* Each prefix advertised by eBGP must have 2 next hops pointing to ATE port1 and ATE port2.
 
 ### Procedure
 
-* Use gNMI.UPDATE option to push the Test Setup configuration to the DUT.
+* Use gNMI UPDATE option to push the Test Setup configuration to the DUT.
 * ATE configuration must be pushed.
 
 ### Verifications
 
-* eBGP routes advertised from ATE:port1,port2 must have 2 nexthops.
-* Use gNMI Subscribe with `ON_CHANGE` option to `/network-instances/network-instance/afts`.
-* Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and the name of the interfaces.
-* Verify the number of next hops is 2 for eBGP advertised prefixes.
-* Verify the number of next hop is 1 for ISIS advertised prefixes.
-* Verify the prefixes are pointing to the correct egress interface(s).
-* Verify all other leaves mentioned in the path section have the data populated correctly.
+* Using gNMI Subscribe with an ON_CHANGE subscription, confirm that /`network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state` is `ESTABLISHED` for each BGP neighbor.
+* Initiate a gNMI Subscribe stream with ON_CHANGE mode to the path `/network-instances/network-instance[name=DEFAULT]/afts/.`
+* For each eBGP prefix received, verify that the AFT entry points to a next-hop-group that contains two next-hops.
+* For each IS-IS prefix received, verify that the AFT entry points to a next-hop-group that contains one next-hop.
+* For all prefixes, verify that the `interface-ref/state/interface` leaf within the next-hop object points to the correct egress interface (e.g., port1, port2).
+* Verify that all other leaves within the subscribed AFT paths (e.g., prefix, next-hop-group, id, ip-address) contain valid, non-default data.
 
-## AFT-1.1.1: AFT Base Link Down scenario 1
+## AFT-5.1.1: AFT DUT Reboot
 
 ### Procedure
 
-Bring down the link between ATE:port2 and DUT:port2 using OTG API.
+* Initiate a reboot on the DUT using the gNOI.System.Reboot RPC.
+* After initiating the reboot, continuously poll the `/system/state/boot-time` leaf via gNMI subscribe once request. Wait for the DUT to respond and for the BGP peerings to re-establish by polling `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state` until it returns to `ESTABLISHED`.
 
 ### Verifications
 
-* eBGP routes advertised from ATE:port1,port2 must have 1 nexthop (pointing to ATE:port1).
-* IS-IS routes advertised from ATE:port1 must have one next hop.
-* Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and the name of the interfaces.
-* Verify the number of next hop per prefix must be 1.
-
-## AFT-1.1.2: AFT Base Link Down scenario 2
-
-### Procedure
-
-Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG API.
-
-### Verifications
-
-* eBGP routes advertised from ATE:port1,port2 must be removed from RIB and FIB of the DUT (query results should be nil).
-* ISIS routes advertised from ATE:port1 must be removed from RIB and FIB of the DUT (query result should be nil).
-
-## AFT-1.1.3: AFT Base Link Up scenario 3
-
-### Procedure
-
-Bring up the link between ATE:port1 and DUT:port1 using OTG API.
-
-### Verifications
-
-* eBGP routes advertised from ATE:port1,port2 must have one next hop (pointing to ATE:port1).
-* IS-IS routes advertised from ATE:port1 must have one next hop.
-* Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and the name of the interfaces.
-* Verify the number of next hop per prefix is 1.
-
-## AFT-1.1.4: AFT Base Link Up scenario 4
-
-### Procedure
-
-Bring up both links between ATE:port1,port2 and DUT:port1,port2 using OTG API.
-
-### Verifications
-
-* eBGP routes advertised from ATE:port1,port2 must have 2 next hops.
-* IS-IS routes advertised from ATE:port1 must have one next hop.
-* Verify AFTs prefixes advertised by eBGP and ISIS.
-* Verify their next hop group, number of next hops, and the name of the interfaces.
-
+* Verify that the value of `/system/state/boot-time` after the reboot is greater than the value read before the reboot.
+* During reboot gNMI connection will terminate, retry must be there till the device comes up.
+* Confirm that `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state` is `ESTABLISHED` for all BGP neighbors.
+* Using the gNMI Subscribe stream for `/network-instances/network-instance[name=DEFAULT]/afts/`, re-verify the state of the AFTs:
+* Confirm eBGP prefixes have next-hop-groups with two next-hops.
+* Confirm IS-IS prefixes have next-hop-groups with one next-hop.
+* Confirm all next-hops point to the correct egress interfaces.
+* Confirm all relevant AFT leaves are populated with the correct post-reboot state.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -116,7 +86,7 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
-  
+
 rpcs:
   gnmi:
     gNMI.Subscribe:
