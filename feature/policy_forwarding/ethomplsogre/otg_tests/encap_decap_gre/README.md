@@ -445,9 +445,7 @@ Pseudowire configs Port mode
         "interfaces": {
           "interface": [
             {
-              "id": "Bundle-Ether9",
               "config": {
-                "id": "Bundle-Ether9",
                 "interface": "Bundle-Ether9",
                 "subinterface": 0
               }
@@ -514,9 +512,7 @@ Pseudowire configs VLAN mode
         "interfaces": {
           "interface": [
             {
-              "id": "Bundle-Ether9.1709",
               "config": {
-                "id": "Bundle-Ether9.1709",
                 "interface": "Bundle-Ether9",
                 "subinterface": 1709
               }
