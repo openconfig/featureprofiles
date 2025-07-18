@@ -402,7 +402,6 @@ Pseudowire configs Port mode
       {
         "name": "GEO_4",
         "config": {
-          "apply-forwarding-policy": "controlword",
           "name": "GEO_4",
           "type": "L2P2P"
         },
@@ -423,7 +422,6 @@ Pseudowire configs Port mode
                     "local": {
                       "config": {
                         "interface": "Bundle-Ether9",
-                        "local-label": 361494,
                         "subinterface": 0
                       }
                     }
@@ -435,8 +433,6 @@ Pseudowire configs Port mode
                     },
                     "remote": {
                       "config": {
-                        "remote-label": 361478,
-                        "next-hop-group": "MPLS_in_GRE_Encap",
                         "virtual-circuit-identifier": 4
                       }
                     }
@@ -449,9 +445,9 @@ Pseudowire configs Port mode
         "interfaces": {
           "interface": [
             {
-              "id": 0,
+              "id": "Bundle-Ether9",
               "config": {
-                "id": 0,
+                "id": "Bundle-Ether9",
                 "interface": "Bundle-Ether9",
                 "subinterface": 0
               }
@@ -475,7 +471,6 @@ Pseudowire configs VLAN mode
       {
         "name": "GEO_4",
         "config": {
-          "apply-forwarding-policy": "controlword",
           "name": "GEO_4",
           "type": "L2P2P"
         },
@@ -496,7 +491,6 @@ Pseudowire configs VLAN mode
                     "local": {
                       "config": {
                         "interface": "Bundle-Ether9.1709",
-                        "local-label": 361494,
                         "subinterface": 1709
                       }
                     }
@@ -508,8 +502,6 @@ Pseudowire configs VLAN mode
                     },
                     "remote": {
                       "config": {
-                        "remote-label": 361478,
-                        "next-hop-group": "MPLS_in_GRE_Encap",
                         "virtual-circuit-identifier": 4
                       }
                     }
@@ -522,10 +514,10 @@ Pseudowire configs VLAN mode
         "interfaces": {
           "interface": [
             {
-              "id": 0,
+              "id": "Bundle-Ether9.1709",
               "config": {
-                "id": 0,
-                "interface": "Bundle-Ether9.1709",
+                "id": "Bundle-Ether9.1709",
+                "interface": "Bundle-Ether9",
                 "subinterface": 1709
               }
             }
@@ -537,7 +529,7 @@ Pseudowire configs VLAN mode
 }
 ```
 
-## Canonical OC  
+## Open Config
 
 Tunnels/Next-hop group configs  
 
@@ -552,7 +544,7 @@ Tunnels/Next-hop group configs
                 },
                 "static": {
                     "next-hop-groups": {
-                        "net-hop-group": [
+                        "next-hop-group": [
                             {
                                 "config": {
                                     "name": "MPLS_in_GRE_Encap"
@@ -561,15 +553,15 @@ Tunnels/Next-hop group configs
                                 "next-hops": {
                                     "next-hop": [
                                         {
-                                            "index": 1,
+                                            "index": "1",
                                             "config": {
-                                                "index": 1
+                                                "index": "1"
                                             }
                                         },
                                         {
-                                            "index": 2,
+                                            "index": "2",
                                             "config": {
-                                                "index": 2
+                                                "index": "2"
                                             }
                                         }
                                     ]
@@ -580,14 +572,14 @@ Tunnels/Next-hop group configs
                     "next-hops": {
                         "next-hop": [
                             {
-                                "index": 1,
+                                "index": "1",
                                 "config": {
-                                    "index": 1,
+                                    "index": "1",
                                     "next-hop": "nh_ip_addr_1",
                                     "encap-headers": {
                                         "encap-header": [
                                             {
-                                                "index": 1,
+                                                "index": "1",
                                                 "type": "GRE",
                                                 "config": {
                                                     "dst-ip": "outer_ipv4_dst_def",
@@ -601,14 +593,14 @@ Tunnels/Next-hop group configs
                                 }
                             },
                             {
-                                "index": 2,
+                                "index": "2",
                                 "config": {
-                                    "index": 2,
+                                    "index": "2",
                                     "next-hop": "nh_ip_addr_2",
                                     "encap-headers": {
                                         "encap-header": [
                                             {
-                                                "index": 1,
+                                                "index": "2",
                                                 "type": "GRE",
                                                 "config": {
                                                     "dst-ip": "outer_ipv4_dst_def",
