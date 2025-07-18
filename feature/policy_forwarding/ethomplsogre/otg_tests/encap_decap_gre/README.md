@@ -417,7 +417,8 @@ Pseudowire configs Port mode
                   {
                     "endpoint-id": "LOCAL",
                     "config": {
-                      "endpoint-id": "LOCAL"
+                      "endpoint-id": "LOCAL",
+                      "type": "LOCAL"
                     },
                     "local": {
                       "config": {
@@ -429,7 +430,8 @@ Pseudowire configs Port mode
                   {
                     "endpoint-id": "REMOTE",
                     "config": {
-                      "endpoint-id": "REMOTE"
+                      "endpoint-id": "REMOTE",
+                      "type": "REMOTE"
                     },
                     "remote": {
                       "config": {
@@ -441,15 +443,31 @@ Pseudowire configs Port mode
               }
             }
           ]
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "name": "Bundle-Ether9",
+        "config": {
+          "name": "Bundle-Ether9",
+          "type": "IANA_INTERFACE_TYPE:ieee8023adLag",
+          "enabled": true
         },
-        "interfaces": {
-          "interface": [
+        "ethernet": {
+          "config": {
+            "aggregate-id": "Bundle-Ether9"
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
             {
-              "id": "0",
+              "index": 0,
               "config": {
-                "id": "0",
-                "interface": "Bundle-Ether9",
-                "subinterface": 0
+                "index": 0,
+                "description": "L2P2P Service GEO_4 - Local Endpoint"
               }
             }
           ]
@@ -486,11 +504,12 @@ Pseudowire configs VLAN mode
                   {
                     "endpoint-id": "LOCAL",
                     "config": {
-                      "endpoint-id": "LOCAL"
+                      "endpoint-id": "LOCAL",
+                      "type": "LOCAL"
                     },
                     "local": {
                       "config": {
-                        "interface": "Bundle-Ether9.1709",
+                        "interface": "Bundle-Ether9",
                         "subinterface": 1709
                       }
                     }
@@ -498,7 +517,8 @@ Pseudowire configs VLAN mode
                   {
                     "endpoint-id": "REMOTE",
                     "config": {
-                      "endpoint-id": "REMOTE"
+                      "endpoint-id": "REMOTE",
+                      "type": "REMOTE"
                     },
                     "remote": {
                       "config": {
@@ -510,15 +530,31 @@ Pseudowire configs VLAN mode
               }
             }
           ]
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "name": "Bundle-Ether9",
+        "config": {
+          "name": "Bundle-Ether9",
+          "type": "IANA_INTERFACE_TYPE:ieee8023adLag",
+          "enabled": true
         },
-        "interfaces": {
-          "interface": [
+        "ethernet": {
+          "config": {
+            "aggregate-id": "Bundle-Ether9"
+          }
+        },
+        "subinterfaces": {
+          "subinterface": [
             {
-              "id": "0",
+              "index": 1709,
               "config": {
-                "id": "0",
-                "interface": "Bundle-Ether9",
-                "subinterface": 1709
+                "index": 1709,
+                "description": "L2P2P Service GEO_4 - Local Endpoint (VLAN implied by index)"
               }
             }
           ]
