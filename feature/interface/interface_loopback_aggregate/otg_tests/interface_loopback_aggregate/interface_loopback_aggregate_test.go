@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -156,7 +155,7 @@ func configAggregateIntf(dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attri
 	g.LagType = lagType
 }
 
-// TestInterfaceLoopbackMode is to test loopback mode FACILITY.
+// TestInterfaceLoopbackMode is to test loopback mode TERMINAL.
 func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
@@ -231,21 +230,11 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		}
 	})
 
-	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
-		if deviations.InterfaceLoopbackModeRawGnmi(dut) {
-
-			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
-
+	t.Run("Configure interface loopback mode TERMINAL on DUT AE interface", func(t *testing.T) {
+		if deviations.MemberLinkLoopbackUnsupported(dut) {
+			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
 		} else {
-			if deviations.MemberLinkLoopbackUnsupported(dut) {
-				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			} else {
-				if deviations.ExplicitSwapSrcDstMacNeededForLoopbackMode(dut) {
-					swapSrcDstMac := fmt.Sprintf("set interface %s swap-src-dst-mac true \n set interface %s loopback-mode facility \n", dutPort1.Name(), dutPort1.Name())
-					helpers.GnmiCLIConfig(t, dut, swapSrcDstMac)
-				}
-				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			}
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
 		}
 	})
 
