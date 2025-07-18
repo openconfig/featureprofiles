@@ -157,8 +157,8 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 			IPv4Len: IPv4PrefixLen,
 			IPv6Len: IPv6PrefixLen,
 		}
-                aggID := fmt.Sprintf("ae%d", i-1)
-                t.Logf("Loopt  %d   next aggId   %v ", i,aggID)
+		aggID := fmt.Sprintf("ae%d", i-1)
+		t.Logf("Loopt  %d   next aggId   %v ", i, aggID)
 
 		aggIDs = append(aggIDs, aggID)
 		agg := lagInterfaceAttrs.NewOCInterface(aggID, dut)
@@ -284,7 +284,6 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice, config *gpb.
 	}
 	numInterfaces := len(root.Interface)
 	if numInterfaces != params.NumLAGInterfaces+numPorts {
-	//if numInterfaces != 1+numPorts {
 		t.Fatalf("Number of interfaces mismatch: got: %d, want: %d", numInterfaces, params.NumLAGInterfaces+numPorts)
 	}
 	numBGPNeighbors := 0
