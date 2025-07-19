@@ -41,6 +41,17 @@ OnChange Subscription Test for Breakout Interfaces
 
   * Issue a reboot to the device and check if all the paths can be subscribed to.
 
+### PLT-1.3.5 Check response after a triggered reboot
+
+  * Clear the old subscription and make a GNOI power down to any one of the FPC
+  * Now create a new Subscription to the device
+  * Issue a gNOI powerup to the powered down card
+  * Validate if the received Notifications have updates for change in port state of the links that powered up
+
+#### Canonical OC
+```json
+{}
+```    
  
 ## OpenConfig Path and RPC Coverage
 
