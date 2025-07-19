@@ -48,10 +48,10 @@ DUT to add a second gnmi server to the DUT on a different network-instance.
                   "address": [
                     {
                       "config": {
-                        "ip": "mgmtipv4",
+                        "ip": "192.168.1.1",
                         "prefix-length": 32
                       },
-                      "ip": "mgmtipv4"
+                      "ip": "192.168.1.1"
                     }
                   ]
                 }
