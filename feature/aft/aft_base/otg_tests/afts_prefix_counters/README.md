@@ -164,6 +164,16 @@ rpcs:
   gnmi:
     gNMI.Subscribe:
 ```
+
+## Control Protocol Coverage
+
+BGP
+IS-IS
+
+## Minimum DUT Platform Requirement
+
+vRX
+
 ## Canonical OC
 
 ```json
