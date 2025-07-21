@@ -130,6 +130,7 @@ deviations: {
   impacted_paths: {
     ocpaths: {
       name: ""
+    }
   }
   platforms: {
     issue_url: ""
