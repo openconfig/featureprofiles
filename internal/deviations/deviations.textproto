@@ -120,7 +120,7 @@ deviations: {
       software_version_regex: "*.*"
     }
     clis: {
-      commands: "^sflow vrf \w source-interface \w$"
+      commands: "^sflow vrf *.* source-interface *.*$"
     }
   }
 }
