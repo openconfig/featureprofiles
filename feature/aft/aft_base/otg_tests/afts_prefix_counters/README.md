@@ -153,26 +153,369 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 
 ```yaml
 paths:
-  ## Config Paths ##
-
   ## State Paths ##
- 
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded:
-  
 
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+  
 rpcs:
   gnmi:
     gNMI.Subscribe:
 ```
+## Canonical OC
 
-## Control Protocol Coverage
-
-BGP
-IS-IS
-
-## Minimum DUT Platform Requirement
-
-vRX
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "BGP",
+              "name": "BGP",
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "bgp": {
+                "global": {
+                  "config": {
+                    "as": 65501,
+                    "router-id": "192.0.2.1"
+                  },
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV4_UNICAST",
+                          "enabled": true
+                        },
+                        "use-multiple-paths": {
+                          "ebgp": {
+                            "config": {
+                              "maximum-paths": 2
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "afi-safi-name": "IPV6_UNICAST",
+                        "config": {
+                          "afi-safi-name": "IPV6_UNICAST",
+                          "enabled": true
+                        },
+                        "use-multiple-paths": {
+                          "ebgp": {
+                            "config": {
+                              "maximum-paths": 2
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V4-P1",
+                      "config": {
+                        "peer-group-name": "BGP-PEER-GROUP-V4-P1",
+                        "peer-as": 200
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            },
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "ALLOW"
+                                ],
+                                "export-policy": [
+                                  "ALLOW"
+                                ]
+                              }
+                            },
+                            "use-multiple-paths": { "config": { "enabled": true } }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V6-P1",
+                      "config": {
+                        "peer-group-name": "BGP-PEER-GROUP-V6-P1",
+                        "peer-as": 200
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "enabled": true
+                            },
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "ALLOW"
+                                ],
+                                "export-policy": [
+                                  "ALLOW"
+                                ]
+                              }
+                            },
+                            "use-multiple-paths": { "config": { "enabled": true } }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V4-P2",
+                      "config": {
+                        "peer-group-name": "BGP-PEER-GROUP-V4-P2",
+                        "peer-as": 200
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            },
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "ALLOW"
+                                ],
+                                "export-policy": [
+                                  "ALLOW"
+                                ]
+                              }
+                            },
+                            "use-multiple-paths": { "config": { "enabled": true } }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "peer-group-name": "BGP-PEER-GROUP-V6-P2",
+                      "config": {
+                        "peer-group-name": "BGP-PEER-GROUP-V6-P2",
+                        "peer-as": 200
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "enabled": true
+                            },
+                            "apply-policy": {
+                              "config": {
+                                "import-policy": [
+                                  "ALLOW"
+                                ],
+                                "export-policy": [
+                                  "ALLOW"
+                                ]
+                              }
+                            },
+                            "use-multiple-paths": { "config": { "enabled": true } }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "neighbor-address": "192.0.2.2",
+                      "config": {
+                        "neighbor-address": "192.0.2.2",
+                        "peer-as": 200,
+                        "enabled": true,
+                        "peer-group": "BGP-PEER-GROUP-V4-P1"
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::2",
+                      "config": {
+                        "neighbor-address": "2001:db8::2",
+                        "peer-as": 200,
+                        "enabled": true,
+                        "peer-group": "BGP-PEER-GROUP-V6-P1"
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "neighbor-address": "192.0.2.6",
+                      "config": {
+                        "neighbor-address": "192.0.2.6",
+                        "peer-as": 200,
+                        "enabled": true,
+                        "peer-group": "BGP-PEER-GROUP-V4-P2"
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "neighbor-address": "2001:db8::6",
+                      "config": {
+                        "neighbor-address": "2001:db8::6",
+                        "peer-as": 200,
+                        "enabled": true,
+                        "peer-group": "BGP-PEER-GROUP-V6-P2"
+                      },
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST",
+                              "enabled": true
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "identifier": "ISIS",
+              "name": "ISIS",
+              "config": {
+                "identifier": "ISIS",
+                "name": "ISIS"
+              },
+              "isis": {
+                "global": {
+                  "config": {
+                    "hello-padding": "DISABLE"
+                  }
+                },
+                "interfaces": {
+                  "interface": [
+                    {
+                      "interface-id": "port1",
+                      "config": {
+                        "interface-id": "port1",
+                        "enabled": true
+                      },
+                      "levels": {
+                        "level": [
+                          {
+                            "level-number": 2,
+                            "config": {
+                              "level-number": 2
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "interface-id": "port2",
+                      "config": {
+                        "interface-id": "port2",
+                        "enabled": true
+                      },
+                      "levels": {
+                        "level": [
+                          {
+                            "level-number": 2,
+                            "config": {
+                              "level-number": 2
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "ALLOW",
+          "config": {
+            "name": "ALLOW"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "20",
+                "config": {
+                  "name": "20"
+                },
+                "actions": {
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
