@@ -222,12 +222,8 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 	} else {
 		portAttrib = &dut2Port1
 	}
-	var portName string
-	if dut.ID() == "dut1" {
-		portName = "port11"
-	} else {
-		portName = "port12"
-	}
+
+	portName := "port11"
 	port := dut.Port(t, portName).Name()
 	intf := &oc.Interface{Name: &port}
 	path := gnmi.OC().Interface(port)
