@@ -18,6 +18,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 )
 
 const (
@@ -337,9 +339,9 @@ func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
 func getorCreateSubInterface(dut *ondatra.DUTDevice, dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
 	s := &oc.Interface_Subinterface{}
 	//unshut sub/interface
-	if deviations.InterfaceEnabled(dut) {
-		s.Enabled = ygot.Bool(true)
-	}
+	// if deviations.InterfaceEnabled != nil && *deviations.InterfaceEnabled {
+	s.Enabled = ygot.Bool(true)
+	// }
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
@@ -426,6 +428,8 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	t.Log("Configure PBR policy and Apply it under interface")
 	configureDUT(t, dut)
 	configBasePBR(t, dut)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+
 	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
 }
 
