@@ -4,4 +4,34 @@
 uuid:  "96cd04f1-4054-4429-90e7-6a04b8e3722a"
 plan_id:  "PF-1.15"
 description:  "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+    next_hop_group_config_unsupported: true
+    mpls_unsupported: true
+    mpls_label_classification_unsupported: true
+    local_proxy_unsupported: true
+    qos_classification_unsupported: true
+    policy_forwarding_unsupported: true
+    interface_policy_forwarding_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_config_unsupported: true
+    rib_wecmp: true
+    wecmp_auto_unsupported: true
+    isis_loopback_required: true
+    weighted_ecmp_fixed_packet_verification: true
+  }
+}
+

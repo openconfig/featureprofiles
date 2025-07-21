@@ -1,6 +1,8 @@
 package cfgplugins
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -145,6 +147,80 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 			} else if traffictype == "multicloudv4" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		configureNextHopGroups(t, ni, params)
+	}
+
+}
+
+// TODO: Make it more modular
+func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, intCount int, mplsStaticLabels, mplsStaticLabelsForIpv6 []int, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var nextHopGroupConfig strings.Builder
+			for i := 1; i <= intCount; i++ {
+				nextHopGroupConfig.WriteString(fmt.Sprintf(`
+				nexthop-group 1V4_vlan_3_%d type mpls-over-gre
+   tos 96
+   ttl 64
+   fec hierarchical
+   entry  0 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.208
+   entry  1 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.209
+   entry  2 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.210
+   entry  3 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.211
+   entry  4 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.212
+   entry  5 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.213
+   entry  6 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.215
+   entry  7 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.216
+   entry  8 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.217
+   entry  9 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.218
+   entry  10 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.219
+   entry  11 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.220
+   entry  12 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.221
+   entry  13 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.222
+   entry  14 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.223
+   entry  15 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.224
+!`, i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+					mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+					mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+					mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+				))
+			}
+			helpers.GnmiCLIConfig(t, dut, nextHopGroupConfig.String())
+			var nextHopGroupConfigV6 strings.Builder
+			for i := 1; i <= intCount; i++ {
+				nextHopGroupConfigV6.WriteString(fmt.Sprintf(`
+				nexthop-group 1V6_vlan_3_%d type mpls-over-gre
+   tos 96
+   ttl 64
+   fec hierarchical
+   entry  0 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.208
+   entry  1 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.209
+   entry  2 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.210
+   entry  3 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.211
+   entry  4 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.212
+   entry  5 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.213
+   entry  6 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.215
+   entry  7 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.216
+   entry  8 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.217
+   entry  9 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.218
+   entry  10 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.219
+   entry  11 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.220
+   entry  12 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.221
+   entry  13 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.222
+   entry  14 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.223
+   entry  15 push label-stack %d tunnel-destination 10.99.1.%d tunnel-source 10.235.143.224
+!`, i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+					mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+					mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+					mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i, mplsStaticLabels[i-1], i,
+				))
+			}
+			helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigV6.String())
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}

@@ -2,6 +2,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -236,6 +237,74 @@ func InterfacelocalProxyConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.At
 
 }
 
+// InterfacelocalProxyConfig configures the interface local-proxy-arp.
+func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string) {
+	if deviations.LocalProxyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var interfacelocalproxy strings.Builder
+			for _, a := range interfaces {
+				if a.IPv4 != "" {
+					interfacelocalproxy.WriteString(fmt.Sprintf(`
+					interface %s.%d
+					ip local-proxy-arp 
+					!`, aggID, a.Subinterface))
+				}
+			}
+			helpers.GnmiCLIConfig(t, dut, interfacelocalproxy.String())
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'local-proxy-arp'", dut.Vendor())
+		}
+	}
+}
+
+// InterfaceQosClassificationConfig configures the interface qos classification.
+func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string) {
+	if deviations.QosClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var interfaceqosconfig strings.Builder
+			for _, a := range interfaces {
+				interfaceqosconfig.WriteString(fmt.Sprintf(`
+				interface %s.%d
+				service-policy type qos input af3 
+				!`, aggID, a.Subinterface))
+			}
+			helpers.GnmiCLIConfig(t, dut, interfaceqosconfig.String())
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+		}
+	}
+}
+
+// InterfacePolicyForwardingConfig configures the interface policy-forwarding config.
+func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		switch dut.Vendor() {
+		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
+			// Format and apply the CLI command for traffic policy input.
+			var trafficpolicyconfig strings.Builder
+			for _, a := range interfaces {
+				trafficpolicyconfig.WriteString(fmt.Sprintf(`
+				interface %s.%d  
+				traffic-policy input tp_cloud_id_3_%d
+				!`, aggID, a.Subinterface, a.Subinterface))
+			}
+			helpers.GnmiCLIConfig(t, dut, trafficpolicyconfig.String())
+		default:
+			// Log a message if the vendor is not supported for this specific CLI deviation.
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	} else {
+		ApplyPolicyToInterfaceOC(t, pf, params.InterfaceID, params.AppliedPolicyName)
+
+	}
+}
+
 // InterfaceQosClassificationConfig configures the interface qos classification.
 func InterfaceQosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.Attributes, aggID string) {
 	if deviations.QosClassificationOCUnsupported(dut) {
@@ -325,6 +394,64 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 			} else if traffictype == "multicloudv4" {
 				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
 			}
+		default:
+			// Log a message if the vendor is not supported for this specific CLI deviation.
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	} else {
+
+		RulesAndActions(params, pf)
+
+	}
+}
+
+func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.PolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		switch dut.Vendor() {
+		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
+			var PolicyForwardingConfig strings.Builder
+
+			PolicyForwardingConfig.WriteString("Traffic-policies\n")
+
+			for i := 1; i <= count; i++ {
+
+				PolicyForwardingConfig.WriteString(fmt.Sprintf(`
+    traffic-policy tp_cloud_id_3_%d
+    match bgpsetttlv6 ipv6
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group 1V6_vlan_3_%d
+          set traffic class 3
+    !
+    match bgpsetttlv4 ipv4
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group 1V4_vlan_3_%d
+          set traffic class 3
+    !
+    match ipv4-all-default ipv4
+       actions
+          count
+          redirect next-hop group 1V4_vlan_3_%d
+          set traffic class 3
+    !
+    match ipv6-all-default ipv6
+       actions
+          count
+          redirect next-hop group 1V6_vlan_3_%d
+          set traffic class 3
+    !`, i, i, i, i, i))
+			}
+
+			helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfig.String())
 		default:
 			// Log a message if the vendor is not supported for this specific CLI deviation.
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
