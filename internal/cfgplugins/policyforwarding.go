@@ -421,7 +421,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int
 
 				PolicyForwardingConfig.WriteString(fmt.Sprintf(`
     traffic-policy tp_cloud_id_3_%d
-    match bgpsetttlv6 ipv6
+    match setttlv6 ipv6
        ttl 1
        !
        actions
@@ -429,7 +429,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int
           redirect next-hop group 1V6_vlan_3_%d
           set traffic class 3
     !
-    match bgpsetttlv4 ipv4
+    match setttlv4 ipv4
        ttl 1
        !
        actions
