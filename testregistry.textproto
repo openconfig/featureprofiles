@@ -1001,7 +1001,7 @@ test: {
 test: {
   id: "RT-3.53"
   description: "Static route based GUE Encapsulation to IPv4 tunnel"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/static_encap_gue_ipv4/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/README.md"
   exec: " "
 }
 test: {
