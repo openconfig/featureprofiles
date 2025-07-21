@@ -389,15 +389,15 @@ rpcs:
       "queue": [
         {
           "config": {
-            "name": "BE1"
+            "name": "q-BE1"
           },
-          "name": "BE1"
+          "name": "q-BE1"
         },
         {
           "config": {
-            "name": "NC1"
+            "name": "q-NC1"
           },
-          "name": "NC1"
+          "name": "q-NC1"
         }
       ]
     },
