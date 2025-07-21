@@ -650,7 +650,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                 c |= BringupIxiaController.s()
             except Exception as e:
                 _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
-                raise e
+                raise Exception("Could not bringup IXIA Controller") from e
         if not using_sim:
             if testbed_checks:
                 c |= CheckTestbed.s(tgen=is_tgen, otg=is_otg)
@@ -671,7 +671,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
             _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
             logger.warning(f'Failed to bringup testbed {reserved_testbed["id"]}: {e}')
     
-    raise Exception(f'Could not reserve testbed')
+    raise Exception(f'Could not bringup testbed')
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, ws, testbed_logs_dir, 
@@ -1013,7 +1013,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
                       f'permissions and make sure your ssh keys are added to your user profile here:\n' \
                       f'https://wwwin-github.cisco.com/settings/keys'
             self.enqueue_child(Warn.s(err_msg=err_msg), block=True, raise_exception_on_failure=False)
-        raise e
+        raise Exception("Could not clone repository") from e
 
     head_commit_sha = repo.head.commit.hexsha
     logger.info(f'Head Commit Sha: {head_commit_sha}')
@@ -1314,8 +1314,23 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
 
     env = dict(os.environ)
     env.update(_get_go_env(ws))
-    check_output(su_command, env=env, cwd=internal_fp_repo_dir)
-    Path(reserved_testbed['install_lock_file']).touch()
+    start_timestamp = int(time.time())
+    try:
+        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+        Path(reserved_testbed['install_lock_file']).touch()
+    except Exception as e:
+        self.enqueue_child_and_extract(CollectDebugFiles.s(
+            ws=ws,
+            internal_fp_repo_dir=internal_fp_repo_dir, 
+            reserved_testbed=reserved_testbed, 
+            out_dir = os.path.join(testbed_logs_dir, "debug_files"),
+            timestamp=start_timestamp,
+            core_check=False,
+            collect_tech=True,
+            run_cmds=True,
+            split_files_per_dut=True
+        ))
+        raise Exception("Software upgrade failed") from e
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
@@ -1648,7 +1663,7 @@ def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
         logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
     except Exception as e:
         check_output(f'rm -rf {venv_path}')
-        raise e
+        raise Exception("Could not initialize Python environment") from e
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
