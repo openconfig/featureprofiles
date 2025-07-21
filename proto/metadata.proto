@@ -867,11 +867,14 @@ message Metadata {
     // FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
     bool non_interval_fec_error_counter = 305;
 
+    // Device does not support ntp source address
+    bool ntp_source_address_unsupported = 306;
+
     // Devices does not support static mpls lsp
-    bool static_mpls_lsp_oc_unsupported = 306;
+    bool static_mpls_lsp_oc_unsupported = 307;
 
     // Device doesnot support gre enacapsulation
-    bool gre_decapsulation_oc_unsupported = 307;
+    bool gre_decapsulation_oc_unsupported = 308;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
