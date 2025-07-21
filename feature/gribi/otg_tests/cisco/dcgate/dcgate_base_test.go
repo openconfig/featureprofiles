@@ -879,19 +879,23 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 			// 	outerV4.Src().SetValue(fa.src)
 			// 	outerV4.Dst().SetValue(fa.dst)
 			// }
-			outerV4.Src().SetValue(fa.src)
-			outerV4.Dst().SetValue(fa.dst)
+			// For Basic Default Route Installation test, use high diversity
+			if strings.Contains(name, "ip4inipa1") {
+				outerV4.Src().Increment().SetStart(fa.src).SetCount(1000)
+				outerV4.Dst().Increment().SetStart(fa.dst).SetCount(100)
+			} else {
+				outerV4.Src().SetValue(fa.src)
+				outerV4.Dst().SetValue(fa.dst)
+			}
 			innerV4 := flow.Packet().Add().Ipv4()
 			// For additional flow diversity, also vary inner IPs
-			// if strings.Contains(name, "ip4inipa1") {
-			// 	innerV4.Src().Increment().SetStart(innerV4SrcIP).SetCount(500)
-			// 	innerV4.Dst().Increment().SetStart(innerV4DstIP).SetCount(200)
-			// } else {
-			// 	innerV4.Src().SetValue(innerV4SrcIP)
-			// 	innerV4.Dst().SetValue(innerV4DstIP)
-			// }
-			innerV4.Src().SetValue(innerV4SrcIP)
-			innerV4.Dst().SetValue(innerV4DstIP)
+			if strings.Contains(name, "ip4inipa1") {
+				innerV4.Src().Increment().SetStart(innerV4SrcIP).SetCount(500)
+				innerV4.Dst().Increment().SetStart(innerV4DstIP).SetCount(200)
+			} else {
+				innerV4.Src().SetValue(innerV4SrcIP)
+				innerV4.Dst().SetValue(innerV4DstIP)
+			}
 			innerV4.TimeToLive().SetValue(fa.innerTtl)
 			innerV4.Priority().Dscp().Phb().SetValue(fa.innerDscp)
 		}
@@ -918,8 +922,9 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 	// Increase UDP port diversity for the Basic Default Route Installation test
 	// This helps prevent packet drops due to hardware hashing limitations
 	if strings.Contains(name, "ip4inipa1") {
-		udp.SrcPort().Increment().SetStart(10000).SetCount(30000)
-		udp.DstPort().Increment().SetStart(10000).SetCount(30000)
+		// Use wider port ranges and more increments for better distribution
+		udp.SrcPort().Increment().SetStart(1000).SetCount(60000).SetStep(13)
+		udp.DstPort().Increment().SetStart(2000).SetCount(60000).SetStep(17)
 	} else {
 		udp.SrcPort().Increment().SetStart(50001).SetCount(5000)
 		udp.DstPort().Increment().SetStart(50001).SetCount(5000)
