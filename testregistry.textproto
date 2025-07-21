@@ -594,6 +594,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.23"
+  description: "EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/ethomplsogre/otg_tests/encap_decap_gre/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
