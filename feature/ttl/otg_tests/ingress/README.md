@@ -128,12 +128,13 @@ Verify:
 
 *   Repeat `PF-1.8.7` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
-### PF-1.8.9: IPv4 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured NOT to process TTL = 1 on receiving interface.
+### PF-1.8.9: GRE encapsulation of IPv4 traffic with TTL = 1 destined to router interface.
 
 DUT action:
 
 *   Additional configuration on DUT
-    *   Packets with TTL = 1 should be encapsulated and not processed locally.
+    *   Update GRE encapsulation configuration so that packets with TTL = 1
+      destined to the router interface IP should be encapsulated.
 
 ATE action:
 
@@ -144,7 +145,7 @@ Verify:
 
 *   Perform same verifications in `PF-1.8.5`.
 
-### PF-1.8.10: IPv6 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured NOT to process TTL = 1 on receiving interface.
+### PF-1.8.10: GRE encapsulation of IPv6 traffic with TTL = 1 destined to router interface.
 
 *   Repeat `PF-1.8.9` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
