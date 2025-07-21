@@ -51,54 +51,54 @@ connections:
   hubs:
 
     DUT1_DUT2_1:
-    - DUT1.FourHundredGigE0/0/0/10
-    - DUT2.FourHundredGigE0/0/0/10
+    - dut1.FourHundredGigE0/0/0/10
+    - dut2.FourHundredGigE0/0/0/10
 
     DUT1_DUT2_2:
-    - DUT1.FourHundredGigE0/0/0/11
-    - DUT2.FourHundredGigE0/0/0/11
+    - dut1.FourHundredGigE0/0/0/11
+    - dut2.FourHundredGigE0/0/0/11
 
     DUT1_DUT2_3:
-    - DUT1.FourHundredGigE0/0/0/12
-    - DUT2.FourHundredGigE0/0/0/12
+    - dut1.FourHundredGigE0/0/0/12
+    - dut2.FourHundredGigE0/0/0/12
 
     DUT1_DUT2_4:
-    - DUT1.FourHundredGigE0/0/0/13
-    - DUT2.FourHundredGigE0/0/0/13
+    - dut1.FourHundredGigE0/0/0/13
+    - dut2.FourHundredGigE0/0/0/13
 
     DUT1_DUT2_5:
-    - DUT1.FourHundredGigE0/0/0/14
+    - dut1.FourHundredGigE0/0/0/14
     - DUT2.FourHundredGigE0/0/0/14
 
     DUT1_DUT2_6:
-    - DUT1.FourHundredGigE0/0/0/15
-    - DUT2.FourHundredGigE0/0/0/15
+    - dut1.FourHundredGigE0/0/0/15
+    - dut2.FourHundredGigE0/0/0/15
 
     DUT1_DUT2_7:
-    - DUT1.FourHundredGigE0/0/0/16
-    - DUT2.FourHundredGigE0/0/0/16
+    - dut1.FourHundredGigE0/0/0/16
+    - dut2.FourHundredGigE0/0/0/16
 
     DUT1_DUT2_8:
-    - DUT1.FourHundredGigE0/0/0/17
-    - DUT2.FourHundredGigE0/0/0/17
+    - dut1.FourHundredGigE0/0/0/17
+    - dut2.FourHundredGigE0/0/0/17
 
     DUT1_DUT2_9:
-    - DUT1.FourHundredGigE0/0/0/18
-    - DUT2.FourHundredGigE0/0/0/18
+    - dut1.FourHundredGigE0/0/0/18
+    - dut2.FourHundredGigE0/0/0/18
 
     DUT1_DUT2_10:
-    - DUT1.FourHundredGigE0/0/0/19
-    - DUT2.FourHundredGigE0/0/0/19
+    - dut1.FourHundredGigE0/0/0/19
+    - dut2.FourHundredGigE0/0/0/19
 
     DUT1_T1_1:
-    - DUT1.FourHundredGigE0/0/0/1
+    - dut1.FourHundredGigE0/0/0/1
     - ixia.1/1
 
     DUT2_T2_1:
-    - DUT2.FourHundredGigE0/0/0/1
+    - dut2.FourHundredGigE0/0/0/1
     - ixia.1/2
 
     DUT2_T1_1:
-    - DUT2.FourHundredGigE0/0/0/2
+    - dut2.FourHundredGigE0/0/0/2
     - ixia.1/3
 
