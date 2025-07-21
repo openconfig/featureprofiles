@@ -334,6 +334,83 @@ func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
 
+func getorCreateSubInterface(dut *ondatra.DUTDevice, dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
+	s := &oc.Interface_Subinterface{}
+	//unshut sub/interface
+	if deviations.InterfaceEnabled(dut) {
+		s.Enabled = ygot.Bool(true)
+	}
+	s.Index = ygot.Uint32(index)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(dutPort.IPv4)
+	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
+	v := s.GetOrCreateVlan()
+	m := v.GetOrCreateMatch()
+	if index != 0 {
+		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+	}
+	return s
+}
+
+func configInterfaceDUT(dut *ondatra.DUTDevice, i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
+	i.Description = ygot.String(dutPort.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	i.AppendSubinterface(getorCreateSubInterface(dut, dutPort, 0, 0))
+	return i
+}
+
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
+
+	p1 := dut.Port(t, "port1")
+	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configInterfaceDUT(dut, i1, &dutPort1))
+	BE120 := generateBundleMemberInterfaceConfig(p1.Name(), *i1.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE120)
+
+	p2 := dut.Port(t, "port2")
+	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
+	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(dut, i2, &dutPort2))
+	BE121 := generateBundleMemberInterfaceConfig(p2.Name(), *i2.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), BE121)
+
+	p3 := dut.Port(t, "port3")
+	i3 := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
+	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(dut, i3, &dutPort3))
+	BE122 := generateBundleMemberInterfaceConfig(p3.Name(), *i3.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), BE122)
+
+	p4 := dut.Port(t, "port4")
+	i4 := &oc.Interface{Name: ygot.String("Bundle-Ether123")}
+	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(dut, i4, &dutPort4))
+	BE123 := generateBundleMemberInterfaceConfig(p4.Name(), *i4.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), BE123)
+
+	p5 := dut.Port(t, "port5")
+	i5 := &oc.Interface{Name: ygot.String("Bundle-Ether124")}
+	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(dut, i5, &dutPort5))
+	BE124 := generateBundleMemberInterfaceConfig(p5.Name(), *i5.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p5.Name()).Config(), BE124)
+
+	p6 := dut.Port(t, "port6")
+	i6 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
+	gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(dut, i6, &dutPort6))
+	BE125 := generateBundleMemberInterfaceConfig(p6.Name(), *i6.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p6.Name()).Config(), BE125)
+
+	p7 := dut.Port(t, "port7")
+	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
+	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(dut, i7, &dutPort7))
+	BE126 := generateBundleMemberInterfaceConfig(p7.Name(), *i7.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p7.Name()).Config(), BE126)
+
+	p8 := dut.Port(t, "port8")
+	i8 := &oc.Interface{Name: ygot.String("Bundle-Ether127")}
+	gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(dut, i8, &dutPort8))
+	BE127 := generateBundleMemberInterfaceConfig(p8.Name(), *i8.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p8.Name()).Config(), BE127)
+}
+
 // Remove flowspec and add as pbr
 func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
 
@@ -347,6 +424,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	startGribiClient(t)
 
 	t.Log("Configure PBR policy and Apply it under interface")
+	configureDUT(t, dut)
 	configBasePBR(t, dut)
 	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
 }
