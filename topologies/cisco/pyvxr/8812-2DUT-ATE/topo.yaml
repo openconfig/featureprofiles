@@ -68,7 +68,7 @@ connections:
 
     DUT1_DUT2_5:
     - dut1.FourHundredGigE0/0/0/14
-    - DUT2.FourHundredGigE0/0/0/14
+    - dut2.FourHundredGigE0/0/0/14
 
     DUT1_DUT2_6:
     - dut1.FourHundredGigE0/0/0/15
