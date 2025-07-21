@@ -18,7 +18,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/deviations"
+	// "github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 )
 
