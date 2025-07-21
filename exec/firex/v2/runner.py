@@ -950,8 +950,9 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
             reserved_testbed=reserved_testbed, 
             out_dir = os.path.join(test_log_directory_path, "debug_files"),
             timestamp=start_timestamp,
-            core_check=core_check_only,
+            core_check=True,
             collect_tech=not core_check_only,
+            collect_snapshot=not core_check_only,
             run_cmds=True,
             split_files_per_dut=True
         )).get('core_files', [])
@@ -1325,8 +1326,9 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
             reserved_testbed=reserved_testbed, 
             out_dir = os.path.join(testbed_logs_dir, "debug_files"),
             timestamp=start_timestamp,
-            core_check=False,
+            core_check=True,
             collect_tech=True,
+            collect_snapshot=True,
             run_cmds=True,
             split_files_per_dut=True
         ))
@@ -1381,7 +1383,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*90*60, time_limit=1*90*60, returns=('core_files'))
 def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir, 
-                      timestamp=1, core_check=False, collect_tech=False,
+                      timestamp=1, core_check=False, collect_tech=False, collect_snapshot=False,
                       run_cmds=False, split_files_per_dut=False, custom_tech="", custom_cmds=""):
     logger.print("Collecting debug files...")
 
@@ -1402,6 +1404,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
             f'-coreCheck={_gobool(core_check)} ' \
             f'-collectTech={_gobool(collect_tech)} ' \
             f'-runCmds={_gobool(run_cmds)} ' \
+            f'-snapshot={_gobool(collect_snapshot)} ' \
             f'-splitPerDut={_gobool(split_files_per_dut)} ' \
             f'-showtechs="{custom_tech}" ' \
             f'-cmds="{custom_cmds}" '
