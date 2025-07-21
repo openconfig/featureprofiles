@@ -4,7 +4,7 @@ simulation:
     pending_timeout: 3600 
 
 devices:
-  DUT1:    
+  dut1:    
     platform: spitfire_f
     dual_rp: true
     num_linecards: 1
@@ -22,7 +22,7 @@ devices:
         grpc port 57777        
     xr_port_redir: [22, 23, 57777, 830]
 
-  DUT2:
+  dut2:
     dual_rp: true
     num_linecards: 1
     linecard_types: [88-LC0-36FH-M]
