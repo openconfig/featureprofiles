@@ -149,13 +149,14 @@ Verify:
 
 *   Repeat `PF-1.8.9` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
-## Canonical OpenConfig for policy-forwarding matching IPv4 and encapsulate GRE
+### Canonical OpenConfig for policy-forwarding matching IPv4 and encapsulate GRE
 
 TODO: New OC paths to be proposed are present in below JSON
 * config/rules/rule/action/count: true
 * config/rules/rule/action/next-hop-group
 * encap-headers/encap-header/type: "GRE" and associated parameters
 
+#### Canonical OC
 ```json
 {
     "network-instances": {
