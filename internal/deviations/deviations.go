@@ -1542,3 +1542,8 @@ func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
 }
+
+// NtpSourceAddressUnsupported returns true if NTP source address is not supported
+func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
+}
