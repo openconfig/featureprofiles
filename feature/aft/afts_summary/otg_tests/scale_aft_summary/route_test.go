@@ -15,6 +15,7 @@
 package route_test
 
 import (
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"testing"
 	"time"
 
@@ -104,6 +105,57 @@ var (
 		IPv6Len: plenIPv6,
 	}
 )
+
+func gnmiOptsForOnChange(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
+}
+
+type PathInfo struct {
+	path ygnmi.SingletonQuery[uint64]
+	name string
+}
+
+func GetISISPaths(dni string) []*PathInfo {
+	return []*PathInfo{{
+		path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(),
+		name: "IPv4-ISIS",
+	}, {
+		path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(),
+		name: "IPv6-ISIS",
+	}}
+}
+
+func GetBGPPath(dni string, isIPv4 bool) *PathInfo {
+	if isIPv4 {
+		return &PathInfo{
+			path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(),
+			name: "IPv4-BGP",
+		}
+	}
+	return &PathInfo{
+		path: gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(),
+		name: "IPv6-BGP",
+	}
+}
+
+func checkRouteSummaries(t *testing.T, dut *ondatra.DUTDevice, paths []*PathInfo, prefixesCount uint64) {
+	for _, p := range paths {
+		value := gnmi.Get(t, dut, p.path)
+		t.Logf("Initial %s value: %v", p.name, value)
+
+		aftWatch := gnmi.Watch(t, gnmiOptsForOnChange(t, dut), p.path, time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			count, present := val.Val()
+			t.Logf("%s watch callback - present: %v, count: %v", p.name, present, count)
+			return present && count == prefixesCount
+		})
+
+		if err, got := aftWatch.Await(t); err != nil {
+			if !got {
+				t.Errorf("Waiting for %s AFT entries: err: %v got %v", p.name, err, got)
+			}
+		}
+	}
+}
 
 // configureDUT configures all the interfaces and BGP on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -522,29 +574,15 @@ func configureBGPv6Routes(peer gosnappi.BgpV6Peer, ipv6 string, name string, pre
 func VerifyDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	dni := deviations.DefaultNetworkInstance(dut)
-	if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), 1*time.Minute, uint64(RouteCount)).Val(); !ok {
-		t.Errorf("ipv4 BGP entries, got: %d, want: %d", got, RouteCount)
-	} else {
-		t.Logf("Test case Passed: ipv4 BGP entries, got: %d, want: %d", got, RouteCount)
-	}
-	if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), 1*time.Minute, uint64(RouteCount)).Val(); !ok {
-		t.Errorf("ipv6 BGP entries, got: %d, want: %d", got, RouteCount)
-	} else {
-		t.Logf("Test case Passed:ipv6 BGP entries, got: %d, want: %d", got, RouteCount)
-	}
 
-	if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), 1*time.Minute, uint64(RouteCount)).Val(); !ok {
-		t.Errorf("ipv4 isis entries, got: %d, want: %d", got, RouteCount)
-	} else {
-		t.Logf("Test case Passed: ipv4 isis entries, got: %d, want: %d", got, RouteCount)
+	checkRouteSummaries(t, dut, GetISISPaths(dni), uint64(RouteCount))
 
-	}
+	bgpPathV4 := GetBGPPath(dni, true) // Get IPv4 path
+	checkRouteSummaries(t, dut, []*PathInfo{bgpPathV4}, uint64(RouteCount))
 
-	if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), 1*time.Minute, uint64(RouteCount)).Val(); !ok {
-		t.Errorf("ipv6 isis entries, got: %d, want: %d", got, RouteCount)
-	} else {
-		t.Logf("Test case Passed: ipv6 isis entries, got: %d, want: %d", got, RouteCount)
-	}
+	bgpPathV6 := GetBGPPath(dni, true) // Get IPv4 path
+	checkRouteSummaries(t, dut, []*PathInfo{bgpPathV6}, uint64(RouteCount))
+	
 }
 
 func TestBGP(t *testing.T) {
