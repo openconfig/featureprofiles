@@ -187,10 +187,10 @@ TODO: New OC paths to be proposed are present in below JSON
                                 "rules": {
                                     "rule": [
                                         {
-                                            "sequence-id": 0
+                                            "sequence-id": 0,
                                             "config": {
                                                 "sequence-id": 0
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
                                                     "destination-address": "inner_dst_ipv4"
@@ -198,14 +198,14 @@ TODO: New OC paths to be proposed are present in below JSON
                                             },
                                             "action": {
                                                 "config": {
-                                                    "count": true
-                                                    "next-hop-group": "customer1_gre_encap_v4_nhg",
+                                                    "count": true,
+                                                    "next-hop-group": "customer1_gre_encap_v4_nhg"
                                                 }
                                             }
                                         }
                                     ]
                                 }
-                            },
+                            }
                         ]
                     }
                 },
@@ -224,7 +224,7 @@ TODO: New OC paths to be proposed are present in below JSON
                                             "config": {
                                                 "index": 1
                                             }
-                                        },
+                                        }
                                     ]
                                 }
                             }
@@ -247,11 +247,11 @@ TODO: New OC paths to be proposed are present in below JSON
                                                     "dscp": "outer_dscp",
                                                     "ip-ttl": "outer_ip-ttl"
                                                 }
-                                            },
+                                            }
                                         ]
                                     }
                                 }
-                            },
+                            }
                         ]
                     }
                 }
