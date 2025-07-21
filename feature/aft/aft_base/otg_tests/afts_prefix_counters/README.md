@@ -155,16 +155,10 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## State Paths ##
 
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
-  /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/index:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded:
   
 rpcs:
   gnmi:
