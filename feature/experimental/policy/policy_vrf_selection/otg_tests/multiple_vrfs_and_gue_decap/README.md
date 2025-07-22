@@ -12,7 +12,6 @@ Create the following connections:
 graph LR; 
 subgraph ATE1 [ATE1]
     A1[Port1] 
-    A2[Port2]
 end
 
 subgraph DUT [DUT]
@@ -22,119 +21,238 @@ end
 
 subgraph ATE2 [ATE2]
     C1[Port1] 
-    C2[Port2]
 end
 
 A1 <-- IBGP(ASN100) --> B1; 
-B2 <-- EBGP(ASN100:ASN200) --> C1;
-A2 <-- EBGP(ASN100:ASN200) --> C2;
+B2 <-- EBGP(ASN100:ASN200) --> C1;;
 ```
 
-### Advertisements:
+## Implementation Details
 
-	ATE1:Port1 advertises following prefixes over IBGP to DUT:Port1
-		- IPv4Prefix1/24 IPv6Prefix1/64
-		- IPv4Prefix2/24 IPv6Prefix2/64
-		- IPv4Prefix3/24 IPv6Prefix3/64
-		- IPv4Prefix4/24 IPv6Prefix4/64
-		- IPv4Prefix5/24 IPv6Prefix5/64
-	
-	ATE2:Port1 advertieses following prefixes to DUT:Port2 over EBGP
-		- IPv4Prefix6/24 IPv6Prefix6/64
-		- IPv4Prefix7/24 IPv6Prefix7/64
-		- IPv4Prefix8/24 IPv6Prefix8/64
-		- IPv4Prefix9/24 IPv6Prefix9/64
-		- IPv4Prefix10/24 IPv6Prefix10/64
-
-	DUT:Port2 advertises following tunnel endpoint prefix to ATE2:Port1 over EBGP. 
-		- IPv4Prefix12/28
-
-	ATE1:Port2 advertises following tunnel endpoint prefix to ATE2:Port2
-		- IPv4Prefix11/28
-
-### Flows:
-
-	From ATE1:Port1 to ATE2:Port1
-		- IPv4Prefix1/24 to IPv4Prefix6/24 [DSCP:BE1]
-		- IPv6Prefix1/64 to IPv6Prefix6/64 [DSCP:BE1]
-
-		- IPv4Prefix2/24 to IPv4Prefix7/24 [DSCP:AF1]
-		- IPv6Prefix2/64 to IPv6Prefix7/64 [DSCP:AF1]
-
-		- IPv4Prefix3/24 to IPv4Prefix8/24 [DSCP:AF2]
-		- IPv6Prefix3/64 to IPv6Prefix8/64 [DSCP:AF2]
-
-		- IPv4Prefix4/24 to IPv4Prefix9/24 [DSCP:AF3]
-		- IPv6Prefix4/64 to IPv6Prefix9/64 [DSCP:AF3]
-
-		- IPv4Prefix5/24 to IPv4Prefix10/24 [DSCP:AF4]
-		- IPv6Prefix5/64 to IPv6Prefix10/64 [DSCP:AF4]
-
-	Flows from ATE2:Port1 to ATE1:Port1
-		- IPv4Prefix6/24 to IPv4Prefix1/24 [DSCP:BE1]
-		- IPv6Prefix6/64 to IPv6Prefix1/64 [DSCP:BE1]
-
-		- IPv4Prefix7/24 to IPv4Prefix2/24 [DSCP:AF1]
-		- IPv6Prefix7/64 to IPv6Prefix2/64 [DSCP:AF1]
-
-		- IPv4Prefix8/24 to IPv4Prefix3/24 [DSCP:AF2]
-		- IPv6Prefix8/64 to IPv6Prefix3/64 [DSCP:AF2]
-
-		- IPv4Prefix9/24 to IPv4Prefix4/24 [DSCP:AF3]
-		- IPv6Prefix9/64 to IPv6Prefix4/64 [DSCP:AF3]
-
-		- IPv4Prefix10/24 to IPv4Prefix5/24 [DSCP:AF4]
-		- IPv6Prefix10/64 to IPv6Prefix5/64 [DSCP:AF4]
-
-### Implementation:
+### Baseline DUT configuration
   - DUT has 2 VRFs, Default and Non-Default.
   - DUT:PORT1 and DUT:Port2 are in the Default VRF.
   - BGP sessions between ATE1:PORT1 <> DUT:PORT1 and ATE2:PORT1 <> DUT:PORT2 are in Default VRF.
-  - Ensure leaking routes from the default to the non-default VRFs so prefixes learnt over IBGP and EBGP are available in the tables of bothe VRFs.There are no other routes learned into non-Default VRF.
+  - Ensure leaking routes from the default to the non-default VRFs so prefixes learnt over IBGP and EBGP are available in the tables of both VRFs.There are no other routes learned into non-Default VRF.
   - Ensure IPv4Prefix12/28 is configured on the Loopback0 interface of DUT which is also in the Default VRF
-  - Loopback0:IPv4Prefix12/28 is used as target address for GUE decapsulation on DUT<br><br><br>
+  - Loopback0:IPv4Prefix12/28 is used as target address for GUE decapsulation on DUT
+  - Ensure the DUT has accurate QOS classifier configured on DUT:PORT1 and and DUT:PORT2 ports, with DSCP and traffic-class mapping called out in section "Traffic-Class to DSCP mapping".
+
+### Traffic-Class to DSCP mapping
+
+| **Traffic-Class**  | **DSCP** | 
+| :------- 	| :---------- 	| 
+| **be1** 	| 000000	|
+| **af1** 	| 001000	| 
+| **af2** 	| 010000	|
+| **af3**	| 011000	|
+| **af4** 	| 100000	| 
+| **nc1-1**	| 111000	|
+| **nc1-2**	| 110000	|
+
+### Baseline ATE configuration
+  - DUT has 2 VRFs, Default and Non-Default.
+  - Establish BGP sessions as shown in the DUT configuration section
+  - ATE1 advertises routes shown in "ATE Route Advertisements" section
+  - ATE2 advertises routes shown in "ATE Route Advertisements" section
+  - Configure ATE with Flow-types mentioned in "Packet types and Flow-types" 
+
+### ATE Route Advertisements:
+
+| **Source ATE Nodes** | **Advertisement Type** | **Prefixes**  | **Via BGP Sessions**                   |  **Notes**        | 
+| -------------- | ---------------------- | ------------------  | ---------------------------------------|  -----------------|
+| ATE1           | IBGP                   | IPv4prefix1-5/24   | IPv4 DUT <--> ATE1                     |  |
+| ATE1           | IBGP                   | IPv6prefix1-5/64   | IPv6 DUT <--> ATE1                     |  |
+| ATE2           | EBGP                   | IPv4prefix6-10/24   | IPv4 DUT <--> ATE2                     |  |
+| ATE2           | EBGP                   | IPv6prefix6-10/64   | IPv6 DUT <--> ATE2                     |  |
+| DUT           | EBGP                   | IPv4Prefix12/28   | IPv4 DUT <--> ATE2                     	| DUT-DECAP-Address  |
+
+
+#### Packet types and Flow-types
+
+| Flow-type | Packet#  | Layer       | Protocol          | Source Address      | Destination Address | Source Port         | Destination Port          |  DSCP    		| Notes                                      |
+| :-------   | :------- | :---------- | :---------------- | :------------------ | :------------------ | :------------------ | :------------------------ | :------------------|:------------------------------------------ |
+| **1to6v4_encapped**| **1** | **Overall** | **Payload o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|          	   |	| Inner       | IPv4\|UDP         | IPv4Prefix1/24       | IPv4Prefix6/24        | 14    		| 15                  | 	BE1	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|          	   |	| Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		BE1	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **2to7v4_encapped** | **2** | **Overall** | **Payload o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|       |   | Inner       | IPv4\|UDP         | IPv4Prefix2/24       | IPv4Prefix7/24        | 14    		| 15                  | 	AF1	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |  | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF1	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **3to8v4_encapped** | **3** | **Overall** | **Payload o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|       |   | Inner       | IPv4\|UDP         | IPv4Prefix3/24       | IPv4Prefix8/24      | 14    		| 15                  | 	AF2	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |  | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF2	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **4to9v4_encapped** | **4** | **Overall** | **Payload o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|       |   | Inner       | IPv4\|UDP         | IPv4Prefix4/24       | IPv4Prefix9/24      | 14    		| 15                  | 	AF3	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |   | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF3	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **5to10v4_encapped** |**5** | **Overall** | **Payload o IPv4\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|       |   | Inner       | IPv4\|UDP         | IPv4Prefix5/24       | IPv4Prefix10/24      | 14    		| 15                  | 	AF4	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |   | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF4	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **1to6v6_encapped** |**6** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                                                  |
+|       |   | Inner       | IPv6\|UDP         | IPv6Prefix1/24        | IPv6Prefix6/24       | 14    		| 15                  |  	BE1	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |   | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996  		| 6080                |		BE1	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **2to7v6_encapped** | **7** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|       |   | Inner       | IPv6\|UDP         | IPv6Prefix2/24       | IPv6Prefix7/24        | 14    		| 15                  | 	AF1	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |   | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF1	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **3to8v6_encapped** | **8** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|       |   | Inner       | IPv6\|UDP         | IPv6Prefix3/24       | IPv6Prefix8/24      | 14    		| 15                  | 	AF2	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |   | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF2	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **4to9v6_encapped** | **9** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                     |                  	|                                |
+|       |   | Inner       | IPv6\|UDP         | IPv6Prefix4/24       | IPv6Prefix9/24      | 14    		| 15                  | 	AF3	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |   | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF3	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **5to10v6_encapped** | **10** | **Overall** | **Payload o IPv6\|UDP o IPv4\|UDP(GUE v1)** |                     |                     |                    |                  	|                                |
+|       |   | Inner       | IPv6\|UDP         | IPv6Prefix5/24       | IPv6Prefix10/24      | 14    		| 15                  | 	AF4	| Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+|       |   | Outer       | IPv4\|UDP(GUE v1) | ATE1-port IPv4 addr | DUT-DECAP-Address   | 5996 		 | 6080               |		AF4	| Src Port: Any unassigned UDP port; GUE v1 encapsulation    |
+| **1to6v4** | **11** | **Overall** | **Payload o IPv4\|UDP** |                     |                     |                    |                   |                               |
+|       |   | Payload header | IPv4\|UDP          | IPv4Prefix1/24       | IPv4Prefix6/24     | 14    		  | 15                | 	BE1     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **2to7v4** | **12** | **Overall** | **Payload o IPv4\|UDP** |                     |                     |                    |                   |                               |
+|       |   | Payload header | IPv4\|UDP          | IPv4Prefix2/24       | IPv4Prefix7/24     | 14    		| 15                  | 	AF1     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **3to8v4** | **13** | **Overall** | **Payload o IPv4\|UDP** |                     |                     |                    |                   |                               |
+|       |   | Payload header | IPv4\|UDP          | IPv4Prefix3/24       | IPv4Prefix8/24     | 14    		| 15                  | 	AF2     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **4to9v4** | **14** | **Overall** | **Payload o IPv4\|UDP** |                     |                     |                    |                   |                               |
+|       |   | Payload header | IPv4\|UDP          | IPv4Prefix4/24       | IPv4Prefix9/24     | 14    		| 15                  | 	AF3     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **5to10v4** | **15** | **Overall** | **Payload o IPv4\|UDP** |                     |                     |                    |                   |                               |
+|       |   | Payload header | IPv4\|UDP          | IPv4Prefix5/24       | IPv4Prefix10/24     | 14    		| 15                  | 	AF4     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **1to6v6** |  **16** | **Overall** | **Payload o IPv6\|UDP** |                     |                     |                    |                   |                               |
+|       |   | Payload header | IPv4\|UDP         | IPv6Prefix1/24       | IPv6Prefix6/24     | 14    		| 15                  | 	BE1     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **2to7v6** | **17** | **Overall** | **Payload o IPv6\|UDP** |                     |                     |                     |                  |                 |       |
+|       |   |  Payload header | IPv6\|UDP         | IPv6Prefix2/24      | IPv6Prefix7/24      | 14    		| 15                  |		AF1     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **3to8v6** | **18** | **Overall** | **Payload o IPv6\|UDP** |                     |                     |                    |                   |                               |
+|       |   | Payload header | IPv4\|UDP         | IPv6Prefix3/24       | IPv6Prefix8/24     | 14    		| 15                  | 	AF2     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **4to9v6** | **19** | **Overall** | **Payload o IPv6\|UDP** |                     |                     |                     |                  |                 |       |
+|       |   |  Payload header | IPv6\|UDP         | IPv6Prefix4/24      | IPv6Prefix9/24      | 14    		| 15                  |		AF3     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+| **5to10v6** | **20** | **Overall** | **Payload o IPv6\|UDP** |                     |                     |                     |                  |                 |       |
+|       |   |  Payload header | IPv6\|UDP         | IPv6Prefix5/24      | IPv6Prefix10/24      | 14    		| 15                  |		AF4     | Src Port: Any unassigned UDP port; Dst Port: Any App/unassigned UDP port |
+
+## Procedure
 
 ### RT-3.3.1: [Baseline] Traffic flow between ATE1:Port1 and ATE2:Port1 via DUT's Default VRF
-  * Start above mentioned flows between ATE1:Port1 and ATE2:Port1.
+  * Start above flow-type 1to6v4 - 5to10v4 and 1to6v6 - 5to10v6 between ATE1:Port1 and ATE2:Port1.
   * Ensure no packet loss is observed <br><br><br>
     
-
 ### RT-3.3.2: BE1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-  * ATE1:Port1 sends flows "IPv4Prefix1/24 to IPv4Prefix6/24" and "IPv6Prefix1/64 to IPv6Prefix6/64", both IPv4 and IPv6 traffic encaped inside GUE tunnel destination IPv4Prefix12
-	* ATE1:PORT1 will performed the GUE encapsulation
-    		* IPv4-in-UDP-in-IPv4 packet
-    		* IPv6-in-UDP-in-IPv4 packet
-    	* DUT will perform the decapsulation in Default VRF 
-  * ATE2:Port1 sends the following IPv4 and IPv6 flows as is (without GUE encap)
-    * Prefix6/24 to IPv4Prefix1/24 [DSCP:BE1]
-    * Prefix7/24 to IPv4Prefix2/24 [DSCP:AF1]
-    * Prefix8/24 to IPv4Prefix3/24 [DSCP:AF2]
-    * Prefix9/24 to IPv4Prefix4/24 [DSCP:AF3]
-    * Prefix10/24 to IPv4Prefix5/24 [DSCP:AF4]
-  * ATE1:Port1 continues sending the folllowing IPv4 and IPv6 traffic (without GUE encap)
-    * Prefix2 to Prefix7 with DSCP:AF1
-    * Prefix3 to Prefix8 with DSCP:AF2
-    * Prefix4 to Prefix9 with DSCP:AF3
-    * Prefix5 to Prefix10 with DSCP:AF4
-  * DUT receives the tunneled traffic, decaps it, does a LPM lookup on the destination prefix (Prefix6) and routes it to ATE2:Port1 via DUT:Port2
+  * ATE1:Port1 sends flow-type 1to6v4_encapped and 1to6v6_encapped
+  * DUT will perform the decapsulation in Default VRF 
+  * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
+    * 2to7v4 - 5to10v4
+    * 2to7v4 - 5to10v6
+  * DUT receives the tunneled traffic for flow-type 1to6v4_encapped and 1to6v6_encapped, decaps it, does a LPM lookup on the destination prefix (IPv4Prefix6 and IPv6Prefix6) and routes it to ATE2:Port1 via DUT:Port2
   * All the traffic flows MUST show no packet loss.
-  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for "Prefix1 to Prefix6" flows .<br><br><br>
+  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped and 1to6v6_encapped flows .<br><br><br>
   
-   
+### RT-3.3.3: BE1 and AF1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+  * ATE1:Port1 sends flow-types 1to6v4_encapped - 2to7v4_encapped, 1to6v6_encapped - 2to7v6_encapped
+  * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
+    * 3to8v4 - 5to10v4
+    * 3to8v4 - 5to10v6
+  * DUT will perform the decapsulation in Default VRF 
+  * DUT receives the tunneled traffic for flow-type 1to6v4_encapped - 2to74_encapped, 1to6v6_encapped - 2to7v6_encapped, decaps it, does a LPM lookup on the destination prefix (IPv4Prefix6, IPv4Prefix7, IPv6Prefix6, IPv6Prefix7) and routes it to ATE2:Port1 via DUT:Port2
+  * All the traffic flows MUST show no packet loss.
+  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 2to7v4_encapped, 1to6v6_encapped - 2to7v6_encapped flows .<br><br><br>
 
-### RT-3.3.3 to RT-3.3.6: ATE2:Port1 simulates different traffic classes (BE1 to AF4) of FLOWS from ATE1:Port1 being GUE tunneled inside IPv4Prefix12 and sent to DUT:Port2
-  * Follow each step in RT-3.3.2 for the following subtest cases
-    #### RT-3.3.3: BE1 and AF1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6" and "Prefix2 to Prefix7" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
-    
-    #### RT-3.3.4: BE1, AF1 and AF2 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7" and "Prefix3 to Prefix8" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
-        
-    #### RT-3.3.5: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8" and "Prefix4 to Prefix9" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
-        
-    #### RT-3.3.6: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8", "Prefix4 to Prefix9" and "Prefix5 to Prefix10" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
-        
-  * Verification steps are the same as that of RT-3.3.2
+  
+### RT-3.3.4: BE1, AF1 and AF2 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+  * ATE1:Port1 sends flow-types 1to6v4_encapped - 3to8v4_encapped, 1to6v6_encapped - 3to8v6_encapped
+  * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
+    * 4to9v4 - 5to10v4
+    * 4to9v4 - 5to10v6
+  * DUT will perform the decapsulation in Default VRF 
+  * DUT receives the tunneled traffic for flow-types 1to6v4_encapped - 3to8v4_encapped, 1to6v6_encapped - 3to8v6_encapped, decaps it, does a LPM lookup on the destination prefix (IPv4Prefix6 - IPv4Prefix8, IPv6Prefix6 - IPv6Prefix8) and routes it to ATE2:Port1 via DUT:Port2
+  * All the traffic flows MUST show no packet loss.
+  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 3to8v4_encapped, 1to6v6_encapped - 3to8v6_encapped .<br><br><br>
 
+### RT-3.3.4: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+  * ATE1:Port1 sends flow-types 1to6v4_encapped - 4to9v4_encapped, 1to6v6_encapped - 4to9v6_encapped
+  * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
+    * 5to10v4
+    * 5to10v6
+  * DUT will perform the decapsulation in Default VRF 
+  * DUT receives the tunneled traffic for flow-types 1to6v4_encapped - 4to9v4_encapped, 1to6v6_encapped - 4to9v6_encapped, decaps it, does a LPM lookup on the destination prefix (IPv4Prefix6 - IPv4Prefix9, IPv6Prefix6 - IPv6Prefix9) and routes it to ATE2:Port1 via DUT:Port2
+  * All the traffic flows MUST show no packet loss.
+  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 4to9v4_encapped, 1to6v6_encapped - 4to9v6_encapped .<br><br><br>
+
+### RT-3.3.4: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+  * ATE1:Port1 sends flow-types 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped
+  * DUT will perform the decapsulation in Default VRF 
+  * DUT receives the tunneled traffic for flow-types 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped, decaps it, does a LPM lookup on the destination prefix (IPv4Prefix6 - IPv4Prefix10, IPv6Prefix6 - IPv6Prefix10) and routes it to ATE2:Port1 via DUT:Port2
+  * All the traffic flows MUST show no packet loss.
+  * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped .<br><br><br>
+
+
+## Canonical OpenConfig for GUEv1 Decapsulation configuration
+TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
+
+```json
+{
+    "network-instances": {
+        "network-instance": {
+            "config": {
+                "name": "DEFAULT"
+            },
+            "name": "DEFAULT",
+            "policy-forwarding": {
+                "policies": {
+                    "policy": [
+                        {
+                            "config": {
+                                "policy-id": "decap-policy"
+                            },
+                            "rules": {
+                                "rule": [
+                                    {
+                                        "sequence-id": 1,
+                                        "config": {
+                                            "sequence-id": 1
+                                        },
+                                        "ipv4": {
+                                            "config": {
+                                                "destination-address-prefix-set": "dst_prefix",
+                                                "protocol": "IP_UDP"
+                                            }
+                                        },
+                                        "transport": {
+                                            "config": {
+                                                "destination-port": 6080
+                                            }
+                                        }
+                                        "action": {
+                                            "decapsulate-gue": true
+                                        },
+                                    },
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
+
+```
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+
+/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
+
+# telemetry
+/interfaces/interface/state/counters/out-pkts:
+/interfaces/interface/state/counters/out-unicast-pkts:
+/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
+```
+## Required DUT platform
+* Specify the minimum DUT-type:
+  * FFF - fixed form factor
