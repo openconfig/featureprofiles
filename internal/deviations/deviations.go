@@ -1537,13 +1537,3 @@ func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
-
-// Verify counters based on SID label do not support
-func SkipVerifySidCounters(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipVerifySidCounters()
-}
-
-// Snycast SID config not supported
-func SkipVerifyAnycastSid(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipVerifyAnycastSid()
-}

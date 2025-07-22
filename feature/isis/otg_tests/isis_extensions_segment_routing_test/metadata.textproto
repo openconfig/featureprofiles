@@ -21,7 +21,5 @@ platform_exceptions:  {
     isis_metric_style_telemetry_unsupported:  true
     isis_srgb_srlb_unsupported:  true
     isis_sr_node_segment_config_unsupported:  true
-    skip_verify_sid_counters:  true
-    skip_verify_anycast_sid:  true
   }
 }

@@ -861,12 +861,6 @@ message Metadata {
     // node segment configuration not supported
     bool isis_sr_node_segment_config_unsupported = 304;
 
-    // DUT not returning value for sid counters
-    bool skip_verify_sid_counters = 305;
-
-    // DUT not supporting with anycast SID configuration
-    bool skip_verify_anycast_sid = 306;
-
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
