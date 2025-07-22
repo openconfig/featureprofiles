@@ -40,10 +40,10 @@ Validate internal BGP in multipath scenario
     *   Check entire IPv6 traffic should only be forwarded by one of DUT port2, port3
         or port4
         
-#### Other OC
+#### Canonical OC
 ```json
 {
-  "openconfig-network-instance:network-instances": {
+  "network-instances": {
     "network-instance": [
       {
         "name": "DEFAYLT",
@@ -53,10 +53,10 @@ Validate internal BGP in multipath scenario
         "protocols": {
           "protocol": [
             {
-              "identifier": "openconfig-policy-types:BGP",
+              "identifier": "BGP",
               "name": "DEFAULT",
               "config": {
-                "identifier": "openconfig-policy-types:BGP",
+                "identifier": "BGP",
                 "name": "DEFAULT"
               },
               "bgp": {
@@ -64,9 +64,9 @@ Validate internal BGP in multipath scenario
                   "afi-safis": {
                     "afi-safi": [
                       {
-                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "afi-safi-name": "IPV4_UNICAST",
                         "config": {
-                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "afi-safi-name": "IPV4_UNICAST",
                           "enabled": true
                         },
                         "use-multiple-paths": {
@@ -78,9 +78,9 @@ Validate internal BGP in multipath scenario
                         }
                       },
                       {
-                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "afi-safi-name": "IPV6_UNICAST",
                         "config": {
-                          "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                          "afi-safi-name": "IPV6_UNICAST",
                           "enabled": true
                         },
                         "use-multiple-paths": {
@@ -104,9 +104,9 @@ Validate internal BGP in multipath scenario
                       "afi-safis": {
                         "afi-safi": [
                           {
-                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "afi-safi-name": "IPV4_UNICAST",
                             "config": {
-                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "afi-safi-name": "IPV4_UNICAST",
                               "enabled": true
                             },
                             "use-multiple-paths": {
@@ -116,9 +116,9 @@ Validate internal BGP in multipath scenario
                             }
                           },
                           {
-                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                            "afi-safi-name": "IPV6_UNICAST",
                             "config": {
-                              "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                              "afi-safi-name": "IPV6_UNICAST",
                               "enabled": true
                             },
                             "use-multiple-paths": {
@@ -162,7 +162,7 @@ Validate internal BGP in multipath scenario
 #### Canonical OC
 ```json
 {
-  "openconfig-network-instance:network-instances": {
+  "network-instances": {
     "network-instance": [
       {
         "name": "DEFAYLT",
@@ -172,10 +172,10 @@ Validate internal BGP in multipath scenario
         "protocols": {
           "protocol": [
             {
-              "identifier": "openconfig-policy-types:BGP",
+              "identifier": "BGP",
               "name": "DEFAULT",
               "config": {
-                "identifier": "openconfig-policy-types:BGP",
+                "identifier": "BGP",
                 "name": "DEFAULT"
               },
               "bgp": {
@@ -183,9 +183,9 @@ Validate internal BGP in multipath scenario
                   "afi-safis": {
                     "afi-safi": [
                       {
-                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "afi-safi-name": "IPV4_UNICAST",
                         "config": {
-                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "afi-safi-name": "IPV4_UNICAST",
                           "enabled": true
                         },
                         "use-multiple-paths": {
@@ -197,9 +197,9 @@ Validate internal BGP in multipath scenario
                         }
                       },
                       {
-                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                        "afi-safi-name": "IPV6_UNICAST",
                         "config": {
-                          "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                          "afi-safi-name": "IPV6_UNICAST",
                           "enabled": true
                         },
                         "use-multiple-paths": {
@@ -223,9 +223,9 @@ Validate internal BGP in multipath scenario
                       "afi-safis": {
                         "afi-safi": [
                           {
-                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "afi-safi-name": "IPV4_UNICAST",
                             "config": {
-                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "afi-safi-name": "IPV4_UNICAST",
                               "enabled": true
                             },
                             "use-multiple-paths": {
@@ -235,9 +235,9 @@ Validate internal BGP in multipath scenario
                             }
                           },
                           {
-                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                            "afi-safi-name": "IPV6_UNICAST",
                             "config": {
-                              "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                              "afi-safi-name": "IPV6_UNICAST",
                               "enabled": true
                             },
                             "use-multiple-paths": {
