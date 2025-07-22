@@ -428,8 +428,7 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	t.Log("Configure PBR policy and Apply it under interface")
 	configureDUT(t, dut)
 	configBasePBR(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
-
+	//gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
 	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
 }
 
