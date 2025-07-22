@@ -41,7 +41,6 @@ Validate internal BGP in multipath scenario
         or port4
         
 #### Canonical OC
-
 ```json
 {
   "openconfig-network-instance:network-instances": {
@@ -161,7 +160,6 @@ Validate internal BGP in multipath scenario
         port2, port3 or port4
 
 #### Canonical OC
-
 ```json
 {
   "openconfig-network-instance:network-instances": {
