@@ -159,7 +159,7 @@ Validate internal BGP in multipath scenario
     *   Check entire IPv6 traffic should only be equally forwarded by any two among DUT
         port2, port3 or port4
 
-#### Canonical OC
+#### other OC
 ```json
 {
   "openconfig-network-instance:network-instances": {
