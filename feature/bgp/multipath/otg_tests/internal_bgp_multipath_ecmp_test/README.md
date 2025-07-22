@@ -1,4 +1,4 @@
-# RT-1.63: Internal BGP multipath ECMP
+# RT-1.66: Internal BGP multipath ECMP
 
 ## Summary
 
