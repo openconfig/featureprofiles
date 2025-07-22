@@ -1557,3 +1557,18 @@ func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
 func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
 }
+
+// SRLB and SRGB configuration does not effective with OC config
+func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
+}
+
+// Isis Prefix Segment config does not supported
+func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrPrefixSegmentConfigUnsupported()
+}
+
+// Isis Node Segment Configuration do not supported
+func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
+}
