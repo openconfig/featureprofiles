@@ -33,19 +33,18 @@ import (
 )
 
 const (
-	plen4              = 30
-	plen6              = 126
-	isisInstance       = "DEFAULT"
-	areaAddress        = "49.0001"
-	sysID              = "1920.0000.2001"
-	v4Route            = "203.0.113.0"
-	v4RoutePlen        = 24
-	v4IP               = "203.0.113.1"
-	lag2MAC            = "02:aa:bb:02:00:02"
-	lag3MAC            = "02:aa:bb:03:00:02"
-	otgLAG2sysID       = "640000000002"
-	otgLAG3sysID       = "640000000003"
-	maxEcmpPaths uint8 = 16
+	plen4        = 30
+	plen6        = 126
+	isisInstance = "DEFAULT"
+	areaAddress  = "49.0001"
+	sysID        = "1920.0000.2001"
+	v4Route      = "203.0.113.0"
+	v4RoutePlen  = 24
+	v4IP         = "203.0.113.1"
+	lag2MAC      = "02:aa:bb:02:00:02"
+	lag3MAC      = "02:aa:bb:03:00:02"
+	otgLAG2sysID = "640000000002"
+	otgLAG3sysID = "640000000003"
 )
 
 var (
@@ -250,7 +249,6 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 		globalISIS.Instance = ygot.String(isisInstance)
 	}
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	globalISIS.SetMaxEcmpPaths(maxEcmpPaths)
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
@@ -431,11 +429,10 @@ func configureTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, f
 	otg.PushConfig(t, top)
 	t.Logf("Starting protocols and awaiting for ARP & IS-IS adjacencies")
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, top, "IPv4")
-	otgutils.WaitForARP(t, otg, top, "IPv6")
 	awaitAdjacency(t, dut, agg2ID)
 	awaitAdjacency(t, dut, agg3ID)
+	time.Sleep(15 * time.Second)
 }
 
 func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, good []gosnappi.Flow, bad []gosnappi.Flow, nhCount int) {
@@ -479,7 +476,7 @@ func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	intf := isisPath.Interface(intfName)
 
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, 2*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 		v, ok := val.Val()
 		return v == oc.Isis_IsisInterfaceAdjState_UP && ok
 	}).Await(t)
