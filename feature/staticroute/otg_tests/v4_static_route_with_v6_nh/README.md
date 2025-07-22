@@ -480,60 +480,6 @@ This test verified the functionality of IPv4 static route configured to redirect
     }
 ```
 
-### RT-1.66.9: IPv4 static route with an IPv6 next-hop resolved over eBGP sessions in default network-instance
-
-  * Step 1 - Generate DUT Configuration
-    - Configure and establish eBGP session between DUT and ATE:port3 and ATE:port4 and advertise ipv6 address '2002:db8:1:1::1' over them
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2002:db8:1:1::1' in a default network-instance
-  * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
-  * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
-    - Monitor for 60 seconds
-  * Step 4 - Test Validations
-    - Traffic must be received equally on ATE:port3 and ATE:port4 without any loss
-    - Configuration must be accepted by device
-
-#### Canonical OC
-
-```json
-    {
-      "network-instances": {
-        "network-instance": [
-          {
-            "name": "DEFAULT",
-            "protocols": {
-              "protocol": [
-                {
-                  "identifier": "STATIC",
-                  "name": "static",
-                  "static-routes": {
-                    "static": [
-                      {
-                        "prefix": "192.0.2.0/24",
-                        "next-hops": {
-                          "next-hop": [
-                            {
-                              "index": "0",
-                              "config": {
-                                "index": "0",
-                                "next-hop": "2002:db8:1:1::1"
-                              }
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-```
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
