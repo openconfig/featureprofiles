@@ -145,7 +145,7 @@ Verify:
 
 *   Repeat same verifications in `RT-3.53.1` but with the following differences
     *   TTL for all GUE encapsulated packets:
-        *   GUE header TTL is **19**.
+        *   GUE header TTL is **20**.
 
 ### RT-3.53.6: IPv6 traffic GUE encapsulation with explicit TTL configuration on tunnel
 
@@ -166,7 +166,7 @@ Verify:
     *   ToS for all GUE encapsulated packets:
         *   GUE header ToS is **0x60**.
     *   TTL for all GUE encapsulated packets:
-        *   GUE header TTL is **19**.
+        *   GUE header TTL is **20**.
 
 ### RT-3.53.8: IPv6 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
 
