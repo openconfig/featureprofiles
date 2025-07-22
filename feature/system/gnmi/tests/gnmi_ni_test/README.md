@@ -2,8 +2,8 @@
 
 ## Summary
 
-Ensure that a grpc server serving gnmi can be configured on the DEFAULT
-network-instance and a second network-instance named "MGMT".
+Ensure that a grpc server serving GNMI can be configured on a second
+network-instance named "GNMI_TEST".
 
 ## Testbed type
 
@@ -21,9 +21,9 @@ network-instance.
 
 ### SYS-1.2.1: Configure two gnmi servers on different network instances
 
-The DUT is expected to have a gnmi server running on the DEFAULT
-network-instance already.  Generate and push the following configuration to the
-DUT to add a second gnmi server to the DUT on a different network-instance.
+The DUT is expected to have a gnmi server running on some network-instance
+already.  Generate and push the following configuration to the
+DUT to add a second gNMI server to the DUT on the GNMI_TEST network-instance.
 
 ## Canonical OC
 ```json
@@ -91,7 +91,8 @@ DUT to add a second gnmi server to the DUT on a different network-instance.
             "enable": true,
             "name": "gmmi-test",
             "network-instance": "GNMI_TEST",
-            "port": 9339
+            "port": 9339,
+            "services": "GNMI"
           },
           "name": "gmmi-test"
         }
@@ -103,7 +104,7 @@ DUT to add a second gnmi server to the DUT on a different network-instance.
 
 ### SYS-1.2.2: Perform set and subscribe to each server
 
-* Set the DUT port1 interface description using the default gnmi connection.
+* Set the DUT port1 interface description using the default GNMI connection.
 * Subscribe ONCE to the interface port1 description to ensure it was changed.
 * Set the DUT port1 interface description using the GNMI_TEST connection.
 * Subscribe ONCE to the interface port1 using the default gnmi connection and
