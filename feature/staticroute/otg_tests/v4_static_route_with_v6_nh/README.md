@@ -483,8 +483,8 @@ This test verified the functionality of IPv4 static route configured to redirect
 ### RT-1.66.9: IPv4 static route with an IPv6 next-hop resolved over eBGP sessions in default network-instance
 
   * Step 1 - Generate DUT Configuration
-    - Configure and establish eBGP session between DUT and ATE:port3 and ATE:port4 and advertise ipv6 address '2002:db8:1:1::1' and '2002:db8:1:2::1' over them, respectively
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2002:db8:1:1::1' and ATE:port4 '2002:db8:1:2::1' in a default network-instance
+    - Configure and establish eBGP session between DUT and ATE:port3 and ATE:port4 and advertise ipv6 address '2002:db8:1:1::1' over them
+    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2002:db8:1:1::1' in a default network-instance
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
@@ -518,13 +518,6 @@ This test verified the functionality of IPv4 static route configured to redirect
                               "config": {
                                 "index": "0",
                                 "next-hop": "2002:db8:1:1::1"
-                              }
-                            },
-                            {
-                              "index": "0",
-                              "config": {
-                                "index": "0",
-                                "next-hop": "2002:db8:1:2::1"
                               }
                             }
                           ]
