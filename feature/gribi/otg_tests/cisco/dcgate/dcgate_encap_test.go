@@ -150,7 +150,7 @@ func TestBasicEncap(t *testing.T) {
 				fa4.getFlow("ipv4", "lookup_test", dscpEncapA1),
 			},
 			weights:            wantWeights,
-			capturePorts:       otgDstPorts[:2],
+			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 			skip:               false,
 		},
@@ -163,7 +163,7 @@ func TestBasicEncap(t *testing.T) {
 				fa4.getFlow("ipv4", "vrf_lookup_test", dscpEncapA1),
 			},
 			weights:            wantWeights,
-			capturePorts:       otgDstPorts[:2],
+			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 		},
 		{
@@ -172,7 +172,7 @@ func TestBasicEncap(t *testing.T) {
 			flows: []gosnappi.Flow{fa4.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1),
 				fa4.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)},
 			weights:            []float64{0, 0, 0, 1},
-			capturePorts:       otgDstPorts[:2],
+			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 		},
 		{
@@ -181,7 +181,7 @@ func TestBasicEncap(t *testing.T) {
 			flows: []gosnappi.Flow{fa4.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1),
 				fa4.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)},
 			weights:            wantWeights,
-			capturePorts:       otgDstPorts[:2],
+			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 		},
 		{
@@ -191,7 +191,7 @@ func TestBasicEncap(t *testing.T) {
 				fa4.getFlow("ipv4", "vrf_scale", dscpEncapA1),
 			},
 			weights:            wantWeights,
-			capturePorts:       otgDstPorts[:2],
+			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 			skip:               false,
 		},
@@ -204,7 +204,7 @@ func TestBasicEncap(t *testing.T) {
 				fa4.getFlow("ipv4", "ip4inip", dscpEncapA1),
 			},
 			weights:            wantWeights,
-			capturePorts:       otgDstPorts[:2], // Only use first two ports
+			capturePorts:       otgDstPorts, // Only use first two ports
 			validateEncapRatio: true,
 			skip:               false,
 		},
@@ -243,6 +243,7 @@ func TestBasicEncap(t *testing.T) {
 			}
 			if strings.Contains(tc.name, "Next-hop Unavailability Recirculation") {
 				// Configure default route
+				configDefaultRoute(t, dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
 				shutPorts(t, tcArgs, []string{"port3", "port4"})
 				defer unshutPorts(t, tcArgs, []string{"port3", "port4"})
@@ -334,7 +335,7 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 
 	c.AddNH(t, nh201ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP1, VrfName: vrfTransit})
 	c.AddNH(t, nh202ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP2, VrfName: vrfTransit})
-	c.AddNHG(t, nhg10ID, map[uint64]uint64{nh201ID: 1, nh202ID: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddNHG(t, nhg10ID, map[uint64]uint64{nh201ID: 1, nh202ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
