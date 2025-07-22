@@ -48,7 +48,6 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
 
-
 	record, err := acctzSubClient.Recv()
 	if err != nil {
 		t.Fatalf("Failed receiving from accountz record subscribe client, error: %s", err)
@@ -58,4 +57,3 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 		t.Fatal("History is not truncated but should be.")
 	}
 }
-
