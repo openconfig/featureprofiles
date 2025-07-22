@@ -1557,3 +1557,13 @@ func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
 func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
 }
+
+// ConfigACLWithPrefixListNotSupported returns true if configuring prefixlist in ACL not supported
+func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()
+}
+
+// ConfigAclValueAnyOcUnsupported returns true if OC for configuring parameter in ACL with value ANY not supported
+func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
+}

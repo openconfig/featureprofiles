@@ -876,6 +876,12 @@ message Metadata {
     // Device doesnot support gre enacapsulation
     bool gre_decapsulation_oc_unsupported = 308;
 
+    // Device doesnot support configuring prefix list inside ACL
+    bool config_acl_with_prefixlist_unsupported = 309;
+
+    // Device doesnot support configuring source/destination address as ANY inside ACL
+    bool config_acl_value_any_oc_unsupported = 310;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
