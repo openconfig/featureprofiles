@@ -856,6 +856,7 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("Validate traffic switching from  ate port4 back to ate port2 and ate port3")
 	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, switchTrafficToPort2AndPort3FromPort4, args.client, true)
+	t.Log("Unconfig interfaces after Drain test")
 	defer deleteDrainConfig(t, args.dut)
 
 }
