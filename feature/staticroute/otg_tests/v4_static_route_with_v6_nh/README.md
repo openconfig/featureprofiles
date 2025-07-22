@@ -13,7 +13,7 @@ This test verified the functionality of IPv4 static route configured to redirect
  * Configure IPv4 addresses on port-1 of DUT '192.0.1.1/24' and ATE '192.0.1.2/24'
  * Configure IPv4 addresses on port-2 of DUT '192.0.2.1/24' and ATE '192.0.2.2/24'
  * Configure IPv6 addresses on port-3 of DUT ['192.0.3.1/24', '2001:db8:128:128::1/64'] and ATE '['192.0.3.2/24', 2001:db8:128:128::2/64']
- * Configure IPv6 addresses on port-4 of DUT ['192.0.4.1/24', '2001:db8:128:128::3/64'] and ATE '['192.0.4.2/24', 2001:db8:128:128::4/64']
+ * Configure IPv6 addresses on port-4 of DUT ['192.0.4.1/24', '2001:db8:128:129::1/64'] and ATE '['192.0.4.2/24', 2001:db8:128:129::2/64']
  * Enable ECMP for static route
 
 ### RT-1.66.1: IPv4 static route with an IPv6 next-hop in default network-instance
@@ -73,7 +73,7 @@ This test verified the functionality of IPv4 static route configured to redirect
 
   * Step 1 - Generate DUT Configuration
     - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:128::2' in a default network-instance
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:128::4' in a default network-instance
+    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a default network-instance
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
@@ -113,7 +113,7 @@ This test verified the functionality of IPv4 static route configured to redirect
                               "index": "1",
                               "config": {
                                 "index": "1",
-                                "next-hop": "2001:db8:128:128::4"
+                                "next-hop": "2001:db8:128:129::2"
                               }
                             }
                           ]
@@ -136,7 +136,7 @@ This test verified the functionality of IPv4 static route configured to redirect
 
   * Step 1 - Generate DUT Configuration
     - Configure a ipv4 static route '192.0.2.0/24' with IPv4 next-hop of ATE:port3 '192.0.3.2/24' in a default network-instance
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:128::4' in a default network-instance
+    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a default network-instance
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
@@ -176,7 +176,7 @@ This test verified the functionality of IPv4 static route configured to redirect
                               "index": "1",
                               "config": {
                                 "index": "1",
-                                "next-hop": "2001:db8:128:128::4"
+                                "next-hop": "2001:db8:128:129::2"
                               }
                             }
                           ]
@@ -196,7 +196,7 @@ This test verified the functionality of IPv4 static route configured to redirect
 ### RT-1.66.4: IPv4 static route with an invalid IPv6 next-hop in default network-instance
 
   * Step 1 - Generate DUT Configuration
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:129::2' in a default network-instance
+    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:130::2' in a default network-instance
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
@@ -229,7 +229,7 @@ This test verified the functionality of IPv4 static route configured to redirect
                               "index": "0",
                               "config": {
                                 "index": "0",
-                                "next-hop": "2001:db8:128:129::2"
+                                "next-hop": "2001:db8:128:130::2"
                               }
                             }
                           ]
@@ -305,7 +305,7 @@ This test verified the functionality of IPv4 static route configured to redirect
 
   * Step 1 - Generate DUT Configuration
     - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:128::2' in a non-default network-instance 'VRF1'
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:128::4' in a non-default network-instance 'VRF1'
+    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a non-default network-instance 'VRF1'
     - Assosiate ATE:port3 and ATE:port4 with 'VRF1'
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
@@ -346,7 +346,7 @@ This test verified the functionality of IPv4 static route configured to redirect
                               "index": "1",
                               "config": {
                                 "index": "1",
-                                "next-hop": "2001:db8:128:128::4"
+                                "next-hop": "2001:db8:128:129::2"
                               }
                             }
                           ]
@@ -369,7 +369,7 @@ This test verified the functionality of IPv4 static route configured to redirect
 
   * Step 1 - Generate DUT Configuration
     - Configure a ipv4 static route '192.0.2.0/24' with IPv4 next-hop of ATE:port3 '192.0.3.2/24' in a non-default network-instance 'VRF1'
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:128::4' in a non-default network-instance 'VRF1'
+    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a non-default network-instance 'VRF1'
     - Assosiate ATE:port3 and ATE:port4 with 'VRF1'
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
@@ -410,7 +410,7 @@ This test verified the functionality of IPv4 static route configured to redirect
                               "index": "1",
                               "config": {
                                 "index": "1",
-                                "next-hop": "2001:db8:128:128::4"
+                                "next-hop": "2001:db8:128:129::2"
                               }
                             }
                           ]
@@ -430,7 +430,7 @@ This test verified the functionality of IPv4 static route configured to redirect
 ### RT-1.66.8: IPv4 static route with an invalid IPv6 next-hop in non-default network-instance
 
   * Step 1 - Generate DUT Configuration
-    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:129::2' in a non-default network-instance 'VRF1'
+    - Configure a ipv4 static route '192.0.2.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:130::2' in a non-default network-instance 'VRF1'
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.0.2.2/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
@@ -463,7 +463,7 @@ This test verified the functionality of IPv4 static route configured to redirect
                               "index": "0",
                               "config": {
                                 "index": "0",
-                                "next-hop": "2001:db8:128:129::2"
+                                "next-hop": "2001:db8:128:130::2"
                               }
                             }
                           ]
