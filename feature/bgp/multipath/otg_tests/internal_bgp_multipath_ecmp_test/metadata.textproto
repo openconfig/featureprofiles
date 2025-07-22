@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: ""
-plan_id: "RT-1.63"
+plan_id: "RT-1.66"
 description: "Internal BGP multipath ECMPP"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
