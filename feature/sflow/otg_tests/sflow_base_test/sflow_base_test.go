@@ -151,15 +151,23 @@ func configureDUTBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutSrc.NewOCInterface(p1.Name(), dut))
-
 	p2 := dut.Port(t, "port2")
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutDst.NewOCInterface(p2.Name(), dut))
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
+	dutPortAttrs := map[*ondatra.Port]*attrs.Attributes{
+		p1: dutSrc,
+		p2: dutDst,
 	}
+
+	for dutPort, dutPortAttr := range dutPortAttrs {
+		dutInt := dutPortAttr.NewOCInterface(dutPort.Name(), dut)
+		if deviations.FrBreakoutFix(dut) && dutPort.PMD() == ondatra.PMD100GBASEFR {
+			dutInt.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+			dutInt.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			dutInt.GetOrCreateEthernet().SetAutoNegotiate(false)
+		}
+		gnmi.Replace(t, dut, d.Interface(dutPort.Name()).Config(), dutInt)
+	}
+
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)

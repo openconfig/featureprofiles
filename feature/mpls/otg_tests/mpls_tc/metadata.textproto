@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "32ac61df-e182-4e2e-ab68-b517453dabbf"
+plan_id:  "MPLS-1.2"
+description:  "MPLS Traffic Class Marking"
+testbed:  TESTBED_DUT_ATE_2LINKS

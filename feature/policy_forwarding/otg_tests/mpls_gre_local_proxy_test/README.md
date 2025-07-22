@@ -1,4 +1,4 @@
-# PF-1.16 - MPLSoGRE IPV4 encapsulation IPV4/IPV6 local proxy test
+# PF-1.16: MPLSoGRE IPV4 encapsulation IPV4/IPV6 local proxy test
 
 ## Summary
 
