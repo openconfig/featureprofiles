@@ -678,7 +678,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-1.63"
+  id: "RT-1.66"
   description: "Internal BGP multipath ECMP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/internal_bgp_multipath_ecmp_test/README.md"
   exec: " "
