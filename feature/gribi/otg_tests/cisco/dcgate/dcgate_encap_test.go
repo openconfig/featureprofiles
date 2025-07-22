@@ -137,7 +137,7 @@ func TestBasicEncap(t *testing.T) {
 			name:               fmt.Sprintf("Next-hop Unavailability Recirculation Test %d", dscpEncapA1),
 			pattr:              packetAttr{protocol: ipipProtocol, dscp: dscpEncapA1, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
-			weights:            []float64{0.5, 0, 0, 0.5},
+			weights:            []float64{0.25, 0, 0, 0.75},
 			capturePorts:       []string{"port5"},
 			validateEncapRatio: true,
 		},
