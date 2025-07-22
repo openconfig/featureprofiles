@@ -232,5 +232,227 @@ rpcs:
 
 ## Canonical OC
 ```json
-{}
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Input Interface",
+          "name": "port1",
+          "type": "ethernetCsmacd"
+        },
+        "name": "port1"
+      },
+      {
+        "config": {
+          "description": "Output Interface",
+          "name": "port2",
+          "type": "ethernetCsmacd"
+        },
+        "name": "port2"
+      }
+    ]
+  },
+  "qos": {
+    "classifiers": {
+      "classifier": [
+        {
+          "config": {
+            "name": "qos-policy"
+          },
+          "name": "qos-policy",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "fg-BE1"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        1,
+                        2,
+                        3
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "term1"
+                },
+                "id": "term1"
+              },
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "fg-NC1"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp-set": [
+                        48,
+                        49,
+                        50,
+                        51,
+                        52,
+                        53,
+                        54,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59
+                      ]
+                    }
+                  }
+                },
+                "config": {
+                  "id": "term2"
+                },
+                "id": "term2"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "forwarding-groups": {
+      "forwarding-group": [
+        {
+          "config": {
+            "name": "fg-BE1",
+            "output-queue": "q-BE1"
+          },
+          "name": "fg-BE1"
+        },
+        {
+          "config": {
+            "name": "fg-NC1",
+            "output-queue": "q-NC1"
+          },
+          "name": "fg-NC1"
+        }
+      ]
+    },
+    "interfaces": {
+      "interface": [
+        {
+          "config": {
+            "interface-id": "eth0"
+          },
+          "input": {
+            "classifiers": {
+              "classifier": [
+                {
+                  "config": {
+                    "name": "qos-policy",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                }
+              ]
+            }
+          },
+          "interface-id": "eth0"
+        },
+        {
+          "config": {
+            "interface-id": "port2"
+          },
+          "interface-id": "port2",
+          "output": {
+            "queues": {
+              "queue": [
+                {
+                  "config": {
+                    "name": "q-BE1"
+                  },
+                  "name": "q-BE1"
+                }
+              ]
+            },
+            "scheduler-policy": {
+              "config": {
+                "name": "scheduler-policy"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "queues": {
+      "queue": [
+        {
+          "config": {
+            "name": "q-BE1"
+          },
+          "name": "q-BE1"
+        },
+        {
+          "config": {
+            "name": "q-NC1"
+          },
+          "name": "q-NC1"
+        }
+      ]
+    },
+    "scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "scheduler-policy"
+          },
+          "name": "scheduler-policy",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 0
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "NC1",
+                        "input-type": "QUEUE",
+                        "queue": "q-NC1",
+                        "weight": "200"
+                      },
+                      "id": "NC1"
+                    }
+                  ]
+                },
+                "sequence": 0
+              },
+              {
+                "config": {
+                  "sequence": 1
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "BE1",
+                        "input-type": "QUEUE",
+                        "queue": "q-BE1",
+                        "weight": "1"
+                      },
+                      "id": "BE1"
+                    }
+                  ]
+                },
+                "sequence": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
 ```
