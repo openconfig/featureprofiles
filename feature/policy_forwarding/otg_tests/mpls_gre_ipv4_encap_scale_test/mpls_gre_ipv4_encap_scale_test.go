@@ -350,7 +350,7 @@ func EncapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 // TestMPLSOGREEncapIPv4 tests MPLSOGRE Encap test case for IPv4 flow.
 func TestMPLSOGREEncapIPv4(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	t.Log("PF-1.15.2: Verify PF MPLSoGRE encapsulate action for IPv4 traffic")
+	t.Log("PF-1.15.2: Verify PF MPLSoGRE encapsulate action for IPv4/IPv6 traffic")
 	createflow(t, top, FlowIPv4, true)
 	createflow(t, top, FlowIPv6, false)
 	sendTraffic(t, ate)
