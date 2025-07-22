@@ -1542,3 +1542,18 @@ func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
 }
+
+// NtpSourceAddressUnsupported returns true if NTP source address is not supported
+func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
+}
+
+// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
+
+// GreDecapsulationUnsupported returns true if decapsulation is not supported
+func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
+}
