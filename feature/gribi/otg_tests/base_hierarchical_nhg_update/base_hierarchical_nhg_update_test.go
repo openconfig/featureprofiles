@@ -879,7 +879,7 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// deleteiDrain unconfigs interfaces after drain test
+// deleteDrainConfig unconfigs interfaces after drain test
 func deleteDrainConfig(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p2 := dut.Port(t, "port2")
