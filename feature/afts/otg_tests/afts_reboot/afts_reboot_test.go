@@ -105,8 +105,8 @@ var (
 	port2Name = "port2"
 )
 
-// getRouteCount returns the expected route count for the given dut and IP family.
-func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
+// routeCount returns the expected route count for the given dut and IP family.
+func routeCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
 	if deviations.LowScaleAft(dut) {
 		if afi == IPv4 {
 			return bgpRouteCountIPv4LowScale
@@ -407,7 +407,7 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routes.Addresses().Add().
 		SetAddress(bgpRoute).
 		SetPrefix(advertisedRoutesV4Prefix).
-		SetCount(getRouteCount(tc.dut, IPv4))
+		SetCount(routeCount(tc.dut, IPv4))
 
 	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ".v6route")
 	routesV6.SetNextHopIpv6Address(ipv6.Address()).
@@ -416,15 +416,15 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routesV6.Addresses().Add().
 		SetAddress(bgpRoutev6).
 		SetPrefix(advertisedRoutesV6Prefix).
-		SetCount(getRouteCount(tc.dut, IPv6))
+		SetCount(routeCount(tc.dut, IPv6))
 }
 
 func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
+	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(routeCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(getRouteCount(tc.dut, IPv6))) {
+	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(routeCount(tc.dut, IPv6))) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
@@ -527,10 +527,10 @@ func (tc *testCase) verifyAFTState(t *testing.T, desc string) {
 	}
 
 	// Verify BGP prefixes are present in AFT.
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4)), bgpNHCount); err != nil {
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(routeCount(tc.dut, IPv4)), bgpNHCount); err != nil {
 		t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 	}
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(tc.dut, IPv6)), bgpNHCount); err != nil {
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(routeCount(tc.dut, IPv6)), bgpNHCount); err != nil {
 		t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 	}
 	t.Log("BGP verification successful")
