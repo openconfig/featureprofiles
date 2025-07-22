@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: ""
+uuid: "9707B5B6-A28C-41BD-A29A-A9ACF0DEB451"
 plan_id: "RT-1.66"
-description: "Internal BGP multipath ECMPP"
+description: "Internal BGP multipath ECMP"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
