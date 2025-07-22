@@ -26,7 +26,7 @@
 //			[ ATE Port 1 ] ----  |   DUT   | ---- [ ATE Port 2]
 //      		                 |         |
 
-package isisextensionssegmentroutingtest
+package isis_extensions_segment_routing_test
 
 import (
 	"context"
