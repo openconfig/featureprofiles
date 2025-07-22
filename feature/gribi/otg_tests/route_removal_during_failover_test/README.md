@@ -43,6 +43,11 @@ rpcs:
     gRIBI.Flush:
 ```
 
+## Canonical OC
+```json
+{}
+```   
+
 ## Config parameter coverage
 
 ## Telemery parameter coverage

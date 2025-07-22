@@ -1,4 +1,4 @@
-# DP-2.2 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
+# DP-2.2: QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
 
 ## Summary
 
@@ -382,6 +382,7 @@ NH#201 -> {
       * flow A all have the same flow label
       * flow B have the same flow label
       * flow A and B labels do not match
+
 
 #### OpenConfig Path and RPC Coverage
 

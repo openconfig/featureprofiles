@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "89a10b5b-76e7-4ccc-a37f-c59b9a2ca884"
+plan_id:  "DP-2.2"
+description:  "QoS scheduler with 1 rate 2 color policer, classifying on next-hop group"
+testbed:  TESTBED_DUT_ATE_2LINKS

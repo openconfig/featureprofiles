@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "fce08e5f-1fba-49cb-beee-f72478ffb5f3"
+plan_id:  "TE-18.3"
+description:  "MPLS in UDP Encapsulation Scale Test"
+testbed:  TESTBED_DUT_ATE_2LINKS

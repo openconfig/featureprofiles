@@ -1,0 +1,74 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/deviations.proto
+# proto-message: DeviationRegistry
+# txtpbfmt: expand_all_children
+# txtpbfmt: sort_repeated_fields_by_content
+deviations: {
+  name: "route_policy_under_afi_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy"
+      }
+    }
+  }
+}
+deviations: {
+  name: "default_network_instance"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/config/name"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "default"
+      }
+      vendor_specific_value: {
+        string_val: "DEFAULT"
+      }
+    }
+  }
+}
+deviations: {
+  name: "bgp_missing_oc_max_prefixes_configuration"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "^router bgp [0-9]+\n +neighbor + *.* maximum-routes [0-9]+$"
+    }
+  }
+}
