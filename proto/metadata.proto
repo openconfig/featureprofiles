@@ -626,9 +626,6 @@ message Metadata {
     // CISCO: b/376241033
     // CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
-    // Device have different default value for allow own as.
-    // Juniper : b/373559004
-    bool bgp_allowownas_diff_default_value = 231;
     // Cisco numbering for OTN channel assignment starts from 1 instead of 0
     bool otn_channel_assignment_cisco_numbering = 232;
     // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
@@ -719,6 +716,7 @@ message Metadata {
     // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
+
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
@@ -737,8 +735,161 @@ message Metadata {
     // Devices that do not support containerz config via OpenConfig.
     bool containerz_oc_unsupported = 266;
 
+    // Device does not support BGP OC distance
+    bool bgp_distance_oc_path_unsupported = 267;
+
+    // Devices that do not support ISIS MPLS
+    bool isis_mpls_unsupported = 268;
+
+    // Devices that do not support oc path for auto-negotiate
+    // Nokia b/417843274
+    bool auto_negotiate_unsupported = 269;
+
+    // Devices that do not support oc path for duplex-mode
+    // Nokia b/417843274
+    bool duplex_mode_unsupported = 270;
+
+    // Devices that do not support oc path for port-speed
+    // Nokia b/417843274
+    bool port_speed_unsupported = 271;
+
+    // Set-Med-Action is not supported for BGP
+    // Cisco b/414333771
+    bool bgp_set_med_action_unsupported = 272;
+
+    // Devices that do not support next-hop-group config
+    // Arista b/390507957
+    bool next_hop_group_config_unsupported = 273;
+
+    // Arista b/390507780
+    bool qos_shaper_config_unsupported = 274;
+
+    // Arista b/390507780
+    bool qos_shaper_state_unsupported = 275;
+
+    // Arista b/393178770
+    bool ethernet_over_mplsogre_unsupported = 276;
+
+    // Arista b/390507408
+    bool sflow_unsupported = 277;
+
+    // Arista b/390507402
+    bool mpls_unsupported = 278;
+
+    // Arista b/390507399
+    bool macsec_unsupported = 279;
+
+    // Arista b/390506900
+    bool gue_gre_decap_unsupported = 280;
+
+    // Arista b/390506584
+    bool mpls_label_classification_unsupported = 281;
+
+    // Arista b/390506395
+    bool local_proxy_unsupported = 282;
+
+    // Arista b/390506513
+    bool static_mpls_unsupported = 283;
+
+    // Arista b/390504878
+    bool qos_classification_unsupported = 284;
+
+    // Arista b/390503348
+    bool policy_forwarding_unsupported = 285;
+
+    // Arista b/393177745
+    bool cfm_unsupported = 286;
+
+    // Arista b/390506903
+    bool label_range_unsupported = 287;
+
+    // Arista b/390506907
+    bool static_arp_unsupported = 288;
+
+    // Arista b/390506907
+    bool interface_policy_forwarding_unsupported = 289;
+
+    // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
+    // issues/404301960
+    bool use_old_oc_path_static_lsp_nh = 290;
+
+    // Create/Replace config leaf required 
+    // Juniper b/419536104
+    bool config_leaf_create_required = 291;
+
+    // SkipInterfaceNameCheck is set to true for devices that do not support
+    // interface name check in AFT.
+    bool skip_interface_name_check = 292;
+
+    // Arista b/426375784
+    // FNT only issue, non-breakout ports have breakout config
+    bool fr_breakout_fix = 293;
+
+    // Cisco b/421356455
+    // numPhysicalChannels is not supported
+    bool num_physical_channels_unsupported = 294;
+
+    // UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
+    bool unsupported_qos_output_service_policy = 295;
+
+    // InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
+    bool interface_output_queue_non_standard_name = 296;
+
+    // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+    bool mpls_exp_ingress_classifier_oc_unsupported = 297;
+
+    // Devices that do not propagate IGP metric through redistribution
+    bool default_no_igp_metric_propagation = 298;
+
+    // Skip setting send-community-type in bgp peer-group config
+    bool skip_bgp_peer_group_send_community_type = 299;
+    
+    // Devices that does have different AS path prepend order.
+    // juniper : b/425632068
+    bool bgp_as_path_prepend_order_mismtach = 300;
+
+    // Devices that need explicit swap_src_dst_mac set with loopback_mode
+    // Nokia b/430183279
+    bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
+
+    // link_local_instead_of_nh is set to true for devices that give
+    // link-local address instead of NH in AFT.
+    bool link_local_instead_of_nh = 302;
+
+    // low_scale_aft returns true if device requires low scale AFT.
+    bool low_scale_aft = 303;
+    
+    // Devices that do not support system-description config path
+    // Nokia b/431929861
+    bool missing_system_description_config_path = 304;
+
+    // Juniper  b/428613305
+    // FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+    bool non_interval_fec_error_counter = 305;
+
+    // Device does not support ntp source address
+    bool ntp_source_address_unsupported = 306;
+
+    // Devices does not support static mpls lsp
+    bool static_mpls_lsp_oc_unsupported = 307;
+
+    // Device doesnot support gre enacapsulation
+    bool gre_decapsulation_oc_unsupported = 308;
+
+    // SRGB and SLGB config through OC is not reflecting
+    bool isis_srgb_srlb_unsupported = 309;
+
+    // Prefix segment configuration not supported
+    bool isis_sr_prefix_segment_config_unsupported = 310;
+
+    // node segment configuration not supported
+    bool isis_sr_node_segment_config_unsupported = 311;
+
+    // Devices that do not support policy forwarding on next-hop
+    bool policy_forwarding_to_next_hop_oc_unsupported = 312;
+    
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
 
   message PlatformExceptions {
