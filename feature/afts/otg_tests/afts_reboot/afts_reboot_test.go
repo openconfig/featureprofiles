@@ -552,7 +552,7 @@ type testCase struct {
 	gnmiClient gnmipb.GNMIClient
 }
 
-func TestBGP(t *testing.T) {
+func TestAFTReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
