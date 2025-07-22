@@ -6,21 +6,27 @@ BGP Override AS-path split-horizon
 
 ## Topology
 
- ATE Port1 (AS 65502) --- DUT Port1 (AS 65501) DUT Port2 ---eBGP --- ATE Port2 (AS 65503)
+ATE Port1 (AS 65502) --- eBGP --------- DUT Port1 (DUT Local AS 65501)
+ATE Port2 (AS 65503) --- eBGP --------- DUT Port2 (DUT Local AS 64513)
 
 ## Procedure
 
 *  Establish BGP Session: Configure and establish an eBGP session between the DUT (Port1) and the ATE (Port1).
+*  
+### RT-1.54.1  Test no allow-own-in
 *  Baseline Test (No "allow-own-in"):
     *  Advertise a prefix from the ATE (e.g., 192.168.1.0/24) with an AS-path that includes AS 65501 (DUT's AS) in the middle (e.g., AS-path: 65502 65500 65501 65499).
     *  Verify that the ATE Port2 doesn't receive the route. due to the presence of its own AS in the path.
     *  Validate session state and capabilities received on DUT using telemetry.
+
+### RT-1.54.2  Test "allow-own-as 1"
 *  Test "allow-own-as 1":
     *  Enable "allow-own-as 1" on the DUT.
         *  Re-advertise the prefix from the ATE with the same AS-path.
         *  Verify that the DUT accepts the route.
         *  Verify that the ATE Port2 receives the route.
         *  Validate session state and capabilities received on DUT using telemetry.
+### RT-1.54.3  Test "allow-own-as 3"
 *  Test "allow-own-as 3":
     *  Change the DUT's configuration to "allow-own-as 3".
     *  Test with the following AS-path occurrences:
@@ -29,6 +35,7 @@ BGP Override AS-path split-horizon
         *  4 Occurrences: 65502 65501 65501 65501 65501 65499 (Should be rejected)
     *  Verify that the ATE Port2 receives the route with 1 and 3 occurrences of AS 65501 but rejects it with 4 occurrences.
     *  Validate session state and capabilities received on DUT using telemetry.
+### RT-1.54.4  Test "allow-own-as 4"
 *  Test "allow-own-as 4:
     *  Change the DUT's configuration to "allow-own-as 4".
     *  Test with the following AS-path occurrences:

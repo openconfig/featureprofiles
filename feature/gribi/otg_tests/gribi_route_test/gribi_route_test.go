@@ -50,17 +50,23 @@ var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "DUT Port 1",
 		IPv4:    "192.0.2.1",
+		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: 30,
+		IPv6Len: 126,
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "DUT Port 2",
 		IPv4:    "192.0.2.5",
+		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: 30,
+		IPv6Len: 126,
 	}
 	dutPort3 = attrs.Attributes{
 		Desc:    "DUT Port 3",
 		IPv4:    "192.0.2.9",
+		IPv6:    "2001:db8::192:0:2:9",
 		IPv4Len: 30,
+		IPv6Len: 126,
 	}
 
 	atePort1 = attrs.Attributes{
@@ -68,21 +74,27 @@ var (
 		MAC:     "02:00:01:01:01:01",
 		Desc:    "ATE Port 1",
 		IPv4:    "192.0.2.2",
+		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: 30,
+		IPv6Len: 126,
 	}
 	atePort2 = attrs.Attributes{
 		Name:    "port2",
 		MAC:     "02:00:02:01:01:01",
 		Desc:    "ATE Port 2",
 		IPv4:    "192.0.2.6",
+		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: 30,
+		IPv6Len: 126,
 	}
 	atePort3 = attrs.Attributes{
 		Name:    "port3",
 		MAC:     "02:00:03:01:01:01",
 		Desc:    "ATE Port 3",
 		IPv4:    "192.0.2.10",
+		IPv6:    "2001:db8::192:0:2:A",
 		IPv4Len: 30,
+		IPv6Len: 126,
 	}
 )
 
@@ -162,7 +174,26 @@ func TestGRIBIFailover(t *testing.T) {
 	t.Log("Configure VRF_Policy")
 	configureVrfSelectionPolicyC(t, dut)
 	t.Log("Configure GRIBI")
-	configureGribiRoute(t, dut)
+
+	ctx := context.Background()
+	gribic := dut.RawAPIs().GRIBI(t)
+	client := fluent.NewClient()
+	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
+		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+	client.Start(ctx, t)
+	defer client.Stop(t)
+	gribi.FlushAll(client)
+	defer gribi.FlushAll(client)
+	client.StartSending(ctx, t)
+	gribi.BecomeLeader(t, client)
+
+	tcArgs := &testArgs{
+		ctx:    ctx,
+		client: client,
+		dut:    dut,
+	}
+
+	configureGribiRoute(t, dut, tcArgs)
 
 	llAddress, found := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface("port1.Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 		return val.IsPresent()
@@ -394,24 +425,8 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
 }
 
-func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice) {
+func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice, tcArgs *testArgs) {
 	t.Helper()
-	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI(t)
-	client := fluent.NewClient()
-	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(12, 0).
-		WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
-	client.Start(ctx, t)
-	defer client.Stop(t)
-	gribi.FlushAll(client)
-	client.StartSending(ctx, t)
-	gribi.BecomeLeader(t, client)
-
-	tcArgs := &testArgs{
-		ctx:    ctx,
-		client: client,
-		dut:    dut,
-	}
 	tcArgs.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithIndex(uint64(1)).WithDecapsulateHeader(fluent.IPinIP).

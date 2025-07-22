@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "9842b7dd-6877-440b-bf8f-8272a1e31d5f"
+plan_id:  "bootz"
+description:  "General bootz bootstrap tests"
+testbed:  TESTBED_DUT_ATE_2LINKS

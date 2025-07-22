@@ -76,6 +76,7 @@ var (
 		ondatra.ARISTA:  2500000,
 		ondatra.JUNIPER: 2500000,
 		ondatra.NOKIA:   2600000,
+		ondatra.CISCO:   2500000,
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -290,7 +291,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	var otgBgpPeer gosnappi.BgpV6Peer
 	var otgIPv6Device gosnappi.DeviceIpv6
 	otgBgpPeer, otgIPv6Device, otgConfig = configureOTG(t, otg, dstIPList)
-
+	time.Sleep(30 * time.Second)
 	verifyBgpTelemetry(t, dut)
 
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -302,7 +303,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 	client.Start(ctx, t)
 	defer client.Stop(t)
-
+	gribi.FlushAll(client)
 	defer func() {
 		// Flush all entries after test.
 		if err := gribi.FlushAll(client); err != nil {
@@ -333,6 +334,12 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 		otg:           otg,
 	}
 	start := time.Now()
+	// cleanup fib table
+	defer func() {
+		ate.OTG().StopProtocols(t)
+		time.Sleep(5 * time.Minute)
+	}()
+
 	injectEntry(ctx, t, args, dstIPList, vipList)
 	t.Logf("Main Function: Time elapsed %.2f seconds since start", time.Since(start).Seconds())
 
@@ -404,7 +411,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	var nbrIP = []string{atePort1.IPv6}
 	t.Logf("Verifying BGP state.")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-
+	time.Sleep(30 * time.Second)
 	for _, nbr := range nbrIP {
 		nbrPath := bgpPath.Neighbor(nbr)
 		// Get BGP adjacency state.

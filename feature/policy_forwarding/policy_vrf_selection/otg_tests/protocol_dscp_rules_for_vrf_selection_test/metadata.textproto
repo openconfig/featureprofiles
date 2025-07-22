@@ -4,7 +4,7 @@
 uuid: "d54b1029-6f8e-4dc7-a50d-99d6e4f59474"
 plan_id: "RT-3.2"
 description: "Multiple <Protocol, DSCP> Rules for VRF Selection"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -21,7 +21,6 @@ platform_exceptions: {
   }
   deviations: {
     no_mix_of_tagged_and_untagged_subinterfaces: true
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
   }
