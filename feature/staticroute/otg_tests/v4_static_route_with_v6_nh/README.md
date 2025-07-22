@@ -484,7 +484,7 @@ This test verified the functionality of IPv4 static route configured to redirect
 
 ```yaml
 paths:
- /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
+ #/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
 
 rpcs:
   gnmi:
@@ -492,6 +492,7 @@ rpcs:
       union_replace: true
     gNMI.Subscribe:
       on_change: true
-``` 
+```
+
 ## Required DUT platform
 *   FFF
