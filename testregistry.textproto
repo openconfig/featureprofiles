@@ -895,7 +895,7 @@ test: {
 test: {
   id: "RT-1.66"
   description: "IPv4 Static Route with IPv6 Next-Hop"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/other_network_instance/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/v4_static_route_with_v6_nh/README.md"
   exec: " "
 }
 test: {
