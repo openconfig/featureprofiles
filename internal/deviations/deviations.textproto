@@ -72,3 +72,277 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "routing_policy_chaining_unsupported"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: ""
+      }
+      vendor_specific_value: {
+        string_val: ""
+      }
+    }
+  }
+}
+deviations: {
+  name: "sflow_source_address_update_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/sampling/sflow/collectors/collector/config/source-address"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "^sflow vrf *.* source-interface *.*$"
+    }
+  }
+}
+deviations: {
+  name: "explicit_enable_bgp_on_default_vrf"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: ""
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/config/as"
+      }
+    }
+  }
+}
+deviations: {
+  name: "isis_require_same_l1_metric_with_l2_metric"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: ""
+      }
+      vendor_specific_value: {
+        string_val: ""
+      }
+    }
+  }
+}
+deviations: {
+  name: "bgp_default_policy_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy"
+      }
+    }
+  }
+}
+deviations: {
+  name: "route_policy_under_afi_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy"
+      }
+    }
+  }
+}
+deviations: {
+  name: "missing_isis_interface_afi_safi_enable"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/enabled"
+      }
+    }
+  }
+}
+deviations: {
+  name: "os_component_parent_is_chassis"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/components/component[name='EOS'/state/parent"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: ""
+      }
+      vendor_specific_value: {
+        string_val: "Chassis"
+      }
+    }
+  }
+}
+deviations: {
+  name: "isis_instance_enabled_required"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: ""
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/isis/global/config/instance"
+      }
+    }
+  }
+}
+deviations: {
+  name: "missing_zr_optical_channel_tunable_parameters_telemetry"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/components/component/state/temperature/avg"
+    }
+    ocpaths: {
+      name: "/components/component/state/temperature/min"
+    }
+    ocpaths: {
+      name: "/components/component/state/temperature/max"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "network_instance_table_deletion_required"
+  type: DEVIATION_TYPE_PATH
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/tables/table"
+      }
+    }
+  }
+}
+deviations: {
+  name: "bgp_global_extended_next_hop_encoding_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
