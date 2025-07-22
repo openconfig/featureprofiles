@@ -1523,6 +1523,41 @@ func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
 }
 
+// LinkLocalInsteadOfNh returns true if device requires link-local instead of NH.
+func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalInsteadOfNh()
+}
+
+// LowScaleAft returns if device requires link-local instead of NH.
+func LowScaleAft(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLowScaleAft()
+}
+
+// MissingSystemDescriptionConfigPath returns true if device does not support config lldp system-description leaf
+func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
+}
+
+// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
+}
+
+// NtpSourceAddressUnsupported returns true if NTP source address is not supported
+func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
+}
+
+// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
+
+// GreDecapsulationUnsupported returns true if decapsulation is not supported
+func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
+}
+
 // SRLB and SRGB configuration does not effective with OC config
 func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
