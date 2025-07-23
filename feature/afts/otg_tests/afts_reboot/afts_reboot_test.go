@@ -19,20 +19,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession/isissession"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache/aftcache"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/netutil/netutil"
-	"github.com/openconfig/ondatra/ondatra"
-	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
-	spb "github.com/openconfig/gnoi/system/system_go_proto"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 )
 
 func TestMain(m *testing.M) {
