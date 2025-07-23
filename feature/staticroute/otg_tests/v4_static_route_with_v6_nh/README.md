@@ -23,7 +23,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must be received on ATE:port3 without any loss
@@ -77,7 +77,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must be equally received on ATE:port3 and ATE:port4 without any loss
@@ -140,7 +140,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must be equally received on ATE:port3 and ATE:port4 without any loss
@@ -200,7 +200,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must not be received on ATE:port3 and there should be 100% traffic loss.
@@ -255,7 +255,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must be received on ATE:port3 without any loss
@@ -326,7 +326,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must be equally received on ATE:port3 and ATE:port4 without any loss
@@ -412,7 +412,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must be equally received on ATE:port3 and ATE:port4 without any loss
@@ -495,7 +495,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 2 - Generate ATE Configuration
     - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
-    - Start the traffic from ATE:Port1 to ATE:Port2
+    - Start the traffic
     - Monitor for 60 seconds
   * Step 4 - Test Validations
     - Traffic must not be received on ATE:port3 and there should be 100% traffic loss.
