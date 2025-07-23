@@ -345,7 +345,9 @@ routing-policy {
     }
 }
 ```
+
 ## OpenConfig Path and RPC Coverage
+
 ```yaml
 paths:
 
@@ -356,16 +358,12 @@ paths:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
 /network-instances/network-instance/inter-instance-policies/apply-policy/config/export-policy:
 /network-instances/network-instance/inter-instance-policies/apply-policy/config/import-policy:
-
 /routing-policy/policy-definitions/policy-definition/config/name:
 /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 /routing-policy/policy-definitions/policy-definition/statements/statement/name/actions/policy-result:
 /routing-policy/policy-definitions/policy-definition/statements/conditions/oc-bgp-pol:bgp-conditions/oc-bgp-pol:match-community-set:
-
-/routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
 /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/prefix-set:
-/routing-policy/policy-definitions/policy-definition/config/name:
 /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/masklength-range:
 /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/ip-prefix:
 /routing-policy/defined-sets/prefix-sets/prefix-set/config/masklength-range:
