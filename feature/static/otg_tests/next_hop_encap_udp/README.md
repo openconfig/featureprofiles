@@ -225,16 +225,20 @@ Verify:
           "next-hop-groups": {
             "next-hop-group": [
               {
-                "name": "ENCAPNHG1",
-                "next-hops": {
-                  "next-hop": [
-                    {
-                      "config": {
+                "config": {
+                  "name": "ENCAPNHG1"
+                },
+                "name": {
+                  "next-hops": {
+                    "next-hop": [
+                      {
+                        "config": {
+                          "index": "0"
+                        },
                         "index": "0"
-                      },
-                      "index": "0"
-                    }
-                  ]
+                      }
+                    ]
+                  }
                 }
               }
             ]
