@@ -190,7 +190,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
             "inter-instance-policies": {
                 "apply-policy" : {
                    "config": {
-                "export-policy": BGP_EXPORT_B2_VRF
+                "export-policy": "BGP_EXPORT_B2_VRF"
                     }
                 }
             }
@@ -238,14 +238,14 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
             "inter-instance-policies": {
                 "apply-policy" : {
                    "config": {
-                "import-policy": BGP_EXPORT_B2_VRF
+                "import-policy": "BGP_EXPORT_B2_VRF"
                     }
                 }
             }
         }
     }
 }
-routing-policy {
+"routing-policy" {
     "routing-policy": {
         "policy-definitions": {
             "policy-definition": [
@@ -255,16 +255,16 @@ routing-policy {
                             {
                                 "actions": {
                                     "config": {
-                                        "policy-result": ACCEPT_ROUTE
+                                        "policy-result": "ACCEPT_ROUTE"
                                     }
                                 },
                                 "config": {
                                     "name": "IPv4Prefix_IBGP_EXPORT"
                                 },
-                                "name": "advertise-prod-internal",
+                                "name": "IPv4Prefix_IBGP_EXPORT",
                                 "conditions": {
                                     "match-prefix-set": {
-                                        "prefix-set": IPv4Prefixes_IBGP
+                                        "prefix-set": "IPv4Prefixes_IBGP"
                                     }
                                 }
                             }
@@ -275,7 +275,7 @@ routing-policy {
                             {
                                 "actions": {
                                     "config": {
-                                        "policy-result": ACCEPT_ROUTE
+                                        "policy-result": "ACCEPT_ROUTE"
                                     }
                                 },
                                 "config": {
@@ -284,16 +284,16 @@ routing-policy {
                                 "name": "IPv6Prefix_IBGP_EXPORT",
                                 "conditions": {
                                     "match-prefix-set": {
-                                        "prefix-set": IPv6Prefixes_IBGP
+                                        "prefix-set": "IPv6Prefixes_IBGP"
                                     }
                                 }
                             }
                         ]
                     },
                     "config": {
-                        "name": "URPF-IN"
+                        "name": "BGP_EXPORT_B2_VRF"
                     },
-                    "name": "URPF-IN"
+                    "name": "BGP_EXPORT_B2_VRF"
                 }
             ]
         },
