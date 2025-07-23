@@ -224,7 +224,7 @@ Verify:
               {
                 "config": {
                   "name": "ENCAP-NHG-1"
-                }
+                },
                 "next-hops": {
                   "next-hop": [
                     {
@@ -236,27 +236,27 @@ Verify:
                 }
               }
             ]
-          }
+          },
           "next-hops": {
             "next-hop": [
               {
                 "config": {
                   "index": 0
-                }
+                },
                 "encap-headers": {
                   "encap-header": [
                     {
                       "config": {
-                        "index": 0
+                        "index": 0,
                         "type": "UDPV4"
-                      }
+                      },
                       "udp-v4": {
                         "config": {
-                          "dscp": 32
-                          "dst-ip": "10.50.50.1"
-                          "dst-udp-port": "6080"
-                          "ip-ttl": 64
-                          "src-ip": "10.5.5.5"
+                          "dscp": 32,
+                          "dst-ip": "10.50.50.1",
+                          "dst-udp-port": "6080",
+                          "ip-ttl": 64,
+                          "src-ip": "10.5.5.5",
                           "src-udp-port": "49152"
                         }
                       }
@@ -266,7 +266,7 @@ Verify:
               }
             ]
           }
-        }
+        },
         "protocols": {
           "protocol": [
             {
