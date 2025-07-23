@@ -49,14 +49,14 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 1.  DUT:Port1 and DUT:Port2 are configured as LAG1 towards ATE:Port1 and
     ATE:Port2 respectively.
 
-3.  DUT:LAG1 and ATE:LAG1 are configured with subinterfaces DUT:LAG1.10 and
+2.  DUT:LAG1 and ATE:LAG1 are configured with subinterfaces DUT:LAG1.10 and
     ATE:LAG1.10 respectively.
     *   Both are configured with VLAN 10.
     *   DUT:LAG1.10 is configured with VRF *vrf_name*.
     *   DUT:LAG1.10:IPv4 is 192.168.0.1/30.
     *   ATE:LAG1.10:IPv4 is 192.168.0.2/30.
 
-2.  DUT:Port3 and DUT:Port4 are configured as LAG2 towards ATE:Port3 and
+3.  DUT:Port3 and DUT:Port4 are configured as LAG2 towards ATE:Port3 and
     ATE:Port4 respectively.
     *   DUT:LAG2:IPv4 is 192.168.1.1/30.
     *   ATE:LAG2:IPv4 is 192.168.1.2/30.
@@ -64,7 +64,7 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 4.  DUT is configured with default route with nexthop as ATE:LAG2:IPv4. This
     is to ensure the tunnel destination of the MPLSoGRE tunnel is resolvable.
 
-6.  DUT is configured with nexthop-group named *nexthop_group*. The nexthops of
+5.  DUT is configured with nexthop-group named *nexthop_group*. The nexthops of
     this nexthop-group are configured as MPLSoGRE IPv4 tunnels:
     *   Outer TTL value: "tunnel_ip_ttl"
     *   Tunnel source: *ipv4_tunnel_src*
