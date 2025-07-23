@@ -21,7 +21,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 1 - Generate DUT Configuration
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:128::2' in a default network-instance
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
@@ -75,7 +75,7 @@ This test verified the functionality of IPv4 static route configured to redirect
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:128::2' in a default network-instance
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a default network-instance
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
@@ -138,7 +138,7 @@ This test verified the functionality of IPv4 static route configured to redirect
     - Configure a ipv4 static route '192.168.1.0/24' with IPv4 next-hop of ATE:port3 '192.0.3.2/24' in a default network-instance
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a default network-instance
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
@@ -198,7 +198,7 @@ This test verified the functionality of IPv4 static route configured to redirect
   * Step 1 - Generate DUT Configuration
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:130::2' in a default network-instance
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
@@ -253,7 +253,7 @@ This test verified the functionality of IPv4 static route configured to redirect
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:128::2' in a non-default network-instance 'VRF1'
     - Assosiate ATE:port1 and ATE:port3 with 'VRF1'
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
@@ -324,7 +324,7 @@ This test verified the functionality of IPv4 static route configured to redirect
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a non-default network-instance 'VRF1'
     - Assosiate ATE:port1, ATE:port3 and ATE:port4 with 'VRF1'
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
@@ -410,7 +410,7 @@ This test verified the functionality of IPv4 static route configured to redirect
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port4 '2001:db8:128:129::2' in a non-default network-instance 'VRF1'
     - Assosiate ATE:Port1, ATE:port3 and ATE:port4 with 'VRF1'
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
@@ -493,7 +493,7 @@ This test verified the functionality of IPv4 static route configured to redirect
     - Configure a ipv4 static route '192.168.1.0/24' with IPv6 next-hop of ATE:port3 '2001:db8:128:130::2' in a non-default network-instance 'VRF1'
     - Assosiate ATE:port1 and ATE:port3 with VRF1
   * Step 2 - Generate ATE Configuration
-    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.1/24' with udp payload and random src/dest ports
+    - Configure IPv4 traffic profile for source '192.0.1.2/24' and destination '192.168.1.0/24' with udp payload and random src/dest ports
   * Step 3 - Traffic Test
     - Start the traffic
     - Monitor for 60 seconds
