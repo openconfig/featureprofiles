@@ -65,24 +65,24 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 4.  DUT is configured with default route with nexthop as ATE:LAG2:IPv4. This
     is to ensure the tunnel destination of the MPLSoGRE tunnel is resolvable.
 
-5.  DUT is configured with nexthop-group named *nexthop_group*. The nexthops of
+5.  DUT is configured with nexthop-group named `nexthop_group`. The nexthops of
     this nexthop-group are configured as MPLSoGRE IPv4 tunnels:
-    *   Outer TTL value: *tunnel_ip_ttl*
-    *   Tunnel source: *ipv4_tunnel_src*
-    *   Tunnel destination: *ipv4_tunnel_dst_a* or *ipv4_tunnel_dst_b*
-    *   MPLS label: *mpls_label*
+    *   Outer TTL value: `tunnel_ip_ttl`
+    *   Tunnel source: `ipv4_tunnel_src`
+    *   Tunnel destination: `ipv4_tunnel_dst_a` or `ipv4_tunnel_dst_b`
+    *   MPLS label: `mpls_label`
 
 6.  DUT is configured with a policy-forwarding in `vrf_name` with this rule:
     *   Match condition:
         *    Matching on IPv4 traffic with TTL "matching_ip_ttl"
     *   Actions:
-        *   Forward to nexthop-group *nexthop_group*
-        *   Inner TTL rewritten as *rewritten_ip_ttl*
+        *   Forward to nexthop-group `nexthop_group`
+        *   Inner TTL rewritten as `rewritten_ip_ttl`
 
 7.  Repeat step 6 but for IPv6 traffic.
 
 8.  DUT is configured with default routes (one for IPv4 and one for IPv6) in
-    `vrf_name` with nexthop as nexthop-group *nexthop_group*.
+    `vrf_name` with nexthop as nexthop-group `nexthop_group`.
 
 ## Procedure
 
@@ -94,31 +94,31 @@ for IPv4 traffic.
 ATE action:
 *   Generate total 10,000,000 **IPv4 packets** from ATE:Port1 and ATE:Port2
     with:
-    *   Source IP from random addresses in *matched_ipv4_src_net* to destination
-        IP addresses in *ipv4_dst_net* addresses.
+    *   Source IP from random addresses in `matched_ipv4_src_net` to destination
+        IP addresses in `ipv4_dst_net` addresses.
     *   Use 512 bytes frame size.
-    *   Set TTL of all packets to *matched_ip_ttl*.
+    *   Set TTL of all packets to `matched_ip_ttl`.
 
 *   Generate total 10,000,000 **IPv4 packets** from ATE:Port1 and ATE:Port2
     with:
-    *   Source IP from random addresses in *unmatched_ipv4_src_net* to
-        destination IP addresses in *ipv4_dst_net* addresses.
+    *   Source IP from random addresses in `unmatched_ipv4_src_net` to
+        destination IP addresses in `ipv4_dst_net` addresses.
     *   Use 512 bytes frame size.
-    *   Set TTL of all packets to *unmatched_ip_ttl*.
+    *   Set TTL of all packets to `unmatched_ip_ttl`.
 
 Verify:
 *   The total packet count of traffic sent from ATE:Port1 and ATE:Port2 should
     be equal to the sum of all packets received on ATE:Port3 and ATE:Port4.
 *   All packets received on ATE:Port3 and ATE:Port4 are encapsulated with
     MPLSoGRE IPv4 with:
-    *   MPLS label: *mpls_label*
-    *   Source IPv4 address: *ipv4_tunnel_src*
-    *   Destination IPv4 address: *ipv4_tunnel_dst_a* or *ipv4_tunnel_dst_b*
-    *   Tunnel IP TTL: *tunnel_ip_ttl*
-*   Packets with source IPv4 addresses from subnet *matched_ipv4_src_net" has
-    inner IP TTL set to *rewritten_ip_ttl*.
-*   Packets with source IPv4 addresses from subnet *unmatched_ipv4_src_net* has
-    inner IP TTL set to *unmatched_ip_ttl* - 1.
+    *   MPLS label: `mpls_label`
+    *   Source IPv4 address: `ipv4_tunnel_src`
+    *   Destination IPv4 address: `ipv4_tunnel_dst_a` or `ipv4_tunnel_dst_b`
+    *   Tunnel IP TTL: `tunnel_ip_ttl`
+*   Packets with source IPv4 addresses from subnet `matched_ipv4_src_net` has
+    inner IP TTL set to `rewritten_ip_ttl`.
+*   Packets with source IPv4 addresses from subnet `unmatched_ipv4_src_net` has
+    inner IP TTL set to `unmatched_ip_ttl` - 1.
 
 ### TE-1.11.2 Rewrite the ingress innner packet TTL = 1, if the incoming TTL = 1
 for IPv6 traffic.
@@ -126,31 +126,31 @@ for IPv6 traffic.
 ATE action:
 *   Generate total 10,000,000 **IPv6 packets** from ATE:Port1 and ATE:Port2
     with:
-    *   Source IP from random addresses in *matched_ipv6_src_net* to destination
-        IP addresses in *ipv6_dst_net* addresses.
+    *   Source IP from random addresses in `matched_ipv6_src_net` to destination
+        IP addresses in `ipv6_dst_net` addresses.
     *   Use 512 bytes frame size.
-    *   Set TTL of all packets to *matched_ip_ttl*.
+    *   Set TTL of all packets to `matched_ip_ttl`.
 
 *   Generate total 10,000,000 **IPv6 packets** from ATE:Port1 and ATE:Port2
     with:
-    *   Source IP from random addresses in *unmatched_ipv6_src_net* to
-        destination IP addresses in *ipv6_dst_net* addresses.
+    *   Source IP from random addresses in `unmatched_ipv6_src_net` to
+        destination IP addresses in `ipv6_dst_net` addresses.
     *   Use 512 bytes frame size.
-    *   Set TTL of all packets to *unmatched_ip_ttl*.
+    *   Set TTL of all packets to `unmatched_ip_ttl`.
 
 Verify:
 *   The total packet count of traffic sent from ATE:Port1 and ATE:Port2 should
     be equal to the sum of all packets received on ATE:Port3 and ATE:Port4.
 *   All packets received on ATE:Port3 and ATE:Port4 are encapsulated with
     MPLSoGRE IPv4 with:
-    *   MPLS label: *mpls_label*
-    *   Source IPv4 address: *ipv4_tunnel_src*
-    *   Destination IPv4 address: *ipv4_tunnel_dst_a* or *ipv4_tunnel_dst_b*
-    *   Tunnel IP TTL: *tunnel_ip_ttl*
-*   Packets with source IPv6 addresses from subnet *matched_ipv6_src_net* has
-    inner IP TTL set to *rewritten_ip_ttl*.
-*   Packets with source IPv6 addresses from subnet *unmatched_ipv6_src_net* has
-    inner IP TTL set to *unmatched_ip_ttl* - 1.
+    *   MPLS label: `mpls_label`
+    *   Source IPv4 address: `ipv4_tunnel_src`
+    *   Destination IPv4 address: `ipv4_tunnel_dst_a` or `ipv4_tunnel_dst_b`
+    *   Tunnel IP TTL: `tunnel_ip_ttl`
+*   Packets with source IPv6 addresses from subnet `matched_ipv6_src_net` has
+    inner IP TTL set to `rewritten_ip_ttl`.
+*   Packets with source IPv6 addresses from subnet `unmatched_ipv6_src_net` has
+    inner IP TTL set to `unmatched_ip_ttl` - 1.
 
 Canonical OpenConfig for policy forwarding, matching TTL = 1 with action
 set inner packet TTL = 1.
@@ -160,9 +160,9 @@ set inner packet TTL = 1.
   "network-instances": {
     "network-instance": [
       {
-        "name": "`vrf_name`",
+        "name": "vrf_name",
         "config": {
-          "name": "`vrf_name`"
+          "name": "vrf_name"
         },
         "policy-forwarding": {
           "policies": {
@@ -182,13 +182,13 @@ set inner packet TTL = 1.
                       },
                       "ipv4": {
                         "config": {
-                          "hop-limit": *matched_ip_ttl*
+                          "hop-limit": matched_ip_ttl
                         }
                       },
                       "action": {
                         "config": {
-                          "next-hop-group": "*nexthop_group*",
-                          "ip-ttl": *rewritten_ip_ttl*
+                          "next-hop-group": "nexthop_group",
+                          "ip-ttl": rewritten_ip_ttl
                         }
                       }
                     },
@@ -199,13 +199,13 @@ set inner packet TTL = 1.
                       },
                       "ipv6": {
                         "config": {
-                          "hop-limit": *matched_ip_ttl*
+                          "hop-limit": matched_ip_ttl
                         }
                       },
                       "action": {
                         "config": {
-                          "next-hop-group": "*nexthop_group*",
-                          "ip-ttl": *rewritten_ip_ttl*
+                          "next-hop-group": "nexthop_group",
+                          "ip-ttl": rewritten_ip_ttl
                         }
                       }
                     }
@@ -219,9 +219,9 @@ set inner packet TTL = 1.
           "next-hop-groups": {
             "next-hop-group": [
               {
-                "name": "*nexthop_group*",
+                "name": "nexthop_group",
                 "config": {
-                  "name": "*nexthop_group*"
+                  "name": "nexthop_group"
                 },
                 "next-hops": {
                   "next-hop": [
@@ -259,7 +259,7 @@ set inner packet TTL = 1.
                       },
                       "mpls": {
                         "config": {
-                          "label": *mpls_label*,
+                          "label": mpls_label,
                         }
                       }
                     },
@@ -271,9 +271,9 @@ set inner packet TTL = 1.
                       },
                       "gre": {
                         "config": {
-                          "src-ip": "*ipv4_tunnel_src*",
-                          "dst-ip": "*ipv4_tunnel_dst_a*",
-                          "ttl": 64
+                          "src-ip": "ipv4_tunnel_src",
+                          "dst-ip": "ipv4_tunnel_dst_a",
+                          "ttl": tunnel_ip_ttl
                         }
                       }
                     }
@@ -295,7 +295,7 @@ set inner packet TTL = 1.
                       },
                       "mpls": {
                         "config": {
-                          "label": *mpls_label*,
+                          "label": mpls_label,
                         }
                       }
                     },
@@ -307,9 +307,9 @@ set inner packet TTL = 1.
                       },
                       "gre": {
                         "config": {
-                          "src-ip": "*ipv4_tunnel_src*",
-                          "dst-ip": "*ipv4_tunnel_dst_b*",
-                          "ttl": 64
+                          "src-ip": "ipv4_tunnel_src",
+                          "dst-ip": "ipv4_tunnel_dst_b",
+                          "ttl": tunnel_ip_ttl
                         }
                       }
                     }
@@ -329,21 +329,21 @@ set inner packet TTL = 1.
               "static-routes": {
                 "static": [
                   {
-                    "prefix": "*unmatched_ipv4_src_net*",
+                    "prefix": "unmatched_ipv4_src_net",
                     "config": {
-                      "prefix": "*unmatched_ipv4_src_net*"
+                      "prefix": "unmatched_ipv4_src_net"
                     },
                     "next-hop-group": {
-                      "name": "*nexthop_group*"
+                      "name": "nexthop_group"
                     }
                   },
                   {
-                    "prefix": "*unmatched_ipv6_src_net*",
+                    "prefix": "unmatched_ipv6_src_net",
                     "config": {
-                      "prefix": "*unmatched_ipv6_src_net*"
+                      "prefix": "unmatched_ipv6_src_net"
                     },
                     "next-hop-group": {
-                      "name": "*nexthop_group*"
+                      "name": "nexthop_group"
                     }
                   }
                 ]
