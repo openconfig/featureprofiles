@@ -51,7 +51,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
 | **nc1-2**	| 110000	|
 
 ### Baseline ATE configuration
-  - DUT has 2 VRFs, Default and Non-Default.
+  - DUT has 2 VRFs, Default and Non-Default(say B2_VRF).
   - Establish BGP sessions as shown in the DUT configuration section
   - ATE1 advertises routes shown in "ATE Route Advertisements" section
   - ATE2 advertises routes shown in "ATE Route Advertisements" section
@@ -160,7 +160,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
   * All the traffic flows MUST show no packet loss.
   * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 3to8v4_encapped, 1to6v6_encapped - 3to8v6_encapped .<br><br><br>
 
-### RT-3.3.4: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+### RT-3.3.5: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
   * ATE1:Port1 sends flow-types 1to6v4_encapped - 4to9v4_encapped, 1to6v6_encapped - 4to9v6_encapped
   * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
     * 5to10v4
@@ -170,7 +170,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
   * All the traffic flows MUST show no packet loss.
   * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 4to9v4_encapped, 1to6v6_encapped - 4to9v6_encapped .<br><br><br>
 
-### RT-3.3.4: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+### RT-3.3.6: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
   * ATE1:Port1 sends flow-types 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped
   * DUT will perform the decapsulation in Default VRF 
   * DUT receives the tunneled traffic for flow-types 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped, decaps it, does a LPM lookup on the destination prefix (IPv4Prefix6 - IPv4Prefix10, IPv6Prefix6 - IPv6Prefix10) and routes it to ATE2:Port1 via DUT:Port2
@@ -181,14 +181,20 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
 ## Canonical OpenConfig for GUEv1 Decapsulation configuration
 TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
 
-```json
-{
+```json{
     "network-instances": {
         "network-instance": {
             "config": {
                 "name": "DEFAULT"
             },
             "name": "DEFAULT",
+            "inter-instance-policies": {
+                "apply-policy" : {
+                   "config": {
+                "export-policy": BGP_EXPORT_B2_VRF
+                    }
+                }
+            }
             "policy-forwarding": {
                 "policies": {
                     "policy": [
@@ -225,9 +231,121 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                 }
             }
         }
+        "network-instance": {
+            "config": {
+                "name": "B2_VRF"
+            },
+            "name": "B2_VRF",
+            "inter-instance-policies": {
+                "apply-policy" : {
+                   "config": {
+                "import-policy": BGP_EXPORT_B2_VRF
+                    }
+                }
+            }
+        }
     }
 }
-
+routing-policy {
+    "routing-policy": {
+        "policy-definitions": {
+            "policy-definition": [
+                {
+                    "statements": {
+                        "statement": [
+                            {
+                                "actions": {
+                                    "config": {
+                                        "policy-result": ACCEPT_ROUTE
+                                    }
+                                },
+                                "config": {
+                                    "name": "IPv4Prefix_IBGP_EXPORT"
+                                },
+                                "name": "advertise-prod-internal",
+                                "conditions": {
+                                    "match-prefix-set": {
+                                        "prefix-set": IPv4Prefixes_IBGP
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "statements": {
+                        "statement": [
+                            {
+                                "actions": {
+                                    "config": {
+                                        "policy-result": ACCEPT_ROUTE
+                                    }
+                                },
+                                "config": {
+                                    "name": "IPv6Prefix_IBGP_EXPORT"
+                                },
+                                "name": "IPv6Prefix_IBGP_EXPORT",
+                                "conditions": {
+                                    "match-prefix-set": {
+                                        "prefix-set": IPv6Prefixes_IBGP
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "config": {
+                        "name": "URPF-IN"
+                    },
+                    "name": "URPF-IN"
+                }
+            ]
+        },
+    }
+    "defined-sets": {
+        "prefix-sets": {
+            "prefix-set": [
+                {
+                    "prefixes": {
+                        "prefix": [
+                            {
+                                "masklength-range": "24",
+                                "ip-prefix": "0.0.0.0/0",
+                                "config": {
+                                    "masklength-range": "24",
+                                    "ip-prefix": "0.0.0.0/0"
+                                }
+                            }
+                        ]
+                    },
+                    "prefix-set-name": "IPv4Prefixes_IBGP",
+                    "config": {
+                        "prefix-set-name": "IPv4Prefixes_IBGP"
+                    }
+                }
+            ]
+        }
+        "prefix-sets": {
+            "prefix-set": [
+                {
+                    "prefixes": {
+                        "prefix": [
+                            {
+                                "masklength-range": "64",
+                                "ip-prefix": "::/0",
+                                "config": {
+                                    "masklength-range": "64",
+                                    "ip-prefix": "::/0"
+                                }
+                            }
+                        ]
+                    },
+                    "prefix-set-name": "IPv6Prefixes_IBGP",
+                    "config": {
+                        "prefix-set-name": "IPv6Prefixes_IBGP"
+                    }
+                }
+            ]
+        }
+    }
+}
 ```
 ## OpenConfig Path and RPC Coverage
 ```yaml
@@ -238,6 +356,23 @@ paths:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
+/network-instances/network-instance/inter-instance-policies/apply-policy/config/export-policy:
+/network-instances/network-instance/inter-instance-policies/apply-policy/config/import-policy:
+
+/routing-policy/policy-definitions/policy-definition/config/name:
+/routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+/routing-policy/policy-definitions/policy-definition/statements/statement/name/actions/policy-result:
+/routing-policy/policy-definitions/policy-definition/statements/conditions/oc-bgp-pol:bgp-conditions/oc-bgp-pol:match-community-set
+
+/routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/prefix-set:
+/routing-policy/policy-definitions/policy-definition/config/name:
+/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/masklength-range:
+/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/ip-prefix:
+/routing-policy/defined-sets/prefix-sets/prefix-set/config/masklength-range:
+/routing-policy/defined-sets/prefix-sets/prefix-set/config/ip-prefix:
+/routing-policy/defined-sets/prefix-sets/prefix-set/config/prefix-set-name:
 
 # telemetry
 /interfaces/interface/state/counters/out-pkts:
