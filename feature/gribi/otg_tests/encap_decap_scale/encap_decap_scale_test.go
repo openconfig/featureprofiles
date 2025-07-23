@@ -368,7 +368,7 @@ func createIPv6Entries(startIP string, count uint64) []string {
 
 // pushEncapEntries pushes IP entries in a specified Encap VRFs and tunnel VRFs.
 // The entries in the encap VRFs should point to NextHopGroups in the DEFAULT VRF.
-// Inject 200 such NextHopGroups in the DEFAULT VRF. Each NextHopGroup should have
+// Inject 800 such NextHopGroups in the DEFAULT VRF. Each NextHopGroup should have
 // 8 NextHops where each NextHop points to a tunnel in the TE_VRF_111.
 // In addition, the weights specified in the NextHopGroup should be co-prime and the
 // sum of the weights should be 16.
@@ -1009,6 +1009,7 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 	// Install decapIPv4ScaleCount entries with fixed prefix length of /32 in DECAP_TE_VRF.
 	decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
 	pushDecapScaleEntries(t, args, decapScaleEntries)
+
 	// Send traffic and verify packets to DUT-1.
 	createAndSendTrafficFlows(t, args, decapScaleEntries)
 }

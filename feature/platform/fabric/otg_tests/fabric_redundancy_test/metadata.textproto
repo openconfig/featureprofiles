@@ -3,5 +3,32 @@
 
 uuid: "261d317f-9bcc-43f9-a412-295ae6c008cf"
 plan_id: "gNMI-1.16"
-description: "fabric redundancy test"
+description: "Fabric redundnacy test"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    missing_value_for_defaults: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    missing_value_for_defaults: true
+    default_network_instance: "default"
+    omit_l2_mtu:  true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    config_leaf_create_required: true
+  }
+}
