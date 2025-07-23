@@ -618,7 +618,7 @@ func TestAFTReboot(t *testing.T) {
 		}
 		bootTime, ok := tc.bootTime(t)
 		if !ok || bootTime <= initialBootTime {
-			t.Infof("Boot time is not updated yet. Iteration %d", i)
+			t.Logf("Boot time is not updated yet. Iteration %d", i)
 			time.Sleep(sleepDuration)
 			continue
 		}
