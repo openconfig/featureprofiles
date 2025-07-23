@@ -330,18 +330,18 @@ Verify:
               "static-routes": {
                 "static": [
                   {
-                    "prefix": "unmatched_ipv4_src_net",
+                    "prefix": "0.0.0.0/0",
                     "config": {
-                      "prefix": "unmatched_ipv4_src_net"
+                      "prefix": "0.0.0.0/0"
                     },
                     "next-hop-group": {
                       "name": "NHG-1"
                     }
                   },
                   {
-                    "prefix": "unmatched_ipv6_src_net",
+                    "prefix": "::/0",
                     "config": {
-                      "prefix": "unmatched_ipv6_src_net"
+                      "prefix": "::/0"
                     },
                     "next-hop-group": {
                       "name": "NHG-1"
