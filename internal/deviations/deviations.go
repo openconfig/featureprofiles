@@ -1458,6 +1458,11 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
 
+// PolicyForwardingToNextHopOcUnsupported returns true if policy forwarding to next hop is not supported on vendors
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
+}
+
 // BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
@@ -1546,4 +1551,29 @@ func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
 // NtpSourceAddressUnsupported returns true if NTP source address is not supported
 func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
+}
+
+// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
+
+// GreDecapsulationUnsupported returns true if decapsulation is not supported
+func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
+}
+
+// SRLB and SRGB configuration does not effective with OC config
+func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
+}
+
+// Isis Prefix Segment config does not supported
+func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrPrefixSegmentConfigUnsupported()
+}
+
+// Isis Node Segment Configuration do not supported
+func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
