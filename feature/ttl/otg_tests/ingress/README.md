@@ -197,10 +197,19 @@ TODO: New OC paths to be proposed are present in below JSON
                                                 }
                                             },
                                             "action": {
-                                                "config": {
-                                                    "count": true,
-                                                    "next-hop-group": "customer1_gre_encap_v4_nhg"
+                                              "encapsulate-gre": {
+                                                "targets": {
+                                                  "target": [
+                                                    {
+                                                      "config": {
+                                                        "destination": "10.10.10.1/32",
+                                                        "id": "Destination-A"
+                                                      },
+                                                      "id": "Destination-A"
+                                                    }
+                                                  ]
                                                 }
+                                              }
                                             }
                                         }
                                     ]
@@ -209,52 +218,6 @@ TODO: New OC paths to be proposed are present in below JSON
                         ]
                     }
                 },
-                "static": {
-                    "next-hop-groups": {
-                        "net-hop-group": [
-                            {
-                                "config": {
-                                    "name": "customer1_gre_encap_v4_nhg"
-                                },
-                                "name": "customer1_gre_encap_v4_nhg",
-                                "next-hops": {
-                                    "next-hop": [
-                                        {
-                                            "index": 1,
-                                            "config": {
-                                                "index": 1
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    },
-                    "next-hops": {
-                        "next-hop": [
-                            {
-                                "index": 1,
-                                "config": {
-                                    "index": 1,
-                                    "encap-headers": {
-                                        "encap-header": [
-                                            {
-                                                "index": 1,
-                                                "type": "GRE",
-                                                "config": {
-                                                    "dst-ip": "outer_ipv4_dst",
-                                                    "src-ip": "outer_ipv4_src",
-                                                    "dscp": "outer_dscp",
-                                                    "ip-ttl": "outer_ip-ttl"
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                }
             }
         ]
     }
@@ -271,7 +234,8 @@ paths:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
-  /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/id:
 
   # Telemetry
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
