@@ -228,17 +228,16 @@ Verify:
                 "config": {
                   "name": "ENCAPNHG1"
                 },
-                "name": {
-                  "next-hops": {
-                    "next-hop": [
-                      {
-                        "config": {
-                          "index": "0"
-                        },
+                "name": "ENCAPNHG1",
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "config": {
                         "index": "0"
-                      }
-                    ]
-                  }
+                      },
+                      "index": "0"
+                    }
+                  ]
                 }
               }
             ]
