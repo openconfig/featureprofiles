@@ -47,8 +47,6 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
 | **af2** 	| 010000	|
 | **af3**	| 011000	|
 | **af4** 	| 100000	| 
-| **nc1-1**	| 111000	|
-| **nc1-2**	| 110000	|
 
 ### Baseline ATE configuration
   - DUT has 2 VRFs, Default and Non-Default(say B2_VRF).
