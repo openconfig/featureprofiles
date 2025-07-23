@@ -221,14 +221,41 @@ Verify:
           "name": "DEFAULT"
         },
         "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "config": {
+                "identifier": "STATIC",
+                "name": "STATIC"
+              },
+              "identifier": "STATIC",
+              "name": "STATIC",
+              "static-routes": {
+                "static": [
+                  {
+                    "config": {
+                      "prefix": "fc00:10::1/128"
+                    },
+                    "next-hop-group": {
+                      "config": {
+                        "name": "ENCAP-NHG-1"
+                      }
+                    },
+                    "prefix": "fc00:10::1/128"
+                  }
+                ]
+              }
+            }
+          ]
+        },
         "static": {
           "next-hop-groups": {
             "next-hop-group": [
               {
                 "config": {
-                  "name": "ENCAPNHG1"
+                  "name": "ENCAP-NHG-1"
                 },
-                "name": "ENCAPNHG1",
+                "name": "ENCAP-NHG-1",
                 "next-hops": {
                   "next-hop": [
                     {
@@ -252,54 +279,26 @@ Verify:
                   "encap-header": [
                     {
                       "config": {
-                        "index": 0,
-                        "type": "UDPV4"
+                        "index": 0
                       },
+                      "index": 0,
                       "udp-v4": {
                         "config": {
                           "dscp": 32,
                           "dst-ip": "10.50.50.1",
-                          "dst-udp-port": "6080",
+                          "dst-udp-port": 6080,
                           "ip-ttl": 64,
                           "src-ip": "10.5.5.5",
-                          "src-udp-port": "49152"
+                          "src-udp-port": 49152
                         }
                       }
                     }
                   ]
-                }
+                },
+                "index": "0"
               }
             ]
           }
-        },
-        "protocols": {
-          "protocol": [
-            {
-              "config": {
-                "identifier": "STATIC",
-                "name": "STATIC"
-              },
-              "identifier": "STATIC",
-              "name": "STATIC",
-              "static-routes": {
-                "static": [
-                  {
-                    "config": {
-                      "prefix": "fc00:10::1/128"
-                    },
-                    "prefix": "fc00:10::1/128",
-                    "next-hop-group": [
-                      {
-                        "config": {
-                          "name": "ENCAPNHG1"
-                        }
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ]
         }
       }
     ]
