@@ -254,7 +254,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                                 {
                                     "actions": {
                                         "config": {
-                                            "policy-result": "ACCEPT_ROUTE"
+                                            "policy-result": ACCEPT_ROUTE
                                         }
                                     },
                                     "config": {
@@ -274,7 +274,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                                 {
                                     "actions": {
                                         "config": {
-                                            "policy-result": "ACCEPT_ROUTE"
+                                            "policy-result": ACCEPT_ROUTE
                                         }
                                     },
                                     "config": {
@@ -304,10 +304,10 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                         "prefixes": {
                             "prefix": [
                                 {
-                                    "masklength-range": 24,
+                                    "masklength-range": "24",
                                     "ip-prefix": "0.0.0.0/0",
                                     "config": {
-                                        "masklength-range": 24,
+                                        "masklength-range": "24",
                                         "ip-prefix": "0.0.0.0/0"
                                     }
                                 }
@@ -326,10 +326,10 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                         "prefixes": {
                             "prefix": [
                                 {
-                                    "masklength-range": 64,
+                                    "masklength-range": "64",
                                     "ip-prefix": "::/0",
                                     "config": {
-                                        "masklength-range": 64,
+                                        "masklength-range": "64",
                                         "ip-prefix": "::/0"
                                     }
                                 }
