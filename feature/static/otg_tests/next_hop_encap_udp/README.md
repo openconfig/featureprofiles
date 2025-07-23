@@ -217,7 +217,10 @@ Verify:
   "network-instances": {
     "network-instance": [
       {
-        "name": "default",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
         "static": {
           "next-hop-groups": {
             "next-hop-group": [
@@ -230,8 +233,9 @@ Verify:
                   "next-hop": [
                     {
                       "config": {
-                        "index": 0
-                      }
+                        "index": "0"
+                      },
+                      "index": "0"
                     }
                   ]
                 }
@@ -242,7 +246,7 @@ Verify:
             "next-hop": [
               {
                 "config": {
-                  "index": 0
+                  "index": "0"
                 },
                 "encap-headers": {
                   "encap-header": [
