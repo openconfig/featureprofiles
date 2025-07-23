@@ -275,11 +275,18 @@ Verify:
         "protocols": {
           "protocol": [
             {
+              "config": {
+                "identifier": "STATIC",
+                "name": "STATIC"
+              },
               "identifier": "STATIC",
               "name": "STATIC",
               "static-routes": {
                 "static": [
                   {
+                    "config": {
+                      "prefix": "fc00:10::1/128"
+                    },
                     "prefix": "fc00:10::1/128",
                     "next-hop-group": [
                       {
