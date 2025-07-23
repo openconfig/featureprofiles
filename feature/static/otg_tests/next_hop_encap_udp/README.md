@@ -225,6 +225,7 @@ Verify:
                 "config": {
                   "name": "ENCAP-NHG-1"
                 },
+                "name": "ENCAP-NHG-1",
                 "next-hops": {
                   "next-hop": [
                     {
