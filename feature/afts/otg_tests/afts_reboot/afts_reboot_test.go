@@ -494,12 +494,6 @@ func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook)
 	return aft, nil
 }
 
-func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
-	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(state)
-	tc.ate.OTG().SetControlState(t, portStateAction)
-}
-
 func (tc *testCase) bootTime(t *testing.T) (uint64, bool) {
 	bootTimePath := gnmi.OC().System().BootTime().State()
 	val, _ := gnmi.Watch(t, tc.dut, bootTimePath, gnmiWaitTime, func(val *ygnmi.Value[uint64]) bool {
