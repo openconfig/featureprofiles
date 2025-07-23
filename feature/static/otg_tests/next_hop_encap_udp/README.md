@@ -225,10 +225,7 @@ Verify:
           "next-hop-groups": {
             "next-hop-group": [
               {
-                "config": {
-                  "name": "ENCAP-NHG-1"
-                },
-                "name": "ENCAP-NHG-1",
+                "name": "ENCAPNHG1",
                 "next-hops": {
                   "next-hop": [
                     {
@@ -291,7 +288,7 @@ Verify:
                     "next-hop-group": [
                       {
                         "config": {
-                          "name": "ENCAP-NHG-1"
+                          "name": "ENCAPNHG1"
                         }
                       }
                     ]
