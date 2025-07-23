@@ -179,7 +179,8 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
 ## Canonical OC
 TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
 
-```json{
+```json
+{
     "network-instances": {
         "network-instance": {
             "config": {
@@ -343,6 +344,7 @@ routing-policy {
             ]
         }
     }
+}
 }
 ```
 
