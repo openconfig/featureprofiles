@@ -176,7 +176,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
   * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped .<br><br><br>
 
 
-## Canonical OpenConfig for GUEv1 Decapsulation configuration
+## Canonical OC
 TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
 
 ```json{
@@ -360,7 +360,7 @@ paths:
 /routing-policy/policy-definitions/policy-definition/config/name:
 /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 /routing-policy/policy-definitions/policy-definition/statements/statement/name/actions/policy-result:
-/routing-policy/policy-definitions/policy-definition/statements/conditions/oc-bgp-pol:bgp-conditions/oc-bgp-pol:match-community-set
+/routing-policy/policy-definitions/policy-definition/statements/conditions/oc-bgp-pol:bgp-conditions/oc-bgp-pol:match-community-set:
 
 /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
