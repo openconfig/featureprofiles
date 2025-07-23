@@ -28,22 +28,22 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 *   Traffic is encapsulated with MPLSoGRE IPv4 and forwarded using ATE:LAG2
     [ATE:Port3 and ATE:Port4]
 *   Constants:
-    *   vrf_name               = "test_vrf"
-    *   matched_ipv4_src_net   = "10.10.50.0/24"
-    *   unmatched_ipv4_src_net = "10.10.51.0/24"
-    *   ipv4_dst_net           = "10.10.52.0/24"
-    *   matched_ipv6_src_net   = "2001:f:a::0/120"
-    *   unmatched_ipv6_src_net = "2001:f:b::0/120"
-    *   ipv6_dst_net           = "2001:f:c::0/120"
-    *   ipv4_tunnel_src        = "10.100.100.1"
-    *   ipv4_tunnel_dst_a      = "10.100.101.1"
-    *   ipv4_tunnel_dst_b      = "10.100.102.1"
-    *   tunnel_ip_ttl          = "64"
-    *   matched_ip_ttl         = "1"
-    *   unmatched_ip_ttl       = "32"
-    *   rewritten_ip_ttl       = "1"
-    *   mpls_label             = "100"
-    *   nexthop_group          = "NHG-1"
+    *   `vrf_name`               = "test_vrf"
+    *   `matched_ipv4_src_net`   = "10.10.50.0/24"
+    *   `unmatched_ipv4_src_net` = "10.10.51.0/24"
+    *   `ipv4_dst_net`           = "10.10.52.0/24"
+    *   `matched_ipv6_src_net`   = "2001:f:a::0/120"
+    *   `unmatched_ipv6_src_net` = "2001:f:b::0/120"
+    *   `ipv6_dst_net`           = "2001:f:c::0/120"
+    *   `ipv4_tunnel_src`        = "10.100.100.1"
+    *   `ipv4_tunnel_dst_a`      = "10.100.101.1"
+    *   `ipv4_tunnel_dst_b`      = "10.100.102.1"
+    *   `tunnel_ip_ttl`          = "64"
+    *   `matched_ip_ttl`         = "1"
+    *   `unmatched_ip_ttl`       = "32"
+    *   `rewritten_ip_ttl`       = "1"
+    *   `mpls_label`             = "100"
+    *   `nexthop_group`          = "NHG-1"
 
 ### Configuration
 
@@ -53,7 +53,7 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 2.  DUT:LAG1 and ATE:LAG1 are configured with subinterfaces DUT:LAG1.10 and
     ATE:LAG1.10 respectively.
     *   Both are configured with VLAN 10.
-    *   DUT:LAG1.10 is configured with VRF *vrf_name*.
+    *   DUT:LAG1.10 is configured with VRF `vrf_name`.
     *   DUT:LAG1.10:IPv4 is 192.168.0.1/30.
     *   ATE:LAG1.10:IPv4 is 192.168.0.2/30.
 
@@ -67,12 +67,12 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 
 5.  DUT is configured with nexthop-group named *nexthop_group*. The nexthops of
     this nexthop-group are configured as MPLSoGRE IPv4 tunnels:
-    *   Outer TTL value: "tunnel_ip_ttl"
+    *   Outer TTL value: *tunnel_ip_ttl*
     *   Tunnel source: *ipv4_tunnel_src*
     *   Tunnel destination: *ipv4_tunnel_dst_a* or *ipv4_tunnel_dst_b*
     *   MPLS label: *mpls_label*
 
-6.  DUT is configured with a policy-forwarding in *vrf_name* with this rule:
+6.  DUT is configured with a policy-forwarding in `vrf_name` with this rule:
     *   Match condition:
         *    Matching on IPv4 traffic with TTL "matching_ip_ttl"
     *   Actions:
@@ -82,7 +82,7 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 7.  Repeat step 6 but for IPv6 traffic.
 
 8.  DUT is configured with default routes (one for IPv4 and one for IPv6) in
-    *vrf_name* with nexthop as nexthop-group *nexthop_group*.
+    `vrf_name` with nexthop as nexthop-group *nexthop_group*.
 
 ## Procedure
 
@@ -117,7 +117,7 @@ Verify:
     *   Tunnel IP TTL: *tunnel_ip_ttl*
 *   Packets with source IPv4 addresses from subnet *matched_ipv4_src_net" has
     inner IP TTL set to *rewritten_ip_ttl*.
-*   Packets with source IPv4 addresses from subnet *unmatched_ipv4_src_net" has
+*   Packets with source IPv4 addresses from subnet *unmatched_ipv4_src_net* has
     inner IP TTL set to *unmatched_ip_ttl* - 1.
 
 ### TE-1.11.2 Rewrite the ingress innner packet TTL = 1, if the incoming TTL = 1
@@ -147,9 +147,9 @@ Verify:
     *   Source IPv4 address: *ipv4_tunnel_src*
     *   Destination IPv4 address: *ipv4_tunnel_dst_a* or *ipv4_tunnel_dst_b*
     *   Tunnel IP TTL: *tunnel_ip_ttl*
-*   Packets with source IPv6 addresses from subnet *matched_ipv6_src_net" has
+*   Packets with source IPv6 addresses from subnet *matched_ipv6_src_net* has
     inner IP TTL set to *rewritten_ip_ttl*.
-*   Packets with source IPv6 addresses from subnet *unmatched_ipv6_src_net" has
+*   Packets with source IPv6 addresses from subnet *unmatched_ipv6_src_net* has
     inner IP TTL set to *unmatched_ip_ttl* - 1.
 
 Canonical OpenConfig for policy forwarding, matching TTL = 1 with action
@@ -160,9 +160,9 @@ set inner packet TTL = 1.
   "network-instances": {
     "network-instance": [
       {
-        "name": "*vrf_name*",
+        "name": "`vrf_name`",
         "config": {
-          "name": "*vrf_name*"
+          "name": "`vrf_name`"
         },
         "policy-forwarding": {
           "policies": {
@@ -271,8 +271,8 @@ set inner packet TTL = 1.
                       },
                       "gre": {
                         "config": {
-                          "src-ip": "ipv4_tunnel_src,
-                          "dst-ip": "ipv4_tunnel_dst_a",
+                          "src-ip": "*ipv4_tunnel_src*",
+                          "dst-ip": "*ipv4_tunnel_dst_a*",
                           "ttl": 64
                         }
                       }
@@ -307,8 +307,8 @@ set inner packet TTL = 1.
                       },
                       "gre": {
                         "config": {
-                          "src-ip": "ipv4_tunnel_src,
-                          "dst-ip": "ipv4_tunnel_dst_b",
+                          "src-ip": "*ipv4_tunnel_src*",
+                          "dst-ip": "*ipv4_tunnel_dst_b*",
                           "ttl": 64
                         }
                       }
