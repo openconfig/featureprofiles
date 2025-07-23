@@ -322,9 +322,9 @@ set inner packet TTL = 1.
         "protocols": {
           "protocol": [
             {
-              "identifier": STATIC,
+              "identifier": "STATIC",
               "config": {
-                "identifier": STATIC
+                "identifier": "STATIC"
               },
               "static-routes": {
                 "static": [
