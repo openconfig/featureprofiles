@@ -160,9 +160,9 @@ set inner packet TTL = 1.
   "network-instances": {
     "network-instance": [
       {
-        "name": "vrf_name",
+        "name": "test_vrf",
         "config": {
-          "name": "vrf_name"
+          "name": "test_vrf"
         },
         "policy-forwarding": {
           "policies": {
@@ -178,34 +178,34 @@ set inner packet TTL = 1.
                     {
                       "sequence-id": 1,
                       "config": {
-                        "sequence-id": 1,
+                        "sequence-id": 1
                       },
                       "ipv4": {
                         "config": {
-                          "hop-limit": matched_ip_ttl
+                          "hop-limit": 1
                         }
                       },
                       "action": {
                         "config": {
-                          "next-hop-group": "nexthop_group",
-                          "ip-ttl": rewritten_ip_ttl
+                          "next-hop-group": "NHG-1",
+                          "ip-ttl": 1
                         }
                       }
                     },
                     {
                       "sequence-id": 2,
                       "config": {
-                        "sequence-id": 2,
+                        "sequence-id": 2
                       },
                       "ipv6": {
                         "config": {
-                          "hop-limit": matched_ip_ttl
+                          "hop-limit": 1
                         }
                       },
                       "action": {
                         "config": {
-                          "next-hop-group": "nexthop_group",
-                          "ip-ttl": rewritten_ip_ttl
+                          "next-hop-group": "NHG-1",
+                          "ip-ttl": 1
                         }
                       }
                     }
@@ -219,9 +219,9 @@ set inner packet TTL = 1.
           "next-hop-groups": {
             "next-hop-group": [
               {
-                "name": "nexthop_group",
+                "name": "NHG-1",
                 "config": {
-                  "name": "nexthop_group"
+                  "name": "NHG-1"
                 },
                 "next-hops": {
                   "next-hop": [
@@ -259,7 +259,7 @@ set inner packet TTL = 1.
                       },
                       "mpls": {
                         "config": {
-                          "label": mpls_label,
+                          "label": 100
                         }
                       }
                     },
@@ -271,9 +271,9 @@ set inner packet TTL = 1.
                       },
                       "gre": {
                         "config": {
-                          "src-ip": "ipv4_tunnel_src",
-                          "dst-ip": "ipv4_tunnel_dst_a",
-                          "ttl": tunnel_ip_ttl
+                          "src-ip": "10.100.100.1",
+                          "dst-ip": "10.100.101.1",
+                          "ttl": 64
                         }
                       }
                     }
@@ -295,7 +295,7 @@ set inner packet TTL = 1.
                       },
                       "mpls": {
                         "config": {
-                          "label": mpls_label,
+                          "label": 100
                         }
                       }
                     },
@@ -307,9 +307,9 @@ set inner packet TTL = 1.
                       },
                       "gre": {
                         "config": {
-                          "src-ip": "ipv4_tunnel_src",
-                          "dst-ip": "ipv4_tunnel_dst_b",
-                          "ttl": tunnel_ip_ttl
+                          "src-ip": "10.100.100.1",
+                          "dst-ip": "10.100.102.1",
+                          "ttl": 64
                         }
                       }
                     }
@@ -323,8 +323,10 @@ set inner packet TTL = 1.
           "protocol": [
             {
               "identifier": "STATIC",
+              "name": "STATIC",
               "config": {
-                "identifier": "STATIC"
+                "identifier": "STATIC",
+                "name": "STATIC"
               },
               "static-routes": {
                 "static": [
@@ -334,7 +336,7 @@ set inner packet TTL = 1.
                       "prefix": "unmatched_ipv4_src_net"
                     },
                     "next-hop-group": {
-                      "name": "nexthop_group"
+                      "name": "NHG-1"
                     }
                   },
                   {
@@ -343,7 +345,7 @@ set inner packet TTL = 1.
                       "prefix": "unmatched_ipv6_src_net"
                     },
                     "next-hop-group": {
-                      "name": "nexthop_group"
+                      "name": "NHG-1"
                     }
                   }
                 ]
