@@ -24,9 +24,10 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
                                              -------
 ```
 
-*   Traffic is generated from ATE:Port1 and ATE:Port2
-*   Traffic is encapsulated with MPLSoGRE and forwarded using ATE:Port2-5
-*   Variables:
+*   Traffic is generated from ATE:LAG1 [ATE:Port1 and ATE:Port2]
+*   Traffic is encapsulated with MPLSoGRE IPv4 and forwarded using ATE:LAG2
+    [ATE:Port3 and ATE:Port4]
+*   Constants:
     *   vrf_name               = "test_vrf"
     *   matched_ipv4_src_net   = "10.10.50.0/24"
     *   unmatched_ipv4_src_net = "10.10.51.0/24"
