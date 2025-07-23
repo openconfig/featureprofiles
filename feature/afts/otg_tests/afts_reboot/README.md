@@ -118,6 +118,8 @@ paths:
 rpcs:
   gnmi:
     gNMI.Subscribe:
+  gnoi:
+    system.System.Reboot:
 ```
 
 ## Canonical OC
