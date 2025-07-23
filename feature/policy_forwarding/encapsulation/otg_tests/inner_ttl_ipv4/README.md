@@ -152,8 +152,7 @@ Verify:
 *   Packets with source IPv6 addresses from subnet `unmatched_ipv6_src_net` has
     inner IP TTL set to `unmatched_ip_ttl` - 1.
 
-Canonical OpenConfig for policy forwarding, matching TTL = 1 with action
-set inner packet TTL = 1.
+## Canonical OC
 
 ```json
 {
