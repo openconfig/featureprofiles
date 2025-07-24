@@ -157,8 +157,8 @@ var (
 	// %loss tolerance for traffic received when there should be 100% loss
 	// make non-zero to allow for some packet gain
 	lossTolerance   = float32(0.0)
-	fps             = *flag.Int("fps", 100, "frames per second")
-	trafficDuration = *flag.Int("traffic_duration", 15, "traffic duration in seconds") * int(time.Second)
+	fps             = *flag.Int("fps", 100000, "frames per second")
+	trafficDuration = *flag.Int("traffic_duration", 120, "traffic duration in seconds") * int(time.Second)
 	capture_sflow   = *flag.Bool("capture_sflow", false, "enable sFlow capture")
 )
 
@@ -662,6 +662,15 @@ func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice, clusterFacing boo
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 }
 
+func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(name)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	e := i.GetOrCreateEthernet()
+	e.AutoNegotiate = ygot.Bool(false)
+	e.AggregateId = ygot.String(bundleID)
+	return i
+}
+
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
@@ -671,7 +680,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	p5 := dut.Port(t, "port5")
 
 	// configure interfaces
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+
+	be1 := dutPort1.NewOCInterface("Bundle-Ether1", dut)
+	be1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	// gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+	gnmi.Replace(t, dut, d.Interface("Bundle-Ether1").Config(), be1)
+
+	BE1 := generateBundleMemberInterfaceConfig(t, p1.Name(), "Bundle-Ether1")
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE1)
+
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
@@ -681,7 +699,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	configureBaseconfig(t, dut, clusterFacing)
 
 	// apply PBF to src interface.
-	applyForwardingPolicy(t, dut, p1.Name(), clusterFacing)
+	// applyForwardingPolicy(t, dut, p1.Name(), clusterFacing)
+	applyForwardingPolicy(t, dut, "Bundle-Ether1", clusterFacing)
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		staticARPWithSecondaryIP(t, dut)
 	}
