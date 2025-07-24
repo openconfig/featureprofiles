@@ -5,3 +5,24 @@ uuid: "ed774b43-ba3e-4ba9-84b7-e7bdf4d6298d"
 plan_id: "AFT-5.1"
 description: "AFTs DUT Reboot"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    isis_single_topology_required: true
+    skip_interface_name_check: true
+    link_local_instead_of_nh: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    isis_single_topology_required: true
+    low_scale_aft: true
+  }
+}
+
