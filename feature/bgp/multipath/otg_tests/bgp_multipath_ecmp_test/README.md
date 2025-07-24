@@ -10,7 +10,7 @@ Validate BGP in multipath scenario
 
 ## Procedure
 
-### Setup BGP
+### Setup
 
 *   Connect DUT port 1, 2, 3 and 4 to ATE port 1, 2, 3 and 4 respectively
 *   Configure IPv4/IPv6 addresses on the interfaces
