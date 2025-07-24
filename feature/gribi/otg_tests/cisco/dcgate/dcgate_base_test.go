@@ -159,6 +159,7 @@ var (
 	lossTolerance   = float32(0.0)
 	fps             = *flag.Int("fps", 100, "frames per second")
 	trafficDuration = *flag.Int("traffic_duration", 15, "traffic duration in seconds") * int(time.Second)
+	capture_sflow   = *flag.Bool("capture_sflow", false, "enable sFlow capture")
 )
 
 var (

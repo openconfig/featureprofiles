@@ -565,7 +565,11 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		faTransit.innerDscp = dscpEncapA1
 		faTransit.innerTtl = 50
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
+
 		args.capture_ports = []string{"port3"}
+		if capture_sflow {
+			args.capture_ports = []string{"port5"}
+		}
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
