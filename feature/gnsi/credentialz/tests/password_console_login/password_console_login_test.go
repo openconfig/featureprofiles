@@ -96,7 +96,7 @@ func TestCredentialz(t *testing.T) {
 				t.Fatalf("Telemetry reports password version is not correct\n\tgot: %s\n\twant: %s", got, want)
 			}
 			gotPasswordCreatedOn := userState.GetPasswordCreatedOn()
-			if got, want := gotPasswordCreatedOn, uint64(passwordCreatedOn); got != want {
+			if got, want := gotPasswordCreatedOn, uint64(passwordCreatedOn*1e9); got != want {
 				t.Fatalf("Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d", got, want)
 			}
 		})
