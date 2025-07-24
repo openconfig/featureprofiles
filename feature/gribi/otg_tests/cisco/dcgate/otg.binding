@@ -1,0 +1,122 @@
+duts:  {
+  id:  "dut"
+  config: {
+    gnmi_set_file: "dut.baseconf"
+  }
+  name:  "DUT"
+  options:  {
+    skip_verify:  true
+    username:  "cafyauto"
+    password:  "cisco123"
+  }
+  ports:  {
+    id:  "port1"
+    name:  "TenGigE0/6/0/2/0"
+    speed:  S_10GB
+  }
+  ports:  {
+    id:  "port2"
+    name:  "TenGigE0/0/0/2/0"
+    speed:  S_10GB
+  }
+  ports:  {
+    id:  "port3"
+    name:  "TenGigE0/6/0/2/2"
+    speed:  S_10GB
+  }
+  ports:  {
+    id:  "port4"
+    name:  "TenGigE0/6/0/2/3"
+    speed:  S_10GB
+  }
+  ports:  {
+    id:  "port5"
+    name:  "TenGigE0/6/0/2/1"
+    speed:  S_10GB
+  }
+  ports:  {
+    id:  "port6"
+    name:  "TenGigE0/0/0/2/1"
+    speed:  S_10GB
+  }
+  ports:  {
+    id:  "port7"
+    name:  "TenGigE0/0/0/2/2"
+    speed:  S_10GB
+  }
+  ports:  {
+    id:  "port8"
+    name:  "TenGigE0/0/0/2/3"
+    speed:  S_10GB
+  }
+  #config:  {
+  #  gnmi_set_file:  "$BASE_CONF_PATH"
+  #}
+  ssh:  {
+    target:  "10.85.84.225:57902"
+  }
+  gnmi:  {
+    target:  "10.85.84.225:57900"
+  }
+  gnoi:  {
+    target:  "10.85.84.225:57900"
+  }
+  gribi:  {
+    target:  "10.85.84.225:57900"
+  }
+  p4rt:  {
+    target:  "10.85.84.225:57900"
+  }
+  vendor:  CISCO
+  hardware_model:  "CISCO-8808"
+}
+ates:  {
+  id:  "ate"
+  name:  "ott-ucs4-b4:40058"
+  options:  {
+    username:  "admin"
+    password:  "admin"
+  }
+  ports:  {
+    id:  "port1"
+    name:  "10.85.84.155;7;3"
+  }
+  ports:  {
+    id:  "port2"
+    name:  "10.85.84.155;7;7"
+  }
+  ports:  {
+    id:  "port3"
+    name:  "10.85.84.155;7;5"
+  }
+  ports:  {
+    id:  "port4"
+    name:  "10.85.84.155;7;6"
+  }
+  ports:  {
+    id:  "port5"
+    name:  "10.85.84.155;7;4"
+  }
+  ports:  {
+    id:  "port6"
+    name:  "10.85.84.155;7;8"
+  }
+  ports:  {
+    id:  "port7"
+    name:  "10.85.84.155;7;11"
+  }
+  ports:  {
+    id:  "port8"
+    name:  "10.85.84.155;7;12"
+  }
+  gnmi:  {
+    target:  "ott-ucs4-b4:50058"
+    skip_verify:  true
+    timeout:  100
+  }
+  otg:  {
+    target:  "ott-ucs4-b4:40058"
+    insecure:  true
+    timeout:  200
+  }
+}
