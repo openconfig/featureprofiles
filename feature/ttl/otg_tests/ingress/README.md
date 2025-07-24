@@ -193,7 +193,7 @@ TODO: New OC paths to be proposed are present in below JSON
                                             },
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "inner_dst_ipv4"
+                                                    "destination-address": "192.168.1.0/24"
                                                 }
                                             },
                                             "action": {
