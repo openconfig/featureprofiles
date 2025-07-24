@@ -62,50 +62,50 @@ const (
 	vrfRepair            = "REPAIR_VRF"
 	ipv4PrefixLen        = 30
 	ipv6PrefixLen        = 126
-	trafficDuration      = 15 * time.Second
-	nhg10ID              = 10
-	nh201ID              = 201
-	nh202ID              = 202
-	nhg1ID               = 1
-	nh1ID                = 1
-	nh2ID                = 2
-	nhg2ID               = 2
-	nh10ID               = 10
-	nh11ID               = 11
-	nhg3ID               = 3
-	nh100ID              = 100
-	nh101ID              = 101
-	dscpEncapA1          = 10
-	dscpEncapA2          = 18
-	dscpEncapB1          = 20
-	dscpEncapB2          = 28
-	dscpEncapNoMatch     = 30
-	magicMac             = "02:00:00:00:00:01"
-	tunnelDstIP1         = "203.0.113.1"
-	tunnelDstIP2         = "203.0.113.2"
-	tunnelDstIP3         = "203.0.113.100"
-	ipv4OuterSrc111      = "198.51.100.111"
-	ipv4OuterSrc222      = "198.51.100.222"
-	ipv4OuterSrcIpInIp   = "198.100.200.123"
-	vipIP1               = "192.0.2.111"
-	vipIP2               = "192.0.2.222"
-	vipIP3               = "192.0.2.133"
-	innerV4DstIP         = "198.18.1.1"
-	innerV4SrcIP         = "198.18.0.255"
-	InnerV6SrcIP         = "2001:DB8::198:1"
-	InnerV6DstIP         = "2001:DB8:2:0:192::10"
-	ipv4FlowIP           = "138.0.11.8"
-	ipv4EntryPrefix      = "138.0.11.0"
-	ipv4EntryPrefixLen   = 24
-	ipv6FlowIP           = "2015:aa8::1"
-	ipv6EntryPrefix      = "2015:aa8::"
-	ipv6EntryPrefixLen   = 32
-	ratioTunEncap1       = 0.25 // 1/4
-	ratioTunEncap2       = 0.75 // 3/4
-	ratioTunEncapTol     = 0.05 // 5/100
-	ttl                  = uint32(100)
-	innerTtl             = uint32(50)
-	trfDistTolerance     = 0.02
+	// trafficDuration      = 15 * time.Second
+	nhg10ID            = 10
+	nh201ID            = 201
+	nh202ID            = 202
+	nhg1ID             = 1
+	nh1ID              = 1
+	nh2ID              = 2
+	nhg2ID             = 2
+	nh10ID             = 10
+	nh11ID             = 11
+	nhg3ID             = 3
+	nh100ID            = 100
+	nh101ID            = 101
+	dscpEncapA1        = 10
+	dscpEncapA2        = 18
+	dscpEncapB1        = 20
+	dscpEncapB2        = 28
+	dscpEncapNoMatch   = 30
+	magicMac           = "02:00:00:00:00:01"
+	tunnelDstIP1       = "203.0.113.1"
+	tunnelDstIP2       = "203.0.113.2"
+	tunnelDstIP3       = "203.0.113.100"
+	ipv4OuterSrc111    = "198.51.100.111"
+	ipv4OuterSrc222    = "198.51.100.222"
+	ipv4OuterSrcIpInIp = "198.100.200.123"
+	vipIP1             = "192.0.2.111"
+	vipIP2             = "192.0.2.222"
+	vipIP3             = "192.0.2.133"
+	innerV4DstIP       = "198.18.1.1"
+	innerV4SrcIP       = "198.18.0.255"
+	InnerV6SrcIP       = "2001:DB8::198:1"
+	InnerV6DstIP       = "2001:DB8:2:0:192::10"
+	ipv4FlowIP         = "138.0.11.8"
+	ipv4EntryPrefix    = "138.0.11.0"
+	ipv4EntryPrefixLen = 24
+	ipv6FlowIP         = "2015:aa8::1"
+	ipv6EntryPrefix    = "2015:aa8::"
+	ipv6EntryPrefixLen = 32
+	ratioTunEncap1     = 0.25 // 1/4
+	ratioTunEncap2     = 0.75 // 3/4
+	ratioTunEncapTol   = 0.05 // 5/100
+	ttl                = uint32(100)
+	innerTtl           = uint32(50)
+	trfDistTolerance   = 0.02
 	// observing on IXIA OTG: Cannot start capture on more than one port belonging to the
 	// same resource group or on more than one port behind the same front panel port in the chassis
 	otgMutliPortCaptureSupported     = false
@@ -156,8 +156,9 @@ var (
 	}
 	// %loss tolerance for traffic received when there should be 100% loss
 	// make non-zero to allow for some packet gain
-	lossTolerance = float32(0.0)
-	fps           = *flag.Int("fps", 100, "frames per second")
+	lossTolerance   = float32(0.0)
+	fps             = *flag.Int("fps", 100, "frames per second")
+	trafficDuration = *flag.Int("traffic_duration", 15, "traffic duration in seconds") * int(time.Second)
 )
 
 var (
@@ -875,7 +876,7 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	}
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
-	time.Sleep(trafficDuration)
+	time.Sleep(time.Duration(trafficDuration))
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
 }
@@ -1062,7 +1063,7 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		// 		}
 		// 	}
 		// }
-		t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
+		// t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
 		tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
 	}
 	return tunCounter

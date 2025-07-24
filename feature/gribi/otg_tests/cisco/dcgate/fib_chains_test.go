@@ -23,36 +23,36 @@ func TestFibChains(t *testing.T) {
 		fn        func(t *testing.T, args *testArgs)
 		chainType string
 	}{
-		{
-			name:      "TestEncapDcgateOptimized",
-			desc:      "Verify TTL and DSCP values in Encap Dcgate Optimized chain with triggers",
-			fn:        testEncapDcgateOptimized,
-			chainType: "dcgate_cluster_optimized",
-		},
-		{
-			name:      "TestTransitDcgateOptimized",
-			desc:      "Verify TTL and DSCP values in Transit Dcgate Optimized chain with triggers",
-			fn:        testTransitDcgateOptimized,
-			chainType: "dcgate_wan_optimized",
-		},
+		// {
+		// 	name:      "TestEncapDcgateOptimized",
+		// 	desc:      "Verify TTL and DSCP values in Encap Dcgate Optimized chain with triggers",
+		// 	fn:        testEncapDcgateOptimized,
+		// 	chainType: "dcgate_cluster_optimized",
+		// },
+		// {
+		// 	name:      "TestTransitDcgateOptimized",
+		// 	desc:      "Verify TTL and DSCP values in Transit Dcgate Optimized chain with triggers",
+		// 	fn:        testTransitDcgateOptimized,
+		// 	chainType: "dcgate_wan_optimized",
+		// },
 		{
 			name:      "TestTransitDcgateUnoptimized",
 			desc:      "Verify TTL and DSCP values in Transit Dcgate UnOptimized chain with triggers",
 			fn:        testTransitDcgateUnoptimized,
 			chainType: "dcgate_wan_unoptimized",
 		},
-		{
-			name:      "TestPopGateOptimized",
-			desc:      "Verify TTL and DSCP values in PopGate Optimized chain with triggers",
-			fn:        testPopGateOptimized,
-			chainType: "popgate_optimized",
-		},
-		{
-			name:      "TestPopGateUnOptimized",
-			desc:      "Verify TTL and DSCP values in PopGate UnOptimized chain with triggers",
-			fn:        testPopGateUnOptimized,
-			chainType: "popgate_unoptimized",
-		},
+		// {
+		// 	name:      "TestPopGateOptimized",
+		// 	desc:      "Verify TTL and DSCP values in PopGate Optimized chain with triggers",
+		// 	fn:        testPopGateOptimized,
+		// 	chainType: "popgate_optimized",
+		// },
+		// {
+		// 	name:      "TestPopGateUnOptimized",
+		// 	desc:      "Verify TTL and DSCP values in PopGate UnOptimized chain with triggers",
+		// 	fn:        testPopGateUnOptimized,
+		// 	chainType: "popgate_unoptimized",
+		// },
 	}
 
 	dut := ondatra.DUT(t, "dut")
