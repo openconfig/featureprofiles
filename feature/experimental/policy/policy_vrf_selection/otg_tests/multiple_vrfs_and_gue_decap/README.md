@@ -222,14 +222,14 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                                         "action": {
                                             "decapsulate-gue": true
                                         },
-                                    },
+                                    }
                                 ]
                             }
                         }
                     ]
                 }
             }
-        }
+        },
         "network-instance": {
             "config": {
                 "name": "B2_VRF"
@@ -318,7 +318,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                     }
                 }
             ]
-        }
+        },
         "prefix-sets": {
             "prefix-set": [
                 {
