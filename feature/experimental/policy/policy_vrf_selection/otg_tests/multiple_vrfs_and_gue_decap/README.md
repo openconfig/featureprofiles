@@ -254,7 +254,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                                 {
                                     "actions": {
                                         "config": {
-                                            "policy-result": ACCEPT_ROUTE
+                                            "policy-result": "ACCEPT_ROUTE"
                                         }
                                     },
                                     "config": {
@@ -274,7 +274,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                                 {
                                     "actions": {
                                         "config": {
-                                            "policy-result": ACCEPT_ROUTE
+                                            "policy-result": "ACCEPT_ROUTE"
                                         }
                                     },
                                     "config": {
