@@ -1429,8 +1429,8 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 		profileName := string("ECNProfile")
 		ecnEnabled := bool(true)
-		minThreshold := uint64(0)
-		maxThreshold := uint64(55)
+		minThresholdPercent := uint64(1)
+		maxThresholdPercent := uint64(2)
 		maxDropProbabilityPercent := uint8(25)
 
 		queueMgmtProfile := q.GetOrCreateQueueManagementProfile(profileName)
@@ -1438,8 +1438,8 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 		wred := queueMgmtProfile.GetOrCreateWred()
 		uniform := wred.GetOrCreateUniform()
 		uniform.SetEnableEcn(ecnEnabled)
-		uniform.SetMinThreshold(minThreshold)
-		uniform.SetMaxThreshold(maxThreshold)
+		uniform.SetMinThresholdPercent(minThresholdPercent)
+		uniform.SetMaxThresholdPercent(maxThresholdPercent)
 		uniform.SetMaxDropProbabilityPercent(maxDropProbabilityPercent)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}

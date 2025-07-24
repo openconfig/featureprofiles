@@ -10,15 +10,12 @@ platform_exceptions:  {
     vendor:  NOKIA
   }
   deviations:  {
-    explicit_port_speed:  true
     explicit_interface_in_default_vrf:  true
-    aggregate_atomic_update:  true
     static_protocol_name:  "static"
     interface_enabled:  true
-    skip_set_rp_match_set_options:  true
     skip_prefix_set_mode:  true
-    table_connections_unsupported:  true
-    skip_bgp_send_community_type:  true
+    enable_table_connections: true
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions:  {
@@ -31,6 +28,10 @@ platform_exceptions:  {
     interface_enabled: true
     static_protocol_name: "STATIC"
     same_policy_attached_to_all_afis: true
+    skip_bgp_send_community_type: true
+    default_bgp_instance_name: "BGP"
+    skip_setting_disable_metric_propagation: true
+    default_no_igp_metric_propagation: true
   }
 }
 platform_exceptions:  {
@@ -46,5 +47,19 @@ platform_exceptions:  {
     tc_attribute_propagation_unsupported: true
     tc_subscription_unsupported: true
     default_bgp_instance_name: "default"
+    bgp_set_med_action_unsupported: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor: JUNIPER
+  }
+  deviations:  {
+    skip_bgp_send_community_type: true
+    skip_setting_disable_metric_propagation: true
+    routing_policy_tag_set_embedded: true
+    bgp_community_set_refs_unsupported: true
+    bgp_set_med_action_unsupported: true
+    bgp_as_path_prepend_order_mismtach: true
   }
 }
