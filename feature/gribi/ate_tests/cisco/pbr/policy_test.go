@@ -25,6 +25,7 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2000::100:120:1:1",
 		IPv6Len: ipv6PrefixLen,
+		MAC:     "00:01:00:02:00:00", //"1.2.0",
 	}
 
 	atePort1 = attrs.Attributes{
@@ -427,13 +428,17 @@ func TestCD5PBR(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
+	configureDUT(t, dut)
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, []string{"Bundle-Ether120", "Bundle-Ether121", "Loopback0"})
+	// configure BGP on DUT
+	addBGPOC(t, dut, []string{"100.120.1.2", "100.121.1.2"})
 
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
-
 	// Disable Flowspec and Enable PBR
 	convertFlowspecToPBR(ctx, t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
