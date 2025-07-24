@@ -15,6 +15,7 @@
 package cfgplugins
 
 import (
+	"context"
 	"sort"
 	"strconv"
 	"testing"
@@ -25,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -552,5 +554,35 @@ func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
 		if want := oc.Interface_OperStatus_UP; status != want {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
+	}
+}
+
+func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, maxPrefixes uint32) {
+	gpbSetRequest := &gnmipb.SetRequest{
+		Update: []*gnmipb.Update{{
+			Path: &gnmipb.Path{
+				Elem: []*gnmipb.PathElem{
+					{Name: "network-instances"},
+					{Name: "network-instance", Key: map[string]string{"name": deviations.DefaultNetworkInstance(dut)}},
+					{Name: "protocols"},
+					{Name: "protocol", Key: map[string]string{"name": "BGP", "identifier": "BGP"}},
+					{Name: "bgp"},
+					{Name: "neighbors"},
+					{Name: "neighbor", Key: map[string]string{"neighbor-address": neighborIP}},
+					{Name: "prefix-limit"},
+					{Name: "config"},
+					{Name: "max-prefixes"},
+				},
+			},
+			Val: &gnmipb.TypedValue{
+				Value: &gnmipb.TypedValue_UintVal{
+					UintVal: uint64(maxPrefixes),
+				},
+			},
+		}},
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("Unexpected error max-prefix: %v", err)
 	}
 }
