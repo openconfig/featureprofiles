@@ -1,17 +1,16 @@
-# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "a34e386d-92f4-42a6-9565-068047d7a635"
-plan_id: "gNOI-5.4"
-description: "Chassis Reboot with Config Push Test"
-testbed: TESTBED_DUT_ATE_2LINKS
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
+uuid:  "a34e386d-92f4-42a6-9565-068047d7a635"
+plan_id:  "gNOI-3.1"
+description:  "Complete Chassis Reboot with large config push"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
   }
-  deviations: {
-    gnoi_status_empty_subcomponent: true
-    gnoi_subcomponent_path: true
+  deviations:  {
+    gnoi_status_empty_subcomponent:  true
+    gnoi_subcomponent_path:  true
   }
 }
-
