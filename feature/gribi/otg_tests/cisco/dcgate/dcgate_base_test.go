@@ -675,12 +675,14 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 func configureBundleInterfaces(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, bundleID string, dutPort *attrs.Attributes) {
 	d := gnmi.OC()
 	t.Logf("Configuring interface %s as bundle member of %s", port.Name(), bundleID)
+
+	be := dutPort.NewOCInterface(bundleID, dut)
+	be.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	gnmi.Replace(t, dut, d.Interface(bundleID).Config(), be)
+
 	bm := generateBundleMemberInterfaceConfig(t, port.Name(), bundleID)
 	gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), bm)
 
-	be := dutPort.NewOCInterface("Bundle-Ether1", dut)
-	be.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	gnmi.Replace(t, dut, d.Interface("Bundle-Ether1").Config(), be)
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
