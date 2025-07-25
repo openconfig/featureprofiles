@@ -250,51 +250,138 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 
+	dutPort6 = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "192.0.2.21",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:15",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	otgPort6 = attrs.Attributes{
+		Name:    "otgPort6",
+		MAC:     "02:00:06:01:01:01",
+		IPv4:    "192.0.2.22",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:16",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	dutPort7 = attrs.Attributes{
+		Desc:    "dutPort7",
+		IPv4:    "192.0.2.25",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:19",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	otgPort7 = attrs.Attributes{
+		Name:    "otgPort7",
+		MAC:     "02:00:07:01:01:01",
+		IPv4:    "192.0.2.26",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:1a",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	dutPort8 = attrs.Attributes{
+		Desc:    "dutPort8",
+		IPv4:    "192.0.2.29",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:1d",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	otgPort8 = attrs.Attributes{
+		Name:    "otgPort8",
+		MAC:     "02:00:08:01:01:01",
+		IPv4:    "192.0.2.30",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:1e",
+		IPv6Len: ipv6PrefixLen,
+	}
+
 	dutPort2DummyIP = attrs.Attributes{
 		Desc:    "dutPort2",
-		IPv4:    "192.0.2.21",
+		IPv4:    "192.0.2.33",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort2DummyIP = attrs.Attributes{
 		Desc:    "otgPort2",
-		IPv4:    "192.0.2.22",
+		IPv4:    "192.0.2.34",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort3DummyIP = attrs.Attributes{
 		Desc:    "dutPort3",
-		IPv4:    "192.0.2.25",
+		IPv4:    "192.0.2.37",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort3DummyIP = attrs.Attributes{
 		Desc:    "otgPort3",
-		IPv4:    "192.0.2.26",
+		IPv4:    "192.0.2.38",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort4DummyIP = attrs.Attributes{
 		Desc:    "dutPort4",
-		IPv4:    "192.0.2.29",
+		IPv4:    "192.0.2.41",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort4DummyIP = attrs.Attributes{
 		Desc:    "otgPort4",
-		IPv4:    "192.0.2.30",
+		IPv4:    "192.0.2.42",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort5DummyIP = attrs.Attributes{
 		Desc:    "dutPort5",
-		IPv4:    "192.0.2.33",
+		IPv4:    "192.0.2.45",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort5DummyIP = attrs.Attributes{
 		Desc:    "otgPort5",
-		IPv4:    "192.0.2.34",
+		IPv4:    "192.0.2.46",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort6DummyIP = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "192.0.2.49",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	otgPort6DummyIP = attrs.Attributes{
+		Desc:    "otgPort6",
+		IPv4:    "192.0.2.50",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort7DummyIP = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "192.0.2.53",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	otgPort7DummyIP = attrs.Attributes{
+		Desc:    "otgPort6",
+		IPv4:    "192.0.2.54",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	dutPort8DummyIP = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "192.0.2.57",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	otgPort8DummyIP = attrs.Attributes{
+		Desc:    "otgPort6",
+		IPv4:    "192.0.2.58",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -692,6 +779,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 	p5 := dut.Port(t, "port5")
+	// p6 := dut.Port(t, "port6")
+	// p7 := dut.Port(t, "port7")
+	p8 := dut.Port(t, "port8")
 
 	// configure interfaces
 
@@ -707,6 +797,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	configureBundleInterfaces(t, dut, p3, "Bundle-Ether3", &dutPort3)
 	configureBundleInterfaces(t, dut, p4, "Bundle-Ether4", &dutPort4)
 	configureBundleInterfaces(t, dut, p5, "Bundle-Ether5", &dutPort5)
+	configureBundleInterfaces(t, dut, p8, "Bundle-Ether8", &dutPort8)
 
 	// gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	// gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -815,12 +906,14 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p3 := ate.Port(t, "port3")
 	p4 := ate.Port(t, "port4")
 	p5 := ate.Port(t, "port5")
+	p8 := ate.Port(t, "port8")
 
 	otgPort1.AddToOTG(topo, p1, &dutPort1)
 	otgPort2.AddToOTG(topo, p2, &dutPort2)
 	otgPort3.AddToOTG(topo, p3, &dutPort3)
 	otgPort4.AddToOTG(topo, p4, &dutPort4)
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
+	otgPort8.AddToOTG(topo, p8, &dutPort8)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
@@ -1175,11 +1268,13 @@ func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), assignIPAsSecondary(&dutPort3DummyIP, "Bundle-Ether3", dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), assignIPAsSecondary(&dutPort4DummyIP, "Bundle-Ether4", dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), assignIPAsSecondary(&dutPort5DummyIP, "Bundle-Ether5", dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), assignIPAsSecondary(&dutPort8DummyIP, "Bundle-Ether8", dut))
 
 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether2").Config(), configStaticArp("Bundle-Ether2", otgPort2DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), configStaticArp("Bundle-Ether3", otgPort3DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), configStaticArp("Bundle-Ether4", otgPort4DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), configStaticArp("Bundle-Ether5", otgPort5DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), configStaticArp("Bundle-Ether8", otgPort8DummyIP.IPv4, magicMac))
 
 	// gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), assignIPAsSecondary(&dutPort2DummyIP, p2.Name(), dut))
 	// gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), assignIPAsSecondary(&dutPort3DummyIP, p3.Name(), dut))
@@ -1424,7 +1519,7 @@ version sflow v5
 dscp 32
 transport udp 6343
 source Loopback0
-destination 2001:0db8::192:0:2:12
+destination 2001:0db8::192:0:2:1e
 !
 flow exporter-map OC-FEM-GLOBAL
 dscp 32
@@ -1434,7 +1529,7 @@ version sflow v5
 !
 transport udp 6343
 source-address 2001:db8::203:0:113:255
-destination 2001:0db8::192:0:2:12
+destination 2001:0db8::192:0:2:1e
 !
 flow monitor-map fmm
 record sflow
