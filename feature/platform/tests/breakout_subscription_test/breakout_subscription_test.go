@@ -786,80 +786,82 @@ func verifyUpdateValue(t testing.TB, notifications []*gpb.Notification, expected
 }
 
 func lineCardUp(t testing.TB, dut *ondatra.DUTDevice, fpc string) {
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	powerDownLineCardRequest := &spb.RebootRequest{
-		Method: spb.RebootMethod_POWERDOWN,
-		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(fpc, useNameOnly),
-		},
-	}
-	t.Logf("powerDownLineCardRequest: %v", powerDownLineCardRequest)
-	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownLineCardRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform standby RP powerdown with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
-
-	t.Logf("Wait for 15 seconds to allow the sub component's power down process to complete")
+	c := gnmi.OC().Component(fpc)
+	config := c.Linecard().PowerAdminState().Config()
+	t.Logf("Starting %s POWER_ENABLED", fpc)
+	start := time.Now()
+	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
+	t.Logf("Wait for 15 seconds to allow the sub component's power up process to complete")
 	time.Sleep(15 * time.Second)
+	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), 20*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
+	if !ok {
+		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", fpc, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
+	}
+	t.Logf("Component %s, oper-status after %f minutes: %v", fpc, time.Since(start).Minutes(), oper)
 }
 
-func findFpcFromPort(t testing.TB, portName string, dut *ondatra.DUTDevice) (string, error) {
+func findFpcFromPort(t testing.TB, portArray []string, dut *ondatra.DUTDevice) ([]string, error) {
 	t.Helper()
-	if dut.Vendor() == ondatra.ARISTA {
-		re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)/\d+(?::\d+)?$`)
-		match := re.FindStringSubmatch(portName)
-		if match == nil {
-			return "", fmt.Errorf("invalid port name format: %s", portName)
+	var fpcArray []string
+
+	for _, portName := range portArray {
+		if dut.Vendor() == ondatra.ARISTA {
+			re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)/\d+(?::\d+)?$`)
+			match := re.FindStringSubmatch(portName)
+			if match == nil {
+				return nil, fmt.Errorf("invalid port name format: %s", portName)
+			}
+			fpcArray = append(fpcArray, fmt.Sprintf("FPC%s", match[1]))
 		}
-		return fmt.Sprintf("FPC%s", match[1]), nil
-	}
-	if dut.Vendor() == ondatra.CISCO {
-		re := regexp.MustCompile(`^[A-Za-z]+(\d+)/(\d+)/\d+/\d+(?::\d+)?$`)
-		match := re.FindStringSubmatch(portName)
-		if match == nil {
-			return "", fmt.Errorf("invalid port name format: %s", portName)
+		if dut.Vendor() == ondatra.CISCO {
+			re := regexp.MustCompile(`^HundredGigE+(\d+)/(\d+)/\d+/\d+(?::\d+)?$`)
+			match := re.FindStringSubmatch(portName)
+			if match == nil {
+				return nil, fmt.Errorf("invalid port name format: %s", portName)
+			}
+			fpcArray = append(fpcArray, fmt.Sprintf("FPC%s", match[2]))
 		}
-		return fmt.Sprintf("FPC%s", match[2]), nil
-	}
-	if dut.Vendor() == ondatra.JUNIPER {
-		re := regexp.MustCompile(`^[a-z]+-(\d+)/\d+/\d+(?::\d+)?$`)
-		match := re.FindStringSubmatch(portName)
-		if match == nil {
-			return "", fmt.Errorf("invalid port name format: %s", portName)
+		if dut.Vendor() == ondatra.JUNIPER {
+			re := regexp.MustCompile(`^[a-z]+-(\d+)/\d+/\d+(?::\d+)?$`)
+			match := re.FindStringSubmatch(portName)
+			if match == nil {
+				return nil, fmt.Errorf("invalid port name format: %s", portName)
+			}
+			fpcArray = append(fpcArray, fmt.Sprintf("FPC%s", match[1]))
+			t.Logf("fpcArray: %v", fpcArray)
+			t.Logf("portName: %v", portName)
+			t.Logf("match: %v", match[1])
 		}
-		return fmt.Sprintf("FPC%s", match[1]), nil
-	}
-	if dut.Vendor() == ondatra.NOKIA {
-		re := regexp.MustCompile(`^[a-z]+-(\d+)\/d+(?::(\d+))?$`)
-		match := re.FindStringSubmatch(portName)
-		if match == nil {
-			return "", fmt.Errorf("invalid port name format: %s", portName)
+		if dut.Vendor() == ondatra.NOKIA {
+			re := regexp.MustCompile(`ethernet-(\d+)/\d+(?::(\d+))?$`)
+			match := re.FindStringSubmatch(portName)
+			if match == nil {
+				return nil, fmt.Errorf("invalid port name format: %s", portName)
+			}
+			fpcArray = append(fpcArray, fmt.Sprintf("FPC%s", match[1]))
 		}
-		return fmt.Sprintf("FPC%s", match[1]), nil
 	}
-	return "", fmt.Errorf("unsupported vendor: %s", dut.Vendor())
+	return fpcArray, nil
 }
-func verifyNotificationPathsForPortUpdates(t *testing.T, notifications []*gpb.Notification, selectedPort string) {
+func verifyNotificationPathsForPortUpdates(t *testing.T, notifications []*gpb.Notification, selectedFpc string) {
 	t.Helper()
 	for _, notification := range notifications {
 		path := ""
 		for _, elem := range notification.GetPrefix().GetElem() {
 			path += "/" + elem.GetName()
 			for key, value := range elem.GetKey() {
-				if value == selectedPort {
-					t.Logf("Notification path: %v has update for port: %v", path, selectedPort)
+				if value == selectedFpc {
+					t.Logf("Notification path: %v has update for part: %v", path, selectedFpc)
 					t.Logf("Key: %v, Value: %v", key, value)
-					break
+					return
 				}
 			}
 		}
 	}
-	t.Errorf("Notification is missing update for port: %v", selectedPort)
+	t.Errorf("Notification is missing update for part: %v", selectedFpc)
 }
 
-func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string, lcs []string) string {
+func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string, lcs []string) {
 	var validCards []string
 	// don't consider the empty linecard slots.
 	if len(lcs) > *args.NumLinecards {
@@ -880,46 +882,44 @@ func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string, lcs []string
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
-	var removableLinecard string
-	for _, lc := range validCards {
-		t.Logf("Check if %s is removable", lc)
-		if dut.Vendor() == ondatra.JUNIPER && lc != fpc {
-			continue
-		}
-		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
-			t.Logf("Detected non-removable line card: %v", lc)
-			continue
-		}
-		if got := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); got {
-			t.Logf("Found removable line card: %v", lc)
-			removableLinecard = lc
-		}
+	if got := gnmi.Lookup(t, dut, gnmi.OC().Component(fpc).Removable().State()).IsPresent(); !got {
+		t.Fatalf("Detected non-removable line card: %v", fpc)
 	}
-	if removableLinecard == "" {
-		if *args.NumLinecards > 0 {
-			t.Fatalf("No removable line card found for the testing on a modular device")
-		} else {
-			t.Skipf("No removable line card found for the testing")
-		}
+	if got := gnmi.Get(t, dut, gnmi.OC().Component(fpc).Removable().State()); got {
+		t.Logf("Found removable line card: %v", fpc)
 	}
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	powerDownLineCardRequest := &spb.RebootRequest{
-		Method: spb.RebootMethod_POWERDOWN,
-		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(removableLinecard, useNameOnly),
-		},
-	}
-	t.Logf("powerDownLineCardRequest: %v", powerDownLineCardRequest)
-	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownLineCardRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform Linecard powerdown with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
+	c := gnmi.OC().Component(fpc)
+	config := c.Linecard().PowerAdminState().Config()
+	t.Logf("Starting %s POWER_DISABLE", fpc)
+	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
 	t.Logf("Wait for 15 seconds to allow the sub component's power down process to complete")
 	time.Sleep(15 * time.Second)
-	return removableLinecard
+}
+func uniqueString(input []string) []string {
+	seen := make(map[string]struct{})
+	var result []string
+
+	for _, item := range input {
+		if _, exists := seen[item]; !exists {
+			seen[item] = struct{}{} // Mark as seen
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func selectFpc(t testing.TB, fpcList []string) string {
+	t.Helper()
+	var selectedFpc string
+	uniqueFpcList := uniqueString(fpcList)
+	if len(uniqueFpcList) > 1 {
+		sort.Strings(uniqueFpcList)
+		selectedFpc = uniqueFpcList[len(uniqueFpcList)-1]
+	} else {
+		t.Fatalf("No FPC found for the test")
+	}
+	return selectedFpc
 }
 
 func TestBreakoutSubscription(t *testing.T) {
@@ -1018,22 +1018,22 @@ func TestBreakoutSubscription(t *testing.T) {
 	// Check response after a triggered breakout module reboot
 	t.Run("PLT-1.2.5 Check response after a triggered breakout module reboot", func(t *testing.T) {
 		intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
-		selectedPort := intfsOperStatusUPBeforeReboot[len(intfsOperStatusUPBeforeReboot)-1]
-		fpc, err := findFpcFromPort(t, selectedPort, dut)
-		if err != nil {
-			t.Fatalf("Failed to find FPC from port: %v", err)
-		}
+		t.Logf("intfsOperStatusUPBeforeReboot: %v", intfsOperStatusUPBeforeReboot)
+		fpcList, err := findFpcFromPort(t, intfsOperStatusUPBeforeReboot, dut)
+		t.Logf("fpcList: %v", fpcList)
+		selectedFpc := selectFpc(t, fpcList)
+		t.Logf("selectedFpc: %v", selectedFpc)
 		lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
-		powweredDownLinecard := linecardDown(t, dut, fpc, lcs)
+		linecardDown(t, dut, selectedFpc, lcs)
 		stream := newSubscribeRequest(ctx, t, dut)
 		checkSyncResponse(t, stream)
-		lineCardUp(t, dut, powweredDownLinecard)
-		updateTimeout := 10 * time.Second
+		lineCardUp(t, dut, selectedFpc)
+		updateTimeout := 10 * time.Minute
 		receivedNotifications, err := recieveUpdateWithTimeout(ctx, t, dut, stream, subscribedUpdates, updateTimeout)
 		if err != nil {
 			t.Logf("Received error(possibly end of updates): %v", err)
 		}
-		verifyNotificationPathsForPortUpdates(t, receivedNotifications, selectedPort)
+		verifyNotificationPathsForPortUpdates(t, receivedNotifications, selectedFpc)
 		defer stream.CloseSend()
 		defer ctx.Done()
 	})
