@@ -233,7 +233,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                       },
                       "ipv4": {
                         "config": {
-                          "destination-address-prefix-set": "dst_prefix",
+                          "destination-address": "192.168.1.1/32",
                           "protocol": "IP_UDP"
                         }
                       },
@@ -271,24 +271,6 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                   },
                   "ip-prefix": "0.0.0.0/0",
                   "masklength-range": "24..24"
-                }
-              ]
-            }
-          },
-          {
-            "config": {
-              "name": "dst_prefix"
-            },
-            "name": "dst_prefix",
-            "prefixes": {
-              "prefix": [
-                {
-                  "config": {
-                    "ip-prefix": "192.168.1.1/32",
-                    "masklength-range": "32..32"
-                  },
-                  "ip-prefix": "192.168.1.1/32",
-                  "masklength-range": "32..32"
                 }
               ]
             }
