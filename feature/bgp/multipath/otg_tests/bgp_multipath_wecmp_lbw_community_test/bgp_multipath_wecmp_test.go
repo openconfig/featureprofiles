@@ -203,6 +203,7 @@ func TestBGPSetup(t *testing.T) {
 			gEBGP.AllowMultipleAs = ygot.Bool(false)
 			switch bs.DUT.Vendor() {
 			case ondatra.CISCO:
+				gEBGP.AllowMultipleAs = ygot.Bool(true)
 				communitySetCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", cfgplugins.DutAS, cfgplugins.BGPPeerGroup1)
 			default:
 				t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", bs.DUT.Vendor())
