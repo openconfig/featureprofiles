@@ -181,6 +181,21 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 
 ```json
 {
+  "defined-sets": {
+    "ipv4-prefix-sets": {
+      "ipv4-prefix-set": [
+        {
+          "config": {
+            "name": "dst_prefix",
+            "prefix": [
+              "192.168.1.1/32"
+            ]
+          },
+          "name": "dst_prefix"
+        }
+      ]
+    }
+  },
   "network-instances": {
     "network-instance": [
       {
@@ -233,7 +248,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                       },
                       "ipv4": {
                         "config": {
-                          "destination-address": "192.168.1.1/32",
+                          "destination-address-prefix-set": "dst_prefix",
                           "protocol": "IP_UDP"
                         }
                       },
