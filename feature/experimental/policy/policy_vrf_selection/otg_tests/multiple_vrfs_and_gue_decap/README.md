@@ -267,10 +267,10 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
                 {
                   "config": {
                     "ip-prefix": "0.0.0.0/0",
-                    "masklength-range": "24"
+                    "masklength-range": "24..24"
                   },
                   "ip-prefix": "0.0.0.0/0",
-                  "masklength-range": "24"
+                  "masklength-range": "24..24"
                 }
               ]
             }
@@ -284,11 +284,11 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
               "prefix": [
                 {
                   "config": {
-                    "ip-prefix": "0:0:0:0:0:0:0:0:0:0/0",
-                    "masklength-range": "64"
+                    "ip-prefix": "0000:0000:0000:0000:0000:0000:0000:0000/0",
+                    "masklength-range": "64..64"
                   },
-                  "ip-prefix": "0:0:0:0:0:0:0:0:0:0/0",
-                  "masklength-range": "64"
+                  "ip-prefix": "0000:0000:0000:0000:0000:0000:0000:0000/0",
+                  "masklength-range": "64..64"
                 }
               ]
             }
