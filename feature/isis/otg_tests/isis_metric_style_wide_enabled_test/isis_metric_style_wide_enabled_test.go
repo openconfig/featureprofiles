@@ -249,7 +249,7 @@ func TestISISWideMetricEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
-			if !deviations.MissingValueForDefaults(ts.DUT) && !deviations.IsisDisSysidUnsupported(ts.DUT) {
+			if !deviations.IsisDisSysidUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
 					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
 				}
