@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -18,9 +19,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
-
-	// "github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/attrs"
 )
 
 const (
@@ -42,8 +40,6 @@ const (
 	oneSecondInNanoSecond = 1e9
 	vrfTE                 = "TE"
 )
-
-// var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -338,12 +334,9 @@ func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
 
-func getorCreateSubInterface(dut *ondatra.DUTDevice, dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
+func getorCreateSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
 	s := &oc.Interface_Subinterface{}
-	//unshut sub/interface
-	// if deviations.InterfaceEnabled != nil && *deviations.InterfaceEnabled {
 	s.Enabled = ygot.Bool(true)
-	// }
 	s.Index = ygot.Uint32(index)
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(dutPort.IPv4)
@@ -356,7 +349,7 @@ func getorCreateSubInterface(dut *ondatra.DUTDevice, dutPort *attrs.Attributes, 
 	return s
 }
 
-func configInterfaceDUT(dut *ondatra.DUTDevice, i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(dutPort.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	if dutPort.Desc == "dutPort1" {
@@ -365,7 +358,7 @@ func configInterfaceDUT(dut *ondatra.DUTDevice, i *oc.Interface, dutPort *attrs.
 			e.MacAddress = ygot.String(dutPort.MAC)
 		}
 	}
-	i.AppendSubinterface(getorCreateSubInterface(dut, dutPort, 0, 0))
+	i.AppendSubinterface(getorCreateSubInterface(dutPort, 0, 0))
 	return i
 }
 
@@ -374,49 +367,49 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := sortPorts(dut.Ports())[0]
 	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
-	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configInterfaceDUT(dut, i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configInterfaceDUT(i1, &dutPort1))
 	BE120 := generateBundleMemberInterfaceConfig(p1.Name(), *i1.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE120)
 
 	p2 := sortPorts(dut.Ports())[1]
 	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
-	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(dut, i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(i2, &dutPort2))
 	BE121 := generateBundleMemberInterfaceConfig(p2.Name(), *i2.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), BE121)
 
 	p3 := sortPorts(dut.Ports())[2]
 	i3 := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
-	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(dut, i3, &dutPort3))
+	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(i3, &dutPort3))
 	BE122 := generateBundleMemberInterfaceConfig(p3.Name(), *i3.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), BE122)
 
 	p4 := sortPorts(dut.Ports())[3]
 	i4 := &oc.Interface{Name: ygot.String("Bundle-Ether123")}
-	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(dut, i4, &dutPort4))
+	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4))
 	BE123 := generateBundleMemberInterfaceConfig(p4.Name(), *i4.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), BE123)
 
 	p5 := sortPorts(dut.Ports())[4]
 	i5 := &oc.Interface{Name: ygot.String("Bundle-Ether124")}
-	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(dut, i5, &dutPort5))
+	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(i5, &dutPort5))
 	BE124 := generateBundleMemberInterfaceConfig(p5.Name(), *i5.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p5.Name()).Config(), BE124)
 
 	p6 := sortPorts(dut.Ports())[5]
 	i6 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
-	gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(dut, i6, &dutPort6))
+	gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(i6, &dutPort6))
 	BE125 := generateBundleMemberInterfaceConfig(p6.Name(), *i6.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p6.Name()).Config(), BE125)
 
 	p7 := sortPorts(dut.Ports())[6]
 	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
-	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(dut, i7, &dutPort7))
+	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(i7, &dutPort7))
 	BE126 := generateBundleMemberInterfaceConfig(p7.Name(), *i7.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p7.Name()).Config(), BE126)
 
 	p8 := sortPorts(dut.Ports())[7]
 	i8 := &oc.Interface{Name: ygot.String("Bundle-Ether127")}
-	gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(dut, i8, &dutPort8))
+	gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(i8, &dutPort8))
 	BE127 := generateBundleMemberInterfaceConfig(p8.Name(), *i8.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p8.Name()).Config(), BE127)
 
