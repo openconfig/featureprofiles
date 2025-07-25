@@ -43,9 +43,9 @@ OnChange Subscription Test for Breakout Interfaces
 
 ### PLT-1.3.5 Check response after a triggered reboot
 
-  * Clear the old subscription and make a GNOI power down to any one of the FPC
+  * Clear the old subscription and make a gNMI power down to any one of the FPC
   * Now create a new Subscription to the device
-  * Issue a gNOI powerup to the powered down card
+  * Issue a gNMI powerup to the earlier powered down card
   * Validate if the received Notifications have updates for change in port state of the links that powered up
 
 #### Canonical OC
