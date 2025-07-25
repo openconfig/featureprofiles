@@ -181,167 +181,167 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 
 ```json
 {
-    "network-instances": {
-        "network-instance": {
-            "config": {
-                "name": "DEFAULT"
-            },
-            "name": "DEFAULT",
-            "inter-instance-policies": {
-                "apply-policy" : {
-                   "config": {
-                "export-policy": "BGP_EXPORT_B2_VRF"
-                    }
-                }
-            },
-            "policy-forwarding": {
-                "policies": {
-                    "policy": [
-                        {
-                            "config": {
-                                "policy-id": "decap-policy"
-                            },
-                            "rules": {
-                                "rule": [
-                                    {
-                                        "sequence-id": 1,
-                                        "config": {
-                                            "sequence-id": 1
-                                        },
-                                        "ipv4": {
-                                            "config": {
-                                                "destination-address-prefix-set": "dst_prefix",
-                                                "protocol": "IP_UDP"
-                                            }
-                                        },
-                                        "transport": {
-                                            "config": {
-                                                "destination-port": 6080
-                                            }
-                                        }
-                                        "action": {
-                                            "decapsulate-gue": true
-                                        },
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "B2_VRF"
         },
-        "network-instance": {
+        "inter-instance-policies": {
+          "apply-policy": {
             "config": {
-                "name": "B2_VRF"
-            },
-            "name": "B2_VRF",
-            "inter-instance-policies": {
-                "apply-policy" : {
-                   "config": {
-                "import-policy": "BGP_EXPORT_B2_VRF"
-                    }
-                }
+              "import-policy": [
+                "BGP_EXPORT_B2_VRF"
+              ]
             }
-        }
-    },
-    "routing-policy": {
-        "policy-definitions": {
-            "policy-definition": [
-                {
-                    "statements": {
-                        "statement": [
-                            {
-                                "actions": {
-                                    "config": {
-                                        "policy-result": "ACCEPT_ROUTE"
-                                    }
-                                },
-                                "config": {
-                                    "name": "IPv4Prefix_IBGP_EXPORT"
-                                },
-                                "name": "IPv4Prefix_IBGP_EXPORT",
-                                "conditions": {
-                                    "match-prefix-set": {
-                                        "prefix-set": "IPv4Prefixes_IBGP"
-                                    }
-                                }
-                            }
-                        ]
-                    },
-                    "statements": {
-                        "statement": [
-                            {
-                                "actions": {
-                                    "config": {
-                                        "policy-result": "ACCEPT_ROUTE"
-                                    }
-                                },
-                                "config": {
-                                    "name": "IPv6Prefix_IBGP_EXPORT"
-                                },
-                                "name": "IPv6Prefix_IBGP_EXPORT",
-                                "conditions": {
-                                    "match-prefix-set": {
-                                        "prefix-set": "IPv6Prefixes_IBGP"
-                                    }
-                                }
-                            }
-                        ]
-                    },
-                    "config": {
-                        "name": "BGP_EXPORT_B2_VRF"
-                    },
-                    "name": "BGP_EXPORT_B2_VRF"
+          }
+        },
+        "name": "B2_VRF"
+      },
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "inter-instance-policies": {
+          "apply-policy": {
+            "config": {
+              "export-policy": [
+                "BGP_EXPORT_B2_VRF"
+              ]
+            }
+          }
+        },
+        "name": "DEFAULT",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "decap-policy"
+                },
+                "policy-id": "decap-policy",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "decapsulate-gue": true
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address-prefix-set": "dst_prefix",
+                          "protocol": "IP_UDP"
+                        }
+                      },
+                      "sequence-id": 1,
+                      "transport": {
+                        "config": {
+                          "destination-port": 6080
+                        }
+                      }
+                    }
+                  ]
                 }
+              }
             ]
-        },
-        "defined-sets": {
-            "prefix-sets": {
-                "prefix-set": [
-                    {
-                        "prefixes": {
-                            "prefix": [
-                                {
-                                    "masklength-range": "24",
-                                    "ip-prefix": "0.0.0.0/0",
-                                    "config": {
-                                        "masklength-range": "24",
-                                        "ip-prefix": "0.0.0.0/0"
-                                    }
-                                }
-                            ]
-                        },
-                        "prefix-set-name": "IPv4Prefixes_IBGP",
-                        "config": {
-                            "prefix-set-name": "IPv4Prefixes_IBGP"
-                        }
-                    }
-                ]
-            },
-            "prefix-sets": {
-                "prefix-set": [
-                    {
-                        "prefixes": {
-                            "prefix": [
-                                {
-                                    "masklength-range": "64",
-                                    "ip-prefix": "::/0",
-                                    "config": {
-                                        "masklength-range": "64",
-                                        "ip-prefix": "::/0"
-                                    }
-                                }
-                            ]
-                        },
-                        "prefix-set-name": "IPv6Prefixes_IBGP",
-                        "config": {
-                            "prefix-set-name": "IPv6Prefixes_IBGP"
-                        }
-                    }
-                ]
-            }
+          }
         }
+      }
+    ]
+  },
+  "routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "config": {
+              "name": "IPv4Prefixes_IBGP"
+            },
+            "name": "IPv4Prefixes_IBGP",
+            "prefixes": {
+              "prefix": [
+                {
+                  "config": {
+                    "ip-prefix": "0.0.0.0/0",
+                    "masklength-range": "24"
+                  },
+                  "ip-prefix": "0.0.0.0/0",
+                  "masklength-range": "24"
+                }
+              ]
+            }
+          },
+          {
+            "config": {
+              "name": "IPv6Prefixes_IBGP"
+            },
+            "name": "IPv6Prefixes_IBGP",
+            "prefixes": {
+              "prefix": [
+                {
+                  "config": {
+                    "ip-prefix": "0:0:0:0:0:0:0:0:0:0/0",
+                    "masklength-range": "64"
+                  },
+                  "ip-prefix": "0:0:0:0:0:0:0:0:0:0/0",
+                  "masklength-range": "64"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "BGP_EXPORT_B2_VRF"
+          },
+          "name": "BGP_EXPORT_B2_VRF",
+          "statements": {
+            "statement": [
+              {
+                "actions": {
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
+                },
+                "conditions": {
+                  "match-prefix-set": {
+                    "config": {
+                      "prefix-set": "IPv4Prefixes_IBGP"
+                    }
+                  }
+                },
+                "config": {
+                  "name": "IPv4Prefix_IBGP_EXPORT"
+                },
+                "name": "IPv4Prefix_IBGP_EXPORT"
+              },
+              {
+                "conditions": {
+                  "match-prefix-set": {
+                    "config": {
+                      "prefix-set": "IPv6Prefixes_IBGP"
+                    }
+                  }
+                },
+                "config": {
+                  "name": "IPv6Prefix_IBGP_EXPORT"
+                },
+                "name": "IPv6Prefix_IBGP_EXPORT"
+              }
+            ]
+          }
+        }
+      ]
     }
+  }
 }
 ```
 
