@@ -142,26 +142,18 @@ func TestBasicEncap(t *testing.T) {
 			validateEncapRatio: true,
 		},
 		{
-			name: fmt.Sprintf("LOOKUP NH Backup NHG Test %d", dscpEncapA1),
-			// This test verifies that a backup NHG with a single LOOKUP NH
-			// correctly gets the LOOKUP action set
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
-			flows: []gosnappi.Flow{
-				fa4.getFlow("ipv4", "lookup_test", dscpEncapA1),
-			},
+			name:               fmt.Sprintf("LOOKUP NH Backup NHG Test %d", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "lookup_test", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 			skip:               false,
 		},
 		{
-			name: fmt.Sprintf("Default Route Lookup Non-Default VRF %d", dscpEncapA1),
-			// This test verifies default route in encap VRF with next-hop lookup
-			// in a non-default VRF
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
-			flows: []gosnappi.Flow{
-				fa4.getFlow("ipv4", "vrf_lookup_test", dscpEncapA1),
-			},
+			name:               fmt.Sprintf("Default Route Lookup Non-Default VRF %d", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "vrf_lookup_test", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
@@ -183,26 +175,36 @@ func TestBasicEncap(t *testing.T) {
 			validateEncapRatio: true,
 		},
 		{
-			name:  fmt.Sprintf("VRF Scale Testing %d", dscpEncapA1),
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
-			flows: []gosnappi.Flow{
-				fa4.getFlow("ipv4", "vrf_scale", dscpEncapA1),
-			},
+			name:               fmt.Sprintf("VRF Scale Testing %d", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "vrf_scale", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 			skip:               false,
 		},
 		{
-			name: fmt.Sprintf("Validate NHG update operation is ignored for the existing default chain %d", dscpEncapA1),
-			// This test verifies that NHG update operation is ignored for the existing default chain
-			// when the NHG is already installed in the FIB.
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
-			flows: []gosnappi.Flow{
-				fa4.getFlow("ipv4", "ip4inip", dscpEncapA1),
-			},
+			name:               fmt.Sprintf("Verify NHG maintains non-LOOKUP action after switchover to backup path with LOOKUP NH %d", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "vrf_scale", dscpEncapA1)},
 			weights:            wantWeights,
-			capturePorts:       otgDstPorts, // Only use first two ports
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: true,
+		},
+		{
+			name:               fmt.Sprintf("Verify default route in encap VRF with next-hop lookup in non-default VRF %d", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "vrf_scale", dscpEncapA1)},
+			weights:            wantWeights,
+			capturePorts:       otgDstPorts,
+			validateEncapRatio: true,
+		},
+		{
+			name:               fmt.Sprintf("Validate NHG update operation is ignored for the existing default chain %d", dscpEncapA1),
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
+			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4inip", dscpEncapA1)},
+			weights:            wantWeights,
+			capturePorts:       otgDstPorts,
 			validateEncapRatio: true,
 			skip:               false,
 		},
