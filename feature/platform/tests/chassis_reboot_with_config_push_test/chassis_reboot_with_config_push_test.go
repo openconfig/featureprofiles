@@ -21,19 +21,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/featureprofiles/internal/components"
-	"github.com/featureprofiles/internal/deviations"
-	"github.com/featureprofiles/internal/fptest"
-	fpb "github.com/openconfig/gnoi/file/file_go_proto"
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	fpb "github.com/openconfig/gnoi/file"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gnoigo"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -362,4 +362,3 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clien
 		}
 	}
 }
-
