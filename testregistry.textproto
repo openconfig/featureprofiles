@@ -1942,12 +1942,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "gNOI-3.6"
-  description: "Chassis Reboot with Config Push"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/chassis_reboot_with_config_test/README.md"
-  exec: " "
-}
-test: {
   id: "gNOI-4.1"
   description: "Software Upgrade"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/os/tests/osinstall/README.md"
