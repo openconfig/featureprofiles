@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid:  "a34e386d-92f4-42a6-9565-068047d7a635"
-plan_id:  "gNOI-3.1"
+plan_id:  "gNOI-3.6"
 description:  "Complete Chassis Reboot with large config push"
 testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions:  {
