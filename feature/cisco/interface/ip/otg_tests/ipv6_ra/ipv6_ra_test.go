@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipv6_ra__test
+package ipv6_ra_test
 
 import (
 	"bytes"
