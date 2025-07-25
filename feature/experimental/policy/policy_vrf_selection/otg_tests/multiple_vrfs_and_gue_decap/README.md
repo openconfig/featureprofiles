@@ -277,6 +277,24 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
           },
           {
             "config": {
+              "name": "dst_prefix"
+            },
+            "name": "dst_prefix",
+            "prefixes": {
+              "prefix": [
+                {
+                  "config": {
+                    "ip-prefix": "192.168.1.1/32",
+                    "masklength-range": "32..32"
+                  },
+                  "ip-prefix": "192.168.1.1/32",
+                  "masklength-range": "32..32"
+                }
+              ]
+            }
+          },
+          {
+            "config": {
               "name": "IPv6Prefixes_IBGP"
             },
             "name": "IPv6Prefixes_IBGP",
