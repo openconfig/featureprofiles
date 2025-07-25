@@ -21,13 +21,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-	"regexp"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
@@ -936,7 +936,7 @@ func TestBreakoutSubscription(t *testing.T) {
 		atePorts: sortPorts(ate.Ports()),
 		aggID:    aggID,
 	}
-        tc.configureATE(t)
+	tc.configureATE(t)
 	tc.configureDUT(t)
 	ctx := context.Background()
 	t.Run("verifyDUT", tc.verifyDUT)
