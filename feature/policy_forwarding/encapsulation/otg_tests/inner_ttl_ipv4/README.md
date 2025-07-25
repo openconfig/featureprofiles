@@ -92,14 +92,14 @@ IPv4 while setting the inner TTL (hop-limit) to a specified value.
 for IPv4 traffic.
 
 ATE action:
-*   Generate total 10,000,000 **IPv4 packets** from ATE:Port1 and ATE:Port2
+*   Generate total 1000 **IPv4 packets** from ATE:Port1 and ATE:Port2
     with:
     *   Source IP from random addresses in `matched_ipv4_src_net` to destination
         IP addresses in `ipv4_dst_net` addresses.
     *   Use 512 bytes frame size.
     *   Set TTL of all packets to `matched_ip_ttl`.
 
-*   Generate total 10,000,000 **IPv4 packets** from ATE:Port1 and ATE:Port2
+*   Generate total 1000 **IPv4 packets** from ATE:Port1 and ATE:Port2
     with:
     *   Source IP from random addresses in `unmatched_ipv4_src_net` to
         destination IP addresses in `ipv4_dst_net` addresses.
@@ -124,14 +124,14 @@ Verify:
 for IPv6 traffic.
 
 ATE action:
-*   Generate total 10,000,000 **IPv6 packets** from ATE:Port1 and ATE:Port2
+*   Generate total 1000 **IPv6 packets** from ATE:Port1 and ATE:Port2
     with:
     *   Source IP from random addresses in `matched_ipv6_src_net` to destination
         IP addresses in `ipv6_dst_net` addresses.
     *   Use 512 bytes frame size.
     *   Set TTL of all packets to `matched_ip_ttl`.
 
-*   Generate total 10,000,000 **IPv6 packets** from ATE:Port1 and ATE:Port2
+*   Generate total 1000 **IPv6 packets** from ATE:Port1 and ATE:Port2
     with:
     *   Source IP from random addresses in `unmatched_ipv6_src_net` to
         destination IP addresses in `ipv6_dst_net` addresses.
@@ -153,6 +153,10 @@ Verify:
     inner IP TTL set to `unmatched_ip_ttl` - 1.
 
 ## Canonical OC
+**[TODO]**: Add MATCH_ACTION policy-forwarding type to OpenConfig Public data
+            models.
+**[TODO]**: Add ip-ttl policy-forwarding action to OpenConfig Public data
+            models, pending https://github.com/openconfig/public/pull/1313.
 
 ```json
 {
