@@ -1,4 +1,4 @@
-# gNOI-3.1: Complete Chassis Reboot with large config push
+# gNOI-3.6: Complete Chassis Reboot with large config push
 
 ## Summary
 
