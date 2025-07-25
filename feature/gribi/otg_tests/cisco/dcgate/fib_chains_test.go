@@ -542,22 +542,22 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 	faTransit.ttl = ttl
 	faTransit.innerTtl = 50
 
-	// t.Run("miss in decap fallback to transit", func(t *testing.T) {
-	// 	t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
-	// 	args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfDecap, fluent.InstalledInFIB)
-	// 	args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	// 	// verify traffic passes through primary NHG
-	// 	faTransit.innerDscp = dscpEncapA1
-	// 	faTransit.innerTtl = 50
-	// 	args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
-	// 	args.capture_ports = []string{"port3"}
-	// 	weights := []float64{0, 1, 0, 0}
-	// 	args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
-	// 	args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
-	// 	testTransitTrafficWithTtlDscp(t, args, weights, true)
-	// 	args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	// 	args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
-	// })
+	t.Run("miss in decap fallback to transit", func(t *testing.T) {
+		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
+		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfDecap, fluent.InstalledInFIB)
+		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		// verify traffic passes through primary NHG
+		faTransit.innerDscp = dscpEncapA1
+		faTransit.innerTtl = 50
+		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
+		args.capture_ports = []string{"port5"}
+		weights := []float64{0, 1, 0, 0}
+		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
+		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
+		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
+	})
 	t.Run("match in decap goto encap", func(t *testing.T) {
 		t.Log("Add decap prefix back to decap vrf to decapsulate traffic and schedule to match in encap vrf")
 
