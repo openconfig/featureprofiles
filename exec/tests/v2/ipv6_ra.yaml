@@ -6,7 +6,7 @@ testbeds:
   - 8201-1DUT-1ATE-9PORTS
 tests:
 - name: IPv6_RA
-  path: feature/cisco/interface/ip/ipv6_ND/otg_tes/
+  path: feature/cisco/interface/ip/otg_tests/ipv6_ra
   internal: true
   branch: master
   mustpass: true
