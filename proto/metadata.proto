@@ -848,6 +848,46 @@ message Metadata {
     // juniper : b/425632068
     bool bgp_as_path_prepend_order_mismtach = 300;
 
+    // Devices that need explicit swap_src_dst_mac set with loopback_mode
+    // Nokia b/430183279
+    bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
+
+    // link_local_instead_of_nh is set to true for devices that give
+    // link-local address instead of NH in AFT.
+    bool link_local_instead_of_nh = 302;
+
+    // low_scale_aft returns true if device requires low scale AFT.
+    bool low_scale_aft = 303;
+    
+    // Devices that do not support system-description config path
+    // Nokia b/431929861
+    bool missing_system_description_config_path = 304;
+
+    // Juniper  b/428613305
+    // FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+    bool non_interval_fec_error_counter = 305;
+
+    // Device does not support ntp source address
+    bool ntp_source_address_unsupported = 306;
+
+    // Devices does not support static mpls lsp
+    bool static_mpls_lsp_oc_unsupported = 307;
+
+    // Device doesnot support gre enacapsulation
+    bool gre_decapsulation_oc_unsupported = 308;
+
+    // SRGB and SLGB config through OC is not reflecting
+    bool isis_srgb_srlb_unsupported = 309;
+
+    // Prefix segment configuration not supported
+    bool isis_sr_prefix_segment_config_unsupported = 310;
+
+    // node segment configuration not supported
+    bool isis_sr_node_segment_config_unsupported = 311;
+
+    // Devices that do not support policy forwarding on next-hop
+    bool policy_forwarding_to_next_hop_oc_unsupported = 312;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
