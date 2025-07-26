@@ -187,7 +187,14 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		}
 	})
 	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(false)
-	ts.PushAndStart(t)
+
+	if err := ts.PushAndStart(t); err != nil {
+		return err
+	}
+	_, err = ts.AwaitAdjacency()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
