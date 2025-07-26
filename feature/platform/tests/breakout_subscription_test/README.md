@@ -41,7 +41,64 @@ OnChange Subscription Test for Breakout Interfaces
 
   * Issue a reboot to the device and check if all the paths can be subscribed to.
 
- 
+## Canonical OC
+
+```json
+{
+  "components": {
+    "component": [
+      {
+        "name": "Linecard0",
+        "state": {
+          "name": "Linecard0",
+          "oper-status": "ACTIVE"
+        },
+        "integrated-circuit": {
+          "state": {
+            "node-id": "IC0"
+          }
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "name": "Ethernet1",
+        "state": {
+          "id": "Ethernet1",
+          "admin-status": "UP",
+          "oper-status": "UP",
+          "forwarding-viable": "true"
+        },
+        "ethernet": {
+          "state": {
+            "port-speed": "SPEED_100G",
+            "mac-address": "00:1A:2B:3C:4D:5E"
+          }
+        }
+      }
+    ]
+  },
+  "lacp": {
+    "interfaces": {
+      "interface": [
+        {
+         "name": "Ethernet1",
+          "members": {
+            "member": [
+              {
+                "interface": "Ethernet1"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -77,4 +134,3 @@ rpcs:
 ```
 ## Required DUT platform
 Single DUT
-
