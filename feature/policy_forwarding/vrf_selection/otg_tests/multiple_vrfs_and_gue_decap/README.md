@@ -1,7 +1,7 @@
 # PF-2.3: Multiple VRFs and GUE DECAP in Default VRF
 
 ## Summary
-This test ensures NOS is able to host multiple VRFs and at the sametime perform GUE tunnel DECAP in the default VRF
+This test ensures NOS is able to host multiple VRFs and at the same time perform GUE tunnel DECAP in the default VRF
 
 ## Procedure
 Test environment setup
