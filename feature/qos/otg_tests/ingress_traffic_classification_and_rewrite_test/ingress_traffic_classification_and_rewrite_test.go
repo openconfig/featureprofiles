@@ -15,7 +15,6 @@
 package ingress_traffic_classification_and_rewrite_test
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -30,9 +29,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -62,9 +61,24 @@ const (
 	captureWait          = 10
 	lspNextHopIndex      = 0
 	implicitNull         = 3
+	trafficPolicyName    = "GRE_GUE_MATCH_TRAFFIC_POLICY"
+	executeGre           = true
+	donotExecuteGre      = false
+	executeGue           = true
+	donotExecuteGue      = false
+	greProtocol          = 47
+	gueProtocolPort      = 6080
 )
 
 var (
+	dutlo0Attrs = attrs.Attributes{
+		Name:    "Loopback0",
+		IPv4:    "192.0.20.2",
+		IPv6:    "2001:DB8:0::10",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
+
 	atePort1 = attrs.Attributes{
 		Name:    "ateP1",
 		MAC:     "02:00:01:01:01:01",
@@ -84,7 +98,6 @@ var (
 
 	dutPort1 = &attrs.Attributes{
 		Desc:    "dutPort1",
-		MAC:     "00:00:a1:a1:a1:a1",
 		IPv6:    "2001:db8::1",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
@@ -93,7 +106,6 @@ var (
 
 	dutPort2 = &attrs.Attributes{
 		Desc:    "dutPort2",
-		MAC:     "00:00:b1:b1:b1:b1",
 		IPv6:    "2001:db8::5",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
@@ -116,6 +128,12 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	ConfigureDUTIntf(t, dut)
 	ConfigureQoS(t, dut)
 
+	// Configure Loopback interface
+	configureLoopbackInterface(t, dut)
+
+	// configure static routes
+	configureStaticRoutes(t, dut)
+
 	// configure ATE
 	topo := configureATE(t)
 	ate.OTG().PushConfig(t, topo)
@@ -126,10 +144,10 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 
 	t.Run("DP-1.16.1 Ingress Classification and rewrite of IPv4 packets with various DSCP values", func(t *testing.T) {
-		rewriteIpv4PktsWithDscp(t, dut, ate, topo)
+		rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, donotExecuteGue)
 	})
 	t.Run("DP-1.16.2 Ingress Classification and rewrite of IPv6 packets with various DSCP values", func(t *testing.T) {
-		rewriteIpv6PktsWithDscp(t, dut, ate, topo)
+		rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, donotExecuteGue)
 	})
 	t.Run("DP-1.16.3 Ingress Classification and rewrite of MPLS traffic with swap action", func(t *testing.T) {
 		rewriteMplsSwapAction(t, dut, ate, topo)
@@ -146,7 +164,18 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	t.Run("DP-1.16.7 Ingress Classification and rewrite of IPv6 packets traffic with label push action", func(t *testing.T) {
 		rewriteIpv6MplsPushAction(t, dut, ate, topo)
 	})
-
+	t.Run("DP-1.16.8 Ingress Classification and rewrite of IPV4 traffic with action GRE encap", func(t *testing.T) {
+		rewriteIpv4PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
+	})
+	t.Run("DP-1.16.9 Ingress Classification and rewrite of IPV6 traffic with action GRE encap", func(t *testing.T) {
+		rewriteIpv6PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
+	})
+	t.Run("DP-1.16.10 Ingress Classification and rewrite of IPV4 traffic with action GUE variant1 encap", func(t *testing.T) {
+		rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
+	})
+	t.Run("DP-1.16.11 Ingress Classification and rewrite of IPV6 traffic with action GUE variant1 encap", func(t *testing.T) {
+		rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
+	})
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
@@ -428,21 +457,16 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureRemarkMpls(t *testing.T, dut *ondatra.DUTDevice) {
-	gnmiClient := dut.RawAPIs().GNMI(t)
 	jsonConfig := (`
 		qos map exp 5 to traffic-class 4
 		qos map exp 7 to traffic-class 6
 		qos map traffic-class 4 to exp 4
 		qos map traffic-class 6 to exp 6
 	`)
-	gpbSetRequest := buildCliConfigRequest(jsonConfig)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
+	helpers.GnmiCLIConfig(t, dut, jsonConfig)
 }
 
 func configureRemarkIpv4(t *testing.T, dut *ondatra.DUTDevice) {
-	gnmiClient := dut.RawAPIs().GNMI(t)
 	jsonConfig := `
     policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
 	class __yang_[dscp_based_classifier_ipv4]_[4]
@@ -450,15 +474,10 @@ func configureRemarkIpv4(t *testing.T, dut *ondatra.DUTDevice) {
 	class __yang_[dscp_based_classifier_ipv4]_[6]
 	set dscp 6
 		`
-	gpbSetRequest := buildCliConfigRequest(jsonConfig)
-
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
+	helpers.GnmiCLIConfig(t, dut, jsonConfig)
 }
 
 func configureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
-	gnmiClient := dut.RawAPIs().GNMI(t)
 	jsonConfig := `
     policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
    class __yang_[dscp_based_classifier_ipv6]_[0]
@@ -474,31 +493,7 @@ func configureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
    class __yang_[dscp_based_classifier_ipv6]_[6]
    set dscp 48
 		`
-	gpbSetRequest := buildCliConfigRequest(jsonConfig)
-
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-	}
-}
-
-// Support method to execute GNMIC commands
-func buildCliConfigRequest(config string) *gpb.SetRequest {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Origin: "cli",
-					Elem:   []*gpb.PathElem{},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_AsciiVal{
-						AsciiVal: config,
-					},
-				},
-			},
-		},
-	}
-	return gpbSetRequest
+	helpers.GnmiCLIConfig(t, dut, jsonConfig)
 }
 
 // configureATE sets up the ATE interfaces and BGP configurations.
@@ -527,10 +522,9 @@ func configureATE(t *testing.T) gosnappi.Config {
 	return topo
 }
 
-func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
+func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, greTest bool, gueTest bool) {
 
 	topo.Flows().Clear()
-	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 	var trafficIds []string
 
 	const max = maxIpv6Tos
@@ -543,7 +537,7 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
 		ethHeader := flow.Packet().Add().Ethernet()
 		ethHeader.Src().SetValue(atePort1.MAC)
-		ethHeader.Dst().SetValue(macAddress)
+		ethHeader.Dst().Auto()
 		ipHeader := flow.Packet().Add().Ipv6()
 		ipHeader.Src().SetValue(atePort1.IPv6)
 		ipHeader.Dst().SetValue(atePort2.IPv6)
@@ -554,6 +548,16 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	ate.OTG().PushConfig(t, topo)
+
+	if greTest {
+		// configure GRE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv6", "gre", true)
+	}
+
+	if gueTest {
+		// configure GUE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv6", "ipv6-over-udp", true)
+	}
 
 	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
 	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
@@ -566,11 +570,28 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	trafficStartStop(t, ate, topo, "ipv6-traffic-tos0")
 	stopCapture(t, ate)
 
+	if greTest {
+		// configure GRE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv6", "gre", false)
+	}
+
+	if gueTest {
+		// configure GUE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv6", "ipv6-over-udp", false)
+	}
+
 	for _, trafficID := range trafficIds {
 		t.Logf("Verify Traffic flow %s", trafficID)
 		verifyTrafficFlow(t, ate, trafficID)
 	}
-	verifyIpv6DscpCapture(t, ate, "port2")
+
+	if greTest {
+		checkGreCapture(t, ate, "port2", "ipv6")
+	} else if gueTest {
+		checkGueCapture(t, ate, "port2", "ipv6")
+	} else {
+		verifyIpv6DscpCapture(t, ate, "port2")
+	}
 
 	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
 	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
@@ -587,7 +608,7 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	compare_counters(t, intialpacket6, finalpacket6)
 }
 
-func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
+func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, greTest bool, gueTest bool) {
 	type trafficData struct {
 		frameSize uint32
 		dscp      uint8
@@ -648,7 +669,6 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	topo.Flows().Clear()
-	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
 	for trafficID, data := range IngressIPv4TrafficFlows {
 		t.Logf("Configuring flow %s", trafficID)
@@ -657,7 +677,7 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		flow.TxRx().Device().SetTxNames([]string{data.inputIntf.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
 		ethHeader := flow.Packet().Add().Ethernet()
 		ethHeader.Src().SetValue(data.inputIntf.MAC)
-		ethHeader.Dst().SetValue(macAddress)
+		ethHeader.Dst().Auto()
 		ipHeader := flow.Packet().Add().Ipv4()
 		ipHeader.Src().SetValue(data.inputIntf.IPv4)
 		ipHeader.Dst().SetValue(atePort2.IPv4)
@@ -668,6 +688,14 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	ate.OTG().PushConfig(t, topo)
+	if greTest {
+		// configure GRE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv4", "gre", true)
+	}
+	if gueTest {
+		// configure GUE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv4", "ipv4-over-udp", true)
+	}
 
 	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
 	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
@@ -679,12 +707,27 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "intf1-nc1-ipv4")
 	stopCapture(t, ate)
+
+	if greTest {
+		// configure GRE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv4", "gre", false)
+	}
+	if gueTest {
+		// configure GUE encapsulation with Traffic policy
+		configureGreGuePolicyForwarding(t, dut, "ipv4", "ipv4-over-udp", false)
+	}
+
 	for trafficID, _ := range IngressIPv4TrafficFlows {
 		t.Logf("Verify Traffic flow %s", trafficID)
 		verifyTrafficFlow(t, ate, trafficID)
 	}
-	verifyIpv4DscpCapture(t, ate, "port2")
-
+	if greTest {
+		checkGreCapture(t, ate, "port2", "ipv4")
+	} else if gueTest {
+		checkGueCapture(t, ate, "port2", "ipv4")
+	} else {
+		verifyIpv4DscpCapture(t, ate, "port2", donotExecuteGre, donotExecuteGue)
+	}
 	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
 	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
 	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
@@ -704,7 +747,6 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
 
 	topo.Flows().Clear()
-	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
 	t.Logf("Configuring flow for MPLS Swap Action")
 	flow := topo.Flows().Add().SetName("MplsSwap")
@@ -712,7 +754,7 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
-	ethHeader.Dst().SetValue(macAddress)
+	ethHeader.Dst().Auto()
 
 	mpls := flow.Packet().Add().Mpls()
 	mpls.Label().SetValue(mplsSwapLabel)
@@ -745,7 +787,6 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
 
 	topo.Flows().Clear()
-	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
 	t.Logf("Configuring flow for MPLS V4 POP Action")
 	flow := topo.Flows().Add().SetName("MplsPopV4")
@@ -753,7 +794,7 @@ func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
-	ethHeader.Dst().SetValue(macAddress)
+	ethHeader.Dst().Auto()
 
 	mpls := flow.Packet().Add().Mpls()
 	mpls.Label().SetValue(mplsPopLabelv4)
@@ -786,7 +827,6 @@ func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 func rewriteIpv6MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
 
 	topo.Flows().Clear()
-	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
 	t.Logf("Configuring flow for MPLS V4 POP Action")
 	flow := topo.Flows().Add().SetName("MplsPopV6")
@@ -794,7 +834,7 @@ func rewriteIpv6MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
-	ethHeader.Dst().SetValue(macAddress)
+	ethHeader.Dst().Auto()
 
 	mpls := flow.Packet().Add().Mpls()
 	mpls.Label().SetValue(mplsPopLabelv6)
@@ -827,7 +867,6 @@ func rewriteIpv4MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	dp1 := dut.Port(t, "port1")
 	topo.Flows().Clear()
-	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
 	t.Logf("Configuring flow for MPLS V4 PUSH Action")
 	flow := topo.Flows().Add().SetName("MplsPushV4")
@@ -835,7 +874,7 @@ func rewriteIpv4MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
-	ethHeader.Dst().SetValue(macAddress)
+	ethHeader.Dst().Auto()
 	ipHeader := flow.Packet().Add().Ipv4()
 	ipHeader.Src().SetValue(atePort1.IPv4)
 	ipHeader.Dst().SetValue(ipv4DestAddr)
@@ -865,7 +904,6 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	dp1 := dut.Port(t, "port1")
 	topo.Flows().Clear()
-	macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 
 	t.Logf("Configuring flow for MPLS V6 PUSH Action")
 	flow := topo.Flows().Add().SetName("MplsPushV6")
@@ -873,7 +911,7 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
-	ethHeader.Dst().SetValue(macAddress)
+	ethHeader.Dst().Auto()
 	ip6 := flow.Packet().Add().Ipv6()
 	ip6.Src().SetValue(atePort1.IPv6)
 	ip6.Dst().SetValue(ipv6DestAddr)
@@ -901,6 +939,9 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 }
 
 func trafficStartStop(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowName string) {
+	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficSleepTime * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -1024,7 +1065,7 @@ func verifyMplsPopCapture(t *testing.T, ate *ondatra.ATEDevice, port string) {
 	}
 }
 
-func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string) {
+func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, greCheck bool, gueCheck bool) {
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
 	if err != nil {
@@ -1037,9 +1078,10 @@ func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string) {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if ip.SrcIP.Equal(net.ParseIP(atePort1.IPv4)) {
 				dscpValue := ip.TOS >> 2
-				if dscpValue == 5 {
+				switch dscpValue {
+				case 5:
 					t.Fatalf("Error: DSCP value 5 should be converted to 4 by ingress DUT")
-				} else if dscpValue == 7 {
+				case 7:
 					t.Fatalf("Error: DSCP value 7 should be converted to 6 by ingress DUT")
 				}
 			}
@@ -1105,5 +1147,315 @@ func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64) {
 		t.Logf("Pass : Classifier counters got incremented after start and stop traffic")
 	} else {
 		t.Errorf("Fail : Classifier counters not incremented after start and stop traffic. Refer BUG ID 419618177")
+	}
+}
+
+func configureGreGuePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, ipType string, greOrGue string, config bool) {
+	if deviations.PolicyForwardingToNextHopOcUnsupported(dut) || deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
+		t.Logf("Configuring pf through CLI")
+		configureGreGuePolicyForwardingFromCLI(t, dut, ipType, greOrGue, config)
+	} else {
+		t.Logf("Configuring pf through OC")
+		configurePolicyForwardingFromOC(t, dut, ipType, greOrGue, config)
+	}
+}
+
+func configureGreGuePolicyForwardingFromCLI(t *testing.T, dut *ondatra.DUTDevice, ipType string, greOrGue string, config bool) {
+	interfaceName := dut.Port(t, "port1").Name()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		var matchRules, trafficPolicyConfig string
+		if config {
+			if ipType == "ipv4" {
+				matchRules += fmt.Sprintf(`
+        		match rule-src1-v4 ipv4
+        		destination prefix %s/32
+        		actions
+        		count
+        		redirect next-hop group SRC1_NH
+			    nexthop-group SRC1_NH type %s
+        		tunnel-source intf %s
+				fec hierarchical
+                entry 1 tunnel-destination %s
+        	`, atePort2.IPv4, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
+			} else {
+				matchRules += fmt.Sprintf(`
+				
+        		match rule-src1-v6 ipv6
+        		destination prefix %s/128
+        		actions
+        		count
+        		redirect next-hop group SRC1_NH
+				nexthop-group SRC1_NH type %s
+        		tunnel-source intf %s
+				fec hierarchical
+                entry 2 tunnel-destination %s
+        	`, atePort2.IPv6, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
+			}
+
+			// Apply Policy on the interface
+			trafficPolicyConfig = fmt.Sprintf(`
+			tunnel type ipv4-over-udp udp destination port 6080
+			tunnel type ipv6-over-udp udp destination port 6080
+            traffic-policies
+            traffic-policy %s
+            %s
+            interface %s
+            traffic-policy input %s
+            `, trafficPolicyName, matchRules, interfaceName, trafficPolicyName)
+		} else {
+			trafficPolicyConfig = fmt.Sprintf(`
+			    no nexthop-group SRC1_NH type %s
+            	interface %s
+            	no traffic-policy input %s
+           		traffic-policies
+            	no traffic-policy %s
+            `, greOrGue, interfaceName, trafficPolicyName, trafficPolicyName)
+		}
+		helpers.GnmiCLIConfig(t, dut, trafficPolicyConfig)
+
+	default:
+		t.Errorf("Deviation configureGreGuePolicyForwardingFromCLI is not handled for the dut: %v", dut.Vendor())
+	}
+}
+
+func configurePolicyForwardingFromOC(t *testing.T, dut *ondatra.DUTDevice, ipType string, greOrGue string, config bool) {
+	interfaceName := dut.Port(t, "port1").Name()
+	pf := &oc.Root{}
+	ni := pf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	if config {
+		policy := ni.GetOrCreatePolicyForwarding().GetOrCreatePolicy(trafficPolicyName)
+		policy.Type = oc.Policy_Type_PBR_POLICY
+		if ipType == "ipv4" {
+			// Rule 1: Match IPV4-SRC1 and accept/forward
+			rule1 := policy.GetOrCreateRule(1)
+			rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(fmt.Sprintf("%s/32", dutPort2.IPv4))
+			encapGre4 := rule1.GetOrCreateAction().GetOrCreateEncapsulateGre()
+			targetName := greOrGue
+			encapGre4.GetOrCreateTarget(targetName).Source = ygot.String(dutlo0Attrs.IPv4)
+			encapGre4.GetOrCreateTarget(targetName).Destination = ygot.String(ipv4DestAddr)
+
+		} else {
+			// Rule 2: Match IPV6-SRC1 and accept/forward
+			rule4 := policy.GetOrCreateRule(4)
+			rule4.GetOrCreateIpv6().DestinationAddress = ygot.String(fmt.Sprintf("%s/128", dutPort2.IPv6))
+			encapGre6 := rule4.GetOrCreateAction().GetOrCreateEncapsulateGre()
+			targetName := greOrGue
+			encapGre6.GetOrCreateTarget(targetName).Source = ygot.String(dutlo0Attrs.IPv6)
+			encapGre6.GetOrCreateTarget(targetName).Destination = ygot.String(ipv6DestAddr)
+		}
+
+		// Apply the policy to DUT Port 1
+		ni.GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceName).ApplyForwardingPolicy = ygot.String(trafficPolicyName)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), ni.PolicyForwarding)
+	} else {
+		pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceName)
+		gnmi.Delete(t, dut, pfPath.Config())
+	}
+}
+
+func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	dc := gnmi.OC()
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
+	dutlo0Attrs.Name = loopbackIntfName
+	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
+	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
+	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
+		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
+		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
+	} else {
+		v4, ok := ipv4Addrs[0].Val()
+		if ok {
+			dutlo0Attrs.IPv4 = v4.GetIp()
+		}
+		v6, ok := ipv6Addrs[0].Val()
+		if ok {
+			dutlo0Attrs.IPv6 = v6.GetIp()
+		}
+		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
+		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
+	}
+}
+
+func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+
+	configStaticRoute(t, dut, "192.0.2.0/30", "192.0.2.10", "0")
+	configStaticRoute(t, dut, ipv4DestAddrWithCidr, atePort2.IPv4, "1")
+	configStaticRoute(t, dut, "2001:DB8:0::0/126", "2001:DB8:0::10", "0")
+	configStaticRoute(t, dut, ipv6DestAddrWithCidr, atePort2.IPv6, "1")
+}
+
+// Congigure Static Routes on DUT
+func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
+	b := &gnmi.SetBatch{}
+	if nexthop == "Null0" {
+		nexthop = "DROP"
+	}
+	routeCfg := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefix,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			index: oc.UnionString(nexthop),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, routeCfg, dut); err != nil {
+		t.Fatalf("Failed to configure static route: %v", err)
+	}
+	b.Set(t, dut)
+}
+
+func checkGreCapture(t *testing.T, ate *ondatra.ATEDevice, port string, ipType string) {
+	var innerLayerType gopacket.LayerType
+	switch ipType {
+	case "ipv4":
+		innerLayerType = layers.LayerTypeIPv4
+	case "ipv6":
+		innerLayerType = layers.LayerTypeIPv6
+	}
+	pcapfilename := processCapture(t, ate, port)
+	handle, err := pcap.OpenOffline(pcapfilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range packetSource.Packets() {
+		ipLayer := packet.Layer(layers.LayerTypeIPv4)
+		if ipLayer == nil {
+			continue
+		}
+		ipOuterLayer, ok := ipLayer.(*layers.IPv4)
+		if !ok || ipOuterLayer == nil {
+			t.Errorf("Outer IP layer not found %d", ipLayer)
+			return
+		}
+		greLayer := packet.Layer(layers.LayerTypeGRE)
+		grePacket, ok := greLayer.(*layers.GRE)
+		if !ok || grePacket == nil {
+			t.Error("GRE layer not found")
+			return
+		}
+		if ipOuterLayer.Protocol != greProtocol {
+			t.Errorf("Packet is not encapslated properly. Encapsulated protocol is: %d", ipOuterLayer.Protocol)
+			return
+		}
+		innerPacket := gopacket.NewPacket(grePacket.Payload, grePacket.NextLayerType(), gopacket.Default)
+		ipInnerLayer := innerPacket.Layer(innerLayerType)
+		if ipInnerLayer == nil {
+			t.Error("Inner IP layer not found")
+			return
+		}
+		var innerPacketTOS, dscp uint8
+		switch ipType {
+		case "ipv4":
+			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv4)
+			if !ok || ipInnerPacket == nil {
+				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
+				return
+			}
+			innerPacketTOS = ipInnerPacket.TOS
+			dscp = innerPacketTOS >> 2
+			switch dscp {
+			case 5:
+				t.Fatalf("Error: DSCP value 5 should be converted to 4 by ingress DUT")
+			case 7:
+				t.Fatalf("Error: DSCP value 7 should be converted to 6 by ingress DUT")
+			}
+		case "ipv6":
+			var dscpValuesToConvert []int
+			for i := 1; i <= maxIpv6Tos; i++ {
+				if i%8 != 0 {
+					dscpValuesToConvert = append(dscpValuesToConvert, i)
+				}
+			}
+			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv6)
+			if !ok || ipInnerPacket == nil {
+				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
+				return
+			}
+			innerPacketTOS = ipInnerPacket.TrafficClass
+			dscp = innerPacketTOS
+			if contains(dscpValuesToConvert, int(dscp)) {
+				t.Fatalf("Error: DSCP value %v should be converted by ingress DUT but not converted", dscp)
+			}
+		}
+	}
+}
+
+func checkGueCapture(t *testing.T, ate *ondatra.ATEDevice, port string, ipType string) {
+	pcapfilename := processCapture(t, ate, port)
+	handle, err := pcap.OpenOffline(pcapfilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range packetSource.Packets() {
+		ipLayer := packet.Layer(layers.LayerTypeIPv4)
+		if ipLayer == nil {
+			continue
+		}
+		ipOuterLayer, ok := ipLayer.(*layers.IPv4)
+		if !ok || ipOuterLayer == nil {
+			t.Errorf("Outer IP layer not found %d", ipLayer)
+			return
+		}
+
+		udpLayer := packet.Layer(layers.LayerTypeUDP)
+		udp, ok := udpLayer.(*layers.UDP)
+		if !ok || udp == nil {
+			t.Error("GUE layer not found")
+			return
+		} else {
+			if udp.DstPort == gueProtocolPort {
+				t.Log("Got the encapsulated GUE layer")
+			}
+
+			var innerPacketTOS, dscp uint8
+
+			switch ipType {
+			case "ipv4":
+				innerPacket := gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv4, gopacket.Default)
+				ipLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+				if ipLayer == nil {
+					t.Errorf("Inner layer of type %s not found", ipType)
+					return
+				}
+				ip, _ := ipLayer.(*layers.IPv4)
+				innerPacketTOS = ip.TOS
+				dscp := innerPacketTOS >> 2
+				switch dscp {
+				case 5:
+					t.Fatalf("Error: DSCP value 5 should be converted to 4 by ingress DUT")
+				case 7:
+					t.Fatalf("Error: DSCP value 7 should be converted to 6 by ingress DUT")
+				}
+
+			case "ipv6":
+				var dscpValuesToConvert []int
+				for i := 1; i <= maxIpv6Tos; i++ {
+					if i%8 != 0 {
+						dscpValuesToConvert = append(dscpValuesToConvert, i)
+					}
+				}
+				innerPacket := gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv6, gopacket.Default)
+				ipLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+				if ipLayer == nil {
+					t.Errorf("Inner layer of type %s not found", ipType)
+					return
+				}
+				ip, _ := ipLayer.(*layers.IPv6)
+
+				innerPacketTOS = ip.TrafficClass
+				dscp = innerPacketTOS
+				println(dscp)
+				if contains(dscpValuesToConvert, int(dscp)) {
+					t.Fatalf("Error: DSCP value %v should be converted by ingress DUT but not converted", dscp)
+				}
+			}
+		}
 	}
 }

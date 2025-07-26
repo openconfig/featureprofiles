@@ -12,8 +12,9 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
-    qos_remark_oc_unsupported : true
+    qos_remark_oc_unsupported: true
     static_mpls_lsp_oc_unsupported: true
-    skip_verify_classifier_matchedpackets: true
+    policy_forwarding_to_next_hop_oc_unsupported: true
+    policy_forwarding_gre_encapsulation_oc_unsupported: true
   }
 }
