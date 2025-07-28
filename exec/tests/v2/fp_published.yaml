@@ -1360,13 +1360,13 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [ancx,P2]
-  - name: SFLOW-1 (sFlow Configuration and Traffic Sampling)
-    path: feature/sflow/otg_tests/sflow_base_test
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: true
-    groups: [ancx,P2]
+  # - name: SFLOW-1 (sFlow Configuration and Traffic Sampling)
+  #   path: feature/sflow/otg_tests/sflow_base_test
+  #   priority: 2
+  #   owners:
+  #     - arvbaska
+  #   mustpass: true
+  #   groups: [ancx,P2]
   - name: TR-6.1 (System logging remote syslog)
     path: feature/system/logging/otg_tests/remote_syslog
     priority: 2

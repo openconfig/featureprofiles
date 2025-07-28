@@ -650,13 +650,12 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                 c |= BringupIxiaController.s()
             except Exception as e:
                 _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
-                raise e
+                raise Exception("Could not bringup IXIA Controller") from e
         if not using_sim:
             if testbed_checks:
                 c |= CheckTestbed.s(tgen=is_tgen, otg=is_otg)
             if install_image:
                 c |= SoftwareUpgrade.s(force_install=force_install)
-                force_reboot = False
         if smus:
             c |= InstallSMUs.s(smus=smus)
         if force_reboot:
@@ -672,7 +671,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
             _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
             logger.warning(f'Failed to bringup testbed {reserved_testbed["id"]}: {e}')
     
-    raise Exception(f'Could not reserve testbed')
+    raise Exception(f'Could not bringup testbed')
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, ws, testbed_logs_dir, 
@@ -714,6 +713,7 @@ def b4_chain_provider(ws, testsuite_id,
                         test_debug=False,
                         test_verbose=True,
                         collect_debug_files=True,
+                        force_collect_debug_files=False,
                         override_test_args_from_env=True,
                         testbed=None,
                         sanitizer=None,
@@ -747,6 +747,7 @@ def b4_chain_provider(ws, testsuite_id,
                     otg_keng_layer23_hw_server=otg_keng_layer23_hw_server,
                     otg_gnmi_server=otg_gnmi_server,
                     collect_debug_files=collect_debug_files,
+                    force_collect_debug_files=force_collect_debug_files,
                     override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
 
@@ -824,7 +825,7 @@ def b4_chain_provider(ws, testsuite_id,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
-        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
+        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, force_collect_debug_files=False, 
         collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False,
         test_enable_grpc_logs=False):
@@ -941,15 +942,17 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
-        core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
+        collect_debug_files = collect_debug_files or force_collect_debug_files
+        core_check_only = (test_did_pass and not force_collect_debug_files) or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
             ws=ws,
             internal_fp_repo_dir=internal_fp_repo_dir, 
             reserved_testbed=reserved_testbed, 
             out_dir = os.path.join(test_log_directory_path, "debug_files"),
             timestamp=start_timestamp,
-            core_check=core_check_only,
+            core_check=True,
             collect_tech=not core_check_only,
+            collect_snapshot=not core_check_only,
             run_cmds=True,
             split_files_per_dut=True
         )).get('core_files', [])
@@ -1011,7 +1014,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
                       f'permissions and make sure your ssh keys are added to your user profile here:\n' \
                       f'https://wwwin-github.cisco.com/settings/keys'
             self.enqueue_child(Warn.s(err_msg=err_msg), block=True, raise_exception_on_failure=False)
-        raise e
+        raise Exception("Could not clone repository") from e
 
     head_commit_sha = repo.head.commit.hexsha
     logger.info(f'Head Commit Sha: {head_commit_sha}')
@@ -1312,16 +1315,24 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
 
     env = dict(os.environ)
     env.update(_get_go_env(ws))
-    output = check_output(su_command, env=env, cwd=internal_fp_repo_dir)
-    #TODO: find a better way?
-    if not 'Image already installed' in output:
-        self.enqueue_child(ForceReboot.s(
+    start_timestamp = int(time.time())
+    try:
+        check_output(su_command, env=env, cwd=internal_fp_repo_dir)
+        Path(reserved_testbed['install_lock_file']).touch()
+    except Exception as e:
+        self.enqueue_child_and_extract(CollectDebugFiles.s(
             ws=ws,
             internal_fp_repo_dir=internal_fp_repo_dir, 
-            reserved_testbed=reserved_testbed,
+            reserved_testbed=reserved_testbed, 
+            out_dir = os.path.join(testbed_logs_dir, "debug_files"),
+            timestamp=start_timestamp,
+            core_check=True,
+            collect_tech=True,
+            collect_snapshot=True,
+            run_cmds=True,
+            split_files_per_dut=True
         ))
-
-    Path(reserved_testbed['install_lock_file']).touch()
+        raise Exception("Software upgrade failed") from e
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
@@ -1372,7 +1383,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*90*60, time_limit=1*90*60, returns=('core_files'))
 def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir, 
-                      timestamp=1, core_check=False, collect_tech=False,
+                      timestamp=1, core_check=False, collect_tech=False, collect_snapshot=False,
                       run_cmds=False, split_files_per_dut=False, custom_tech="", custom_cmds=""):
     logger.print("Collecting debug files...")
 
@@ -1393,6 +1404,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
             f'-coreCheck={_gobool(core_check)} ' \
             f'-collectTech={_gobool(collect_tech)} ' \
             f'-runCmds={_gobool(run_cmds)} ' \
+            f'-snapshot={_gobool(collect_snapshot)} ' \
             f'-splitPerDut={_gobool(split_files_per_dut)} ' \
             f'-showtechs="{custom_tech}" ' \
             f'-cmds="{custom_cmds}" '
@@ -1654,7 +1666,7 @@ def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
         logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
     except Exception as e:
         check_output(f'rm -rf {venv_path}')
-        raise e
+        raise Exception("Could not initialize Python environment") from e
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

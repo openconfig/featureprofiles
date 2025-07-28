@@ -93,7 +93,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-With-Recurse-True-With-Interface-With-NextHop-Static",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteRecurseInterfaceNextHop(t, dut2, false, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteRecurseInterfaceNextHop(t, dut2, false, true, dut2.Port(t, "port11").Name(),
 					"100.100.100.5/32", "25.25.25.25")
 			},
 			validate: func(t *testing.T) {
@@ -153,7 +153,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteRecurseInterfaceNextHop(t, dut2, false, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteRecurseInterfaceNextHop(t, dut2, false, false, dut2.Port(t, "port11").Name(),
 					"100.100.100.11/32", "25.25.25.25")
 			},
 			validate: func(t *testing.T) {
@@ -273,7 +273,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-With-Recurse-True-With-Interface-With-NextHop-Static-With-Attributes",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, true, dut2.Port(t, "port11").Name(),
 					"100.100.100.17/32", "25.25.25.25", 10, 10, 10)
 			},
 			validate: func(t *testing.T) {
@@ -413,7 +413,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static-With-Attributes",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "port11").Name(),
 					"100.100.100.23/32", "25.25.25.25", 10, 10, 10)
 			},
 			validate: func(t *testing.T) {
@@ -423,7 +423,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static-With-Update-Attributes",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "port11").Name(),
 					"100.100.100.23/32", "25.25.25.25", 100, 100, 100)
 			},
 			validate: func(t *testing.T) {
@@ -433,7 +433,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static-With-Delete-Attributes",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "port11").Name(),
 					"100.100.100.23/32", "25.25.25.25", 0, 0, 0)
 			},
 			validate: func(t *testing.T) {
@@ -591,7 +591,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-No-Recurse-With-Interface-With-NextHop-Static",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteNoRecurseInterfaceNextHop(t, dut2, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteNoRecurseInterfaceNextHop(t, dut2, true, dut2.Port(t, "port11").Name(),
 					"100.100.100.37/32", "25.25.25.25")
 			},
 			validate: func(t *testing.T) {
@@ -865,7 +865,7 @@ func TestIPv4NonDefaultVRF(t *testing.T) {
 				Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Static(prefixes[i]).Config())
 		}
 	}
-	vrfIntf := dut2.Port(t, "dut2_ate_port2").Name()
+	vrfIntf := dut2.Port(t, "port12").Name()
 	localPrefix := fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_VRF_BASE_IPv4, ipv4LBPrefixLen)
 	unrslvPrefix := fmt.Sprintf("%s/%d", UNRSLV_STATIC_ROUTE_VRF_BASE_IPv4, ipv4LBPrefixLen)
 
@@ -896,7 +896,7 @@ func TestIPv4NonDefaultVRF(t *testing.T) {
 		{
 			name: "IPv4-Static-Route-With-Recurse-True-With-Interface-With-NextHop-NonDefaultVRF-Static",
 			test: func(t *testing.T) {
-				testIPv4StaticRouteRecurseInterfaceNextHopVRF(t, dut2, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv4StaticRouteRecurseInterfaceNextHopVRF(t, dut2, true, dut2.Port(t, "port11").Name(),
 					"110.110.110.3/32", "45.45.45.45")
 			},
 			validate: func(t *testing.T) {
@@ -986,7 +986,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-With-Recurse-True-With-Interface-With-NextHop-Static",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteRecurseInterfaceNextHop(t, dut2, false, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteRecurseInterfaceNextHop(t, dut2, false, true, dut2.Port(t, "port11").Name(),
 					"100:100:100::5/128", "25:25:25::25")
 			},
 			validate: func(t *testing.T) {
@@ -1046,7 +1046,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteRecurseInterfaceNextHop(t, dut2, false, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteRecurseInterfaceNextHop(t, dut2, false, false, dut2.Port(t, "port11").Name(),
 					"100:100:100::11/128", "25:25:25::25")
 			},
 			validate: func(t *testing.T) {
@@ -1166,7 +1166,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-With-Recurse-True-With-Interface-With-NextHop-Static-With-Attributes",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, true, dut2.Port(t, "port11").Name(),
 					"100:100:100::17/128", "25:25:25::25", 10, 10, 10)
 			},
 			validate: func(t *testing.T) {
@@ -1306,7 +1306,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static-With-Attributes",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "port11").Name(),
 					"100:100:100::23/128", "25:25:25::25", 10, 10, 10)
 			},
 			validate: func(t *testing.T) {
@@ -1316,7 +1316,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static-With-Update-Attributes",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "port11").Name(),
 					"100:100:100::23/128", "25:25:25::25", 100, 100, 100)
 			},
 			validate: func(t *testing.T) {
@@ -1326,7 +1326,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Static-With-Delete-Attributes",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteRecurseInterfaceNextHopAttributes(t, dut2, false, dut2.Port(t, "port11").Name(),
 					"100:100:100::23/128", "25:25:25::25", 0, 0, 0)
 			},
 			validate: func(t *testing.T) {
@@ -1486,7 +1486,7 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-No-Recurse-With-Interface-With-NextHop-Static",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteNoRecurseInterfaceNextHop(t, dut2, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteNoRecurseInterfaceNextHop(t, dut2, true, dut2.Port(t, "port11").Name(),
 					"100:100:100::37/128", "25:25:25::25")
 			},
 			validate: func(t *testing.T) {
@@ -1733,7 +1733,7 @@ func TestIPv6NonDefaultVRF(t *testing.T) {
 				Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Static(prefixes[i]).Config())
 		}
 	}
-	vrfIntf := dut2.Port(t, "dut2_ate_port2").Name()
+	vrfIntf := dut2.Port(t, "port12").Name()
 	localPrefix := fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_VRF_BASE_IPv6, ipv6LBPrefixLen)
 	unrslvPrefix := fmt.Sprintf("%s/%d", UNRSLV_STATIC_ROUTE_VRF_BASE_IPv6, ipv6LBPrefixLen)
 
@@ -1764,7 +1764,7 @@ func TestIPv6NonDefaultVRF(t *testing.T) {
 		{
 			name: "IPv6-Static-Route-With-Recurse-True-With-Interface-With-NextHop-DefaultVRF-Static",
 			test: func(t *testing.T) {
-				testIPv6StaticRouteRecurseInterfaceNextHopVRF(t, dut2, true, dut2.Port(t, "dut2_ate_port1").Name(),
+				testIPv6StaticRouteRecurseInterfaceNextHopVRF(t, dut2, true, dut2.Port(t, "port11").Name(),
 					"110:110:110::3/128", "45:45:45::45")
 			},
 			validate: func(t *testing.T) {
@@ -1808,8 +1808,8 @@ func TestIPv4StaticRouteRecurseScale(t *testing.T) {
 	unrslvV4Prefix := fmt.Sprintf("%s/%d", "80.80.80.80", ipv4LBPrefixLen)
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-	dut1Port := dut1.Port(t, "dut1_ate_port1").Name()
-	dut2Port := dut2.Port(t, "dut2_ate_port1").Name()
+	dut1Port := dut1.Port(t, "port11").Name()
+	dut2Port := dut2.Port(t, "port11").Name()
 	ipv4 := true
 	count := 9
 	ipAf := "ipv4"
@@ -2007,8 +2007,8 @@ func TestIPv6StaticRouteRecurseScale(t *testing.T) {
 	unrslvV4Prefix := fmt.Sprintf("%s/%d", "80:80:80::80", ipv6LBPrefixLen)
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-	dut1Port := dut1.Port(t, "dut1_ate_port1").Name()
-	dut2Port := dut2.Port(t, "dut2_ate_port1").Name()
+	dut1Port := dut1.Port(t, "port11").Name()
+	dut2Port := dut2.Port(t, "port11").Name()
 	ipv4 := false
 	count := 9
 
