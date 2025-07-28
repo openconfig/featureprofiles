@@ -557,11 +557,33 @@ func rpfo(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, gribi_reco
 	}
 	// supervisor info
 	var supervisors []string
-	active_state := gnmi.OC().Component(active_rp).Name().State()
-	active := gnmi.Get(t, dut, active_state)
-	standby_state := gnmi.OC().Component(standby_rp).Name().State()
-	standby := gnmi.Get(t, dut, standby_state)
-	supervisors = append(supervisors, active, standby)
+	var active, standby string
+	rp := []string{active_rp, standby_rp}
+	for _, active_rp := range rp {
+		active_state := gnmi.OC().Component(active_rp).Name().State()
+		if gnmi.Get(t, dut, active_state) == "" {
+			continue
+		} else {
+			active = gnmi.Get(t, dut, active_state)
+			break
+		}
+	}
+
+	for _, standby_rp := range rp {
+		standby_state := gnmi.OC().Component(standby_rp).Name().State()
+		if gnmi.Get(t, dut, standby_state) == "" {
+			continue
+		} else {
+			standby = gnmi.Get(t, dut, standby_state)
+			break
+		}
+	}
+	t.Logf("Active RP: %s, Standby RP: %s", active, standby)
+	if active != "" && standby != "" && active != standby {
+		supervisors = append(supervisors, active, standby)
+	} else {
+		t.Skip("setup is not ready for switchover test, active and standby RP not found")
+	}
 
 	// find active and standby RP
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, supervisors)
