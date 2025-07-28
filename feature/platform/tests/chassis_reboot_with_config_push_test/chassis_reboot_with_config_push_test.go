@@ -34,6 +34,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/testt"
 )
 
 const (
@@ -114,7 +115,9 @@ func TestRebootPlusConfigPush(t *testing.T) {
 		},
 		rebootActive: true,
 	}
-
+	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
 	if !deviations.GNOIStatusWithEmptySubcomponent(dut) {
 		statusReq.Subcomponents = append(statusReq.Subcomponents, getSubCompPath(t, dut))
@@ -122,7 +125,7 @@ func TestRebootPlusConfigPush(t *testing.T) {
 	t.Run(tc.desc, func(t *testing.T) {
 		t.Logf("Send reboot request: %v", tc.rebootRequest)
 		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
-		defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
+
 		t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
 		if err != nil {
 			t.Fatalf("Failed to request reboot with unexpected err: %v", err)
@@ -132,24 +135,8 @@ func TestRebootPlusConfigPush(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get reboot status with unexpected err: %v", err)
 		}
-		if resp.GetActive() != tc.rebootActive {
-			t.Errorf("resp.GetActive(): got %v, want %v", resp.GetActive(), tc.rebootActive)
-		}
-		if resp.GetReason() != tc.rebootRequest.GetMessage() {
-			t.Errorf("resp.GetReason(): got %v, want %v", resp.GetReason(), tc.rebootRequest.GetMessage())
-		}
-		if resp.GetWhen() == 0 {
-			t.Errorf("resp.GetWhen(): got %v, want > 0", resp.GetWhen())
-		}
+		deviceUpPostReboot(t, dut, bootTimeBeforeReboot, len(preRebootCompStatus))
 	})
-
-	t.Logf("Cancel reboot request after the test")
-
-	rebootCancel, err := gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
-	if err != nil {
-		t.Fatalf("Failed to cancel reboot with unexpected err: %v", err)
-	}
-	t.Logf("DUT CancelReboot response: %v, err: %v", rebootCancel, err)
 	coreFileCheck(t, dut, gnoiClient, timestamp, true)
 }
 
@@ -207,7 +194,7 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 		isisIntf := isis.GetOrCreateInterface(agg)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS").Config(), isisProto)
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS").Config(), isisProto)
 
 	bgpProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := bgpProto.GetOrCreateBgp()
@@ -338,3 +325,70 @@ func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clien
 		}
 	}
 }
+func deviceUpPostReboot(t *testing.T, dut *ondatra.DUTDevice, bootTimeBeforeReboot uint64, lenPreRebootCompStatus int) {
+	t.Helper()
+
+	t.Log("Checking if device is Operationally up after reboot")
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+		startReboot := time.Now()
+		t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+		for {
+			var currentTime string
+			t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+			time.Sleep(30 * time.Second)
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			}); errMsg != nil {
+				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+			} else {
+				t.Logf("Device rebooted successfully with received time: %v", currentTime)
+				break
+			}
+
+			if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+				t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+			}
+		}
+		t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+
+		bootTimeAfterReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+		t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
+		if bootTimeAfterReboot <= bootTimeBeforeReboot {
+			t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
+		}
+		t.Logf("Wait for all the components on DUT to come up")
+		for {
+			postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+			postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+			var postCompMatrix []string
+			for _, postComp := range postRebootCompDebug {
+				if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+					postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+				}
+			}
+
+			if len(postRebootCompStatus) == lenPreRebootCompStatus {
+				t.Logf("All components on the DUT are in responsive state")
+				time.Sleep(10 * time.Second)
+				break
+			}
+			if uint64(time.Since(startReboot).Seconds()) > maxComponentUpTime {
+				t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+			}
+		}
+	}
+}
+
