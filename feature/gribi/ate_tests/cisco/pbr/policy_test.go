@@ -3,10 +3,10 @@ package policy_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
-	"strings"
-
+	
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -438,7 +438,7 @@ func TestCD5PBR(t *testing.T) {
 	}
 	if strings.Contains(resp.Output(), "VXR") {
 		t.Logf("Skipping the base config since platfrom is VXR")
-	}else{
+	} else {
 		t.Logf("config the base config since platfrom is HW")
 		configureDUT(t, dut)
 		configRP(t, dut)
