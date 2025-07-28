@@ -412,12 +412,12 @@ const (
 	// for VIP prefix
 	vipNHOffset  = 200
 	vipNHGOffset = 300
-	// for Tunnel Prefix
-	tunNHOffset  = 400
-	tunNHGOffset = 500
-	// for encap
-	encapNHOffset  = 600
-	encapNHGOffset = 700
+	// // for Tunnel Prefix
+	// tunNHOffset  = 400
+	// tunNHGOffset = 500
+	// // for encap
+	// encapNHOffset  = 600
+	// encapNHGOffset = 700
 	// for decap
 	decapNHOffset  = 800
 	decapNHGOffset = 900

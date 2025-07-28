@@ -1480,17 +1480,17 @@ func unshutPorts(t *testing.T, args *testArgs, ports []string) {
 	time.Sleep(5 * time.Second)
 }
 
-func shutInterface(t *testing.T, args *testArgs, interfaces []string) {
-	t.Logf("Shutting down interfaces %v", interfaces)
-	failureTime := time.Now()
-	t.Logf("time when interface is shutdown %v", failureTime)
-	for _, intf := range interfaces {
-		gnmi.Update(t, args.dut, gnmi.OC().Interface(intf).Subinterface(0).Enabled().Config(), false)
-		time.Sleep(2 * time.Second) // Allow interface state to update
-		// Verify interface state
-		enabled := gnmi.Get(t, args.dut, gnmi.OC().Interface(intf).Enabled().State())
-		if enabled {
-			t.Errorf("Interface %s failed to shutdown", intf)
-		}
-	}
-}
+// func shutInterface(t *testing.T, args *testArgs, interfaces []string) {
+// 	t.Logf("Shutting down interfaces %v", interfaces)
+// 	failureTime := time.Now()
+// 	t.Logf("time when interface is shutdown %v", failureTime)
+// 	for _, intf := range interfaces {
+// 		gnmi.Update(t, args.dut, gnmi.OC().Interface(intf).Subinterface(0).Enabled().Config(), false)
+// 		time.Sleep(2 * time.Second) // Allow interface state to update
+// 		// Verify interface state
+// 		enabled := gnmi.Get(t, args.dut, gnmi.OC().Interface(intf).Enabled().State())
+// 		if enabled {
+// 			t.Errorf("Interface %s failed to shutdown", intf)
+// 		}
+// 	}
+// }

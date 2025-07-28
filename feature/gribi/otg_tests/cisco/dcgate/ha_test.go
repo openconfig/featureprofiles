@@ -191,10 +191,10 @@ func rpfo(t *testing.T, dut *ondatra.DUTDevice, client *gribi.Client, gribi_reco
 	}
 }
 
-// shut/unshut the interfaces
-func flapInterface(t *testing.T, args *testArgs, intfs []string, flap bool) {
-	for _, intf := range intfs {
-		path := gnmi.OC().Interface(intf).Enabled()
-		gnmi.Update(t, args.dut, path.Config(), flap)
-	}
-}
+// // shut/unshut the interfaces
+// func flapInterface(t *testing.T, args *testArgs, intfs []string, flap bool) {
+// 	for _, intf := range intfs {
+// 		path := gnmi.OC().Interface(intf).Enabled()
+// 		gnmi.Update(t, args.dut, path.Config(), flap)
+// 	}
+// }
