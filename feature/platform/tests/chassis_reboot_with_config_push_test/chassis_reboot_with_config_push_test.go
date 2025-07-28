@@ -100,7 +100,7 @@ func TestRebootPlusConfigPush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	timestamp := uint64(time.Now().UTC().Unix())
 	gnoiClient := dut.RawAPIs().GNOI(t)
-	LargeConfigPush(t)
+	genericConfigPush(t)
 	tc := struct {
 		desc          string
 		rebootRequest *spb.RebootRequest
@@ -140,7 +140,7 @@ func TestRebootPlusConfigPush(t *testing.T) {
 	coreFileCheck(t, dut, gnoiClient, timestamp, true)
 }
 
-func LargeConfigPush(t *testing.T) {
+func genericConfigPush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// Get the number of ports on the DUT
 	numPorts := len(dut.Ports())
@@ -157,6 +157,7 @@ func LargeConfigPush(t *testing.T) {
 
 func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
+	// Interface configs generation
 	params := configParams{
 		NumLAGInterfaces:            numPorts,
 		NumEthernetInterfacesPerLAG: 1,
@@ -186,7 +187,7 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 	device := &oc.Root{}
 
 	networkInterface := device.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-
+	// ISIS config generation
 	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
 	isisProto.Enabled = ygot.Bool(true)
 	isis := isisProto.GetOrCreateIsis()
@@ -195,7 +196,7 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	}
 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS").Config(), isisProto)
-
+	// BGP config generation
 	bgpProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := bgpProto.GetOrCreateBgp()
 
@@ -228,7 +229,7 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 		af6 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(true)
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProto)
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProto)
 
 	ethIdx := 0
 	for lagIdx := 0; ethIdx < numPorts && lagIdx < len(aggIDs); lagIdx++ {
@@ -240,7 +241,7 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 			if deviations.InterfaceEnabled(dut) {
 				intf.Enabled = ygot.Bool(true)
 			}
-			gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), intf)
+			gnmi.BatchUpdate(batch, gnmi.OC().Interface(port.Name()).Config(), intf)
 			ethIdx++
 		}
 	}
