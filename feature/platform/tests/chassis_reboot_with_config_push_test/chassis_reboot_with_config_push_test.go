@@ -65,7 +65,7 @@ var (
 	numPorts           int
 	vendorCoreFilePath = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "/var/core/",
-		ondatra.CISCO:   "/misc/disk1/",
+		ondatra.CISCO:   "/misc/disk1/coredumps",
 		ondatra.NOKIA:   "/var/core/",
 		ondatra.ARISTA:  "/var/core/",
 	}
