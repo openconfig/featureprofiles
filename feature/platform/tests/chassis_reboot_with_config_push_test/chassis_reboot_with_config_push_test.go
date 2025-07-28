@@ -81,30 +81,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Test cases:
-//  1) Send gNOI reboot status request.
-//   - Check the reboot status before sending reboot request.
-//     - Verify the reboot status is not active.
-//   - Check the reboot status after sending reboot request.
-//     - Verify the reboot status is active.
-//     - Verify the reason from reboot status response matches reboot message.
-//     - Verify the wait time from reboot status response matches reboot delay.
-//  2) Cancel gNOI reboot request.
-//   - Cancel reboot request before the test
-//     - Verify that there is no response error returned.
-//   - Send reboot request with delay.
-//     - Verify the reboot status is active.
-//   - Send reboot cancel request.
-//     - Verify the reboot status is not active.
-//
-// Topology:
-//   dut:port1 <--> ate:port1
-//
-// Test notes:
-//  - gnoi operation commands can be sent and tested using CLI command grpcurl.
-//    https://github.com/fullstorydev/grpcurl
-//
-
 func getSubCompPath(t *testing.T, dut *ondatra.DUTDevice) *tpb.Path {
 	t.Helper()
 	controllerCards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
