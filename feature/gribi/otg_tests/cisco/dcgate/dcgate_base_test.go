@@ -173,10 +173,10 @@ var (
 	otgDstPorts = []string{"port2", "port3", "port4", "port5"}
 	otgSrcPort  = "port1"
 	wantWeights = []float64{
-		0.062,  // 1/4 * 1/4 - port2
+		0.062, // 1/4 * 1/4 - port2
 		0.18,  // 1/4 * 3/4 - port3
-		0.30,    // 3/4 * 2/5 - port4
-		0.44,   // 3/5 * 3/4 - port5
+		0.30,  // 3/4 * 2/5 - port4
+		0.44,  // 3/5 * 3/4 - port5
 	}
 	noMatchWeight = []float64{
 		1, 0, 0, 0,
