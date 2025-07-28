@@ -274,6 +274,7 @@ replace: {
     "ssh server v2\n"
     "ssh server vrf default\n"
     "hw-module profile pbr vrf-redirect\n"
+    "hw-module profile netflow sflow-enable location 0/0/CPU0\n"
     "end\n"
   }
 }

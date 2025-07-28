@@ -6,6 +6,10 @@ replace: {
     ascii_val:
 "hostname SFD_DUT4\n"
 "clock timezone EST America/Toronto\n"
+"hw-module profile netflow sflow-enable location 0/0/CPU0\n"
+"hw-module profile pbr vrf-redirect\n"
+"hw-module profile qos qos-stats-push-collection\n"
+"hw-module profile npu-compatibility Q200\n"
 "logging trap informational\n"
 "logging archive\n"
 " device harddisk\n"

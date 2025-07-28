@@ -68,6 +68,7 @@ replace: {
 "ssh server v2\n"
 "ssh server vrf default\n"
 "ssh server netconf vrf default\n"
+"hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
 "end\n"
   }
 }
