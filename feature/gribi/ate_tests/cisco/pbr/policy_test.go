@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	
+
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/fptest"
