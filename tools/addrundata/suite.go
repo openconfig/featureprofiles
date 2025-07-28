@@ -6,10 +6,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
 const featurePrefix = "feature/"
+
+var packageRegexp = regexp.MustCompile(`^package (\w+)`)
 
 func errorf(format string, args ...any) {
 	var buf strings.Builder
@@ -17,7 +20,6 @@ func errorf(format string, args ...any) {
 	buf.WriteRune('\n')
 	os.Stderr.WriteString(buf.String())
 }
-
 func getNonTestREADMEs(featureprofilesDir, nonTestREADMEsfilePath string) (map[string]bool, error) {
 	filePath := filepath.Join(featureprofilesDir, nonTestREADMEsfilePath)
 	file, err := os.Open(filePath)
@@ -25,7 +27,6 @@ func getNonTestREADMEs(featureprofilesDir, nonTestREADMEsfilePath string) (map[s
 		return nil, err
 	}
 	defer file.Close()
-
 	nonTestREADMEs := map[string]bool{}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -34,14 +35,11 @@ func getNonTestREADMEs(featureprofilesDir, nonTestREADMEsfilePath string) (map[s
 			nonTestREADMEs[filepath.Join(featureprofilesDir, line)] = true
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-
 	return nonTestREADMEs, nil
 }
-
 func validPath(testDir string) bool {
 	index := strings.Index(testDir, featurePrefix)
 	if index == -1 {
@@ -68,7 +66,6 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 	if err != nil {
 		return !ok
 	}
-
 	err = filepath.WalkDir(featuredir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -97,12 +94,10 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 		testdirs[testdir] = true
 		return nil
 	})
-
 	if err != nil {
 		errorf("Error traversing feature directory: %s: %v", featuredir, err)
 		ok = false
 	}
-
 	for testdir := range testdirs {
 		tc := ts[testdir]
 		if tc == nil {
@@ -116,9 +111,11 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 			}
 			errorf("Error reading testdir: %s: %v", reldir, err)
 			ok = false
+		} else if err := checkGoTestFilePackageName(testdir); err != nil {
+			errorf("error checking test.go package name for dir: %s: %v", testdir, err)
+			ok = false
 		}
 	}
-
 	return ok
 }
 
@@ -140,7 +137,6 @@ func testKind(testdir string) string {
 	kinddir := filepath.Dir(testdir)
 	return filepath.Base(kinddir)
 }
-
 func toOTG(testdir string) string {
 	return strings.Replace(testdir, "/ate_tests/", "/otg_tests/", 1)
 }
@@ -176,7 +172,6 @@ func (ts testsuite) check(featuredir string) (ok bool) {
 func (ts testsuite) checkCases(featuredir string) func() bool {
 	fn := func() (ok bool) {
 		ok = true
-
 		for testdir, tc := range ts {
 			errs := tc.check()
 			if len(errs) == 0 {
@@ -192,10 +187,8 @@ func (ts testsuite) checkCases(featuredir string) func() bool {
 				errorf("  - %v", err)
 			}
 		}
-
 		return ok
 	}
-
 	return fn
 }
 
@@ -205,14 +198,12 @@ func (ts testsuite) checkDuplicate(what string, keyfn func(tc *testcase) string)
 	fn := func() (ok bool) {
 		ok = true
 		wants := map[string]string{} // Maps from key to testdir.
-
 		for got, tc := range ts {
 			key := keyfn(tc)
 			if key == "" {
 				errorf("Skipping check for duplicate %s due to missing value: %s", what, got)
 				continue
 			}
-
 			want, wantok := wants[key]
 			if !wantok {
 				wants[key] = got
@@ -223,17 +214,14 @@ func (ts testsuite) checkDuplicate(what string, keyfn func(tc *testcase) string)
 				ok = false
 			}
 		}
-
 		return ok
 	}
-
 	return fn
 }
 
 // checkATEOTG ensures that ATE and OTG versions of the same test have the same rundata.
 func (ts testsuite) checkATEOTG() (ok bool) {
 	ok = true
-
 	for testdir, tc := range ts {
 		if testKind(testdir) != "ate_tests" {
 			continue
@@ -243,21 +231,18 @@ func (ts testsuite) checkATEOTG() (ok bool) {
 		if otgtc == nil {
 			continue // Okay if OTG test is missing.
 		}
-
 		if tc.existing.PlanId != otgtc.existing.PlanId {
 			errorf("ATE and OTG tests have different test plan IDs: %s", testdir)
 			errorf("  - ATE: %s", tc.existing.PlanId)
 			errorf("  - OTG: %s", otgtc.existing.PlanId)
 			ok = false
 		}
-
 		if tc.existing.Description != otgtc.existing.Description {
 			errorf("ATE and OTG tests have different test descriptions: %s", testdir)
 			errorf("  - ATE: %s", tc.existing.Description)
 			errorf("  - OTG: %s", otgtc.existing.Description)
 			ok = false
 		}
-
 		if tc.existing.Uuid != otgtc.existing.Uuid {
 			errorf("ATE and OTG tests have different UUIDs: %s", testdir)
 			errorf("  - ATE: %s", tc.existing.Uuid)
@@ -265,7 +250,6 @@ func (ts testsuite) checkATEOTG() (ok bool) {
 			ok = false
 		}
 	}
-
 	return ok
 }
 
@@ -281,7 +265,6 @@ func (ts testsuite) fix() bool {
 	if !ok {
 		return false
 	}
-
 	// Make sure ATE and OTG tests have the same UUID.
 	for testdir, tc := range ts {
 		if testKind(testdir) != "ate_tests" {
@@ -294,7 +277,6 @@ func (ts testsuite) fix() bool {
 		}
 		otgtc.fixed.Uuid = tc.fixed.Uuid
 	}
-
 	return true
 }
 
@@ -302,7 +284,6 @@ func (ts testsuite) fix() bool {
 func (ts testsuite) write(featuredir string) error {
 	updated := false
 	parentdir := filepath.Dir(featuredir)
-
 	for testdir, tc := range ts {
 		switch err := tc.write(testdir); err {
 		case errNoop:
@@ -317,9 +298,48 @@ func (ts testsuite) write(featuredir string) error {
 			return err
 		}
 	}
-
 	if !updated {
 		return errNoop
+	}
+	return nil
+}
+
+// checkGoTestFilePackageName iterates through _test.go files in a directory.
+func checkGoTestFilePackageName(testdir string) error {
+	files, err := os.ReadDir(testdir)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), "_test.go") {
+			continue
+		}
+		filePath := filepath.Join(testdir, file.Name())
+		if err := checkPackageNameInFile(filePath); err != nil {
+			return fmt.Errorf("check failed for %s: %w", file.Name(), err)
+		}
+	}
+	return nil
+}
+
+// checkPackageNameInFile handles a single file, allowing defer to work as expected.
+func checkPackageNameInFile(filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	packageName := ""
+	for scanner.Scan() {
+		match := packageRegexp.FindSubmatch(scanner.Bytes())
+		if match != nil {
+			packageName = string(match[1])
+			break
+		}
+	}
+	if !strings.HasSuffix(packageName, "_test") {
+		return fmt.Errorf("test file %s has package name %s, it should end with _test", filePath, packageName)
 	}
 	return nil
 }
