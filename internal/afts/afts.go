@@ -20,21 +20,31 @@ const (
 
 // BGPRoute represents a collection of BGP routes to be advertised from the ATE.
 type BGPRoute struct {
-	RouterID    string
+	// RouterID is the DUT Router ID.
+	RouterID string
+	// IPV4DevAddr represnts a BGP IPv4 peer.
 	IPV4DevAddr gosnappi.DeviceIpv4
+	// IPV6DevAddr represents a BGP IPv6 peer.
 	IPV6DevAddr gosnappi.DeviceIpv6
 
+	// ASN is a fixed ASN used for all BGP peers.
 	ASN uint32
 
 	// Dev is the device on which the BGP routes are advertised.
 	Dev gosnappi.Device
 
-	AdvertiseV4  string
-	V4Prefix     uint32
+	// AdvertiseV4 is the starting address for the IPv4 routes to be advertised.
+	AdvertiseV4 string
+	// V4Prefix is the prefix on each of the advertised IPv4 routes.
+	V4Prefix uint32
+	// V4RouteCount is the total number of IPv4 routes to be advertised.
 	V4RouteCount uint32
 
-	AdvertiseV6  string
-	V6Prefix     uint32
+	// AdvertiseV6 is the starting address for the IPv6 routes to be advertised.
+	AdvertiseV6 string
+	// V6Prefix is the prefix on each of the advertised IPv6 addresses.
+	V6Prefix uint32
+	// V6RouteCount is the total number of IPv6 routes to be advertised.
 	V6RouteCount uint32
 }
 
