@@ -2,13 +2,14 @@
 
 ## Summary
 
-Validate gNOI chassis reboot with Large config push is successful without device
+Validate gNOI chassis reboot with config push is successful without device
 health getting affected
 
 ## Procedure
 
 *   Test gnoi.system Reboot with Config push.
-    *   Issue a Large Set config push to the device
+    *   Create a generic config push for device with interface/LAG/IGP/BGP configs
+    *   Issue a Set config push to the device
     *   Issue gnoi.system Reboot status request RPC to chassis.
     *   Validate that the reboot status is not active before sending reboot request.
     *   Validate the reboot status after sending reboot request.
