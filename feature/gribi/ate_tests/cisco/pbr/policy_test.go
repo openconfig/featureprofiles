@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
+	"strings"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
