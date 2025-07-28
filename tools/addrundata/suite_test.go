@@ -39,8 +39,8 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 		if _, err := os.Create(testFilename); err != nil {
 			return nil, fmt.Errorf("could not create %s: %w", testFilename, err)
 		}
-		testFile := fmt.Sprintf("package foo_test")
-		if err := os.WriteFile(testFilename, []byte(testFile), 0600); err != nil {
+		testPackage := "package foo_test"
+		if err := os.WriteFile(testFilename, []byte(testPackage), 0600); err != nil {
 			return nil, fmt.Errorf("could not write %s: %w", testFilename, err)
 		}
 		newts[testdir] = &testcase{
