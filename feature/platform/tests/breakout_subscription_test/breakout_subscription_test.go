@@ -1020,6 +1020,9 @@ func TestBreakoutSubscription(t *testing.T) {
 		intfsOperStatusUPBeforeReboot := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 		t.Logf("intfsOperStatusUPBeforeReboot: %v", intfsOperStatusUPBeforeReboot)
 		fpcList, err := findFpcFromPort(t, intfsOperStatusUPBeforeReboot, dut)
+		if err != nil {
+			t.Fatalf("Failed to find FPC from port: %v", err)
+		}
 		t.Logf("fpcList: %v", fpcList)
 		selectedFpc := selectFpc(t, fpcList)
 		t.Logf("selectedFpc: %v", selectedFpc)
