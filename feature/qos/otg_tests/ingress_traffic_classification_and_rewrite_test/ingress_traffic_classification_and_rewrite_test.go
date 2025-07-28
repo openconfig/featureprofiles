@@ -726,7 +726,7 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	} else if gueTest {
 		checkGueCapture(t, ate, "port2", "ipv4")
 	} else {
-		verifyIpv4DscpCapture(t, ate, "port2", donotExecuteGre, donotExecuteGue)
+		verifyIpv4DscpCapture(t, ate, "port2")
 	}
 	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
 	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
@@ -1065,7 +1065,7 @@ func verifyMplsPopCapture(t *testing.T, ate *ondatra.ATEDevice, port string) {
 	}
 }
 
-func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, greCheck bool, gueCheck bool) {
+func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string) {
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
 	if err != nil {
