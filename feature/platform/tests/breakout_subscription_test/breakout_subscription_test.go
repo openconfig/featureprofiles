@@ -791,8 +791,6 @@ func lineCardUp(t testing.TB, dut *ondatra.DUTDevice, fpc string) {
 	t.Logf("Starting %s POWER_ENABLED", fpc)
 	start := time.Now()
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
-	t.Logf("Wait for 15 seconds to allow the sub component's power up process to complete")
-	time.Sleep(15 * time.Second)
 	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), 20*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
 	if !ok {
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", fpc, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
