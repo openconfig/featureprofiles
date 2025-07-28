@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "1e4df4df-cfbd-4c3a-8b14-4bca3c1ddae5"
-plan_id: "CPT-1.1"
-description: "Interface based ARP policer"
-testbed: TESTBED_DUT_ATE_4LINKS
+uuid:  "8f9b64a4-a631-45c2-be53-da004f5b3e41"
+plan_id:  "CPT-1.1"
+description:  "Interface based ARP policer"
+testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
