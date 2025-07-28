@@ -19,20 +19,20 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/afts/afts"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/isissession/isissession"
-	"google3/third_party/openconfig/featureprofiles/internal/telemetry/aftcache/aftcache"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/netutil/netutil"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/open_traffic_generator/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/afts"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
+	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 
-	gnmipb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
