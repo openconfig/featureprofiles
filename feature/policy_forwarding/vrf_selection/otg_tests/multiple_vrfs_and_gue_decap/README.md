@@ -123,11 +123,11 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
 
 ## Procedure
 
-### RT-3.3.1: [Baseline] Traffic flow between ATE1:Port1 and ATE2:Port1 via DUT's Default VRF
+### PF-2.3.1: [Baseline] Traffic flow between ATE1:Port1 and ATE2:Port1 via DUT's Default VRF
   * Start above flow-type 1to6v4 - 5to10v4 and 1to6v6 - 5to10v6 between ATE1:Port1 and ATE2:Port1.
   * Ensure no packet loss is observed <br><br><br>
     
-### RT-3.3.2: BE1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+### PF-2.3.2: BE1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
   * ATE1:Port1 sends flow-type 1to6v4_encapped and 1to6v6_encapped
   * DUT will perform the decapsulation in Default VRF 
   * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
@@ -137,7 +137,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
   * All the traffic flows MUST show no packet loss.
   * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped and 1to6v6_encapped flows .<br><br><br>
   
-### RT-3.3.3: BE1 and AF1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+### PF-2.3.3: BE1 and AF1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
   * ATE1:Port1 sends flow-types 1to6v4_encapped - 2to7v4_encapped, 1to6v6_encapped - 2to7v6_encapped
   * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
     * 3to8v4 - 5to10v4
@@ -148,7 +148,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
   * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 2to7v4_encapped, 1to6v6_encapped - 2to7v6_encapped flows .<br><br><br>
 
   
-### RT-3.3.4: BE1, AF1 and AF2 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+### PF-2.3.4: BE1, AF1 and AF2 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
   * ATE1:Port1 sends flow-types 1to6v4_encapped - 3to8v4_encapped, 1to6v6_encapped - 3to8v6_encapped
   * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
     * 4to9v4 - 5to10v4
@@ -158,7 +158,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
   * All the traffic flows MUST show no packet loss.
   * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 3to8v4_encapped, 1to6v6_encapped - 3to8v6_encapped .<br><br><br>
 
-### RT-3.3.5: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+### PF-2.3.5: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
   * ATE1:Port1 sends flow-types 1to6v4_encapped - 4to9v4_encapped, 1to6v6_encapped - 4to9v6_encapped
   * ATE1:Port1 continues to send the following IPv4 and IPv6 flows
     * 5to10v4
@@ -168,7 +168,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;;
   * All the traffic flows MUST show no packet loss.
   * Streamed data on the number of packets decaped by the Tunnel endpoint "IPv4Prefix12" must match the number of tunnel encaped packets sent by ATE1:PORT1 for 1to6v4_encapped - 4to9v4_encapped, 1to6v6_encapped - 4to9v6_encapped .<br><br><br>
 
-### RT-3.3.6: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
+### PF-2.3.6: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
   * ATE1:Port1 sends flow-types 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped
   * DUT will perform the decapsulation in Default VRF 
   * DUT receives the tunneled traffic for flow-types 1to6v4_encapped - 5to10v4_encapped, 1to6v6_encapped - 5to10v6_encapped, decaps it, does a LPM lookup on the destination prefix (IPv4Prefix6 - IPv4Prefix10, IPv6Prefix6 - IPv6Prefix10) and routes it to ATE2:Port1 via DUT:Port2
