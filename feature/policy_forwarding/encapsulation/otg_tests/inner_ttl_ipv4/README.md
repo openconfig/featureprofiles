@@ -370,8 +370,8 @@ paths:
 
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/hop-limit:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/hop-limit:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/next-hop-group:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/ip-ttl:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/ip-ttl:  # See TODO
 
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index:
