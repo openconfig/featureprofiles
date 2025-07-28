@@ -838,23 +838,23 @@ func roatateAccountCredentialsForPassword(t *testing.T, stream credz.Credentialz
 	log.Infof("Send Rotate Account Credentisls Request ")
 	err := stream.Send(&credz.RotateAccountCredentialsRequest{Request: &credz.RotateAccountCredentialsRequest_Password{Password: &passreq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 	}
 	gotRes, err := stream.Recv()
 	if err != nil {
-		t.Fatalf("Credz:  Stream receive returned error: " + err.Error())
+		t.Fatal("Credz:  Stream receive returned error: " + err.Error())
 	}
 	aares := gotRes.GetCredential()
 	if aares == nil {
-		log.Infof("Authorized keys response is nil")
+		log.Info("Authorized keys response is nil")
 	}
-	log.Infof("Rotate Account Credentials Request done")
+	log.Info("Rotate Account Credentials Request done")
 }
 func finalizeAccountRequest(t *testing.T, stream credz.Credentialz_RotateAccountCredentialsClient) {
 	log.Infof("Send Finalize Request")
 	err := stream.Send(&credz.RotateAccountCredentialsRequest{Request: &credz.RotateAccountCredentialsRequest_Finalize{}})
 	if err != nil {
-		t.Fatalf("Stream send finalize failed : " + err.Error())
+		t.Fatal("Stream send finalize failed : " + err.Error())
 	}
 	if _, err = stream.Recv(); err != nil {
 		if err != io.EOF {
