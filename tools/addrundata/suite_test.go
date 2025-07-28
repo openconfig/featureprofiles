@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/google/go-cmp/cmp"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 // prepareSuite is like ts.write() but for testing purpose.  It writes out the testsuite
@@ -56,6 +57,7 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 	}
 	return newts, nil
 }
+
 func TestSuite_Read(t *testing.T) {
 	featuredir := t.TempDir()
 	want, err := prepareSuite(featuredir, testsuite{
@@ -77,14 +79,17 @@ func TestSuite_Read(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	got := make(testsuite)
 	if !got.read(featuredir) {
 		t.Fatalf("Could not read: %s", featuredir)
 	}
+
 	if diff := cmp.Diff(want, got, tcopts...); diff != "" {
 		t.Errorf("testsuite.read -want,+got:\n%s", diff)
 	}
 }
+
 func TestSuite_Read_BadPath(t *testing.T) {
 	featuredir := t.TempDir()
 	_, err := prepareSuite(featuredir, testsuite{
@@ -99,11 +104,13 @@ func TestSuite_Read_BadPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	got := make(testsuite)
 	if ok := got.read(featuredir); ok {
 		t.Fatalf("got.read ok got %v, want %v", ok, false)
 	}
 }
+
 func TestSuite_Check(t *testing.T) {
 	quxMarkdownOnly := &testcase{
 		markdown: &mpb.Metadata{
@@ -157,6 +164,7 @@ func TestSuite_Check(t *testing.T) {
 			Description: "Qux Functional Test",
 		},
 	}
+
 	wants := []struct {
 		name string
 		ts   testsuite
@@ -203,6 +211,7 @@ func TestSuite_Check(t *testing.T) {
 		},
 		ok: false,
 	}}
+
 	for _, want := range wants {
 		t.Run(want.name, func(t *testing.T) {
 			gotok := want.ts.check("")
@@ -212,6 +221,7 @@ func TestSuite_Check(t *testing.T) {
 		})
 	}
 }
+
 func TestCheckGoTestFilePackageName(t *testing.T) {
 	tests := []struct {
 		desc        string
@@ -244,6 +254,7 @@ func TestCheckGoTestFilePackageName(t *testing.T) {
 			wantSuccess: false,
 		},
 	}
+
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			tmpDir := t.TempDir()
@@ -265,6 +276,7 @@ func TestCheckGoTestFilePackageName(t *testing.T) {
 		})
 	}
 }
+
 func TestSuite_Fix(t *testing.T) {
 	quxMarkdownOnly := &testcase{
 		markdown: &mpb.Metadata{
@@ -272,25 +284,32 @@ func TestSuite_Fix(t *testing.T) {
 			Description: "Qux Functional Test",
 		},
 	}
+
 	// Each testcase needs their own copy because fix modifies the testcase in place.
 	copyCase := func(tc testcase) *testcase {
 		return &tc
 	}
+
 	ts := testsuite{
 		"feature/foo/bar/ate_tests/qux_test": copyCase(*quxMarkdownOnly),
 		"feature/foo/bar/otg_tests/qux_test": copyCase(*quxMarkdownOnly),
 	}
+
 	if !ts.fix() {
 		t.Error("testsuite.fix failed")
 	}
+
 	ateFixed := ts["feature/foo/bar/ate_tests/qux_test"].fixed
 	otgFixed := ts["feature/foo/bar/otg_tests/qux_test"].fixed
+
 	if diff := cmp.Diff(ateFixed, otgFixed, tcopts...); diff != "" {
 		t.Errorf("After fix, ATE and OTG rundata differ (-ate,+otg):\n%s", diff)
 	}
 }
+
 func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map[string]*mpb.Metadata) {
 	t.Helper()
+
 	for reldir, wantpd := range markdowns {
 		testdir := filepath.Join(featuredir, reldir)
 		tc, ok := ts[testdir]
@@ -303,6 +322,7 @@ func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map
 		}
 	}
 }
+
 func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 	markdowns := map[string]*mpb.Metadata{
 		"feature/foo/bar/ate_tests/qux_test": {
@@ -318,6 +338,7 @@ func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 			Description: "Quuz Functional Test",
 		},
 	}
+
 	// Populate the featuredir hierarchy with the README.md files and a dummy test file.
 	featuredir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(filepath.Dir(featuredir), "tools"), 0700); err != nil {
@@ -330,14 +351,18 @@ func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 		if err := os.MkdirAll(testdir, 0700); err != nil {
 			t.Fatalf("Cannot create directories: %s", testdir)
 		}
+
 		readme := fmt.Sprintf("# %s: %s\n", md.PlanId, md.Description)
 		readmeFilename := filepath.Join(testdir, "README.md")
 		if err := os.WriteFile(readmeFilename, []byte(readme), 0600); err != nil {
 			t.Fatalf("Could not write %s: %v", readmeFilename, err)
 		}
+
 		pkg := filepath.Base(reldir)
 		testmain := fmt.Sprintf(`package %s
+
 import testing
+
 func TestMain(m *testing.M) {
   os.Exit(m.Run())
 }
@@ -347,14 +372,18 @@ func TestMain(m *testing.M) {
 			t.Fatalf("Could not write %s: %v", testmainFilename, err)
 		}
 	}
+
 	ts := make(testsuite)
 	if !ts.read(featuredir) {
 		t.Fatalf("Could not read: %s", featuredir)
 	}
+
 	// Not doing ts.check() yet because it will flag that rundata need update, which is true
 	// because we've only populated the README.md, not the rundata in test code.
+
 	// Check that the markdowns are read correctly.
 	checkMarkdowns(t, featuredir, ts, markdowns)
+
 	// Fix the rundata and write it back.
 	if !ts.fix() {
 		t.Fatal("Could not fix testsuite.")
@@ -362,6 +391,7 @@ func TestMain(m *testing.M) {
 	if err := ts.write(featuredir); err != nil {
 		t.Fatal("Could not write testsuite:", err)
 	}
+
 	// Read the fixed rundata and make sure check now succeeds.
 	newts := make(testsuite)
 	if !newts.read(featuredir) {
