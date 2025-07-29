@@ -1055,6 +1055,7 @@ message Metadata {
     // Device doesnot support configuring prefix list inside ACL
     bool config_acl_with_prefixlist_unsupported = 353;
 
+    // Arista b/434815087
     // Device doesnot support configuring source/destination address as ANY inside ACL
     bool config_acl_value_any_oc_unsupported = 354;
 
