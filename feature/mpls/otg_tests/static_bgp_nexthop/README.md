@@ -100,6 +100,44 @@ network-instances:
 *   Start traffic flow with MPLS[lbl-1000006] and IPv6 destination set to IPV6-DST.
 *   Verify that traffic is forwarded to ATE Port 3.
 
+## Canonical OC
+OC for a static MPLS LSP is provided here.
+
+```
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "mpls": {
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "lsp1"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 1000,
+                      "next-hop": "1.1.1.1",
+                      "push-label": "IMPLICIT_NULL"
+                    }
+                  },
+                  "name": "lsp1"
+                }
+              ]
+            }
+          }
+        },
+        "name": "DEFAULT"
+      }
+    ]
+  }
+}
+```
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
