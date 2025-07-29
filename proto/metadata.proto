@@ -855,10 +855,10 @@ message Metadata {
     // Devices does not support static mpls lsp
     bool static_mpls_lsp_oc_unsupported = 302;
 
-    // Device doesnot support gre enacapsulation
+    // Device does not support gre enacapsulation
     bool gre_decapsulation_oc_unsupported = 303;
 
-    // Device doesnot support decapsulation group
+    // Device does not support decapsulation group
     bool decapsulate_gue_oc_unsupported = 304;
 
     // Reserved field numbers and identifiers.
