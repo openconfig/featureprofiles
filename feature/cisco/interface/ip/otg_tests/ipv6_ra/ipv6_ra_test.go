@@ -2344,7 +2344,7 @@ func configureATEIpv6Ra(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	ate.OTG().PushConfig(t, top)
 	t.Logf("starting protocols... ")
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	time.Sleep(60 * time.Second)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	return top
 }
