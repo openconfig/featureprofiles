@@ -130,9 +130,11 @@ func TestMplsStaticLspBGPNextHop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	configureDUT(t, dut)
-	cfgplugins.NewStaticMPLSLabel(t, dut, lspV4Name, mplsLabelV4, "", bgpNHv4, "ipv4")
-	cfgplugins.NewStaticMPLSLabel(t, dut, lspV6Name, mplsLabelV6, "", bgpNHv6, "ipv6")
 	ateConfig := configureATE(t)
+	sfBatch := &gnmi.SetBatch{}
+	cfgplugins.NewStaticMPLSLabel(t, sfBatch, dut, lspV4Name, mplsLabelV4, "", bgpNHv4, "ipv4")
+	cfgplugins.NewStaticMPLSLabel(t, sfBatch, dut, lspV6Name, mplsLabelV6, "", bgpNHv6, "ipv6")
+	sfBatch.Set(t, dut)
 	verifyPortsUp(t, dut.Device)
 
 	// TODO: 409240869 - Discard test added based on README guidance; will update if needed once the bug is fixed.	
