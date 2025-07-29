@@ -33,8 +33,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -49,9 +49,9 @@ const (
 	bgpPeerGrpName        = "BGP-PEER-GROUP"
 	globalRouterID        = "192.168.1.1"
 	// Maximum reboot time is 900 seconds (15 minutes).
-	maxRebootTime      = 900
+	maxRebootTime        = 900
 	// Maximum reboot time is 360 seconds (6 minutes).
-	maxComponentUpTime = 360
+	maxComponentUpTime        = 360
 	sleepTimeBtwAttempts  = 1 * time.Second
 	maxResponseTime       = 30 * time.Second
 	getRequestTimeout     = 30 * time.Second
