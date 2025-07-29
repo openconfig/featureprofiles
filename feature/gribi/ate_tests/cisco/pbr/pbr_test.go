@@ -364,50 +364,50 @@ func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interfac
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
-
-	p1 := sortPorts(dut.Ports())[0]
+	dutPorts := sortPorts(dut.Ports())
+	p1 := dutPorts[0]
 	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
 	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configInterfaceDUT(i1, &dutPort1))
 	BE120 := generateBundleMemberInterfaceConfig(p1.Name(), *i1.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE120)
 
-	p2 := sortPorts(dut.Ports())[1]
+	p2 := dutPorts[1]
 	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
 	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(i2, &dutPort2))
 	BE121 := generateBundleMemberInterfaceConfig(p2.Name(), *i2.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), BE121)
 
-	p3 := sortPorts(dut.Ports())[2]
+	p3 := dutPorts[2]
 	i3 := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
 	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(i3, &dutPort3))
 	BE122 := generateBundleMemberInterfaceConfig(p3.Name(), *i3.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), BE122)
 
-	p4 := sortPorts(dut.Ports())[3]
+	p4 := dutPorts[3]
 	i4 := &oc.Interface{Name: ygot.String("Bundle-Ether123")}
 	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4))
 	BE123 := generateBundleMemberInterfaceConfig(p4.Name(), *i4.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), BE123)
 
-	p5 := sortPorts(dut.Ports())[4]
+	p5 := dutPorts[4]
 	i5 := &oc.Interface{Name: ygot.String("Bundle-Ether124")}
 	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(i5, &dutPort5))
 	BE124 := generateBundleMemberInterfaceConfig(p5.Name(), *i5.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p5.Name()).Config(), BE124)
 
-	p6 := sortPorts(dut.Ports())[5]
+	p6 := dutPorts[5]
 	i6 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
 	gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(i6, &dutPort6))
 	BE125 := generateBundleMemberInterfaceConfig(p6.Name(), *i6.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p6.Name()).Config(), BE125)
 
-	p7 := sortPorts(dut.Ports())[6]
+	p7 := dutPorts[6]
 	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
 	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(i7, &dutPort7))
 	BE126 := generateBundleMemberInterfaceConfig(p7.Name(), *i7.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p7.Name()).Config(), BE126)
 
-	p8 := sortPorts(dut.Ports())[7]
+	p8 := dutPorts[7]
 	i8 := &oc.Interface{Name: ygot.String("Bundle-Ether127")}
 	gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(i8, &dutPort8))
 	BE127 := generateBundleMemberInterfaceConfig(p8.Name(), *i8.Name)
