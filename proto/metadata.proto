@@ -816,9 +816,11 @@ message Metadata {
     // Juniper b/419536104
     bool config_leaf_create_required = 291;
 
+    // Arista b/434586172
     // Device doesnot support configuring prefix list inside ACL
     bool config_acl_with_prefixlist_unsupported = 292;
 
+    // Arista b/434815087
     // Device doesnot support configuring source/destination address as ANY inside ACL
     bool config_acl_value_any_oc_unsupported = 293;
 
