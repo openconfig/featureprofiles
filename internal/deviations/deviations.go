@@ -1458,9 +1458,19 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
 
+// PolicyForwardingToNextHopOcUnsupported returns true if policy forwarding to next hop is not supported on vendors
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
+}
+
 // BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
+}
+
+// NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
+func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
 }
 
 // UseOldOCPathStaticLspNh returns true if the old OC path for static lsp next-hop is used
@@ -1471,4 +1481,99 @@ func UseOldOCPathStaticLspNh(dut *ondatra.DUTDevice) bool {
 // ConfigLeafCreateRequired returns true if leaf creation is required
 func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigLeafCreateRequired()
+}
+
+// FrBreakoutFix returns true if the fix is needed
+func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFrBreakoutFix()
+}
+
+// SkipInterfaceNameCheck returns if device requires skipping the interface name check.
+func SkipInterfaceNameCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipInterfaceNameCheck()
+}
+
+// UnsupportedQoSOutputServicePolicy returns true if devices do not support qos output service-policy
+func UnsupportedQoSOutputServicePolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedQosOutputServicePolicy()
+}
+
+// InterfaceOutputQueueNonStandardName returns true if devices have non-standard output queue names
+func InterfaceOutputQueueNonStandardName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceOutputQueueNonStandardName()
+}
+
+// MplsExpIngressClassifierOcUnsupported returns true if devices do not support classifying ingress packets based on the MPLS exp field
+func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
+}
+
+// Devices that do not propagate IGP metric through redistribution
+func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
+}
+
+// SkipBgpPeerGroupSendCommunityType return true if device needs to skip setting BGP send-community-type for peer group
+func SkipBgpPeerGroupSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpPeerGroupSendCommunityType()
+}
+
+// Devices that does have different AS path prepend order.
+func BgpAsPathPrependOrderMismtach(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAsPathPrependOrderMismtach()
+}
+
+// ExplicitSwapSrcDstMacNeededForLoopbackMode returns true if device needs to explicitly set swap-src-dst-mac for loopback mode
+func ExplicitSwapSrcDstMacNeededForLoopbackMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitSwapSrcDstMacNeededForLoopbackMode()
+}
+
+// LinkLocalInsteadOfNh returns true if device requires link-local instead of NH.
+func LinkLocalInsteadOfNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalInsteadOfNh()
+}
+
+// LowScaleAft returns if device requires link-local instead of NH.
+func LowScaleAft(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLowScaleAft()
+}
+
+// MissingSystemDescriptionConfigPath returns true if device does not support config lldp system-description leaf
+func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
+}
+
+// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
+}
+
+// NtpSourceAddressUnsupported returns true if NTP source address is not supported
+func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
+}
+
+// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
+}
+
+// GreDecapsulationUnsupported returns true if decapsulation is not supported
+func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
+}
+
+// SRLB and SRGB configuration does not effective with OC config
+func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
+}
+
+// Isis Prefix Segment config does not supported
+func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrPrefixSegmentConfigUnsupported()
+}
+
+// Isis Node Segment Configuration do not supported
+func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }

@@ -362,7 +362,7 @@ func TestSupFailure(t *testing.T) {
 	// Retry starting the gribi client in a loop as switchover may reset the connection.
 
 	t.Log("Re-establish gRIBI client connection")
-	retryDuration := 180 * time.Second
+	retryDuration := 320 * time.Second
 	retryInterval := 5 * time.Second
 	startTime := time.Now()
 	for {

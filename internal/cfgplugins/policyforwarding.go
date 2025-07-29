@@ -2,6 +2,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -199,6 +200,16 @@ mpls label range static 16 1048560
 	decapGroupGREArista = `
 ip decap-group gre-decap
   tunnel type gre
+  tunnel decap-ip 11.0.0.0/8
+  tunnel overlay mpls qos map mpls-traffic-class to traffic-class
+!`
+
+	decapGroupGUEArista = `
+!
+ip decap-group type udp destination port 6635 payload mpls
+!
+ip decap-group gre-decap
+  tunnel type udp
   tunnel decap-ip 11.0.0.0/8
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
 !`
@@ -431,6 +442,21 @@ func DecapPolicyRulesandActionsGre(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGre = ygot.Bool(true)
 }
 
+// DecapPolicyRulesandActionsGue configures the "decap MPLS in GUE" policy and related MPLS global and static LSP settings.
+func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	pols := pf.GetOrCreatePolicy("customer10")
+	var ruleSeq uint32 = 10
+	var protocol uint8 = 4
+
+	rule10 := pols.GetOrCreateRule(ruleSeq)
+	rule10.GetOrCreateIpv4().DestinationAddress = ygot.String(params.InnerDstIPv4)
+	rule10.GetOrCreateIpv4().Protocol = oc.UnionUint8(protocol)
+
+	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
+}
+
 // MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
 func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
 	t.Helper()
@@ -476,6 +502,20 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
+// DecapGroupConfigGue configures the interface decap-group for GUE.
+func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+	if deviations.GueGreDecapUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
+		}
+	} else {
+		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
+	}
+}
+
 // MPLSStaticLSPConfig configures the interface mpls static lsp.
 func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
 	if deviations.StaticMplsUnsupported(dut) {
@@ -487,5 +527,48 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 		}
 	} else {
 		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
+	}
+}
+
+// Configure GRE decapsulated. Adding deviation when device doesn't support OC
+func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, decapIp string, policyName string, portName string, decapGrpName string) {
+	if deviations.GreDecapsulationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, decapGrpName, strings.Split(decapIp, "/")[0])
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+		default:
+			t.Errorf("Deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	} else {
+		d := &oc.Root{}
+		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		npf := ni1.GetOrCreatePolicyForwarding()
+		np := npf.GetOrCreatePolicy(policyName)
+		np.PolicyId = ygot.String(policyName)
+		np.Type = oc.Policy_Type_PBR_POLICY
+
+		npRule := np.GetOrCreateRule(10)
+		ip := npRule.GetOrCreateIpv4()
+		ip.DestinationAddressPrefixSet = ygot.String(decapIp)
+		npAction := npRule.GetOrCreateAction()
+		npAction.DecapsulateGre = ygot.Bool(true)
+
+		port := dut.Port(t, portName)
+		ingressPort := port.Name()
+		t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+
+		intf := npf.GetOrCreateInterface(ingressPort)
+		intf.ApplyForwardingPolicy = ygot.String(policyName)
+		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
 	}
 }
