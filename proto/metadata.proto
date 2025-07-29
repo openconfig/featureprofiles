@@ -873,7 +873,7 @@ message Metadata {
     // Devices does not support static mpls lsp
     bool static_mpls_lsp_oc_unsupported = 307;
 
-    // Device doesnot support gre enacapsulation
+    // Device does not support gre enacapsulation
     bool gre_decapsulation_oc_unsupported = 308;
 
     // SRGB and SLGB config through OC is not reflecting
@@ -888,7 +888,7 @@ message Metadata {
     // Devices that do not support policy forwarding on next-hop
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
     
-     // Device doesnot support decapsulation group
+     // Device does not support decapsulation group
     bool decapsulate_gue_oc_unsupported = 313;
     
     // Reserved field numbers and identifiers.
