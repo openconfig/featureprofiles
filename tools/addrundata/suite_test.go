@@ -17,6 +17,11 @@ import (
 // ts.write().
 func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 	newts := make(testsuite)
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(featuredir), "tools"), 0700); err != nil {
+		return nil, err
+	}
+	nonTestReadmePath := filepath.Join(filepath.Dir(featuredir), "tools/non_test_readmes.txt")
+	os.Create(nonTestReadmePath)
 	for reldir, tc := range ts {
 		testdir := filepath.Join(featuredir, reldir)
 		if err := os.MkdirAll(testdir, 0700); err != nil {
@@ -33,6 +38,10 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 		testFilename := filepath.Join(testdir, "foo_test.go")
 		if _, err := os.Create(testFilename); err != nil {
 			return nil, fmt.Errorf("could not create %s: %w", testFilename, err)
+		}
+		testPackage := "package foo_test"
+		if err := os.WriteFile(testFilename, []byte(testPackage), 0600); err != nil {
+			return nil, fmt.Errorf("could not write %s: %w", testFilename, err)
 		}
 		newts[testdir] = &testcase{
 			markdown: &mpb.Metadata{
@@ -52,14 +61,14 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 func TestSuite_Read(t *testing.T) {
 	featuredir := t.TempDir()
 	want, err := prepareSuite(featuredir, testsuite{
-		"foo/bar/ate_tests/qux_test": &testcase{
+		"feature/foo/bar/ate_tests/qux_test": &testcase{
 			fixed: &mpb.Metadata{
 				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
 				PlanId:      "XX-2.1",
 				Description: "Qux Functional Test",
 			},
 		},
-		"foo/bar/otg_tests/qux_test": &testcase{
+		"feature/foo/bar/otg_tests/qux_test": &testcase{
 			fixed: &mpb.Metadata{
 				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
 				PlanId:      "XX-2.1",
@@ -84,7 +93,7 @@ func TestSuite_Read(t *testing.T) {
 func TestSuite_Read_BadPath(t *testing.T) {
 	featuredir := t.TempDir()
 	_, err := prepareSuite(featuredir, testsuite{
-		"foo/bar/qux_test": &testcase{
+		"feature/foo/bar/qux_test": &testcase{
 			fixed: &mpb.Metadata{
 				Uuid:        "c857db98-7b2c-433c-b9fb-4511b42edd78",
 				PlanId:      "XX-2.1",
@@ -163,42 +172,42 @@ func TestSuite_Check(t *testing.T) {
 	}{{
 		name: "NeedsUpdate",
 		ts: testsuite{
-			"foo/bar/tests/qux_test": quxMarkdownOnly,
+			"feature/foo/bar/tests/qux_test": quxMarkdownOnly,
 		},
 		ok: false,
 	}, {
 		name: "Updated",
 		ts: testsuite{
-			"foo/bar/tests/qux_test":  qux,
-			"foo/bar/tests/quuz_test": quuz,
+			"feature/foo/bar/tests/qux_test":  qux,
+			"feature/foo/bar/tests/quuz_test": quuz,
 		},
 		ok: true,
 	}, {
 		name: "DuplicateTestPlanID",
 		ts: testsuite{
-			"foo/bar/tests/qux_test":  qux,
-			"foo/bar/tests/quuz_test": quuzDupPlanID,
+			"feature/foo/bar/tests/qux_test":  qux,
+			"feature/foo/bar/tests/quuz_test": quuzDupPlanID,
 		},
 		ok: false,
 	}, {
 		name: "DuplicateUUID",
 		ts: testsuite{
-			"foo/bar/tests/qux_test":  qux,
-			"foo/bar/tests/quuz_test": quuzDupUUID,
+			"feature/foo/bar/tests/qux_test":  qux,
+			"feature/foo/bar/tests/quuz_test": quuzDupUUID,
 		},
 		ok: false,
 	}, {
 		name: "SameATEOTG",
 		ts: testsuite{
-			"foo/bar/ate_tests/qux_test": qux,
-			"foo/bar/otg_tests/qux_test": qux,
+			"feature/foo/bar/ate_tests/qux_test": qux,
+			"feature/foo/bar/otg_tests/qux_test": qux,
 		},
 		ok: true,
 	}, {
 		name: "DifferentATEOTG",
 		ts: testsuite{
-			"foo/bar/ate_tests/qux_test": qux,
-			"foo/bar/otg_tests/qux_test": quuz,
+			"feature/foo/bar/ate_tests/qux_test": qux,
+			"feature/foo/bar/otg_tests/qux_test": quuz,
 		},
 		ok: false,
 	}}
@@ -208,6 +217,61 @@ func TestSuite_Check(t *testing.T) {
 			gotok := want.ts.check("")
 			if gotok != want.ok {
 				t.Errorf("Check got ok %v, want %v", gotok, want.ok)
+			}
+		})
+	}
+}
+
+func TestCheckGoTestFilePackageName(t *testing.T) {
+	tests := []struct {
+		desc        string
+		filename    string
+		content     string
+		wantSuccess bool
+	}{
+		{
+			desc:        "valid package name",
+			filename:    "foo_test.go",
+			content:     "package foo_test",
+			wantSuccess: true,
+		},
+		{
+			desc:        "package name with extra characters",
+			filename:    "foo_test.go",
+			content:     "package foo_test_extra",
+			wantSuccess: false,
+		},
+		{
+			desc:        "package name with numbers",
+			filename:    "foo123_test.go",
+			content:     "package foo123_test",
+			wantSuccess: true,
+		},
+		{
+			desc:        "package name without _test suffix",
+			filename:    "foo_test.go",
+			content:     "package foo",
+			wantSuccess: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			testDir := filepath.Join(tmpDir, "/path/to/")
+			if err := os.MkdirAll(testDir, 0755); err != nil {
+				t.Fatalf("failed to create directory: %v", err)
+			}
+			fp := filepath.Join(testDir, tc.filename)
+			if _, err := os.Create(fp); err != nil {
+				t.Fatalf("failed to create file: %v", err)
+			}
+			if err := os.WriteFile(fp, []byte(tc.content), 0644); err != nil {
+				t.Fatalf("failed to write file: %v", err)
+			}
+			gotSuccess := checkGoTestFilePackageName(testDir) == nil
+			if gotSuccess != tc.wantSuccess {
+				t.Errorf("checkGoTestFilePackageName(%v) = %v, want: %v", testDir, gotSuccess, tc.wantSuccess)
 			}
 		})
 	}
@@ -227,16 +291,16 @@ func TestSuite_Fix(t *testing.T) {
 	}
 
 	ts := testsuite{
-		"foo/bar/ate_tests/qux_test": copyCase(*quxMarkdownOnly),
-		"foo/bar/otg_tests/qux_test": copyCase(*quxMarkdownOnly),
+		"feature/foo/bar/ate_tests/qux_test": copyCase(*quxMarkdownOnly),
+		"feature/foo/bar/otg_tests/qux_test": copyCase(*quxMarkdownOnly),
 	}
 
 	if !ts.fix() {
 		t.Error("testsuite.fix failed")
 	}
 
-	ateFixed := ts["foo/bar/ate_tests/qux_test"].fixed
-	otgFixed := ts["foo/bar/otg_tests/qux_test"].fixed
+	ateFixed := ts["feature/foo/bar/ate_tests/qux_test"].fixed
+	otgFixed := ts["feature/foo/bar/otg_tests/qux_test"].fixed
 
 	if diff := cmp.Diff(ateFixed, otgFixed, tcopts...); diff != "" {
 		t.Errorf("After fix, ATE and OTG rundata differ (-ate,+otg):\n%s", diff)
@@ -261,15 +325,15 @@ func checkMarkdowns(t testing.TB, featuredir string, ts testsuite, markdowns map
 
 func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 	markdowns := map[string]*mpb.Metadata{
-		"foo/bar/ate_tests/qux_test": {
+		"feature/foo/bar/ate_tests/qux_test": {
 			PlanId:      "XX-2.1",
 			Description: "Qux Functional Test",
 		},
-		"foo/bar/otg_tests/qux_test": {
+		"feature/foo/bar/otg_tests/qux_test": {
 			PlanId:      "XX-2.1",
 			Description: "Qux Functional Test",
 		},
-		"foo/bar/tests/quuz_test": {
+		"feature/foo/bar/tests/quuz_test": {
 			PlanId:      "XX-2.2",
 			Description: "Quuz Functional Test",
 		},
@@ -277,6 +341,11 @@ func TestSuite_ReadFixWriteReadCheck(t *testing.T) {
 
 	// Populate the featuredir hierarchy with the README.md files and a dummy test file.
 	featuredir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(featuredir), "tools"), 0700); err != nil {
+		t.Fatalf("Cannot create tools directory: %s", filepath.Join(filepath.Dir(featuredir), "tools"))
+	}
+	nonTestReadmePath := filepath.Join(filepath.Dir(featuredir), "tools/non_test_readmes.txt")
+	os.Create(nonTestReadmePath)
 	for reldir, md := range markdowns {
 		testdir := filepath.Join(featuredir, reldir)
 		if err := os.MkdirAll(testdir, 0700); err != nil {

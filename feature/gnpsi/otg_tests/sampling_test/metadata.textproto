@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "fa50639c-09bb-4f24-ba35-a7350bb4ff34"
+plan_id:  "gNPSI-1"
+description:  "Sampling and Subscription Check"
+testbed:  TESTBED_DUT_ATE_2LINKS
