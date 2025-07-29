@@ -40,18 +40,12 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 	// Try to get records from 1 day prior to device's boot time.
 	recordStartTime := time.Unix(0, int64(bootTime)).Add(-24 * time.Hour)
 
-	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
-
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
-	if err != nil {
-		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
-	}
-
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
+	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(recordStartTime),
 	})
 	if err != nil {
-		t.Fatalf("Failed sending record request, error: %s", err)
+		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
 
 	record, err := acctzSubClient.Recv()

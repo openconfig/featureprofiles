@@ -5,3 +5,21 @@ uuid:  "ff85241a-e7db-4f82-8b66-07320cdd7132"
 plan_id:  "RT-2.15"
 description:  "IS-IS Extensions for Segment Routing"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    isis_instance_enabled_required:  true
+    missing_isis_interface_afi_safi_enable:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+    isis_interface_afi_unsupported:  true
+    isis_timers_csnp_interval_unsupported:  true
+    isis_counter_manual_address_drop_from_areas_unsupported:  true
+    isis_counter_part_changes_unsupported:  true
+    isis_metric_style_telemetry_unsupported:  true
+    isis_srgb_srlb_unsupported:  true
+    isis_sr_node_segment_config_unsupported:  true
+  }
+}
