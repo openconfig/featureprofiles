@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "79d56e4a-19af-4006-8920-a2ee0073f51c"
+plan_id:  "RT-1.35"
+description:  "BGP Graceful Restart Extended route retention (ExRR)"
+testbed:  TESTBED_DUT_ATE_2LINKS

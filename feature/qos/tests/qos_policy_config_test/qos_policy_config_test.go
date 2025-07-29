@@ -18,6 +18,7 @@ import (
 	"math"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -2290,7 +2291,8 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
 			t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), "DropProfile"; got != want {
+		want := "DropProfile"
+		if got, ok := gnmi.Await(t, dut, outQueue.QueueManagementProfile().State(), 10*time.Second, want).Val(); !ok {
 			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {

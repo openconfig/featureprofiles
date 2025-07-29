@@ -79,6 +79,30 @@ test: {
   exec: " " 
 }
 test: {
+  id: "AFT-1.1"
+  description: "AFTs Base Link Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_base/README.md"
+  exec: ""
+}
+test: {
+  id: "AFT-2.1"
+  description: "AFTs Prefix Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/prefix_counters/otg_tests/afts_prefix_counters/README.md"
+  exec: ""
+}
+test: {
+  id: "AFT-3.1"
+  description: "AFTs Atomic Flag Check"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_atomic/README.md"
+  exec: ""
+}
+test: {
+  id: "AFT-5.1"
+  description: "AFTs DUT Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/README.md"
+  exec: ""
+}
+test: {
   id: "attestz-1"
   description: "Validate attestz for initial install"
   readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
@@ -254,6 +278,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "DP-1.19"
+  description: "Egress traffic DSCP rewrite"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/egress_traffic_classification_and_rewrite_test/README.md"
+  exec: ""
+}
+test: {
   id: "DP-1.2"
   description: "QoS policy feature config"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/qos_policy_config_test/README.md"
@@ -262,7 +292,7 @@ test: {
 test: {
   id: "DP-1.3"
   description: "QoS ECN feature config"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/qos_ecn_config_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/tests/qos_ecn_config_test/README.md"
   exec: " "
 }
 test: {
@@ -302,6 +332,15 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_default/README.md"
 }
 test: {
+  id: "DP-2.5"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color/README.md"
+}
+test: {
+  id: "DP-2.6"
+  description: "Ingress policing with two rate, three color classifier"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color_with_classifier/README.md"
+}
+test: {
   id: "FP-1.1"
   description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
@@ -334,6 +373,12 @@ test: {
   id: "MPLS-1.1"
   description: "MPLS label blocks: Static and MPLS-SR"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/label_block/README.md"
+  exec: " "
+}
+test: {
+  id: "MPLS-1.2"
+  description: "MPLS Traffic Class Marking"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/mpls_tc/README.md"
   exec: " "
 }
 test: {
@@ -437,12 +482,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "PF-1.3"
-  description: "Policy-based Static GUE Encapsulation to IPv4 tunnel"
-  readme: " "
-  exec: " "
-}
-test: {
   id: "PF-1.4"
   description: "Interface based GUE Decapsulation to IPv4 tunnel"
   readme: " "
@@ -468,13 +507,13 @@ test: {
 }
 test: {
   id: "PF-1.8"
-  description: "Ingress handling of the TTL"
+  description: "Ingress handling of TTL"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/ingress/README.md"
   exec: " "
 }test: {
   id: "PF-1.9"
-  description: "Egress handling of the TTL, all egress packets should have their TTL decremented,egress packets with TTL=1 should generate ICMP time exceeded to source"
-  readme: " "
+  description: "Egress handling of TTL"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ttl/otg_tests/egress/README.md"
   exec: " "
 }
 test: {
@@ -555,6 +594,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.23"
+  description: "EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/ethomplsogre/otg_tests/encap_decap_gre/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
@@ -600,7 +645,7 @@ test: {
 test: {
   id: "RT-1.8"
   description: "BGP Route Reflector test at scale"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/routereflector/otg_tests/route_reflector_scale/README.md"
   exec: " "
 }
 test: {
@@ -612,7 +657,7 @@ test: {
 test: {
   id: "RT-1.10"
   description: "RT-1.10: BGP Keepalive and Holdtimer configuration"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/timers/otg_tests/bgp_keepalive_and_holdtimer_configuration_test/README.md"
   exec: " "
 }
 test: {
@@ -708,7 +753,7 @@ test: {
 test: {
   id: "RT-1.26"
   description: "Basic static route support test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/static_route_support/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/basic_static_route_support_test/README.md"
   exec: " "
 }
 test: {
@@ -836,6 +881,24 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.64"
+  description: "BGP Import/Export Policy Functional Test Case"
+  readme: "https://github.com/openconfig/feature/bgp/import-export-policy/otg_tests/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.65"
+  description: "Static Route to Other Network-Instance Test Case"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/other_network_instance/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.66"
+  description: "IPv4 Static Route with IPv6 Next-Hop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/v4_static_route_with_v6_nh/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
@@ -872,14 +935,8 @@ test: {
 }
 test: {
   id: "RT-2.16"
-  description: "IS-IS Graceful Restart Helper"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-2.17"
-  description: "Graceful Restart Restarting"
-    readme: "https://github.com/openconfig/featureprofiles/feature/isis/otg_tests/graceful_restart_restarting/README.md"
+  description: "IS-IS Graceful Restart"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/graceful_restart/README.md"
   exec: " "
 }
 test: {
@@ -908,7 +965,7 @@ test: {
 test: {
   id: "RT-2.9"
   description: "IS-IS metric style wide enabled"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_metric_style_wide_enabled_test/README.md"
   exec: " "
 }
 test: {
@@ -948,15 +1005,21 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-3.53"
+  description: "Static route based GUE Encapsulation to IPv4 tunnel"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/README.md"
+  exec: " "
+}
+test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/route_summary_counters_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-4.11"
   description: " Scale AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/scale_aft_summary/README.md"
   exec: " "
 }
 
@@ -1040,7 +1103,7 @@ test: {
 test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/tests/core_lldp_tlv_population_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/otg_tests/core_lldp_tlv_population_test/README.md"
   exec: " "
 }
 test: {
@@ -1409,7 +1472,7 @@ test: {
 test: {
   id: "TR-6.1"
   description: "system logging remote syslog"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/logging/remote_syslog/otg_tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/logging/otg_tests/remote_syslog/README.md"
   exec: " "
 }
 test: {
@@ -1451,13 +1514,13 @@ test: {
 test: {
   id: "TRANSCEIVER-4"
   description: "400ZR Optics RX Input and TX Output Power streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/input_output_power/tests/zr_input_output_power_test/README.md"
   exec: " "
 }
 test: {
   id: "TRANSCEIVER-5"
   description: "400ZR channel frequency and output TX launch power setting"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_tunable_parameters_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tunable_parameters/tests/zr_tunable_parameters_test/README.md"
   exec: " "
 }
 test: {
@@ -1469,7 +1532,7 @@ test: {
 test: {
   id: "TRANSCEIVER-8"
   description: "400ZR Optics module temperature streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_temperature_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/temperature/tests/zr_temperature_test/README.md"
   exec: " "
 }
 test: {
@@ -1578,6 +1641,12 @@ test: {
   id: "TUN-2.8"
   description: "ECMP hashing based on outer header of MPLSoUDP packets"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing based on outer and Inner header for MPLSoUDP packets"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/tunnel/otg_tests/mpls_over_udp_tunnel_hashing_test/README.md"
   exec: " "
 }
 test: {
@@ -1809,7 +1878,7 @@ test: {
 test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/telemetry_inventory_test/README.md"
   exec: " "
 }
 test: {
@@ -1967,14 +2036,14 @@ test: {
   exec: " "
 }
 test: {
-  id: "AFT-1.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_base/README.md"
+  id: "SYS-1.1"
+  description: "Test default COPP policy thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/control_plane_traffic/otg_tests/default_copp_test/README.md"
   exec: " "
 }
 test: {
-  id: "AFT-2.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
+  id: "URPF-1.1"
+  description: "uRPF validation from non-default network-instance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/urpf/otg_tests/urpf_vrf_test/README.md"
   exec: " "
 }
