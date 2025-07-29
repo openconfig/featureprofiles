@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "06c8ecb6-2e48-4bd3-b912-93338ebeaba3"
-plan_id: "DP-1.16"
-description: "Ingress traffic classification and rewrite"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid:  "78f324b0-d069-45a7-ba7d-a76817783a27"
+plan_id:  "DP-1.16"
+description:  "Ingress traffic classification and rewrite"
+testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
