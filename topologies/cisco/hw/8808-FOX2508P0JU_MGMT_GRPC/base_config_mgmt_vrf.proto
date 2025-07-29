@@ -90,6 +90,8 @@ ascii_val:
     "ssh server netconf vrf default\n"
 "hw-module profile pbr vrf-redirect\n"
     "hw-module profile npu-compatibility Q200\n"
+    "hw-module profile netflow sflow-enable location 0/0/CPU0\n"
+    "hw-module profile netflow sflow-enable location 0/6/CPU0\n"
     "!\n"
     "interface FortyGigE0/6/0/0\n"
     " description not connected interface\n"
