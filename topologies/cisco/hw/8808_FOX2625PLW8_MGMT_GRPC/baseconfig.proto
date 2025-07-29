@@ -115,6 +115,8 @@ replace: {
 "ssh server vrf default\n"
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile npu-compatibility Q200\n"
+"hw-module profile netflow sflow-enable location 0/7/CPU0\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "end\n"
 }
 }

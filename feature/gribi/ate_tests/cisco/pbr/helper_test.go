@@ -10,6 +10,7 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -229,12 +230,13 @@ func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint
 func addIpv6Address(i *oc.Interface, ipv6 string, prefixlen uint8, index uint32) *oc.Interface {
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	s := i.GetOrCreateSubinterface(index)
+	s.Enabled = ygot.Bool(true)
 	s4 := s.GetOrCreateIpv6()
 	s4a := s4.GetOrCreateAddress(ipv6)
 	s4a.PrefixLength = ygot.Uint8(prefixlen)
-
 	return i
 }
+
 func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
 	//Configure IPv6 address on Bundle-Ether120, Bundle-Ether121
 	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
@@ -250,7 +252,20 @@ func configureIpv6AndVlans(t *testing.T, dut *ondatra.DUTDevice) {
 		subint := getSubInterface(fmt.Sprintf("100.121.%d.1", i*10), 24, fmt.Sprintf("2000::100:121:%d:1", i*10), 126, uint16(i*10), uint32(i))
 		gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Subinterface(uint32(i)).Config(), subint)
 	}
+}
 
+// configureNetworkInstance creates nonDefaultVRFs
+func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	c := &oc.Root{}
+	vrfs := []string{vrfTE}
+	for _, vrf := range vrfs {
+		ni := c.GetOrCreateNetworkInstance(vrf)
+		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
+	}
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 }
 
 // SortPorts sorts the ports by their ID in the testbed.  Otherwise

@@ -5,6 +5,9 @@ replace: {
     val: {
       ascii_val:
 "hostname Yukon-2\n"
+"hw-module profile pbr vrf-redirect\n"
+"hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "clock timezone IST Asia/Kolkata\n"
 "username cisco\n"
 " group root-lr\n"
