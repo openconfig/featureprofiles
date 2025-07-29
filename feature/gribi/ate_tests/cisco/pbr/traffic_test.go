@@ -182,8 +182,8 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPo
 // configureATE configures port1, port2 and port3 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
-
-	p1 := sortPorts(ate.Ports())[0]
+	atePorts := sortPorts(ate.Ports())
+	p1 := atePorts[0]
 	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
@@ -192,7 +192,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithAddress(atePort1.IPv6CIDR()).
 		WithDefaultGateway(dutPort1.IPv6)
 
-	p2 := sortPorts(ate.Ports())[1]
+	p2 := atePorts[1]
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
@@ -201,37 +201,37 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithAddress(atePort2.IPv6CIDR()).
 		WithDefaultGateway(dutPort2.IPv6)
 
-	p3 := sortPorts(ate.Ports())[2]
+	p3 := atePorts[2]
 	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
 	i3.IPv4().
 		WithAddress(atePort3.IPv4CIDR()).
 		WithDefaultGateway(dutPort3.IPv4)
 
-	p4 := sortPorts(ate.Ports())[3]
+	p4 := atePorts[3]
 	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
 	i4.IPv4().
 		WithAddress(atePort4.IPv4CIDR()).
 		WithDefaultGateway(dutPort4.IPv4)
 
-	p5 := sortPorts(ate.Ports())[4]
+	p5 := atePorts[4]
 	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
 	i5.IPv4().
 		WithAddress(atePort5.IPv4CIDR()).
 		WithDefaultGateway(dutPort5.IPv4)
 
-	p6 := sortPorts(ate.Ports())[5]
+	p6 := atePorts[5]
 	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
 	i6.IPv4().
 		WithAddress(atePort6.IPv4CIDR()).
 		WithDefaultGateway(dutPort6.IPv4)
 
-	p7 := sortPorts(ate.Ports())[6]
+	p7 := atePorts[6]
 	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
 	i7.IPv4().
 		WithAddress(atePort7.IPv4CIDR()).
 		WithDefaultGateway(dutPort7.IPv4)
 
-	p8 := sortPorts(ate.Ports())[7]
+	p8 := atePorts[7]
 	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
 	i8.IPv4().
 		WithAddress(atePort8.IPv4CIDR()).
