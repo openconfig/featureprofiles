@@ -32,9 +32,8 @@ func TestMain(m *testing.M) {
 // telemetry_path:/system/state/software-version
 func TestSoftwareVersion(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	state := gnmi.OC().System().SoftwareVersion()
-	stateGot := gnmi.Get(t, dut, state.State())
-	if stateGot == "" {
+	got := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	if got == "" {
 		t.Error("Telemetry software version is empty, want non-empty")
 	}
 }
