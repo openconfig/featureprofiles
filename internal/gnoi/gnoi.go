@@ -37,6 +37,7 @@ var (
 			OCAGENT: "Octa",
 			P4RT:    "P4Runtime",
 			ROUTING: "Bgp-main",
+			ISIS:    "Isis",
 		},
 		ondatra.CISCO: {
 			GRIBI:   "emsd",
@@ -71,6 +72,8 @@ const (
 	P4RT Daemon = "P4RT"
 	// ROUTING is the routing daemon.
 	ROUTING Daemon = "ROUTING"
+	// ISIS is the Isis daemon
+	ISIS Daemon = "ISIS"
 )
 
 // signal type of termination request
@@ -102,7 +105,10 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb
 		Pid:     uint32(pid),
 		Restart: restart,
 	}
-	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+	_, err = gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+	if err != nil {
+		t.Logf("Error: %v in executing the kill process %v", err.Error(), daemonName)
+	}
 
 	time.Sleep(120 * time.Second)
 

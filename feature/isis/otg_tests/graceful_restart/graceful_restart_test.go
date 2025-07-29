@@ -103,6 +103,8 @@ var (
 	ipv6Network = "2024:db8:128:128::/64"
 	ipv4Prefix  = "192.168.10.0"
 	ipv6Prefix  = "2024:db8:128:128::"
+
+	port2isis gosnappi.DeviceIsisRouter
 )
 
 // TestMain is the entry point for the test suite.
@@ -204,29 +206,41 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgConfig := gosnappi.NewConfig()
 
-	for portName, portAttrs := range atePorts {
-		port := ate.Port(t, portName)
-		dutPort := dutPorts[portName]
-		portAttrs.AddToOTG(otgConfig, port, dutPort)
-	}
+	port1 := otgConfig.Ports().Add().SetName("port1")
+	port2 := otgConfig.Ports().Add().SetName("port2")
+
+	port1Dev := otgConfig.Devices().Add().SetName(atePort1.Name + ".dev")
+	port1Eth := port1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	port1Eth.Connection().SetPortName(port1.Name())
+	port1Ipv4 := port1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
+	port1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
+	port1Ipv6 := port1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
+	port1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
 	// Add IS-IS in ATE port1
-	devices := otgConfig.Devices().Items()
-	port1isis := devices[0].Isis().SetSystemId(isisSysID1).SetName(isisPort1Device)
+	port1isis := port1Dev.Isis().SetSystemId(isisSysID1).SetName(isisPort1Device)
 
 	port1isis.Basic().SetIpv4TeRouterId(atePort1.IPv4)
 	port1isis.Basic().SetHostname(port1isis.Name())
 	port1isis.Basic().SetEnableWideMetric(true)
 	port1isis.Basic().SetLearnedLspFilter(true)
 
-	devIsisport1 := port1isis.Interfaces().Add().SetEthName(devices[0].Ethernets().Items()[0].Name()).
+	devIsisport1 := port1isis.Interfaces().Add().SetEthName(port1Dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisPort1").SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_1_2).SetMetric(10)
 
 	devIsisport1.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
 
+	port2Dev := otgConfig.Devices().Add().SetName(atePort2.Name + ".dev")
+	port2Eth := port2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
+	port2Eth.Connection().SetPortName(port2.Name())
+	port2Ipv4 := port2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
+	port2Ipv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
+	port2Ipv6 := port2Eth.Ipv6Addresses().Add().SetName(atePort2.Name + ".IPv6")
+	port2Ipv6.SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(uint32(atePort2.IPv6Len))
+
 	// Add IS-IS in ATE port2
-	port2isis := devices[1].Isis().SetSystemId(isisSysID2).SetName(isisPort2Device)
+	port2isis = port2Dev.Isis().SetSystemId(isisSysID2).SetName(isisPort2Device)
 
 	port2isis.Basic().SetIpv4TeRouterId(atePort2.IPv4)
 	port2isis.Basic().SetHostname(port2isis.Name())
@@ -234,7 +248,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	port2isis.Basic().SetLearnedLspFilter(true)
 	port2isis.GracefulRestart().SetHelperMode(false)
 
-	devIsisport2 := port2isis.Interfaces().Add().SetEthName(devices[1].Ethernets().Items()[0].Name()).
+	devIsisport2 := port2isis.Interfaces().Add().SetEthName(port2Dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisPort2").SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_1_2).SetMetric(10)
 
@@ -535,7 +549,10 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 }
 
 func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig gosnappi.Config) {
-	otgConfig.Devices().Items()[1].Isis().GracefulRestart().SetHelperMode(true)
+
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
+	port2isis.GracefulRestart().SetHelperMode(true)
 	otg.PushConfig(t, otgConfig)
 	otg.StartProtocols(t)
 	time.Sleep(20 * time.Second)
@@ -547,7 +564,7 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, 
 	verifyTraffic(t, otg, otgConfig, false)
 
 	t.Logf("Initiating Kill Process on DUT")
-	gnoi.KillProcess(t, dut, gnoi.OCAGENT, gnoi.SigTerm, true, true)
+	gnoi.KillProcess(t, dut, "ISIS", gnoi.SigTerm, true, false)
 	startTime := time.Now()
 	for {
 		otg.StartTraffic(t)
