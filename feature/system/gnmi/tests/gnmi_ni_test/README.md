@@ -19,7 +19,7 @@ network-instance named "GNMI_TEST".
 network-instance.
 *   Use `--deviation_gnmi_server_name` for the name of the gnmi server.
 
-### SYS-1.2.1: Configure two gnmi servers on different network instances
+### gNMI-1.6.1: Configure two gnmi servers on different network instances
 
 The DUT is expected to have a gnmi server running on some network-instance
 already.  Generate and push the following configuration to the
@@ -104,7 +104,7 @@ DUT to add a second gNMI server to the DUT on the GNMI_TEST network-instance.
 }
 ```
 
-### SYS-1.2.2: Perform set and subscribe to each server
+### gNMI-1.6.2: Perform set and subscribe to each server
 
 * Set the DUT port1 interface description using the default GNMI connection.
 * Subscribe ONCE to the interface port1 description to ensure it was changed.
