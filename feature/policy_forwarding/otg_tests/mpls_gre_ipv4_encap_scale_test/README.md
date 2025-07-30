@@ -42,6 +42,7 @@ Verify:
 * Verify that device can achieve the maximum interface scale on the device
 * Verify that entire static label range is usable and functional by sending traffic across the entire label range
 
+
 ## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
 

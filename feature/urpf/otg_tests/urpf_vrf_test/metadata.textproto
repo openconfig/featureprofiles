@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "2fe85525-35f5-41f5-b1e5-5ad0986a4f8d"
+plan_id:  "URPF-1.1"
+description:  "uRPF validation from non-default network-instance"
+testbed:  TESTBED_DUT_ATE_2LINKS

@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "98b4065b-4af3-4217-a86c-f7b62a0cec8b"
+plan_id:  "PF-1.7"
+description:  "Decapsulate MPLS in GRE and UDP"
+testbed:  TESTBED_DUT_ATE_2LINKS

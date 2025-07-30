@@ -4,13 +4,18 @@
 
 Test gNSI API behaviors and gRPC authorization policy behaviors.
 
-## Baseline Setup
+## Testbed type
+* [`featureprofiles/topologies/dut.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut.testbed)
 
-### Input Args
+## Procedure
+
+### Baseline Setup
+
+#### Input Args
 
 * `test_infra_id`: the SPIFFE-ID that is used by test infra clients.
 
-### DUT service setup
+#### DUT service setup
 
 Configure the DUT to enable the following services (that are using gRPC) are up, and use mTLS for authentication:
 
@@ -21,7 +26,7 @@ Configure the DUT to enable the following services (that are using gRPC) are up,
 
 NOTE: the support of SPIFFE-ID should NOT require explicitly pre-configured local users in the DUT config (for the purpose of 1:1 mapping of each SPIFFE-ID to a local user).
 
-### Client certs
+#### Client certs
 
 Prepare the following certs with the specified SPIFFE ID. Cert format details can be found in [SPIFFE PR](https://github.com/openconfig/featureprofiles/pull/1563/files)
 
@@ -34,7 +39,7 @@ Prepare the following certs with the specified SPIFFE ID. Cert format details ca
 * `cert_gnsi_probe` with `spiffe://test-abc.foo.bar/xyz/gnsi-probe`
 * `cert_read_only` with `spiffe://test-abc.foo.bar/xyz/read-only`
 
-### gRPC authorization policies
+#### gRPC authorization policies
 
 NOTE: unless specifically mentioned, the rule `allow-test-infra` MUST be attached to all the policies, so that the test or the test infra is not blocked from the device.
 
@@ -401,15 +406,57 @@ For each of the scenarios in this section, we need to exercise the following 3 a
   3. Reconnect to the device, issue `gNSI.Get` and `gNMI.Get` and validate the value of `version`, `created_on` and gRPC policy content does not change.
   4. Ensure actual corresponding clients are authorized per the the above table for policy `policy-normal-1`.
 
-## OpenConfig Path and RPC Coverage
+## Canonical OC
+```json
+{
+  "system": {
+    "aaa": {
+      "authentication": {
+        "users": {
+          "user": [
+            {
+              "config": {
+                "password": "xxxxxxx",
+                "ssh-key": "yyyyyyy",
+                "username": "testuser"
+              },
+              "username": "testuser"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+```
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+## OpenConfig Path and RPC Coverage
 
 TODO(OCRPC): Record is not complete
 
+The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
+
 ```yaml
+paths:
+###Config paths###
+/system/aaa/authentication/users/user/config:
+/system/aaa/authentication/users/user/config/username:
+/system/aaa/authentication/users/user/config/password:
+
+###State paths###
+/system/aaa/authentication/users/user/state:
+/system/aaa/authentication/users/user/state/username:
+/system/aaa/authentication/users/user/state/password:
+/system/aaa/authentication/users/user/state/authorized-principals-list-version:
+/system/aaa/authentication/users/user/state/authorized-principals-list-created-on:
+
 rpcs:
   gnsi:
-    authz.v1.Authz.Get:
+    credentialz.v1.Credentialz.RotateAccountCredentials:
+
 ```
+
+## Minimum DUT platform requirement
+* KNE
 
