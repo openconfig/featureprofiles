@@ -5,3 +5,15 @@ uuid:  "fa50639c-09bb-4f24-ba35-a7350bb4ff34"
 plan_id:  "gNPSI-1"
 description:  "Sampling and Subscription Check"
 testbed:  TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    gnpsi_oc_unsupported: true
+  }
+}
+tags:  TAGS_AGGREGATION
