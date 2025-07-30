@@ -278,7 +278,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 		t.Logf("Before DROP values map: %v\n", dutQosDroppedPktsBeforeTraffic)
 
 		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp1.Name(), dp3.Name())
-		t.Logf("Running bursty traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
+		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
 		t.Logf("Sending traffic flows:\n")
 
 		ate.OTG().StartTraffic(t)
@@ -287,7 +287,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 
 		ate.OTG().StopTraffic(t)
 
-		for flowName, _ := range trafficFlows {
+		for flowName := range trafficFlows {
 			waitForTraffic(t, ate.OTG(), flowName, 10)
 		}
 
@@ -547,7 +547,7 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 		t.Logf("Before TX values map: %v\n", dutQosPktsBeforeTraffic)
 		t.Logf("Before DROP values map: %v\n", dutQosDroppedPktsBeforeTraffic)
 		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp1.Name(), dp3.Name())
-		t.Logf("Running bursty traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
+		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
 		t.Logf("Sending traffic flows:\n")
 		ate.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
@@ -812,7 +812,7 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 		}
 
 		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp1.Name(), dp3.Name())
-		t.Logf("Running bursty traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
+		t.Logf("Running regular traffic on DUT interfaces: %s => %s \n", dp2.Name(), dp3.Name())
 		t.Logf("Sending traffic flows:\n")
 		ate.OTG().StartTraffic(t)
 
@@ -874,28 +874,6 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 
 func createTrafficFlowsIPv4(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// configuration of regular and burst flows on the ATE
-	/*
-		Non-burst flows on ateTxP1:
-
-		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
-		be1					12						512			100
-		af1					12						512			100
-		af2					15						512			50
-		af3					12						512			0
-		af4					30						512			0
-		nc1					1						512			0
-
-		Burst flows on ateTxP2:
-
-		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
-		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
-		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
-		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
-		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
-		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
-		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
-	*/
 
 	type trafficData struct {
 		trafficRate           float64
@@ -1029,28 +1007,6 @@ func createTrafficFlowsIPv4(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.C
 
 func createTrafficFlowsIPv6(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// configuration of regular and burst flows on the ATE
-	/*
-		Non-burst flows on ateTxP1:
-
-		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
-		be1					12						512			100
-		af1					12						512			100
-		af2					15						512			50
-		af3					12						512			0
-		af4					30						512			0
-		nc1					1						512			0
-
-		Burst flows on ateTxP2:
-
-		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
-		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
-		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
-		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
-		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
-		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
-		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
-	*/
 
 	type trafficData struct {
 		trafficRate           float64
@@ -1184,28 +1140,6 @@ func createTrafficFlowsIPv6(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.C
 
 func createTrafficFlowsMPLS(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// configuration of regular and burst flows on the ATE
-	/*
-		Non-burst flows on ateTxP1:
-
-		Forwarding Group	Traffic linerate (%)	Frame size	Expected Loss %
-		be1					12						512			100
-		af1					12						512			100
-		af2					15						512			50
-		af3					12						512			0
-		af4					30						512			0
-		nc1					1						512			0
-
-		Burst flows on ateTxP2:
-
-		Fwd Grp    | Traffic linerate (%)   | FS         | Burst         | IPG           | IBG             | Expected loss (%)
-		be1        | 20                     | 256        | 50000         | 12            | 100             | 100
-		af1        | 13                     | 256        | 50000         | 12            | 100             | 100
-		af2        | 17                     | 256        | 50000         | 12            | 100             | 50
-		af3        | 10                     | 256        | 50000         | 12            | 100             | 0
-		af4        | 20                     | 256        | 50000         | 12            | 100             | 0
-		nc1        | 10                     | 256        | 50000         | 12            | 100             | 0
-	*/
 
 	type trafficData struct {
 		trafficRate           float64
@@ -1326,10 +1260,10 @@ func createTrafficFlowsMPLS(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.C
 		dstMac := ""
 		srcPort := ""
 
-		if strings.Contains(strings.ToUpper(trafficID), "REGULAR") {
+		if strings.Contains(strings.ToUpper(trafficID), "ATETXP1") {
 			dstMac = dstMac1
 			srcPort = "port1"
-		} else if strings.Contains(strings.ToUpper(trafficID), "BURST") {
+		} else if strings.Contains(strings.ToUpper(trafficID), "ATETXP2") {
 			dstMac = dstMac2
 			srcPort = "port2"
 		}
@@ -1650,7 +1584,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 	}{{
 		desc:        "scheduler-policy-BE1",
-		sequence:    uint32(0),
+		sequence:    uint32(6),
 		setPriority: true,
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
@@ -1660,7 +1594,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup: "target-group-BE1",
 	}, {
 		desc:        "scheduler-policy-AF1",
-		sequence:    uint32(0),
+		sequence:    uint32(5),
 		setPriority: true,
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
@@ -1670,7 +1604,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup: "target-group-AF1",
 	}, {
 		desc:        "scheduler-policy-AF2",
-		sequence:    uint32(0),
+		sequence:    uint32(4),
 		setPriority: true,
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
@@ -1680,7 +1614,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup: "target-group-AF2",
 	}, {
 		desc:        "scheduler-policy-AF3",
-		sequence:    uint32(0),
+		sequence:    uint32(3),
 		setPriority: true,
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
@@ -1690,7 +1624,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup: "target-group-AF3",
 	}, {
 		desc:        "scheduler-policy-AF4",
-		sequence:    uint32(0),
+		sequence:    uint32(2),
 		setPriority: true,
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
@@ -1700,7 +1634,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup: "target-group-AF4",
 	}, {
 		desc:        "scheduler-policy-NC1",
-		sequence:    uint32(0),
+		sequence:    uint32(1),
 		setPriority: true,
 		setWeight:   false,
 		priority:    oc.Scheduler_Priority_STRICT,
@@ -2186,7 +2120,7 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 	}}
 
 	t.Logf("QoS classifiers config: %v", classifiers)
-	if deviations.MplsExpIngressClassifierUnsupported(dut) {
+	if deviations.MplsExpIngressClassifierOcUnsupported(dut) {
 		configureMplsExpClassifierCLI(t, dut, classifiers)
 	} else {
 		for _, tc := range classifiers {
