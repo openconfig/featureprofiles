@@ -81,19 +81,25 @@ test: {
 test: {
   id: "AFT-1.1"
   description: "AFTs Base Link Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_base/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_base/README.md"
   exec: ""
 }
 test: {
   id: "AFT-2.1"
   description: "AFTs Prefix Counters"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_prefix_counters/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/prefix_counters/otg_tests/afts_prefix_counters/README.md"
   exec: ""
 }
 test: {
   id: "AFT-3.1"
   description: "AFTs Atomic Flag Check"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/afts_atomic/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_atomic/README.md"
+  exec: ""
+}
+test: {
+  id: "AFT-5.1"
+  description: "AFTs DUT Reboot"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/README.md"
   exec: ""
 }
 test: {
@@ -588,6 +594,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.23"
+  description: "EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/ethomplsogre/otg_tests/encap_decap_gre/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
@@ -875,6 +887,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.65"
+  description: "Static Route to Other Network-Instance Test Case"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/other_network_instance/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.66"
+  description: "IPv4 Static Route with IPv6 Next-Hop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/v4_static_route_with_v6_nh/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
@@ -983,19 +1007,19 @@ test: {
 test: {
   id: "RT-3.53"
   description: "Static route based GUE Encapsulation to IPv4 tunnel"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/static_encap_gue_ipv4/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/README.md"
   exec: " "
 }
 test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/afts_summary/otg_tests/route_summary_counters_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/route_summary_counters_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-4.11"
   description: " Scale AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/afts_summary/otg_tests/scale_aft_summary/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/scale_aft_summary/README.md"
   exec: " "
 }
 
