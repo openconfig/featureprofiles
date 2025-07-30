@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -32,25 +33,21 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-type recordRequestResult struct {
-	record *acctzpb.RecordResponse
-	err    error
-}
-
 func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// Perhaps other vendors will need a different payload/size/etc., for now we'll just send a
 	// giant set of network instances + static routes which should hopefully work for everyone.
 	ocRoot := &oc.Root{}
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 15; i++ {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
-		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
+		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		nhAddress := fmt.Sprintf("192.%d.2.1", i)
 		for j := 0; j < 254; j++ {
 			sr1 := staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
 			nh1 := sr1.GetOrCreateNextHop("0")
-			nh1.NextHop = oc.UnionString("192.0.2.1")
+			nh1.NextHop = oc.UnionString(nhAddress)
 		}
 	}
 	gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
@@ -91,6 +88,9 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		select {
 		case rr := <-r:
 			resp = rr
+			if resp.err != nil {
+				t.Fatalf("Failed receiving record response, error: %s", resp.err)
+			}
 		case <-time.After(30 * time.Second):
 			done = true
 		}
@@ -109,7 +109,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			continue
 		}
 
-		if grpcServiceRecord.RpcName != "/gnmi.gNMI/Set" {
+		if grpcServiceRecord.RpcName != "/gnmi.gNMI/Subscribe" {
 			continue
 		}
 
