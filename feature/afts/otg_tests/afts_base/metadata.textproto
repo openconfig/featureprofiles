@@ -20,7 +20,9 @@ platform_exceptions: {
   }
   deviations: {
     default_network_instance: "default"
-    isis_single_topology_required: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
     low_scale_aft: true
+    interface_enabled: true
   }
 }
