@@ -128,12 +128,13 @@ Verify:
 
 *   Repeat `PF-1.8.7` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
-### PF-1.8.9: IPv4 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured NOT to process TTL = 1 on receiving interface.
+### PF-1.8.9: GRE encapsulation of IPv4 traffic with TTL = 1 destined to router interface.
 
 DUT action:
 
 *   Additional configuration on DUT
-    *   Packets with TTL = 1 should be encapsulated and not processed locally.
+    *   Update GRE encapsulation configuration so that packets with TTL = 1
+        destined to the router interface IP should be encapsulated.
 
 ATE action:
 
@@ -144,17 +145,18 @@ Verify:
 
 *   Perform same verifications in `PF-1.8.5`.
 
-### PF-1.8.10: IPv6 traffic with GRE encapsulation on DUT and TTL = 1 with DUT configured NOT to process TTL = 1 on receiving interface.
+### PF-1.8.10: GRE encapsulation of IPv6 traffic with TTL = 1 destined to router interface.
 
 *   Repeat `PF-1.8.9` with ATE generating IPv6 packets IPv6-DST-NET-SERV1/128.
 
-## Canonical OpenConfig for policy-forwarding matching IPv4 and encapsulate GRE
+### Canonical OpenConfig for policy-forwarding matching IPv4 and encapsulate GRE
 
 TODO: New OC paths to be proposed are present in below JSON
 * config/rules/rule/action/count: true
 * config/rules/rule/action/next-hop-group
 * encap-headers/encap-header/type: "GRE" and associated parameters
 
+#### Canonical OC
 ```json
 {
     "network-instances": {
@@ -185,71 +187,34 @@ TODO: New OC paths to be proposed are present in below JSON
                                 "rules": {
                                     "rule": [
                                         {
-                                            "sequence-id": 0
+                                            "sequence-id": 0,
                                             "config": {
                                                 "sequence-id": 0
-                                            }
+                                            },
                                             "ipv4": {
                                                 "config": {
-                                                    "destination-address": "inner_dst_ipv4"
+                                                    "destination-address": "192.168.1.0/24"
                                                 }
                                             },
                                             "action": {
-                                                "config": {
-                                                    "count": true
-                                                    "next-hop-group": "customer1_gre_encap_v4_nhg",
+                                              "encapsulate-gre": {
+                                                "targets": {
+                                                  "target": [
+                                                    {
+                                                      "config": {
+                                                        "destination": "10.10.10.1/32",
+                                                        "id": "Destination-A"
+                                                      },
+                                                      "id": "Destination-A"
+                                                    }
+                                                  ]
                                                 }
+                                              }
                                             }
                                         }
                                     ]
                                 }
-                            },
-                        ]
-                    }
-                },
-                "static": {
-                    "next-hop-groups": {
-                        "net-hop-group": [
-                            {
-                                "config": {
-                                    "name": "customer1_gre_encap_v4_nhg"
-                                },
-                                "name": "customer1_gre_encap_v4_nhg",
-                                "next-hops": {
-                                    "next-hop": [
-                                        {
-                                            "index": 1,
-                                            "config": {
-                                                "index": 1
-                                            }
-                                        },
-                                    ]
-                                }
                             }
-                        ]
-                    },
-                    "next-hops": {
-                        "next-hop": [
-                            {
-                                "index": 1,
-                                "config": {
-                                    "index": 1,
-                                    "encap-headers": {
-                                        "encap-header": [
-                                            {
-                                                "index": 1,
-                                                "type": "GRE",
-                                                "config": {
-                                                    "dst-ip": "outer_ipv4_dst",
-                                                    "src-ip": "outer_ipv4_src",
-                                                    "dscp": "outer_dscp",
-                                                    "ip-ttl": "outer_ip-ttl"
-                                                }
-                                            },
-                                        ]
-                                    }
-                                }
-                            },
                         ]
                     }
                 }
@@ -269,7 +234,8 @@ paths:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
-  /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/id:
 
   # Telemetry
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
