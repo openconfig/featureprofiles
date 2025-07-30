@@ -380,7 +380,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			expectedRes = authzpb.ProbeResponse_ACTION_DENY
 			expectedExecErr = codes.PermissionDenied
 		case *HardVerify:
-			hardVerify = true
+			hardVerify = false
 		default:
 			t.Errorf("Invalid option is passed to Verify function: %T", opt)
 		}

@@ -16,6 +16,7 @@ replace: {
     " group cisco-support\n"
     " secret 10 $6$dDNEeH4Y8/d0e...$pAzgObEpNswFXs1lbshIGcKxRvuwvEEANkANw0YXdii88eNuNBE3B125WEyDHzx//vTlsivJjfTsJwFW44f5u/\n"
     "!\n"
+	"vty-pool default 0 99 line-template vty\n"
     "grpc\n"
     " port 57999\n"
     "!\n"
@@ -273,6 +274,7 @@ replace: {
     "ssh server v2\n"
     "ssh server vrf default\n"
     "hw-module profile pbr vrf-redirect\n"
+    "hw-module profile netflow sflow-enable location 0/0/CPU0\n"
     "end\n"
   }
 }

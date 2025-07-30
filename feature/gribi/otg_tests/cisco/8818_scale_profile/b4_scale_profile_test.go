@@ -262,3 +262,19 @@ func TestFlushAll(t *testing.T) {
 func TestDcGateTriggers(t *testing.T) {
 	testDcGateTriggers(t)
 }
+
+func TestIPTNLNHUsage(t *testing.T) {
+	t.Skip("Skipping IPTNL NH usage test. Use if needed to measure resource usage")
+	testIptnlUsage(t)
+}
+
+func TestDcGateOOR(t *testing.T) {
+	testDcGateOOR(t)
+}
+
+func TestDcGateStress(t *testing.T) {
+	testDcGateStress(t)
+}
+func TestDcGateTunnelPathFlaps(t *testing.T) {
+	testDcGateTunnelPathFlaps(t)
+}

@@ -294,7 +294,7 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
-func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) *oc.Interface {
+func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4SecAddr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) *oc.Interface {
 	// Get or create the interface
 	i := d.GetOrCreateInterface(interfaceName)
 	i.Name = ygot.String(interfaceName) // Explicitly set the name field
@@ -316,6 +316,12 @@ func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName st
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4Addr)
 	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
+	a.SetType(oc.IfIp_Ipv4AddressType_PRIMARY)
+	if ipv4SecAddr != "" {
+		b := s4.GetOrCreateAddress(ipv4SecAddr)
+		b.SetPrefixLength(ipv4PrefixLen)
+		b.SetType(oc.IfIp_Ipv4AddressType_SECONDARY)
+	}
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
@@ -331,10 +337,12 @@ func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName st
 
 // LinkIPs holds the IPv4/IPv6 addresses for DUT and Peer for a interface link.
 type LinkIPs struct {
-	DutIPv4  string `json:"dut_ipv4"`
-	DutIPv6  string `json:"dut_ipv6"`
-	PeerIPv4 string `json:"peer_ipv4"`
-	PeerIPv6 string `json:"peer_ipv6"`
+	DutIPv4     string `json:"dut_ipv4"`
+	DutIPv6     string `json:"dut_ipv6"`
+	DutSecIPv4  string `json:"dut_sec_ipv4"`
+	PeerIPv4    string `json:"peer_ipv4"`
+	PeerIPv6    string `json:"peer_ipv6"`
+	PeerSecIPv4 string `json:"peer_sec_ipv4"`
 }
 
 // ExtractLinkIPsField returns a slice of the requested field from a map[string]LinkIPs.
@@ -348,10 +356,14 @@ func ExtractLinkIPsField(linkMap map[string]LinkIPs, field string) []string {
 		getField = func(l LinkIPs) string { return l.DutIPv4 }
 	case "dutipv6":
 		getField = func(l LinkIPs) string { return l.DutIPv6 }
+	case "dutsecipv4":
+		getField = func(l LinkIPs) string { return l.DutSecIPv4 }
 	case "peeripv4":
 		getField = func(l LinkIPs) string { return l.PeerIPv4 }
 	case "peeripv6":
 		getField = func(l LinkIPs) string { return l.PeerIPv6 }
+	case "peersecipv4":
+		getField = func(l LinkIPs) string { return l.PeerSecIPv4 }
 	default:
 		return result
 	}
@@ -364,7 +376,7 @@ func ExtractLinkIPsField(linkMap map[string]LinkIPs, field string) []string {
 
 // createSubInterfaces creates subinterfaces for the given links, configuring both DUT and Peer interfaces.
 // It assigns /31 for IPv4 and /127 for IPv6 addresses.
-func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6 net.IP) (net.IP, net.IP, map[string]LinkIPs) {
+func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6, nextSecIpv4 net.IP, macAddr string) (net.IP, net.IP, net.IP, map[string]LinkIPs) {
 	t.Helper()
 	t.Logf("Creating subinterfaces for %d links", len(links))
 
@@ -388,32 +400,42 @@ func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondat
 			// Generate DUT subinterface config
 			dutIPv4 := nextIPv4
 			dutIPv6 := nextIPv6
-			dutConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			dutSecIPv4 := nextSecIpv4
+			dutConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), nextSecIpv4.String(), 31, nextIPv6.String(), 127)
 			gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Config(), dutConfig)
+
 			nextIPv4 = incrementIP(nextIPv4, 1)
 			nextIPv6 = incrementIPv6(nextIPv6)
 
+			// create static arp with peer devices ip address
+			nextSecIpv4 = incrementIP(nextSecIpv4, 1)
+			gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Subinterface(uint32(subIntID)).Config(), CreateStaticArpEntries(link, uint32(subIntID), nextSecIpv4.String(), macAddr))
+
 			peerIPv4 := nextIPv4
 			peerIPv6 := nextIPv6
+			peerSecIPv4 := nextSecIpv4
 			// Generate Peer subinterface config
-			peerConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			peerConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), "", 31, nextIPv6.String(), 127)
 			gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Interface(link).Config(), peerConfig)
 			// Save peer subinterface IPv4 address
 			subIntfIPMap[fmt.Sprintf("%s.%d", link, subIntID)] = LinkIPs{
-				DutIPv4:  dutIPv4.String(),
-				DutIPv6:  dutIPv6.String(),
-				PeerIPv4: peerIPv4.String(),
-				PeerIPv6: peerIPv6.String(),
+				DutIPv4:     dutIPv4.String(),
+				DutIPv6:     dutIPv6.String(),
+				DutSecIPv4:  dutSecIPv4.String(),
+				PeerIPv4:    peerIPv4.String(),
+				PeerIPv6:    peerIPv6.String(),
+				PeerSecIPv4: peerSecIPv4.String(),
 			}
 			nextIPv4 = incrementIP(nextIPv4, 1)
 			nextIPv6 = incrementIPv6(nextIPv6)
+			nextSecIpv4 = incrementIP(nextSecIpv4, 1)
 		}
 	}
 	// Push batch configurations to DUT and Peer
 	dutBatchConfig.Set(t, dut)
 	peerBatchConfig.Set(t, peer)
 
-	return nextIPv4, nextIPv6, subIntfIPMap
+	return nextIPv4, nextIPv6, nextSecIpv4, subIntfIPMap
 }
 
 // GetSubInterface returns subinterface
@@ -423,6 +445,17 @@ func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *oc.Interface_S
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4)
 	a.PrefixLength = ygot.Uint8(prefixlen)
+	return s
+}
+
+// CreateStaticArpEntries creates static ARP entries for the given subinterface.
+func CreateStaticArpEntries(portName string, index uint32, ipv4Addr string, macAddr string) *oc.Interface_Subinterface {
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(portName)
+	s := i.GetOrCreateSubinterface(index)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4Addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
 	return s
 }
 

@@ -5,6 +5,9 @@ replace: {
     val: {
       ascii_val:
 "hostname Yukon-2\n"
+"hw-module profile pbr vrf-redirect\n"
+"hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "clock timezone IST Asia/Kolkata\n"
 "username cisco\n"
 " group root-lr\n"
@@ -16,6 +19,7 @@ replace: {
 " group cisco-support\n"
 " secret 10 $6$xcEy7/8YTGtb27/.$0HrsAE61pK8NlB5axW87LiC55ZhExUSUTm2ZDgi.dcl6CV/8ETpa.jt8NhiTkn2LtL0CXAzPrvl/ZvycP4Fyv.\n"
 "!\n"
+"vty-pool default 0 99 line-template vty\n"
 "grpc\n"
 " port 8202\n"
 " p4rt\n"
