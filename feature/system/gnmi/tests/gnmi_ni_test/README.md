@@ -48,10 +48,10 @@ DUT to add a second gNMI server to the DUT on the GNMI_TEST network-instance.
                   "address": [
                     {
                       "config": {
-                        "ip": "mgmtipv4",
+                        "ip": "192.0.2.1",
                         "prefix-length": 32
                       },
-                      "ip": "mgmtipv4"
+                      "ip": "192.0.2.1"
                     }
                   ]
                 }
