@@ -1577,3 +1577,7 @@ func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
+
+func NextHopEncapHeaderOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNextHopEncapHeaderOcUnsupported()
+}
