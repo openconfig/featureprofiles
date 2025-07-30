@@ -212,6 +212,7 @@ replace: {
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile qos qos-stats-push-collection\n"
 "cef proactive-arp-nd enable\n"
+"hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
 "end\n"
   }
 }

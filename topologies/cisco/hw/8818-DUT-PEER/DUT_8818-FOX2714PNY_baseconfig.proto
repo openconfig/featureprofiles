@@ -1737,6 +1737,7 @@ replace: {
     "hw-module profile qos qos-stats-push-collection\n"
     "hw-module profile npu-compatibility Q200\n"
     "hw-module local-station-mac 0010.0010.0010\n"
+    "hw-module profile netflow sflow-enable location 0/0/CPU0\n"
     "hw-module profile netflow sflow-enable location 0/1/CPU0\n"
     "hw-module profile netflow sflow-enable location 0/2/CPU0\n"
     "hw-module profile netflow sflow-enable location 0/3/CPU0\n"
