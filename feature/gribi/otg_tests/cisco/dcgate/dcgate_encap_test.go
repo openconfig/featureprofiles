@@ -130,7 +130,6 @@ func TestBasicEncap(t *testing.T) {
 	for _, tc := range test {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Name: %s", tc.name)
-			t.Logf("ARVBASKA")
 			if tc.skip {
 				t.SkipNow()
 			}
