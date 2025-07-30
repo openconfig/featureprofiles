@@ -1577,3 +1577,8 @@ func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
+
+// TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
+func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
+}
