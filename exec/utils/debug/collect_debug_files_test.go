@@ -24,6 +24,7 @@ import (
 
 const (
 	techDirectory        = "harddisk:/firex_tech" // Directory for storing tech support files
+	snapshotDir          = "harddisk:/snapshot"   // Directory for storing snapshot files
 	scpCopyTimeout       = 300 * time.Second      // Timeout for SCP copy operations
 	maxParallelExecutors = 4                      // maximum concurrent go routine for command execution and corefile decode
 )
@@ -33,6 +34,7 @@ var (
 	timestamp   = flag.String("timestamp", "1", "Test start timestamp")
 	coreCheck   = flag.Bool("coreCheck", false, "Check for core file")
 	collectTech = flag.Bool("collectTech", false, "Collect show tech")
+	snapshot    = flag.Bool("snapshot", false, "Collect snapshot")
 	runCmds     = flag.Bool("runCmds", false, "Run commands")
 	splitPerDut = flag.Bool("splitPerDut", false, "Create a folder for each dut")
 	showTechs   = flag.String("showtechs", "", "Comma-separated list of show techs")
@@ -53,38 +55,59 @@ type Targets struct {
 
 var (
 	showTechList = []string{
+		// FWD custom show techs
+		"aib",
+		"arp",
 		"cef",
-		"cef platform",
 		"ofa",
-		"insight",
+		"pfi",
 		"rib",
-		"fabric",
-		"service-layer",
-		"mgbl",
+		"rsi",
 		"spi",
+		"spp",
+		"bcdl",
+		"grid",
+		"lldp",
+		"spio",
+		"bcdlv2",
+		"fabric",
+		"hw-ack",
+		"insight",
+		"ipv6 nd",
+		"cef platform",
+		"platform-fwd",
+		"service-layer",
+		"lwm process fib_mgr",
+		"ssh",
+		// GRPC show techs
+		"gsp",
+		"ztp",
+		"gnsi",
+		"mgbl",
+		"p4rt",
+		"sysdb",
+		"optics",
+		"tacacs",
+		"install",
+		"yserver",
+		"interface",
+		"linux networking",
+		"ethernet interfaces",
+		"fabric link-include",
+		"telemetry model-driven",
+		"insight include-database",
+		"ethernet service-activation-test",
 		"hw-ac",
 		"bundles",
 		"cfgmgr",
 		"ctrace",
-		"ethernet interfaces",
-		"fabric link-include",
-		"p4rt",
-		"interface",
-		"optics",
-		"pfi",
-		"platform-fwd",
 		"pbr",
 		"rdsfs",
-		"sysdb",
-		"telemetry model-driven",
 		"routing isis",
 		"routing bgp",
-		"linux networking",
-		"install",
 		"health",
-		"lldp",
-		"spio",
-		"gnsi",
+		"ipinfra",
+		"static",
 	}
 
 	pipedCmdList = []string{
@@ -111,6 +134,9 @@ var (
 		"show install active all",
 		"show install request verbose",
 		"show install available all",
+		// GRPC
+		"show health gsp",
+		"show health sysdb",
 	}
 )
 
@@ -153,6 +179,13 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	commands := []string{}
+
+	if *snapshot {
+		commands = append(commands,
+			"run snapshot collect && cp -r /"+snapshotDir+"/* /"+techDirectory+"/",
+		)
+	}
+
 	if *coreCheck {
 		commands = append(commands,
 			"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+*timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
@@ -203,6 +236,8 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 	deviceDirCleanupCmds := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
+		"run rm -rf /" + snapshotDir,
+		"mkdir " + snapshotDir,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)

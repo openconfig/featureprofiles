@@ -609,8 +609,6 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 		pbrRules = append(pbrRules, encapRules...)
 	}
 
-	pbrRules = append(pbrRules, splitDefaultClassRules...)
-
 	if deviations.PfRequireMatchDefaultRule(dut) {
 		pbrRules = append(pbrRules, splitDefaultClassRules...)
 	} else {

@@ -11,6 +11,7 @@ replace: {
   " secret 5 $1$mFey$TYclo8bJ2YpS1EzduEQER0\n"
   " password 7 05080F1C22430E\n"
   "!\n"
+  "vty-pool default 0 99 line-template vty\n"
   "grpc\n"
   " port 57777\n"
   " !\n"

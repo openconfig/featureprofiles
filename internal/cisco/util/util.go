@@ -294,7 +294,7 @@ func CreateBundleInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	SetInterfaceState(t, dut, bundleName, true)
 }
 
-func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) *oc.Interface {
+func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName string, index uint32, vlanID uint16, ipv4Addr string, ipv4SecAddr string, ipv4PrefixLen uint8, ipv6Addr string, ipv6PrefixLen uint8) *oc.Interface {
 	// Get or create the interface
 	i := d.GetOrCreateInterface(interfaceName)
 	i.Name = ygot.String(interfaceName) // Explicitly set the name field
@@ -316,6 +316,12 @@ func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName st
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4Addr)
 	a.PrefixLength = ygot.Uint8(uint8(ipv4PrefixLen))
+	a.SetType(oc.IfIp_Ipv4AddressType_PRIMARY)
+	if ipv4SecAddr != "" {
+		b := s4.GetOrCreateAddress(ipv4SecAddr)
+		b.SetPrefixLength(ipv4PrefixLen)
+		b.SetType(oc.IfIp_Ipv4AddressType_SECONDARY)
+	}
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
@@ -331,10 +337,12 @@ func generateSubifDUTConfig(d *oc.Root, dut *ondatra.DUTDevice, interfaceName st
 
 // LinkIPs holds the IPv4/IPv6 addresses for DUT and Peer for a interface link.
 type LinkIPs struct {
-	DutIPv4  string `json:"dut_ipv4"`
-	DutIPv6  string `json:"dut_ipv6"`
-	PeerIPv4 string `json:"peer_ipv4"`
-	PeerIPv6 string `json:"peer_ipv6"`
+	DutIPv4     string `json:"dut_ipv4"`
+	DutIPv6     string `json:"dut_ipv6"`
+	DutSecIPv4  string `json:"dut_sec_ipv4"`
+	PeerIPv4    string `json:"peer_ipv4"`
+	PeerIPv6    string `json:"peer_ipv6"`
+	PeerSecIPv4 string `json:"peer_sec_ipv4"`
 }
 
 // ExtractLinkIPsField returns a slice of the requested field from a map[string]LinkIPs.
@@ -348,10 +356,14 @@ func ExtractLinkIPsField(linkMap map[string]LinkIPs, field string) []string {
 		getField = func(l LinkIPs) string { return l.DutIPv4 }
 	case "dutipv6":
 		getField = func(l LinkIPs) string { return l.DutIPv6 }
+	case "dutsecipv4":
+		getField = func(l LinkIPs) string { return l.DutSecIPv4 }
 	case "peeripv4":
 		getField = func(l LinkIPs) string { return l.PeerIPv4 }
 	case "peeripv6":
 		getField = func(l LinkIPs) string { return l.PeerIPv6 }
+	case "peersecipv4":
+		getField = func(l LinkIPs) string { return l.PeerSecIPv4 }
 	default:
 		return result
 	}
@@ -364,7 +376,7 @@ func ExtractLinkIPsField(linkMap map[string]LinkIPs, field string) []string {
 
 // createSubInterfaces creates subinterfaces for the given links, configuring both DUT and Peer interfaces.
 // It assigns /31 for IPv4 and /127 for IPv6 addresses.
-func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6 net.IP) (net.IP, net.IP, map[string]LinkIPs) {
+func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, links []string, subIntCount int, nextIPv4, nextIPv6, nextSecIpv4 net.IP, macAddr string) (net.IP, net.IP, net.IP, map[string]LinkIPs) {
 	t.Helper()
 	t.Logf("Creating subinterfaces for %d links", len(links))
 
@@ -388,32 +400,42 @@ func CreateBundleSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, peer *ondat
 			// Generate DUT subinterface config
 			dutIPv4 := nextIPv4
 			dutIPv6 := nextIPv6
-			dutConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			dutSecIPv4 := nextSecIpv4
+			dutConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), nextSecIpv4.String(), 31, nextIPv6.String(), 127)
 			gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Config(), dutConfig)
+
 			nextIPv4 = incrementIP(nextIPv4, 1)
 			nextIPv6 = incrementIPv6(nextIPv6)
 
+			// create static arp with peer devices ip address
+			nextSecIpv4 = incrementIP(nextSecIpv4, 1)
+			gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Interface(link).Subinterface(uint32(subIntID)).Config(), CreateStaticArpEntries(link, uint32(subIntID), nextSecIpv4.String(), macAddr))
+
 			peerIPv4 := nextIPv4
 			peerIPv6 := nextIPv6
+			peerSecIPv4 := nextSecIpv4
 			// Generate Peer subinterface config
-			peerConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), 31, nextIPv6.String(), 127)
+			peerConfig := generateSubifDUTConfig(&oc.Root{}, dut, link, uint32(subIntID), uint16(subIntID), nextIPv4.String(), "", 31, nextIPv6.String(), 127)
 			gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Interface(link).Config(), peerConfig)
 			// Save peer subinterface IPv4 address
 			subIntfIPMap[fmt.Sprintf("%s.%d", link, subIntID)] = LinkIPs{
-				DutIPv4:  dutIPv4.String(),
-				DutIPv6:  dutIPv6.String(),
-				PeerIPv4: peerIPv4.String(),
-				PeerIPv6: peerIPv6.String(),
+				DutIPv4:     dutIPv4.String(),
+				DutIPv6:     dutIPv6.String(),
+				DutSecIPv4:  dutSecIPv4.String(),
+				PeerIPv4:    peerIPv4.String(),
+				PeerIPv6:    peerIPv6.String(),
+				PeerSecIPv4: peerSecIPv4.String(),
 			}
 			nextIPv4 = incrementIP(nextIPv4, 1)
 			nextIPv6 = incrementIPv6(nextIPv6)
+			nextSecIpv4 = incrementIP(nextSecIpv4, 1)
 		}
 	}
 	// Push batch configurations to DUT and Peer
 	dutBatchConfig.Set(t, dut)
 	peerBatchConfig.Set(t, peer)
 
-	return nextIPv4, nextIPv6, subIntfIPMap
+	return nextIPv4, nextIPv6, nextSecIpv4, subIntfIPMap
 }
 
 // GetSubInterface returns subinterface
@@ -423,6 +445,17 @@ func GetSubInterface(ipv4 string, prefixlen uint8, index uint32) *oc.Interface_S
 	s4 := s.GetOrCreateIpv4()
 	a := s4.GetOrCreateAddress(ipv4)
 	a.PrefixLength = ygot.Uint8(prefixlen)
+	return s
+}
+
+// CreateStaticArpEntries creates static ARP entries for the given subinterface.
+func CreateStaticArpEntries(portName string, index uint32, ipv4Addr string, macAddr string) *oc.Interface_Subinterface {
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(portName)
+	s := i.GetOrCreateSubinterface(index)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4Addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
 	return s
 }
 
@@ -1182,11 +1215,13 @@ type InterfacePhysicalLink struct {
 	IntfV4Addr         string
 	IntfV6Addr         string
 	LineCardNumber     string
+	Npu                string
 	PeerIntfName       string
 	PeerV4Addr         string
 	PeerV6Addr         string
 	PeerIntf           *oc.Interface
 	PeerLineCardNumber string
+	PeerNpu            string
 }
 
 type BundleLinks struct {
@@ -1261,6 +1296,80 @@ func ExtractBundleLinkField(bundles []BundleLinks, field string) any {
 	}
 }
 
+// GetNpuAndLcOrRpForInterfaces returns a map of interface name to (npu, card) tuple for all interfaces.
+// It uses LookupAll for hardware port and processes each interface.
+func GetNpuAndLcOrRpForInterfaces(t testing.TB, dut *ondatra.DUTDevice, intfNameList []string) map[string][2]string {
+	result := make(map[string][2]string)
+	hwPorts := gnmi.LookupAll(t, dut, gnmi.OC().InterfaceAny().HardwarePort().State())
+	hwPortMap := make(map[string]string)
+	for _, hw := range hwPorts {
+		ifName := hw.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := hw.Val(); ok {
+			hwPortMap[ifName] = v
+		}
+	}
+	// Use LookupAll to get all parent components for hardware ports outside the loop
+	parentLookups := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Parent().State())
+	parentMap := make(map[string]string)
+	for _, pl := range parentLookups {
+		compName := pl.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := pl.Val(); ok {
+			parentMap[compName] = v
+		}
+	}
+
+	// Use LookupAll to get all component types outside the loop
+	typeLookups := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().Type().State())
+	typeMap := make(map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT)
+	for _, tl := range typeLookups {
+		compName := tl.Path.GetElem()[1].GetKey()["name"]
+		if v, ok := tl.Val(); ok {
+			if enumVal, ok := v.(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT); ok {
+				typeMap[compName] = enumVal
+			}
+		}
+	}
+
+	for _, ifName := range intfNameList {
+		v, ok := hwPortMap[ifName]
+		if !ok {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		node, ok := parentMap[v]
+		if !ok {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		ct, ok := typeMap[node]
+		if !ok || ct != oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+			result[ifName] = [2]string{"", ""}
+			continue
+		}
+		npu, card := getNpuandLCorRP(node)
+		result[ifName] = [2]string{npu, card}
+	}
+	return result
+}
+
+// getNpuandLCorRP parses the NPU component name and returns the NPU and the matched LC/RP string.
+// Example input: "0/1/CPU0-NPU0" -> returns ("NPU0", "0/1/CPU0")
+// Example input: "0/RP0/CPU0-NPU0" -> returns ("NPU0", "0/RP0/CPU0")
+func getNpuandLCorRP(npu string) (string, string) {
+	// Extract the NPU part after the last '-'
+	parts := strings.Split(npu, "-")
+	if len(parts) < 2 {
+		return "", ""
+	}
+	npuPart := parts[len(parts)-1]
+
+	// Extract the LC/RP match using the pattern
+	pattern := `\d+/(RP\d*|\d*)/CPU\d+`
+	regex := regexp.MustCompile(pattern)
+	card := regex.FindString(npu)
+	return npuPart, card
+}
+
 // Assumptions
 // dut is connected only to peer (no other lldp device in the topology)
 // no  bundle is configured before calling this function
@@ -1306,6 +1415,11 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 
 	// Get only enabled interfaces of DUT
 	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)
+	dutIntfNames := make([]string, 0, len(dutEnabledInterfaces))
+	for _, intf := range dutEnabledInterfaces {
+		dutIntfNames = append(dutIntfNames, intf.GetName())
+	}
+	dutNpuSlot := GetNpuAndLcOrRpForInterfaces(t, dut, dutIntfNames)
 	linkInfos := make([]InterfacePhysicalLink, 0)
 
 	lldpIntfStatePathAny := gnmi.OC().Lldp().InterfaceAny().State()
@@ -1315,20 +1429,12 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 	peerIntfAny := gnmi.GetAll(t, peer, peerIntfPathAny)
 	peerHostName := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State())
 	// logic to create the link by using LLDP neighbour
-	// re := regexp.MustCompile(`\d`)
-	re := regexp.MustCompile(`\d+/(\d+)/\d+/\d+`)
 	for _, dutIntf := range dutEnabledInterfaces {
 		intfName := dutIntf.GetName()
-		// lcNumber := re.FindString(intfName)
-		matches := re.FindStringSubmatch(intfName)
-		var lcNumber string
-		if len(matches) > 1 {
-			lcNumber = matches[1]
-		}
+		npu, lcNumber := dutNpuSlot[intfName][0], dutNpuSlot[intfName][1]
 
 		// Get the peer interface name using LLDP data
 		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName, peerHostName)
-
 		// TODO logic to fectch the NPU
 		// npu := getNpu(t,dut,intfName)
 		// PeerNpu := getNpu(t,peer,peerIntfName)
@@ -1346,24 +1452,35 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 			}
 
 			if peerIntf != nil {
-				// peerLcNumber := re.FindString(peerIntfName)
-				peerMatches := re.FindStringSubmatch(peerIntfName)
-				var peerLcNumber string
-				if len(peerMatches) > 1 {
-					peerLcNumber = peerMatches[1]
-				}
 				linkInfo := InterfacePhysicalLink{
 					Intf:           dutIntf,
 					IntfName:       intfName,
 					LineCardNumber: lcNumber,
-					// Npu:				npu,
-					PeerIntfName:       peerIntfName,
-					PeerIntf:           peerIntf,
-					PeerLineCardNumber: peerLcNumber,
+					Npu:            npu,
+					PeerIntfName:   peerIntfName,
+					PeerIntf:       peerIntf,
+					// PeerLineCardNumber: peerLcNumber,
 					// PeerNpu:		  	peerNpu,
 				}
 				linkInfos = append(linkInfos, linkInfo)
 			}
+		}
+	}
+
+	// Extract all peer interface names from linkInfos
+	peerIntfNames := make([]string, 0, len(linkInfos))
+	for _, link := range linkInfos {
+		if link.PeerIntfName != "" {
+			peerIntfNames = append(peerIntfNames, link.PeerIntfName)
+		}
+	}
+	// Get NPU and LC/RP info for all peer interfaces
+	peerNpuSlot := GetNpuAndLcOrRpForInterfaces(t, peer, peerIntfNames)
+	// Fill PeerLineCardNumber and PeerNpu in linkInfos
+	for idx, link := range linkInfos {
+		if npuAndSlot, ok := peerNpuSlot[link.PeerIntfName]; ok {
+			linkInfos[idx].PeerNpu = npuAndSlot[0]            // npu
+			linkInfos[idx].PeerLineCardNumber = npuAndSlot[1] // lc or RP
 		}
 	}
 

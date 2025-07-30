@@ -19,25 +19,18 @@ package b4_scale_profile_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/iputil"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
-	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 )
 
@@ -61,98 +54,6 @@ const (
 	IPinIPpDscpOffset         = 120
 	IPinIPpDscpWidth          = 8
 )
-
-var (
-	logDir           = flag.String("logDir", "", "Firex path to copy the logs after each test case")
-	debugCommandYaml = flag.String("debugCommandYaml", "", "Path for the yaml file containging debug commands and error pattern to look for")
-)
-
-func initializeTestResources(t *testing.T) *TestResources {
-	once.Do(func() {
-		t.Helper() // Mark this function as a test helper
-		dut := ondatra.DUT(t, "dut")
-		peer := ondatra.DUT(t, "peer")
-		otg := ondatra.ATE(t, "ate")
-
-		var commandPatterns map[string]map[string]interface{}
-		if *debugCommandYaml == "" {
-			// Get the current working directory
-			currentDir, err := os.Getwd()
-			if err != nil {
-				t.Fatalf("Failed to get current working directory: %v", err)
-			}
-
-			// Get the absolute path of the test file
-			absPath, err := filepath.Abs(currentDir)
-			if err != nil {
-				t.Fatalf("Failed to get absolute path: %v", err)
-			}
-			*debugCommandYaml = absPath + "/debug.yaml"
-		}
-
-		var err error
-		commandPatterns, err = log_collector.ParseYAML(*debugCommandYaml)
-		if err != nil {
-			t.Logf("Debug yaml parsing failed: Error : %v", err)
-		}
-		testResources = &TestResources{
-			DUT: DUTResources{
-				Device: dut,
-				GNMI:   dut.RawAPIs().GNMI(t),
-				GNSI:   dut.RawAPIs().GNSI(t),
-				// GNPSI:       dut.RawAPIs().GNPSI(t),
-				CLI:  dut.RawAPIs().CLI(t),
-				P4RT: dut.RawAPIs().P4RT(t),
-				// Console:     dut.RawAPIs().Console(t),
-				OSC:         dut.RawAPIs().GNOI(t).OS(),
-				SC:          dut.RawAPIs().GNOI(t).System(),
-				GRIBI:       dut.RawAPIs().GRIBI(t),
-				FluentGRIBI: fluent.NewClient(),
-			},
-			PEER: DUTResources{
-				Device: peer,
-				GNMI:   peer.RawAPIs().GNMI(t),
-				GNSI:   peer.RawAPIs().GNSI(t),
-				// GNPSI:       peer.RawAPIs().GNPSI(t),
-				CLI:  peer.RawAPIs().CLI(t),
-				P4RT: peer.RawAPIs().P4RT(t),
-				// Console:     peer.RawAPIs().Console(t),
-				OSC:         peer.RawAPIs().GNOI(t).OS(),
-				SC:          peer.RawAPIs().GNOI(t).System(),
-				GRIBI:       peer.RawAPIs().GRIBI(t),
-				FluentGRIBI: fluent.NewClient(),
-			},
-			OTG: OTGResources{
-				Device: otg,
-				GNMI:   otg.RawAPIs().GNMI(t),
-			},
-			LogDir:          *logDir,
-			ctx:             context.Background(),
-			CommandPatterns: commandPatterns,
-		}
-		// updation dual sup status
-		testResources.DUT.DualSup, err = utils.HasDualSUP(testResources.ctx, testResources.DUT.OSC)
-		if err != nil {
-			t.Logf("fetching dual sup info failed, Error:%v", err)
-		}
-		testResources.PEER.DualSup, err = utils.HasDualSUP(testResources.ctx, testResources.PEER.OSC)
-		if err != nil {
-			t.Logf("fetching dual sup info failed, Error:%v", err)
-		}
-		// get and update available LCs
-		testResources.DUT.LCs = util.GetLCList(t, testResources.DUT.Device)
-		testResources.PEER.LCs = util.GetLCList(t, testResources.PEER.Device)
-
-		// Start fluent connection
-		testResources.DUT.FluentGRIBI.Connection().WithStub(testResources.DUT.GRIBI).WithPersistence().WithInitialElectionID(1, 0).
-			WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
-		testResources.DUT.FluentGRIBI.Start(testResources.ctx, t)
-
-		// start log collection
-		log_collector.Start(testResources.ctx, t, testResources.DUT.Device)
-	})
-	return testResources
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -329,118 +230,6 @@ func TestGoogleBaseConfPush(t *testing.T) {
 	})
 }
 
-func TestGribiScaleProfile(t *testing.T) {
-	t.Skip()
-	resources := initializeTestResources(t)
-	log_collector.Start(context.Background(), t, resources.DUT.Device)
-
-	t.Run("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH", func(t *testing.T) {
-		configureBaseProfile(t)
-	})
-
-	t.Run("LogCollectionAfterTestGribiScaleProfile", func(t *testing.T) {
-		log_collector.CollectRouterLogs(resources.ctx, t, resources.DUT.Device, resources.LogDir, "afterConfigureBaseProfile", resources.CommandPatterns)
-	})
-
-}
-
-func TestTrigger(t *testing.T) {
-	t.Skip()
-	tRes := initializeTestResources(t)
-	processes := []string{"bgp", "ifmgr", "db_writer", "isis"}
-
-	// Define a slice of test triggers with a duration for each
-	triggers := []struct {
-		name                  string
-		fn                    func(ctx context.Context, t *testing.T)
-		duration              time.Duration
-		reprogrammingRequired bool
-		reconnectClient       bool
-	}{
-		{"RPFO", func(ctx context.Context, t *testing.T) {
-			utils.Dorpfo(ctx, t, false)
-		}, 1 * time.Minute, false, true},
-
-		{"LC-Reboot", func(ctx context.Context, t *testing.T) {
-			utils.DoAllAvailableLcParallelReboot(t, tRes.DUT.Device)
-		}, 5 * time.Minute, false, false},
-
-		{"ProcessRestartParllel", func(ctx context.Context, t *testing.T) {
-			utils.DoProcessesRestart(ctx, t, tRes.DUT.Device, processes, true)
-		}, 5 * time.Minute, false, false},
-
-		{"ProcessRestartSequential", func(ctx context.Context, t *testing.T) {
-			utils.DoProcessesRestart(ctx, t, tRes.DUT.Device, processes, false)
-		}, 5 * time.Minute, false, false},
-
-		{"gNOI-REBOOT", func(ctx context.Context, t *testing.T) {
-			utils.GnoiReboot(t, tRes.DUT.Device)
-		}, 10 * time.Minute, true, true},
-
-		{"LC-Shut-Unshut", func(ctx context.Context, t *testing.T) {
-			utils.DoShutUnshutAllAvailableLcParallel(t, tRes.DUT.Device)
-		}, 5 * time.Minute, false, false},
-	}
-
-	// Iterate over each trigger and run it as a subtest
-	for _, trigger := range triggers {
-		t.Run(trigger.name, func(t *testing.T) {
-			trigger.fn(tRes.ctx, t)
-			time.Sleep(trigger.duration) // Use the duration specified in the trigger
-
-			// Collect logs after each trigger
-			t.Run("LogCollectionAfterTrigger", func(t *testing.T) {
-				log_collector.CollectRouterLogs(tRes.ctx, t, tRes.DUT.Device, tRes.LogDir, "LogCollectionAfterTrigger"+trigger.name, tRes.CommandPatterns)
-			})
-
-			if trigger.reconnectClient {
-				t.Run("Reconnect clients", func(t *testing.T) {
-					t.Skip()
-					tRes.ReconnectClients(t, 30)
-				})
-			}
-
-			// If reprogramming is required, run the Reprogramming function
-			if trigger.reprogrammingRequired {
-				t.Run("Reprogramming", func(t *testing.T) {
-					configureBaseProfile(t)
-				})
-			}
-			t.Run("verify traffic", func(t *testing.T) {
-				t.Logf("verify traffic")
-				validateTraffic(t, tRes)
-			})
-
-			// Collect logs after gribi programing
-			t.Run("LogCollectionAfterTrafficValidation", func(t *testing.T) {
-				log_collector.CollectRouterLogs(tRes.ctx, t, tRes.DUT.Device, tRes.LogDir, "LogCollectionAfterTrafficValidation"+trigger.name, tRes.CommandPatterns)
-			})
-		})
-	}
-}
-
-func validateTraffic(t *testing.T, tRes *TestResources) {
-	t.Logf("verify traffic")
-	dut := tRes.DUT.Device
-	peer := tRes.PEER.Device
-	otg := tRes.OTG.Device
-	client := tRes.DUT.FluentGRIBI
-	ctx := context.Background()
-	client.Start(ctx, t)
-
-	topo := configureOTG(t, otg, dut, peer)
-	tcArgs := &testArgs{
-		dut:    dut,
-		peer:   peer,
-		ate:    otg,
-		topo:   topo,
-		client: client,
-		ctx:    ctx,
-	}
-	decapScaleEntries := iputil.GenerateIPs(IPBlockDecap, decapIPv4ScaleCount)
-	validateTrafficFlows(t, tcArgs, getDecapFlows(decapScaleEntries), false, true)
-}
-
 func TestModularGribiProfile(t *testing.T) {
 	testCompactModularChain(t)
 }
@@ -455,7 +244,7 @@ func TestEncapScale(t *testing.T) {
 }
 
 func TestDecapScale(t *testing.T) {
-	// t.Skipf("Skipping Decap Scale, need to find calculation for decal entries")
+	t.Skipf("Skipping Decap Scale, need to find calculation for decal entries")
 	testDecapScale(t)
 }
 func TestDecapEncapScale(t *testing.T) {
@@ -472,4 +261,20 @@ func TestFlushAll(t *testing.T) {
 
 func TestDcGateTriggers(t *testing.T) {
 	testDcGateTriggers(t)
+}
+
+func TestIPTNLNHUsage(t *testing.T) {
+	t.Skip("Skipping IPTNL NH usage test. Use if needed to measure resource usage")
+	testIptnlUsage(t)
+}
+
+func TestDcGateOOR(t *testing.T) {
+	testDcGateOOR(t)
+}
+
+func TestDcGateStress(t *testing.T) {
+	testDcGateStress(t)
+}
+func TestDcGateTunnelPathFlaps(t *testing.T) {
+	testDcGateTunnelPathFlaps(t)
 }

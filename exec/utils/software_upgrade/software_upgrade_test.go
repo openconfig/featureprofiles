@@ -17,17 +17,20 @@ import (
 	"github.com/openconfig/gnoi/file"
 	"github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/povsister/scp"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
 const (
-	imageDestination = "/harddisk:/8000-x64.iso"
-	installStatusCmd = "sh install request"
-	imgCopyTimeout   = 1800 * time.Second
-	sshCmdTimeout    = 30 * time.Second
-	statusCheckDelay = 60 * time.Second
+	imageDestination   = "/harddisk:/8000-x64.iso"
+	installStatusCmd   = "sh install request"
+	imgCopyTimeout     = 1800 * time.Second
+	componentUpTimeout = 900 * time.Second
+	sshCmdTimeout      = 30 * time.Second
+	statusCheckDelay   = 60 * time.Second
 )
 
 var (
@@ -39,6 +42,12 @@ var (
 	reimageFlag   = flag.Bool("reimage", true, "Use install replace reimage")
 
 	installTimeout = 1800 * time.Second
+
+	componentTypes = map[oc.Component_Type_Union]bool{
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD: true,
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD:        true,
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC:          true,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -75,6 +84,13 @@ func TestSoftwareUpgrade(t *testing.T) {
 		}
 
 		time.Sleep(5 * time.Second)
+
+		components := map[string]oc.E_PlatformTypes_COMPONENT_OPER_STATUS{}
+		for _, c := range gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State()) {
+			if _, ok := componentTypes[c.GetType()]; ok {
+				components[c.GetName()] = oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET
+			}
+		}
 
 		if !http {
 			if !gnoi {
@@ -132,6 +148,8 @@ func TestSoftwareUpgrade(t *testing.T) {
 		if !success {
 			t.Fatalf("Install operation timed out")
 		}
+
+		waitForComponents(t, dut, components)
 
 		if !verifyInstall(t, dut, lineup, efr) {
 			t.Fatalf("Found unexpected image after install on %v", dut.ID())
@@ -266,6 +284,7 @@ func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr stri
 }
 
 func verifyInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
+	t.Helper()
 	if len(lineup) == 0 || len(efr) == 0 || strings.HasPrefix(efr, "sha") {
 		return true
 	}
@@ -275,6 +294,43 @@ func verifyInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr stri
 	}
 
 	return !shouldInstall(t, dut, lineup, efr)
+}
+
+func waitForComponents(t *testing.T, dut *ondatra.DUTDevice, components map[string]oc.E_PlatformTypes_COMPONENT_OPER_STATUS) {
+	t.Helper()
+	startTime := time.Now()
+
+	for {
+		s := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+
+		for _, c := range s {
+			if _, ok := components[c.GetName()]; ok {
+				components[c.GetName()] = c.GetOperStatus()
+			}
+		}
+
+		status := ""
+		allUp := true
+		for k, v := range components {
+			status += fmt.Sprintf("%s: %v\n", k, v)
+			allUp = allUp && v == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+		}
+
+		t.Logf("Components status:\n%s", status)
+
+		if allUp {
+			break
+		}
+
+		if time.Since(startTime) > componentUpTimeout {
+			t.Fatalf("Timed out waiting for all components to be up:\n%s", status)
+		}
+
+		t.Logf("Waiting for all components to be up...")
+		time.Sleep(30 * time.Second)
+	}
+
+	t.Logf("All components are up")
 }
 
 func parseBindingFile(t *testing.T) []targetInfo {

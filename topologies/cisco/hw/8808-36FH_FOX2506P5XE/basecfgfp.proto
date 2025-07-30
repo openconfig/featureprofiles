@@ -20,6 +20,7 @@ replace: {
   " secret 10 $6$zCA6f111muUgCf1.$LSzgfdc2NPI.AOglnOkzNb.ioHSbohtqv112MJSEyRpP7g7Kqup3bXBxKo4j9Sq2Nz6akg6nHT0auEPP/AyfH1\n"
   "!\n"
   "aaa accounting commands default start-stop local\n"
+  "vty-pool default 0 99 line-template vty\n"
   "grpc\n"
   " vrf mgmt\n"
   " port 57777\n"
@@ -384,6 +385,8 @@ replace: {
   "ssh server vrf default\n"
   "hw-module profile pbr vrf-redirect\n"
   "hw-module profile qos qos-stats-push-collection\n"
+  "hw-module profile netflow sflow-enable location 0/0/CPU0\n"
+  "hw-module profile npu-compatibility Q200\n"
   "end\n"
   }
 }

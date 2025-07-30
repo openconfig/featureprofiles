@@ -82,8 +82,6 @@ duts {
     insecure: false 
     skip_verify: false
     mutual_tls: true
-    username: "cisco"
-    password: "cisco"
   }
 
   # Options specific to gNMI.  Remove if not needed.

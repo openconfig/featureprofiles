@@ -40,6 +40,6 @@ func teardownQos(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Qos) {
 		}
 	}
 	if err != nil {
-		t.Errorf(*err)
+		t.Error(*err)
 	}
 }
