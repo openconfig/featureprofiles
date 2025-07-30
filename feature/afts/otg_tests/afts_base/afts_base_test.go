@@ -187,7 +187,14 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		}
 	})
 	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(false)
-	ts.PushAndStart(t)
+
+	if err := ts.PushAndStart(t); err != nil {
+		return err
+	}
+
+	if _, err = ts.AwaitAdjacency(); err != nil {
+		return fmt.Errorf("no IS-IS adjacency formed: %v", err)
+	}
 	return nil
 }
 
