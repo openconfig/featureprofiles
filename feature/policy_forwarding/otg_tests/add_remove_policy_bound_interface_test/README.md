@@ -141,6 +141,13 @@ A[ATE] <-- Port2(IPv4/6) --> B[DUT];
             ]
           }
         }
+      },
+      {
+        "config": {
+          "name": "vrf100",
+          "type": "L3VRF"
+        },
+        "name": "vrf100"
       }
     ]
   }
