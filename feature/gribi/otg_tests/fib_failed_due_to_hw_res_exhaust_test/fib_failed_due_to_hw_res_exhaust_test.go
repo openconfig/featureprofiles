@@ -23,12 +23,12 @@ import (
 	"strings"
 	"testing"
 	"time"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -175,50 +175,10 @@ func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
-	flow1ipv4 := config.Flows().Add().SetName(fibPassedTraffic)
-	flow1ipv4.Metrics().SetEnable(true)
-	flow1ipv4.TxRx().Device().
-		SetTxNames([]string{atePort1.Name + ".IPv4"}).
-		SetRxNames([]string{atePort2.Name + ".IPv4"})
-	flow1ipv4.Size().SetFixed(512)
-	flow1ipv4.Rate().SetPps(100)
-	flow1ipv4.Duration().Continuous()
-	e1 := flow1ipv4.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
-	v4 := flow1ipv4.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(dstIPList[0])
-
-	flow1ipv4.EgressPacket().Add().Ethernet()
-	ipTrackingf1 := flow1ipv4.EgressPacket().Add().Ipv4()
-	ipDstTrackingf1 := ipTrackingf1.Dst().MetricTags().Add()
-	ipDstTrackingf1.SetName(dstTrackingf1).SetOffset(22).SetLength(10)
-
-	flow2ipv4 := config.Flows().Add().SetName(fibFailedTraffic)
-	flow2ipv4.Metrics().SetEnable(true)
-	flow2ipv4.TxRx().Device().
-		SetTxNames([]string{atePort1.Name + ".IPv4"}).
-		SetRxNames([]string{atePort2.Name + ".IPv4"})
-	flow2ipv4.Size().SetFixed(512)
-	flow2ipv4.Rate().SetPps(100)
-	flow2ipv4.Duration().Continuous()
-	e2 := flow2ipv4.Packet().Add().Ethernet()
-	e2.Src().SetValue(atePort1.MAC)
-	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
-	v4Flow2.Src().SetValue(atePort1.IPv4)
-	v4Flow2.Dst().SetValues(dstIPList[1:])
-
-	flow2ipv4.EgressPacket().Add().Ethernet()
-	ipTrackingf2 := flow2ipv4.EgressPacket().Add().Ipv4()
-	ipDstTrackingf2 := ipTrackingf2.Dst().MetricTags().Add()
-	ipDstTrackingf2.SetName(dstTrackingf2).SetOffset(22).SetLength(10)
-
 	t.Logf("Pushing config to ATE and starting protocols...")
+	fmt.Println(config.Marshal().ToJson())
 	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
-
 	return iDut1Bgp6Peer, iDut1Ipv6, config
 }
 
@@ -291,7 +251,6 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	var otgBgpPeer gosnappi.BgpV6Peer
 	var otgIPv6Device gosnappi.DeviceIpv6
 	otgBgpPeer, otgIPv6Device, otgConfig = configureOTG(t, otg, dstIPList)
-	time.Sleep(30 * time.Second)
 	verifyBgpTelemetry(t, dut)
 
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -337,14 +296,18 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	// cleanup fib table
 	defer func() {
 		ate.OTG().StopProtocols(t)
-		time.Sleep(5 * time.Minute)
+		time.Sleep(1 * time.Minute)
 	}()
 
 	injectEntry(ctx, t, args, dstIPList, vipList)
 	t.Logf("Main Function: Time elapsed %.2f seconds since start", time.Since(start).Seconds())
 
+	AppendTrafficFlow(t, otg, otgConfig, dstIPList)
+
 	t.Log("Send traffic to any of the programmed entries and validate.")
 	sendTraffic(t, args)
+	newOtgConfig := otg.GetConfig(t)
+	otgutils.LogFlowMetrics(t, otg, newOtgConfig)
 }
 
 func sendTraffic(t *testing.T, args *testArgs) {
@@ -370,28 +333,13 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	var lossPct uint64
-	trafficPassed := false
 	if txPackets != 0 {
 		lossPct = lostPackets * 100 / txPackets
 	} else {
 		t.Errorf("Traffic stats are not correct %v", recvMetric)
 	}
 	if wantLoss {
-		// If no rxPackets are received, the first route is fibFailedRoute, resulting in no packets being generated with tagged metrics.
 		if rxPackets > 0 {
-			etPath := gnmi.OTG().Flow(flowName).TaggedMetricAny()
-			ets := gnmi.GetAll(t, args.otg, etPath.State())
-			for _, et := range ets {
-				tags := et.Tags
-				for _, tag := range tags {
-					if tag.GetTagName() == dstTrackingf2 && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
-						trafficPassed = true
-						break
-					}
-				}
-			}
-		}
-		if trafficPassed {
 			t.Errorf("Traffic received on Failed FIB")
 		} else {
 			t.Logf("Traffic Test Passed!")
@@ -411,7 +359,6 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	var nbrIP = []string{atePort1.IPv6}
 	t.Logf("Verifying BGP state.")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	time.Sleep(30 * time.Second)
 	for _, nbr := range nbrIP {
 		nbrPath := bgpPath.Neighbor(nbr)
 		// Get BGP adjacency state.
@@ -469,10 +416,11 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(false)
 
 	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(30 * time.Second)
+	t.Log("Injected BGP routes given below")
+	fmt.Println(args.otgConfig.Marshal().ToJson())
 	args.otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
 }
+
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
@@ -570,7 +518,47 @@ routeAddLoop:
 		if j == 1 {
 			fibPassedDstRoute = dstIPList[0]
 			injectBGPRoutes(t, args)
-			time.Sleep(5 * time.Minute)
+			t.Logf("Wait for 2 minutes ...")
+			time.Sleep(2 * time.Minute)
 		}
 	}
 }
+
+func AppendTrafficFlow(t *testing.T, otg *otg.OTG, config gosnappi.Config, dstIPList []string) {
+
+	ca := gosnappi.NewConfigAppend()
+	flow1ipv4 := ca.ConfigAppendList().Add().Flows().Add().SetName(fibPassedTraffic)
+
+	flow1ipv4.Metrics().SetEnable(true)
+	flow1ipv4.TxRx().Device().
+		SetTxNames([]string{atePort1.Name + ".IPv4"}).
+		SetRxNames([]string{atePort2.Name + ".IPv4"})
+	flow1ipv4.Size().SetFixed(512)
+	flow1ipv4.Rate().SetPps(100)
+	flow1ipv4.Duration().Continuous()
+	e1 := flow1ipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	v4 := flow1ipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().SetValue(dstIPList[0])
+
+
+	flow2ipv4 := ca.ConfigAppendList().Add().Flows().Add().SetName(fibFailedTraffic)
+	flow2ipv4.Metrics().SetEnable(true)
+	flow2ipv4.TxRx().Device().
+		SetTxNames([]string{atePort1.Name + ".IPv4"}).
+		SetRxNames([]string{atePort2.Name + ".IPv4"})
+	flow2ipv4.Size().SetFixed(512)
+	flow2ipv4.Rate().SetPps(100)
+	flow2ipv4.Duration().Continuous()
+	e2 := flow2ipv4.Packet().Add().Ethernet()
+	e2.Src().SetValue(atePort1.MAC)
+	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
+	v4Flow2.Src().SetValue(atePort1.IPv4)
+	v4Flow2.Dst().SetValue(fibFailedDstRoute)
+
+	otg.AppendConfig(t, ca)
+	newOtgConfig := otg.GetConfig(t)
+	fmt.Println(newOtgConfig.Marshal().ToJson())
+}
+
