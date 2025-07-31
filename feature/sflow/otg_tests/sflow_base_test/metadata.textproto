@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    sflow_ingress_min_sampling_rate: 262144
   }
 }
 platform_exceptions: {
