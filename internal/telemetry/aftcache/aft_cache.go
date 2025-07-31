@@ -114,7 +114,6 @@ type aftCache struct {
 	cache             *cache.Cache // Cache used to store AFT notifications during streaming.
 	target            string
 	notificationCount int // Number of notifications received.
-
 }
 
 // aftNextHopGroup represents an AFT next hop group.
@@ -470,7 +469,6 @@ func loggingPeriodicHook(t *testing.T, start time.Time) PeriodicHook {
 func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	ss.Cache.logMetadata(t, ss.start)
 	t.Logf("After %v: Finished streaming. %d notifications added to cache.", time.Since(ss.start).Truncate(time.Millisecond), ss.Cache.notificationCount)
-	t.Logf("After %v: Finished streaming.", time.Since(ss.start).Truncate(time.Millisecond))
 	if len(missingPrefixes) == 0 {
 		return
 	}
@@ -580,7 +578,6 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 		Description: "Initial sync stopping condition",
 		PeriodicFunc: func(c *aftCache) (bool, error) {
 			start := time.Now()
-			defer logDuration(start)
 			a, err := c.ToAFT(dut)
 			if err != nil {
 				return false, err
