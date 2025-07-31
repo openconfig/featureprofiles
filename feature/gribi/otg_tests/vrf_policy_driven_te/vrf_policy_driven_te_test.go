@@ -1586,6 +1586,12 @@ type packetValidation struct {
 }
 
 func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetValidation) {
+	if !(packetVal.validateDecap || packetVal.validateTTL ||
+		packetVal.validateNoDecap || packetVal.validateEncap) {
+		t.Fatalf(`ERROR: No validation has been specified for the captured packets.
+		Please specify at least one of the validation flags: validateDecap, validateTTL, validateNoDecap, validateEncap.`)
+		return
+	}
 	bytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
 	f, err := os.CreateTemp("", "pcap")
 	if err != nil {
@@ -1595,32 +1601,32 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
 	}
 	f.Close()
-	handle, err := pcap.OpenOffline(f.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	if packetVal.validateTTL {
-		validateTrafficTTL(t, packetSource)
+		validateTrafficTTL(t, f)
 	}
 	if packetVal.validateDecap {
-		validateTrafficDecap(t, packetSource)
+		validateTrafficDecap(t, f)
 	}
 	if packetVal.validateNoDecap {
-		validateTrafficNonDecap(t, packetSource, packetVal.outDstIP[0], packetVal.inHdrIP)
+		validateTrafficNonDecap(t, f, packetVal.outDstIP[0], packetVal.inHdrIP)
 	}
 	if packetVal.validateEncap {
-		validateTrafficEncap(t, packetSource, packetVal.outDstIP, packetVal.inHdrIP)
+		validateTrafficEncap(t, f, packetVal.outDstIP, packetVal.inHdrIP)
 	}
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
 }
 
-func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
+func validateTrafficTTL(t *testing.T, captureFile *os.File) {
 	t.Helper()
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer != nil && packetCheckCount <= 3 {
@@ -1640,15 +1646,27 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 			}
 		}
 	}
+	if packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for TTL.")
+	}
 }
 
-func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
+func validateTrafficDecap(t *testing.T, captureFile *os.File) {
 	t.Helper()
-	for packet := range packetSource.Packets() {
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
+	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
+	packets := packetSource.Packets()
+	for packet := range packets {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
+		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1660,20 +1678,30 @@ func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
 			t.Errorf("Packets are not decapped, Inner IPv6 header is not removed.")
 		}
 	}
+	if packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for decap.")
+	}
 }
 
-func validateTrafficNonDecap(t *testing.T, packetSource *gopacket.PacketSource, outDstIP, inHdrIP string) {
+func validateTrafficNonDecap(t *testing.T, captureFile *os.File, outDstIP, inHdrIP string) {
 	t.Helper()
 	t.Log("Validate traffic non decap routes")
-	var packetCheckCount uint32 = 1
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
+	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
-		if packetCheckCount >= 5 {
-			break
-		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
+		if packetCheckCount >= 5 {
+			break
+		}
+		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1689,20 +1717,30 @@ func validateTrafficNonDecap(t *testing.T, packetSource *gopacket.PacketSource, 
 			break
 		}
 	}
+	if packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for non decap.")
+	}
 }
 
-func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, outDstIP []string, innerIP string) {
+func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string, innerIP string) {
 	t.Helper()
 	t.Log("Validate traffic non decap routes")
-	var packetCheckCount uint32 = 1
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
+	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
-		if packetCheckCount >= 5 {
-			break
-		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
+		if packetCheckCount >= 5 {
+			break
+		}
+		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1719,6 +1757,9 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, out
 			t.Logf("Traffic for encap routes passed.")
 			break
 		}
+	}
+	if packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for encap.")
 	}
 }
 
