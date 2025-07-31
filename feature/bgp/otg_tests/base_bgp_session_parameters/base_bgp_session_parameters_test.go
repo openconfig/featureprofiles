@@ -63,6 +63,7 @@ const (
 	connRetryTime    = 100
 	ateHoldTime      = 135
 	dutKeepaliveTime = 30
+	martianIP        = "240.0.0.100"
 )
 
 type connType string
@@ -108,6 +109,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 type bgpTestParams struct {
 	localAS, peerAS, nbrLocalAS uint32
 	peerIP                      string
+	RouterID                    string
 }
 
 // bgpClearConfig removes all BGP configuration from the DUT.
@@ -137,7 +139,7 @@ func bgpCreateNbr(bgpParams *bgpTestParams, dut *ondatra.DUTDevice) *oc.NetworkI
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(bgpParams.localAS)
 
-	global.RouterId = ygot.String(dutAttrs.IPv4)
+	global.RouterId = ygot.String(bgpParams.RouterID)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -307,7 +309,7 @@ func TestEstablishAndDisconnect(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	bgpClearConfig(t, dut)
-	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}, dut)
+	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: dutAttrs.IPv4}, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	t.Log("Configure matching Md5 auth password on DUT")
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
@@ -386,7 +388,7 @@ func TestPassword(t *testing.T) {
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 
 	bgpClearConfig(t, dut)
-	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}, dut)
+	dutConf := bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: dutAttrs.IPv4}, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	t.Log("Configure matching Md5 auth password on DUT")
 	gnmi.Replace(t, dut, dutConfPath.Bgp().Neighbor(ateAttrs.IPv4).AuthPassword().Config(), authPassword)
@@ -482,23 +484,43 @@ func TestParameters(t *testing.T) {
 	}{
 		{
 			name:    "Test the eBGP session establishment: Global AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS}, dut),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: dutAttrs.IPv4}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal, noAuth),
 		},
 		{
 			name:    "Test the eBGP session establishment: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS}, dut),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS, RouterID: dutAttrs.IPv4}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP}, connExternal, noAuth),
 		},
 		{
 			name:    "Test the iBGP session establishment: Global AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2}, dut),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, RouterID: dutAttrs.IPv4}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal, noAuth),
 		},
 		{
 			name:    "Test the iBGP session establishment: Neighbor AS",
-			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2}, dut),
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: dutAttrs.IPv4}, dut),
 			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP}, connInternal, noAuth),
+		},
+		{
+			name:    "Test the eBGP session establishment with martian IP as Router ID: Global AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+		},
+		{
+			name:    "Test the eBGP session establishment with martian IP as Router ID: Neighbor AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS, nbrLocalAS: dutAS, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connExternal, noAuth),
+		},
+		{
+			name:    "Test the iBGP session establishment with martian IP as Router ID: Global AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS2, peerAS: ateAS2, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
+		},
+		{
+			name:    "Test the iBGP session establishment with martian IP as Router ID: Neighbor AS",
+			dutConf: bgpCreateNbr(&bgpTestParams{localAS: dutAS, peerAS: ateAS2, nbrLocalAS: dutAS2, RouterID: martianIP}, dut),
+			ateConf: configureATE(t, &bgpTestParams{localAS: ateAS2, peerIP: dutIP, RouterID: ateAttrs.IPv4}, connInternal, noAuth),
 		},
 	}
 	for _, tc := range cases {

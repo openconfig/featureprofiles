@@ -13,6 +13,39 @@ Validate Interface breakout configuration.
 *   Verify correct interface state and speed reported
 *   Verify that DUT responds to ARP/ICMP on all tested interfaces
 
+### Canonical OC
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "linecard"
+        },
+        "name": "linecard",
+        "port": {
+          "breakout-mode": {
+            "groups": {
+              "group": [
+                {
+                  "config": {
+                    "breakout-speed": "SPEED_100GB",
+                    "index": 0,
+                    "num-breakouts": 4,
+                    "num-physical-channels": 2
+                  },
+                  "index": 0
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test. OC
@@ -20,6 +53,7 @@ paths used for test setup are not listed here.
 
 ```yaml
 paths:
+## Config paths
   /components/component/port/breakout-mode/groups/group/index:
     platform_type: [ "PORT" ]
   /components/component/port/breakout-mode/groups/group/config/index:

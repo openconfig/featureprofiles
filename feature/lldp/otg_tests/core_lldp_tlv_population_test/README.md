@@ -25,12 +25,16 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## Config Paths ##
   /lldp/config/enabled:
+  /lldp/config/system-description:
   /lldp/interfaces/interface/config/enabled:
+  /lldp/interfaces/interface/config/name:
 
   ## State Paths ##
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
+  /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type:
   /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
   /lldp/interfaces/interface/neighbors/neighbor/state/system-name:
+  /lldp/interfaces/interface/neighbors/neighbor/state/system-description:
   /lldp/interfaces/interface/state/name:
   /lldp/state/chassis-id:
   /lldp/state/chassis-id-type:

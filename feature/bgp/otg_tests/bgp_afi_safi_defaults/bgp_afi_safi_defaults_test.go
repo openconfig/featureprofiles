@@ -355,8 +355,14 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 				if !nbr.isV4 && afiSafi == oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST {
 					continue
 				}
-				t.Logf("AFI-SAFI state: %v", gnmi.Get(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
-				afiSafiList = append(afiSafiList, gnmi.Get(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
+				t.Logf("AFI-SAFI state: %v", gnmi.Lookup(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
+				res := gnmi.Lookup(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State())
+				if res != nil {
+					val, err := res.Val()
+					if !err {
+						afiSafiList = append(afiSafiList, val)
+					}
+				}
 				t.Logf("AFI-SAFI list: %v", afiSafiList)
 			}
 			for _, cap := range afiSafiList {

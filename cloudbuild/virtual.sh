@@ -81,6 +81,7 @@ function metadata_kne_topology() {
   kne_topology_file["TESTBED_DUT_DUT_4LINKS"]="${topo_prefix}/dutdut.textproto"
   kne_topology_file["TESTBED_DUT_ATE_2LINKS"]="${topo_prefix}/dutate.textproto"
   kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${topo_prefix}/dutate.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_5LINKS"]="${topo_prefix}/dutate.textproto"
   kne_topology_file["TESTBED_DUT_ATE_9LINKS_LAG"]="${topo_prefix}/dutate_lag.textproto"
   kne_topology_file["TESTBED_DUT_DUT_ATE_2LINKS"]="${topo_prefix}/dutdutate.textproto"
   kne_topology_file["TESTBED_DUT_ATE_8LINKS"]="${topo_prefix}/dutate.textproto"

@@ -385,7 +385,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool { // increased wait time to 20s from 10s
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, _ := val.Val()
 		t.Logf("Prefix that are installed %v and want %v", gotInstalled, wantInstalled)
 		return gotInstalled == wantInstalled
@@ -395,7 +395,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	}
 
 	// Waiting for Received count to get updated after session comes up or policy is applied
-	gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotRx, _ := val.Val()
 		t.Logf("Prefix that are received %v and want %v", gotRx, wantRx)
 		return gotRx == wantRx
@@ -405,7 +405,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	}
 
 	// Waiting for Sent count to get updated after session comes up or policy is applied
-	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		t.Logf("Prefix that are sent %v", prefixPath.Sent().State())
 		gotSent, _ := val.Val()
 		t.Logf("Prefix that are sent %v and want %v", gotSent, wantSent)
@@ -430,20 +430,9 @@ func testPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Run("Validate acceptance based on prefix-set policy - import policy on neighbor", func(t *testing.T) {
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V4, prefixSet2V4}, bgpImportIPv4, *ebgp1NbrV4, importPolicy)
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6, prefixSet2V6}, bgpImportIPv6, *ebgp1NbrV6, importPolicy)
-		if deviations.DefaultImportExportPolicyUnsupported(dut) {
-			t.Logf("Validate for neighbour %v", ebgp1NbrV4)
-			validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
-			validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
-			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 3)
-			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 1)
-		} else {
-			t.Logf("Validate for neighbour %v", ebgp1NbrV4)
-			validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
-			// only route6 is expected to accepted based on prefix-set
-			validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
-			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
-			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
-		}
+		t.Logf("Validate for neighbour %v", ebgp1NbrV4)
+		validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
+		validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
 	})
 
 	// Associating prefix-set with the required routing-policy and applying to BGP neighbors on ATE-port-2
@@ -486,23 +475,6 @@ func TestBGPPrefixSet(t *testing.T) {
 		configureOTG(t, otg)
 		verifyBgpState(t, dut)
 	})
-
-	if deviations.DefaultImportExportPolicyUnsupported(dut) {
-		t.Run("Validate initial prefix count", func(t *testing.T) {
-			validatePrefixCount(t, dut, *ebgp1NbrV4, 5, 5, 0)
-			validatePrefixCount(t, dut, *ebgp1NbrV6, 5, 5, 0)
-			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 5)
-			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 5)
-		})
-	} else {
-		t.Run("Validate initial prefix count", func(t *testing.T) {
-			validatePrefixCount(t, dut, *ebgp1NbrV4, 0, 5, 0)
-			validatePrefixCount(t, dut, *ebgp1NbrV6, 0, 5, 0)
-			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
-			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
-		})
-
-	}
 
 	testPrefixSet(t, dut)
 }

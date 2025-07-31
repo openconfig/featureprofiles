@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e0814277-013d-4d59-b6a0-231949992edc"
+plan_id: "PF-2.3"
+description: "Multiple VRFs and GUE DECAP in Default VRF"
+testbed: TESTBED_DUT_ATE_2LINKS

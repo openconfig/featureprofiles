@@ -61,3 +61,20 @@ func DeviationCiscoRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondatra
 	cliConfig += " done\nend-policy\n"
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
+
+// DeviationJuniperRoutingPolicyBGPActionSetCommunity is used as an alternative to
+// /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community
+// This deviation implements CLI to perform the equivalent function.
+func DeviationJuniperRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondatra.DUTDevice, policyName string, statement string, community string) {
+	config := fmt.Sprintf(`
+	policy-options {
+		policy-statement %s {
+			term %s {
+				then {
+					community add %s;
+				}
+			}
+		}
+	}`, policyName, statement, community)
+	helpers.GnmiCLIConfig(t, dut, config)
+}

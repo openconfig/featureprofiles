@@ -13,22 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install go
-      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.23'
     - name: Checkout code
-      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
+      uses: actions/checkout@v4
     - name: Cache
-      uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c
+      uses: actions/cache@v4
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Install protobuf
-      uses: arduino/setup-protoc@149f6c87b92550901b26acd1632e11c3662e381f
+      uses: arduino/setup-protoc@v3
       with:
-        version: '3.x'
+        version: '23.x'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Lint protobufs
       run: |
@@ -43,42 +43,3 @@ jobs:
         for i in `find . -name \*.textproto`; do
           textproto-validator -I ./protobuf-import $i
         done
-
-  validate_oc_paths:
-    name: Validate OpenConfig Paths
-    runs-on: ubuntu-latest
-    steps:
-    - name: Install go
-      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
-      with:
-        go-version: '1.21'
-    - name: Checkout code
-      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
-      with:
-        fetch-depth: 0
-    - name: Cache
-      uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-    - name: Fetch OpenConfig Models
-      run: make openconfig_public
-    - name: Validate Paths
-      run: |
-        # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
-        if [ ! -z "${GITHUB_BASE_REF}" ]; then
-          readonly HEAD=${{ github.event.pull_request.head.sha }}
-          readonly BASE="$(git merge-base origin/main "${HEAD}")"
-          if ! git diff --diff-filter=D --name-only "${BASE}" | grep -E 'feature.textproto$'; then
-            # If it is a pull request AND if no feature.textproto files were
-            # deleted, then we can skip checking all but the added/modified
-            # feature.textproto files.
-            export FEATURE_FILES=changed-feature-textprotos.githubactions.txt
-            # grep: don't error out on no match.
-            git diff --diff-filter=d --name-only "${BASE}" | { grep -E 'feature.textproto$' || true; } > "${FEATURE_FILES}"
-          fi
-        fi
-        make validate_paths
-

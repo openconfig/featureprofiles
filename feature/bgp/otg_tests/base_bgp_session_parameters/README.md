@@ -44,9 +44,42 @@ Test the normal session establishment and termination:
 
     And include the following session parameters for all cases:
 
-    *   Explicitly specified Router ID.
+    *   Explicitly specified Router ID with Martian IP and regular IP.
     *   Explicit holdtime interval and keepalive interval.
     *   Explicit connect retry interval.
+
+## Canonical OpenConfig for keepalive-interval and hold-time at neighbour and peer-group level for BGP
+
+```json
+  "network-instances": {
+    "network-instance": {
+      "DEFAULT": {
+        "state": {
+          "router-id": "240.0.0.100"
+        }
+        "protocols": {
+          "protocol": {
+            "BGP": {
+              "BGP": {
+                "bgp": {
+                  "neighbors": {
+                    "neighbor": {
+                      "192.0.2.1": {
+                        "state": {
+                          "last-established": 1747804639000000000
+                        }
+                      },
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 ```yaml

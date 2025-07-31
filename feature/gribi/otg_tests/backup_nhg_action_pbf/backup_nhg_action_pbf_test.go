@@ -195,7 +195,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		if deviations.ExplicitPortSpeed(dut) {
 			fptest.SetPortSpeed(t, p1)
 		}
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) && p != "port1" {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
@@ -696,7 +696,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 }
 
 func updateFlows(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
-	top := ate.OTG().FetchConfig(t)
+	top := ate.OTG().GetConfig(t)
 	top.Flows().Clear()
 	for _, flow := range flows {
 		top.Flows().Append(flow)
@@ -710,7 +710,7 @@ func updateFlows(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
 // TODO: Egress Tracking to verify the correctness of packet after decap or encap needs to be added
 // validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.Flow, bad []gosnappi.Flow, srcFlowFilter string, dstFlowFilter string) {
-	top := ate.OTG().FetchConfig(t)
+	top := ate.OTG().GetConfig(t)
 	ate.OTG().StartTraffic(t)
 
 	time.Sleep(15 * time.Second)

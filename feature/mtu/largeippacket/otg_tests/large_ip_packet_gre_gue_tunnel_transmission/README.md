@@ -58,6 +58,7 @@ IPv4 and IPv6 packet sizes are sent over them via GRE/GUE tunnel.
     * 4000 Bytes
     * 9202 Bytes
     * 9202 Bytes
+    * 9500 bytes (traffic flow should fail)
   * Assert ATE reports packets sent and received count are the same, indicating no fragmentation, and 
     successful transit.
 
@@ -74,6 +75,7 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
   # TODO: OpenConfig definition required for Tunnel protocol under interfaces/interfaces/interface/tunnel/ as GRE, IP-IP, GUE etc. 
+  # TODO: OpenConfig definition required for Tunnel protocol under /network-instances/network-instance/policy-forwarding for GUE/GRE.
   /interfaces/interface/tunnel/config/dst:
   /interfaces/interface/tunnel/config/src:
   /interfaces/interface/tunnel/ipv4/addresses/address/config/ip:

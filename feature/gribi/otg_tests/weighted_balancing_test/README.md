@@ -57,3 +57,14 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
                 *   next\_hop\_group
                     *   NextHopGroupKey: id
                     *   NextHopGroup: weight
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

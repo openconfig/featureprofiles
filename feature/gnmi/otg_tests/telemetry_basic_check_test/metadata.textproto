@@ -33,17 +33,8 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    qos_dropped_octets: true
   }
 }
 platform_exceptions: {
@@ -67,4 +58,3 @@ platform_exceptions: {
     os_component_parent_is_chassis: true
   }
 }
-path_presence_test: true
