@@ -484,7 +484,7 @@ func TestRetrieveLogs(t *testing.T) {
 				if !ok {
 					t.Errorf("Stream error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, msg.Error)
 				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown {
-					t.Errorf("Expected gRPC status NotFound, FailedPrecondition, or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 				}
 				foundErrorOnChannel = true
 				break
@@ -837,7 +837,7 @@ func TestUpgrade(t *testing.T) {
 			// Optionally, check for specific gRPC status code, e.g., codes.NotFound
 			s, ok := status.FromError(err)
 			if ok && s.Code() != codes.NotFound {
-				t.Errorf("Expected gRPC status NotFound for non-existent image, got %s", s.Code())
+				t.Errorf("Expected gRPC status code NotFound for non-existent image, got %s", s.Code())
 			}
 		}
 	})
