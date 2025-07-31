@@ -287,7 +287,7 @@ Verify:
                           "dscp": 32,
                           "dst-ip": "10.50.50.1",
                           "dst-udp-port": 6080,
-                          "ip-ttl": 64,
+                          "ip-ttl": 20,
                           "src-ip": "10.5.5.5",
                           "src-udp-port": 49152
                         }
