@@ -43,36 +43,11 @@ network-instances:
               next-hop: <ATE IP port 3> 
               incoming-label: 1000006
 ```
-    *  Set resolve NH action for both LSPs.
+*  Set resolve NH action for both LSPs.
 
 **TODO:** OC model does not support resolve next-hop option for LSPs.
 
 7)  Configure static routes i.e. `IPV4-DST = 198.51.100.0/24` and `IPV6-DST = 2001:DB8:100::0/64` to ATE Port 3 with administrative distance (preference) 254.
-```yaml
-network-instances:
-  - network-instance:
-    protocols:
-      - protocol:
-        static-routes:
-          - static:
-            config:
-              prefix: "198.51.100.0/24"
-            next-hops:
-              - next-hop:
-                config:
-                  index:  1
-                  next-hop: "ATE PORT 3"
-                  preference: 254
-          - static:
-            config:
-              prefix: "2001:DB8:100::0/64"
-            next-hops:
-              - next-hop:
-                config:
-                  index:  1
-                  next-hop: "ATE PORT 3"
-                  preference: 254
-```
 
 ### MPLS-2.2.1: Verify IPv4 MPLS forwarding
 
@@ -103,7 +78,7 @@ network-instances:
 ## Canonical OC
 OC for a static MPLS LSP is provided here.
 
-```
+```json
 {
   "network-instances": {
     "network-instance": [
