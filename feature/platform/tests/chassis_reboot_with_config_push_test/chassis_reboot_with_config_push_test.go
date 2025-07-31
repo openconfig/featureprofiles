@@ -49,12 +49,12 @@ const (
 	bgpPeerGrpName        = "BGP-PEER-GROUP"
 	globalRouterID        = "192.168.1.1"
 	// Maximum reboot time is 900 seconds (15 minutes).
-	maxRebootTime        = 900
+	maxRebootTime = 900
 	// Maximum reboot time is 360 seconds (6 minutes).
-	maxComponentUpTime        = 360
-	sleepTimeBtwAttempts  = 1 * time.Second
-	maxResponseTime       = 30 * time.Second
-	getRequestTimeout     = 30 * time.Second
+	maxComponentUpTime   = 360
+	sleepTimeBtwAttempts = 1 * time.Second
+	maxResponseTime      = 30 * time.Second
+	getRequestTimeout    = 30 * time.Second
 )
 
 // configParams holds the parameters for the OpenConfig configuration
@@ -396,4 +396,3 @@ func deviceUpPostReboot(t *testing.T, dut *ondatra.DUTDevice, bootTimeBeforeRebo
 		}
 	}
 }
-
