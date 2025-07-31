@@ -855,8 +855,8 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 	}
 
 	udp := flow.Packet().Add().Udp()
-	udp.SrcPort().Increment().SetStart(50001).SetCount(1000)
-	udp.DstPort().Increment().SetStart(50001).SetCount(1000)
+	udp.SrcPort().Increment().SetStart(50001).SetCount(50000)
+	udp.DstPort().Increment().SetStart(50001).SetCount(50000)
 
 	return flow
 }
