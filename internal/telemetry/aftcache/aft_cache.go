@@ -52,7 +52,7 @@ const (
 	// periodicInterval is the time between execution of periodic hooks.
 	periodicInterval = 4 * time.Minute
 	// periodicDeadline is the deadline for all periodic hooks in a run. Should be < periodicInterval.
-	periodicDeadline = 2 * time.Minute
+	periodicDeadline = 3 * time.Minute
 	// aftBufferSize is the capacity of the internal channel queueing notifications from DUT
 	// before applying them to our internal cache. It should be large enough to prevent DUT from
 	// timing out from a pending send longer than the timeout while our internal cache is
@@ -61,7 +61,7 @@ const (
 	// heap from a higher buffer value just because the buffer may contain multiple updates for the
 	// same leaf, while our internal cache would not.
 	// We expect the buffer to be large enough to hold 2M IPv4 prefixes and 512K IPv6 prefixes.
-	aftBufferSize = 3000000
+	aftBufferSize = 50000000
 	// missingPrefixesFile is the name of the file where missing prefixes are written.
 	missingPrefixesFile = "missing_prefixes.txt"
 )
@@ -111,8 +111,10 @@ type AFTData struct {
 
 // aftCache is the AFT streaming cache.
 type aftCache struct {
-	cache  *cache.Cache // Cache used to store AFT notifications during streaming.
-	target string
+	cache             *cache.Cache // Cache used to store AFT notifications during streaming.
+	target            string
+	notificationCount int // Number of notifications received.
+
 }
 
 // aftNextHopGroup represents an AFT next hop group.
@@ -366,6 +368,7 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 	if err != nil {
 		return err
 	}
+	c.notificationCount++
 	return nil
 }
 
@@ -458,6 +461,7 @@ func loggingPeriodicHook(t *testing.T, start time.Time) PeriodicHook {
 		Description: "Log stream stats",
 		PeriodicFunc: func(c *aftCache) (bool, error) {
 			c.logMetadata(t, start)
+			t.Logf("Notifications added to cache so far: %d", c.notificationCount)
 			return false, nil
 		},
 	}
@@ -465,6 +469,7 @@ func loggingPeriodicHook(t *testing.T, start time.Time) PeriodicHook {
 
 func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	ss.Cache.logMetadata(t, ss.start)
+	t.Logf("After %v: Finished streaming. %d notifications added to cache.", time.Since(ss.start).Truncate(time.Millisecond), ss.Cache.notificationCount)
 	t.Logf("After %v: Finished streaming.", time.Since(ss.start).Truncate(time.Millisecond))
 	if len(missingPrefixes) == 0 {
 		return
@@ -568,8 +573,8 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20
-	logDuration := func(start time.Time) {
-		t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
+	logDuration := func(start time.Time, stage string) {
+		t.Logf("InitialSyncStoppingCondition: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
 	}
 	return PeriodicHook{
 		Description: "Initial sync stopping condition",
@@ -580,9 +585,10 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			if err != nil {
 				return false, err
 			}
-			t.Logf("Convert cache to AFT took %.10f seconds", time.Since(start).Seconds())
+			logDuration(start, "Convert cache to AFT")
 
 			// Check prefixes.
+			checkPrefixStart := time.Now()
 			gotPrefixes := a.Prefixes
 			nPrefixes := len(wantPrefixes)
 			nGot := 0
@@ -599,8 +605,10 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				t.Logf("%d missing prefixes\n", len(missingPrefixes))
 				return false, nil
 			}
+			logDuration(checkPrefixStart, "Check Prefixes")
 
 			// Check next hops.
+			checkNHStart := time.Now()
 			nCorrect := 0
 			diffs := map[string]int{}
 			for p := range wantPrefixes {
@@ -641,6 +649,8 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				}
 				return false, nil
 			}
+			logDuration(checkNHStart, "Check Next Hops")
+			t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
 	}
