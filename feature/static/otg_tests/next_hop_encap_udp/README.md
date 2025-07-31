@@ -279,7 +279,8 @@ Verify:
                   "encap-header": [
                     {
                       "config": {
-                        "index": 0
+                        "index": 0,
+                        "type": "UDPV4"
                       },
                       "index": 0,
                       "udp-v4": {
