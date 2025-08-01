@@ -269,6 +269,7 @@ func TestBasicEncap(t *testing.T) {
 			validateTrafficFlows(t, tcArgs, tc.flows, false, true)
 			t.Log("Validate hierarchical traffic distribution")
 			validateTrafficDistribution(t, otg, tc.weights)
+			//TODO: Add verification for traffic is recycle or not
 		})
 	}
 }
