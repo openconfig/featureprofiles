@@ -832,20 +832,59 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False,
         test_enable_grpc_logs=False):
+    """
+        Execute a Go test using the Ondatra framework and handle test-related configurations and logging.
 
+        Args:
+            self (FireXTask): The FireX task instance.
+            ws (str): The workspace directory for the test execution.
+            uid (str): Unique identifier for the test run.
+            skuid (str): Secondary unique identifier for the test run.
+            testsuite_id (str): Identifier for the test suite being executed.
+            test_log_directory_path (str): Path to the directory where test logs will be stored.
+            xunit_results_filepath (str): Path to the file where xUnit results will be saved.
+            test_repo_dir (str): Directory containing the test repository.
+            internal_fp_repo_dir (str): Directory containing the internal feature profiles repository.
+            reserved_testbed (dict): Information about the reserved testbed for the test.
+            test_name (str): Name of the test being executed.
+            test_path (str): Path to the test file or package.
+            test_args (str, optional): Additional arguments to pass to the test. Defaults to None.
+            test_timeout (int, optional): Timeout for the test execution in seconds. Defaults to 0 (no timeout).
+            collect_debug_files (bool, optional): Whether to collect debug files after the test. Defaults to False.
+            force_collect_debug_files (bool, optional): Whether to force collection of debug files. Defaults to False.
+            collect_dut_info (bool, optional): Whether to collect Device Under Test (DUT) information. Defaults to True.
+            override_test_args_from_env (bool, optional): Whether to override test arguments with environment variables. Defaults to False.
+            test_debug (bool, optional): Whether to enable debug mode for the test. Defaults to False.
+            test_verbose (bool, optional): Whether to enable verbose logging for the test. Defaults to False.
+            test_ignore_aborted (bool, optional): Whether to ignore aborted tests. Defaults to False.
+            test_skip (bool, optional): Whether to skip the test. Defaults to False.
+            test_fail_skipped (bool, optional): Whether to fail the test if it is skipped. Defaults to False.
+            test_show_skipped (bool, optional): Whether to show skipped tests in the results. Defaults to False.
+            test_enable_grpc_logs (bool, optional): Whether to enable gRPC binary logging. Defaults to False.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: If the test execution fails or encounters an error.
+        """
     logger.print('Running Go test...')
     logger.print('----- env start ----')
+    # Print all environment variables for debugging
     for name, value in os.environ.items():
         logger.print("{0}: {1}".format(name, value))
     logger.print('----- env end ----')
     
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
+    # Prepare paths for test logs and results
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
     test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
 
+    # Clean up previous logs and create a new directory for this test run
     check_output(f'rm -rf {test_logs_dir_in_ws}')
     silent_mkdir(test_logs_dir_in_ws)
 
+    # Copy binding and testbed files to the log directory for reference
     shutil.copyfile(reserved_testbed['binding_file'],
             os.path.join(test_log_directory_path, "ondatra_binding.txt"))
     shutil.copyfile(reserved_testbed['testbed_file'],
@@ -863,6 +902,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
     go_args = ''
     test_args = test_args or ''
 
+    # Optionally override test arguments with environment variables
     if override_test_args_from_env:
         extra_args_env_vars = {}
         if 'mtls_cert_file' in reserved_testbed:
@@ -871,6 +911,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
             extra_args_env_vars["MTLS_KEY_FILE"] = reserved_testbed['mtls_key_file']      
         test_args = _update_test_args_from_env(test_args, extra_args_env_vars)
 
+    # Add log directory and required files to test arguments
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
@@ -882,11 +923,13 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
     if not collect_dut_info:
         test_args += f' -collect_dut_info=false'
 
+    # Set timeouts for test execution
     inactivity_timeout = 1800
     test_timeout = int(test_timeout)
     if test_timeout == 0: test_timeout = inactivity_timeout
     if test_timeout > 0: inactivity_timeout = 2*test_timeout
 
+    # Prepare Go test arguments, using debug mode if requested
     go_args_prefix = '-'
     if test_debug:
         go_args_prefix = '-test.'
@@ -895,6 +938,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
                 f'{go_args_prefix}v ' \
                 f'{go_args_prefix}timeout {test_timeout}s'
 
+    # Build the command to run the test, using Delve for debugging if needed
     if test_debug:
         dlv_bin = os.path.join(_get_go_bin_path(), 'dlv')
         cmd = f'{dlv_bin} test ./{test_path} -- {go_args} {test_args}'
@@ -904,7 +948,8 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
     test_ws = test_repo_dir
     test_env = _get_go_env(ws)
     test_env["GRPC_BINARY_LOG_FILTER"] = "*"
-    
+
+    # Set gateway environment variable if available
     tb_gw = reserved_testbed.get('gateway', None)
     if tb_gw:
         test_env["B4_DUT_GW"] = tb_gw
@@ -921,13 +966,16 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
                             cwd=test_ws)
         stop_time = self.get_current_time()
     finally:
+        # Move gRPC binary log file if it exists
         grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
         if os.path.exists(grpc_bin_log_file):
             shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
 
+        # Move test logs to the mount directory
         test_log_dir_on_mount = os.path.join(test_log_directory_path, "test_logs")
         shutil.move(test_logs_dir_in_ws, test_log_dir_on_mount)
 
+        # Aggregate all Ondatra log files found in the workspace
         log_files = _get_all_ondatra_log_files(ws, test_ws, f"./{test_path}")
         if log_files:
             _aggregate_ondatra_log_files(log_files, str(xml_results_file))
@@ -945,6 +993,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         for suite in suites:
             test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
+        # Collect debug files if requested or if the test failed
         collect_debug_files = collect_debug_files or force_collect_debug_files
         core_check_only = (test_did_pass and not force_collect_debug_files) or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
@@ -960,6 +1009,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
             split_files_per_dut=True
         )).get('core_files', [])
 
+        # Add core file info to test results if any were found
         if not test_did_pass or core_files:
             self.enqueue_child(InvokeAutoTriage.s(
                 test_name=test_name, 
@@ -974,6 +1024,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
 
+        # Handle skipped tests and return results
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -981,13 +1032,31 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 def _git_checkout_repo(repo, repo_branch=None, repo_rev=None, repo_pr=None):
+    """
+    Check out a specific branch, revision, or pull request in a Git repository.
+
+    Args:
+        repo (git.Repo): The Git repository object to operate on.
+        repo_branch (str, optional): The branch to check out. Defaults to None.
+        repo_rev (str, optional): The specific revision (commit hash) to check out. Defaults to None.
+        repo_pr (int, optional): The pull request number to check out. Defaults to None.
+
+    Returns:
+        None
+
+    Raises:
+        git.GitCommandError: If any Git command fails during the checkout process.
+    """
+    # Reset the repository to a clean state
     repo.git.reset('--hard')
     repo.git.clean('-xdf')
 
     if repo_rev:
+        # Check out a specific revision
         logger.print(f'Checking out revision {repo_rev}...')
         repo.git.checkout(repo_rev)
     elif repo_pr:
+        # Check out a specific pull request
         logger.print(f'Checking out pr {repo_pr}...')
         branch_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(6))
         repo.remotes.origin.fetch(f'pull/{repo_pr}/head:firex_{branch_suffix}_pr_{repo_pr}')
@@ -998,25 +1067,49 @@ def _git_checkout_repo(repo, repo_branch=None, repo_rev=None, repo_pr=None):
         
 @app.task(bind=True, max_retries=3, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
+    """
+    Clone a Git repository and check out a specific branch, revision, or pull request.
+
+    Args:
+        self: The task instance invoking this method.
+        repo_url (str): The URL of the Git repository to clone.
+        repo_branch (str): The branch to check out after cloning.
+        target_dir (str): The directory where the repository will be cloned.
+        repo_rev (str, optional): The specific commit hash to check out. Defaults to None.
+        repo_pr (int, optional): The pull request number to check out. Defaults to None.
+
+    Returns:
+        None
+
+    Raises:
+        git.GitCommandError: If any Git command fails during the cloning or checkout process.
+        Exception: If the repository cannot be cloned or checked out.
+    """
     try:
+        # Set an environment variable to skip downloading large files during the clone process
         os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
+        # Extract the repository name from the URL
         repo_name = repo_url.split("/")[-1].split(".")[0]
-        
+
+        # Clone the repository if the target directory does not already exist
         if not os.path.exists(target_dir):
             logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
             repo = git.Repo.clone_from(url=repo_url,
                                     to_path=target_dir)
         else:
+            # If the directory exists, initialize the repository object
             repo = git.Repo(target_dir)
         _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)
 
     except git.GitCommandError as e:
+        # Handle permission errors specifically for public key issues
         err = e.stderr or ''
         if 'Permission denied (publickey).' in err.splitlines():
             err_msg = f'It appears you do not have proper access to the {repo_name} repository. Check your access ' \
                       f'permissions and make sure your ssh keys are added to your user profile here:\n' \
                       f'https://wwwin-github.cisco.com/settings/keys'
             self.enqueue_child(Warn.s(err_msg=err_msg), block=True, raise_exception_on_failure=False)
+        # Raise a generic exception if cloning fails
         raise Exception("Could not clone repository") from e
 
     head_commit_sha = repo.head.commit.hexsha
