@@ -32,10 +32,17 @@ func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, l
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cliConfig = fmt.Sprintf(`
-				mpls ip
-				mpls static top-label %v %s %s pop payload-type %s
-				`, incomingLabel, intfName, nextHopIP, protocolType)
+			if intfName != "" {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s %s pop payload-type %s
+					`, incomingLabel, intfName, nextHopIP, protocolType)
+			} else {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s pop payload-type %s
+					`, incomingLabel, nextHopIP, protocolType)
+			}
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
