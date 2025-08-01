@@ -887,10 +887,15 @@ message Metadata {
 
     // Devices that do not support policy forwarding on next-hop
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
-    
-     // Device does not support decapsulation group
-    bool decapsulate_gue_oc_unsupported = 313;
-    
+    // Cisco: b/402672689
+    // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
+    // this deviation to set specific value of N. Returns N=1,000,000 by default.
+    uint32 sflow_ingress_min_sampling_rate = 313;
+
+    // b/425503156
+    // Device does not support decapsulation group
+    bool decapsulate_gue_oc_unsupported = 314;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
