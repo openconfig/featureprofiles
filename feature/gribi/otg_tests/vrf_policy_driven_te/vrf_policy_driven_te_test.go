@@ -841,11 +841,9 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 			innerIpHdr := flow.Packet().Add().Ipv4()
 			innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 			innerIpHdr.Dst().SetValue(flowValues.InnHdrDstIP)
-			// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-			// Below code will be uncommented once ixia issue is fixed.
-			// if len(flowValues.inHdrDscp) != 0 {
-			// 	innerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
-			// }
+			if len(flowValues.inHdrDscp) != 0 {
+				innerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
+			}
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -853,11 +851,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 			innerIpv6Hdr := flow.Packet().Add().Ipv6()
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
-			// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-			// Below code will be uncommented once ixia issue is fixed.
-			// if len(flowValues.inHdrDscp) != 0 {
-			// 	innerIpv6Hdr.FlowLabel().SetValues(flowValues.inHdrDscp)
-			// }
+			innerIpv6Hdr.TrafficClass().SetValues(flowValues.inHdrDscp)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -1579,6 +1573,7 @@ type packetValidation struct {
 	portName        string
 	outDstIP        []string
 	inHdrIP         string
+	inHdrDscp       uint32
 	validateDecap   bool
 	validateTTL     bool
 	validateNoDecap bool
@@ -1586,6 +1581,12 @@ type packetValidation struct {
 }
 
 func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetValidation) {
+	if !(packetVal.validateDecap || packetVal.validateTTL ||
+		packetVal.validateNoDecap || packetVal.validateEncap) {
+		t.Fatalf(`ERROR: No validation has been specified for the captured packets.
+		Please specify at least one of the validation flags: validateDecap, validateTTL, validateNoDecap, validateEncap.`)
+		return
+	}
 	bytes := args.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
 	f, err := os.CreateTemp("", "pcap")
 	if err != nil {
@@ -1595,32 +1596,32 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
 	}
 	f.Close()
-	handle, err := pcap.OpenOffline(f.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	if packetVal.validateTTL {
-		validateTrafficTTL(t, packetSource)
+		validateTrafficTTL(t, f)
 	}
 	if packetVal.validateDecap {
-		validateTrafficDecap(t, packetSource)
+		validateTrafficDecap(t, f, packetVal.inHdrDscp)
 	}
 	if packetVal.validateNoDecap {
-		validateTrafficNonDecap(t, packetSource, packetVal.outDstIP[0], packetVal.inHdrIP)
+		validateTrafficNonDecap(t, f, packetVal.outDstIP[0], packetVal.inHdrIP)
 	}
 	if packetVal.validateEncap {
-		validateTrafficEncap(t, packetSource, packetVal.outDstIP, packetVal.inHdrIP)
+		validateTrafficEncap(t, f, packetVal.outDstIP, packetVal.inHdrIP)
 	}
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
 }
 
-func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
+func validateTrafficTTL(t *testing.T, captureFile *os.File) {
 	t.Helper()
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer != nil && packetCheckCount <= 3 {
@@ -1640,40 +1641,105 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 			}
 		}
 	}
-}
-
-func validateTrafficDecap(t *testing.T, packetSource *gopacket.PacketSource) {
-	t.Helper()
-	for packet := range packetSource.Packets() {
-		ipLayer := packet.Layer(layers.LayerTypeIPv4)
-		if ipLayer == nil {
-			continue
-		}
-		ipPacket, _ := ipLayer.(*layers.IPv4)
-		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
-		ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
-		if ipInnerLayer != nil {
-			t.Errorf("Packets are not decapped, Inner IP header is not removed.")
-		}
-		if ipv6InnerLayer != nil {
-			t.Errorf("Packets are not decapped, Inner IPv6 header is not removed.")
-		}
+	if packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for TTL.")
 	}
 }
 
-func validateTrafficNonDecap(t *testing.T, packetSource *gopacket.PacketSource, outDstIP, inHdrIP string) {
+func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp uint32) {
+	t.Helper()
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
+	testStats := struct {
+		packetCheckCount        uint32
+		IPv4CapturedPackets     uint32
+		IPv4NotDecappedPackets  uint32
+		IPv4DscpMismatchPackets uint32
+		IPv6CapturedPackets     uint32
+		IPv6NotDecappedPackets  uint32
+		IPv6DscpMismatchPackets uint32
+	}{}
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
+	for packet := range packetSource.Packets() {
+		ipLayer := packet.Layer(layers.LayerTypeIPv4)
+		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
+		if ipLayer == nil && ipv6Layer == nil {
+			// Not a packet we care about. e.g: ISIS packets.
+			continue
+		}
+		testStats.packetCheckCount++
+		if ipLayer != nil {
+			testStats.IPv4CapturedPackets++
+			ipPacket, _ := ipLayer.(*layers.IPv4)
+			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+			if ipInnerLayer != nil {
+				testStats.IPv4NotDecappedPackets++
+				t.Errorf("Packets are not decapped, Inner IP header is not removed.")
+				continue
+			}
+			if ipv6InnerLayer != nil {
+				testStats.IPv6NotDecappedPackets++
+				t.Errorf("Packets are not decapped, Inner IPv6 header is not removed.")
+				continue
+			}
+			if actualDscp := uint32(ipPacket.TOS >> 2); actualDscp != expectedInHdrDscp {
+				testStats.IPv4DscpMismatchPackets++
+				t.Errorf("Dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
+			}
+		} else {
+			testStats.IPv6CapturedPackets++
+			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
+			if actualDscp := uint32(ipv6Packet.TrafficClass); actualDscp != expectedInHdrDscp {
+				testStats.IPv6DscpMismatchPackets++
+				t.Errorf("Dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
+			}
+		}
+	}
+	if testStats.packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for decap.")
+	}
+	if testStats.IPv4DscpMismatchPackets > 0 {
+		t.Errorf("A number of %v packets have unexpected DSCP value after decap out of %v IPv4 packets captured",
+			testStats.IPv4DscpMismatchPackets, testStats.IPv4CapturedPackets)
+	}
+	if testStats.IPv4NotDecappedPackets > 0 {
+		t.Errorf("A number of %v packets have not been decapped out of %v IPv4 packets captured",
+			testStats.IPv4NotDecappedPackets, testStats.IPv4CapturedPackets)
+	}
+	if testStats.IPv6DscpMismatchPackets > 0 {
+		t.Errorf("A number of %v packets have unexpected DSCP value after decap out of %v IPv6 packets captured",
+			testStats.IPv6DscpMismatchPackets, testStats.IPv6CapturedPackets)
+	}
+	if testStats.IPv6NotDecappedPackets > 0 {
+		t.Errorf("A number of %v packets have not been decapped out of %v IPv6 packets captured",
+			testStats.IPv6NotDecappedPackets, testStats.IPv6CapturedPackets)
+	}
+}
+
+func validateTrafficNonDecap(t *testing.T, captureFile *os.File, outDstIP, inHdrIP string) {
 	t.Helper()
 	t.Log("Validate traffic non decap routes")
-	var packetCheckCount uint32 = 1
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
+	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
-		if packetCheckCount >= 5 {
-			break
-		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
+		if packetCheckCount >= 5 {
+			break
+		}
+		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1689,20 +1755,30 @@ func validateTrafficNonDecap(t *testing.T, packetSource *gopacket.PacketSource, 
 			break
 		}
 	}
+	if packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for non decap.")
+	}
 }
 
-func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, outDstIP []string, innerIP string) {
+func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string, innerIP string) {
 	t.Helper()
 	t.Log("Validate traffic non decap routes")
-	var packetCheckCount uint32 = 1
+	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pcapFileHandle.Close()
+	var packetCheckCount uint32 = 0
+	packetSource := gopacket.NewPacketSource(pcapFileHandle, pcapFileHandle.LinkType())
 	for packet := range packetSource.Packets() {
-		if packetCheckCount >= 5 {
-			break
-		}
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
+		if packetCheckCount >= 5 {
+			break
+		}
+		packetCheckCount++
 		ipPacket, _ := ipLayer.(*layers.IPv4)
 		innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 		ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1719,6 +1795,9 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, out
 			t.Logf("Traffic for encap routes passed.")
 			break
 		}
+	}
+	if packetCheckCount == 0 {
+		t.Errorf("No packets have been captured and validated for encap.")
 	}
 }
 
@@ -1761,10 +1840,8 @@ type flowArgs struct {
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
-	// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-	// Below code will be uncommented once ixia issue is fixed.
-	// inHdrDscp []uint32
-	proto uint32
+	inHdrDscp                    []uint32
+	proto                        uint32
 }
 
 // testGribiDecapMatchSrcProtoNoMatchDSCP is to validate subtest test1.
@@ -1811,16 +1888,19 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 
 					flow1 := createFlow(&flowArgs{flowName: flow4in4,
 						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapNoMatch},
-						InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true})
+						InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true,
+						inHdrDscp: []uint32{dscpEncapB2}})
 
 					flow2 := createFlow(&flowArgs{flowName: flow6in4,
 						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, InnHdrSrcIPv6: atePort1.IPv6,
-						InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
+						InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch},
+						inHdrDscp: []uint32{dscpEncapB2}})
 
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss)
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-						outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, validateTTL: true, validateDecap: true})
+						outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, inHdrDscp: dscpEncapB2,
+						validateTTL: true, validateDecap: true})
 				})
 
 			// Test with packets with a destination address that does not match
