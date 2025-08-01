@@ -78,7 +78,7 @@ OC for a static MPLS LSP is provided here.
                   "egress": {
                     "config": {
                       "incoming-label": 10004,
-                      "next-hop": "<ATE IP port 3>",
+                      "next-hop": "203.0.200.1",
                       "push-label": "IMPLICIT_NULL"
                     }
                   },
@@ -91,13 +91,12 @@ OC for a static MPLS LSP is provided here.
                   "egress": {
                     "config": {
                       "incoming-label": 10006,
-                      "next-hop": "<ATE IP port 3>",
+                      "next-hop": "2001:db8:128:200::1",
                       "push-label": "IMPLICIT_NULL"
                     }
                   },
                   "name": "lspv6"
                 }
-
               ]
             }
           }
