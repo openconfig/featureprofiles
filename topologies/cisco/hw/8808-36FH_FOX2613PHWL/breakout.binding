@@ -95,63 +95,51 @@ duts {
 
 
 ates {
-  # Chassis IP to connect manually is 10.85.84.119
-  # username: admin
-  # password: Admin@123
   id: "ate"
-  name: "10.85.17.225:40057"  # Change this to the Ixia-C-Controler hostname.
-
-  # This option specific to OTG over Ixia-HW.
-  otg {
-    target: "10.85.17.225:40057" # Change this to the Ixia-c-grpc server endpoint.
-    insecure: true
-    timeout: 30
-  }
-
-  gnmi {
-    target: "10.85.17.225:50057"  # Change this to the Ixia-c-gnmi server endpoint.
+  name: "10.85.84.155"  # Change this to the Ixia chassis name..
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+   #linux
+    target: "10.85.84.119"
     skip_verify: true
-    timeout: 30
-  }
-
-  options {
     username: "admin"
-    password: "admin"
+    password: "Admin@123"
   }
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "10.85.84.155;8;1"  # Change this to the ixia-c-hw port location.
+    name: "8/1"  # Change this to the ixia-c-hw port location.
   }
   ports {
     id: "port2"
-    name: "10.85.84.155;8;2"  # Change this to the ixia-c-hw port location.
+    name: "8/2"  # Change this to the ixia-c-hw port location.
   }
 
   ports {
     id: "port3"
-    name: "10.85.84.155;8;3"  # Change this to the ixia-c-hw port location.
+    name: "8/3"  # Change this to the ixia-c-hw port location.
   }
   ports {
     id: "port4"
-    name: "10.85.84.155;8;4"  # Change this to the ixia-c-hw port location.
+    name: "8/4"  # Change this to the ixia-c-hw port location.
   }
   ports {
       id: "port5"
-      name: "10.85.84.155;10;26"  # Change this to the actual port name.
+      name: "10/26"  # Change this to the actual port name.
   }
   ports {
       id: "port6"
-      name: "10.85.84.155;10;28"  # Change this to the actual port name.
+      name: "10/28"  # Change this to the actual port name.
   }
   ports {
       id: "port7"
-      name: "10.85.84.155;10;25"  # Change this to the actual port name.
+      name: "10/25"  # Change this to the actual port name.
   }
   ports {
       id: "port8"
-      name: "10.85.84.155;10;27"  # Change this to the actual port name.
+      name: "10/27"  # Change this to the actual port name.
   }
 } 

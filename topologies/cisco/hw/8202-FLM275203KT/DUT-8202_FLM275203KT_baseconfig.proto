@@ -6,6 +6,9 @@ replace: {
    ascii_val:
 "hostname Yukon\n"
 "logging console disable\n"
+"hw-module profile pbr vrf-redirect\n"
+"hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "username cafyauto\n"
 " group root-lr\n"
 " group cisco-support\n"

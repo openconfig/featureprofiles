@@ -591,7 +591,10 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                     repo_branch=internal_fp_repo_branch,
                     repo_rev=internal_fp_repo_rev,
                     target_dir=internal_fp_repo_dir)
-        c |= CreatePythonVirtEnv.s(ws=ws, internal_fp_repo_dir=internal_fp_repo_dir)
+        self.enqueue_child_and_get_results(c)
+
+    if not os.path.exists(_get_venv_path(ws)):
+        c = CreatePythonVirtEnv.s(ws=ws, internal_fp_repo_dir=internal_fp_repo_dir)
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = testbeds.split(',')
