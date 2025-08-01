@@ -96,7 +96,7 @@ func baseconfig(t *testing.T) {
 	}
 }
 
-func addRecycleEntry(t *testing.T, args *testArgs) {
+func addDefaultRouteviaGRIBI(t *testing.T, args *testArgs) {
 	t.Helper()
 	// Add recycle entry
 	shutPorts(t, args, []string{"port3", "port4"})
@@ -1266,7 +1266,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 
 	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
 	// addStaticRoute(t, dut)
-	addRecycleEntry(t, args)
+	addDefaultRouteviaGRIBI(t, args)
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
