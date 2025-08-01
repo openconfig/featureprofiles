@@ -717,7 +717,7 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureGreGuePolicyForwarding(t, dut, "ipv4", "ipv4-over-udp", false)
 	}
 
-	for trafficID, _ := range IngressIPv4TrafficFlows {
+	for trafficID := range IngressIPv4TrafficFlows {
 		t.Logf("Verify Traffic flow %s", trafficID)
 		verifyTrafficFlow(t, ate, trafficID)
 	}
@@ -1453,7 +1453,7 @@ func checkGueCapture(t *testing.T, ate *ondatra.ATEDevice, port string, ipType s
 				dscp = innerPacketTOS
 				println(dscp)
 				if contains(dscpValuesToConvert, int(dscp)) {
-					t.Fatalf("Error: DSCP value %v should be converted by ingress DUT but not converted", dscp)
+					t.Fatalf("Error: DSCP value %v should be converted by ingress DUT but not converted. ISSUE ID #434618050 raised ", dscp)
 				}
 			}
 		}
