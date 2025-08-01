@@ -24,25 +24,6 @@ Validate static LSP functionality with BGP resolved next-hop. This test verifies
 3)  Enable MPLS forwarding.
 4)  Create egress static LSP for IPv4 and IPV6 traffic to pop the label and resolve the next-hop BGP-NH-V4 and BGP-NH-V6 respectivelly
 
-```yaml
-network-instances:  
-  - network-instance:  
-    mpls:  
-      lsps:  
-        static-lsps:  
-          - static-lsp:  
-            config:  
-              name: "lsp-egress-v4"  
-            egress:  
-              next-hop: <ATE IP port 3> 
-              incoming-label: 1000004  
-          - static-lsp:  
-            config:  
-              name: "lsp-egress-v6"  
-            egress:  
-              next-hop: <ATE IP port 3> 
-              incoming-label: 1000006
-```
 *  Set resolve NH action for both LSPs.
 
 **TODO:** OC model does not support resolve next-hop option for LSPs.
@@ -92,17 +73,31 @@ OC for a static MPLS LSP is provided here.
               "static-lsp": [
                 {
                   "config": {
-                    "name": "lsp1"
+                    "name": "lspv4"
                   },
                   "egress": {
                     "config": {
-                      "incoming-label": 1000,
-                      "next-hop": "1.1.1.1",
+                      "incoming-label": 10004,
+                      "next-hop": "<ATE IP port 3>",
+                      "push-label": "IMPLICIT_NULL"
+                    }
+                  },
+                  "name": "lspv4"
+                },
+                {
+                  "config": {
+                    "name": "lspv6"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 10006,
+                      "next-hop": "<ATE IP port 3>",
                       "push-label": "IMPLICIT_NULL"
                     }
                   },
                   "name": "lsp1"
                 }
+
               ]
             }
           }
