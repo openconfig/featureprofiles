@@ -515,8 +515,11 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 
 func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
-	aftSession := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient, tc.dut)
-	aftSession.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
+	streamContext, streamCancel := context.WithCancel(t.Context())
+	aftSession := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient, tc.dut)
+	aftSession.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+	// This should the cancel the subscribe AFT stream created above
+	streamCancel()
 
 	// Get the AFT from the cache.
 	aft, err := aftSession.Cache.ToAFT(tc.dut)
