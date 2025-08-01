@@ -32,10 +32,17 @@ func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, l
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cliConfig = fmt.Sprintf(`
-				mpls ip
-				mpls static top-label %v %s %s pop payload-type %s
-				`, incomingLabel, intfName, nextHopIP, protocolType)
+			if intfName != "" {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s %s pop payload-type %s
+					`, incomingLabel, intfName, nextHopIP, protocolType)
+			} else {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s pop payload-type %s
+					`, incomingLabel, nextHopIP, protocolType)
+			}
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -54,32 +61,20 @@ func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, l
 	}
 }
 
-// Configure static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on device
-func NewStaticMPLSLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string, protocolType string, byPass bool) {
+func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, protocolType string, byPass bool) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if intfName != "" {
-				cliConfig = fmt.Sprintf(`
-					mpls ip
-					mpls static top-label %v %s %s pop payload-type %s
-					`, incomingLabel, intfName, nextHopIP, protocolType)
-			} else if byPass {
-				cliConfig = fmt.Sprintf(`
+			cliConfig = fmt.Sprintf(`
 					mpls ip
 					mpls static top-label %v %s pop payload-type %s access-list bypass
 					`, incomingLabel, nextHopIP, protocolType)
-			} else {
-				cliConfig = fmt.Sprintf(`
-					mpls ip
-					mpls static top-label %v %s pop payload-type %s
-					`, incomingLabel, nextHopIP, protocolType)
-			}
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
-			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
+			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
+		return
 	} else {
 		d := &oc.Root{}
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -89,6 +84,6 @@ func NewStaticMPLSLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, in
 		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
 		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
 
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 	}
 }

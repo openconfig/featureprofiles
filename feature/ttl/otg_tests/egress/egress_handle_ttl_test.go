@@ -136,9 +136,11 @@ func TestEgressHandleTTL(t *testing.T) {
 	configureDUT(t, dut)
 	config := configureATE(t)
 	otgConfig := ate.OTG()
+	sfBatch := &gnmi.SetBatch{}
 	// Configure Static Route: MPLS label binding
-	cfgplugins.NewStaticMPLSLabel(t, dut, lspName1, mplsLabelV4, "", atePort2.IPv4, "ipv4", true)
-	cfgplugins.NewStaticMPLSLabel(t, dut, lspName2, mplsLabelV6, "", atePort2.IPv6, "ipv6", true)
+	cfgplugins.MPLSStaticLSPByPass(t, sfBatch, dut, lspName1, mplsLabelV4, atePort2.IPv4, "ipv4", true)
+	cfgplugins.MPLSStaticLSPByPass(t, sfBatch, dut, lspName2, mplsLabelV6, atePort2.IPv6, "ipv6", true)
+	sfBatch.Set(t, dut)
 	// Policy Based Forwading Rule-1
 	cfgplugins.NewConfigureGRETunnel(t, dut, ipv4Decap, greDecapGrpName)
 
