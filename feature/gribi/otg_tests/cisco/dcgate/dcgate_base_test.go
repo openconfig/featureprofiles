@@ -921,14 +921,10 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 
 	// Increase UDP port diversity for the Basic Default Route Installation test
 	// This helps prevent packet drops due to hardware hashing limitations
-	if strings.Contains(name, "ip4inipa1") {
-		// Use wider port ranges and more increments for better distribution
-		udp.SrcPort().Increment().SetStart(1000).SetCount(60000).SetStep(13)
-		udp.DstPort().Increment().SetStart(2000).SetCount(60000).SetStep(17)
-	} else {
-		udp.SrcPort().Increment().SetStart(50001).SetCount(5000)
-		udp.DstPort().Increment().SetStart(50001).SetCount(5000)
-	}
+	// Use wider port ranges and more increments for better distribution
+	udp.SrcPort().Increment().SetStart(1000).SetCount(60000).SetStep(13)
+	udp.DstPort().Increment().SetStart(2000).SetCount(60000).SetStep(17)
+
 	return flow
 }
 
