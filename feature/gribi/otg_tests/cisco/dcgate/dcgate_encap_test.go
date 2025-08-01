@@ -237,7 +237,6 @@ func TestBasicEncap(t *testing.T) {
 			}
 			if strings.Contains(tc.name, "Next-hop Unavailability Recirculation") {
 				// Configure default route
-				configDefaultRoute(t, dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv6EntryPrefix, ipv6EntryPrefixLen)).Config())
 				shutPorts(t, tcArgs, []string{"port3", "port4"})
 				defer unshutPorts(t, tcArgs, []string{"port3", "port4"})
