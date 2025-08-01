@@ -132,12 +132,12 @@ func TestMplsStaticLspBGPNextHop(t *testing.T) {
 	configureDUT(t, dut)
 	ateConfig := configureATE(t)
 	sfBatch := &gnmi.SetBatch{}
-	cfgplugins.NewStaticMPLSLabel(t, sfBatch, dut, lspV4Name, mplsLabelV4, "", bgpNHv4, "ipv4")
-	cfgplugins.NewStaticMPLSLabel(t, sfBatch, dut, lspV6Name, mplsLabelV6, "", bgpNHv6, "ipv6")
+	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, lspV4Name, mplsLabelV4, bgpNHv4, "", "ipv4")
+	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, lspV6Name, mplsLabelV6, bgpNHv6, "", "ipv6")
 	sfBatch.Set(t, dut)
 	verifyPortsUp(t, dut.Device)
 
-	// TODO: 409240869 - Discard test added based on README guidance; will update if needed once the bug is fixed.	
+	// TODO: 409240869 - Discard test added based on README guidance; will update if needed once the bug is fixed.
 	buildIPv4MPLSFlow(t, ateConfig, ipv4Flow, iPV4Dst)
 	buildIPv6MPLSFlow(t, ateConfig, ipv6Flow, iPV6Dst)
 
@@ -183,7 +183,7 @@ func verifyMPLSForwarding(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnap
 		}
 		// Configure static route to Null0 and update BGPv6
 		// TODO: 409240869 - Route to Null0 with administrative distance was not explicitly added as per clarification; implemented based on README guidance. Will update if required once the bug is fixed.
-		addStaticRouteWithAD(t, dut, bgpNH, adDist, staticIndex)		
+		addStaticRouteWithAD(t, dut, bgpNH, adDist, staticIndex)
 	} else {
 		if verifyFlowTraffic(t, ate, ateConfig, flow) {
 			t.Log("IPv4 Traffic MPLS forwarding Passed")
@@ -191,7 +191,7 @@ func verifyMPLSForwarding(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnap
 			t.Error("IPv4 Traffic MPLS forwarding Failed")
 		}
 		// Configure static route to Null0 and update BGPv4
-		addStaticRouteWithAD(t, dut, bgpNH, adDist, staticIndex)		
+		addStaticRouteWithAD(t, dut, bgpNH, adDist, staticIndex)
 	}
 }
 

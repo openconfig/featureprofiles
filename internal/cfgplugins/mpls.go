@@ -32,10 +32,17 @@ func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, l
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cliConfig = fmt.Sprintf(`
-				mpls ip
-				mpls static top-label %v %s %s pop payload-type %s
-				`, incomingLabel, intfName, nextHopIP, protocolType)
+			if intfName != "" {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s %s pop payload-type %s
+					`, incomingLabel, intfName, nextHopIP, protocolType)
+			} else {
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s pop payload-type %s
+					`, incomingLabel, nextHopIP, protocolType)
+			}
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -50,41 +57,6 @@ func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, l
 		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
 		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
 
-		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
-	}
-}
-
-// Configure static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on device
-func NewStaticMPLSLabel(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string, protocolType string) {
-	if deviations.StaticMplsUnsupported(dut) {
-		cliConfig := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			if intfName != "" {
-				cliConfig = fmt.Sprintf(`
-					mpls ip
-					mpls static top-label %v %s %s pop payload-type %s
-					`, incomingLabel, intfName, nextHopIP, protocolType)
-			} else {
-				cliConfig = fmt.Sprintf(`
-					mpls ip
-					mpls static top-label %v %s pop payload-type %s
-					`, incomingLabel, nextHopIP, protocolType)
-			}
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-		default:
-			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
-		}
-	} else {
-		d := &oc.Root{}
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-
-		// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 	}
 }

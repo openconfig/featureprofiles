@@ -13,5 +13,6 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     static_mpls_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
   }
 }
