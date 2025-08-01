@@ -55,11 +55,11 @@ tests:
   args:
     - '-test.run="TestFibChains"'
 
-- name: FIB-RECYCLE
+- name: DEFAULT-ROUTE-RECIRCULATION
   path: feature/gribi/otg_tests/cisco/dcgate
   timeout: 8400
   mustpass: true
   internal: true
   branch: master
   args:
-    - '-test.run="TestFRRRecycle"'
+    - '-test.run="TestDefaultRouteRecirculation"'

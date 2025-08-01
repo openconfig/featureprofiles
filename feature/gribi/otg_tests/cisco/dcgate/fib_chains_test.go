@@ -811,7 +811,7 @@ func testPopGateOptimized(t *testing.T, args *testArgs) {
 }
 
 // testTransitDcgateUnoptimized fib chains
-func TestFRRRecycle(t *testing.T) {
+func TestDefaultRouteRecirculation(t *testing.T) {
 
 	lossTolerance = 0.1
 	defer func() { lossTolerance = 0.0 }()
