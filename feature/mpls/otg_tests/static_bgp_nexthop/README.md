@@ -95,7 +95,7 @@ OC for a static MPLS LSP is provided here.
                       "push-label": "IMPLICIT_NULL"
                     }
                   },
-                  "name": "lsp1"
+                  "name": "lspv6"
                 }
 
               ]
