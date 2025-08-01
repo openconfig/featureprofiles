@@ -2047,3 +2047,99 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/urpf/otg_tests/urpf_vrf_test/README.md"
   exec: " "
 }
+test: {
+  id: "SYS-2.1"
+  description: "Ingress control-plane ACL."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/control_plane_traffic/otg_tests/ingress_acl/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/control_plane_traffic/otg_tests/ingress_acl/control_plane_traffic_ingress_acl_test.go"
+}
+test: {
+  id: "TRANSCEIVER-1 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Chromatic Dispersion(CD) telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_cd_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_cd_test/zrp_cd_test.go"
+}
+test: {
+  id: "TRANSCEIVER-10 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_fec_uncorrectable_frames_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_fec_uncorrectable_frames_test/zrp_fec_uncorrectable_frames_test.go"
+}
+test: {
+  id: "TRANSCEIVER-3 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Optics firmware version streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_firmware_version_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_firmware_version_test/zrp_firmware_version_test.go"
+}
+test: {
+  id: "TRANSCEIVER-4 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS RX input and TX output power telemetry values streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_input_output_power_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_input_output_power_test/zrp_input_output_power_test.go"
+}
+test: {
+  id: "TRANSCEIVER-7 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Optics inventory info streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_inventory_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_inventory_test/zrp_inventory_test.go"
+}
+test: {
+  id: "TRANSCEIVER-9 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS TX laser bias current telemetry values streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_laser_bias_current_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_laser_bias_current_test/zrp_laser_bias_current_test.go"
+}
+test: {
+  id: "TRANSCEIVER-11 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Optics logical channels provisioning and related telemetry."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_logical_channels_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_logical_channels_test/zrp_logical_channels_test.go"
+}
+test: {
+  id: "TRANSCEIVER-13 (400ZR_PLUS)"
+  description: "Configuration: 400ZR_PLUS Transceiver Low Power Mode Setting."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_low_power_mode_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_low_power_mode_test/zrp_low_power_mode_test.go"
+}
+test: {
+  id: "TRANSCEIVER-6 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Optics performance metrics (pm) streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_pm_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_pm_test/zrp_pm_test.go"
+}
+test: {
+  id: "TRANSCEIVER-12 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Transceiver Supply Voltage streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_supply_voltage_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_supply_voltage_test/zrp_supply_voltage_test.go"
+}
+test: {
+  id: "TRANSCEIVER-8 (400ZR_PLUS)"
+  description: "Telemetry: 400ZR_PLUS Optics module temperature streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_temperature_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_temperature_test/zrp_temperature_test.go"
+}
+test: {
+  id: "TRANSCEIVER-5 (400ZR_PLUS)"
+  description: "Configuration: 400ZR_PLUS channel frequency, output TX launch power and operational mode setting."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_tunable_parameters_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_tunable_parameters_test/zrp_tunable_parameters_test.go"
+}
+test: {
+  id: "RT-14.2"
+  description: "GRIBI Route Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_route_test/gribi_route_test.go"
+}
+test: {
+  id: "RT-2.1"
+  description: "Base IS-IS Process and Adjacencies"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/base_adjacencies_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/base_adjacencies_test/base_adjacencies_test.go"
+}
+test: {
+  id: "TE-3.31"
+  description: "Hierarchical weight resolution with PBF"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_weight_resolution_pbf_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_weight_resolution_pbf_test/hierarchical_weight_resolution_pbf_test.go"
+}
