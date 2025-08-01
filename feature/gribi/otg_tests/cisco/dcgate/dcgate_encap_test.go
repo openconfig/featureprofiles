@@ -216,14 +216,8 @@ func TestBasicEncap(t *testing.T) {
 			if tc.skip {
 				t.SkipNow()
 			}
-			if strings.Contains(tc.name, "Basic Default Route Installation") {
-				configDefaultRoute(t, dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
-				configDefaultIPStaticCli(t, dut, []string{vrfEncapA})
-				defer unConfigDefaultIPStaticCli(t, dut, []string{vrfEncapA})
-			}
 			// Add EMSD restart test
 			if strings.Contains(tc.name, "Process Recovery") {
-				configDefaultRoute(t, dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
 				t.Logf("Restarting emsd at %s", time.Now())
 				perf.RestartProcess(t, dut, "emsd")
 				t.Logf("Restart emsd finished at %s", time.Now())
