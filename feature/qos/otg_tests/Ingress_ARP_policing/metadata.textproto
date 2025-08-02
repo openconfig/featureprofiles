@@ -5,3 +5,14 @@ uuid:  "8f9b64a4-a631-45c2-be53-da004f5b3e41"
 plan_id:  "CPT-1.1"
 description:  "Interface based ARP policer"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    tunnel_config_path_unsupported: true
+    interface_ref_interface_id_format: true
+  }
+}
