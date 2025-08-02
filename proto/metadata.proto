@@ -873,7 +873,7 @@ message Metadata {
     // Devices does not support static mpls lsp
     bool static_mpls_lsp_oc_unsupported = 307;
 
-    // Device doesnot support gre enacapsulation
+    // Device does not support gre enacapsulation
     bool gre_decapsulation_oc_unsupported = 308;
 
     // SRGB and SLGB config through OC is not reflecting
@@ -891,6 +891,10 @@ message Metadata {
     // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
     // this deviation to set specific value of N. Returns N=1,000,000 by default.
     uint32 sflow_ingress_min_sampling_rate = 313;
+
+    // b/425503156
+    // Device does not support decapsulation group
+    bool decapsulate_gue_oc_unsupported = 314;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;

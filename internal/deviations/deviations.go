@@ -1582,3 +1582,8 @@ func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
 }
+
+// DecapGroupOCUnsupported returns true if decapsulation group is not supported
+func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
+}
