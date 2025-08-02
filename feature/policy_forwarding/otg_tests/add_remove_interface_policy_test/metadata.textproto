@@ -1,0 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "add-remove-interface-policy-test"
+description: "Test for adding and removing an interface from a policy-forwarding policy."
+topology: "atedut_3"
