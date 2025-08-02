@@ -893,14 +893,13 @@ message Metadata {
     // this deviation to set specific value of N. Returns N=1,000,000 by default.
     uint32 sflow_ingress_min_sampling_rate = 313;
 
-     // DUT not supporting with qos remarking
+    // DUT not supporting with qos remarking
+    // https://partnerissuetracker.corp.google.com/issues/415889077
     bool qos_remark_oc_unsupported = 314;
 
-    // DUT not returning value for classifier matched packets
-    bool skip_verify_classifier_matchedpackets = 315;
-
     // Devices that do not support policy forwarding encapsulate gre action
-    bool policy_forwarding_gre_encapsulation_oc_unsupported = 316;
+    // https://partnerissuetracker.corp.google.com/issues/409347274
+    bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;

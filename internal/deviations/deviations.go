@@ -1588,11 +1588,6 @@ func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
 }
 
-// SkipVerifyClassifierMatchedpackets returns true
-func SkipVerifyClassifierMatchedpackets(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipVerifyClassifierMatchedpackets()
-}
-
 // PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
 func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
