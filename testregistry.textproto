@@ -1888,6 +1888,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.6"
+  description: "gNMI server running in more than one network-instance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/tests/gnmi_ni_test/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.8"
   description: "Configuration Metadata-only Retrieve and Replace"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/metadata/tests/annotation_test/README.md"
