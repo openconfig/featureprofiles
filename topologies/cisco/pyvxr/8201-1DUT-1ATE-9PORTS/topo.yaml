@@ -106,7 +106,7 @@ custom:
           port: 57777
         ssh: 
           opts: 
-            - skip_verify
+            - skip_verify : true
           port: 22
         telnet: 
           port: 23
