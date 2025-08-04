@@ -35,7 +35,7 @@ import (
 
 const (
 	ipv4PrefixLen   = 30
-	trafficDuration = 30
+	trafficDuration = 30 * time.Second
 	rateKbps        = 1500
 	fixedSize       = 64
 	fixedTotalPkts  = 20000
@@ -94,16 +94,16 @@ func TestIngressArpPolicing(t *testing.T) {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
-	t.Run("Verify QoS Counters", func(t *testing.T) {
+	t.Run("VerifyQoSCounters", func(t *testing.T) {
 		t.Log("Validating traffic without policy-map")
-		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration*time.Second)
+		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration)
 		validateRates(t, txRateKbps, rxRateKbps, txRateKbps, tolerance, "Without policy-map")
 		verifyTrafficAndLog(t, "QoS Counters", verifyPortTraffic(t, ate, config))
 	})
-	t.Run("Verify Transmit/Octets with CIR", func(t *testing.T) {
+	t.Run("VerifyTransmitOctetsWithCIR", func(t *testing.T) {
 		t.Log("Validating traffic with policy-map")
 		configureDUTTrafficPolicy(t, dut, dut.Port(t, "port1").Name())
-		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration*time.Second)
+		txRateKbps, rxRateKbps := startAndMeasureTraffic(t, ate, trafficDuration)
 		validateRates(t, txRateKbps, rxRateKbps, float64(cir), tolerance, "With CIR restriction")
 		verifyTrafficAndLog(t, "Transmit/Octets and Loss", verifyPortTrafficwithCir(t, ate, config))
 	})
@@ -119,7 +119,6 @@ func startAndMeasureTraffic(t *testing.T, ate *ondatra.ATEDevice, duration time.
 	rxRate := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).InRate().State())
 	// Stop traffic *after* measurement
 	ate.OTG().StopTraffic(t)
-	t.Log("rxRate, txRate:", rxRate, txRate)
 	// TODO: currently not implemented to get txRateInKbps from traffic counters.
 	txRateKbps := (txRate * 512) / 1000 // assuming 64-byte avg packet (512 bits)
 	rxRateKbps := (rxRate * 512) / 1000
@@ -165,7 +164,7 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 	t.Helper()
 	if deviations.TunnelConfigPathUnsupported(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
-		jsonConfig := fmt.Sprintf(`
+		cliCommands := fmt.Sprintf(`
 		policy-map type quality-of-service ARP-policing-Qos
 		class ARP-CM
 		set traffic-class 2
@@ -178,7 +177,7 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 		interface %s
 		service-policy type qos input ARP-policing-Qos
 		`, cir, burstCount, portName)
-		gpbSetRequest := buildCliConfigRequest(jsonConfig)
+		gpbSetRequest := buildCLIConfigRequest(cliCommands)
 
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
@@ -259,7 +258,7 @@ func addFlow(t *testing.T, config gosnappi.Config) {
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
-	t.Logf("Verifying port status")
+	t.Log("Verifying port status")
 	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if status != oc.Interface_OperStatus_UP {
@@ -339,7 +338,7 @@ func validatePortTraffic(t *testing.T, ate *ondatra.ATEDevice, portID string, ex
 }
 
 // Support method to execute GNMIC commands
-func buildCliConfigRequest(config string) *gpb.SetRequest {
+func buildCLIConfigRequest(config string) *gpb.SetRequest {
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
 			{
