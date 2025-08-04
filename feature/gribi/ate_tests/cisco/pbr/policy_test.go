@@ -3,9 +3,9 @@ package policy_test
 import (
 	"context"
 	"fmt"
-	"strings"
+	// "strings"
 	"testing"
-	"time"
+	// "time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
