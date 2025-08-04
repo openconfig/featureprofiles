@@ -48,6 +48,7 @@ platform_exceptions:  {
     tc_subscription_unsupported: true
     default_bgp_instance_name: "default"
     bgp_set_med_action_unsupported: true
+    skip_bgp_peer_group_send_community_type: true 
   }
 }
 platform_exceptions:  {
