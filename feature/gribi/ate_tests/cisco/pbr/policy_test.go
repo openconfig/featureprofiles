@@ -430,16 +430,6 @@ func TestCD5PBR(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	// time.Sleep(time.Minute)
-	// cliHandle := dut.RawAPIs().CLI(t)
-	// resp, err := cliHandle.RunCommand(context.Background(), "show version")
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-	// if strings.Contains(resp.Output(), "VXR") {
-	// 	t.Logf("Skipping the base config since platfrom is VXR")
-	// } else {
-	// 	t.Logf("config the base config since platfrom is HW")
 	configureDUT(t, dut)
 	configRP(t, dut)
 	// configure ISIS on DUT
