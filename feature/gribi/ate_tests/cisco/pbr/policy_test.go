@@ -430,23 +430,23 @@ func TestCD5PBR(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	time.Sleep(time.Minute)
-	cliHandle := dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.RunCommand(context.Background(), "show version")
-	if err != nil {
-		t.Error(err)
-	}
-	if strings.Contains(resp.Output(), "VXR") {
-		t.Logf("Skipping the base config since platfrom is VXR")
-	} else {
-		t.Logf("config the base config since platfrom is HW")
-		configureDUT(t, dut)
-		configRP(t, dut)
-		// configure ISIS on DUT
-		addISISOC(t, dut, []string{"Bundle-Ether120", "Bundle-Ether121", "Loopback0"})
-		// configure BGP on DUT
-		addBGPOC(t, dut, []string{"100.120.1.2", "100.121.1.2"})
-	}
+	// time.Sleep(time.Minute)
+	// cliHandle := dut.RawAPIs().CLI(t)
+	// resp, err := cliHandle.RunCommand(context.Background(), "show version")
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	// if strings.Contains(resp.Output(), "VXR") {
+	// 	t.Logf("Skipping the base config since platfrom is VXR")
+	// } else {
+	// 	t.Logf("config the base config since platfrom is HW")
+	configureDUT(t, dut)
+	configRP(t, dut)
+	// configure ISIS on DUT
+	addISISOC(t, dut, []string{"Bundle-Ether120", "Bundle-Ether121", "Loopback0"})
+	// configure BGP on DUT
+	addBGPOC(t, dut, []string{"100.120.1.2", "100.121.1.2"})
+	// }
 	//Configure IPv6 addresses and VLANS on DUT
 	configureIpv6AndVlans(t, dut)
 	// Disable Flowspec and Enable PBR
