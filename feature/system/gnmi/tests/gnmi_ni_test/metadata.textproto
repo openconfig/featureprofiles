@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "139dba91-be4a-4868-9700-2e0d8372dafe"
+plan_id: "gNMI-1.6"
+description: "System gRPC Servers running in more than one network-instance"
+testbed: TESTBED_DUT_ATE_2LINKS
