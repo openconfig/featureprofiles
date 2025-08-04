@@ -15,7 +15,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -23,8 +26,10 @@ import (
 )
 
 const (
-	samplingInterval = 10 * time.Second
-	timeout          = 10 * time.Minute
+	samplingInterval      = 10 * time.Second
+	timeout               = 10 * time.Minute
+	rebootDelay           = 1
+	oneSecondInNanoSecond = 1e9
 )
 
 func TestMain(m *testing.M) {
@@ -780,6 +785,115 @@ func TestZRShutPort(t *testing.T) {
 	}
 
 	t.Logf("All Gnmi leaves received successfully after port shut")
+
+}
+
+func TestGNOIreboot(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	transceiverType := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	transceivers := components.FindComponentsByType(t, dut, transceiverType)
+
+	beforeStateMap := make(map[string][]*oc.Component_Transceiver_Channel)
+
+	//Using port1 for shut/unshut
+	re := regexp.MustCompile(`\d+/\d+/\d+/\d+`)
+	matches := re.FindStringSubmatch(dut.Port(t, "port1").Name())
+
+	// Make sure interface is admin up
+	for _, p := range dut.Ports() {
+		cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+	}
+
+	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
+
+	// Extracting only port1 key
+	if len(matches) > 0 {
+		extractedKey := matches[0]
+
+		//Initial snapshot of leaves
+		for _, transceiver := range transceivers {
+			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
+			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+				component := gnmi.OC().Component(transceiver)
+				before_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
+				beforeStateMap[transceiver] = before_state
+			}
+		}
+	}
+
+	port_state := true
+	// Iterate over the map (beforeStateMap)
+	for transceiver, before_state := range beforeStateMap {
+		checkleaves(t, dut, transceiver, before_state, port_state)
+	}
+
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	cases := []struct {
+		desc          string
+		rebootRequest *spb.RebootRequest
+	}{}
+
+	for transceiver := range beforeStateMap {
+
+		cases = append(cases, struct {
+			desc          string
+			rebootRequest *spb.RebootRequest
+		}{
+			desc: fmt.Sprintf("Reboot transceiver %s with GNOI", transceiver),
+			rebootRequest: &spb.RebootRequest{
+				Method:  spb.RebootMethod_COLD,
+				Message: "Reboot port with GNOI",
+				Subcomponents: []*tpb.Path{
+					components.GetSubcomponentPath(transceiver, useNameOnly),
+				},
+				Force: true,
+			},
+		})
+	}
+
+	gnoiClient, error := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if error != nil {
+		t.Fatalf("Failed to dial GNOI client: %v", error)
+	}
+	for i, c := range cases {
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), c.rebootRequest)
+		if err != nil {
+			fmt.Printf("Reboot failed for case %d (%s): %v\n", i, c.desc, err)
+			continue
+		}
+		fmt.Printf("Reboot response for case %d (%s): %v\n", i, c.desc, rebootResponse)
+	}
+
+	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
+
+	afterStateMap := make(map[string][]*oc.Component_Transceiver_Channel)
+
+	//Snapshot of leaves after trigger
+	if len(matches) > 0 {
+		extractedKey := matches[0]
+
+		//Initial snapshot of leaves
+		for _, transceiver := range transceivers {
+
+			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
+			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+				component := gnmi.OC().Component(transceiver)
+				after_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
+				afterStateMap[transceiver] = after_state
+			}
+		}
+	}
+
+	port_state = false
+	// Iterate over the map (afterStateMap)
+	for transceiver, after_state := range afterStateMap {
+		checkleaves(t, dut, transceiver, after_state, port_state)
+	}
+
+	// t.Logf("Un-Shutting down the port %s", dut.Port(t, "port1").Name())
+	// cfgplugins.ToggleInterface(t, dut, dut.Port(t, "port1").Name(), true)
+
+	t.Logf("All Gnmi leaves received successfully after GNOI port reboot")
 
 }
 
