@@ -35,6 +35,17 @@ type OTGValidation struct {
 	Flow      *FlowParams
 }
 
+type PortWeightage struct {
+	PortName  string
+	Weightage float64
+}
+
+type OTGECMPValidation struct {
+	PortWeightages []PortWeightage
+	Flows          []string
+	TolerancePct   float64
+}
+
 // InterfaceParams is a struct to hold OTG interface parameters.
 type InterfaceParams struct {
 	Names []string
@@ -111,4 +122,26 @@ func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevic
 	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
 	return lossPct
+}
+
+func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) error {
+	totalPkts := uint64(0)
+	for _, fName := range ev.Flows {
+		totalPkts += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().InPkts().State())
+	}
+
+	for _, p := range ev.PortWeightages {
+		t.Log(gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State()))
+		actualPkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
+		expectedPkts := (float64(totalPkts) * p.Weightage) / 100
+
+		t.Logf("Port: %s, Packets Received: %d", p.PortName, actualPkts)
+
+		if float64(actualPkts) < expectedPkts*(1-ev.TolerancePct) || float64(actualPkts) > expectedPkts*(1+ev.TolerancePct) {
+			t.Errorf("Port %s: Actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, expectedPkts*(1-ev.TolerancePct), expectedPkts*(1+ev.TolerancePct))
+		}
+
+	}
+
+	return nil
 }

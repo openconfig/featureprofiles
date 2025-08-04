@@ -51,7 +51,45 @@ type OcPolicyForwardingParams struct {
 }
 
 var (
+	PolicyForwardingGreArista = `
+Traffic-policies
+   traffic-policy tp_gre
+      match setttlv4 ipv4
+         ttl 1
+         !
+         actions
+            count
+            redirect next-hop group gre_ecmp
+            set traffic class 3
+      !
+      match ipv4-all-default ipv4
+         actions
+            count
+            redirect next-hop group gre_ecmp
+            set traffic class 3
+      !
+      match setttlv6 ipv6
+         ttl 1
+         !
+         actions
+            count
+            redirect next-hop group gre_ecmp_v6
+            set traffic class 3
+      !
+      match ipv6-all-default ipv6
+         actions
+            count
+            redirect next-hop group gre_ecmp_v6
+            set traffic class 3
+      !
+!
+   !
+    interface Ethernet1/1
+   traffic-policy input tp_gre
+!
+`
 
+	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
 	PolicyForwardingConfigv4Arista = `
 Traffic-policies
@@ -317,14 +355,21 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 		switch dut.Vendor() {
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
 			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv4Arista)
-			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv6Arista)
-			} else if traffictype == "dualstack" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
-			} else if traffictype == "multicloudv4" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
+			// TODO: Change the hard-coded values
+			if params.AppliedPolicyName == "gre" {
+				if traffictype == "dualstack" {
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingGreArista)
+				}
+			} else {
+				if traffictype == "v4" {
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv4Arista)
+				} else if traffictype == "v6" {
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv6Arista)
+				} else if traffictype == "dualstack" {
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
+				} else if traffictype == "multicloudv4" {
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
+				}
 			}
 		default:
 			// Log a message if the vendor is not supported for this specific CLI deviation.

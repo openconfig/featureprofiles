@@ -4,4 +4,20 @@
 uuid:  "bf4120d7-6de4-4aa5-9071-3f14948a8847"
 plan_id:  "TUN-1.6"
 description:  "Tunnel End Point Resize for Ecapsulation - Interface Based GRE Tunnel"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_8LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+    next_hop_group_config_unsupported: true
+    qos_classification_unsupported: true
+    policy_forwarding_unsupported: true
+    interface_policy_forwarding_unsupported: true
+    static_protocol_name: "STATIC"
+  }
+}

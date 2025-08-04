@@ -128,6 +128,83 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
    entry 15 push label-stack 965535 tunnel-destination 10.99.1.5 tunnel-source 10.235.143.224
 !
 	`
+
+	nextHopGroupGreConfigIPV4Arista = `
+nexthop-group gre_ecmp type gre
+   ttl 64
+   fec hierarchical
+   entry  0 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.150
+   entry  1 tunnel-destination 10.99.2.1 tunnel-source 10.235.143.151
+   entry  2 tunnel-destination 10.99.3.1 tunnel-source 10.235.143.152
+   entry  3 tunnel-destination 10.99.4.1 tunnel-source 10.235.143.153
+   entry  4 tunnel-destination 10.99.5.1 tunnel-source 10.235.143.154
+   entry  5 tunnel-destination 10.99.6.1 tunnel-source 10.235.143.155
+   entry  6 tunnel-destination 10.99.7.1 tunnel-source 10.235.143.156
+   entry  7 tunnel-destination 10.99.8.1 tunnel-source 10.235.143.157
+   entry  8 tunnel-destination 10.99.9.1 tunnel-source 10.235.143.158
+   entry  9 tunnel-destination 10.99.10.1 tunnel-source 10.235.143.159
+   entry  10 tunnel-destination 10.99.11.1 tunnel-source 10.235.143.160
+   entry  11 tunnel-destination 10.99.12.1 tunnel-source 10.235.143.161
+   entry  12 tunnel-destination 10.99.13.1 tunnel-source 10.235.143.162
+   entry  13 tunnel-destination 10.99.14.1 tunnel-source 10.235.143.163
+   entry  14 tunnel-destination 10.99.15.1 tunnel-source 10.235.143.164
+   entry  15 tunnel-destination 10.99.16.1 tunnel-source 10.235.143.165
+   entry  16 tunnel-destination 10.99.17.1 tunnel-source 10.235.143.166
+   entry  17 tunnel-destination 10.99.18.1 tunnel-source 10.235.143.167
+   entry  18 tunnel-destination 10.99.19.1 tunnel-source 10.235.143.168
+   entry  19 tunnel-destination 10.99.20.1 tunnel-source 10.235.143.169
+   entry  20 tunnel-destination 10.99.21.1 tunnel-source 10.235.143.170
+   entry  21 tunnel-destination 10.99.22.1 tunnel-source 10.235.143.171
+   entry  22 tunnel-destination 10.99.23.1 tunnel-source 10.235.143.172
+   entry  23 tunnel-destination 10.99.24.1 tunnel-source 10.235.143.173
+   entry  24 tunnel-destination 10.99.25.1 tunnel-source 10.235.143.174
+   entry  25 tunnel-destination 10.99.26.1 tunnel-source 10.235.143.175
+   entry  26 tunnel-destination 10.99.27.1 tunnel-source 10.235.143.176
+   entry  27 tunnel-destination 10.99.28.1 tunnel-source 10.235.143.177
+   entry  28 tunnel-destination 10.99.29.1 tunnel-source 10.235.143.180
+   entry  29 tunnel-destination 10.99.30.1 tunnel-source 10.235.143.181
+   entry  30 tunnel-destination 10.99.31.1 tunnel-source 10.235.143.182
+   entry  31 tunnel-destination 10.99.32.1 tunnel-source 10.235.143.183
+!
+`
+	nextHopGroupGreConfigIPV6Arista = `
+nexthop-group gre_ecmp_v6 type gre
+   ttl 64
+   fec hierarchical
+   entry  0 tunnel-destination 10.99.1.1 tunnel-source 10.235.143.150
+   entry  1 tunnel-destination 10.99.2.1 tunnel-source 10.235.143.151
+   entry  2 tunnel-destination 10.99.3.1 tunnel-source 10.235.143.152
+   entry  3 tunnel-destination 10.99.4.1 tunnel-source 10.235.143.153
+   entry  4 tunnel-destination 10.99.5.1 tunnel-source 10.235.143.154
+   entry  5 tunnel-destination 10.99.6.1 tunnel-source 10.235.143.155
+   entry  6 tunnel-destination 10.99.7.1 tunnel-source 10.235.143.156
+   entry  7 tunnel-destination 10.99.8.1 tunnel-source 10.235.143.157
+   entry  8 tunnel-destination 10.99.9.1 tunnel-source 10.235.143.158
+   entry  9 tunnel-destination 10.99.10.1 tunnel-source 10.235.143.159
+   entry  10 tunnel-destination 10.99.11.1 tunnel-source 10.235.143.160
+   entry  11 tunnel-destination 10.99.12.1 tunnel-source 10.235.143.161
+   entry  12 tunnel-destination 10.99.13.1 tunnel-source 10.235.143.162
+   entry  13 tunnel-destination 10.99.14.1 tunnel-source 10.235.143.163
+   entry  14 tunnel-destination 10.99.15.1 tunnel-source 10.235.143.164
+   entry  15 tunnel-destination 10.99.16.1 tunnel-source 10.235.143.165
+   entry  16 tunnel-destination 10.99.17.1 tunnel-source 10.235.143.166
+   entry  17 tunnel-destination 10.99.18.1 tunnel-source 10.235.143.167
+   entry  18 tunnel-destination 10.99.19.1 tunnel-source 10.235.143.168
+   entry  19 tunnel-destination 10.99.20.1 tunnel-source 10.235.143.169
+   entry  20 tunnel-destination 10.99.21.1 tunnel-source 10.235.143.170
+   entry  21 tunnel-destination 10.99.22.1 tunnel-source 10.235.143.171
+   entry  22 tunnel-destination 10.99.23.1 tunnel-source 10.235.143.172
+   entry  23 tunnel-destination 10.99.24.1 tunnel-source 10.235.143.173
+   entry  24 tunnel-destination 10.99.25.1 tunnel-source 10.235.143.174
+   entry  25 tunnel-destination 10.99.26.1 tunnel-source 10.235.143.175
+   entry  26 tunnel-destination 10.99.27.1 tunnel-source 10.235.143.176
+   entry  27 tunnel-destination 10.99.28.1 tunnel-source 10.235.143.177
+   entry  28 tunnel-destination 10.99.29.1 tunnel-source 10.235.143.180
+   entry  29 tunnel-destination 10.99.30.1 tunnel-source 10.235.143.181
+   entry  30 tunnel-destination 10.99.31.1 tunnel-source 10.235.143.182
+   entry  31 tunnel-destination 10.99.32.1 tunnel-source 10.235.143.183
+!
+`
 )
 
 // NextHopGroupConfig configures the interface next-hop-group config.
@@ -135,15 +212,23 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
-			} else if traffictype == "dualstack" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
-			} else if traffictype == "multicloudv4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+			if params.StaticNHGName == "GRE_Encap" {
+				if traffictype == "dualstack" {
+					// TODO: Change this hard-coded values
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupGreConfigIPV4Arista)
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupGreConfigIPV6Arista)
+				}
+			} else {
+				if traffictype == "v4" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				} else if traffictype == "dualstack" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
+				} else if traffictype == "v6" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				} else if traffictype == "multicloudv4" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+				}
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
