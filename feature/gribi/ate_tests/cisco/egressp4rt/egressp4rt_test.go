@@ -1897,17 +1897,19 @@ func mapPortID(t *testing.T, args *testArgs, dut *ondatra.DUTDevice) ([]*ondatra
 
 	// Mapping port ID to port name
 	p := make([]*ondatra.Port, args.memberCount)
+	IDMap := make(map[string]string)
+	ids := []string{"10", "11", "12", "13", "14", "15", "27", "16", "18", "19", "20", "21", "22", "23", "24"}
+
 	for i := 1; i < args.memberCount; i++ {
 		portName := fmt.Sprintf("port%d", i)
 		p[i] = dut.Port(t, portName)
+		IDMap[p[i].Name()] = ids[i]
 	}
 
 	// Port IDs for the ports
-	ids := []string{"10", "11", "12", "13", "14", "15", "27", "16", "18", "19", "20", "21", "22", "23", "24"}
 
-	IDMap := make(map[string]string)
-	for i, port := range p {
-		IDMap[port.Name()] = ids[i]
-	}
+	// for i := range p {
+	// 	IDMap[p[i+1].Name()] = ids[i]
+	// }
 	return p, IDMap
 }
