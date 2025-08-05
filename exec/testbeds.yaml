@@ -451,6 +451,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-ATE/basefp.conf
+  8808-ATE-HOTFIX:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-ATE-HOTFIX/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-ATE-HOTFIX/basefp.conf
   8818-18LC:
     sim: true
     topology: topologies/cisco/pyvxr/8818-18LC/topo.yaml
