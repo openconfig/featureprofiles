@@ -14,12 +14,3 @@ platform_exceptions:  {
     static_protocol_name: "static"
   }
 }
-
-platform_exceptions:  {
-  platform:  {
-    vendor:  CISCO
-  }
-  deviations:  {
-    static_protocol_name: "DEFAULT"
-  }
-}

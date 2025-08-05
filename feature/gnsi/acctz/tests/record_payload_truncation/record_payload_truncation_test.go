@@ -114,7 +114,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			continue
 		}
 
-		if grpcServiceRecord.RpcName != "/gnmi.gNMI/Subscribe" {
+		if grpcServiceRecord.RpcName != "/gnmi.gNMI/Set" {
 			continue
 		}
 
