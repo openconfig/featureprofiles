@@ -51,43 +51,6 @@ type OcPolicyForwardingParams struct {
 }
 
 var (
-	PolicyForwardingGreArista = `
-Traffic-policies
-   traffic-policy tp_gre
-      match setttlv4 ipv4
-         ttl 1
-         !
-         actions
-            count
-            redirect next-hop group gre_ecmp
-            set traffic class 3
-      !
-      match ipv4-all-default ipv4
-         actions
-            count
-            redirect next-hop group gre_ecmp
-            set traffic class 3
-      !
-      match setttlv6 ipv6
-         ttl 1
-         !
-         actions
-            count
-            redirect next-hop group gre_ecmp_v6
-            set traffic class 3
-      !
-      match ipv6-all-default ipv6
-         actions
-            count
-            redirect next-hop group gre_ecmp_v6
-            set traffic class 3
-      !
-!
-   !
-    interface Ethernet1/1
-   traffic-policy input tp_gre
-!
-`
 
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
@@ -353,12 +316,34 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 	if deviations.PolicyForwardingOCUnsupported(dut) {
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
-		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			// TODO: Change the hard-coded values
-			if params.AppliedPolicyName == "gre" {
-				if traffictype == "dualstack" {
-					helpers.GnmiCLIConfig(t, dut, PolicyForwardingGreArista)
+		case ondatra.ARISTA:
+			if traffictype == "dualstack" {
+				if params.AppliedPolicyName == "gre_encap" {
+					if traffictype == "dualstack" {
+						var PolicyForwardingGreConfig string
+						PolicyForwardingGreConfig += fmt.Sprintf(`
+									Traffic-policies
+									traffic-policy tp_gre_encap
+										match ipv4-all-default ipv4
+											actions
+												count
+												redirect next-hop group %s
+												set traffic class 3
+										!
+										match ipv6-all-default ipv6
+											actions
+												count
+												redirect next-hop group %s
+												set traffic class 3
+										!
+									!
+									interface %s
+									traffic-policy input tp_gre_encap
+									!
+									`, params.AppliedPolicyName, params.AppliedPolicyName, params.InterfaceID)
+
+						helpers.GnmiCLIConfig(t, dut, PolicyForwardingGreConfig)
+					}
 				}
 			} else {
 				if traffictype == "v4" {

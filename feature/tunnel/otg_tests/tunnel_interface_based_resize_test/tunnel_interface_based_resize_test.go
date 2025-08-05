@@ -37,6 +37,7 @@ var (
 	egressLag1Ports = []string{"port2", "port3"}
 	egressLag2Ports = []string{"port4", "port5"}
 	egressPort      = "port6"
+	staticRoute     = "10.99.20.0"
 	ingressIntf     = attrs.Attributes{
 		Desc:    "ingress_interface",
 		IPv4:    "194.0.2.1",
@@ -229,7 +230,7 @@ func TestSetup(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// Get default parameters for OC Policy Forwarding
-	ocPFParams := GetDefaultOcPolicyForwardingParams()
+	ocPFParams := GetDefaultOcPolicyForwardingParams(t, dut)
 	ocNHGParams := GetDefaultStaticNextHopGroupParams()
 
 	// Pass ocPFParams to ConfigureDut
@@ -265,17 +266,16 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 	t.Log("Reduce number of Tunnels by deleting static routes")
 	deleteStaticRoutes(t, dut)
 
-	// TODO: Change this hard-coded value
-	// Verify the entry for 10.99.17.0/24 is not active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry("10.99.17.0/24")
+	// Verify the entry for static route is not active through AFT Telemetry.
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
 	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 		ipv4Entry, present := val.Val()
 		t.Log(ipv4Entry.GetPrefix())
-		return present == false && ipv4Entry.GetPrefix() != "10.99.17.0/24"
+		return present == false && ipv4Entry.GetPrefix() != fmt.Sprintf("%s/24", staticRoute)
 	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, "10.99.17.0")
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
 	} else {
-		t.Logf("Prefix %s not installed in DUT as static Route", "10.99.17.0")
+		t.Logf("Prefix %s not installed in DUT as static Route", staticRoute)
 	}
 
 	time.Sleep(20 * time.Second)
@@ -299,17 +299,16 @@ func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
 	t.Log("Restore static routes to start using all 32 tunnels")
 	configureStaticRoutes(t, dut)
 
-	// TODO: Change this hard-coded value
-	// Verify the entry for 10.99.17.0/24 is active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry("10.99.17.0/24")
+	// Verify the entry for static Route is active through AFT Telemetry.
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
 	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 		ipv4Entry, present := val.Val()
 		t.Log(ipv4Entry.GetPrefix())
-		return present && ipv4Entry.GetPrefix() == "10.99.17.0/24"
+		return present && ipv4Entry.GetPrefix() == fmt.Sprintf("%s/24", staticRoute)
 	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, "10.99.17.0")
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
 	} else {
-		t.Logf("Prefix %s installed in DUT as static...", "10.99.17.0")
+		t.Logf("Prefix %s installed in DUT as static...", staticRoute)
 	}
 
 	time.Sleep(20 * time.Second)
@@ -328,20 +327,26 @@ func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
 // GetDefaultStaticNextHopGroupParams provides default parameters for the generator.
 // matching the values in the provided JSON example.
 func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
-	return cfgplugins.StaticNextHopGroupParams{
 
-		StaticNHGName: "GRE_Encap",
+	nhipaddrs := []string{}
+
+	for i := 1; i <= 32; i++ {
+		nhipaddrs = append(nhipaddrs, fmt.Sprintf("10.99.%d.1", i))
+	}
+
+	return cfgplugins.StaticNextHopGroupParams{
+		NHIPAddrs:     nhipaddrs,
+		StaticNHGName: "gre_encap",
 	}
 }
 
 // GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func GetDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
+func GetDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
-		// TODO: Change this hard-coded value
-		InterfaceID:       "Ethernet1/1",
-		AppliedPolicyName: "gre",
+		InterfaceID:         dut.Port(t, "port1").Name(),
+		AppliedPolicyName:   "gre_encap",
 	}
 }
 
