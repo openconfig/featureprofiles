@@ -52,7 +52,7 @@ const (
 	// periodicInterval is the time between execution of periodic hooks.
 	periodicInterval = 4 * time.Minute
 	// periodicDeadline is the deadline for all periodic hooks in a run. Should be < periodicInterval.
-	periodicDeadline = 2 * time.Minute
+	periodicDeadline = 3 * time.Minute
 	// aftBufferSize is the capacity of the internal channel queueing notifications from DUT
 	// before applying them to our internal cache. It should be large enough to prevent DUT from
 	// timing out from a pending send longer than the timeout while our internal cache is
@@ -60,7 +60,7 @@ const (
 	// is preallocated, using a 64bit pointer per slot. We expect somewhat increased memory usage on
 	// heap from a higher buffer value just because the buffer may contain multiple updates for the
 	// same leaf, while our internal cache would not.
-	// We expect the buffer to be large enough to hold 2M IPv4 prefixes and 512K IPv6 prefixes.
+	// We expect the buffer to be large enough to hold 2M IPv4 prefixes and 1M IPv6 prefixes.
 	aftBufferSize = 3000000
 	// missingPrefixesFile is the name of the file where missing prefixes are written.
 	missingPrefixesFile = "missing_prefixes.txt"
@@ -568,21 +568,21 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20
-	logDuration := func(start time.Time) {
-		t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
+	logDuration := func(start time.Time, stage string) {
+		t.Logf("InitialSyncStoppingCondition: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
 	}
 	return PeriodicHook{
 		Description: "Initial sync stopping condition",
 		PeriodicFunc: func(c *aftCache) (bool, error) {
 			start := time.Now()
-			defer logDuration(start)
 			a, err := c.ToAFT(dut)
+			logDuration(start, "Convert cache to AFT")
 			if err != nil {
 				return false, err
 			}
-			t.Logf("Convert cache to AFT took %.10f seconds", time.Since(start).Seconds())
 
 			// Check prefixes.
+			checkPrefixStart := time.Now()
 			gotPrefixes := a.Prefixes
 			nPrefixes := len(wantPrefixes)
 			nGot := 0
@@ -595,12 +595,14 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				}
 			}
 			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
+			logDuration(checkPrefixStart, "Check Prefixes")
 			if nGot < nPrefixes {
 				t.Logf("%d missing prefixes\n", len(missingPrefixes))
 				return false, nil
 			}
 
 			// Check next hops.
+			checkNHStart := time.Now()
 			nCorrect := 0
 			diffs := map[string]int{}
 			for p := range wantPrefixes {
@@ -634,6 +636,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				t.Logf("%d mismatches of (-want +got):\n%s", v, k)
 			}
 			t.Logf("Got %d of %d correct NH so far.", nCorrect, nPrefixes)
+			logDuration(checkNHStart, "Check Next Hops")
 			if nCorrect != nPrefixes {
 				nhFailCount++
 				if nhFailCount == nhFailLimit {
@@ -641,6 +644,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				}
 				return false, nil
 			}
+			t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
 	}
