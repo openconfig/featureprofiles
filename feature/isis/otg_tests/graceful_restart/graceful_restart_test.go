@@ -22,7 +22,6 @@ import (
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -46,6 +45,7 @@ const (
 	isisInstance        = "DEFAULT"
 	isisPort1Device     = "dev1Isis"
 	isisPort2Device     = "dev2Isis"
+	isisLevel           = 2
 
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
@@ -107,6 +107,11 @@ var (
 	port2isis gosnappi.DeviceIsisRouter
 )
 
+type isisConfig struct {
+	port  string
+	level oc.E_Isis_LevelType
+}
+
 // TestMain is the entry point for the test suite.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -126,77 +131,66 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure IS-IS Protocol
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	prot := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
+	isisProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 
-	prot.Enabled = ygot.Bool(true)
-	isis := prot.GetOrCreateIsis()
+	isisProtocol.SetEnabled(true)
+	isis := isisProtocol.GetOrCreateIsis()
 
-	glob := isis.GetOrCreateGlobal()
+	globalISIS := isis.GetOrCreateGlobal()
 	if deviations.ISISInstanceEnabledRequired(dut) {
-		glob.Instance = ygot.String(isisInstance)
+		globalISIS.SetInstance(isisInstance)
 	}
 
 	// Configure Global ISIS settings
-	glob.SetNet([]string{fmt.Sprintf("%s.%s.00", isisAreaAddr, dutSysID)})
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	level := isis.GetOrCreateLevel(2)
+	globalISIS.SetNet([]string{fmt.Sprintf("%s.%s.00", isisAreaAddr, dutSysID)})
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+	level := isis.GetOrCreateLevel(isisLevel)
 	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 	// Configure ISIS enabled flag at level
 	if deviations.ISISLevelEnabled(dut) {
-		level.Enabled = ygot.Bool(true)
+		level.SetEnabled(true)
 	}
 
-	isisgr := glob.GetOrCreateGracefulRestart()
-	isisgr.SetEnabled(true)
-	isisgr.SetHelperOnly(true)
-	isisgr.SetRestartTime(gracefulRestartTime)
+	isisGracefulRestart := globalISIS.GetOrCreateGracefulRestart()
+	isisGracefulRestart.SetEnabled(true)
+	isisGracefulRestart.SetHelperOnly(true)
+	isisGracefulRestart.SetRestartTime(gracefulRestartTime)
 
-	// Configure ISIS on DUT Port 1
-	intf := isis.GetOrCreateInterface(p1.Name())
-	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf.Enabled = ygot.Bool(true)
-	// Configure ISIS level at global mode if true else at interface mode
-	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
-	} else {
-		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
-	}
-	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	// Configure ISIS enable flag at interface level
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	if deviations.ISISInterfaceAfiUnsupported(dut) {
-		intf.Af = nil
+	isisConf := []*isisConfig{
+		{port: p1.Name(), level: oc.Isis_LevelType_LEVEL_2},
+		{port: p2.Name(), level: oc.Isis_LevelType_LEVEL_2},
 	}
 
-	// Configure ISIS on DUT Port 2
-	intf2 := isis.GetOrCreateInterface(p2.Name())
-	intf2.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf2.Enabled = ygot.Bool(true)
-	// Configure ISIS level at global mode if true else at interface mode
-	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-		intf2.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
-	} else {
-		intf2.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
-	}
-	glob.LevelCapability = oc.Isis_LevelType_LEVEL_1_2
-	// Configure ISIS enable flag at interface level
-	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	if deviations.ISISInterfaceAfiUnsupported(dut) {
-		intf2.Af = nil
+	for _, isisPort := range isisConf {
+		// Configure ISIS on DUT Port 1
+		intf := isis.GetOrCreateInterface(isisPort.port)
+		intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		intf.SetEnabled(true)
+		// Configure ISIS level at global mode if true else at interface mode
+		if deviations.ISISInterfaceLevel1DisableRequired(dut) {
+			intf.GetOrCreateLevel(1).SetEnabled(false)
+		} else {
+			intf.GetOrCreateLevel(2).SetEnabled(true)
+		}
+		globalISIS.LevelCapability = isisPort.level
+		// Configure ISIS enable flag at interface level
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			intf.Af = nil
+		}
 	}
 
 	// Push ISIS configuration to DUT
-	gnmi.Replace(t, dut, dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
+	gnmi.Replace(t, dut, dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), isisProtocol)
 }
 
 func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i := a.NewOCInterface(p.Name(), dut)
 	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
+		s4.SetEnabled(true)
 	}
 	i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 
@@ -340,22 +334,21 @@ func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expect
 		}
 
 		lossPct := (float64(txPackets-rxPackets) / float64(txPackets)) * 100
-		if expectLoss {
-			if lossPct < (100 - lossTolerancePct) {
-				t.Errorf("Traffic loss for flow %s was less than expected: got %v%%, want > %v%%", flowName, lossPct, 100-lossTolerancePct)
-				fail = true
-			} else {
-				t.Logf("Traffic loss for flow %s was as expected", flowName)
-				fail = false
-			}
-		} else {
-			if lossPct > lossTolerancePct {
-				t.Errorf("Traffic loss for flow %s was higher than expected: got %v%%, want < %v%%", flowName, lossPct, lossTolerancePct)
-				fail = false
-			} else {
-				t.Logf("No loss seen for flow %s as expected", flowName)
-				fail = true
-			}
+
+		switch {
+		case expectLoss && lossPct < (100-lossTolerancePct):
+			t.Errorf("Traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
+			fail = true
+
+		case expectLoss:
+			t.Logf("Traffic loss for flow %s was as expected: %v", flowName, lossPct)
+
+		case lossPct > lossTolerancePct:
+			t.Errorf("Traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
+			fail = true
+
+		default:
+			t.Logf("No loss seen for flow %s as expected", flowName)
 		}
 	}
 
@@ -365,13 +358,15 @@ func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expect
 func startStopISISRouter(t *testing.T, otg *otg.OTG, routeNames []string, state string) {
 	cs := gosnappi.NewControlState()
 	route := cs.Protocol().Isis().Routers().SetRouterNames(routeNames)
-	if state == "DOWN" {
+	switch state {
+	case "DOWN":
 		route.SetState(gosnappi.StateProtocolIsisRoutersState.DOWN)
-	} else if state == "UP" {
+	case "UP":
 		route.SetState(gosnappi.StateProtocolIsisRoutersState.UP)
-	} else {
-		t.Error("Invalid state for action to be performed on isis router")
+	default:
+		t.Error("Invalid state for action to be performed on ISIS router")
 	}
+
 	otg.SetControlState(t, cs)
 }
 
@@ -397,7 +392,7 @@ func TestGracefulRestart(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name:        "Testcase: RT-2.16.1 GR Helper",
-			Description: "GR Helper",
+			Description: "Validate traffic with GR enabled",
 			testFunc:    testGrHelper,
 		},
 		{
@@ -465,7 +460,6 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig 
 	startStopISISRouter(t, otg, []string{isisPort2Device}, "DOWN")
 	replaceDuration = time.Since(startTime)
 	time.Sleep(restartWait * time.Second)
-	// time.Sleep(30 * time.Second)
 	otg.StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	otg.StopTraffic(t)
