@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -91,7 +90,6 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 	expectedTTL1 = 9
-	expectedTTL2 = 10
 )
 
 type flowArgs struct {
@@ -99,20 +97,9 @@ type flowArgs struct {
 	outerSrcIP, outerDstIP     string
 	InnerSrcIP, InnerDstIP     string
 	InnerSrcIPv6, InnerDstIPv6 string
-	outerSrcIPv6, outerDstIPv6 string
 	ipv4Flow                   bool
-	ipv6Flow                   bool
 	outerIpv4Ttl               int
-	innerIpv4Ttl               int
 	outerIpv6Ttl               int
-	innerIpv6Ttl               int
-}
-
-type testArgs struct {
-	dut       *ondatra.DUTDevice
-	ate       *ondatra.ATEDevice
-	otgConfig gosnappi.Config
-	otg       *otg.OTG
 }
 
 type packetValidation struct {
@@ -120,7 +107,6 @@ type packetValidation struct {
 	outerDstIP       string
 	innerDstIP       string
 	validateDecap    bool
-	validateNonDecap bool
 	validateNonEncap bool
 	outerTtl         int
 	innerTtl         int
@@ -417,17 +403,6 @@ func configureATEPorts(t *testing.T, config gosnappi.Config, port gosnappi.Port,
 
 	ipv6 := eth.Ipv6Addresses().Add().SetName(ate.Name + ".IPv6")
 	ipv6.SetAddress(ate.IPv6).SetGateway(dut.IPv6).SetPrefix(uint32(ate.IPv6Len))
-}
-
-// addStaticRoute configures static route.
-func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, staticIp, mask, nextHopIp string) {
-	t.Helper()
-	d := gnmi.OC()
-	s := &oc.Root{}
-	static := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	ipv4Nh := static.GetOrCreateStatic(staticIp + "/" + mask).GetOrCreateNextHop("0")
-	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(nextHopIp)
-	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
 func addFlow(t *testing.T, config gosnappi.Config, flowValues *flowArgs) gosnappi.Flow {
@@ -963,24 +938,4 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
-}
-
-// Support method to execute GNMIC commands
-func buildCliConfigRequest(config string) *gpb.SetRequest {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Origin: "cli",
-					Elem:   []*gpb.PathElem{},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_AsciiVal{
-						AsciiVal: config,
-					},
-				},
-			},
-		},
-	}
-	return gpbSetRequest
 }
