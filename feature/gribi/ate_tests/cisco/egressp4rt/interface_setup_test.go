@@ -259,10 +259,12 @@ func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-
+	var memberCount int
 	// Configure DUT ports.
 	//dutPort1.configInterfaceDUT(t, dut, 10)
 	d := gnmi.OC()
+	memberCount = len(dut.Ports())
+	t.Logf("Total number of ports in the DUT: %d", memberCount)
 
 	p1 := dut.Port(t, "port1")
 
@@ -299,15 +301,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configBunInterfaceDUT(i5, &dutPort5.Attributes))
 
 	// Add ports 9, 10, 11, and 12 as members of Bundle-Ether125
-	ports := []string{"port5", "port9", "port10", "port11", "port12"}
-	ids := []uint32{14, 18, 19, 20, 21} // Assign unique IDs for each port
-
-	for i, portName := range ports {
+	ports5 := []string{}
+	ids5 := []uint32{}
+	if memberCount == 7 {
+		ports5 = []string{"port5"}
+		ids5 = []uint32{14} // Assign unique IDs for each port
+	}
+	if memberCount == 15 {
+		ports5 = []string{"port5", "port9", "port10", "port11", "port12"}
+		ids5 = []uint32{14, 18, 19, 20, 21} // Assign unique IDs for each port
+	}
+	for i, portName := range ports5 {
 		port := dut.Port(t, portName)
 		BE125 := generateBundleMemberInterfaceConfig(t, port.Name(), *i5.Name)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), BE125)
 
-		memberInterface := &oc.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(ids[i])}
+		memberInterface := &oc.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(ids5[i])}
 		intfPath = gnmi.OC().Interface(port.Name())
 		gnmi.Update(t, dut, intfPath.Config(), memberInterface)
 	}
@@ -317,15 +326,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configBunInterfaceDUT(i7, &dutPort7.Attributes))
 
 	// Add ports 7, 13, 14, 15, and 16 as members of Bundle-Ether126
-	ports = []string{"port7", "port13", "port14", "port15"}
-	ids = []uint32{27, 22, 23, 24} // Assign unique IDs for each port
-
-	for i, portName := range ports {
+	ports7 := []string{}
+	ids7 := []uint32{}
+	if memberCount == 7 {
+		ports7 = []string{"port7"}
+		ids7 = []uint32{27} // Assign unique IDs for each port
+	}
+	if memberCount == 15 {
+		ports7 = []string{"port7", "port13", "port14", "port15"}
+		ids7 = []uint32{27, 22, 23, 24} // Assign unique IDs for each port
+	}
+	for i, portName := range ports7 {
 		port := dut.Port(t, portName)
 		BE126 := generateBundleMemberInterfaceConfig(t, port.Name(), *i7.Name)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), BE126)
 
-		memberInterface := &oc.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(ids[i])}
+		memberInterface := &oc.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(ids7[i])}
 		intfPath = gnmi.OC().Interface(port.Name())
 		gnmi.Update(t, dut, intfPath.Config(), memberInterface)
 
