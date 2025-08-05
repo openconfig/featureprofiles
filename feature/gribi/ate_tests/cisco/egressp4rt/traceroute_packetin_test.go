@@ -195,14 +195,8 @@ func TestEgressp4rt(t *testing.T) {
 	t.Logf("Total number of ports in the DUT: %d", len(totalPorts))
 	if len(totalPorts) < 8 {
 		t.Fatalf("DUT has less than 8 ports, got %d", len(totalPorts))
-	} else {
-		if len(totalPorts) == 7 {
-			memberCount = 8
-		}
-		if len(totalPorts) == 15 {
-			memberCount = 16
-		}
 	}
+	memberCount = len(totalPorts)
 
 	args := &testArgs{
 		ctx:         ctx,

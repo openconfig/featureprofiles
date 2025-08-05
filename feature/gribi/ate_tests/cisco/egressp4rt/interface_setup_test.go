@@ -301,13 +301,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configBunInterfaceDUT(i5, &dutPort5.Attributes))
 
 	// Add ports 9, 10, 11, and 12 as members of Bundle-Ether125
-	ports5 := []string{}
-	ids5 := []uint32{}
-	if memberCount == 7 {
-		ports5 = []string{"port5"}
-		ids5 = []uint32{14} // Assign unique IDs for each port
-	}
-	if memberCount == 15 {
+	ports5 := []string{"port5"}
+	ids5 := []uint32{14} // Assign unique IDs for each port
+	if memberCount >= 16 {
 		ports5 = []string{"port5", "port9", "port10", "port11", "port12"}
 		ids5 = []uint32{14, 18, 19, 20, 21} // Assign unique IDs for each port
 	}
@@ -326,13 +322,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configBunInterfaceDUT(i7, &dutPort7.Attributes))
 
 	// Add ports 7, 13, 14, 15, and 16 as members of Bundle-Ether126
-	ports7 := []string{}
-	ids7 := []uint32{}
-	if memberCount == 7 {
-		ports7 = []string{"port7"}
-		ids7 = []uint32{27} // Assign unique IDs for each port
-	}
-	if memberCount == 15 {
+	ports7 := []string{"port7"}
+	ids7 := []uint32{27} // Assign unique IDs for each port
+	if memberCount >= 16 {
 		ports7 = []string{"port7", "port13", "port14", "port15"}
 		ids7 = []uint32{27, 22, 23, 24} // Assign unique IDs for each port
 	}
