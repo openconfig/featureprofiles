@@ -19,6 +19,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -91,7 +92,7 @@ var (
 	}
 
 	flowResolveArp = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name}},
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{}},
 	}
 	// FlowOuterIPv4 Decap IPv4 Interface IPv4 Payload traffic params Outer Header.
 	FlowOuterIPv4 = &otgconfighelpers.Flow{
@@ -214,6 +215,7 @@ func ConfigureOTG(t *testing.T) {
 		otgconfighelpers.ConfigureNetworkInterface(t, top, ate, agg)
 	}
 	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 }
 
 // PF-1.13.1: Generate DUT Configuration
@@ -288,13 +290,22 @@ func TestSetup(t *testing.T) {
 	// Get default parameters for OC Policy Forwarding
 	ocPFParams := GetDefaultOcPolicyForwardingParams()
 
-	// Pass ocPFParams to ConfigureDut
-	ConfigureDut(t, dut, netConfig, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
 	FlowOuterIPv4Validation.Interface.Names = append(FlowOuterIPv4Validation.Interface.Names, agg1.Interfaces[0].Name)
 	FlowOuterIPv4.RxNames = append(FlowOuterIPv4.RxNames, agg1.Interfaces[0].Name+".IPv4")
 	FlowOuterIPv6Validation.Interface.Names = append(FlowOuterIPv6Validation.Interface.Names, agg1.Interfaces[0].Name)
 	FlowOuterIPv6.RxNames = append(FlowOuterIPv6.RxNames, agg1.Interfaces[0].Name+".IPv4")
+
+	for i, iface := range agg1.Interfaces {
+		// Limiting it to 50 since checking ARP for 2000 interfaces takes long time
+		if i >= 50 {
+			break
+		}
+		flowResolveArp.Interface.Names = append(flowResolveArp.Interface.Names, iface.Name)
+	}
 	ConfigureOTG(t)
+
+	// Pass ocPFParams to ConfigureDut
+	ConfigureDut(t, dut, netConfig, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
 
 }
 
@@ -321,10 +332,10 @@ func DecapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	}
 }
 
-// PF-1.13.2: Verify PF MPLSoGRE Decap action for IPv4 and IPv6 traffic.
+// PF-1.13.2: Verify IPV4/IPV6 traffic scale
 func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
-	t.Log("Verify MPLSoGRE decapsulate action for IPv4 and IPv6 payload")
+	t.Log("Verify IPV4/IPV6 traffic scale")
 	createflow(t, top, FlowOuterIPv4, FlowInnerIPv4, true)
 	sendTraffic(t, ate)
 	if err := FlowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
@@ -442,8 +453,6 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	lacpPath := d.Lacp().Interface(aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
 	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
-	// TODO - to remove this sleep later
-	time.Sleep(5 * time.Second)
 
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	configDUTInterface(agg, subinterfaces, dut)
@@ -461,7 +470,16 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 		intfPath := gnmi.OC().Interface(port.Name())
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
 	}
+
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		status, present := val.Val()
+		return present && status == oc.Interface_OperStatus_UP
+	}).Await(t)
+	if !ok {
+		t.Fatalf("LAG  %s is not ready. Expected %s got %s", aggID, oc.Interface_OperStatus_UP.String(), gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State()).String())
+	}
 }
+
 func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut *ondatra.DUTDevice) {
 	for _, a := range subinterfaces {
 		i.Description = ygot.String(a.Desc)
