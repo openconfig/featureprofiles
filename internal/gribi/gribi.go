@@ -182,11 +182,24 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 	c.AddEntries(t, []fluent.GRIBIEntry{nhg}, []*client.OpResult{opResult})
 }
 
+func (c *Client) DeleteNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHGOptions) {
+	t.Helper()
+	nhg, opResult := NHGEntry(nhgIndex, nhWeights, instance, expectedResult, opts...)
+	c.DeleteEntries(t, []fluent.GRIBIEntry{nhg}, []*client.OpResult{opResult})
+}
+
 // AddNH adds a NextHopEntry with a given index to an address within a given network instance.
 func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
 	t.Helper()
 	nh, opResult := NHEntry(nhIndex, address, instance, expectedResult, opts...)
 	c.AddEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{opResult})
+}
+
+// AddNH adds a NextHopEntry with a given index to an address within a given network instance.
+func (c *Client) DeleteNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
+	t.Helper()
+	nh, opResult := NHEntry(nhIndex, address, instance, expectedResult, opts...)
+	c.DeleteEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{opResult})
 }
 
 // NHEntry returns a fluent NextHopEntry that can be programmed and the
@@ -267,6 +280,20 @@ func NHGEntry(nhgIndex uint64, nhWeights map[uint64]uint64, instance string, exp
 func (c *Client) AddEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedResults []*client.OpResult) {
 	t.Helper()
 	c.fluentC.Modify().AddEntry(t, entries...)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add NHG: %v", err)
+	}
+	for _, result := range expectedResults {
+		chk.HasResult(t, c.fluentC.Results(t),
+			result,
+			chk.IgnoreOperationID(),
+		)
+	}
+}
+
+func (c *Client) DeleteEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedResults []*client.OpResult) {
+	t.Helper()
+	c.fluentC.Modify().DeleteEntry(t, entries...)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NHG: %v", err)
 	}

@@ -1,6 +1,7 @@
 package dcgate_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
@@ -56,6 +57,15 @@ func TestFibChains(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
+	sshClient := dut.RawAPIs().CLI(t)
+	dutPorts := dut.Ports()
+	intfs := []string{}
+	for i, port := range dutPorts {
+		intfs = append(intfs, port.Name())
+		intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
+	}
+	getIfIndex(t, dut, &sshClient, intfs)
+
 	for _, tc := range test {
 
 		// Configure DUT based on chain type
@@ -71,9 +81,6 @@ func TestFibChains(t *testing.T) {
 		case "popgate_unoptimized":
 			configureDUTforPopGate(t, dut)
 		}
-		// Configure ATE
-		otg := ondatra.ATE(t, "ate")
-		topo := configureOTG(t, otg)
 
 		// configure gRIBI client
 		c := gribi.Client{
@@ -92,6 +99,10 @@ func TestFibChains(t *testing.T) {
 
 		// Flush all existing AFT entries on the router
 		c.FlushAll(t)
+
+		// Configure ATE
+		otg := ondatra.ATE(t, "ate")
+		topo := configureOTG(t, otg)
 
 		tcArgs := &testArgs{
 			client: &c,
@@ -556,6 +567,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
 	})
@@ -643,6 +655,31 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		t.Log("add back prefix to encap vrf")
 		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	})
+	t.Run("delete nhg", func(t *testing.T) {
+		// ctx := context.Background()
+		// gribic := args.dut.RawAPIs().GRIBI(t)
+		// client := fluent.NewClient()
+		// client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
+		// 	WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
+		// t.Log("Start gRIBI client and become leader")
+		// client.StartSending(ctx, t)
+
+		args.client.DeleteIPv4(t, "0.0.0.0/0", vrfEncapA, fluent.InstalledInFIB)
+		args.client.DeleteIPv6(t, "0::0/0", vrfEncapA, fluent.InstalledInFIB)
+
+		// if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
+		// 	t.Fatalf("Await got error during session negotiation for client: %v", err)
+		// }
+		// electionID := gribi.BecomeLeader(t, client)
+		// t.Logf("Election ID: %v", electionID)
+
+		// args.client.AddNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
+		args.client.DeleteNHG(t, baseNHG(1001), map[uint64]uint64{baseNH(1001): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		args.client.DeleteNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
+
+		// args.client.DeleteIPv4(t, "0.0.0.0/0", vrfEncapA, fluent.InstalledInFIB)
+		// args.client.DeleteIPv6(t, "0::0/0", vrfEncapA, fluent.InstalledInFIB)
 	})
 }
 

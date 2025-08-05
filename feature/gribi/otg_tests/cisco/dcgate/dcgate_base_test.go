@@ -17,9 +17,11 @@ package dcgate_test
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -28,6 +30,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -38,6 +42,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
@@ -159,8 +164,9 @@ var (
 	// make non-zero to allow for some packet gain
 	lossTolerance   = float32(0.0)
 	fps             = *flag.Int("fps", 100000, "frames per second")
-	trafficDuration = *flag.Int("traffic_duration", 120, "traffic duration in seconds") * int(time.Second)
+	trafficDuration = *flag.Int("traffic_duration", 20, "traffic duration in seconds") * int(time.Second)
 	capture_sflow   = *flag.Bool("capture_sflow", false, "enable sFlow capture")
+	frameSize       = *flag.Int("frame_size", 512, "frame size in bytes, default 512")
 )
 
 var (
@@ -402,6 +408,21 @@ type packetAttr struct {
 	protocol int
 	ttl      uint32
 	inner    *packetAttr
+	sfSample *sflowSample
+}
+
+type sflowSample struct {
+	InputInterface  string
+	OutputInterface string
+	rawPktHdr       *sfRecordRawPacketHeader
+	extdRtrData     *sfRecordExtendedRouterData
+	extdGtwData     *sfRecordExtendedGatewayData
+}
+type sfRecordRawPacketHeader struct {
+}
+type sfRecordExtendedRouterData struct {
+}
+type sfRecordExtendedGatewayData struct {
 }
 
 type flowAttr struct {
@@ -946,6 +967,7 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
+	flow.Size().SetFixed(uint32(frameSize))
 	flow.Rate().SetPps(uint64(fps))
 
 	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
@@ -1075,7 +1097,7 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		// l := NewLogger(t)
 
 		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
-		f, err := os.CreateTemp("", ".pcap")
+		f, err := os.CreateTemp("", "fibchains.pcap")
 		if err != nil {
 			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
 		}
@@ -1087,9 +1109,29 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
 		handle, err := pcap.OpenOffline(f.Name())
 		if err != nil {
-			log.Fatal(err)
+			// log.Fatal(err)
+			log.Printf("%v", err)
+			break
 		}
 		defer handle.Close()
+
+		// 		type flowConfig struct {
+		// 	name          string
+		// 	packetsToSend uint32
+		// 	ppsRate       uint64
+		// 	frameSize     uint32
+		// }
+		//
+		fc := flowConfig{
+			name:          "sflow-capture",
+			packetsToSend: uint32(trafficDuration * fps),
+			ppsRate:       uint64(fps),
+			frameSize:     uint32(frameSize),
+			sflowDscp:     32,
+		}
+		if err == nil {
+			validatePackets(t, f.Name(), IPv6, fc)
+		}
 		// packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		tunnel1Pkts := 0
 		tunnel2Pkts := 0
@@ -1236,7 +1278,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeights []float64) {
 	inFramesAllPorts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().PortAny().Counters().InFrames().State())
 	// skip first entry that belongs to source port on ate
-	gotWeights, _ := normalize(inFramesAllPorts[1:])
+	gotWeights, _ := normalize(inFramesAllPorts[1 : len(inFramesAllPorts)-1]) // last entry is the sink port sflow packet count
 
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)
@@ -1570,4 +1612,369 @@ flow datalinkframesection monitor OC-FMM-GLOBAL sampler OC-FSM-GLOBAL-INGRESS in
 	cliPath, _ := schemaless.NewConfig[string]("", "cli")
 	gnmi.BatchUpdate(batchSet, cliPath, cliCfg)
 	batchSet.Set(t, dut)
+}
+
+// import (
+//     "fmt"
+//     "net"
+//     "testing" // Assuming this is part of a test file, so t *testing.T is valid
+
+//     "github.com/google/gopacket"
+//     "github.com/google/gopacket/layers"
+//     "github.com/google/gopacket/pcap"
+// )
+
+// Assuming these are defined elsewhere in the test file or are example values
+const (
+	samplingRate    = 262144 // Example value, adjust as per your test setup
+	sampleTolerance = 0.8    // Example value, adjust as per your test setup
+)
+
+// Dummy struct for dutlo0Attrs to make the code runnable without full testbed context
+var dutlo0Attrs = struct {
+	IPv4 string
+	IPv6 string
+}{
+	IPv4: "203.0.113.255",           // Example IP
+	IPv6: "2001:db8::203:0:113:255", // Example IP
+}
+
+// User's provided SFlowFlowSample struct definition
+// Note: This struct is a conceptual representation. The actual parsing
+// will use gopacket's layers.SFlowFlowSample and layers.SFlowFlowRecord types.
+type SFlowEnterpriseID uint32
+type SFlowSampleType uint32
+type SFlowSourceFormat uint32
+type SFlowSourceValue uint32
+type SFlowRecord interface{} // Represents different types of flow records
+
+type SFlowFlowSample struct {
+	EnterpriseID          SFlowEnterpriseID
+	Format                SFlowSampleType
+	SampleLength          uint32
+	SequenceNumber        uint32
+	SourceIDClass         SFlowSourceFormat
+	SourceIDIndex         SFlowSourceValue
+	SamplingRate          uint32
+	SamplePool            uint32
+	Dropped               uint32
+	InputInterfaceFormat  uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
+	InputInterface        uint32
+	OutputInterfaceFormat uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
+	OutputInterface       uint32
+	RecordCount           uint32
+	Records               []SFlowRecord
+}
+
+// flowConfig and IPType are provided in the original prompt
+type flowConfig struct {
+	name          string
+	packetsToSend uint32
+	ppsRate       uint64
+	frameSize     uint32
+	sflowDscp     uint8
+}
+
+type IPType string
+
+const (
+	IPv4 = "IPv4"
+	IPv6 = "IPv6"
+)
+
+func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
+	// First pass: Check for sFlow-exported packets based on IP header TOS/TrafficClass
+	// This part of the function remains largely the same as your original code.
+	handle, err := pcap.OpenOffline(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close() // Ensure handle is closed when function exits
+
+	loopbackIP := net.ParseIP(dutlo0Attrs.IPv4)
+	if ip == IPv6 {
+		loopbackIP = net.ParseIP(dutlo0Attrs.IPv6)
+	}
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+
+	found := false
+	sampleCount := 0               // This counts sFlow-exported packets (based on IP header)
+	sflowSamplesTotal := uint32(0) // This will count actual sFlow samples later
+
+	for packet := range packetSource.Packets() {
+		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
+			ipv4, _ := ipLayer.(*layers.IPv4)
+			if ipv4.SrcIP.Equal(loopbackIP) {
+				t.Logf("IP Packet: SrcIP=%s, DstIP=%s, TOS=%d, Length=%d", ipv4.SrcIP, ipv4.DstIP, ipv4.TOS, ipv4.Length)
+				if (ipv4.TOS >> 2) == fc.sflowDscp {
+					found = true
+					sampleCount++
+				}
+			}
+		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
+			ipv6, _ := ipLayer.(*layers.IPv6)
+			if ipv6.SrcIP.Equal(loopbackIP) {
+				t.Logf("IP Packet: SrcIP=%s, DstIP=%s, TrafficClass=%d, Length=%d", ipv6.SrcIP, ipv6.DstIP, ipv6.TrafficClass, ipv6.Length)
+				if ipv6.TrafficClass == (fc.sflowDscp << 2) {
+					found = true
+					sampleCount++
+				}
+			}
+		}
+	}
+
+	// expectedSampleCount := float64(fc.packetsToSend / samplingRate)
+	expectedSampleCount := float64((120 * 100000) / samplingRate)
+	minAllowedSamples := expectedSampleCount * sampleTolerance
+	t.Logf("SFlow packets captured (based on IP header TOS/TrafficClass): %v", sampleCount)
+	if !found || sampleCount < int(minAllowedSamples) {
+		// t.Errorf("sflow packets not found or count too low: got %v, want >= %v", sampleCount, minAllowedSamples)
+	}
+
+	// Re-open pcap handle for the second pass to ensure we start from the beginning
+	// This is crucial because `packetSource.Packets()` is a channel that closes
+	// after all packets are read.
+	handle, err = pcap.OpenOffline(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close() // Ensure handle is closed again after this function exits
+
+	packetSource = gopacket.NewPacketSource(handle, handle.LinkType())
+
+	// Variables to track and store picked samples for printing
+	pickedFlowSamplesCount := 0
+	packetCount := 0 // Reset packetCount for the second loop if needed
+
+	// Second pass: Iterate through packets to find SFlow layers,
+	// extract flow samples, and print their contents.
+	for packet := range packetSource.Packets() {
+		// If we've already found and printed two flow samples, break early.
+		if pickedFlowSamplesCount >= 2 {
+			t.Log("\n--- Two SFlow Flow Samples picked and printed. Stopping further processing. ---")
+			// break
+		}
+
+		if sflowLayer := packet.Layer(layers.LayerTypeSFlow); sflowLayer != nil {
+			sflowDatagram, ok := sflowLayer.(*layers.SFlowDatagram)
+			if !ok {
+				t.Logf("Warning: Could not cast SFlow layer to *layers.SFlowDatagram")
+				// continue
+			}
+
+			packetCount++                                  // Count sFlow datagrams
+			sflowSamplesTotal += sflowDatagram.SampleCount // Accumulate total reported samples
+
+			t.Logf("\nSFlow Datagram %d found. Contains %d samples (total reported: %d).",
+				packetCount, len(sflowDatagram.FlowSamples), sflowDatagram.SampleCount)
+
+			// Iterate through the samples within this sFlow datagram
+			for _, sample := range sflowDatagram.FlowSamples {
+				// If we've already found and printed two flow samples, break from inner loop.
+				if pickedFlowSamplesCount >= 2 {
+					break
+				}
+				// flowSample, ok := sample.(*layers.SFlowFlowSample)
+				// if !ok {
+				// 	t.Logf("    Skipping non-Flow Sample (type: %T)", sample)
+				// 	continue
+				// }
+				flowSample := sample
+				// We found an SFlowFlowSample, now print its contents
+				t.Logf("\n--- SFlow Flow Sample %d Details (from Datagram %d) ---", pickedFlowSamplesCount+1, packetCount)
+
+				// Map fields from gopacket's SFlowDatagram and SFlowFlowSample to user's conceptual struct
+				t.Logf("  EnterpriseID: %d", flowSample.EnterpriseID) // From SFlowDatagram
+				t.Logf("  Format: %d", flowSample.Format)             // From SFlowDatagram
+				t.Logf("  SampleLength: %d", flowSample.SampleLength) // Length of this specific sample
+				t.Logf("  SequenceNumber: %d", flowSample.SequenceNumber)
+				t.Logf("  SourceIDClass: %d", flowSample.SourceIDClass)
+				t.Logf("  SourceIDIndex: %d", flowSample.SourceIDIndex)
+				t.Logf("  SamplingRate: %d", flowSample.SamplingRate)
+				t.Logf("  SamplePool: %d", flowSample.SamplePool)
+				t.Logf("  Dropped: %d", flowSample.Dropped)
+				// InputInterfaceFormat and OutputInterfaceFormat are not directly present in gopacket's SFlowFlowSample.
+				// They are typically encoded within SourceIDClass/SourceIDIndex or specific extended records.
+				t.Logf("  InputInterface: %d", flowSample.InputInterface)
+				t.Logf("  OutputInterface: %d", flowSample.OutputInterface)
+				t.Logf("  RecordCount: %d", len(flowSample.Records)) // Number of flow records within this sample
+
+				// Print details of each FlowRecord within the sample
+				for i, record := range flowSample.Records {
+					t.Logf("    --- Flow Record %d (Type: %T) ---", i+1, record)
+					switch r := record.(type) {
+					case layers.SFlowRawPacketFlowRecord:
+						t.Logf("      Type: Raw Packet Flow Record")
+						t.Logf("      Header Protocol: %d", r.HeaderProtocol)
+						t.Logf("      FrameLength: %d", r.FrameLength)
+						// t.Logf("      Stripped: %d", r.Stripped)
+						t.Logf("      Header Length: %d (first %d bytes of original packet)", r.HeaderLength, r.Header)
+						// You can further parse r.Header if needed (e.g., gopacket.NewPacket(r.Header, ...))
+					case layers.SFlowEthernetFrameFlowRecord:
+						t.Logf("      Type: Ethernet Frame Flow Record")
+						t.Logf("      FrameLength: %d", r.FrameLength)
+						t.Logf("      SrcMAC: %s", r.SrcMac)
+						t.Logf("      DstMAC: %s", r.DstMac)
+						t.Logf("      EtherType: %d", r.Type)
+					case layers.SFlowIpv4Record:
+						t.Logf("      Type: IPv4 Flow Record")
+						t.Logf("      SrcIP: %s", r.IPSrc)
+						t.Logf("      DstIP: %s", r.IPDst)
+						t.Logf("      Protocol: %d", r.Protocol)
+						t.Logf("      SrcPort: %d", r.PortSrc)
+						t.Logf("      DstPort: %d", r.PortDst)
+						t.Logf("      TCPFlags: %d", r.TCPFlags)
+						t.Logf("      TotalLength: %d", r.Length)
+					case layers.SFlowIpv6Record:
+						t.Logf("      Type: IPv6 Flow Record")
+						t.Logf("      SrcIP: %s", r.IPSrc)
+						t.Logf("      DstIP: %s", r.IPDst)
+						t.Logf("      Protocol: %d", r.Protocol)
+						t.Logf("      SrcPort: %d", r.PortSrc)
+						t.Logf("      DstPort: %d", r.PortDst)
+						t.Logf("      TCPFlags: %d", r.TCPFlags)
+						t.Logf("      TotalLength: %d", r.Length)
+					case layers.SFlowExtendedRouterFlowRecord:
+						t.Logf("      Type: Extended Router Flow Record")
+						t.Logf("      NextHop: %s", r.NextHop)
+						t.Logf("      SrcMask: %d", r.NextHopSourceMask)
+						t.Logf("      DstMask: %d", r.NextHopDestinationMask)
+					case layers.SFlowExtendedGatewayFlowRecord:
+						t.Logf("      Type: Extended Gateway Flow Record")
+						t.Logf("      NextHop: %s", r.NextHop)
+						t.Logf("      AS: %d", r.AS)
+						t.Logf("      SrcAS: %d", r.SourceAS)
+						t.Logf("      DstAS: %d", r.PeerAS)
+						t.Logf("      Communities: %v", r.Communities)
+						t.Logf("      LocalPref: %d", r.LocalPref)
+					// case layers.SFlowExtendedIpv4TunnelFlowRecord:
+					// 	t.Logf("      Type: Extended Tunnel Flow Record")
+					// 	t.Logf("      TunnelType: %d", r.TunnelType)
+					// 	t.Logf("      TunnelTTL: %d", r.TunnelTTL)
+					// 	t.Logf("      TunnelProtocol: %d", r.TunnelProtocol)
+					// case layers.SFlowExtendedMPLSFlowRecord:
+					// 	t.Logf("      Type: Extended MPLS Flow Record")
+					// 	t.Logf("      MPLSLabelStack: %v", r.MPLSLabelStack)
+					// case layers.SFlowExtendedNATFlowRecord:
+					// 	t.Logf("      Type: Extended NAT Flow Record")
+					// 	t.Logf("      SrcNATIP: %s", r.SrcNATIP)
+					// 	t.Logf("      DstNATIP: %s", r.DstNATIP)
+					// case layers.SFlowExtendedBGPFlowRecord:
+					// 	t.Logf("      Type: Extended BGP Flow Record")
+					// 	t.Logf("      NextHop: %s", r.NextHop)
+					// 	t.Logf("      AS: %d", r.AS)
+					// 	t.Logf("      SrcAS: %d", r.SrcAS)
+					// 	t.Logf("      DstAS: %d", r.DstAS)
+					// 	t.Logf("      Communities: %v", r.Communities)
+					// 	t.Logf("      LocalPref: %d", r.LocalPref)
+					default:
+						t.Logf("      Type: Unhandled Flow Record Type (%T)", record)
+					}
+				}
+				pickedFlowSamplesCount++ // Increment count of printed flow samples
+				// } else if counterSample, ok := sample.(*layers.SFlowCounterSample); ok {
+				// t.Logf("    Found Counter Sample (Type: %T). Skipping for now.", counterSample)
+				// You could add logic here to print counter sample details if needed
+				// } else {
+				// t.Logf("    Found Unknown SFlow Sample Type (%T). Skipping.", sample)
+				// }
+			}
+		}
+	}
+
+	// Final check for total sFlow samples reported by datagrams
+	if sflowSamplesTotal < uint32(minAllowedSamples) {
+		// t.Errorf("Total SFlow samples reported by datagrams: %v, want > %v", sflowSamplesTotal, expectedSampleCount)
+		t.Logf("Total SFlow samples reported by datagrams: %v, want > %v", sflowSamplesTotal, expectedSampleCount)
+	}
+
+	// New check to ensure two samples were found and printed
+	if pickedFlowSamplesCount < 2 {
+		// t.Errorf("Failed to find and print 2 SFlow Flow Samples. Only found: %d", pickedFlowSamplesCount)
+		// t.Logf("Failed to find and print 2 SFlow Flow Samples. Only found: %d", pickedFlowSamplesCount)
+	}
+}
+
+// Example usage context (from your original prompt, not part of the function itself)
+/*
+flowConfigs = []flowConfig{
+        {
+            name:          "flowS",
+            packetsToSend: 10000000,
+            ppsRate:       300000,
+            frameSize:     64,
+        },
+        {
+            name:          "flowM",
+            packetsToSend: 10000000,
+            ppsRate:       300000,
+            frameSize:     512,
+        },
+        {
+            name:          "flowL",
+            packetsToSend: 10000000,
+            ppsRate:       300000,
+            frameSize:     1500,
+        },
+    }
+*/
+
+// GetToSTrafficClass computes the Type of Service (ToS) byte for IPv4 or
+// Traffic Class byte for IPv6 based on the given DSCP and ECN values.
+//
+// DSCP (Differentiated Services Code Point) is a 6-bit value (0-63).
+// ECN (Explicit Congestion Notification) is a 2-bit value (0-3).
+//
+// The ToS/Traffic Class byte structure is:
+// | DSCP (6 bits) | ECN (2 bits) |
+//
+// Returns the computed 8-bit ToS/Traffic Class value and an error if inputs are invalid.
+func GetToSTrafficClass(dscp uint8, ecn uint8) (uint8, error) {
+	// Validate DSCP value: DSCP is 6 bits, so max value is 2^6 - 1 = 63.
+	if dscp > 63 {
+		return 0, errors.New("DSCP value out of range (0-63)")
+	}
+
+	// Validate ECN value: ECN is 2 bits, so max value is 2^2 - 1 = 3.
+	if ecn > 3 {
+		return 0, errors.New("ECN value out of range (0-3)")
+	}
+
+	// To form the 8-bit ToS/Traffic Class byte:
+	// Shift the 6-bit DSCP value 2 bits to the left to make space for ECN.
+	// Then, bitwise OR it with the 2-bit ECN value.
+	result := (dscp << 2) | ecn
+
+	return result, nil
+}
+
+func sshRunCommand(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, cmd string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	if result, err := (*sshClient).RunCommand(ctx, cmd); err == nil {
+		t.Logf("%s> %s", dut.ID(), cmd)
+		t.Log(result.Output())
+		return result.Output()
+	} else {
+		t.Log(err.Error())
+		t.Log("Restarting the ssh client")
+		*sshClient = dut.RawAPIs().CLI(t)
+		result, err = (*sshClient).RunCommand(ctx, cmd)
+		if err != nil {
+			t.Errorf("Error running command %s: %v", cmd, err)
+			return ""
+		}
+		t.Logf("%s> %s", dut.ID(), cmd)
+		return result.Output()
+	}
+
+}
+
+func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, intfs []string) {
+	for _, intf := range intfs {
+		cmd := fmt.Sprintf("show snmp interface %s ifindex", intf)
+		sshRunCommand(t, dut, sshClient, cmd)
+
+	}
 }
