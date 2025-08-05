@@ -124,6 +124,7 @@ func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevic
 	return lossPct
 }
 
+// ValidateECMP validates if equal number of packets shared across the interfaces given
 func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) error {
 	totalPkts := uint64(0)
 	for _, fName := range ev.Flows {

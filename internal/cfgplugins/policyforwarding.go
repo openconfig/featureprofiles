@@ -53,7 +53,6 @@ type OcPolicyForwardingParams struct {
 var (
 
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
-	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
 	PolicyForwardingConfigv4Arista = `
 Traffic-policies
    traffic-policy tp_cloud_id_3_20
@@ -317,11 +316,10 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "dualstack" {
-				if params.AppliedPolicyName == "gre_encap" {
-					if traffictype == "dualstack" {
-						var PolicyForwardingGreConfig string
-						PolicyForwardingGreConfig += fmt.Sprintf(`
+			if params.AppliedPolicyName == "gre_encap" {
+				if traffictype == "dualstack" {
+					var PolicyForwardingGreConfig string
+					PolicyForwardingGreConfig += fmt.Sprintf(`
 									Traffic-policies
 									traffic-policy tp_gre_encap
 										match ipv4-all-default ipv4
@@ -342,8 +340,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 									!
 									`, params.AppliedPolicyName, params.AppliedPolicyName, params.InterfaceID)
 
-						helpers.GnmiCLIConfig(t, dut, PolicyForwardingGreConfig)
-					}
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingGreConfig)
 				}
 			} else {
 				if traffictype == "v4" {
