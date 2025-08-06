@@ -103,6 +103,80 @@ Verify:
 *  All traffic received on ATE Port 2 GRE-encapsulated.
 *  Outer GRE IPv4 header has DSCP match to ingress IPv6 TC packet.
 *  Verify that TC in inner IPv6 header is unchanged.
+## Canonical OC
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Customer A",
+          "name": "eth0"
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "apply-forwarding-policy": "Encap GRE",
+                  "interface-id": "eth0"
+                },
+                "interface-id": "eth0"
+              }
+            ]
+          },
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "Encap GRE"
+                },
+                "policy-id": "Encap GRE",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "encapsulate-gre": {
+                          "targets": {
+                            "target": [
+                              {
+                                "config": {
+                                  "destination": "10.10.10.1/32",
+                                  "id": "Customer A"
+                                },
+                                "id": "Customer A"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "sequence-id": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
