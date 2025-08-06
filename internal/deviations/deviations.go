@@ -1582,3 +1582,13 @@ func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
 }
+
+// QosRemarkOCUnsupported returns true if Qos remark parameters are unsupported
+func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
+}
+
+// PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
+}
