@@ -73,6 +73,27 @@ Perform this test with both RSA dn ECDSA key-types.
 ## Canonical OC
 ```json
 {
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "GRPC_TEST"
+        },
+        "interfaces": {
+          "interface": [
+            {
+              "config": {
+                "id": "port1",
+                "interface": "port1"
+              },
+              "id": "port1"
+            }
+          ]
+        },
+        "name": "GRPC_TEST"
+      }
+    ]
+  },
   "system": {
     "grpc-servers": {
       "grpc-server": [
