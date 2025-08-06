@@ -138,8 +138,8 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	// Wait 120 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	t.Logf("%v operational status is: %v", dp1.Name(), gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()))
-	t.Log("Waiting for cooling-off period")
-	time.Sleep(120 * time.Second)
+	t.Log("Wait to update telemetry")
+	time.Sleep(80 * time.Second)
 	verifyLaserBiasCurrentAll(t, p1Stream, dut1)
 	// Enable interface
 	i.Enabled = ygot.Bool(true)
