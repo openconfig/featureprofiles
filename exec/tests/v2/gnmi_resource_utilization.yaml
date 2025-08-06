@@ -14,3 +14,4 @@ tests:
     mustpass: true
     internal: true
     timeout: 9000
+    branch: FEAT-34756
