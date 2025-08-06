@@ -1896,11 +1896,18 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 func mapPortID(t *testing.T, args *testArgs, dut *ondatra.DUTDevice) ([]*ondatra.Port, map[string]string) {
 
 	// Mapping port ID to port name
+	var memberCount int
 	p := make([]*ondatra.Port, args.memberCount)
 	IDMap := make(map[string]string)
 	ids := []string{"10", "11", "12", "13", "14", "15", "27", "16", "18", "19", "20", "21", "22", "23", "24"}
 
-	for i := 0; i < args.memberCount; i++ {
+	switch args.memberCount {
+	case 16:
+		memberCount = 15
+	case 8:
+		memberCount = args.memberCount
+	}
+	for i := 0; i < memberCount; i++ {
 		portName := fmt.Sprintf("port%d", i+1)
 		p[i] = dut.Port(t, portName)
 		IDMap[p[i].Name()] = ids[i]
