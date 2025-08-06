@@ -1584,11 +1584,11 @@ func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 }
 
 // PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
-func PolicyForwardingGREEncapsulationUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationUnsupported()
+func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
 
 // PolicyForwardingGREEncapsulationUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
-func QosClassifierDscpRemarkUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkUnsupported()
+func QosClassifierDscpRemarkOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosClassifierDscpRemarkOcUnsupported()
 }

@@ -1110,11 +1110,11 @@ type Metadata_Deviations struct {
 	// this deviation to set specific value of N. Returns N=1,000,000 by default.
 	SflowIngressMinSamplingRate uint32 `protobuf:"varint,313,opt,name=sflow_ingress_min_sampling_rate,json=sflowIngressMinSamplingRate,proto3" json:"sflow_ingress_min_sampling_rate,omitempty"`
 	// Devices that do not support policy forwarding encapsulate gre action
-	PolicyForwardingGreEncapsulationUnsupported bool `protobuf:"varint,314,opt,name=policy_forwarding_gre_encapsulation_unsupported,json=policyForwardingGreEncapsulationUnsupported,proto3" json:"policy_forwarding_gre_encapsulation_unsupported,omitempty"`
+	PolicyForwardingGreEncapsulationOcUnsupported bool `protobuf:"varint,314,opt,name=policy_forwarding_gre_encapsulation_oc_unsupported,json=policyForwardingGreEncapsulationOcUnsupported,proto3" json:"policy_forwarding_gre_encapsulation_oc_unsupported,omitempty"`
 	// Devices that do not support qos classifier dscp remark action
-	QosClassifierDscpRemarkUnsupported bool `protobuf:"varint,315,opt,name=qos_classifier_dscp_remark_unsupported,json=qosClassifierDscpRemarkUnsupported,proto3" json:"qos_classifier_dscp_remark_unsupported,omitempty"`
-	unknownFields                      protoimpl.UnknownFields
-	sizeCache                          protoimpl.SizeCache
+	QosClassifierDscpRemarkOcUnsupported bool `protobuf:"varint,315,opt,name=qos_classifier_dscp_remark_oc_unsupported,json=qosClassifierDscpRemarkOcUnsupported,proto3" json:"qos_classifier_dscp_remark_oc_unsupported,omitempty"`
+	unknownFields                        protoimpl.UnknownFields
+	sizeCache                            protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3121,16 +3121,16 @@ func (x *Metadata_Deviations) GetSflowIngressMinSamplingRate() uint32 {
 	return 0
 }
 
-func (x *Metadata_Deviations) GetPolicyForwardingGreEncapsulationUnsupported() bool {
+func (x *Metadata_Deviations) GetPolicyForwardingGreEncapsulationOcUnsupported() bool {
 	if x != nil {
-		return x.PolicyForwardingGreEncapsulationUnsupported
+		return x.PolicyForwardingGreEncapsulationOcUnsupported
 	}
 	return false
 }
 
-func (x *Metadata_Deviations) GetQosClassifierDscpRemarkUnsupported() bool {
+func (x *Metadata_Deviations) GetQosClassifierDscpRemarkOcUnsupported() bool {
 	if x != nil {
-		return x.QosClassifierDscpRemarkUnsupported
+		return x.QosClassifierDscpRemarkOcUnsupported
 	}
 	return false
 }
@@ -3191,7 +3191,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe7\xac\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf1\xac\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3203,7 +3203,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xbb\xa3\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aţ\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3489,9 +3489,9 @@ const file_metadata_proto_rawDesc = "" +
 	")isis_sr_prefix_segment_config_unsupported\x18\xb6\x02 \x01(\bR$isisSrPrefixSegmentConfigUnsupported\x12T\n" +
 	"'isis_sr_node_segment_config_unsupported\x18\xb7\x02 \x01(\bR\"isisSrNodeSegmentConfigUnsupported\x12]\n" +
 	",policy_forwarding_to_next_hop_oc_unsupported\x18\xb8\x02 \x01(\bR&policyForwardingToNextHopOcUnsupported\x12E\n" +
-	"\x1fsflow_ingress_min_sampling_rate\x18\xb9\x02 \x01(\rR\x1bsflowIngressMinSamplingRate\x12e\n" +
-	"/policy_forwarding_gre_encapsulation_unsupported\x18\xba\x02 \x01(\bR+policyForwardingGreEncapsulationUnsupported\x12S\n" +
-	"&qos_classifier_dscp_remark_unsupported\x18\xbb\x02 \x01(\bR\"qosClassifierDscpRemarkUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1fsflow_ingress_min_sampling_rate\x18\xb9\x02 \x01(\rR\x1bsflowIngressMinSamplingRate\x12j\n" +
+	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xba\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x12X\n" +
+	")qos_classifier_dscp_remark_oc_unsupported\x18\xbb\x02 \x01(\bR$qosClassifierDscpRemarkOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

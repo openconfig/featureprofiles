@@ -893,10 +893,10 @@ message Metadata {
     uint32 sflow_ingress_min_sampling_rate = 313;
     
     // Devices that do not support policy forwarding encapsulate gre action
-    bool policy_forwarding_gre_encapsulation_unsupported = 314;
+    bool policy_forwarding_gre_encapsulation_oc_unsupported = 314;
 
     // Devices that do not support qos classifier dscp remark action
-    bool qos_classifier_dscp_remark_unsupported = 315;
+    bool qos_classifier_dscp_remark_oc_unsupported = 315;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
