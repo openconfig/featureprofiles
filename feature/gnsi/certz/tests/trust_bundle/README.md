@@ -70,6 +70,43 @@ should not take longer than 120 seconds.
 
 Perform this test with both RSA dn ECDSA key-types.
 
+## Canonical OC
+```json
+{
+  "system": {
+    "grpc-servers": {
+      "grpc-server": [
+        {
+          "config": {
+            "enable": true,
+            "name": "gmmi-test",
+            "network-instance": "GRPC_TEST",
+            "port": 9339,
+            "services": [
+              "GNMI",
+              "GNSI",
+              "GRIBI"
+            ]
+          },
+          "name": "gmmi-test"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "p4rt-test",
+            "network-instance": "GRPC_TEST",
+            "port": 9559,
+            "services": [
+              "P4RT"
+            ]
+          },
+          "name": "p4rt-test"
+        }
+      ]
+    }
+  }
+}
+```
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
