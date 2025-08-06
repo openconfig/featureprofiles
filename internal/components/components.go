@@ -42,17 +42,13 @@ func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platf
 	var s []string
 	for _, c := range components {
 		if c.GetType() == nil {
-			t.Logf("Component %s type is missing from telemetry", c.GetName())
 			continue
 		}
-		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
 		switch v := c.GetType().(type) {
 		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
 			if v == cType {
 				s = append(s, c.GetName())
 			}
-		default:
-			t.Logf("Detected non-hardware component: (%T, %v)", c.GetType(), c.GetType())
 		}
 	}
 	return s
