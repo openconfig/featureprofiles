@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"strconv"
 	"net"
 
 	"strings"
@@ -130,10 +131,9 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 
 	// 3. Start the container.
 	startCmd := fmt.Sprintf("./cntrsrv --port=%d", cntrPort)
-	ports := []string{fmt.Sprintf("%d:%d", cntrPort, cntrPort)}
-	t.Logf("Starting container %s on %s with image %s:latest, command '%s', ports %v.", instanceName, dut.Name(), imageName, startCmd, ports)
+	t.Logf("Starting container %s on %s with image %s:latest, command '%s', and host networking.", instanceName, dut.Name(), imageName, startCmd)
 
-	if _, err := cli.StartContainer(ctx, imageName, "latest", startCmd, instanceName, client.WithPorts(ports)); err != nil {
+	if _, err := cli.StartContainer(ctx, imageName, "latest", startCmd, instanceName, client.WithNetwork("host")); err != nil {
 		t.Fatalf("Unable to start container %s on %s: %v", instanceName, dut.Name(), err)
 	}
 	t.Logf("StartContainer called for %s on %s", instanceName, dut.Name())
@@ -177,7 +177,7 @@ func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientC
 		host = dialer.DialTarget
 	}
 
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	t.Logf("Dialing gRPC address: %s", addr)
 
 	tlsc := credentials.NewTLS(&tls.Config{
