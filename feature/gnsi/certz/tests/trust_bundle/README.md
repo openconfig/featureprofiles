@@ -73,6 +73,40 @@ Perform this test with both RSA dn ECDSA key-types.
 ## Canonical OC
 ```json
 {
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "test interface",
+          "name": "port1"
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.20.0.1",
+                        "prefix-length": 32
+                      },
+                      "ip": "192.20.0.1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
   "network-instances": {
     "network-instance": [
       {
