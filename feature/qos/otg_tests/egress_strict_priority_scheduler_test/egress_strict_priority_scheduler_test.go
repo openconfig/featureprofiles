@@ -24,6 +24,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -59,10 +60,10 @@ func TestEgressStrictPrioritySchedulerTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	t.Logf("Configuring TCAM Profile")
-	configureTcamProfile(t, dut)
+	cfgplugins.ConfigureTcamProfile(t, dut)
 
 	t.Logf("Configuring QoS Global parameters")
-	configureQoSGlobalParams(t, dut)
+	cfgplugins.NewQosInitialize(t, dut)
 
 	verifyEgressStrictPrioritySchedulerTrafficIPv4(t, dut)
 	verifyEgressStrictPrioritySchedulerTrafficIPv6(t, dut)
@@ -1415,138 +1416,95 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
-	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
 
-	if deviations.QOSQueueRequiresID(dut) {
-		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE1}
-		for i, queue := range queueNames {
-			q1 := q.GetOrCreateQueue(queue)
-			q1.Name = ygot.String(queue)
-			queueid := len(queueNames) - i
-			q1.QueueId = ygot.Uint8(uint8(queueid))
-		}
-		t.Logf("\nDUT %s %s %s requires QoS queue requires ID deviation \n\n", dut.Vendor(), dut.Model(), dut.Version())
-	}
+	cfgplugins.NewQoSQueue(t, dut, q)
 
 	t.Logf("Create QoS forwarding groups and queue names configuration")
-	forwardingGroups := []struct {
-		desc        string
-		queueName   string
-		targetGroup string
-		priority    uint8
-	}{{
-		desc:        "forwarding-group-BE1",
-		queueName:   queues.BE1,
-		targetGroup: "target-group-BE1",
-		priority:    0,
-	}, {
-		desc:        "forwarding-group-AF1",
-		queueName:   queues.AF1,
-		targetGroup: "target-group-AF1",
-		priority:    1,
-	}, {
-		desc:        "forwarding-group-AF2",
-		queueName:   queues.AF2,
-		targetGroup: "target-group-AF2",
-		priority:    2,
-	}, {
-		desc:        "forwarding-group-AF3",
-		queueName:   queues.AF3,
-		targetGroup: "target-group-AF3",
-		priority:    3,
-	}, {
-		desc:        "forwarding-group-AF4",
-		queueName:   queues.AF4,
-		targetGroup: "target-group-AF4",
-		priority:    4,
-	}, {
-		desc:        "forwarding-group-NC1",
-		queueName:   queues.NC1,
-		targetGroup: "target-group-NC1",
-		priority:    5,
-	}}
+	forwardingGroups := []cfgplugins.ForwardingGroup{
+		{
+			Desc:        "forwarding-group-BE1",
+			QueueName:   queues.BE1,
+			TargetGroup: "target-group-BE1",
+			Priority:    0,
+		}, {
+			Desc:        "forwarding-group-AF1",
+			QueueName:   queues.AF1,
+			TargetGroup: "target-group-AF1",
+			Priority:    1,
+		}, {
+			Desc:        "forwarding-group-AF2",
+			QueueName:   queues.AF2,
+			TargetGroup: "target-group-AF2",
+			Priority:    2,
+		}, {
+			Desc:        "forwarding-group-AF3",
+			QueueName:   queues.AF3,
+			TargetGroup: "target-group-AF3",
+			Priority:    3,
+		}, {
+			Desc:        "forwarding-group-AF4",
+			QueueName:   queues.AF4,
+			TargetGroup: "target-group-AF4",
+			Priority:    4,
+		}, {
+			Desc:        "forwarding-group-NC1",
+			QueueName:   queues.NC1,
+			TargetGroup: "target-group-NC1",
+			Priority:    5,
+		}}
 
-	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
-	for _, tc := range forwardingGroups {
-		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
-
-		t.Logf("QoS forwarding groups config: %v", forwardingGroups)
-	}
+	cfgplugins.NewForwardingGroup(t, dut, q, forwardingGroups)
 
 	t.Logf("Create QoS Classifiers config")
-	classifiers := []struct {
-		desc        string
-		name        string
-		classType   oc.E_Qos_Classifier_Type
-		termID      string
-		targetGroup string
-		dscpSet     []uint8
-	}{{
-		desc:        "classifier_ipv4_be1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "0",
-		targetGroup: "target-group-BE1",
-		dscpSet:     []uint8{0},
-	}, {
-		desc:        "classifier_ipv4_af1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "1",
-		targetGroup: "target-group-AF1",
-		dscpSet:     []uint8{1},
-	}, {
-		desc:        "classifier_ipv4_af2",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "2",
-		targetGroup: "target-group-AF2",
-		dscpSet:     []uint8{2},
-	}, {
-		desc:        "classifier_ipv4_af3",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "3",
-		targetGroup: "target-group-AF3",
-		dscpSet:     []uint8{3},
-	}, {
-		desc:        "classifier_ipv4_af4",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "4",
-		targetGroup: "target-group-AF4",
-		dscpSet:     []uint8{4, 5},
-	}, {
-		desc:        "classifier_ipv4_nc1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "5",
-		targetGroup: "target-group-NC1",
-		dscpSet:     []uint8{6, 7},
-	}}
+	classifiers := []cfgplugins.QosClassifier{
+		{
+			Desc:        "classifier_ipv4_be1",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "0",
+			TargetGroup: "target-group-BE1",
+			DscpSet:     []uint8{0},
+		}, {
+			Desc:        "classifier_ipv4_af1",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "1",
+			TargetGroup: "target-group-AF1",
+			DscpSet:     []uint8{1},
+		}, {
+			Desc:        "classifier_ipv4_af2",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "2",
+			TargetGroup: "target-group-AF2",
+			DscpSet:     []uint8{2},
+		}, {
+			Desc:        "classifier_ipv4_af3",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "3",
+			TargetGroup: "target-group-AF3",
+			DscpSet:     []uint8{3},
+		}, {
+			Desc:        "classifier_ipv4_af4",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "4",
+			TargetGroup: "target-group-AF4",
+			DscpSet:     []uint8{4, 5},
+		}, {
+			Desc:        "classifier_ipv4_nc1",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "5",
+			TargetGroup: "target-group-NC1",
+			DscpSet:     []uint8{6, 7},
+		}}
 
-	t.Logf("QoS classifiers config: %v", classifiers)
-	for _, tc := range classifiers {
-		classifier := q.GetOrCreateClassifier(tc.name)
-		classifier.SetName(tc.name)
-		classifier.SetType(tc.classType)
-
-		term, err := classifier.NewTerm(tc.termID)
-		if err != nil {
-			t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
-		}
-
-		term.SetId(tc.termID)
-		action := term.GetOrCreateActions()
-		action.SetTargetGroup(tc.targetGroup)
-		condition := term.GetOrCreateConditions()
-		condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
-
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	cfgplugins.NewClassifierConfiguration(t, dut, q, classifiers)
 
 	t.Logf("Create QoS input classifier config")
 	classifierIntfs := []struct {
@@ -1572,275 +1530,196 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	t.Logf("Create QoS scheduler policies config")
-	schedulerPolicies := []struct {
-		desc        string
-		sequence    uint32
-		setPriority bool
-		priority    oc.E_Scheduler_Priority
-		inputID     string
-		inputType   oc.E_Input_InputType
-		setWeight   bool
-		queueName   string
-		targetGroup string
-	}{{
-		desc:        "scheduler-policy-BE1",
-		sequence:    uint32(6),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "BE1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.BE1,
-		targetGroup: "target-group-BE1",
-	}, {
-		desc:        "scheduler-policy-AF1",
-		sequence:    uint32(5),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF1,
-		targetGroup: "target-group-AF1",
-	}, {
-		desc:        "scheduler-policy-AF2",
-		sequence:    uint32(4),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF2",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF2,
-		targetGroup: "target-group-AF2",
-	}, {
-		desc:        "scheduler-policy-AF3",
-		sequence:    uint32(3),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF3",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF3,
-		targetGroup: "target-group-AF3",
-	}, {
-		desc:        "scheduler-policy-AF4",
-		sequence:    uint32(2),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF4",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF4,
-		targetGroup: "target-group-AF4",
-	}, {
-		desc:        "scheduler-policy-NC1",
-		sequence:    uint32(1),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "NC1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.NC1,
-		targetGroup: "target-group-NC1",
-	}}
+	schedulerPolicies := []cfgplugins.SchedulerPolicy{
+		{
+			Desc:        "scheduler-policy-BE1",
+			Sequence:    uint32(6),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "BE1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.BE1,
+			TargetGroup: "target-group-BE1",
+		}, {
+			Desc:        "scheduler-policy-AF1",
+			Sequence:    uint32(5),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF1,
+			TargetGroup: "target-group-AF1",
+		}, {
+			Desc:        "scheduler-policy-AF2",
+			Sequence:    uint32(4),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF2",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF2,
+			TargetGroup: "target-group-AF2",
+		}, {
+			Desc:        "scheduler-policy-AF3",
+			Sequence:    uint32(3),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF3",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF3,
+			TargetGroup: "target-group-AF3",
+		}, {
+			Desc:        "scheduler-policy-AF4",
+			Sequence:    uint32(2),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF4",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF4,
+			TargetGroup: "target-group-AF4",
+		}, {
+			Desc:        "scheduler-policy-NC1",
+			Sequence:    uint32(1),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "NC1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.NC1,
+			TargetGroup: "target-group-NC1",
+		}}
 
-	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
-	schedulerPolicy.SetName("scheduler")
-	t.Logf("QoS scheduler policies config: %v", schedulerPolicies)
-	for _, tc := range schedulerPolicies {
-		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
-		s.SetSequence(tc.sequence)
-		if tc.setPriority {
-			s.SetPriority(tc.priority)
-		}
-		input := s.GetOrCreateInput(tc.inputID)
-		input.SetId(tc.inputID)
-		input.SetInputType(tc.inputType)
-		input.SetQueue(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
 
 	t.Logf("Create QoS output interface config")
-	schedulerIntfs := []struct {
-		desc      string
-		queueName string
-		scheduler string
-	}{{
-		desc:      "output-interface-BE1",
-		queueName: queues.BE1,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF1",
-		queueName: queues.AF1,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF2",
-		queueName: queues.AF2,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF3",
-		queueName: queues.AF3,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF4",
-		queueName: queues.AF4,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-NC1",
-		queueName: queues.NC1,
-		scheduler: "scheduler",
-	}}
+	schedulerIntfs := []cfgplugins.QoSSchedulerInterface{
+		{
+			Desc:      "output-interface-BE1",
+			QueueName: queues.BE1,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF1",
+			QueueName: queues.AF1,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF2",
+			QueueName: queues.AF2,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF3",
+			QueueName: queues.AF3,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF4",
+			QueueName: queues.AF4,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-NC1",
+			QueueName: queues.NC1,
+			Scheduler: "scheduler",
+		}}
 
-	t.Logf("QoS output interface config: %v", schedulerIntfs)
-	for _, tc := range schedulerIntfs {
-		i := q.GetOrCreateInterface(dp3.Name())
-		i.SetInterfaceId(dp3.Name())
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		if deviations.InterfaceRefConfigUnsupported(dut) {
-			i.InterfaceRef = nil
-		}
-		output := i.GetOrCreateOutput()
-		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-		schedulerPolicy.SetName(tc.scheduler)
-		queue := output.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+
 }
 
 func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
-	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
 
-	if deviations.QOSQueueRequiresID(dut) {
-		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE1}
-		for i, queue := range queueNames {
-			q1 := q.GetOrCreateQueue(queue)
-			q1.Name = ygot.String(queue)
-			queueid := len(queueNames) - i
-			q1.QueueId = ygot.Uint8(uint8(queueid))
-		}
-		t.Logf("\nDUT %s %s %s requires QoS queue requires ID deviation \n\n", dut.Vendor(), dut.Model(), dut.Version())
-	}
+	cfgplugins.NewQoSQueue(t, dut, q)
 
 	t.Logf("Create QoS forwarding groups and queue names configuration")
-	forwardingGroups := []struct {
-		desc        string
-		queueName   string
-		targetGroup string
-		priority    uint8
-	}{{
-		desc:        "forwarding-group-BE1",
-		queueName:   queues.BE1,
-		targetGroup: "target-group-BE1",
-		priority:    0,
-	}, {
-		desc:        "forwarding-group-AF1",
-		queueName:   queues.AF1,
-		targetGroup: "target-group-AF1",
-		priority:    1,
-	}, {
-		desc:        "forwarding-group-AF2",
-		queueName:   queues.AF2,
-		targetGroup: "target-group-AF2",
-		priority:    2,
-	}, {
-		desc:        "forwarding-group-AF3",
-		queueName:   queues.AF3,
-		targetGroup: "target-group-AF3",
-		priority:    3,
-	}, {
-		desc:        "forwarding-group-AF4",
-		queueName:   queues.AF4,
-		targetGroup: "target-group-AF4",
-		priority:    4,
-	}, {
-		desc:        "forwarding-group-NC1",
-		queueName:   queues.NC1,
-		targetGroup: "target-group-NC1",
-		priority:    5,
-	}}
+	forwardingGroups := []cfgplugins.ForwardingGroup{
+		{
+			Desc:        "forwarding-group-BE1",
+			QueueName:   queues.BE1,
+			TargetGroup: "target-group-BE1",
+			Priority:    0,
+		}, {
+			Desc:        "forwarding-group-AF1",
+			QueueName:   queues.AF1,
+			TargetGroup: "target-group-AF1",
+			Priority:    1,
+		}, {
+			Desc:        "forwarding-group-AF2",
+			QueueName:   queues.AF2,
+			TargetGroup: "target-group-AF2",
+			Priority:    2,
+		}, {
+			Desc:        "forwarding-group-AF3",
+			QueueName:   queues.AF3,
+			TargetGroup: "target-group-AF3",
+			Priority:    3,
+		}, {
+			Desc:        "forwarding-group-AF4",
+			QueueName:   queues.AF4,
+			TargetGroup: "target-group-AF4",
+			Priority:    4,
+		}, {
+			Desc:        "forwarding-group-NC1",
+			QueueName:   queues.NC1,
+			TargetGroup: "target-group-NC1",
+			Priority:    5,
+		}}
 
-	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
-	for _, tc := range forwardingGroups {
-		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
-		t.Logf("QoS forwarding groups config: %v", forwardingGroups)
-	}
+	cfgplugins.NewForwardingGroup(t, dut, q, forwardingGroups)
 
 	t.Logf("Create QoS Classifiers config")
-	classifiers := []struct {
-		desc        string
-		name        string
-		classType   oc.E_Qos_Classifier_Type
-		termID      string
-		targetGroup string
-		dscpSet     []uint8
-	}{{
-		desc:        "classifier_ipv6_be1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "0",
-		targetGroup: "target-group-BE1",
-		dscpSet:     []uint8{0, 1, 2, 3, 4, 5, 6, 7},
-	}, {
-		desc:        "classifier_ipv6_af1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "1",
-		targetGroup: "target-group-AF1",
-		dscpSet:     []uint8{8, 9, 10, 11, 12, 13, 14, 15},
-	}, {
-		desc:        "classifier_ipv6_af2",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "2",
-		targetGroup: "target-group-AF2",
-		dscpSet:     []uint8{16, 17, 18, 19, 20, 21, 22, 23},
-	}, {
-		desc:        "classifier_ipv6_af3",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "3",
-		targetGroup: "target-group-AF3",
-		dscpSet:     []uint8{24, 25, 26, 27, 28, 29, 30, 31},
-	}, {
-		desc:        "classifier_ipv6_af4",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "4",
-		targetGroup: "target-group-AF4",
-		dscpSet:     []uint8{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
-	}, {
-		desc:        "classifier_ipv6_nc1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "5",
-		targetGroup: "target-group-NC1",
-		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
-	}}
+	classifiers := []cfgplugins.QosClassifier{
+		{
+			Desc:        "classifier_ipv6_be1",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "0",
+			TargetGroup: "target-group-BE1",
+			DscpSet:     []uint8{0, 1, 2, 3, 4, 5, 6, 7},
+		}, {
+			Desc:        "classifier_ipv6_af1",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "1",
+			TargetGroup: "target-group-AF1",
+			DscpSet:     []uint8{8, 9, 10, 11, 12, 13, 14, 15},
+		}, {
+			Desc:        "classifier_ipv6_af2",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "2",
+			TargetGroup: "target-group-AF2",
+			DscpSet:     []uint8{16, 17, 18, 19, 20, 21, 22, 23},
+		}, {
+			Desc:        "classifier_ipv6_af3",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "3",
+			TargetGroup: "target-group-AF3",
+			DscpSet:     []uint8{24, 25, 26, 27, 28, 29, 30, 31},
+		}, {
+			Desc:        "classifier_ipv6_af4",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "4",
+			TargetGroup: "target-group-AF4",
+			DscpSet:     []uint8{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+		}, {
+			Desc:        "classifier_ipv6_nc1",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "5",
+			TargetGroup: "target-group-NC1",
+			DscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+		}}
 
-	t.Logf("QoS classifiers config: %v", classifiers)
-	for _, tc := range classifiers {
-		classifier := q.GetOrCreateClassifier(tc.name)
-		classifier.SetName(tc.name)
-		classifier.SetType(tc.classType)
-		term, err := classifier.NewTerm(tc.termID)
-		if err != nil {
-			t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
-		}
-
-		term.SetId(tc.termID)
-		action := term.GetOrCreateActions()
-		action.SetTargetGroup(tc.targetGroup)
-		condition := term.GetOrCreateConditions()
-		condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	cfgplugins.NewClassifierConfiguration(t, dut, q, classifiers)
 
 	t.Logf("Create QoS input classifier config")
 	classifierIntfs := []struct {
@@ -1866,280 +1745,201 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	t.Logf("Create QoS scheduler policies config")
-	schedulerPolicies := []struct {
-		desc        string
-		sequence    uint32
-		setPriority bool
-		priority    oc.E_Scheduler_Priority
-		inputID     string
-		inputType   oc.E_Input_InputType
-		setWeight   bool
-		queueName   string
-		targetGroup string
-	}{{
-		desc:        "scheduler-policy-BE1",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "BE1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.BE1,
-		targetGroup: "target-group-BE1",
-	}, {
-		desc:        "scheduler-policy-AF1",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF1,
-		targetGroup: "target-group-AF1",
-	}, {
-		desc:        "scheduler-policy-AF2",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF2",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF2,
-		targetGroup: "target-group-AF2",
-	}, {
-		desc:        "scheduler-policy-AF3",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF3",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF3,
-		targetGroup: "target-group-AF3",
-	}, {
-		desc:        "scheduler-policy-AF4",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF4",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF4,
-		targetGroup: "target-group-AF4",
-	}, {
-		desc:        "scheduler-policy-NC1",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "NC1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.NC1,
-		targetGroup: "target-group-NC1",
-	}}
+	schedulerPolicies := []cfgplugins.SchedulerPolicy{
+		{
+			Desc:        "scheduler-policy-BE1",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "BE1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.BE1,
+			TargetGroup: "target-group-BE1",
+		}, {
+			Desc:        "scheduler-policy-AF1",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF1,
+			TargetGroup: "target-group-AF1",
+		}, {
+			Desc:        "scheduler-policy-AF2",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF2",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF2,
+			TargetGroup: "target-group-AF2",
+		}, {
+			Desc:        "scheduler-policy-AF3",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF3",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF3,
+			TargetGroup: "target-group-AF3",
+		}, {
+			Desc:        "scheduler-policy-AF4",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF4",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF4,
+			TargetGroup: "target-group-AF4",
+		}, {
+			Desc:        "scheduler-policy-NC1",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "NC1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.NC1,
+			TargetGroup: "target-group-NC1",
+		}}
 
-	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
-	schedulerPolicy.SetName("scheduler")
-	t.Logf("QoS scheduler policies config: %v", schedulerPolicies)
-	for _, tc := range schedulerPolicies {
-		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
-		s.SetSequence(tc.sequence)
-		if tc.setPriority {
-			s.SetPriority(tc.priority)
-		}
-		input := s.GetOrCreateInput(tc.inputID)
-		input.SetId(tc.inputID)
-		input.SetInputType(tc.inputType)
-		input.SetQueue(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
 
 	t.Logf("Create QoS output interface config")
-	schedulerIntfs := []struct {
-		desc      string
-		queueName string
-		scheduler string
-	}{{
-		desc:      "output-interface-BE1",
-		queueName: queues.BE1,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF1",
-		queueName: queues.AF1,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF2",
-		queueName: queues.AF2,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF3",
-		queueName: queues.AF3,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF4",
-		queueName: queues.AF4,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-NC1",
-		queueName: queues.NC1,
-		scheduler: "scheduler",
-	}}
+	schedulerIntfs := []cfgplugins.QoSSchedulerInterface{
+		{
+			Desc:      "output-interface-BE1",
+			QueueName: queues.BE1,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF1",
+			QueueName: queues.AF1,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF2",
+			QueueName: queues.AF2,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF3",
+			QueueName: queues.AF3,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF4",
+			QueueName: queues.AF4,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-NC1",
+			QueueName: queues.NC1,
+			Scheduler: "scheduler",
+		}}
 
-	t.Logf("QoS output interface config: %v", schedulerIntfs)
-	for _, tc := range schedulerIntfs {
-		i := q.GetOrCreateInterface(dp3.Name())
-		i.SetInterfaceId(dp3.Name())
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		if deviations.InterfaceRefConfigUnsupported(dut) {
-			i.InterfaceRef = nil
-		}
-		output := i.GetOrCreateOutput()
-		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-		schedulerPolicy.SetName(tc.scheduler)
-		queue := output.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+
 }
 
 func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
-	dp3 := dut.Port(t, "port3")
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
 	queues := netutil.CommonTrafficQueues(t, dut)
 
-	if deviations.QOSQueueRequiresID(dut) {
-		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE1}
-		for i, queue := range queueNames {
-			q1 := q.GetOrCreateQueue(queue)
-			q1.Name = ygot.String(queue)
-			queueid := len(queueNames) - i
-			q1.QueueId = ygot.Uint8(uint8(queueid))
-		}
-		t.Logf("\nDUT %s %s %s requires QoS queue requires ID deviation \n\n", dut.Vendor(), dut.Model(), dut.Version())
-	}
+	cfgplugins.NewQoSQueue(t, dut, q)
 
 	t.Logf("Create QoS forwarding groups and queue names configuration")
-	forwardingGroups := []struct {
-		desc        string
-		queueName   string
-		targetGroup string
-		priority    uint8
-	}{{
-		desc:        "forwarding-group-BE1",
-		queueName:   queues.BE1,
-		targetGroup: "target-group-BE1",
-		priority:    0,
-	}, {
-		desc:        "forwarding-group-AF1",
-		queueName:   queues.AF1,
-		targetGroup: "target-group-AF1",
-		priority:    1,
-	}, {
-		desc:        "forwarding-group-AF2",
-		queueName:   queues.AF2,
-		targetGroup: "target-group-AF2",
-		priority:    2,
-	}, {
-		desc:        "forwarding-group-AF3",
-		queueName:   queues.AF3,
-		targetGroup: "target-group-AF3",
-		priority:    3,
-	}, {
-		desc:        "forwarding-group-AF4",
-		queueName:   queues.AF4,
-		targetGroup: "target-group-AF4",
-		priority:    4,
-	}, {
-		desc:        "forwarding-group-NC1",
-		queueName:   queues.NC1,
-		targetGroup: "target-group-NC1",
-		priority:    5,
-	}}
+	forwardingGroups := []cfgplugins.ForwardingGroup{
+		{
+			Desc:        "forwarding-group-BE1",
+			QueueName:   queues.BE1,
+			TargetGroup: "target-group-BE1",
+			Priority:    0,
+		}, {
+			Desc:        "forwarding-group-AF1",
+			QueueName:   queues.AF1,
+			TargetGroup: "target-group-AF1",
+			Priority:    1,
+		}, {
+			Desc:        "forwarding-group-AF2",
+			QueueName:   queues.AF2,
+			TargetGroup: "target-group-AF2",
+			Priority:    2,
+		}, {
+			Desc:        "forwarding-group-AF3",
+			QueueName:   queues.AF3,
+			TargetGroup: "target-group-AF3",
+			Priority:    3,
+		}, {
+			Desc:        "forwarding-group-AF4",
+			QueueName:   queues.AF4,
+			TargetGroup: "target-group-AF4",
+			Priority:    4,
+		}, {
+			Desc:        "forwarding-group-NC1",
+			QueueName:   queues.NC1,
+			TargetGroup: "target-group-NC1",
+			Priority:    5,
+		}}
 
-	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
-	for _, tc := range forwardingGroups {
-		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
-
-		t.Logf("QoS forwarding groups config: %v", forwardingGroups)
-	}
+	cfgplugins.NewForwardingGroup(t, dut, q, forwardingGroups)
 
 	t.Logf("Create QoS Classifiers config")
-	classifiers := []struct {
-		desc        string
-		name        string
-		classType   oc.E_Qos_Classifier_Type
-		termID      string
-		targetGroup string
-		dscpSet     []uint8
-	}{{
-		desc:        "classifier_mpls_be1",
-		name:        "dscp_based_classifier_mpls",
-		classType:   oc.Qos_Classifier_Type_MPLS,
-		termID:      "0",
-		targetGroup: "target-group-BE1",
-		dscpSet:     []uint8{0},
-	}, {
-		desc:        "classifier_mpls_af1",
-		name:        "dscp_based_classifier_mpls",
-		classType:   oc.Qos_Classifier_Type_MPLS,
-		termID:      "1",
-		targetGroup: "target-group-AF1",
-		dscpSet:     []uint8{1},
-	}, {
-		desc:        "classifier_mpls_af2",
-		name:        "dscp_based_classifier_mpls",
-		classType:   oc.Qos_Classifier_Type_MPLS,
-		termID:      "2",
-		targetGroup: "target-group-AF2",
-		dscpSet:     []uint8{2},
-	}, {
-		desc:        "classifier_mpls_af3",
-		name:        "dscp_based_classifier_mpls",
-		classType:   oc.Qos_Classifier_Type_MPLS,
-		termID:      "3",
-		targetGroup: "target-group-AF3",
-		dscpSet:     []uint8{3},
-	}, {
-		desc:        "classifier_mpls_af4",
-		name:        "dscp_based_classifier_mpls",
-		classType:   oc.Qos_Classifier_Type_MPLS,
-		termID:      "4",
-		targetGroup: "target-group-AF4",
-		dscpSet:     []uint8{4, 5},
-	}, {
-		desc:        "classifier_mpls_nc1",
-		name:        "dscp_based_classifier_mpls",
-		classType:   oc.Qos_Classifier_Type_MPLS,
-		termID:      "5",
-		targetGroup: "target-group-NC1",
-		dscpSet:     []uint8{6, 7},
-	}}
+	classifiers := []cfgplugins.QosClassifier{
+		{
+			Desc:        "classifier_mpls_be1",
+			Name:        "dscp_based_classifier_mpls",
+			ClassType:   oc.Qos_Classifier_Type_MPLS,
+			TermID:      "0",
+			TargetGroup: "target-group-BE1",
+			DscpSet:     []uint8{0},
+		}, {
+			Desc:        "classifier_mpls_af1",
+			Name:        "dscp_based_classifier_mpls",
+			ClassType:   oc.Qos_Classifier_Type_MPLS,
+			TermID:      "1",
+			TargetGroup: "target-group-AF1",
+			DscpSet:     []uint8{1},
+		}, {
+			Desc:        "classifier_mpls_af2",
+			Name:        "dscp_based_classifier_mpls",
+			ClassType:   oc.Qos_Classifier_Type_MPLS,
+			TermID:      "2",
+			TargetGroup: "target-group-AF2",
+			DscpSet:     []uint8{2},
+		}, {
+			Desc:        "classifier_mpls_af3",
+			Name:        "dscp_based_classifier_mpls",
+			ClassType:   oc.Qos_Classifier_Type_MPLS,
+			TermID:      "3",
+			TargetGroup: "target-group-AF3",
+			DscpSet:     []uint8{3},
+		}, {
+			Desc:        "classifier_mpls_af4",
+			Name:        "dscp_based_classifier_mpls",
+			ClassType:   oc.Qos_Classifier_Type_MPLS,
+			TermID:      "4",
+			TargetGroup: "target-group-AF4",
+			DscpSet:     []uint8{4, 5},
+		}, {
+			Desc:        "classifier_mpls_nc1",
+			Name:        "dscp_based_classifier_mpls",
+			ClassType:   oc.Qos_Classifier_Type_MPLS,
+			TermID:      "5",
+			TargetGroup: "target-group-NC1",
+			DscpSet:     []uint8{6, 7},
+		}}
 
 	t.Logf("QoS classifiers config: %v", classifiers)
 	if deviations.MplsExpIngressClassifierOcUnsupported(dut) {
 		configureMplsExpClassifierCLI(t, dut, classifiers)
 	} else {
-		for _, tc := range classifiers {
-			classifier := q.GetOrCreateClassifier(tc.name)
-			classifier.SetName(tc.name)
-			classifier.SetType(tc.classType)
 
-			term, err := classifier.NewTerm(tc.termID)
-			if err != nil {
-				t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
-			}
-
-			term.SetId(tc.termID)
-			action := term.GetOrCreateActions()
-			action.SetTargetGroup(tc.targetGroup)
-			condition := term.GetOrCreateConditions()
-			condition.GetOrCreateMpls().SetTrafficClass(tc.dscpSet[0])
-			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-		}
+		cfgplugins.NewClassifierConfiguration(t, dut, q, classifiers)
 
 		t.Logf("Create QoS input classifier config")
 		classifierIntfs := []struct {
@@ -2166,187 +1966,100 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	t.Logf("Create QoS scheduler policies config")
-	schedulerPolicies := []struct {
-		desc        string
-		sequence    uint32
-		setPriority bool
-		priority    oc.E_Scheduler_Priority
-		inputID     string
-		inputType   oc.E_Input_InputType
-		setWeight   bool
-		queueName   string
-		targetGroup string
-	}{{
-		desc:        "scheduler-policy-BE1",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "BE1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.BE1,
-		targetGroup: "target-group-BE1",
-	}, {
-		desc:        "scheduler-policy-AF1",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF1,
-		targetGroup: "target-group-AF1",
-	}, {
-		desc:        "scheduler-policy-AF2",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF2",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF2,
-		targetGroup: "target-group-AF2",
-	}, {
-		desc:        "scheduler-policy-AF3",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF3",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF3,
-		targetGroup: "target-group-AF3",
-	}, {
-		desc:        "scheduler-policy-AF4",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "AF4",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.AF4,
-		targetGroup: "target-group-AF4",
-	}, {
-		desc:        "scheduler-policy-NC1",
-		sequence:    uint32(0),
-		setPriority: true,
-		setWeight:   false,
-		priority:    oc.Scheduler_Priority_STRICT,
-		inputID:     "NC1",
-		inputType:   oc.Input_InputType_QUEUE,
-		queueName:   queues.NC1,
-		targetGroup: "target-group-NC1",
-	}}
+	schedulerPolicies := []cfgplugins.SchedulerPolicy{
+		{
+			Desc:        "scheduler-policy-BE1",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "BE1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.BE1,
+			TargetGroup: "target-group-BE1",
+		}, {
+			Desc:        "scheduler-policy-AF1",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF1,
+			TargetGroup: "target-group-AF1",
+		}, {
+			Desc:        "scheduler-policy-AF2",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF2",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF2,
+			TargetGroup: "target-group-AF2",
+		}, {
+			Desc:        "scheduler-policy-AF3",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF3",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF3,
+			TargetGroup: "target-group-AF3",
+		}, {
+			Desc:        "scheduler-policy-AF4",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "AF4",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.AF4,
+			TargetGroup: "target-group-AF4",
+		}, {
+			Desc:        "scheduler-policy-NC1",
+			Sequence:    uint32(0),
+			SetPriority: true,
+			SetWeight:   false,
+			Priority:    oc.Scheduler_Priority_STRICT,
+			InputID:     "NC1",
+			InputType:   oc.Input_InputType_QUEUE,
+			QueueName:   queues.NC1,
+			TargetGroup: "target-group-NC1",
+		}}
 
-	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
-	schedulerPolicy.SetName("scheduler")
-	t.Logf("QoS scheduler policies config: %v", schedulerPolicies)
-	for _, tc := range schedulerPolicies {
-		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
-		s.SetSequence(tc.sequence)
-		if tc.setPriority {
-			s.SetPriority(tc.priority)
-		}
-		input := s.GetOrCreateInput(tc.inputID)
-		input.SetId(tc.inputID)
-		input.SetInputType(tc.inputType)
-		input.SetQueue(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
 
 	t.Logf("Create QoS output interface config")
-	schedulerIntfs := []struct {
-		desc      string
-		queueName string
-		scheduler string
-	}{{
-		desc:      "output-interface-BE1",
-		queueName: queues.BE1,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF1",
-		queueName: queues.AF1,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF2",
-		queueName: queues.AF2,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF3",
-		queueName: queues.AF3,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-AF4",
-		queueName: queues.AF4,
-		scheduler: "scheduler",
-	}, {
-		desc:      "output-interface-NC1",
-		queueName: queues.NC1,
-		scheduler: "scheduler",
-	}}
+	schedulerIntfs := []cfgplugins.QoSSchedulerInterface{
+		{
+			Desc:      "output-interface-BE1",
+			QueueName: queues.BE1,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF1",
+			QueueName: queues.AF1,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF2",
+			QueueName: queues.AF2,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF3",
+			QueueName: queues.AF3,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-AF4",
+			QueueName: queues.AF4,
+			Scheduler: "scheduler",
+		}, {
+			Desc:      "output-interface-NC1",
+			QueueName: queues.NC1,
+			Scheduler: "scheduler",
+		}}
 
-	t.Logf("QoS output interface config: %v", schedulerIntfs)
-	for _, tc := range schedulerIntfs {
-		i := q.GetOrCreateInterface(dp3.Name())
-		i.SetInterfaceId(dp3.Name())
-		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
-		if deviations.InterfaceRefConfigUnsupported(dut) {
-			i.InterfaceRef = nil
-		}
-		output := i.GetOrCreateOutput()
-		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
-		schedulerPolicy.SetName(tc.scheduler)
-		queue := output.GetOrCreateQueue(tc.queueName)
-		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
-}
-
-func configureQoSGlobalParams(t *testing.T, dut *ondatra.DUTDevice) {
-
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qosQNameSet := `
-	configure terminal
-	!
-	qos tx-queue %d name %s
-	!
-	`
-	qosMapTC := `
-	configure terminal
-	!
-	qos map traffic-class %d to tx-queue %d
-	!
-	`
-
-	qosCfgTargetGroup := `
-	configure terminal
-	!
-	qos traffic-class %d name %s
-	!
-	`
-
-	runCliCommand(t, dut, "show version")
-
-	qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
-	for index, queue := range qList {
-
-		runCliCommand(t, dut, fmt.Sprintf(qosQNameSet, index, queue))
-		time.Sleep(time.Second)
-		runCliCommand(t, dut, fmt.Sprintf(qosMapTC, index, index))
-		time.Sleep(time.Second)
-		runCliCommand(t, dut, fmt.Sprintf(qosCfgTargetGroup, index, fmt.Sprintf("target-group-%s", queue)))
-		time.Sleep(time.Second)
-	}
+	cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
 
 }
 
@@ -2369,169 +2082,7 @@ func buildCliSetRequest(config string) *gpb.SetRequest {
 	return gpbSetRequest
 }
 
-func configureTcamProfile(t *testing.T, dut *ondatra.DUTDevice) {
-
-	tcamProfileConfig := `
-hardware counter feature traffic-policy in
-!
-hardware tcam
-  profile ancx
-    feature acl port ip
-        sequence 45
-        key size limit 160
-        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control ttl
-        action count drop mirror
-        packet ipv4 forwarding bridged
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet ipv4 non-vxlan forwarding routed decap
-        packet ipv4 vxlan eth ipv4 forwarding routed decap
-        packet ipv4 vxlan forwarding bridged decap
-    feature acl port ip egress mpls-tunnelled-match
-        sequence 95
-    feature acl port ipv6
-        sequence 25
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-ops-3b l4-src-port src-ipv6-high src-ipv6-low tcp-control
-        action count drop mirror
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-        packet ipv6 forwarding routed multicast
-        packet ipv6 ipv6 forwarding routed decap
-    feature acl port ipv6 egress
-        sequence 105
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
-        action count drop mirror
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-    feature acl port mac
-        sequence 55
-        key size limit 160
-        key field dst-mac ether-type src-mac
-        action count drop mirror
-        packet ipv4 forwarding bridged
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet ipv4 non-vxlan forwarding routed decap
-        packet ipv4 vxlan forwarding bridged decap
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-        packet ipv6 forwarding routed decap
-        packet ipv6 forwarding routed multicast
-        packet ipv6 ipv6 forwarding routed decap
-        packet mpls forwarding bridged decap
-        packet mpls ipv4 forwarding mpls
-        packet mpls ipv6 forwarding mpls
-        packet mpls non-ip forwarding mpls
-        packet non-ip forwarding bridged
-    feature acl vlan ipv6 egress
-        sequence 20
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
-        action count drop mirror
-        packet ipv6 forwarding bridged
-        packet ipv6 forwarding routed
-    feature counter lfib
-        sequence 85
-    feature forwarding-destination mpls
-        sequence 100
-    feature mirror ip
-        sequence 80
-        key size limit 160
-        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
-        action count mirror set-policer
-        packet ipv4 forwarding bridged
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 non-vxlan forwarding routed decap
-    feature mpls
-        sequence 5
-        key size limit 160
-        action drop redirect set-ecn
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet mpls ipv4 forwarding mpls
-        packet mpls ipv6 forwarding mpls
-        packet mpls non-ip forwarding mpls
-    feature mpls pop ingress
-        sequence 90
-    feature pbr mpls
-        sequence 65
-        key size limit 160
-        key field mpls-inner-ip-tos
-        action count drop redirect
-        packet mpls ipv4 forwarding mpls
-        packet mpls ipv6 forwarding mpls
-        packet mpls non-ip forwarding mpls
-    feature qos ip
-        sequence 75
-        key size limit 160
-        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
-        action set-dscp set-policer set-tc
-        packet ipv4 forwarding routed
-        packet ipv4 forwarding routed multicast
-        packet ipv4 mpls ipv4 forwarding mpls decap
-        packet ipv4 mpls ipv6 forwarding mpls decap
-        packet ipv4 non-vxlan forwarding routed decap
-    feature qos ipv6
-        sequence 70
-        key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low
-        action set-dscp set-policer set-tc
-        packet ipv6 forwarding routed
-    feature traffic-policy port ipv4
-        sequence 45
-        key size limit 160
-        key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
-        action count drop redirect set-dscp set-tc
-        packet ipv4 forwarding routed
-    feature traffic-policy port ipv4 egress
-        key size limit 160
-        key field dscp dst-ip-label ip-frag ip-protocol l4-dst-port-label l4-src-port-label src-ip-label
-        action count drop
-        packet ipv4 forwarding routed
-    feature traffic-policy port ipv6
-        sequence 25
-        key size limit 160
-        key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
-        action count drop redirect set-dscp set-tc
-        packet ipv6 forwarding routed
-    feature traffic-policy port ipv6 egress
-        key size limit 160
-        key field dscp dst-ipv6-label ipv6-next-header l4-dst-port-label l4-src-port-label src-ipv6-label
-        action count drop
-        packet ipv6 forwarding routed
-    feature tunnel vxlan
-        sequence 50
-        key size limit 160
-        packet ipv4 vxlan eth ipv4 forwarding routed decap
-        packet ipv4 vxlan forwarding bridged decap
-  system profile ancx
-!
-    `
-
-	if dut.Vendor() != ondatra.ARISTA || strings.ToLower(dut.Model()) == "ceos" {
-		t.Logf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
-		return
-	}
-
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	t.Logf("Push the Tcam profile:%s", dut.Vendor())
-	gpbSetRequest := buildCliSetRequest(tcamProfileConfig)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Failed to set TCAM profile from CLI: %v", err)
-	}
-}
-
-func configureMplsExpClassifierCLI(t *testing.T, dut *ondatra.DUTDevice, classifiers []struct {
-	desc        string
-	name        string
-	classType   oc.E_Qos_Classifier_Type
-	termID      string
-	targetGroup string
-	dscpSet     []uint8
-}) {
+func configureMplsExpClassifierCLI(t *testing.T, dut *ondatra.DUTDevice, classifiers []cfgplugins.QosClassifier) {
 
 	qosMapCmd := fmt.Sprintf(`
 	mpls ip
@@ -2545,8 +2096,8 @@ func configureMplsExpClassifierCLI(t *testing.T, dut *ondatra.DUTDevice, classif
 	`
 
 	for _, classifier := range classifiers {
-		tc := classifier.termID
-		for _, exp := range classifier.dscpSet {
+		tc := classifier.TermID
+		for _, exp := range classifier.DscpSet {
 			qosMapCmd += fmt.Sprintf(qosMapExp, exp, tc)
 			t.Logf(qosMapExp, exp, tc)
 
