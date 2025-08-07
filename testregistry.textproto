@@ -1214,6 +1214,11 @@ test: {
   exec: " "
 }
 test: {
+  id: "Storage-1.1"
+  description: "Storage Error Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/storage/README.md"
+}
+test: {
   id: "System-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/tests/system_base_test/README.md"
 }
