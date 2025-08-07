@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -46,12 +47,14 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
-		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
+		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		nhAddress := fmt.Sprintf("192.%d.2.1", i)
 		for j := 0; j < 254; j++ {
-			staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
+			sr1 := staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
+			nh1 := sr1.GetOrCreateNextHop("0")
+			nh1.NextHop = oc.UnionString(nhAddress)
 		}
 	}
-
 	gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
 }
 
@@ -59,42 +62,43 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	startTime := time.Now()
 	sendOversizedPayload(t, dut)
-	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
+	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
-	if err != nil {
-		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
-	}
-
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(startTime),
 	})
 	if err != nil {
-		t.Fatalf("Failed sending record request, error: %s", err)
+		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
-
 	for {
 		r := make(chan recordRequestResult)
-
 		go func(r chan recordRequestResult) {
 			var response *acctzpb.RecordResponse
 			response, err = acctzSubClient.Recv()
+			if err != nil {
+				r <- recordRequestResult{
+					err: err,
+				}
+				return
+			}
+
 			r <- recordRequestResult{
 				record: response,
 				err:    err,
 			}
 		}(r)
-
 		var done bool
 		var resp recordRequestResult
 
 		select {
 		case rr := <-r:
 			resp = rr
-		case <-time.After(10 * time.Second):
+			if resp.err != nil {
+				t.Fatalf("Failed receiving record response, error: %s", resp.err)
+			}
+		case <-time.After(30 * time.Second):
 			done = true
 		}
-
 		if done {
 			t.Fatal("Done receiving records and did not find our record...")
 		}
