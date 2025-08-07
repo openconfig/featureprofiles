@@ -17,7 +17,6 @@ package egressp4rt_test
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
