@@ -180,6 +180,8 @@ func TestRouterLastRebootTime(t *testing.T) {
 
 			reloadRouterWithRebootMethod(t, dut, rebootMethod)
 
+			time.Sleep(time.Minute * 3)
+
 			lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).LastRebootTime().State())
 
 			if lastRebootTimeAfter < lastRebootTimeBefore {
@@ -230,6 +232,8 @@ func TestLCReloadLastRebootTime(t *testing.T) {
 
 			reloadLineCardsWithRebootMethod(t, dut, rebootMethod)
 
+			time.Sleep(time.Minute * 3)
+
 			for _, lc := range linecards {
 				lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(lc).LastRebootTime().State())
 				if lastRebootTimeAfter < rebootTimes[lc] {
@@ -251,6 +255,8 @@ func TestRPFOLastRebootTime(t *testing.T) {
 	lastRebootTimeBefore := gnmi.Get(t, dut, gnmi.OC().Component(rpActive).LastRebootTime().State())
 
 	utils.Dorpfo(context.Background(), t, false)
+
+	time.Sleep(time.Minute * 3)
 
 	lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(rpActive).LastRebootTime().State())
 
