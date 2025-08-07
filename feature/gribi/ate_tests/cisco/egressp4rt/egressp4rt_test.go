@@ -96,19 +96,28 @@ func baseconfig(t *testing.T) {
 	}
 }
 
-func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
+func addDefaultRouteviaGRIBI(t *testing.T, args *testArgs) {
 	t.Helper()
-	d := gnmi.OC()
-	s := &oc.Root{}
-	static := s.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
-	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv4)
-	gnmi.Update(t, dut, d.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
-
-	ipv6nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
-	ipv6nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv6)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+	// Add recycle entry
+	args.client.AddNH(t, vipNH(3), "", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, baseNHG(1001), 0, map[uint64]uint64{vipNH(3): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
 }
+
+// func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
+// 	t.Helper()
+// 	d := gnmi.OC()
+// 	s := &oc.Root{}
+// 	static := s.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
+// 	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
+// 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv4)
+// 	gnmi.Update(t, dut, d.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
+
+// 	ipv6nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
+// 	ipv6nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv6)
+// 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+// }
 
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -1248,7 +1257,8 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	baseconfig(t)
 
 	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
-	addStaticRoute(t, dut)
+	// addStaticRoute(t, dut)
+	addDefaultRouteviaGRIBI(t, args)
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,

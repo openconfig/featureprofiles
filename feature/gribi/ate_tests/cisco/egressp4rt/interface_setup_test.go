@@ -378,3 +378,32 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 	dutConf := dev.GetOrCreateRoutingPolicy()
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
+
+const (
+	// vipIP = "192.0.2.155"
+	// dummyIP  = ""
+	// magicMac = "00:00:00:00:00:00"
+	// for Interface prefix
+	baseNHOffset  = 0
+	baseNHGOffset = 100
+	// for VIP prefix
+	vipNHOffset  = 200
+	vipNHGOffset = 300
+	// // for Tunnel Prefix
+	// tunNHOffset  = 400
+	// tunNHGOffset = 500
+	// // for encap
+	// encapNHOffset  = 600
+	// encapNHGOffset = 700
+	// for decap
+	decapNHOffset  = 800
+	decapNHGOffset = 900
+	InstalledInFIB
+	innerV4DstIP = "198.18.1.1"
+	innerV4SrcIP = "198.18.0.255"
+	InnerV6SrcIP = "2001:DB8::198:1"
+	InnerV6DstIP = "2001:DB8:2:0:192::10"
+)
+
+func baseNHG(i uint64) uint64 { return i + baseNHGOffset }
+func vipNH(i uint64) uint64   { return i + vipNHOffset }
