@@ -86,6 +86,9 @@ def _get_go_bin_path():
     return os.path.join(_get_go_path(), 'bin')
 
 def _get_venv_path(ws=None):
+    if os.path.exists("/auto/b4ws/firex/venv"):
+        # Use the shared venv if it exists
+        return "/auto/b4ws/firex/venv"
     return os.path.join(_get_user_nobackup_path(ws), 'b4_firex_venv')
 
 def _get_venv_python_bin(ws):
