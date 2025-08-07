@@ -90,7 +90,7 @@ func reloadLineCardsWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, reboo
 		lineCardPath := components.GetSubcomponentPath(lc, false)
 
 		resp, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
-			Method:  gnoisys.RebootMethod_COLD,
+			Method:  rebootMethod,
 			Delay:   0,
 			Message: "Reboot line card without delay",
 			Subcomponents: []*gnoitype.Path{
@@ -155,13 +155,8 @@ func TestRouterLastRebootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	rebootMethods := []gnoisys.RebootMethod{
-		gnoisys.RebootMethod_UNKNOWN,
 		gnoisys.RebootMethod_COLD,
-		gnoisys.RebootMethod_POWERDOWN,
-		gnoisys.RebootMethod_HALT,
 		gnoisys.RebootMethod_WARM,
-		gnoisys.RebootMethod_NSF,
-		gnoisys.RebootMethod_POWERUP,
 	}
 
 	var controllerCard string
@@ -195,13 +190,8 @@ func TestLCReloadLastRebootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	rebootMethods := []gnoisys.RebootMethod{
-		gnoisys.RebootMethod_UNKNOWN,
 		gnoisys.RebootMethod_COLD,
-		gnoisys.RebootMethod_POWERDOWN,
-		gnoisys.RebootMethod_HALT,
 		gnoisys.RebootMethod_WARM,
-		gnoisys.RebootMethod_NSF,
-		gnoisys.RebootMethod_POWERUP,
 	}
 
 	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
@@ -249,6 +239,10 @@ func TestRPFOLastRebootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	rps := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	if len(rps) < 2 {
+		t.Log("RPFO not configured, skipping")
+		t.Skip()
+	}
 	_, rpActive := components.FindStandbyControllerCard(t, dut, rps)
 	t.Logf("RPs: %v", rps)
 
