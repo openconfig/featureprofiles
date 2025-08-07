@@ -284,6 +284,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, traffictype string) {
 }
 
 func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
+	t.Helper()
 	if clearFlows {
 		top.Flows().Clear()
 	}
