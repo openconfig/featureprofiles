@@ -6,15 +6,17 @@ This directory contains the DCGate vendor test suite implementing various encaps
 
 The DCGate test suite validates the functionality of IP-in-IP encapsulation, ECMP (Equal-Cost Multi-Path) routing, and traffic engineering features on Cisco networking devices. It implements test cases as defined in the TE-16.1 vendor testplan.
 
+Note:
+https://miggbo.atlassian.net/wiki/x/1g3TPQ
+
 ## Test Files
 
 ### Core Test Files
 
 - **`dcgate_base_test.go`** - Base test infrastructure and common utilities
-- **`dcgate_encap_test.go`** - Basic encapsulation functionality tests  
+- **`dcgate_encap_test.go`** - Basic encapsulation functionality tests
 - **`dcgate_frr_test.go`** - Fast Re-Route (FRR) and backup path tests
 - **`dcgate_regionalization_test.go`** - Regionalization and VRF-specific tests
-- **`fib_chains_test.go`** - FIB chain validation tests
 
 ### Configuration Files
 
