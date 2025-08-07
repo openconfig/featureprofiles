@@ -381,29 +381,8 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-func shutPorts(t *testing.T, args *testArgs, ports []string) {
-	t.Logf("Shutting down ports %v", ports)
-	for _, port := range ports {
-		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, port).Name()).Subinterface(0).Enabled().Config(), false)
-	}
-}
-func unshutPorts(t *testing.T, args *testArgs, ports []string) {
-	t.Logf("Unshutting ports %v", ports)
-	for _, port := range ports {
-		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, port).Name()).Subinterface(0).Enabled().Config(), true)
-	}
-	time.Sleep(5 * time.Second)
-}
-func configureVIP(t *testing.T, args *testArgs) {
-
-	args.client.AddNH(t, baseNH(4), atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, baseNHG(4), 0, map[uint64]uint64{baseNH(4): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, cidr(vipIP, 32), baseNHG(4), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-
-}
-
 const (
-	vipIP = "192.0.2.155"
+	// vipIP = "192.0.2.155"
 	// dummyIP  = ""
 	// magicMac = "00:00:00:00:00:00"
 	// for Interface prefix
@@ -428,6 +407,5 @@ const (
 	InnerV6DstIP = "2001:DB8:2:0:192::10"
 )
 
-func baseNH(i uint64) uint64  { return i + baseNHOffset }
 func baseNHG(i uint64) uint64 { return i + baseNHGOffset }
 func vipNH(i uint64) uint64   { return i + vipNHOffset }
