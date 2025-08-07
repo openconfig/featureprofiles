@@ -476,42 +476,6 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 		var portid, portidin, portIDe, portIDin string
 
 		p, IDMap := mapPortID(t, args, dut)
-		// p1 := dut.Port(t, "port1")
-		// p2 := dut.Port(t, "port2")
-		// p3 := dut.Port(t, "port3")
-		// p4 := dut.Port(t, "port4")
-		// p5 := dut.Port(t, "port5")
-		// p6 := dut.Port(t, "port6")
-		// p7 := dut.Port(t, "port7")
-		// p8 := dut.Port(t, "port8")
-		// if args.memberCount == 16 {
-		// 	p9 := dut.Port(t, "port9")
-		// 	p10 := dut.Port(t, "port10")
-		// 	p11 := dut.Port(t, "port11")
-		// 	p12 := dut.Port(t, "port12")
-		// 	p13 := dut.Port(t, "port13")
-		// 	p14 := dut.Port(t, "port14")
-		// 	p15 := dut.Port(t, "port15")
-		// }
-		// p16 := dut.Port(t, "port16")
-
-		// var IDMap = map[string]string{
-		// 	p1.Name():  "10",
-		// 	p2.Name():  "11",
-		// 	p3.Name():  "12",
-		// 	p4.Name():  "13",
-		// 	p5.Name():  "14",
-		// 	p6.Name():  "15",
-		// 	p7.Name():  "27",
-		// 	p8.Name():  "16",
-		// 	p9.Name():  "18",
-		// 	p10.Name(): "19",
-		// 	p11.Name(): "20",
-		// 	p12.Name(): "21",
-		// 	p13.Name(): "22",
-		// 	p14.Name(): "23",
-		// 	p15.Name(): "24",
-		// }
 
 		if c == 5 || c == 6 {
 			c1 = 6
@@ -987,41 +951,6 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 
 		var portid, portidin, portIDe, portIDin string
 		p, IDMap := mapPortID(t, args, dut)
-		// p1 := dut.Port(t, "port1")
-		// p2 := dut.Port(t, "port2")
-		// p3 := dut.Port(t, "port3")
-		// p4 := dut.Port(t, "port4")
-		// p5 := dut.Port(t, "port5")
-		// p6 := dut.Port(t, "port6")
-		// p7 := dut.Port(t, "port7")
-		// p8 := dut.Port(t, "port8")
-		// p9 := dut.Port(t, "port9")
-		// p10 := dut.Port(t, "port10")
-		// p11 := dut.Port(t, "port11")
-		// p12 := dut.Port(t, "port12")
-		// p13 := dut.Port(t, "port13")
-		// p14 := dut.Port(t, "port14")
-		// p15 := dut.Port(t, "port15")
-		// // p16 := dut.Port(t, "port16")
-
-		// var IDMap = map[string]string{
-		// 	p1.Name():  "10",
-		// 	p2.Name():  "11",
-		// 	p3.Name():  "12",
-		// 	p4.Name():  "13",
-		// 	p5.Name():  "14",
-		// 	p6.Name():  "15",
-		// 	p7.Name():  "27",
-		// 	p8.Name():  "16",
-		// 	p9.Name():  "18",
-		// 	p10.Name(): "19",
-		// 	p11.Name(): "20",
-		// 	p12.Name(): "21",
-		// 	p13.Name(): "22",
-		// 	p14.Name(): "23",
-		// 	p15.Name(): "24",
-		// 	// p16.Name(): "25",
-		// }
 
 		if c == 5 || c == 6 {
 			c1 = 6
@@ -1610,41 +1539,6 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		}
 		var portid, portidin, portIDe, portIDin string
 		p, IDMap := mapPortID(t, args, args.dut)
-		// p1 := dut.Port(t, "port1")
-		// p2 := dut.Port(t, "port2")
-		// p3 := dut.Port(t, "port3")
-		// p4 := dut.Port(t, "port4")
-		// p5 := dut.Port(t, "port5")
-		// p6 := dut.Port(t, "port6")
-		// p7 := dut.Port(t, "port7")
-		// p8 := dut.Port(t, "port8")
-		// p9 := dut.Port(t, "port9")
-		// p10 := dut.Port(t, "port10")
-		// p11 := dut.Port(t, "port11")
-		// p12 := dut.Port(t, "port12")
-		// p13 := dut.Port(t, "port13")
-		// p14 := dut.Port(t, "port14")
-		// p15 := dut.Port(t, "port15")
-		// // p16 := dut.Port(t, "port16")
-
-		// var IDMap = map[string]string{
-		// 	p1.Name():  "10",
-		// 	p2.Name():  "11",
-		// 	p3.Name():  "12",
-		// 	p4.Name():  "13",
-		// 	p5.Name():  "14",
-		// 	p6.Name():  "15",
-		// 	p7.Name():  "27",
-		// 	p8.Name():  "16",
-		// 	p9.Name():  "18",
-		// 	p10.Name(): "19",
-		// 	p11.Name(): "20",
-		// 	p12.Name(): "21",
-		// 	p13.Name(): "22",
-		// 	p14.Name(): "23",
-		// 	p15.Name(): "24",
-		// 	// p16.Name(): "25",
-		// }
 
 		if c == 5 || c == 6 {
 			c1 = 6
@@ -1912,11 +1806,5 @@ func mapPortID(t *testing.T, args *testArgs, dut *ondatra.DUTDevice) ([]*ondatra
 		p[i] = dut.Port(t, portName)
 		IDMap[p[i].Name()] = ids[i]
 	}
-
-	// Port IDs for the ports
-
-	// for i := range p {
-	// 	IDMap[p[i+1].Name()] = ids[i]
-	// }
 	return p, IDMap
 }
