@@ -1,11 +1,15 @@
 # cfgplugins package
 
+## Goal
+
 The [contributing guide](https://github.com/openconfig/featureprofiles/blob/main/CONTRIBUTING.md)
 specifies that cfgplugins should be used for DUT configuration generation.  
 
 The goal of the featureprofiles cfgplugins is to provide a library of functions that generate
 resuable configuration snippets. These in turn are used to compose configurations used in
 featureprofiles tests.  
+
+## Implementing cfgplugins
 
 Each function in cfgplugins should define some struct to store attributes which is passed the
 configuration generation function.   The code in the function should construct and return an ondatra
@@ -20,3 +24,12 @@ by in the batch object.  Here is a simple
 The idea behind placing the .Set call in the test code is this is what is modifying the DUT and
 is what is being tested.  In other words, we are not testing the configuration generation helper,
 but rather we are testing if the DUT will accept the configuration.
+
+## Deviations and cfgplugins
+
+Deviations affecting configuration generation should be placed into the cfgplugins.  This way
+the deviation can be used consistently across all tests.  It also arguably makes the deviation
+more maintainable and discoverable.  To permanently remove a deviation, the configuration is in
+a small handful of cfgplugs versus written into the code of every test in the repository needing
+it.   If you want to configure a static MPLS LSP, the cfgplugin should contain the needed
+deviations without the author needing to stumble across them by searching all tests.
