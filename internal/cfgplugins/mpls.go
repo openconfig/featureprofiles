@@ -152,7 +152,7 @@ func NewStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 }
 
 // RemoveStaticMplsLspSwapLabel removes a static MPLS LSP and swaps label.
-func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, mplsSwapLabelTo uint32) {
+func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, mplsSwapLabelTo uint32) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
 		switch dut.Vendor() {
@@ -160,7 +160,7 @@ func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 
 			cliConfig = fmt.Sprintf(`
 				no mpls static top-label %v %s swap-label %v
-				`, incomingLabel, atePort2.IPv4, mplsSwapLabelTo)
+				`, incomingLabel, nextHopIP, mplsSwapLabelTo)
 
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
