@@ -195,6 +195,10 @@ func TestLCReloadLastRebootTime(t *testing.T) {
 	}
 
 	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	if len(lcs) < 2 {
+		t.Log("No linecards, skipping")
+		t.Skip()
+	}
 
 	linecards := []string{}
 
