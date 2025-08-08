@@ -259,10 +259,12 @@ func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-
+	var memberCount int
 	// Configure DUT ports.
 	//dutPort1.configInterfaceDUT(t, dut, 10)
 	d := gnmi.OC()
+	memberCount = len(dut.Ports())
+	t.Logf("Total number of ports in the DUT: %d", memberCount)
 
 	p1 := dut.Port(t, "port1")
 
@@ -284,9 +286,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	intfPath = gnmi.OC().Interface(p3.Name())
 	gnmi.Update(t, dut, intfPath.Config(), i3)
 
-	//dutPort2.configInterfaceDUT(t, dut, 11)
-	//dutPort3.configInterfaceDUT(t, dut, 12)
-
 	p2 := dut.Port(t, "port2")
 
 	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
@@ -298,25 +297,47 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	intfPath = gnmi.OC().Interface(p2.Name())
 	gnmi.Update(t, dut, intfPath.Config(), i21)
 
-	//dutPort5.configInterfaceDUT(t, dut, 14)
-	//dutPort6.configInterfaceDUT(t, dut)
-
-	p5 := dut.Port(t, "port5")
-
 	i5 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
 	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configBunInterfaceDUT(i5, &dutPort5.Attributes))
-	BE125 := generateBundleMemberInterfaceConfig(t, p5.Name(), *i5.Name)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p5.Name()).Config(), BE125)
 
-	i51 := &oc.Interface{Name: ygot.String(p5.Name()), Id: ygot.Uint32(14)}
-	intfPath = gnmi.OC().Interface(p5.Name())
-	gnmi.Update(t, dut, intfPath.Config(), i51)
+	// Add ports 9, 10, 11, and 12 as members of Bundle-Ether125
+	ports5 := []string{"port5"}
+	ids5 := []uint32{14} // Assign unique IDs for each port
+	if memberCount >= 16 {
+		ports5 = []string{"port5", "port9", "port10", "port11", "port12"}
+		ids5 = []uint32{14, 18, 19, 20, 21} // Assign unique IDs for each port
+	}
+	for i, portName := range ports5 {
+		port := dut.Port(t, portName)
+		BE125 := generateBundleMemberInterfaceConfig(t, port.Name(), *i5.Name)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), BE125)
 
-	p7 := dut.Port(t, "port7")
+		memberInterface := &oc.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(ids5[i])}
+		intfPath = gnmi.OC().Interface(port.Name())
+		gnmi.Update(t, dut, intfPath.Config(), memberInterface)
+	}
+
+	// Configure Bundle-Ether126
 	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
 	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configBunInterfaceDUT(i7, &dutPort7.Attributes))
-	BE126 := generateBundleMemberInterfaceConfig(t, p7.Name(), *i7.Name)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p7.Name()).Config(), BE126)
+
+	// Add ports 7, 13, 14, 15, and 16 as members of Bundle-Ether126
+	ports7 := []string{"port7"}
+	ids7 := []uint32{27} // Assign unique IDs for each port
+	if memberCount >= 16 {
+		ports7 = []string{"port7", "port13", "port14", "port15"}
+		ids7 = []uint32{27, 22, 23, 24} // Assign unique IDs for each port
+	}
+	for i, portName := range ports7 {
+		port := dut.Port(t, portName)
+		BE126 := generateBundleMemberInterfaceConfig(t, port.Name(), *i7.Name)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), BE126)
+
+		memberInterface := &oc.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(ids7[i])}
+		intfPath = gnmi.OC().Interface(port.Name())
+		gnmi.Update(t, dut, intfPath.Config(), memberInterface)
+
+	}
 
 	p6 := dut.Port(t, "port6")
 	i8 := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
@@ -378,3 +399,32 @@ func configRP(t *testing.T, dut *ondatra.DUTDevice) {
 	dutConf := dev.GetOrCreateRoutingPolicy()
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
+
+const (
+	// vipIP = "192.0.2.155"
+	// dummyIP  = ""
+	// magicMac = "00:00:00:00:00:00"
+	// for Interface prefix
+	baseNHOffset  = 0
+	baseNHGOffset = 100
+	// for VIP prefix
+	vipNHOffset  = 200
+	vipNHGOffset = 300
+	// // for Tunnel Prefix
+	// tunNHOffset  = 400
+	// tunNHGOffset = 500
+	// // for encap
+	// encapNHOffset  = 600
+	// encapNHGOffset = 700
+	// for decap
+	decapNHOffset  = 800
+	decapNHGOffset = 900
+	InstalledInFIB
+	innerV4DstIP = "198.18.1.1"
+	innerV4SrcIP = "198.18.0.255"
+	InnerV6SrcIP = "2001:DB8::198:1"
+	InnerV6DstIP = "2001:DB8:2:0:192::10"
+)
+
+func baseNHG(i uint64) uint64 { return i + baseNHGOffset }
+func vipNH(i uint64) uint64   { return i + vipNHOffset }

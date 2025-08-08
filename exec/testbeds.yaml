@@ -451,6 +451,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-ATE/basefp.conf
+  8808-ATE-HOTFIX:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-ATE-HOTFIX/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-ATE-HOTFIX/basefp.conf
   8818-18LC:
     sim: true
     topology: topologies/cisco/pyvxr/8818-18LC/topo.yaml
@@ -477,6 +481,12 @@ testbeds:
     baseconf:
       dut1: topologies/cisco/pyvxr/8812-2DUT/DUT1_baseconfig.conf
       dut2: topologies/cisco/pyvxr/8812-2DUT/DUT2_baseconfig.conf
+  8812-2DUT-ATE:    
+    sim: true
+    topology: topologies/cisco/pyvxr/8812-2DUT-ATE/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8812-2DUT-ATE/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8812-2DUT-ATE/DUT2_baseconfig.conf
   8818-ATE-16P:
     sim: true
     topology: topologies/cisco/pyvxr/8818-ATE-16P/topo.yaml

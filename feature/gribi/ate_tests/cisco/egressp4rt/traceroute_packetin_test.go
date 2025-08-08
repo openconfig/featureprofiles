@@ -142,7 +142,7 @@ func getTracerouteParameter() PacketIO {
 func TestEgressp4rt(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-
+	var memberCount int
 	// Configure the DUT
 	baseconfig(t)
 
@@ -190,13 +190,22 @@ func TestEgressp4rt(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
+	// find the totoal number of ports in the DUT
+	totalPorts := dut.Ports()
+	t.Logf("Total number of ports in the DUT: %d", len(totalPorts))
+	if len(totalPorts) < 8 {
+		t.Fatalf("DUT has less than 8 ports, got %d", len(totalPorts))
+	}
+	memberCount = len(totalPorts)
+
 	args := &testArgs{
-		ctx:      ctx,
-		leader:   leader,
-		follower: follower,
-		dut:      dut,
-		ate:      ate,
-		top:      top,
+		ctx:         ctx,
+		leader:      leader,
+		follower:    follower,
+		dut:         dut,
+		ate:         ate,
+		top:         top,
+		memberCount: memberCount,
 	}
 
 	if err := setupP4RTClient(args, deviceId, stream); err != nil {

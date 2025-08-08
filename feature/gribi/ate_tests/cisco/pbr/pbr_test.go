@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -37,9 +38,8 @@ const (
 	protocolNumv6         = 41
 	rebootDelay           = 120
 	oneSecondInNanoSecond = 1e9
+	vrfTE                 = "TE"
 )
-
-// var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -332,6 +332,172 @@ func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+}
+
+func getorCreateSubInterface(dutPort *attrs.Attributes, index uint32, vlanID uint16) *oc.Interface_Subinterface {
+	s := &oc.Interface_Subinterface{}
+	s.Enabled = ygot.Bool(true)
+	s.Index = ygot.Uint32(index)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(dutPort.IPv4)
+	a.PrefixLength = ygot.Uint8(dutPort.IPv4Len)
+	v := s.GetOrCreateVlan()
+	m := v.GetOrCreateMatch()
+	if index != 0 {
+		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+	}
+	return s
+}
+
+func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes) *oc.Interface {
+	i.Description = ygot.String(dutPort.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	if dutPort.Desc == "dutPort1" {
+		if dutPort.MAC != "" {
+			e := i.GetOrCreateEthernet()
+			e.MacAddress = ygot.String(dutPort.MAC)
+		}
+	}
+	i.AppendSubinterface(getorCreateSubInterface(dutPort, 0, 0))
+	return i
+}
+
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	d := gnmi.OC()
+	dutPorts := sortPorts(dut.Ports())
+	p1 := dutPorts[0]
+	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configInterfaceDUT(i1, &dutPort1))
+	BE120 := generateBundleMemberInterfaceConfig(p1.Name(), *i1.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE120)
+
+	p2 := dutPorts[1]
+	i2 := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
+	gnmi.Replace(t, dut, d.Interface(*i2.Name).Config(), configInterfaceDUT(i2, &dutPort2))
+	BE121 := generateBundleMemberInterfaceConfig(p2.Name(), *i2.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), BE121)
+
+	p3 := dutPorts[2]
+	i3 := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
+	gnmi.Replace(t, dut, d.Interface(*i3.Name).Config(), configInterfaceDUT(i3, &dutPort3))
+	BE122 := generateBundleMemberInterfaceConfig(p3.Name(), *i3.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Config(), BE122)
+
+	p4 := dutPorts[3]
+	i4 := &oc.Interface{Name: ygot.String("Bundle-Ether123")}
+	gnmi.Replace(t, dut, d.Interface(*i4.Name).Config(), configInterfaceDUT(i4, &dutPort4))
+	BE123 := generateBundleMemberInterfaceConfig(p4.Name(), *i4.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p4.Name()).Config(), BE123)
+
+	p5 := dutPorts[4]
+	i5 := &oc.Interface{Name: ygot.String("Bundle-Ether124")}
+	gnmi.Replace(t, dut, d.Interface(*i5.Name).Config(), configInterfaceDUT(i5, &dutPort5))
+	BE124 := generateBundleMemberInterfaceConfig(p5.Name(), *i5.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p5.Name()).Config(), BE124)
+
+	p6 := dutPorts[5]
+	i6 := &oc.Interface{Name: ygot.String("Bundle-Ether125")}
+	gnmi.Replace(t, dut, d.Interface(*i6.Name).Config(), configInterfaceDUT(i6, &dutPort6))
+	BE125 := generateBundleMemberInterfaceConfig(p6.Name(), *i6.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p6.Name()).Config(), BE125)
+
+	p7 := dutPorts[6]
+	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
+	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configInterfaceDUT(i7, &dutPort7))
+	BE126 := generateBundleMemberInterfaceConfig(p7.Name(), *i7.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p7.Name()).Config(), BE126)
+
+	p8 := dutPorts[7]
+	i8 := &oc.Interface{Name: ygot.String("Bundle-Ether127")}
+	gnmi.Replace(t, dut, d.Interface(*i8.Name).Config(), configInterfaceDUT(i8, &dutPort8))
+	BE127 := generateBundleMemberInterfaceConfig(p8.Name(), *i8.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p8.Name()).Config(), BE127)
+
+	t.Log("Configure VRFs")
+	configureNetworkInstance(t, dut)
+}
+
+// configRP, configures route_policy for BGP
+func configRP(t *testing.T, dut *ondatra.DUTDevice) {
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateRoutingPolicy()
+	pdef := inst.GetOrCreatePolicyDefinition("ALLOW")
+	stmt1, _ := pdef.AppendNewStatement("1")
+	stmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	dutNode := gnmi.OC().RoutingPolicy()
+	dutConf := dev.GetOrCreateRoutingPolicy()
+	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+}
+
+const (
+	PTISIS         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	DUTAreaAddress = "47.0001"
+	DUTSysID       = "0000.0000.0001"
+	ISISName       = "B4"
+	PTBGP          = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	BGPAS          = 65000
+)
+
+// addISISOC, configures ISIS on DUT
+func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceNames []string) {
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", DUTAreaAddress, DUTSysID)}
+	glob.LevelCapability = 2
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+
+	for _, ifaceName := range ifaceNames {
+		intf := isis.GetOrCreateInterface(ifaceName)
+		intf.CircuitType = oc.E_Isis_CircuitType(oc.Isis_LevelType_LEVEL_2)
+		intf.Enabled = ygot.Bool(true)
+		intf.HelloPadding = 1
+		if ifaceName == "Loopback0" {
+			intf.Passive = ygot.Bool(true)
+		} else {
+			intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		}
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		level := isis.GetOrCreateLevel(2)
+		level.MetricStyle = 2
+	}
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
+	gnmi.Replace(t, dut, dutNode.Config(), dutConf)
+}
+
+// addBGPOC, configures ISIS on DUT
+func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbors []string) {
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
+	bgp := prot.GetOrCreateBgp()
+	glob := bgp.GetOrCreateGlobal()
+	glob.As = ygot.Uint32(BGPAS)
+	glob.RouterId = ygot.String("1.1.1.1")
+	glob.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
+	glob.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
+	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP")
+	pg.PeerAs = ygot.Uint32(64001)
+	pg.LocalAs = ygot.Uint32(63001)
+	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP")
+	for _, neighbor := range neighbors {
+		peer := bgp.GetOrCreateNeighbor(neighbor)
+		peer.PeerGroup = ygot.String("BGP-PEER-GROUP")
+		peer.GetOrCreateEbgpMultihop().Enabled = ygot.Bool(true)
+		peer.GetOrCreateEbgpMultihop().MultihopTtl = ygot.Uint8(255)
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ImportPolicy = []string{"ALLOW"}
+		peer.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy().ExportPolicy = []string{"ALLOW"}
+	}
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
+	gnmi.Replace(t, dut, dutNode.Config(), dutConf)
 }
 
 // Remove flowspec and add as pbr
