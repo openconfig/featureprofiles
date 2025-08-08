@@ -60,7 +60,7 @@ func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, l
 	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
-// NewStaticMplsLspPopLabel configures static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on device
+// NewStaticMplsLspPopLabel configures static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on the device.
 func NewStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string, protocolType string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
