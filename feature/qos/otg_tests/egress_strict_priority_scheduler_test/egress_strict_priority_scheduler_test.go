@@ -1456,7 +1456,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 			Priority:    5,
 		}}
 
-	cfgplugins.NewForwardingGroup(t, dut, q, forwardingGroups)
+	cfgplugins.NewQoSForwardingGroup(t, dut, q, forwardingGroups)
 
 	t.Logf("Create QoS Classifiers config")
 	classifiers := []cfgplugins.QosClassifier{
@@ -1504,7 +1504,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 			DscpSet:     []uint8{6, 7},
 		}}
 
-	cfgplugins.NewClassifierConfiguration(t, dut, q, classifiers)
+	q = cfgplugins.NewQoSClassifierConfiguration(t, dut, q, classifiers)
 
 	t.Logf("Create QoS input classifier config")
 	classifierIntfs := []struct {
@@ -1593,7 +1593,7 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 			TargetGroup: "target-group-NC1",
 		}}
 
-	cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
+	q = cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
 
 	t.Logf("Create QoS output interface config")
 	schedulerIntfs := []cfgplugins.QoSSchedulerInterface{
@@ -1623,7 +1623,8 @@ func ConfigureDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
 			Scheduler: "scheduler",
 		}}
 
-	cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+	q = cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 }
 
@@ -1671,7 +1672,7 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 			Priority:    5,
 		}}
 
-	cfgplugins.NewForwardingGroup(t, dut, q, forwardingGroups)
+	cfgplugins.NewQoSForwardingGroup(t, dut, q, forwardingGroups)
 
 	t.Logf("Create QoS Classifiers config")
 	classifiers := []cfgplugins.QosClassifier{
@@ -1719,7 +1720,7 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 			DscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
 		}}
 
-	cfgplugins.NewClassifierConfiguration(t, dut, q, classifiers)
+	q = cfgplugins.NewQoSClassifierConfiguration(t, dut, q, classifiers)
 
 	t.Logf("Create QoS input classifier config")
 	classifierIntfs := []struct {
@@ -1808,7 +1809,7 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 			TargetGroup: "target-group-NC1",
 		}}
 
-	cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
+	q = cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
 
 	t.Logf("Create QoS output interface config")
 	schedulerIntfs := []cfgplugins.QoSSchedulerInterface{
@@ -1838,7 +1839,8 @@ func ConfigureDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 			Scheduler: "scheduler",
 		}}
 
-	cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+	q = cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 }
 
@@ -1886,7 +1888,7 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 			Priority:    5,
 		}}
 
-	cfgplugins.NewForwardingGroup(t, dut, q, forwardingGroups)
+	cfgplugins.NewQoSForwardingGroup(t, dut, q, forwardingGroups)
 
 	t.Logf("Create QoS Classifiers config")
 	classifiers := []cfgplugins.QosClassifier{
@@ -1939,7 +1941,7 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 		configureMplsExpClassifierCLI(t, dut, classifiers)
 	} else {
 
-		cfgplugins.NewClassifierConfiguration(t, dut, q, classifiers)
+		q = cfgplugins.NewQoSClassifierConfiguration(t, dut, q, classifiers)
 
 		t.Logf("Create QoS input classifier config")
 		classifierIntfs := []struct {
@@ -2029,7 +2031,7 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 			TargetGroup: "target-group-NC1",
 		}}
 
-	cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
+	q = cfgplugins.NewQoSSchedulerPolicy(t, dut, q, schedulerPolicies)
 
 	t.Logf("Create QoS output interface config")
 	schedulerIntfs := []cfgplugins.QoSSchedulerInterface{
@@ -2059,7 +2061,8 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 			Scheduler: "scheduler",
 		}}
 
-	cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+	q = cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 }
 

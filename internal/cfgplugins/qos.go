@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
@@ -111,7 +110,7 @@ func NewQosInitialize(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func NewClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, classifiers []QosClassifier) {
+func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, classifiers []QosClassifier) *oc.Qos {
 
 	t.Logf("QoS classifiers config: %v", classifiers)
 	for _, tc := range classifiers {
@@ -130,13 +129,11 @@ func NewClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos,
 		action.SetTargetGroup(tc.TargetGroup)
 		condition := term.GetOrCreateConditions()
 		condition.GetOrCreateIpv4().SetDscpSet(tc.DscpSet)
-
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
-
+	return q
 }
 
-func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, policies []SchedulerPolicy) {
+func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, policies []SchedulerPolicy) *oc.Qos {
 
 	t.Logf("QoS scheduler policy config: %v", policies)
 	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
@@ -152,20 +149,18 @@ func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, poli
 		input.SetId(tc.InputID)
 		input.SetInputType(tc.InputType)
 		input.SetQueue(tc.QueueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
+	return q
 }
 
-func NewForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, forwardingGroups []ForwardingGroup) {
+func NewQoSForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, forwardingGroups []ForwardingGroup) {
 	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
 	for _, tc := range forwardingGroups {
 		qoscfg.SetForwardingGroup(t, dut, q, tc.TargetGroup, tc.QueueName)
-
-		t.Logf("QoS forwarding groups config: %v", forwardingGroups)
 	}
 }
 
-func NewQoSSchedulerInterface(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, schedulerIntfs []QoSSchedulerInterface, schedulerPort string) {
+func NewQoSSchedulerInterface(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, schedulerIntfs []QoSSchedulerInterface, schedulerPort string) *oc.Qos {
 	t.Logf("QoS output interface config: %v", schedulerIntfs)
 	schPort := dut.Port(t, schedulerPort)
 	for _, tc := range schedulerIntfs {
@@ -180,8 +175,8 @@ func NewQoSSchedulerInterface(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, s
 		schedulerPolicy.SetName(tc.Scheduler)
 		queue := output.GetOrCreateQueue(tc.QueueName)
 		queue.SetName(tc.QueueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
+	return q
 }
 
 func NewQoSQueue(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos) {
