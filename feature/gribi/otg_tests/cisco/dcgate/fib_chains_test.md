@@ -57,7 +57,7 @@ go test -v fib_chains_test.go
 Encap Dcgate Optimized Chain diagram showing FIB chain topologies with labeled VRFs, Prefixes, VIPs, NHGs, NHs and Ports. The diagram illustrates primary, frr1 (aka decap+encap tunnel path) and frr2 (aka decap tunnel path) paths between devices, with arrows indicating prefix lookup in various VRFs and operations performed on the prefix.
 Any changes to the fibchains code should be in accordance with the below diagrams.
 
-![Encap Dcgate Optimized Chain]
+![Encap Dcgate Optimized Chain](image-1.png)
 ![Transit Dcgate Optimized Chain](image-2.png)
 ![Transit Dcgate UnOptimized Chain](image-3.png)
 ![Transit Popgate Optimized Chain](image-4.png)
