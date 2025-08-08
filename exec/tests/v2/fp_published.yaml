@@ -1172,7 +1172,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-4_ZRP (Telemetry 400ZRP RX input and TX output power telemetry values streaming)
-    path: feature/platform/transceiver/tests/zr_input_output_power_test
+    path: feature/platform/transceiver/tests/zrp_input_output_power_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
