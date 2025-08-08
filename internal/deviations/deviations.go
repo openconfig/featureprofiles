@@ -1670,3 +1670,13 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
 }
+
+// Mpls static pseudowire returns true if oc is not supported
+func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsStaticPseudowireOcUnsupported()
+}
+
+// Vlan client encapsulation returns true if oc is not supported
+func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
+}

@@ -53,6 +53,8 @@ Validations = []packetvalidationhelpers.ValidationType{
 2. Validate the IPV6 header (ValidateIPv6Header).
 */
 
+var packetSource *gopacket.PacketSource
+
 // IPv4 and IPv6 are the IP protocol types.
 const (
 	IPv4 = "IPv4"
@@ -122,8 +124,10 @@ type GreLayer struct {
 
 // MPLSLayer holds MPLS layer properties
 type MPLSLayer struct {
-	Label uint32
-	Tc    uint8
+	Label               uint32
+	Tc                  uint8
+	ControlWordHeader   bool
+	ControlWordSequence uint32
 }
 
 // TCPLayer holds the TCP layer parameters.
@@ -167,8 +171,8 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	if _, err := f.Write(bytes); err != nil {
 		return fmt.Errorf("could not write bytes to pcap file: %v", err)
 	}
-	defer os.Remove(f.Name()) // Clean up the temporary file
-	f.Close()
+	// defer os.Remove(f.Name()) // Clean up the temporary file
+	// f.Close()
 
 	handle, err := pcap.OpenOffline(f.Name())
 	if err != nil {
@@ -177,7 +181,7 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	}
 	defer handle.Close()
 
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	packetSource = gopacket.NewPacketSource(handle, handle.LinkType())
 
 	// Iterate over the validations specified in packetVal.Validations.
 	for _, validation := range packetVal.Validations {
@@ -230,7 +234,7 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Log("Validating IPv4 header")
 
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
+		// t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
@@ -369,6 +373,18 @@ func validateMPLSLayer(t *testing.T, packetSource *gopacket.PacketSource, packet
 			if mpls.TrafficClass != packetVal.MPLSLayer.Tc {
 				return fmt.Errorf("mpls traffic class is not set properly. expected: %d, actual: %d", packetVal.MPLSLayer.Tc, mpls.TrafficClass)
 			}
+
+			if packetVal.MPLSLayer.ControlWordHeader {
+				if len(mpls.Payload) >= 4 {
+					controlWord := mpls.Payload[:4]
+					if uint16(controlWord[0])<<8|uint16(controlWord[1]) == uint16(packetVal.MPLSLayer.ControlWordSequence) {
+						t.Logf("%v (32-bit field ) control word is inserted between the MPLS label stack and the Layer 2 payload (the Ethernet frame).0", packetVal.MPLSLayer.ControlWordSequence)
+					}
+				} else {
+					t.Errorf("Control Word header not found")
+				}
+			}
+
 			// If validation is successful for one packet, we can return.
 			return nil
 		}
@@ -428,4 +444,9 @@ func ConfigurePacketCapture(t *testing.T, top gosnappi.Config, packetVal *Packet
 	top.Captures().Add().SetName(packetVal.CaptureName).
 		SetPortNames(ports).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
+}
+
+// To get the packet captured on the port
+func GetPacketSource() *gopacket.PacketSource {
+	return packetSource
 }
