@@ -4,4 +4,26 @@
 uuid: "fddf5a4c-ace7-464a-8f2b-70ccf3254b84"
 plan_id: "PF-1.23"
 description: "EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_8LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    aggregate_atomic_update: true
+    interface_enabled: true
+    default_network_instance: "default"
+    next_hop_group_config_unsupported: true
+    mpls_unsupported: true
+    mpls_label_classification_unsupported: true
+    qos_classification_unsupported: true
+    policy_forwarding_unsupported: true
+    interface_policy_forwarding_unsupported: true
+    policy_forwarding_to_next_hop_unsupported: true
+    policy_forwarding_gre_encapsulation_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
+    macsec_unsupported: true
+    mpls_static_pseudowire_oc_unsupported: true
+    vlan_client_encapsulation_oc_unsupported: true
+  }
+}
