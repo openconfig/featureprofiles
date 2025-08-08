@@ -94,6 +94,7 @@ func NewStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName stri
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
+// RemoveStaticMplsLspPopLabel removes static MPLS POP label binding using CLI with deviation, if OC is unsupported on the device.
 func RemoveStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string, protocolType string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
