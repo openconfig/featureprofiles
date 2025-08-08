@@ -34,6 +34,15 @@ func ConfigureDefaultNetworkInstance(t testing.TB, d *ondatra.DUTDevice) {
 	})
 }
 
+// ConfigureCustomNetworkInstance configures a non-default network instance name and type.
+func ConfigureCustomNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni string) {
+	defNiPath := gnmi.OC().NetworkInstance(ni)
+	gnmi.Update(t, d, defNiPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(ni),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	})
+}
+
 // AssignToNetworkInstance attaches a subinterface to a network instance.
 func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
 	t.Helper()
@@ -48,8 +57,31 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	}
 	netInstIntf.Interface = ygot.String(intf.GetName())
 	netInstIntf.Subinterface = ygot.Uint32(si)
-	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
+	switch d.Vendor() {
+	case ondatra.ARISTA:
+		netInstIntf.Id = ygot.String(intf.GetName())
+	case ondatra.CISCO:
+		netInstIntf.Id = ygot.String(intf.GetName())
+	case ondatra.NOKIA:
+		netInstIntf.Id = ygot.String(intf.GetName())
+	case ondatra.JUNIPER:
+		netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
+	default:
+		netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
+	}
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
+}
+
+// CreateGNMIServer creates a gNMI server on the DUT on a given network-instance.
+func CreateGNMIServer(t testing.TB, d *ondatra.DUTDevice, ni string) {
+	gnmiServerPath := gnmi.OC().System().GrpcServer(ni)
+	gnmi.Update(t, d, gnmiServerPath.Config(), &oc.System_GrpcServer{
+		Name:            ygot.String(ni),
+		Port:            ygot.Uint16(9339),
+		Enable:          ygot.Bool(true),
+		NetworkInstance: ygot.String(ni),
+		// Services:        []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+	})
 }
