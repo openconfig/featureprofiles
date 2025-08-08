@@ -1182,7 +1182,7 @@ tests:
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-5 (Configuration 400ZR channel frequency, output TX launch power and operational mode setting)
-    path: feature/platform/transceiver/tunable_parameters/tests/zr_tunable_parameters_test
+    path: feature/platform/transceiver/tests/zr_tunable_parameters_test
     priority: 2
     owners:
       - mananpat
