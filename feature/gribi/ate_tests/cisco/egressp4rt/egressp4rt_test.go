@@ -15,6 +15,7 @@
 package egressp4rt_test
 
 import (
+	"fmt"
 	"net"
 
 	"strings"
@@ -482,23 +483,8 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			outDst = inDst
 		}
 		var portid, portidin, portIDe, portIDin string
-		p1 := dut.Port(t, "port1")
-		p2 := dut.Port(t, "port2")
-		p3 := dut.Port(t, "port3")
-		p4 := dut.Port(t, "port4")
-		p5 := dut.Port(t, "port5")
-		p6 := dut.Port(t, "port6")
-		p8 := dut.Port(t, "port8")
 
-		var IDMap = map[string]string{
-			p1.Name(): "10",
-			p2.Name(): "11",
-			p3.Name(): "12",
-			p4.Name(): "13",
-			p5.Name(): "14",
-			p6.Name(): "15",
-			p8.Name(): "16",
-		}
+		p, IDMap := mapPortID(t, args, dut)
 
 		if c == 5 || c == 6 {
 			c1 = 6
@@ -517,35 +503,45 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
+		var inputPorts, inputPort1 []string
+		portinps := []string{p[0].Name(), p[2].Name()}
+		switch {
+		case args.memberCount == 16:
+			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name(), p[4].Name(), p[8].Name(), p[9].Name(), p[10].Name(), p[11].Name(), p[12].Name(), p[13].Name(), p[14].Name(), p[6].Name()}
+			inputPort1 = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
+		case args.memberCount == 8:
+			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
+			inputPort1 = inputPorts
+		}
 		if len(opts) != 0 {
 			for _, opt := range opts {
 				if opt.ptcp == 4 {
 
 					if flap == "flap" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcpd: tcpd, tcps: tcps})
 						args.interfaceaction(t, "port2", false)
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else if flap == "flap1" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
 
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else {
 
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					}
 				} else if opt.pudp == 8 {
 					if flap == "flap" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
@@ -553,24 +549,24 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 
 					} else if flap == "flap1" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
 
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 
 					} else {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 					}
 				}
 			}
 		} else {
 			if flap == "flap" {
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 				t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 				args.interfaceaction(t, "port2", false)
@@ -578,18 +574,18 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 				args.interfaceaction(t, "port4", false)
 				args.interfaceaction(t, "port6", false)
 				args.interfaceaction(t, "port8", false)
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 
 			} else if flap == "flap1" {
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 				t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 				args.interfaceaction(t, "port2", false)
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 
 			} else {
 
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps})
 			}
 		}
 		portIDe = IDMap[portid]
@@ -963,23 +959,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 		udps = uint16(rand.Intn(8000-1) + 1)
 
 		var portid, portidin, portIDe, portIDin string
-		p1 := dut.Port(t, "port1")
-		p2 := dut.Port(t, "port2")
-		p3 := dut.Port(t, "port3")
-		p4 := dut.Port(t, "port4")
-		p5 := dut.Port(t, "port5")
-		p6 := dut.Port(t, "port6")
-		p8 := dut.Port(t, "port8")
-
-		var IDMap = map[string]string{
-			p1.Name(): "10",
-			p2.Name(): "11",
-			p3.Name(): "12",
-			p4.Name(): "13",
-			p5.Name(): "14",
-			p6.Name(): "15",
-			p8.Name(): "16",
-		}
+		p, IDMap := mapPortID(t, args, dut)
 
 		if c == 5 || c == 6 {
 			c1 = 6
@@ -998,13 +978,22 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-
+		var inputPorts, inputPort1 []string
+		portinps := []string{p[0].Name(), p[2].Name()}
+		switch args.memberCount {
+		case 16:
+			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name(), p[4].Name(), p[8].Name(), p[9].Name(), p[10].Name(), p[11].Name(), p[12].Name(), p[13].Name(), p[14].Name(), p[7].Name()}
+			inputPort1 = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
+		case 8:
+			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
+			inputPort1 = inputPorts
+		}
 		if len(opts) != 0 {
 			for _, opt := range opts {
 				if opt.ptcp == 4 {
 
 					if flap == "flap" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcpd: tcpd, tcps: tcps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
@@ -1012,22 +1001,22 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else if flap == "flap1" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					}
 				} else if opt.pudp == 8 {
 					if flap == "flap" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
@@ -1035,25 +1024,25 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 
 					} else if flap == "flap1" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 
 					} else {
 
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 
 					}
 				}
 			}
 		} else {
 			if flap == "flap" {
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 				t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 				args.interfaceaction(t, "port2", false)
@@ -1061,19 +1050,19 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 				args.interfaceaction(t, "port4", false)
 				args.interfaceaction(t, "port6", false)
 				args.interfaceaction(t, "port8", false)
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 
 			} else if flap == "flap1" {
 
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 				t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 				args.interfaceaction(t, "port2", false)
 
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 
 			} else {
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps})
 			}
 		}
 		portIDe = IDMap[portid]
@@ -1559,23 +1548,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			outDst = inDst
 		}
 		var portid, portidin, portIDe, portIDin string
-		p1 := dut.Port(t, "port1")
-		p2 := dut.Port(t, "port2")
-		p3 := dut.Port(t, "port3")
-		p4 := dut.Port(t, "port4")
-		p5 := dut.Port(t, "port5")
-		p6 := dut.Port(t, "port6")
-		p8 := dut.Port(t, "port8")
-
-		var IDMap = map[string]string{
-			p1.Name(): "10",
-			p2.Name(): "11",
-			p3.Name(): "12",
-			p4.Name(): "13",
-			p5.Name(): "14",
-			p6.Name(): "15",
-			p8.Name(): "16",
-		}
+		p, IDMap := mapPortID(t, args, args.dut)
 
 		if c == 5 || c == 6 {
 			c1 = 6
@@ -1594,13 +1567,22 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
-
+		var inputPorts, inputPort1 []string
+		portinps := []string{p[0].Name(), p[2].Name()}
+		switch args.memberCount {
+		case 16:
+			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name(), p[4].Name(), p[8].Name(), p[9].Name(), p[10].Name(), p[11].Name(), p[12].Name(), p[13].Name(), p[14].Name(), p[6].Name()}
+			inputPort1 = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
+		case 8:
+			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
+			inputPort1 = inputPorts
+		}
 		if len(opts) != 0 {
 			for _, opt := range opts {
 				if opt.ptcp == 4 {
 
 					if flap == "flap" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcpd: tcpd, tcps: tcps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
@@ -1608,22 +1590,22 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else if flap == "flap1" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
 
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 
 					} else {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}, tcp: true, tcpd: tcpd, tcps: tcps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps, tcp: true, tcpd: tcpd, tcps: tcps})
 					}
 				} else if opt.pudp == 8 {
 					if flap == "flap" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
@@ -1631,24 +1613,24 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 						args.interfaceaction(t, "port4", false)
 						args.interfaceaction(t, "port6", false)
 						args.interfaceaction(t, "port8", false)
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 
 					} else if flap == "flap1" {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 						t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 						args.interfaceaction(t, "port2", false)
 
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 
 					} else {
-						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}, udp: true, udpd: udpd, udps: udps})
+						portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps, udp: true, udpd: udpd, udps: udps})
 					}
 				}
 			}
 		} else {
 			if flap == "flap" {
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 				t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 				args.interfaceaction(t, "port2", false)
@@ -1656,20 +1638,20 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 				args.interfaceaction(t, "port4", false)
 				args.interfaceaction(t, "port6", false)
 				args.interfaceaction(t, "port8", false)
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 
 			} else if flap == "flap1" {
 
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 				t.Logf("Egress & Ingress port ids before flap %v %v", portid, portidin)
 
 				args.interfaceaction(t, "port2", false)
 
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name(), p5.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPorts, portinp: portinps})
 
 			} else {
 
-				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: []string{p2.Name(), p4.Name(), p6.Name(), p8.Name()}, portinp: []string{p1.Name(), p3.Name()}})
+				portid, portidin, _ = testTraffic(t, args.ate, args.top, c, true, true, sourceport, 10, 20, inDst.String(), inSrc.String(), outDst.String(), outSrc.String(), &Countoptions{portin: inputPort1, portinp: portinps})
 			}
 		}
 		portIDe = IDMap[portid]
@@ -1813,4 +1795,26 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 
 	}
 
+}
+
+func mapPortID(t *testing.T, args *testArgs, dut *ondatra.DUTDevice) ([]*ondatra.Port, map[string]string) {
+
+	// Mapping port ID to port name
+	var memberCount int
+	p := make([]*ondatra.Port, args.memberCount)
+	IDMap := make(map[string]string)
+	ids := []string{"10", "11", "12", "13", "14", "15", "27", "16", "18", "19", "20", "21", "22", "23", "24"}
+
+	switch args.memberCount {
+	case 16:
+		memberCount = 15
+	case 8:
+		memberCount = args.memberCount
+	}
+	for i := 0; i < memberCount; i++ {
+		portName := fmt.Sprintf("port%d", i+1)
+		p[i] = dut.Port(t, portName)
+		IDMap[p[i].Name()] = ids[i]
+	}
+	return p, IDMap
 }
