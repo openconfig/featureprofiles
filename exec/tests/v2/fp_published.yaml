@@ -1215,7 +1215,6 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [zrp]
-    pr: 4188
   - name: TRANSCEIVER-8 (Telemetry 400ZR Optics module temperature streaming.)
     path: feature/platform/transceiver/temperature/tests/zr_temperature_test
     priority: 2
@@ -1277,7 +1276,6 @@ tests:
     mustpass: true
     timeout: 4200
     internal: false
-    pr: 4028
   - name: TRANSCEIVER-11_ZRP (Telemetry 400ZRP Optics logical channels provisioning and related telemetry)
     path: feature/platform/transceiver/tests/zrp_logical_channels_test
     priority: 2
@@ -1289,7 +1287,6 @@ tests:
     timeout: 4200
     groups: [zrp]
     internal: false
-    pr: 4028
   - name: TRANSCEIVER-12 (Telemetry 400ZR Transceiver Supply Voltage streaming.)
     path: feature/platform/transceiver/supply_voltage/tests/zr_supply_voltage_test
     priority: 2
