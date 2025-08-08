@@ -1121,3 +1121,76 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params
 		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
 	}
 }
+
+func CreatePolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleName string, traffictype string, nhGrpName string) {
+	t.Helper()
+
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.PolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		cli := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			// Select and apply the appropriate CLI snippet based on 'traffictype'.
+			cli = fmt.Sprintf(`
+				traffic-policies
+				traffic-policy %s
+      			match %s %s
+         		actions
+            	redirect next-hop group %s`, policyName, ruleName, traffictype, nhGrpName)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			// Log a message if the vendor is not supported for this specific CLI deviation.
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	}
+}
+
+func ConfigurePolicyForwardingNextHopFromOC(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, rule uint32, dstAddr []string, srcAddr []string, nexthopGroupName string) {
+	policy := pf.GetOrCreatePolicy(policyName)
+	policy.Type = oc.Policy_Type_PBR_POLICY
+
+	rule1 := policy.GetOrCreateRule(rule)
+	rule1.GetOrCreateTransport()
+	if len(dstAddr) != 0 {
+		for _, addr := range dstAddr {
+			rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
+		}
+	}
+	if len(srcAddr) != 0 {
+		for _, addr := range srcAddr {
+			rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
+		}
+	}
+	rule1.GetOrCreateAction().SetNextHop(nexthopGroupName)
+}
+
+func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", interfaceName, policyName))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	} else {
+		policyForward := ni.GetOrCreatePolicyForwarding()
+		ApplyPolicyToInterfaceOC(t, policyForward, params.InterfaceID, params.AppliedPolicyName)
+	}
+}
+
+// InterfaceQosClassificationConfig configures the interface qos classification.
+func InterfaceQosClassificationConfigApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
+	if deviations.QosClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s\n service-policy type qos input af3 \n", interfaceName))
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+		}
+	}
+}
