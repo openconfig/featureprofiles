@@ -812,19 +812,21 @@ func TestGNOIreboot(t *testing.T) {
 
 		//Initial snapshot of leaves
 		for _, transceiver := range transceivers {
-			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			transceiverDesc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
+			if strings.Contains(transceiverDesc, "ZR") && !strings.Contains(transceiverDesc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
-				before_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
-				beforeStateMap[transceiver] = before_state
+				beforeState := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
+				beforeStateMap[transceiver] = beforeState
 			}
 		}
 	}
 
-	port_state := true
+	// Set port state boolean to True to not check for PreFecBer and QValue
+	portState := true
+
 	// Iterate over the map (beforeStateMap)
 	for transceiver, before_state := range beforeStateMap {
-		checkleaves(t, dut, transceiver, before_state, port_state)
+		checkleaves(t, dut, transceiver, before_state, portState)
 	}
 
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
@@ -851,17 +853,17 @@ func TestGNOIreboot(t *testing.T) {
 		})
 	}
 
-	gnoiClient, error := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	if error != nil {
-		t.Fatalf("Failed to dial GNOI client: %v", error)
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to dial GNOI client: %v", err)
 	}
 	for i, c := range cases {
 		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), c.rebootRequest)
 		if err != nil {
-			fmt.Printf("Reboot failed for case %d (%s): %v\n", i, c.desc, err)
+			t.Logf("Reboot failed for case %d (%s): %v\n", i, c.desc, err)
 			continue
 		}
-		fmt.Printf("Reboot response for case %d (%s): %v\n", i, c.desc, rebootResponse)
+		t.Logf("Reboot response for case %d (%s): %v\n", i, c.desc, rebootResponse)
 	}
 
 	awaitPortsState(t, dut, timeout, samplingInterval, oc.Interface_OperStatus_UP)
@@ -875,23 +877,19 @@ func TestGNOIreboot(t *testing.T) {
 		//Initial snapshot of leaves
 		for _, transceiver := range transceivers {
 
-			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			transceiverDesc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
+			if strings.Contains(transceiverDesc, "ZR") && !strings.Contains(transceiverDesc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
-				after_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
-				afterStateMap[transceiver] = after_state
+				afterState := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
+				afterStateMap[transceiver] = afterState
 			}
 		}
 	}
 
-	port_state = false
 	// Iterate over the map (afterStateMap)
-	for transceiver, after_state := range afterStateMap {
-		checkleaves(t, dut, transceiver, after_state, port_state)
+	for transceiver, afterState := range afterStateMap {
+		checkleaves(t, dut, transceiver, afterState, portState)
 	}
-
-	// t.Logf("Un-Shutting down the port %s", dut.Port(t, "port1").Name())
-	// cfgplugins.ToggleInterface(t, dut, dut.Port(t, "port1").Name(), true)
 
 	t.Logf("All Gnmi leaves received successfully after GNOI port reboot")
 
