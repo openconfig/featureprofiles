@@ -71,7 +71,7 @@ func (om *OperationalModeList) String() string {
 // Set sets the list of operational modes from the string representation.
 func (om *OperationalModeList) Set(value string) error {
 	for _, s := range strings.Split(value, ",") {
-		if v, err := strconv.ParseUint(s, 10, 64); err != nil {
+		if v, err := strconv.ParseUint(s, 10, 16); err != nil {
 			return err
 		} else {
 			*om = append(*om, uint16(v))
