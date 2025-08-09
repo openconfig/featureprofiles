@@ -87,23 +87,23 @@ connections:
       - dut.EightHundredGigE0/0/0/9
       - ate.1/9
     port10:
-      - dut.FourHundredGigE0/0/0/10
+      - dut.EightHundredGigE0/0/0/10
       - ate.1/10
     port11:
-      - dut.FourHundredGigE0/0/0/11
+      - dut.EightHundredGigE0/0/0/11
       - ate.1/11
     port12:
-      - dut.FourHundredGigE0/0/0/12
+      - dut.EightHundredGigE0/0/0/12
       - ate.1/12
     port13:
-      - dut.FourHundredGigE0/0/0/13
+      - dut.EightHundredGigE0/0/0/13
       - ate.1/13
     port14:
-      - dut.FourHundredGigE0/0/0/14
+      - dut.EightHundredGigE0/0/0/14
       - ate.1/14
     port15:
-      - dut.FourHundredGigE0/0/0/15
+      - dut.EightHundredGigE0/0/0/15
       - ate.1/15
     port16:
-      - dut.FourHundredGigE0/0/0/16
+      - dut.EightHundredGigE0/0/0/16
       - ate.1/16
