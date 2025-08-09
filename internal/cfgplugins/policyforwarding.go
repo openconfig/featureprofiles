@@ -572,3 +572,25 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
 	}
 }
+
+func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops []string, labels []int, nexthopsIpv6 []string, labelsforIpv6 []int, ocPFParams OcPolicyForwardingParams) {
+	if deviations.StaticMplsUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var mplsStaticLspConfig string
+			var mplsStaticLspConfigV6 string
+			for i, nexthop := range nexthops {
+				mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", labels[i], nexthop)
+			}
+			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfig)
+			for i, nexthopIpv6 := range nexthopsIpv6 {
+				mplsStaticLspConfigV6 += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", labelsforIpv6[i], nexthopIpv6)
+			}
+			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfigV6)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
+		}
+	} else {
+		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
+	}
+}
