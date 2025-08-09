@@ -146,13 +146,7 @@ Use TE-18.1 test environment setup.
   * Validate packets are received by ATE port 2.
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts and conforming-octets
     * Validate at OTG that 0 packets are lost on flow A and flow B
-  * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
-    * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol.
-    * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
-    * To validate the flow label, use the ATE to verify that the packets for 
-      * flow A all have the same flow label
-      * flow B have the same flow label
-      * flow A and B labels do not match
+  * Flow label comes from entropy.
   * Increase traffic on flow to dest_B to 2Gbps
     * Validate that flow dest_B experiences ~50% packet loss (+/- 1%)
 
