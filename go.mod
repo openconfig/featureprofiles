@@ -11,11 +11,13 @@ require (
 	github.com/golang/glog v1.2.5
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v50 v50.1.0
+	github.com/google/go-tpm v0.9.5
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v1.32.0
+	github.com/openconfig/attestz v0.5.0
 	github.com/openconfig/containerz v0.0.0-20250408205203-029560584812
 	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
 	github.com/openconfig/gnmi v0.14.1
@@ -124,7 +126,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
-	github.com/openconfig/attestz v0.5.0 // indirect
 	github.com/openconfig/bootz v0.5.0 // indirect
 	github.com/openconfig/gnpsi v0.3.2 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
