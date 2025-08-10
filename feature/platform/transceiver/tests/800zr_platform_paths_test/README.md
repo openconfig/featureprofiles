@@ -104,14 +104,14 @@ Validate ZR optics module reports telemetry data for all leaves in
 ### Canonical OC
 ```json
 {
-    "components": {
+    "openconfig-platform:components": {
         "component": [
             {
                 "config": {
                     "name": "Ethernet4/1-Port"
                 },
                 "name": "Ethernet4/1-Port",
-                "port": {
+                "openconfig-platform-port:port": {
                     "breakout-mode": {
                         "groups": {
                             "group": [
@@ -134,7 +134,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "name": "Ethernet4/1-Optical0"
                 },
                 "name": "Ethernet4/1-Optical0",
-                "optical-channel": {
+                "openconfig-platform-port:optical-channel": {
                     "config": {
                         "operational-mode": 1,            
                         "frequency": 192800000,
@@ -144,7 +144,7 @@ Validate ZR optics module reports telemetry data for all leaves in
             }
         ]
     },
-    "terminal-device": {
+    "openconfig-platform-port:terminal-device": {
         "logical-channels": {
             "channel": [
                 {
@@ -203,7 +203,7 @@ Validate ZR optics module reports telemetry data for all leaves in
 }
 ```
 
-## OpenConfig Path and RPC Coverage:
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
