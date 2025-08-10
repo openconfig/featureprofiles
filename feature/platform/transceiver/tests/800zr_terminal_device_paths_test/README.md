@@ -5,7 +5,10 @@
 Validate ZR optics module reports telemetry data for all leaves in
 
 ```yaml
-    /terminal-device/logical-channels/channel/:
+    terminal-device/logical-channels/channel/:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/:
+        logical_channel_type: ["PROT_ETHERNET"]
 ```
 
 ## Procedure
@@ -79,23 +82,6 @@ Validate ZR optics module reports telemetry data for all leaves in
 ### Canonical OC
 ```json
 {
-    "openconfig-interfaces:interfaces": {
-        "interface": [
-            {
-                "config": {
-                    "name": "Ethernet4/1/1",
-                    "type": "ethernetCsmacd"
-                },
-                "name": "Ethernet4/1/1",
-                "openconfig-if-ethernet:ethernet": {
-                    "config": {
-                        "duplex-mode": "FULL",
-                        "port-speed": "SPEED_800GB"
-                    }
-                }
-            }
-        ]
-    },
     "openconfig-platform:components": {
         "component": [
             {
@@ -123,20 +109,14 @@ Validate ZR optics module reports telemetry data for all leaves in
             },
             {
                 "config": {
-                    "name": "Ethernet4/1"
-                },
-                "name": "Ethernet4/1"
-            },
-            {
-                "config": {
                     "name": "Ethernet4/1-Optical0"
                 },
                 "name": "Ethernet4/1-Optical0",
                 "openconfig-platform-port:optical-channel": {
                     "config": {
                         "operational-mode": 1,            
-                        "frequency": "196000000",
-                        "target-output-power": "-7" 
+                        "frequency": 192800000,
+                        "target-output-power": -7
                     }
                 }
             }
@@ -150,7 +130,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                         "assignment": [
                             {
                                 "config": {
-                                    "allocation": "800",
+                                    "allocation": 400,
                                     "assignment-type": "OPTICAL_CHANNEL",
                                     "description": "OTN to optical channel assignment",
                                     "index": 1,
@@ -177,7 +157,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                         "assignment": [
                             {
                                 "config": {
-                                    "allocation": "800",
+                                    "allocation": 400,
                                     "assignment-type": "LOGICAL_CHANNEL",
                                     "description": "ETH to OTN assignment",
                                     "index": 1,
@@ -191,8 +171,8 @@ Validate ZR optics module reports telemetry data for all leaves in
                         "description": "ETH Logical Channel",
                         "index": 80000,
                         "logical-channel-type": "openconfig-transport-types:PROT_ETHERNET",
-                        "rate-class": "openconfig-transport-types:TRIB_RATE_800G",
-                        "trib-protocol": "openconfig-transport-types:PROT_800GE"
+                        "rate-class": "openconfig-transport-types:TRIB_RATE_400G",
+                        "trib-protocol": "openconfig-transport-types:PROT_400GE"
                     }
                 }
             ]
@@ -204,61 +184,121 @@ Validate ZR optics module reports telemetry data for all leaves in
 ## OpenConfig Path and RPC Coverage
 
 ```yaml 
-paths:
     # Config Parameter coverage
-    /interfaces/interface/config/enabled:
-    /interfaces/interface/config/type:
-    /interfaces/interface/ethernet/config/port-speed:
-    /interfaces/interface/ethernet/config/duplex-mode:
-    /components/component/port/breakout-mode/groups/group/config/breakout-speed:
+    interfaces/interface/enabled/config:
+    interfaces/interface/type/config:
+    interfaces/interface/ethernet/port-speed/config:
+    interfaces/interface/ethernet/duplex-mode/config:
+    platform/components/component/port/breakout-mode/groups/group/breakout-speed/config:
         platform_type: ["PORT"]
-    /components/component/port/breakout-mode/groups/group/config/num-breakouts:
+    platform/components/component/port/breakout-mode/groups/group/num-breakouts/config:
         platform_type: ["PORT"]
-    /components/component/port/breakout-mode/groups/group/config/num-physical-channels:
+    platform/components/component/port/breakout-mode/groups/group/num-physical-channels/config:
         platform_type: ["PORT"]
-    /components/component/optical-channel/config/operational-mode:
+    platform/components/component/optical-channel/operational-mode/config:
         platform_type: ["OPTICAL_CHANNEL"]
-    /components/component/optical-channel/config/frequency:
+    platform/components/component/optical-channel/frequency/config:
         platform_type: ["OPTICAL_CHANNEL"]
-    /components/component/optical-channel/config/target-output-power:
+    platform/components/component/optical-channel/target-output-power/config:
         platform_type: ["OPTICAL_CHANNEL"]
-    /terminal-device/logical-channels/channel/config/admin-state:
-    /terminal-device/logical-channels/channel/config/description:
-    /terminal-device/logical-channels/channel/config/logical-channel-type:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
-    /terminal-device/logical-channels/channel/ingress/config/transceiver:
-    /terminal-device/logical-channels/channel/ingress/config/interface:
+    terminal-device/logical-channels/channel/admin-state/cofig:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/description/cofig:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-type/cofig:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/description/cofig:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/assignment-type/cofig:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/optical-channel/cofig:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/allocation/cofig:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/admin-state/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/description/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-type/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/ingress/transceiver/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/ingress/interface/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/description/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/assignment-type/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/logical-channel/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/allocation/cofig:
+        logical_channel_type: ["PROT_ETHERNET"]
     
     # Telemetry Parameter coverage
-    /terminal-device/logical-channels/channel/state/index:
-    /terminal-device/logical-channels/channel/state/description:
-    /terminal-device/logical-channels/channel/state/logical-channel-type:
-    /terminal-device/logical-channels/channel/state/loopback-mode:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel:
-    /terminal-device/logical-channels/channel/otn/state/q-value/instant:
-    /terminal-device/logical-channels/channel/otn/state/q-value/avg:
-    /terminal-device/logical-channels/channel/otn/state/q-value/min:
-    /terminal-device/logical-channels/channel/otn/state/q-value/max:
-    /terminal-device/logical-channels/channel/otn/state/esnr/instant:
-    /terminal-device/logical-channels/channel/otn/state/esnr/avg:
-    /terminal-device/logical-channels/channel/otn/state/esnr/min:
-    /terminal-device/logical-channels/channel/otn/state/esnr/max:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max:
-    /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
-    /terminal-device/logical-channels/channel/ingress/state/interface:
-    /terminal-device/logical-channels/channel/ingress/state/transceiver:
-    /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel:
+    terminal-device/logical-channels/channel/state/index:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/state/description:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/state/logical-channel-type:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/state/loopback-mode:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/q-value/instant:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/q-value/avg:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/q-value/min:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/q-value/max:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/esnr/instant:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/esnr/avg:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/esnr/min:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/esnr/max:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
+        logical_channel_type: ["PROT_OTN"]
+    terminal-device/logical-channels/channel/state/index:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/state/description:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/state/logical-channel-type:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/state/loopback-mode:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/ingress/state/interface:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/ingress/state/transceiver:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
+        logical_channel_type: ["PROT_ETHERNET"]
+    terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
+        logical_channel_type: ["PROT_ETHERNET"]
 
 rpcs:
     gnmi:
