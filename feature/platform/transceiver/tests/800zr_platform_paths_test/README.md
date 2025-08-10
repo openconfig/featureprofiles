@@ -105,12 +105,12 @@ Validate ZR optics module reports telemetry data for all leaves in
                                     "index": 0,
                                     "input-power": {
                                         "avg": -34.83,
-                                        "instant": -40,
+                                        "instant": -40.0,
                                         "max": -32.95,
-                                        "min": -35
+                                        "min": -35.0
                                     },
                                     "output-power": {
-                                        "instant": -40
+                                        "instant": -40.0
                                     }
                                 }
                             }
