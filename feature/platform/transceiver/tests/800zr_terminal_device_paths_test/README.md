@@ -30,6 +30,17 @@ Validate ZR optics module reports telemetry data for all leaves in
     populated. Then verify that the following ZR transceiver telemetry paths 
     exist and are streamed valid values for both ZR optics.
 
+*   Emulate flaps with the following procedure:
+    *   Enable a pair of ZR interfaces on the DUT as explained above.
+    *   Disable interface and wait at least one sample interval.
+    *   Enable interface.
+
+*   Verify that all the static leaves (e.g., breakout-speed, part-no, ...) 
+    are present and reports valid strings or enums before, during and after flap.
+
+*   Verify all the other leaves reports valid value of decimal64 before, 
+    during and after flap. For leaves with stats, ensure min <= avg/instant <= max.
+
     *  terminal-device/logical-channels/channel/state/index
     *  terminal-device/logical-channels/channel/state/description
     *  terminal-device/logical-channels/channel/state/logical-channel-type
@@ -63,21 +74,112 @@ Validate ZR optics module reports telemetry data for all leaves in
     *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation
     *  terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type
 
-*   Emulate flaps with the following procedure:
-    *   Enable a pair of ZR interfaces on the DUT as explained above.
-    *   Disable interface and wait at least one sample interval.
-    *   Enable interface.
-
-*   Verify that all the static leaves (e.g., breakout-speed, part-no, ...) 
-    are present and reports valid strings or enums before, during and after flap.
-
-*   Verify all the other leaves reports valid value of decimal64 before, 
-    during and after flap. For leaves with stats, ensure min <= avg/instant <= max.
-
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
           10 seconds is not supported, the sampling interval used must be
           specified by adding a deviation to the test.
 
+
+### Canonical OC
+```json
+{
+    "components": {
+        "component": [
+            {
+                "config": {
+                    "name": "Ethernet4/1-Port",
+                },
+                "name": "Ethernet4/1-Port",
+                "port": {
+                    "breakout-mode": {
+                        "groups": {
+                            "group": [
+                                {
+                                    "config": {
+                                        "breakout-speed": "openconfig-if-ethernet:SPEED_800GB",
+                                        "index": 1,
+                                        "num-breakouts": 1,
+                                        "num-physical-channels": 8
+                                    },
+                                    "index": 1
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "config": {
+                    "name": "Ethernet4/1-Optical0"
+                },
+                "name": "Ethernet4/1-Optical0",
+                "optical-channel": {
+                    "config": {
+                        "operational-mode": 1,            
+                        "frequency": 192800000,
+                        "target-output-power": -7,
+                    }
+                }
+            }
+        ]
+    },
+    "terminal-device": {
+        "logical-channels": {
+            "channel": [
+                {
+                    "logical-channel-assignments": {
+                        "assignment": [
+                            {
+                                "config": {
+                                    "allocation": 400,
+                                    "assignment-type": "OPTICAL_CHANNEL",
+                                    "description": "OTN to optical channel assignment",
+                                    "index": 1,
+                                    "optical-channel": "Ethernet4/1-Optical0"
+                                }
+                            }
+                        ]
+                    },
+                    "config": {
+                        "admin-state": "ENABLED",
+                        "description": "OTN Logical Channel",
+                        "index": 8000,
+                        "logical-channel-type": "openconfig-transport-types:PROT_OTN",
+                    },
+                },
+                {
+                    "ingress": {
+                        "config": {
+                            "interface": "Ethernet4/1/1",
+                            "transceiver": "Ethernet4/1"
+                        }
+                    },
+                    "logical-channel-assignments": {
+                        "assignment": [
+                            {
+                                "config": {
+                                    "allocation": 400,
+                                    "assignment-type": "LOGICAL_CHANNEL",
+                                    "description": "ETH to OTN assignment",
+                                    "index": 1,
+                                    "logical-channel": 8000
+                                }
+                            }
+                        ]
+                    },
+                    "config": {
+                        "admin-state": "ENABLED",
+                        "description": "ETH Logical Channel",
+                        "index": 80000,
+                        "logical-channel-type": "openconfig-transport-types:PROT_ETHERNET",
+                        "rate-class": "openconfig-transport-types:TRIB_RATE_400G",
+                        "trib-protocol": "openconfig-transport-types:PROT_400GE"
+                    }
+                }
+            ]
+        }
+    }
+}
+```
 
 ## OpenConfig Path and RPC Coverag:
 
@@ -134,37 +236,69 @@ Validate ZR optics module reports telemetry data for all leaves in
     
     # Telemetry Parameter coverage
     terminal-device/logical-channels/channel/state/index:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/state/description:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/state/logical-channel-type:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/state/loopback-mode:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/q-value/instant:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/q-value/avg:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/q-value/min:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/q-value/max:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/esnr/instant:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/esnr/avg:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/esnr/min:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/esnr/max:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
+        logical_channel_type: ["PROT_OTN"]
     terminal-device/logical-channels/channel/state/index:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/state/description:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/state/logical-channel-type:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/state/loopback-mode:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/ingress/state/interface:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/ingress/state/transceiver:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
+        logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
+        logical_channel_type: ["PROT_ETHERNET"]
 
 rpcs:
     gnmi:

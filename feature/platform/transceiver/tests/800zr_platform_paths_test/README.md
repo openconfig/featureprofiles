@@ -43,6 +43,60 @@ Validate ZR optics module reports telemetry data for all leaves in
 *   Verify all the other leaves reports valid value of decimal64 before, 
     during and after flap. For leaves with stats, ensure min <= avg/instant <= max.
 
+    *   platform/components/component/state/name
+    *   platform/components/component/state/location
+    *   platform/components/component/state/type
+    *   platform/components/component/port/breakout-mode/groups/group/state/index
+    *   platform/components/component/port/breakout-mode/groups/group/state/breakout-speed
+    *   platform/components/component/port/breakout-mode/groups/group/state/num-breakouts
+    *   platform/components/component/port/breakout-mode/groups/group/state/num-physical-channels
+    *   platform/components/component/state/name
+    *   platform/components/component/state/parent
+    *   platform/components/component/state/location
+    *   platform/components/component/state/removable
+    *   platform/components/component/state/type
+    *   platform/components/component/state/oper-status
+    *   platform/components/component/state/temperature/instant
+    *   platform/components/component/state/firmware-version
+    *   platform/components/component/state/hardware-version
+    *   platform/components/component/state/serial-no
+    *   platform/components/component/state/part-no
+    *   platform/components/component/state/mfg-name
+    *   platform/components/component/state/mfg-date
+    *   platform/components/component/transceiver/state/form-factor
+    *   platform/components/component/transceiver/state/present
+    *   platform/components/component/transceiver/state/connector-type
+    *   platform/components/component/transceiver/state/supply-voltage/instant
+    *   platform/components/component/transceiver/physical-channels/channel/state/index
+    *   platform/components/component/transceiver/physical-channels/channel/state/output-power/instant
+    *   platform/components/component/transceiver/physical-channels/channel/state/input-power/instant
+    *   platform/components/component/transceiver/physical-channels/channel/state/input-power/avg
+    *   platform/components/component/transceiver/physical-channels/channel/state/input-power/min
+    *   platform/components/component/transceiver/physical-channels/channel/state/input-power/max
+    *   platform/components/component/state/name
+    *   platform/components/component/state/parent
+    *   platform/components/component/state/type
+    *   platform/components/component/optical-channel/state/operational-mode
+    *   platform/components/component/optical-channel/state/frequency
+    *   platform/components/component/optical-channel/state/target-output-power
+    *   platform/components/component/optical-channel/state/laser-bias-current/instant
+    *   platform/components/component/optical-channel/state/input-power/instant
+    *   platform/components/component/optical-channel/state/input-power/avg
+    *   platform/components/component/optical-channel/state/input-power/min
+    *   platform/components/component/optical-channel/state/input-power/max
+    *   platform/components/component/optical-channel/state/output-power/instant
+    *   platform/components/component/optical-channel/state/output-power/avg
+    *   platform/components/component/optical-channel/state/output-power/min
+    *   platform/components/component/optical-channel/state/output-power/max
+    *   platform/components/component/optical-channel/state/chromatic-dispersion/instant
+    *   platform/components/component/optical-channel/state/chromatic-dispersion/avg
+    *   platform/components/component/optical-channel/state/chromatic-dispersion/min
+    *   platform/components/component/optical-channel/state/chromatic-dispersion/max
+    *   platform/components/component/optical-channel/state/carrier-frequency-offset/instant
+    *   platform/components/component/optical-channel/state/carrier-frequency-offset/avg
+    *   platform/components/component/optical-channel/state/carrier-frequency-offset/min
+    *   platform/components/component/optical-channel/state/carrier-frequency-offset/max
+
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
           10 seconds is not supported, the sampling interval used must be
           specified by adding a deviation to the test.
@@ -53,58 +107,98 @@ Validate ZR optics module reports telemetry data for all leaves in
     "components": {
         "component": [
             {
+                "config": {
+                    "name": "Ethernet4/1-Port",
+                },
                 "name": "Ethernet4/1-Port",
                 "port": {
                     "breakout-mode": {
                         "groups": {
                             "group": [
                                 {
-                                    "index": 0,
-                                    "state": {
+                                    "config": {
                                         "breakout-speed": "openconfig-if-ethernet:SPEED_800GB",
-                                        "index": 0,
+                                        "index": 1,
                                         "num-breakouts": 1,
                                         "num-physical-channels": 8
-                                    }
+                                    },
+                                    "index": 1
                                 }
                             ]
                         }
                     }
-                },
-                "state": {
-                    "location": "4/1",
-                    "name": "Ethernet4/1-Port",
-                    "type": "openconfig-platform-types:PORT"
                 }
             },
             {
-                "name": "Ethernet4/1",
-                "state": {
-                    "firmware-version": "1.0.3",
-                    "location": "4/1",
-                    "mfg-date": "2025-05-27",
-                    "mfg-name": "MARVELL",
-                    "name": "Ethernet4/1",
-                    "oper-status": "openconfig-platform-types:ACTIVE",
-                    "parent": "Ethernet4/1-Port",
-                    "part-no": "MV-Q4KZ1-TC-G1",
-                    "removable": true,
-                    "serial-no": "L2521E0015A",
-                    "type": "openconfig-platform-types:TRANSCEIVER"
+                "config": {
+                    "name": "Ethernet4/1-Optical0"
                 },
-                "transceiver": {
-                    "physical-channels": {
-                        "channel": [
-                        ]
-                    },
-                    "state": {
-                        "connector-type": "openconfig-transport-types:LC_CONNECTOR",
-                        "form-factor": "openconfig-transport-types:OSFP",
-                        "present": "PRESENT"
+                "name": "Ethernet4/1-Optical0",
+                "optical-channel": {
+                    "config": {
+                        "operational-mode": 1,            
+                        "frequency": 192800000,
+                        "target-output-power": -7,
                     }
                 }
             }
         ]
+    },
+    "terminal-device": {
+        "logical-channels": {
+            "channel": [
+                {
+                    "logical-channel-assignments": {
+                        "assignment": [
+                            {
+                                "config": {
+                                    "allocation": 400,
+                                    "assignment-type": "OPTICAL_CHANNEL",
+                                    "description": "OTN to optical channel assignment",
+                                    "index": 1,
+                                    "optical-channel": "Ethernet4/1-Optical0"
+                                }
+                            }
+                        ]
+                    },
+                    "config": {
+                        "admin-state": "ENABLED",
+                        "description": "OTN Logical Channel",
+                        "index": 8000,
+                        "logical-channel-type": "openconfig-transport-types:PROT_OTN",
+                    },
+                },
+                {
+                    "ingress": {
+                        "config": {
+                            "interface": "Ethernet4/1/1",
+                            "transceiver": "Ethernet4/1"
+                        }
+                    },
+                    "logical-channel-assignments": {
+                        "assignment": [
+                            {
+                                "config": {
+                                    "allocation": 400,
+                                    "assignment-type": "LOGICAL_CHANNEL",
+                                    "description": "ETH to OTN assignment",
+                                    "index": 1,
+                                    "logical-channel": 8000
+                                }
+                            }
+                        ]
+                    },
+                    "config": {
+                        "admin-state": "ENABLED",
+                        "description": "ETH Logical Channel",
+                        "index": 80000,
+                        "logical-channel-type": "openconfig-transport-types:PROT_ETHERNET",
+                        "rate-class": "openconfig-transport-types:TRIB_RATE_400G",
+                        "trib-protocol": "openconfig-transport-types:PROT_400GE"
+                    }
+                }
+            ]
+        }
     }
 }
 ```
@@ -162,6 +256,114 @@ paths:
         logical_channel_type: ["PROT_ETHERNET"]
     terminal-device/logical-channels/channel/logical-channel-assignments/assignment/allocation/cofig:
         logical_channel_type: ["PROT_ETHERNET"]
+
+    # Telemetry Parameter coverage
+    platform/components/component/state/name:
+        platform_type: ["PORT"]
+    platform/components/component/state/location:
+        platform_type: ["PORT"]
+    platform/components/component/state/type:
+        platform_type: ["PORT"]
+    platform/components/component/port/breakout-mode/groups/group/state/index:
+        platform_type: ["PORT"]
+    platform/components/component/port/breakout-mode/groups/group/state/breakout-speed:
+        platform_type: ["PORT"]
+    platform/components/component/port/breakout-mode/groups/group/state/num-breakouts:
+        platform_type: ["PORT"]
+    platform/components/component/port/breakout-mode/groups/group/state/num-physical-channels:
+        platform_type: ["PORT"]
+    platform/components/component/state/name:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/parent:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/location:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/removable:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/type:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/oper-status:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/temperature/instant:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/firmware-version:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/hardware-version:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/serial-no:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/part-no:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/mfg-name:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/mfg-date:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/state/form-factor:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/state/present:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/state/connector-type:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/state/supply-voltage/instant:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/physical-channels/channel/state/index:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/physical-channels/channel/state/output-power/instant:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/physical-channels/channel/state/input-power/instant:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/physical-channels/channel/state/input-power/avg:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/physical-channels/channel/state/input-power/min:
+        platform_type: ["Tranceiver"]
+    platform/components/component/transceiver/physical-channels/channel/state/input-power/max:
+        platform_type: ["Tranceiver"]
+    platform/components/component/state/name:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/state/parent:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/state/type:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/operational-mode:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/frequency:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/target-output-power:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/laser-bias-current/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/input-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/input-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/input-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/input-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/output-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/output-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/output-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/output-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/chromatic-dispersion/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/chromatic-dispersion/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/chromatic-dispersion/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/chromatic-dispersion/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/carrier-frequency-offset/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/carrier-frequency-offset/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/carrier-frequency-offset/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    platform/components/component/optical-channel/state/carrier-frequency-offset/max:
+        platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
     gnmi:
