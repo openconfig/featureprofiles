@@ -52,7 +52,7 @@ Validate ZR optics module reports telemetry data for all leaves in
 ```json
 {
     "components": {
-        "component": {
+        "component": [
             "Ethernet4/1-Port": {
                 "port": {
                     "breakout-mode": {
@@ -163,7 +163,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "type": "openconfig-platform-types:OPTICAL_CHANNEL"
                 }
             }
-        }
+        ]
     }
 }
 

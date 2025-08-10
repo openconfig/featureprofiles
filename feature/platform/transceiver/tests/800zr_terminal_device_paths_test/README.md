@@ -35,7 +35,7 @@ Validate ZR optics module reports telemetry data for all leaves in
     *   Disable interface and wait at least one sample interval.
     *   Enable interface.
 
-*   Verify that all the static leaves (e.g., breakout-speed, part-no, ...) 
+*   Verify that all the static leaves (e.g., assignment-type, allocation, ...)
     are present and reports valid strings or enums before, during and after flap.
 
 *   Verify all the other leaves reports valid value of decimal64 before, 
