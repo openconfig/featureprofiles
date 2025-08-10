@@ -77,7 +77,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "name": "Ethernet4/1-Port",
                     "type": "openconfig-platform-types:PORT"
                 }
-            },
+            }
         ]
     }
 }
