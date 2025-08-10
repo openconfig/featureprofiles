@@ -58,10 +58,10 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "breakout-mode": {
                         "groups": {
                             "group": {
-                                "1": {
+                                "0": {
                                     "state": {
                                         "breakout-speed": "openconfig-if-ethernet:SPEED_800GB",
-                                        "index": 1,
+                                        "index": 0,
                                         "num-breakouts": 1,
                                         "num-physical-channels": 8
                                     }
@@ -89,7 +89,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "removable": true,
                     "serial-no": "L2521E0015A",
                     "temperature": {
-                    "instant": 60.046875
+                        "instant": 60.046875
                     },
                     "type": "openconfig-platform-types:TRANSCEIVER"
                 },
