@@ -91,9 +91,6 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "part-no": "MV-Q4KZ1-TC-G1",
                     "removable": true,
                     "serial-no": "L2521E0015A",
-                    "temperature": {
-                        "instant": 60.046875
-                    },
                     "type": "openconfig-platform-types:TRANSCEIVER"
                 },
                 "transceiver": {
