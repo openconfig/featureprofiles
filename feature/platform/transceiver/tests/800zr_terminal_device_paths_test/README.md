@@ -86,7 +86,7 @@ Validate ZR optics module reports telemetry data for all leaves in
         "component": [
             {
                 "config": {
-                    "name": "Ethernet4/1-Port",
+                    "name": "Ethernet4/1-Port"
                 },
                 "name": "Ethernet4/1-Port",
                 "port": {
