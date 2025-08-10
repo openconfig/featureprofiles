@@ -48,7 +48,6 @@ Validate ZR optics module reports telemetry data for all leaves in
           specified by adding a deviation to the test.
 
 ### Canonical OC
-
 ```json
 {
     "components": {
@@ -96,30 +95,12 @@ Validate ZR optics module reports telemetry data for all leaves in
                 "transceiver": {
                     "physical-channels": {
                         "channel": [
-                            {
-                                "index": 0,
-                                "state": {
-                                    "index": 0,
-                                    "input-power": {
-                                        "avg": -34.83,
-                                        "instant": -40.0,
-                                        "max": -32.95,
-                                        "min": -35.0
-                                    },
-                                    "output-power": {
-                                        "instant": -40.0
-                                    }
-                                }
-                            }
                         ]
                     },
                     "state": {
                         "connector-type": "openconfig-transport-types:LC_CONNECTOR",
                         "form-factor": "openconfig-transport-types:OSFP",
                         "present": "PRESENT",
-                        "supply-voltage": {
-                            "instant": 3.4144999980926514
-                        }
                     }
                 }
             }

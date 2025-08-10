@@ -902,7 +902,7 @@ message Metadata {
     // Arista: b/409347274
     bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
 
-    // Arista needs to set OTN to ETH assignment.
+    // Devices that must have OTN to ETH assignment.
     bool otn_to_eth_assignment = 316;
 
     // Reserved field numbers and identifiers.
