@@ -77,6 +77,54 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "name": "Ethernet4/1-Port",
                     "type": "openconfig-platform-types:PORT"
                 }
+            },
+            {
+                "name": "Ethernet4/1",
+                "state": {
+                    "firmware-version": "1.0.3",
+                    "location": "4/1",
+                    "mfg-date": "2025-05-27",
+                    "mfg-name": "MARVELL",
+                    "name": "Ethernet4/1",
+                    "oper-status": "openconfig-platform-types:ACTIVE",
+                    "parent": "Ethernet4/1-Port",
+                    "part-no": "MV-Q4KZ1-TC-G1",
+                    "removable": true,
+                    "serial-no": "L2521E0015A",
+                    "temperature": {
+                        "instant": 60.046875
+                    },
+                    "type": "openconfig-platform-types:TRANSCEIVER"
+                },
+                "transceiver": {
+                    "physical-channels": {
+                        "channel": [
+                            {
+                                "index": 0,
+                                "state": {
+                                    "index": 0,
+                                    "input-power": {
+                                        "avg": -34.83,
+                                        "instant": -40,
+                                        "max": -32.95,
+                                        "min": -35
+                                    },
+                                    "output-power": {
+                                        "instant": -40
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "state": {
+                        "connector-type": "openconfig-transport-types:LC_CONNECTOR",
+                        "form-factor": "openconfig-transport-types:OSFP",
+                        "present": "PRESENT",
+                        "supply-voltage": {
+                            "instant": 3.4144999980926514
+                        }
+                    }
+                }
             }
         ]
     }
