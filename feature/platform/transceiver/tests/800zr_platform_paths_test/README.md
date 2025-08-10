@@ -52,8 +52,8 @@ Validate ZR optics module reports telemetry data for all leaves in
 ```json
 {
     "components": {
-        "component": [
-            {
+        "component": {
+            "Ethernet4/1-Port": {
                 "port": {
                     "breakout-mode": {
                         "groups": {
@@ -76,7 +76,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "type": "openconfig-platform-types:PORT"
                 }
             },
-            {
+            "Ethernet4/1": {
                 "state": {
                     "firmware-version": "1.0.3",
                     "location": "4/1",
@@ -118,11 +118,11 @@ Validate ZR optics module reports telemetry data for all leaves in
                         "present": "PRESENT",
                         "supply-voltage": {
                             "instant": 3.4144999980926514
-                        },
+                        }
                     }
                 }
             },
-            {
+            "Ethernet4/1-Optical0": {
                 "optical-channel": {
                     "state": {
                         "operational-mode": 1,            
@@ -163,7 +163,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "type": "openconfig-platform-types:OPTICAL_CHANNEL"
                 }
             }
-        ]
+        }
     }
 }
 
