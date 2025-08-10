@@ -166,12 +166,12 @@ Validate ZR optics module reports telemetry data for all leaves in
         }
     }
 }
-
 ```
 
-## OpenConfig Path and RPC Coverag:
+## OpenConfig Path and RPC Coverage:
 
-```yaml 
+```yaml
+paths:
     # Config Parameter coverage
     interfaces/interface/enabled/config:
     interfaces/interface/type/config:
