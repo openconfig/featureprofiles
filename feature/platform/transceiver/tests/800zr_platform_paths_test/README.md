@@ -138,7 +138,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "config": {
                         "operational-mode": 1,            
                         "frequency": 192800000,
-                        "target-output-power": -7,
+                        "target-output-power": -7
                     }
                 }
             }
@@ -165,8 +165,8 @@ Validate ZR optics module reports telemetry data for all leaves in
                         "admin-state": "ENABLED",
                         "description": "OTN Logical Channel",
                         "index": 8000,
-                        "logical-channel-type": "openconfig-transport-types:PROT_OTN",
-                    },
+                        "logical-channel-type": "openconfig-transport-types:PROT_OTN"
+                    }
                 },
                 {
                     "ingress": {
