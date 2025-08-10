@@ -100,7 +100,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "state": {
                         "connector-type": "openconfig-transport-types:LC_CONNECTOR",
                         "form-factor": "openconfig-transport-types:OSFP",
-                        "present": "PRESENT",
+                        "present": "PRESENT"
                     }
                 }
             }
