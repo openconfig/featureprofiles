@@ -54,246 +54,226 @@ C[ATE:PORT2] <--IPv4-IPv6--> D[DUT:PORT2];
 *   Start the traffic from ATE-port1 and ATE-port2
 *   Validate that traffic is flowing in both directions with 0% traffic loss.
 
-## Canonical OC Configuration
+## Canonical OC
 ```json
-/network-instances/network-instance[name=VRF-1]/protocols/protocol[identifier=BGP][name=BGP]/bgp:
-  {
-          "openconfig-network-instance:global": {
-            "afi-safis": {
-              "afi-safi": [
-                {
-                  "add-paths": {
-                    "config": {
-                      "receive": false,
-                      "send": false
+ {
+  "network-instances": {
+    "openconfig-network-instance:network-instance": [
+      {
+        "config": {
+          "name": "VRF-1",
+          "type": "openconfig-network-instance-types:L3VRF"
+        },
+        "name": "VRF-1",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "global": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                        "config": {
+                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "enabled": true
+                        }
+                      }
+                    ]
+                  },
+                  "config": {
+                    "as": 65003,
+                    "router-id": "192.1.1.1"
+                  }
+                },
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "add-paths": {
+                              "config": {
+                                "receive": true,
+                                "send": true
+                              }
+                            },
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "enabled": true
+                            },
+                            "graceful-restart": {},
+                            "ipv4-unicast": {
+                              "config": {
+                                "send-default-route": true
+                              },
+                              "prefix-limit": {},
+                              "prefix-limit-received": {}
+                            }
+                          },
+                          {
+                            "add-paths": {
+                              "config": {
+                                "receive": true,
+                                "send": true
+                              }
+                            },
+                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                              "enabled": true
+                            },
+                            "graceful-restart": {},
+                            "ipv6-unicast": {
+                              "config": {
+                                "send-default-route": true
+                              },
+                              "prefix-limit": {},
+                              "prefix-limit-received": {}
+                            }
+                          }
+                        ]
+                      },
+                      "apply-policy": {
+                        "config": {
+                          "default-export-policy": "ACCEPT_ROUTE",
+                          "default-import-policy": "ACCEPT_ROUTE"
+                        }
+                      },
+                      "config": {
+                        "neighbor-address": "192.1.1.2",
+                        "peer-as": 65001
+                      },
+                      "ebgp-multihop": {
+                        "config": {
+                          "multihop-ttl": 0
+                        }
+                      },
+                      "neighbor-address": "192.1.1.2"
                     }
-                  },
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
-                  "config": {
-                    "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
-                    "enabled": true
-                  },
-                },
-              ]
-            },
-            "config": {
-              "as": 65001,
-              "router-id": "192.1.1.1"
-            },
-            "route-selection-options": {
+                  ]
+                }
+              },
               "config": {
-                "always-compare-med": false,
-                "external-compare-router-id": true,
-                "ignore-as-path-length": false,
-                "ignore-next-hop-igp-metric": false
-              }
-            },
-          },
-          "openconfig-network-instance:neighbors": {
-            "neighbor": [
-              {
-                "afi-safis": {
-                  "afi-safi": [
-                      "add-paths": {
+                "identifier": "openconfig-policy-types:BGP",
+                "name": "BGP"
+              },
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "name": "VRF-2",
+          "type": "openconfig-network-instance-types:L3VRF"
+        },
+        "name": "VRF-2",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "global": {
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
                         "config": {
-                          "receive": true,
-                          "send": true
+                          "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                          "enabled": true
                         }
-                      },
-                      "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                      "config": {
-                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                        "enabled": true
-                      },
-                      "ipv6-unicast": {
-                        "config": {
-                          "send-default-route": false
-                        },
-                        "prefix-limit": {
-                          "config": {
-                            "prevent-teardown": false
-                          }
-                        }
-                      },
-                  ]
-                },
-                "apply-policy": {
+                      }
+                    ]
+                  },
                   "config": {
-                    "default-export-policy": "REJECT_ROUTE",
-                    "default-import-policy": "REJECT_ROUTE"
+                    "as": 65002,
+                    "router-id": "192.1.1.5"
                   }
                 },
-                "config": {
-                  "enabled": true,
-                  "neighbor-address": "1000::50.1.1.2",
-                  "peer-as": 64502,
-                  "peer-group": "BGP-PEER-GROUP-V6",
-                  "route-flap-damping": false,
-                  "send-community": "NONE"
-                },
-              },
-              {
-                "afi-safis": {
-                  "afi-safi": [
-                      "add-paths": {
-                        "config": {
-                          "receive": false,
-                          "send": false
-                        }
-                      },
-                      "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                      "config": {
-                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                        "enabled": true
-                      },
-                      "ipv4-unicast": {
-                        "config": {
-                          "send-default-route": false
-                        },
-                        "prefix-limit": {
-                          "config": {
-                            "prevent-teardown": false
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "add-paths": {
+                              "config": {
+                                "receive": true,
+                                "send": true
+                              }
+                            },
+                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                              "enabled": true
+                            },
+                            "graceful-restart": {},
+                            "ipv4-unicast": {
+                              "config": {
+                                "send-default-route": true
+                              },
+                              "prefix-limit": {},
+                              "prefix-limit-received": {}
+                            }
+                          },
+                          {
+                            "add-paths": {
+                              "config": {
+                                "receive": true,
+                                "send": true
+                              }
+                            },
+                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                            "config": {
+                              "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                              "enabled": true
+                            },
+                            "graceful-restart": {},
+                            "ipv6-unicast": {
+                              "config": {
+                                "send-default-route": true
+                              },
+                              "prefix-limit": {},
+                              "prefix-limit-received": {}
+                            }
                           }
+                        ]
+                      },
+                      "apply-policy": {
+                        "config": {
+                          "default-export-policy": "ACCEPT_ROUTE",
+                          "default-import-policy": "ACCEPT_ROUTE"
                         }
                       },
-                  ]
-                },
-                "apply-policy": {
-                  "config": {
-                    "default-export-policy": "REJECT_ROUTE",
-                    "default-import-policy": "REJECT_ROUTE"
-                  }
-                },
-                "config": {
-                  "enabled": true,
-                  "neighbor-address": "1000::50.1.1.2",
-                  "peer-group": "BGP-PEER-GROUP-V6",
-                  "route-flap-damping": false,
-                  "send-community": "NONE"
-                },
-              },
-            ]
-          }
-  }
-/network-instances/network-instance[name=VRF-2]/protocols/protocol[identifier=BGP][name=BGP]/bgp:
-  {
-          "openconfig-network-instance:global": {
-            "afi-safis": {
-              "afi-safi": [
-                {
-                  "add-paths": {
-                    "config": {
-                      "receive": false,
-                      "send": false
+                      "config": {
+                        "neighbor-address": "192.1.1.6",
+                        "peer-as": 65003
+                      },
+                      "ebgp-multihop": {
+                        "config": {
+                          "multihop-ttl": 0
+                        }
+                      },
+                      "neighbor-address": "192.1.1.6"
                     }
-                  },
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
-                  "config": {
-                    "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
-                    "enabled": true
-                  },
-                },
-              ]
-            },
-            "config": {
-              "as": 65001,
-              "router-id": "192.1.1.1"
-            },
-            "route-selection-options": {
+                  ]
+                }
+              },
               "config": {
-                "always-compare-med": false,
-                "external-compare-router-id": true,
-                "ignore-as-path-length": false,
-                "ignore-next-hop-igp-metric": false
-              }
-            },
-          },
-          "openconfig-network-instance:neighbors": {
-            "neighbor": [
-              {
-                "afi-safis": {
-                  "afi-safi": [
-                      "add-paths": {
-                        "config": {
-                          "receive": true,
-                          "send": true
-                        }
-                      },
-                      "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                      "config": {
-                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                        "enabled": true
-                      },
-                      "ipv6-unicast": {
-                        "config": {
-                          "send-default-route": false
-                        },
-                        "prefix-limit": {
-                          "config": {
-                            "prevent-teardown": false
-                          }
-                        }
-                      },
-                  ]
-                },
-                "apply-policy": {
-                  "config": {
-                    "default-export-policy": "REJECT_ROUTE",
-                    "default-import-policy": "REJECT_ROUTE"
-                  }
-                },
-                "config": {
-                  "enabled": true,
-                  "neighbor-address": "1000::50.1.1.2",
-                  "peer-as": 64502,
-                  "peer-group": "BGP-PEER-GROUP-V6",
-                  "route-flap-damping": false,
-                  "send-community": "NONE"
-                },
+                "identifier": "openconfig-policy-types:BGP",
+                "name": "BGP"
               },
-              {
-                "afi-safis": {
-                  "afi-safi": [
-                      "add-paths": {
-                        "config": {
-                          "receive": false,
-                          "send": false
-                        }
-                      },
-                      "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                      "config": {
-                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                        "enabled": true
-                      },
-                      "ipv4-unicast": {
-                        "config": {
-                          "send-default-route": false
-                        },
-                        "prefix-limit": {
-                          "config": {
-                            "prevent-teardown": false
-                          }
-                        }
-                      },
-                  ]
-                },
-                "apply-policy": {
-                  "config": {
-                    "default-export-policy": "REJECT_ROUTE",
-                    "default-import-policy": "REJECT_ROUTE"
-                  }
-                },
-                "config": {
-                  "enabled": true,
-                  "neighbor-address": "1000::50.1.1.2",
-                  "peer-group": "BGP-PEER-GROUP-V6",
-                  "route-flap-damping": false,
-                  "send-community": "NONE"
-                },
-              },
-            ]
-          }
+              "identifier": "openconfig-policy-types:BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
   }
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
