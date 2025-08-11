@@ -1578,10 +1578,6 @@ func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
 
-func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
-}
-
 func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyRuleCountersOcUnsupported()
 }

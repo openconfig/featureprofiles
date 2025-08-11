@@ -61,7 +61,7 @@ const (
 	v4NetName2       = "BGPv4RR2"
 	v6NetName2       = "BGPv6RR2"
 	tunIp            = "4.4.4.4"
-	policyName       = "decap-policy"
+	policyName       = "decap-policy-gue"
 	policyId         = 1
 )
 
@@ -126,7 +126,7 @@ func TestIpGue1StaticDecapsulation(t *testing.T) {
 
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
-	ConfigureGue1IpDecap(t, dut)
+	configureBgp(t, dut)
 
 	// configure ATE
 	topo := configureATE(t)
@@ -238,7 +238,7 @@ type bgpNeighbor struct {
 	PeerGroupName string
 }
 
-func ConfigureGue1IpDecap(t *testing.T, dut *ondatra.DUTDevice) {
+func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
 
@@ -500,9 +500,24 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 }
 
 func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) {
-	dp1 := dut.Port(t, "port1")
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
-	cfgplugins.GueDecapConfig(t, dut, ipType, guePort, tunIp, dp1.Name(), policyName, policyId)
+	ocPFParams := GetDefaultOcPolicyForwardingParams(t, dut, guePort, ipType)
+	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+}
+
+// GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// matching the values in the provided JSON example.
+func GetDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) cfgplugins.OcPolicyForwardingParams {
+	return cfgplugins.OcPolicyForwardingParams{
+		NetworkInstanceName: "DEFAULT",
+		InterfaceID:         dut.Port(t, "port1").Name(),
+		AppliedPolicyName:   policyName,
+		TunnelIP:            tunIp,
+		GuePort:             uint32(guePort),
+		IpType:              ipType,
+		Dynamic:             true,
+	}
 }
 
 func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, trafficID string,

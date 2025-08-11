@@ -48,6 +48,10 @@ type OcPolicyForwardingParams struct {
 	CloudV4NHG   string
 	CloudV6NHG   string
 	DecapPolicy  DecapPolicyParams
+	GuePort      uint32
+	IpType       string
+	Dynamic      bool
+	TunnelIP     string
 }
 
 var (
@@ -494,6 +498,10 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+			if ocPFParams.Dynamic {
+				t.Logf("Going into decap")
+				GreDecapConfig(t, dut, ocPFParams)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
@@ -508,12 +516,41 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+			if ocPFParams.Dynamic {
+				t.Logf("Going into decap")
+				GueDecapConfig(t, dut, ocPFParams)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 	} else {
 		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
 	}
+}
+
+func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+		                    ip decap-group type udp destination port %v payload %s
+							tunnel type %s-over-udp udp destination port %v
+							ip decap-group %s
+							tunnel type UDP
+							tunnel decap-ip %s
+							tunnel decap-interface %s
+							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+}
+
+func GreDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, params.AppliedPolicyName, params.TunnelIP)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
 }
 
 // MPLSStaticLSPConfig configures the interface mpls static lsp.
@@ -570,54 +607,5 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
-	}
-}
-
-// Configure GUE decap configuration
-func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, ipType string, guePort int, tunIp string, intfName string, policyName string, policyId uint32) {
-	if deviations.DecapsulateGueOCUnsupported(dut) {
-		cliConfig := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			cliConfig = fmt.Sprintf(`
-		                    ip decap-group type udp destination port %v payload %s
-							tunnel type %s-over-udp udp destination port %v
-							ip decap-group test
-							tunnel type UDP
-							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, guePort, ipType, ipType, guePort, tunIp, intfName)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-		default:
-			t.Errorf("Deviation DecapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
-		}
-	} else {
-		d := &oc.Root{}
-
-		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-
-		npf := ni1.GetOrCreatePolicyForwarding()
-		np := npf.GetOrCreatePolicy(policyName)
-		np.PolicyId = ygot.String(policyName)
-		npRule := np.GetOrCreateRule(policyId)
-
-		if ipType == "ipv4" {
-			ip := npRule.GetOrCreateIpv4()
-			ip.DestinationAddressPrefixSet = ygot.String(tunIp)
-			npAction := npRule.GetOrCreateAction()
-			npAction.DecapsulateGue = ygot.Bool(true)
-		} else {
-			ip := npRule.GetOrCreateIpv6()
-			ip.DestinationAddressPrefixSet = ygot.String(tunIp)
-			npAction := npRule.GetOrCreateAction()
-			npAction.DecapsulateGue = ygot.Bool(true)
-		}
-		t.Logf("Applying forwarding policy on interface %v ... ", intfName)
-
-		intf := npf.GetOrCreateInterface(intfName)
-		intf.ApplyForwardingPolicy = ygot.String(policyName)
-		intf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
 	}
 }
