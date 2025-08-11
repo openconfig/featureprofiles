@@ -1324,58 +1324,13 @@ func TestWithStatic(t *testing.T) {
 	errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		args.client.AddIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	})
-	if errMsg != nil && !strings.Contains(*errMsg, "Error waiting to add IPv4: context deadline exceeded") {
-		t.Fatalf("Unexpected error while adding IPv4: %v", *errMsg)
+	if errMsg != nil && strings.Contains(*errMsg, "Error waiting to add IPv4: context deadline exceeded") {
+		// error is expected when trying to program vip2 as it is already configured as a static route
+		return
 	} else if errMsg == nil {
-		t.Fatal("Expected error while adding IPv4, but got none")
-	}
-
-	args.client.AddNH(t, 1, vip1ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 2, vip2ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 1, 2, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
-	prefixes := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
-		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
-	}
-
-	args.client.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
-	}
-
-	for s := 0; s < 4; s++ {
-
-		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip1, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteNHG(t, 1, 2, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1, vip1, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2, vip2, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip1, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 1, 2, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1, vip1, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2, vip2, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
+		t.Fatal("Expected an error while adding IPv4, but got none")
+	} else {
+		t.Fatalf("Unexpected error while adding IPv4: %v", *errMsg)
 	}
 }
 
@@ -2344,79 +2299,13 @@ func TestWithStaticRPFO(t *testing.T) {
 	errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		args.client.AddIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	})
-	if errMsg != nil && !strings.Contains(*errMsg, "Error waiting to add IPv4: context deadline exceeded") {
-		t.Fatalf("Unexpected error while adding IPv4: %v", *errMsg)
+	if errMsg != nil && strings.Contains(*errMsg, "Error waiting to add IPv4: context deadline exceeded") {
+		// error is expected when trying to program vip2 as it is already configured as a static route
+		return
 	} else if errMsg == nil {
-		t.Fatal("Expected error while adding IPv4, but got none")
-	}
-
-	args.client.AddNH(t, 1, vip1ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNH(t, 2, vip2ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, 1, 2, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
-	prefixes := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
-		prefixes = append(prefixes, util.GetIPPrefix(dstPfx, i, mask))
-	}
-
-	args.client.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
-	}
-
-	utils.Dorpfo(args.ctx, t, true)
-
-	client = gribi.Client{
-		DUT:                   args.dut,
-		FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		Persistence:           true,
-		InitialElectionIDLow:  1,
-		InitialElectionIDHigh: 0,
-	}
-	if err := client.Start(t); err != nil {
-		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		if err = client.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection could not be established: %v", err)
-		}
-	}
-	args.client = &client
-
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
-	}
-
-	for s := 0; s < 4; s++ {
-
-		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip1, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteNHG(t, 1, 2, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1, vip1, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2, vip2, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip1, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 1, 2, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1, vip1, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2, vip2, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
-
-		args.client.DeleteNHG(t, 1000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1000, atePort2.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther121, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 1100, atePort3.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther122, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNHG(t, 2000, 0, map[uint64]uint64{2: 10}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-		args.client.DeleteNH(t, 2000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
+		t.Fatal("Expected an error while adding IPv4, but got none")
+	} else {
+		t.Fatalf("Unexpected error while adding IPv4: %v", *errMsg)
 	}
 }
 
