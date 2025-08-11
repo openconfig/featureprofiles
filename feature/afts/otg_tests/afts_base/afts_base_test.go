@@ -583,7 +583,7 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 
-	t.Log("Waiting for BGPv4 neighbor to establish...")
+	t.Log("Waiting for BGP neighbor to establish...")
 	if err := tc.waitForBGPSession(t); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
@@ -598,7 +598,7 @@ func TestBGP(t *testing.T) {
 	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
 		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
 	}
-	t.Log("ISIS verification successful")
+	t.Log("ISIS verification completed")
 
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("Stopping Port2 interface to create Churn")
@@ -622,4 +622,3 @@ func TestBGP(t *testing.T) {
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }
-
