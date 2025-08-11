@@ -58,14 +58,12 @@ The core encapsulation test suite validates fundamental IP-in-IP tunneling funct
 
 Advanced failover and backup path validation with 7 specialized test cases:
 
-#### Single-Hop FRR Tests
+#### Self Site FRR Tests
 - **EncapWithVIPHavingBackupNHG** - Tests encapsulation with Virtual IP having backup next-hop groups
-- **SSFRRTunnelPrimaryPathUnviable** - Single-hop FRR when primary tunnel path becomes unavailable
+- **SSFRRTunnelPrimaryPathUnviable** - Self Site FRR when primary tunnel path becomes unavailable
 - **SSFRRTunnelPrimaryAndBackupPathUnviable** - Behavior when both primary and backup paths fail simultaneously
 - **SSFRRTunnelPrimaryAndBackupPathUnviableForAllTunnel** - Complete tunnel failure scenario testing
-
-#### Scalable FRR Tests  
-- **SFRRBackupNHGTunneltoPrimaryTunnelWhenPrimaryTunnelUnviable** - Scalable FRR backup tunnel to primary tunnel transition
+- **SFRRBackupNHGTunneltoPrimaryTunnelWhenPrimaryTunnelUnviable** - Self Site FRR backup tunnel to primary tunnel transition
 - **SFRRPrimaryBackupNHGforTunnelUnviable** - Primary and backup next-hop group failure scenarios
 - **SFRRPrimaryPathUnviableWithooutBNHG** - Primary path failure without backup next-hop group configuration
 
@@ -80,16 +78,22 @@ Geographic and administrative traffic segmentation validation:
 
 ### 4. FIB Chain Optimization Tests (`TestFibChains`)
 
-Forwarding Information Base chain optimization and validation with 6 test scenarios:
+Forwarding Information Base chain optimization and validation with 6 test scenarios.
+Use following FIB chain diagrams for reference and debugging.
+![Encap Dcgate Optimized Chain](image-1.png)
+![Transit Dcgate Optimized Chain](image-2.png)
+![Transit Dcgate UnOptimized Chain](image-3.png)
+![Transit Popgate Optimized Chain](image-4.png)
+![Transit Popgate UnOptimized Chain](image-5.png)
 
 #### Optimization Tests
-- **EncapDcgateOptimized** - Tests optimized encapsulation FIB chain programming
-- **TransitDcgateOptimized** - Validates optimized transit traffic FIB chains
-- **PopGateOptimized** - Tests optimized pop-gate (decapsulation) FIB chains
+- **EncapDcgateOptimized** - Tests optimized DCGate FIB chain programming for cluster originated traffic (Cluster->-WAN)
+- **TransitDcgateOptimized** - Validates optimized DCGate FIB chain for transit traffic (WAN->-WAN)
+- **PopGateOptimized** - Tests optimized pop-gate FIB chain using pop-gate pbr policy
 
 #### Unoptimized Baseline Tests
-- **TransitDcgateUnoptimized** - Baseline unoptimized transit traffic validation
-- **PopGateUnOptimized** - Baseline unoptimized pop-gate functionality
+- **TransitDcgateUnoptimized** - Baseline transit traffic validation for DCgate Unoptimized FIB chain (WAN->-WAN)
+- **PopGateUnOptimized** - Baseline unoptimized pop-gate FIB chain functionality using pop-gate pbr policy
 
 #### Advanced FRR
 - **FRRRecycle** - Fast Re-Route recycling and recovery testing
