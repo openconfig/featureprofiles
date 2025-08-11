@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 func TestAccountzRecordHistoryTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	bootTime := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State()).GetBootTime()
+	bootTime := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 
 	// Try to get records from 1 day prior to device's boot time.
 	recordStartTime := time.Unix(0, int64(bootTime)).Add(-24 * time.Hour)
