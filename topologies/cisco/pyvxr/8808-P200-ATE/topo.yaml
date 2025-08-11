@@ -21,10 +21,17 @@ devices:
       - 1/7
       - 1/8
       - 1/9
+      - 1/10
+      - 1/11
+      - 1/12
+      - 1/13
+      - 1/14
+      - 1/15
+      - 1/16
     ixia_images:
-      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
-      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
-      windows: /auto/b4ws/images/ixia/IxNetworkWeb_KVM_OTG_9.30.2309.34.qcow2
+      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM_hotfix.qcow2
+      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_IXN_9.30_KVM_hotfix.qcow2
+      windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.30.2309.41.qcow2
     platform: ixia
   dut:
     cvac: $BASE_CONF_PATH
@@ -42,7 +49,7 @@ devices:
       - 88-LC2-36EF-M
       - 88-LC2-36EF-M
     platform: spitfire_d
-    cli_commands: reload location all noprompt
+    # cli_commands: reload location all noprompt
     xr_hostname: dut
     xr_password: cisco123
     xr_port_redir:
@@ -79,3 +86,24 @@ connections:
     port9:
       - dut.EightHundredGigE0/0/0/9
       - ate.1/9
+    port10:
+      - dut.EightHundredGigE0/0/0/10
+      - ate.1/10
+    port11:
+      - dut.EightHundredGigE0/0/0/11
+      - ate.1/11
+    port12:
+      - dut.EightHundredGigE0/0/0/12
+      - ate.1/12
+    port13:
+      - dut.EightHundredGigE0/0/0/13
+      - ate.1/13
+    port14:
+      - dut.EightHundredGigE0/0/0/14
+      - ate.1/14
+    port15:
+      - dut.EightHundredGigE0/0/0/15
+      - ate.1/15
+    port16:
+      - dut.EightHundredGigE0/0/0/16
+      - ate.1/16

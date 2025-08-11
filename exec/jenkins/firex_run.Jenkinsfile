@@ -386,6 +386,7 @@ pipeline {
                                 firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
                             } else if(firex_chain != 'CulpritFinder') {
                                 firex_plugins.add("webdt_cit.py")
+                                firex_plugins.add("webdt_at.py")
                             }
 
                             def decomission_testbeds = (params['Decomission testbeds'] || testbeds.size() > 1) ? 1 : 0
