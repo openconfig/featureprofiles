@@ -49,7 +49,6 @@ devices:
       - 88-LC2-36EF-M
       - 88-LC2-36EF-M
     platform: spitfire_d
-    cli_commands: reload location all noprompt
     pre_config: hw-module profile npu-compatibility P200
     pre_cli: reload location all
     xr_hostname: dut
