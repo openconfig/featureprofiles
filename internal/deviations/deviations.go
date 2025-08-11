@@ -1592,3 +1592,8 @@ func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
+
+// NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
+func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+}
