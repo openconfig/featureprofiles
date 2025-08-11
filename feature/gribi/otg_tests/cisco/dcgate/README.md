@@ -78,7 +78,8 @@ Geographic and administrative traffic segmentation validation:
 
 ### 4. FIB Chain Optimization Tests (`TestFibChains`)
 
-Forwarding Information Base chain optimization and validation with 6 test scenarios.
+These tests validate various optimized and unoptimized Forwarding Information Base chains.
+
 Use following FIB chain diagrams for reference and debugging.
 ![Encap Dcgate Optimized Chain](image-1.png)
 ![Transit Dcgate Optimized Chain](image-2.png)
@@ -86,12 +87,12 @@ Use following FIB chain diagrams for reference and debugging.
 ![Transit Popgate Optimized Chain](image-4.png)
 ![Transit Popgate UnOptimized Chain](image-5.png)
 
-#### Optimization Tests
+#### Optimized FIB Chain Tests
 - **EncapDcgateOptimized** - Tests optimized DCGate FIB chain programming for cluster originated traffic (Cluster->-WAN)
 - **TransitDcgateOptimized** - Validates optimized DCGate FIB chain for transit traffic (WAN->-WAN)
 - **PopGateOptimized** - Tests optimized pop-gate FIB chain using pop-gate pbr policy
 
-#### Unoptimized Baseline Tests
+#### Unoptimized FIB Chain Tests
 - **TransitDcgateUnoptimized** - Baseline transit traffic validation for DCgate Unoptimized FIB chain (WAN->-WAN)
 - **PopGateUnOptimized** - Baseline unoptimized pop-gate FIB chain functionality using pop-gate pbr policy
 
