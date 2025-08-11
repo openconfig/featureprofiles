@@ -403,9 +403,6 @@ message Metadata {
     // Skip setting isis-actions set-metric-style-type while configuring
     // routing-policy statement action
     bool skip_isis_set_metric_style_type = 145;
-    // Skip setting match-prefix-set match-set-options while configuring
-    // routing-policy statement condition
-    bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring
     // table-connection
     bool skip_setting_disable_metric_propagation = 147;
@@ -901,7 +898,7 @@ message Metadata {
     bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 146;
   }
 
   message PlatformExceptions {

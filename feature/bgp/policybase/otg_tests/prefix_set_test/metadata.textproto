@@ -12,7 +12,6 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
-    skip_set_rp_match_set_options: true
     skip_prefix_set_mode: true
   }
 }
