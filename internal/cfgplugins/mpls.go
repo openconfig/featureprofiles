@@ -26,7 +26,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
-// Configure static MPLS label binding using OC on device
+// MPLSStaticLSP configures static MPLS label binding using OC on device.
 func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, intfName string, protocolType string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
@@ -48,20 +48,19 @@ func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, l
 			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
 		return
-	} else {
-		d := &oc.Root{}
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-
-		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 	}
+	d := &oc.Root{}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+
+	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
-// Configure static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on device
+// NewStaticMplsLspPopLabel configures static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on the device.
 func NewStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string, protocolType string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
@@ -82,19 +81,20 @@ func NewStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName stri
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
-	} else {
-		d := &oc.Root{}
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		return
 	}
+	d := &oc.Root{}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
+// RemoveStaticMplsLspPopLabel removes static MPLS POP label binding using CLI with deviation, if OC is unsupported on the device.
 func RemoveStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, intfName string, nextHopIP string, protocolType string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
@@ -113,15 +113,16 @@ func RemoveStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName s
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
-	} else {
-		d := &oc.Root{}
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		return
 	}
+	d := &oc.Root{}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
+// NewStaticMplsLspSwapLabel configures a static MPLS LSP and swaps label.
 func NewStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, mplsSwapLabelTo uint32, lspNextHopIndex uint32) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
@@ -137,20 +138,21 @@ func NewStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
-	} else {
-		d := &oc.Root{}
-		// ConfigureDefaultNetworkInstance configures the default network instance name and type.
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-		staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetIpAddress(nextHopIP)
-		staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetPushLabel(oc.UnionUint32(mplsSwapLabelTo))
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		return
 	}
+	d := &oc.Root{}
+	// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetIpAddress(nextHopIP)
+	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetPushLabel(oc.UnionUint32(mplsSwapLabelTo))
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
-func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, mplsSwapLabelTo uint32, lspNextHopIndex uint32) {
+// RemoveStaticMplsLspSwapLabel removes a static MPLS LSP and swaps label.
+func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, mplsSwapLabelTo uint32) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
 		switch dut.Vendor() {
@@ -158,22 +160,23 @@ func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 
 			cliConfig = fmt.Sprintf(`
 				no mpls static top-label %v %s swap-label %v
-				`, incomingLabel, atePort2.IPv4, mplsSwapLabelTo)
+				`, incomingLabel, nextHopIP, mplsSwapLabelTo)
 
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
-	} else {
-		d := &oc.Root{}
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		return
 	}
+	d := &oc.Root{}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
+// NewStaticMplsLspPushLabel configures a static MPLS LSP.
 func NewStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, intfName string, nextHopIP string, destIP string, mplsPushLabel uint32, lspNextHopIndex uint32, protocolType string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
@@ -201,18 +204,19 @@ func NewStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
-	} else {
-		d := &oc.Root{}
-		// ConfigureDefaultNetworkInstance configures the default network instance name and type.
-		fptest.ConfigureDefaultNetworkInstance(t, dut)
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-		staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetIpAddress(nextHopIP)
-		staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetPushLabel(oc.UnionUint32(mplsPushLabel))
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		return
 	}
+	d := &oc.Root{}
+	// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetIpAddress(nextHopIP)
+	staticMplsCfg.GetOrCreateEgress().GetOrCreateLspNextHop(lspNextHopIndex).SetPushLabel(oc.UnionUint32(mplsPushLabel))
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
+// RemoveStaticMplsLspPushLabel removes a static MPLS LSP.
 func RemoveStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName string, intfName string) {
 	if deviations.StaticMplsLspOCUnsupported(dut) {
 		cliConfig := ""
@@ -231,10 +235,10 @@ func RemoveStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
-	} else {
-		d := &oc.Root{}
-		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-		mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
-		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+		return
 	}
+	d := &oc.Root{}
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
