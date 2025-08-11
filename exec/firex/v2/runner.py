@@ -2,9 +2,9 @@ from firexapp.engine.celery import app
 from celery.utils.log import get_task_logger
 from celery.utils.log import get_task_logger
 from microservices.workspace_tasks import Warn
-from firexapp.common import silent_mkdir
 from firexapp.firex_subprocess import check_output
 from firexkit.task import FireXTask
+from firexapp.common import silent_mkdir
 from firexapp.submit.arguments import whitelist_arguments
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.firex_base import returns, flame, InjectArgs, FireX
@@ -15,8 +15,8 @@ from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
 from helper import CommandFailed, remote_exec, scp_to_remote, scp_from_remote
 from getpass import getuser
-import xml.etree.ElementTree as ET
 from pathlib import Path
+import xml.etree.ElementTree as ET
 import shutil
 import random
 import string
@@ -839,8 +839,6 @@ def b4_chain_provider(ws, testsuite_id,
     if test_debug:
         chain |= InstallGoDelve.s()
 
-    chain |= PatchTestRepoForCiscoExtra.s(internal_test=internal_test)
-    chain |= GoModReplace.s(repo=test_repo_dir)
     chain |= GoTidy.s(repo=test_repo_dir)
 
     reserved_testbed['testbed_file'] = reserved_testbed['noate_testbed_file']
@@ -907,7 +905,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, force_collect_debug_files=False,
         collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False,
-        test_enable_grpc_logs=False):
+        test_enable_grpc_logs=False, **kwargs):
     """
         Execute a Go test using the Ondatra framework and handle test-related configurations and logging.
 
@@ -954,11 +952,6 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
     # json_results_file = Path(test_log_directory_path) / f'go_logs.json'
     # Prepare paths for test logs and results
     xml_results_file = Path(test_log_directory_path) / f'ondatra_logs.xml'
-    test_logs_dir_in_ws = Path(ws) / f'{testsuite_id}_logs'
-
-    # Clean up previous logs and create a new directory for this test run
-    check_output(f'rm -rf {test_logs_dir_in_ws}')
-    silent_mkdir(test_logs_dir_in_ws)
 
     # Copy binding and testbed files to the log directory for reference
     shutil.copyfile(reserved_testbed['binding_file'],
@@ -977,6 +970,9 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
     shutil.copyfile(reserved_testbed['test_list_file'],
             os.path.join(test_log_directory_path, "testbed_tests_list.txt"))
 
+    gotest_log_dir = os.path.join(test_log_directory_path, "test_logs")
+    silent_mkdir(gotest_log_dir)
+
     go_args = ''
     test_args = test_args or ''
 
@@ -991,7 +987,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
     # Add log directory and required files to test arguments
     test_args = f'{test_args} ' \
-        f'-log_dir {test_logs_dir_in_ws}'
+        f'-log_dir {gotest_log_dir}'
 
     test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "ondatra_logs.xml" '
     if test_verbose:
@@ -1047,11 +1043,7 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         # Move gRPC binary log file if it exists
         grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
         if os.path.exists(grpc_bin_log_file):
-            shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
-
-        # Move test logs to the mount directory
-        test_log_dir_on_mount = os.path.join(test_log_directory_path, "test_logs")
-        shutil.move(test_logs_dir_in_ws, test_log_dir_on_mount)
+            shutil.move(grpc_bin_log_file, gotest_log_dir)
 
         # Aggregate all Ondatra log files found in the workspace
         log_files = _get_all_ondatra_log_files(ws, test_ws, f"./{test_path}")
@@ -1087,15 +1079,6 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
             run_cmds=True,
             split_files_per_dut=True
         )).get('core_files', [])
-
-        # Add core file info to test results if any were found
-        if not test_did_pass or core_files:
-            self.enqueue_child(InvokeAutoTriage.s(
-                test_name=test_name,
-                script_output=self.console_output_file,
-                logs_dir=test_log_dir_on_mount,
-                debug_output=os.path.join(test_log_directory_path,"debug_commands.json")
-            ))
 
         for suite in suites:
             _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
@@ -1784,39 +1767,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PatchTestRepoForCiscoExtra(self, test_repo_dir, internal_test):
-    """
-    Apply patches to a test repository to include Cisco-specific files and configurations.
-
-    Args:
-        self: The task instance invoking this method.
-        test_repo_dir (str): The directory path of the test repository to patch.
-        internal_test (bool): A flag indicating whether the test is internal. If False,
-                              attempts to fetch Cisco-specific files from the remote repository.
-
-    Returns:
-        None
-
-    Raises:
-        git.GitCommandError: If any Git command fails during the patching process.
-    """
-    repo = git.Repo(test_repo_dir)
-    remote = repo.remote()
-    if not internal_test:
-        try:
-            remote = repo.remote("b4test")
-        except:
-            remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
-            remote.fetch()
-    remote.repo.git.checkout(f'{remote.name}/cisco_extra',
-                             'internal/fptest/cisco_test_events.go',
-                             'internal/fptest/cisco_monitor.go',
-                             'internal/fptest/cisco_error_patterns.go',
-                             'internal/fptest/cisco_grpc_record.go')
-
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def GoModReplace(self, ws, repo):
+def GoModReplace(self, ws, repo, pkg, target):
     """
     Replace a Go module dependency with a local path in the `go.mod` file.
 
@@ -1834,7 +1785,7 @@ def GoModReplace(self, ws, repo):
     env = dict(os.environ)
     env.update(_get_go_env(ws))
     logger.print(
-        check_output(f'{GO_BIN} mod edit -replace github.com/cisco/gosifter=/auto/slapigo/repos/gosifter', env=env, cwd=repo)
+        check_output(f'{GO_BIN} mod edit -replace {pkg}={target}', env=env, cwd=repo)
     )
 
 # noinspection PyPep8Naming
@@ -2046,29 +1997,6 @@ def CollectCoverageDataOverSSH(self, ws, internal_fp_repo_dir, reserved_testbed,
     )
     self.enqueue_child_and_get_results(c)
     return cflow_dat_dir
-
-# TODO: remove this task
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def InvokeAutoTriage(self, test_name, script_output, logs_dir, debug_output):
-    logger.print("Invoking auto triage...")
-    try:
-        log_files = []
-        ts_test_log = os.path.join(logs_dir, f'test.log')
-        if os.path.exists(ts_test_log):
-            log_files.append(ts_test_log)
-            pattern = os.path.join(logs_dir, '**', "*.log")
-            log_files.extend([str(f) for f in glob.glob(pattern, recursive=True) if os.path.dirname(f) != logs_dir])
-        else:
-            log_files.append(script_output)
-
-        logger.print(f'Found log files: {log_files}')
-
-        cmd = "/ws/mastarke-sjc/py311_env/bin/python /auto/b4ws/repos/data-labeler/scripts/ai-scripts/on_demand_ai_debugger.py"
-        cmd += f' --logs-file {" ".join(log_files)} --test-name {test_name} --output {debug_output}'
-        logger.print(check_output(cmd))
-    except:
-        logger.warning(f'Failed to invoke auto triage. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
