@@ -26,13 +26,3 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
-
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    isis_level_enabled: true
-    multipath_unsupported_neighbor_or_afisafi: true
-  }
-}
