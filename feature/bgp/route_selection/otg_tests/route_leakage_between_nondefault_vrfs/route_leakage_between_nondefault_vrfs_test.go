@@ -145,6 +145,7 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	otgutils.WaitForARP(t, ate.OTG(), config, IPV4)
 	verifyBGP(t, dut)
 	verifyRoutes(t, dut)
+	verifyLeakedRoutes(t, dut, tc.expectLeakedRoutes)
 
 	t.Logf("Starting traffic")
 	otg.StartTraffic(t)
@@ -155,7 +156,6 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	otgutils.LogFlowMetrics(t, otg, config)
 
 	verifyTrafficFlow(t, ate, config, tc.expectTrafficPass)
-	verifyLeakedRoutes(t, dut, tc.expectLeakedRoutes)
 }
 
 func configureRouteLeaking(t *testing.T, dut *ondatra.DUTDevice) {
