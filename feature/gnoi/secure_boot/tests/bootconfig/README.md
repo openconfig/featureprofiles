@@ -103,6 +103,17 @@ certz {
 
   9. Make call to gnsi.Credentialz.Rotate - this should fail since the vc namespace should take precedence.
 
+## Canonical OC
+```json
+{
+  "system": {
+    "config": {
+      "hostname": "hostname"
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.

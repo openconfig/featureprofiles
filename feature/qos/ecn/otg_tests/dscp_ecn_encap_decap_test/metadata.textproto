@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "6a39bcc0-b989-4e12-b709-60316bc916c0"
+plan_id:  "DP-1.13"
+description:  "DSCP and ECN bits are copied over during IPinIP encap and decap"
+testbed:  TESTBED_DUT_ATE_2LINKS

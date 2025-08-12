@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8e46e4ea-e114-40e7-9b96-2b7e8337a709"
+plan_id: "AFT-3.1"
+description: "AFTs Atomic Flag Check"
+testbed: TESTBED_DUT_ATE_2LINKS

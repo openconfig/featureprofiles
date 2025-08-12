@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "cf3f42af-1463-4a3b-b691-bf06edc3db14"
+plan_id:  "DP-1.19"
+description:  "Egress traffic DSCP rewrite"
+testbed:  TESTBED_DUT_ATE_2LINKS

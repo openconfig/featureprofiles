@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "96cd04f1-4054-4429-90e7-6a04b8e3722a"
+plan_id:  "PF-1.15"
+description:  "MPLSoGRE IPV4 encapsulation of IPV4/IPV6 payload scale test"
+testbed:  TESTBED_DUT_ATE_2LINKS
