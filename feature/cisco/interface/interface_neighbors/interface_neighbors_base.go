@@ -1399,6 +1399,9 @@ func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevic
 		if err != nil {
 			t.Errorf("Failed to query gnoi endpoint: %v", err)
 		}
+		if pingClient == nil {
+			t.Fatalf("pingClient is nil for Destination %s\n", pingRequest.Destination)
+		}
 		responses, err := fetchResponses(pingClient)
 		if err != nil {
 			if IPv4 {
@@ -1468,6 +1471,9 @@ func pingScaleNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUT
 
 			if err != nil {
 				t.Errorf("Failed to query gnoi endpoint: %v", err)
+			}
+			if pingClient == nil {
+				t.Fatalf("pingClient is nil for Destination %s\n", dest)
 			}
 			responses, err := fetchResponses(pingClient)
 			if err != nil {
