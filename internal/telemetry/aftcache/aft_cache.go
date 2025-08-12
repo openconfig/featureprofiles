@@ -76,13 +76,31 @@ var (
 
 var unusedPaths = []string{
 	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/prefix",
-	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/decapsulate-header",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/entry-metadata",
 	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group-network-instance",
 	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-network-instance",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol",
 	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/prefix",
-	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/decapsulate-header",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/entry-metadata",
 	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group-network-instance",
 	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-network-instance",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol",
+	"/network-instances/network-instance/afts/next-hop-groups/next-hop-group/id",
+	"/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index",
+	"/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group",
+	"/network-instances/network-instance/afts/next-hops/next-hop/index",
+	"/network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/mac-address",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol",
 }
 
 func subscriptionPaths(dut *ondatra.DUTDevice) map[string][]string {
@@ -611,6 +629,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				resolved, err := a.resolveRoute(p)
 				got := map[string]bool{}
 				switch {
+				// Skip the check if NH is not found, retry on next periodic hook. Report missing NHs after timeout.
 				case errors.Is(err, ErrNotExist):
 				case err != nil:
 					return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
