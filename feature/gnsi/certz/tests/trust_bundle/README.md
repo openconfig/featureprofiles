@@ -26,7 +26,7 @@ system must be able to support more than one key type at any
 point in time in order to support key algorithm change events.)
 
 A trust bundle may have one or more certificates contained in
-it, systems should be able to support at least one thousand
+it, systems should be able to support at least twenty thousand
 CA keys in such a bundle.
 
 
@@ -65,10 +65,103 @@ Load the server certificate and key from each of the following CA sets:
    * ca-20000
 
 Each service must be configured to use the appropriate certificate and validate
-that certificate using the included trust_bundle.
+that certificate using the included trust_bundle. Loading a new trust_bundle
+should not take longer than 120 seconds.
 
 Perform this test with both RSA dn ECDSA key-types.
 
+## Canonical OC
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "test interface",
+          "name": "port1"
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.20.0.1",
+                        "prefix-length": 32
+                      },
+                      "ip": "192.20.0.1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "GRPC_TEST"
+        },
+        "interfaces": {
+          "interface": [
+            {
+              "config": {
+                "id": "port1",
+                "interface": "port1"
+              },
+              "id": "port1"
+            }
+          ]
+        },
+        "name": "GRPC_TEST"
+      }
+    ]
+  },
+  "system": {
+    "grpc-servers": {
+      "grpc-server": [
+        {
+          "config": {
+            "enable": true,
+            "name": "gmmi-test",
+            "network-instance": "GRPC_TEST",
+            "port": 9339,
+            "services": [
+              "GNMI",
+              "GNSI",
+              "GRIBI"
+            ]
+          },
+          "name": "gmmi-test"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "p4rt-test",
+            "network-instance": "GRPC_TEST",
+            "port": 9559,
+            "services": [
+              "P4RT"
+            ]
+          },
+          "name": "p4rt-test"
+        }
+      ]
+    }
+  }
+}
+```
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.

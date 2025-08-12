@@ -50,9 +50,9 @@ const (
 	nextHopWeightPath         = "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight"
 	nextHopGroupConditionPath = "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/condition"
 	// periodicInterval is the time between execution of periodic hooks.
-	periodicInterval = 4 * time.Minute
+	periodicInterval = 2 * time.Minute
 	// periodicDeadline is the deadline for all periodic hooks in a run. Should be < periodicInterval.
-	periodicDeadline = 2 * time.Minute
+	periodicDeadline = 1*time.Minute + 45*time.Second
 	// aftBufferSize is the capacity of the internal channel queueing notifications from DUT
 	// before applying them to our internal cache. It should be large enough to prevent DUT from
 	// timing out from a pending send longer than the timeout while our internal cache is
@@ -60,8 +60,8 @@ const (
 	// is preallocated, using a 64bit pointer per slot. We expect somewhat increased memory usage on
 	// heap from a higher buffer value just because the buffer may contain multiple updates for the
 	// same leaf, while our internal cache would not.
-	// We expect the buffer to be large enough to hold 2M IPv4 prefixes and 512K IPv6 prefixes.
-	aftBufferSize = 3000000
+	// We expect the buffer to be large enough to hold 2M IPv4 prefixes and 1M IPv6 prefixes.
+	aftBufferSize = 4000000
 	// missingPrefixesFile is the name of the file where missing prefixes are written.
 	missingPrefixesFile = "missing_prefixes.txt"
 )
@@ -76,11 +76,31 @@ var (
 
 var unusedPaths = []string{
 	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/prefix",
-	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/decapsulate-header",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/entry-metadata",
 	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group-network-instance",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-network-instance",
+	"/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol",
 	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/prefix",
-	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/octets-forwarded",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/counters/packets-forwarded",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/decapsulate-header",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/entry-metadata",
 	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group-network-instance",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-network-instance",
+	"/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol",
+	"/network-instances/network-instance/afts/next-hop-groups/next-hop-group/id",
+	"/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index",
+	"/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group",
+	"/network-instances/network-instance/afts/next-hops/next-hop/index",
+	"/network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/mac-address",
+	"/network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol",
 }
 
 func subscriptionPaths(dut *ondatra.DUTDevice) map[string][]string {
@@ -568,21 +588,21 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20
-	logDuration := func(start time.Time) {
-		t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
+	logDuration := func(start time.Time, stage string) {
+		t.Logf("InitialSyncStoppingCondition: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
 	}
 	return PeriodicHook{
 		Description: "Initial sync stopping condition",
 		PeriodicFunc: func(c *aftCache) (bool, error) {
 			start := time.Now()
-			defer logDuration(start)
 			a, err := c.ToAFT(dut)
+			logDuration(start, "Convert cache to AFT")
 			if err != nil {
 				return false, err
 			}
-			t.Logf("Convert cache to AFT took %.10f seconds", time.Since(start).Seconds())
 
 			// Check prefixes.
+			checkPrefixStart := time.Now()
 			gotPrefixes := a.Prefixes
 			nPrefixes := len(wantPrefixes)
 			nGot := 0
@@ -595,20 +615,22 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				}
 			}
 			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
+			logDuration(checkPrefixStart, "Check Prefixes")
 			if nGot < nPrefixes {
 				t.Logf("%d missing prefixes\n", len(missingPrefixes))
 				return false, nil
 			}
 
 			// Check next hops.
+			checkNHStart := time.Now()
 			nCorrect := 0
 			diffs := map[string]int{}
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
 				got := map[string]bool{}
 				switch {
+				// Skip the check if NH is not found, retry on next periodic hook. Report missing NHs after timeout.
 				case errors.Is(err, ErrNotExist):
-					log.Warningf("error resolving next hops for prefix %v: %v", p, err)
 				case err != nil:
 					return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
 				default:
@@ -634,6 +656,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				t.Logf("%d mismatches of (-want +got):\n%s", v, k)
 			}
 			t.Logf("Got %d of %d correct NH so far.", nCorrect, nPrefixes)
+			logDuration(checkNHStart, "Check Next Hops")
 			if nCorrect != nPrefixes {
 				nhFailCount++
 				if nhFailCount == nhFailLimit {
@@ -641,6 +664,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				}
 				return false, nil
 			}
+			t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
 	}
