@@ -18,7 +18,6 @@ package dcgate_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -1040,7 +1039,7 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
 		handle, err := pcap.OpenOffline(f.Name())
 		if err != nil {
-			log.Fatal(err)
+			t.Fatalf("ERROR: Could not open pcap file %s: %v\n", f.Name(), err)
 		}
 		defer handle.Close()
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
