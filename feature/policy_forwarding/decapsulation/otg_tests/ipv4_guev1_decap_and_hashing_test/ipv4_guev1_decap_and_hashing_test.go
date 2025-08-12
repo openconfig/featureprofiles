@@ -133,9 +133,11 @@ func TestMain(m *testing.M) {
 func TestMultipathGUE(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	dp1 := dut.Port(t, "port1")
 	aggIDs := configureDUT(t, dut)
 	otgConfig := configureATE(t, ate)
+	sfBatch := &gnmi.SetBatch{}
+	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, lspV4Name, mplsLabel, ateLag1.IPv4, "", "ipv4")
+	sfBatch.Set(t, dut)
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
@@ -204,7 +206,7 @@ func TestMultipathGUE(t *testing.T) {
 				excludeLag = otgConfig.Lags().Items()[0].Name()
 			}
 			// Configure decap on DUT for current payload
-			cfgplugins.ConfigureDutWithGueDecap(t, dut, decapPort, payloadType, dcapIp, dp1.Name(), policyName, policyId)
+			configureDutWithGueDecap(t, dut, payloadType)
 
 			ate.OTG().StartTraffic(t)
 			time.Sleep(trafficDuration * time.Second)
@@ -407,14 +409,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		t.Logf("Load balancing is currently not supported via OpenConfig. Will fix once it's implemented.")
 	}
 
-	cfgplugins.NewStaticMPLSLabel(t, dut, lspV4Name, mplsLabel, "", ateLag1.IPv4, "ipv4")
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		t.Log("Executing CLI commands")
 		gnmiClient := dut.RawAPIs().GNMI(t)
-		jsonConfig := fmt.Sprintf(`
-		load-balance policies
-		load-balance sand profile default
-		packet-type gue outer-ip
+		jsonConfig := fmt.Sprintf(`		
 		router bgp %d
 		address-family ipv4 labeled-unicast
 		maximum-paths %[2]d ecmp %[2]d
@@ -438,6 +436,27 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		af6.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().SetMaximumPaths(ecmpMaxPath)
 	}
 	return aggIDsList
+}
+
+func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, ipType string) {
+	t.Logf("Configure DUT with decapsulation UDP port %v", decapPort)
+	ocPFParams := GetDefaultOcPolicyForwardingParams(t, dut, ipType)
+	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+}
+
+// GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// matching the values in the provided JSON example.
+func GetDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipType string) cfgplugins.OcPolicyForwardingParams {
+	return cfgplugins.OcPolicyForwardingParams{
+		NetworkInstanceName: "DEFAULT",
+		InterfaceID:         dut.Port(t, "port1").Name(),
+		AppliedPolicyName:   policyName,
+		TunnelIP:            dcapIp,
+		GuePort:             uint32(decapPort),
+		IpType:              ipType,
+		Dynamic:             true,
+	}
 }
 
 func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes) {

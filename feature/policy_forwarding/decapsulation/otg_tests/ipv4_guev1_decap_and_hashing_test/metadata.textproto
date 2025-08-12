@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "cbab73d1-9cc3-4ab4-9386-132dbb68d2f6"
-plan_id: "PF-1.22"
-description: "GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload"
-testbed: TESTBED_DUT_ATE_8LINKS
+uuid:  "55c4eb1d-a363-44b9-94df-a9e73c9e1234"
+plan_id:  "PF-1.22"
+description:  "GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload"
+testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -15,7 +15,7 @@ platform_exceptions: {
     isis_instance_enabled_required: true
     multipath_unsupported_neighbor_or_afisafi: true
     static_mpls_lsp_oc_unsupported: true
-    decapsulate_gue_oc_unsupported: true
+    gue_gre_decap_unsupported: true
     load_interval_not_supported: true
   }
 }
