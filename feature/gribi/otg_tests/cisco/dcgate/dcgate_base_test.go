@@ -18,7 +18,6 @@ package dcgate_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -845,16 +844,8 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 	e1.Dst().SetValue(fa.dstMac)
 	if flowType == "ipv4" || flowType == "ipv4in4" || flowType == "ipv6in4" {
 		v4 := flow.Packet().Add().Ipv4()
-		if flowType == "ipv4in4" {
-			// Use IP increments to increase flow count
-			v4.Src().Increment().SetStart(fa.src).SetCount(5000)
-			v4.Dst().Increment().SetStart(fa.dst).SetCount(5000)
-		} else {
-			v4.Src().SetValue(fa.src)
-			v4.Dst().SetValue(fa.dst)
-		}
-		// v4.Src().SetValue(fa.src)
-		// v4.Dst().SetValue(fa.dst)
+		v4.Src().SetValue(fa.src)
+		v4.Dst().SetValue(fa.dst)
 		v4.TimeToLive().SetValue(fa.ttl)
 		if fa.dscp == 0 {
 			v4.Priority().Dscp().Phb().SetValue(dscp)
@@ -864,38 +855,9 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 
 		// add inner ipv4 headers
 		if flowType == "ipv4in4" {
-
-			// IPv4-in-IPv4 configuration
-			pkt := flow.Packet().Add()
-
-			// Outer IPv4
-			outerV4 := pkt.Ipv4()
-			// Use high-diversity flow for the Basic Default Route Installation test
-			// if strings.Contains(name, "ip4inipa1") {
-			// 	// Create 1000 different source IPs and 100 different destination IPs
-			// 	outerV4.Src().Increment().SetStart(fa.src).SetCount(1000)
-			// 	outerV4.Dst().Increment().SetStart(fa.dst).SetCount(100)
-			// } else {
-			// 	outerV4.Src().SetValue(fa.src)
-			// 	outerV4.Dst().SetValue(fa.dst)
-			// }
-			// For Basic Default Route Installation test, use high diversity
-			if strings.Contains(name, "ip4inipa1") {
-				outerV4.Src().Increment().SetStart(fa.src).SetCount(1000)
-				outerV4.Dst().Increment().SetStart(fa.dst).SetCount(100)
-			} else {
-				outerV4.Src().SetValue(fa.src)
-				outerV4.Dst().SetValue(fa.dst)
-			}
 			innerV4 := flow.Packet().Add().Ipv4()
-			// For additional flow diversity, also vary inner IPs
-			if strings.Contains(name, "ip4inipa1") {
-				innerV4.Src().Increment().SetStart(innerV4SrcIP).SetCount(500)
-				innerV4.Dst().Increment().SetStart(innerV4DstIP).SetCount(200)
-			} else {
-				innerV4.Src().SetValue(innerV4SrcIP)
-				innerV4.Dst().SetValue(innerV4DstIP)
-			}
+			innerV4.Src().SetValue(innerV4SrcIP)
+			innerV4.Dst().SetValue(innerV4DstIP)
 			innerV4.TimeToLive().SetValue(fa.innerTtl)
 			innerV4.Priority().Dscp().Phb().SetValue(fa.innerDscp)
 		}
@@ -922,8 +884,8 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 	// Increase UDP port diversity for the Basic Default Route Installation test
 	// This helps prevent packet drops due to hardware hashing limitations
 	// Use wider port ranges and more increments for better distribution
-	udp.SrcPort().Increment().SetStart(1000).SetCount(60000).SetStep(13)
-	udp.DstPort().Increment().SetStart(2000).SetCount(60000).SetStep(17)
+	udp.SrcPort().Increment().SetStart(50001).SetCount(15000)
+	udp.DstPort().Increment().SetStart(50001).SetCount(15000)
 
 	return flow
 }
@@ -1040,7 +1002,7 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
 		handle, err := pcap.OpenOffline(f.Name())
 		if err != nil {
-			log.Fatal(err)
+			t.Fatalf("ERROR: Could not open pcap file %s: %v\n", f.Name(), err)
 		}
 		defer handle.Close()
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
