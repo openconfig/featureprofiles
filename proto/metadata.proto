@@ -889,6 +889,7 @@ message Metadata {
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
 
     // policy rule based counters unsupported
+    // Arista : https://partnerissuetracker.corp.google.com/issues/425628787
     bool policy_rule_counters_oc_unsupported = 313;
     
     // Reserved field numbers and identifiers.

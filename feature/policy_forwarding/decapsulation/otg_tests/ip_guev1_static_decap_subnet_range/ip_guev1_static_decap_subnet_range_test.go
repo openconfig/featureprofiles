@@ -425,15 +425,15 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 
 func verfiy_policer_matched_packets(t *testing.T, dut *ondatra.DUTDevice) uint64 {
 	matchpackets := uint64(0)
-	if !deviations.PolicyRuleCountersOCUnsupported(dut) {
-		const timeout = 10 * time.Second
-		isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+	const timeout = 10 * time.Second
+	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
+    if !deviations.PolicyRuleCountersOCUnsupported(dut) {
 		_, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State(), timeout, isPresent).Await(t)
 		if !ok {
 			t.Errorf("Unable to find matched packets")
 		}
 		matchpackets = gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State())
-	}
+	} 
 	return matchpackets
 }
 
@@ -501,14 +501,14 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 
 func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
-	ocPFParams := GetDefaultOcPolicyForwardingParams(t, dut, guePort, ipType)
+	ocPFParams := getDefaultOcPolicyForwardingParams(t, dut, guePort, ipType)
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 }
 
-// GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// getDefaultOcPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func GetDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) cfgplugins.OcPolicyForwardingParams {
+func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         dut.Port(t, "port1").Name(),
