@@ -157,7 +157,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "name": "Ethernet4/1-Optical0"
                 },
                 "name": "Ethernet4/1-Optical0",
-                "openconfig-platform-port:optical-channel": {
+                "openconfig-terminal-device:optical-channel": {
                     "config": {
                         "operational-mode": 1,            
                         "frequency": "196000000",
@@ -167,7 +167,7 @@ Validate ZR optics module reports telemetry data for all leaves in
             }
         ]
     },
-    "openconfig-platform-port:terminal-device": {
+    "openconfig-terminal-device:terminal-device": {
         "logical-channels": {
             "channel": [
                 {
