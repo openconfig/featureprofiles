@@ -679,27 +679,13 @@ func showRouteCLI(t *testing.T, dut *ondatra.DUTDevice, cliHandle binding.CLICli
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		cliOutput, err := cliHandle.RunCommand(ctx, cli)
-		if cliOutput == nil {
-			t.Fatalf("CLI output is nil for command: %s", cli)
-		}
-		if err != nil {
-			t.Fatalf("Failed to run command: %s, error: %v", cli, err)
-		}
-		return cliOutput, err
+		return cliHandle.RunCommand(ctx, cli)
 	} else {
 		cli := fmt.Sprintf("show route %s unicast %s\n", ipAf, prefix)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		cliOutput, err := cliHandle.RunCommand(ctx, cli)
-		if cliOutput == nil {
-			t.Fatalf("CLI output is nil for command: %s", cli)
-		}
-		if err != nil {
-			t.Fatalf("Failed to run command: %s, error: %v", cli, err)
-		}
-		return cliOutput, err
+		return cliHandle.RunCommand(ctx, cli)
 	}
 }
 

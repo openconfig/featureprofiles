@@ -1400,26 +1400,27 @@ func pingNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUTDevic
 			t.Errorf("Failed to query gnoi endpoint: %v", err)
 		}
 		if pingClient == nil {
-			t.Fatalf("pingClient is nil for Destination %s\n", pingRequest.Destination)
-		}
-		responses, err := fetchResponses(pingClient)
-		if err != nil {
-			if IPv4 {
-				t.Logf("Failed to handle gnoi ping client stream: %v\n", err.Error())
-			} else {
-				t.Logf("Failed to handle gnoi ping client stream: %v for Destination %s", err, dut2IntfAttrib[i].attrib.IPv6)
-			}
-		}
-		if len(responses) > 0 {
-			summary := responses[len(responses)-1]
-			if summary.Received == 0 {
+			t.Errorf("pingClient is nil for Destination %s\n", pingRequest.Destination)
+		} else {
+			responses, err := fetchResponses(pingClient)
+			if err != nil {
 				if IPv4 {
-					t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv4)
+					t.Logf("Failed to handle gnoi ping client stream: %v\n", err.Error())
 				} else {
-					t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv6)
+					t.Logf("Failed to handle gnoi ping client stream: %v for Destination %s", err, dut2IntfAttrib[i].attrib.IPv6)
 				}
 			}
+			if len(responses) > 0 {
+				summary := responses[len(responses)-1]
+				if summary.Received == 0 {
+					if IPv4 {
+						t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv4)
+					} else {
+						t.Logf("No response to ping from Destination %s\n", dut2IntfAttrib[i].attrib.IPv6)
+					}
+				}
 
+			}
 		}
 	}
 }
@@ -1473,16 +1474,17 @@ func pingScaleNeighbors(t *testing.T, dut1 *ondatra.DUTDevice, dut2 *ondatra.DUT
 				t.Errorf("Failed to query gnoi endpoint: %v", err)
 			}
 			if pingClient == nil {
-				t.Fatalf("pingClient is nil for Destination %s\n", dest)
-			}
-			responses, err := fetchResponses(pingClient)
-			if err != nil {
-				t.Logf("Failed to handle gnoi ping client stream: %v for Destination %s", err, dest)
-			}
-			if len(responses) > 0 {
-				summary := responses[len(responses)-1]
-				if summary.Received == 0 {
-					t.Logf("No response to ping from Destination %s\n", dest)
+				t.Errorf("pingClient is nil for Destination %s\n", dest)
+			} else {
+				responses, err := fetchResponses(pingClient)
+				if err != nil {
+					t.Logf("Failed to handle gnoi ping client stream: %v for Destination %s", err, dest)
+				}
+				if len(responses) > 0 {
+					summary := responses[len(responses)-1]
+					if summary.Received == 0 {
+						t.Logf("No response to ping from Destination %s\n", dest)
+					}
 				}
 			}
 		}(destIP[i])
