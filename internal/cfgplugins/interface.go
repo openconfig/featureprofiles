@@ -377,7 +377,7 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, och st
 	} else {
 		firstAssignmentIndex = 0
 	}
-	if dut.Vendor() == ondatra.ARISTA {
+	if deviations.OTNToETHAssignment(dut) {
 		gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),

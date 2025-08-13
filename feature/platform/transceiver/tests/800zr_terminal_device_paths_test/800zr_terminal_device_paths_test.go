@@ -514,7 +514,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 			want:       uint64(0),
 		},
 	}
-	if dut.Vendor() == ondatra.ARISTA {
+	if deviations.OTNToETHAssignment(dut) {
 		tcs = append(tcs, []testcase{
 			{
 				desc: "OTN to Logical Channel Assignment Index Validation",
