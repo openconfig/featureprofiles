@@ -134,7 +134,7 @@ func deployAndStartContainer(ctx context.Context, t *testing.T, cli *client.Clie
 	// 2. Optionally remove existing image before push.
 	if opts.RemoveExistingImage {
 		t.Logf("Attempting to remove existing image %s:%s before push.", opts.ImageName, opts.ImageTag)
-		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, false); err != nil {
+		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, true); err != nil {
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound && err.Error() != client.ErrNotFound.Error() {
 				t.Logf("Pre-push removal of image %s:%s failed (continuing with push): %v", opts.ImageName, opts.ImageTag, err)
