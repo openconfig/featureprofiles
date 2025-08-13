@@ -18,6 +18,7 @@ package iputil
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 )
@@ -43,11 +44,11 @@ func GenerateIPs(ipBlock string, n int) []string {
 	return entries
 }
 
-func ipToInt(ip net.IP) uint32 {
+func ipv4ToInt(ip net.IP) uint32 {
 	return uint32(ip[0])<<24 + uint32(ip[1])<<16 + uint32(ip[2])<<8 + uint32(ip[3])
 }
 
-func intToIP(n uint32) net.IP {
+func intToIPv4(n uint32) net.IP {
 	return net.IPv4(
 		byte(n>>24),
 		byte((n>>16)&0xFF),
@@ -56,7 +57,13 @@ func intToIP(n uint32) net.IP {
 	)
 }
 
-func GenerateIPsWithStep(startIP string, count int, stepIP string) ([]string, error) {
+func GenerateIPv4sWithStep(startIP string, count int, stepIP string) ([]string, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("count cannot be negative")
+	}
+	if count == 0 {
+		return []string{}, nil
+	}
 	ip := net.ParseIP(startIP).To4()
 	if ip == nil {
 		return nil, fmt.Errorf("invalid start IPv4 address")
@@ -67,13 +74,22 @@ func GenerateIPsWithStep(startIP string, count int, stepIP string) ([]string, er
 		return nil, fmt.Errorf("invalid step IPv4 address")
 	}
 
-	var ips []string
-	ipInt := ipToInt(ip)
-	stepInt := ipToInt(step)
+	ipInt := ipv4ToInt(ip)
+	stepInt := ipv4ToInt(step)
+	// Validate overflow before generating
+	lastIP := uint64(ipInt) + uint64(count-1)*uint64(stepInt)
+	if lastIP > math.MaxUint32 {
+		return nil, fmt.Errorf("count and step exceed IPv4 address space")
+	}
 
-	for i := range count {
-		newIP := intToIP(ipInt + uint32(i)*stepInt)
-		ips = append(ips, newIP.String())
+	var ips []string
+	ips = make([]string, count)
+	for i := 0; i < count; i++ {
+		next := ipInt + uint32(i)*stepInt
+		if next > math.MaxUint32 {
+			return nil, fmt.Errorf("step caused IPv4 overflow at index %d", i)
+		}
+		ips[i] = intToIPv4(next).String()
 	}
 
 	return ips, nil
@@ -96,24 +112,40 @@ func bigIntToIP(ipInt *big.Int) net.IP {
 }
 
 func GenerateIPv6sWithStep(startIP string, count int, stepIP string) ([]string, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("count cannot be negative")
+	}
+	if count == 0 {
+		return []string{}, nil
+	}
 	ip := net.ParseIP(startIP).To16()
 	if ip == nil || ip.To4() != nil {
-		return nil, fmt.Errorf("invalid start IPv6 address")
+		return nil, fmt.Errorf("invalid start IPv6 address:  %q", startIP)
 	}
 
 	step := net.ParseIP(stepIP).To16()
 	if step == nil || step.To4() != nil {
-		return nil, fmt.Errorf("invalid step IPv6 address")
+		return nil, fmt.Errorf("invalid step IPv6 address: %q", stepIP)
 	}
 
 	ipInt := ipToBigInt(ip)
 	stepInt := ipToBigInt(step)
+	// Max IPv6 value = 2^128 - 1
+	maxIPv6 := big.NewInt(0)
+	maxIPv6.Exp(big.NewInt(2), big.NewInt(128), nil)
+	maxIPv6.Sub(maxIPv6, big.NewInt(1))
 
-	var ips []string
+	ips := make([]string, count)
 	for i := 0; i < count; i++ {
-		newIPInt := big.NewInt(0).Add(ipInt, big.NewInt(0).Mul(stepInt, big.NewInt(int64(i))))
-		newIP := bigIntToIP(newIPInt)
-		ips = append(ips, newIP.String())
+		offset := big.NewInt(0).Mul(stepInt, big.NewInt(int64(i)))
+		newIPInt := big.NewInt(0).Add(ipInt, offset)
+
+		// Overflow check
+		if newIPInt.Cmp(maxIPv6) > 0 {
+			return nil, fmt.Errorf("IPv6 address overflow at index %d", i)
+		}
+
+		ips[i] = bigIntToIP(newIPInt).String()
 	}
 
 	return ips, nil
@@ -128,27 +160,53 @@ func incrementMAC(mac net.HardwareAddr, step int) {
 	}
 }
 
-func macToInt(mac net.HardwareAddr) int {
-	result := 0
+func macToInt(mac net.HardwareAddr) uint64 {
+	result := uint64(0)
 	for _, b := range mac {
-		result = result<<8 + int(b)
+		result = result<<8 + uint64(b)
 	}
 	return result
 }
 
-func GenerateMACs(mac string, count int, stepMACStr string) []string {
-	baseMAC, _ := net.ParseMAC(mac)
-	stepMAC, _ := net.ParseMAC(stepMACStr)
+func GenerateMACs(mac string, count int, stepMACStr string) ([]string, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("count cannot be negative")
+	}
+	if count == 0 {
+		return []string{}, nil
+	}
+	baseMAC, err := net.ParseMAC(mac)
+	if err != nil || len(baseMAC) != 6 {
+		return nil, fmt.Errorf("invalid base MAC address: %q", mac)
+	}
+	stepMAC, err := net.ParseMAC(stepMACStr)
+	if err != nil || len(stepMAC) != 6 {
+		return nil, fmt.Errorf("invalid step MAC address: %q", stepMACStr)
+	}
 	step := macToInt(stepMAC)
 
+	baseInt := macToInt(baseMAC)
+
+	// Max MAC value = FF:FF:FF:FF:FF:FF (48 bits)
+	maxMAC := uint64(1<<48) - 1
+
 	macs := make([]string, count)
-	current := make(net.HardwareAddr, len(baseMAC))
-	copy(current, baseMAC)
-
-	for i := range count {
-		macs[i] = current.String()
-		incrementMAC(current, step)
+	for i := 0; i < count; i++ {
+		newMACInt := baseInt + uint64(i)*step
+		if newMACInt > maxMAC {
+			return nil, fmt.Errorf("MAC address overflow at index %d", i)
+		}
+		macs[i] = intToMAC(newMACInt).String()
 	}
-	return macs
+	return macs, nil
 
+}
+
+func intToMAC(val uint64) net.HardwareAddr {
+	mac := make(net.HardwareAddr, 6)
+	for i := 5; i >= 0; i-- {
+		mac[i] = byte(val & 0xFF)
+		val >>= 8
+	}
+	return mac
 }

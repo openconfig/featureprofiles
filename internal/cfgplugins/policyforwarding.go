@@ -573,12 +573,11 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 	}
 }
 
-func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops []string, labels []int, nexthopsIpv6 []string, labelsforIpv6 []int, ocPFParams OcPolicyForwardingParams) {
+func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops, nexthopsIpv6 []string, labels, labelsforIpv6 []int, ocPFParams OcPolicyForwardingParams) {
 	if deviations.StaticMplsUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			var mplsStaticLspConfig string
-			var mplsStaticLspConfigV6 string
+			var mplsStaticLspConfig, mplsStaticLspConfigV6 string
 			for i, nexthop := range nexthops {
 				mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", labels[i], nexthop)
 			}

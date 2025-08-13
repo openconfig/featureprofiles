@@ -224,18 +224,20 @@ type NetworkConfig struct {
 }
 
 func GenerateNetConfig(intCount int) (*NetworkConfig, error) {
-	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIP, intCount, intStepV4)
+	dutIPs, err := iputil.GenerateIPv4sWithStep(dutIntStartIP, intCount, intStepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPs: %w", err)
 	}
 
-	otgIPs, err := iputil.GenerateIPsWithStep(otgIntStartIP, intCount, intStepV4)
+	otgIPs, err := iputil.GenerateIPv4sWithStep(otgIntStartIP, intCount, intStepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPs: %w", err)
 	}
 
-	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
-
+	otgMACs, err := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate MACs: %v", err)
+	}
 	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIpV6, intCount, intStepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
@@ -394,7 +396,7 @@ func DecapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
-	cfgplugins.MPLSStaticLSPScaleConfig(t, dut, ni, netConfig.OtgIPs, mplsStaticLabels, netConfig.OtgIPsV6, mplsStaticLabelsForIpv6, ocPFParams)
+	cfgplugins.MPLSStaticLSPScaleConfig(t, dut, ni, netConfig.OtgIPs, netConfig.OtgIPsV6, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		PushPolicyForwardingConfig(t, dut, ni)
 	}

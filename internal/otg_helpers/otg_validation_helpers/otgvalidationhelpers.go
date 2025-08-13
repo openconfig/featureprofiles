@@ -114,6 +114,7 @@ func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevic
 	return lossPct
 }
 
+// Validate Lag port counters, All the Lag ports receving the packets with tolerance 2 percent
 func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) error {
 	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	p1Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())
@@ -122,15 +123,16 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 	expectedPkts := totalPkts / 2
 	tolerance := float64(2)
 	if got := (math.Abs(float64(expectedPkts)-float64(p1Pkts)) * 100) / float64(expectedPkts); got > tolerance {
-		return fmt.Errorf("Port 1 packet count out of expected range: got %d, expected ~%d ±%d", p1Pkts, expectedPkts, tolerance)
+		return fmt.Errorf("Port 1 packet count out of expected range: got %d, expected ~%d ±%f", p1Pkts, expectedPkts, tolerance)
 	}
 	if got := (math.Abs(float64(expectedPkts)-float64(p2Pkts)) * 100) / float64(expectedPkts); got > tolerance {
-		return fmt.Errorf("Port 2 packet count out of expected range: got %d, expected ~%d ±%d", p2Pkts, expectedPkts, tolerance)
+		return fmt.Errorf("Port 2 packet count out of expected range: got %d, expected ~%d ±%f", p2Pkts, expectedPkts, tolerance)
 	}
 
 	return nil
 }
 
+// Validate Lag port counters, All the Lag ports receving the packets with tolerance 5 percent (for scale test)
 func (v *OTGValidation) ValidateECMPonLAGWithTolPer(t *testing.T, ate *ondatra.ATEDevice) error {
 	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	p1Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())
