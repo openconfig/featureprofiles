@@ -58,6 +58,28 @@ devices:
       - 23
       - 57777
     xr_username: cisco
+  dut2:
+    image: /ws/abhayk-sjc/BOBCAT_25.8.0.986_MIG_XR_V1/8000-x64.iso
+    rp_type: 8800-rp2
+    num_linecards: 1
+    lcc_type: '8808'
+    num_fabcards: 1
+    fabcard_type: 8808-FC1
+    fabcard_version: p1
+    fabcard_slots:
+    - 0
+    linecard_types:
+      - 88-LC2-36EF-M
+    platform: spitfire_d
+    pre_config: hw-module profile npu-compatibility P200
+    pre_cli: reload location all noprompt
+    xr_hostname: dut
+    xr_password: cisco123
+    xr_port_redir:
+      - 22
+      - 23
+      - 57777
+    xr_username: cisco
 connections:
   hubs:
     port1:
@@ -108,3 +130,9 @@ connections:
     port16:
       - dut.EightHundredGigE0/0/0/16
       - ate.1/16
+    port17:
+      - dut.EightHundredGigE0/0/0/2
+      - dut2.EightHundredGigE0/0/0/0
+    port18:
+      - dut.EightHundredGigE0/0/0/21
+      - dut2.EightHundredGigE0/0/0/1
