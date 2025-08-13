@@ -1214,6 +1214,11 @@ test: {
   exec: " "
 }
 test: {
+  id: "Storage-1.1"
+  description: "Storage Error Counters"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/storage/README.md"
+}
+test: {
   id: "System-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/tests/system_base_test/README.md"
 }
@@ -1885,6 +1890,12 @@ test: {
   id: "gNMI-1.5"
   description: "Telemetry: Port Speed Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/ate_tests/telemetry_port_speed_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-1.6"
+  description: "gNMI server running in more than one network-instance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/tests/gnmi_ni_test/README.md"
   exec: " "
 }
 test: {
