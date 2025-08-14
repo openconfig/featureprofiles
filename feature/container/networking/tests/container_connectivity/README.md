@@ -93,7 +93,7 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
   gnoi:
-    Containerz.StartContainer:
+    containerz.Containerz.StartContainer:
   gribi:
     gRIBI.Get:
 ```
