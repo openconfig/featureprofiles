@@ -626,13 +626,13 @@ paths:
     /interfaces/interface/config/mtu:
     /interfaces/interface/config/name:
     /interfaces/interface/config/type:
-	  /interfaces/interface/rates/config/load-interval:
+    /interfaces/interface/rates/config/load-interval:
     /interfaces/interface/subinterfaces/subinterface/config/description:
     /interfaces/interface/subinterfaces/subinterface/config/enabled:
-	  /interfaces/interface/subinterfaces/subinterface/config/index:
+    /interfaces/interface/subinterfaces/subinterface/config/index:
     /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
     /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
-	  /interfaces/interface/aggregation/config/lag-type:
+    /interfaces/interface/aggregation/config/lag-type:
 
     #psuedowire configs
     /network-instances/network-instance/config/name:
