@@ -416,9 +416,6 @@ func createFlow(otgConfig gosnappi.Config, flowName string, flowtype string, ipA
 		if singleFlow {
 			v4.Src().SetValue(trafficSrcNetIPv4)
 			v4.Dst().SetValue(ipAddr)
-			// udp := flow.Packet().Add().Udp()
-			// udp.DstPort().SetValue(dstport)
-			// udp.SrcPort().SetValue(srcPort)
 		} else {
 			v4.Src().Increment().SetStart(trafficSrcNetIPv4).SetCount(256)
 			v4.Dst().Increment().SetStart(ipAddr).SetCount(256)
@@ -955,7 +952,6 @@ func TestGUEEncap(t *testing.T) {
 		t.Log("Verify traffic packets")
 		verifyTraffic(t, dut, ate, otgConfig, "IPv4-GUE-Traffic")
 
-		// TODO: once support added, will add the code
 		for _, p := range capturePorts {
 			capture := processCapture(t, ate.OTG(), p)
 			validatePackets(t, capture, "ipv4", "", "", 20, 0, true)
@@ -1088,7 +1084,6 @@ func TestGUEEncap(t *testing.T) {
 		t.Logf("Stop Capture")
 		stopCapture(t, ate.OTG(), cs)
 
-		// processCapture(t, ate.OTG(), "port2")
 		t.Log("Verify traffic packets")
 		activeport := verifySinglePathTraffic(t, ate, otgConfig, "IPv4-GUE-Single-Traffic")
 
