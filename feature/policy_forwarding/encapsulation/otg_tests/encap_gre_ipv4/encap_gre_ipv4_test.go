@@ -1,11 +1,9 @@
 package encap_gre_ipv4_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +16,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -513,69 +510,11 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	b.Set(t, dut)
 }
 
-func buildCliSetRequest(config string) *gpb.SetRequest {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Origin: "cli",
-					Elem:   []*gpb.PathElem{},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_AsciiVal{
-						AsciiVal: config,
-					},
-				},
-			},
-		},
-	}
-	return gpbSetRequest
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Errorf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
-}
-
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
-		checkPolicyStatisticsFromCLI(t, dut, tc)
+		t.Fatalf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
 	} else {
 		checkPolicyStatisticsFromOC(t, dut, tc)
-	}
-}
-
-func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	t.Logf("Checking policy statistics for flow %s", tc.flowName)
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		//extract text from CLI output between rule name and packets
-		policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, tc.policyRule, tc.policyRule)
-		cliOutput := runCliCommand(t, dut, policyCountersCommand)
-		cliOutput = strings.TrimSpace(cliOutput)
-		if cliOutput == "" {
-			t.Errorf("No output for CLI command '%s'", policyCountersCommand)
-			return
-		}
-		totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
-		if err != nil {
-			t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
-			return
-		}
-		previouslyMatched := ruleMatchedPackets[tc.policyRule]
-		if totalMatched != previouslyMatched+noOfPackets {
-			t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
-		} else {
-			t.Logf("%d packets matched by policy %s rule %s for flow %s", totalMatched-previouslyMatched, trafficPolicyName, tc.policyRule, tc.flowName)
-		}
-		ruleMatchedPackets[tc.policyRule] = totalMatched
-	default:
-		t.Errorf("Vendor %s is not supported for policy statistics check through CLI", dut.Vendor())
 	}
 }
 
