@@ -114,7 +114,8 @@ func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevic
 	return lossPct
 }
 
-// Validate Lag port counters, All the Lag ports receving the packets with tolerance 2 percent
+// ValidateECMPonLAG checks LAG port counters to ensure that
+// traffic is evenly distributed across all LAG member ports within a tolerance of 2 percent.
 func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) error {
 	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	p1Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())
@@ -132,7 +133,9 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 	return nil
 }
 
-// Validate Lag port counters, All the Lag ports receving the packets with tolerance 5 percent (for scale test)
+// ValidateECMPonLAGWithTolPer checks LAG port counters to ensure that
+// traffic is evenly distributed across all LAG member ports within a
+// tolerance of 5 percent during scale tests.
 func (v *OTGValidation) ValidateECMPonLAGWithTolPer(t *testing.T, ate *ondatra.ATEDevice) error {
 	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	p1Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())

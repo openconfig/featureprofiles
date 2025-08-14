@@ -84,7 +84,7 @@ func GenerateIPv4sWithStep(startIP string, count int, stepIP string) ([]string, 
 
 	var ips []string
 	ips = make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := int(0); i < count; i++ {
 		next := ipInt + uint32(i)*stepInt
 		if next > math.MaxUint32 {
 			return nil, fmt.Errorf("step caused IPv4 overflow at index %d", i)
@@ -136,7 +136,7 @@ func GenerateIPv6sWithStep(startIP string, count int, stepIP string) ([]string, 
 	maxIPv6.Sub(maxIPv6, big.NewInt(1))
 
 	ips := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := int(0); i < count; i++ {
 		offset := big.NewInt(0).Mul(stepInt, big.NewInt(int64(i)))
 		newIPInt := big.NewInt(0).Add(ipInt, offset)
 
@@ -191,7 +191,7 @@ func GenerateMACs(mac string, count int, stepMACStr string) ([]string, error) {
 	maxMAC := uint64(1<<48) - 1
 
 	macs := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := int(0); i < count; i++ {
 		newMACInt := baseInt + uint64(i)*step
 		if newMACInt > maxMAC {
 			return nil, fmt.Errorf("MAC address overflow at index %d", i)
