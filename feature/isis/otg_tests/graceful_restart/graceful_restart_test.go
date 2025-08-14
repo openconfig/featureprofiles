@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
@@ -46,6 +47,7 @@ const (
 	isisPort1Device     = "dev1Isis"
 	isisPort2Device     = "dev2Isis"
 	isisLevel           = 2
+	sleepTime           = 10 * time.Second
 
 	controlcardType   = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
@@ -120,11 +122,11 @@ func TestMain(m *testing.M) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 
-	// Configure DUT Port 1
+	// Configure interfaces on DUT Port 1
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, dc.Interface(p1.Name()).Config(), configInterfaceDUT(p1, &dutPort1, dut))
 
-	// Configure DUT Port 2
+	// Configure interfaces on DUT Port 2
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, dc.Interface(p2.Name()).Config(), configInterfaceDUT(p2, &dutPort2, dut))
 
@@ -337,14 +339,14 @@ func verifyTraffic(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, expect
 
 		switch {
 		case expectLoss && lossPct < (100-lossTolerancePct):
-			t.Errorf("Traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
+			t.Errorf("traffic loss for flow %s was less than expected: got %v, want > %v", flowName, lossPct, 100-lossTolerancePct)
 			fail = true
 
 		case expectLoss:
 			t.Logf("Traffic loss for flow %s was as expected: %v", flowName, lossPct)
 
 		case lossPct > lossTolerancePct:
-			t.Errorf("Traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
+			t.Errorf("traffic loss for flow %s was higher than expected: got %v, want < %v", flowName, lossPct, lossTolerancePct)
 			fail = true
 
 		default:
@@ -364,7 +366,7 @@ func startStopISISRouter(t *testing.T, otg *otg.OTG, routeNames []string, state 
 	case "UP":
 		route.SetState(gosnappi.StateProtocolIsisRoutersState.UP)
 	default:
-		t.Error("Invalid state for action to be performed on ISIS router")
+		t.Error("invalid state for action to be performed on ISIS router")
 	}
 
 	otg.SetControlState(t, cs)
@@ -386,22 +388,22 @@ func TestGracefulRestart(t *testing.T) {
 	type testCase struct {
 		Name        string
 		Description string
-		testFunc    func(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig gosnappi.Config)
+		testFunc    func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config)
 	}
 
 	testCases := []testCase{
 		{
-			Name:        "Testcase: RT-2.16.1 GR Helper",
+			Name:        "Testcase: ISIS with GR Helper",
 			Description: "Validate traffic with GR enabled",
 			testFunc:    testGrHelper,
 		},
 		{
-			Name:        "Testcase: RT-2.16.2 ISIS with Controller Card Switchover",
+			Name:        "Testcase: ISIS with Controller Card Switchover",
 			Description: "Validate traffic with controller card switchover",
 			testFunc:    testISISWithControllerCardSwitchOver,
 		},
 		{
-			Name:        "Testcase: RT-2.16.3 Verify traffic with DUT ISIS Restart",
+			Name:        "Testcase: Verify traffic with DUT ISIS Restart",
 			Description: "Validate traffic with DUT ISIS restart",
 			testFunc:    testISISWithDUTRestart,
 		},
@@ -411,18 +413,34 @@ func TestGracefulRestart(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Logf("Description: %s", tc.Description)
-			tc.testFunc(t, dut, ate.OTG(), otgConfig)
+			tc.testFunc(t, dut, ate, otgConfig)
 		})
 	}
 }
 
-func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig gosnappi.Config) {
+func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	otg := ate.OTG()
+
+	var expectedISISAdj = map[string]interface{}{
+		"IsisRouterName":                isisPort2Device,
+		"LocalStateTypeExp":             "LEVEL_1_2",
+		"LocalStateHoldTimeExp":         uint32(30),
+		"LocalStateRestartStatusExp":    "RUNNING",
+		"LocalStateLastAttemptExp":      "SUCCEEDED",
+		"NeighborStateTypeExp":          "LEVEL_2",
+		"NeighborStateHoldTimeExp":      uint32(30),
+		"NeighborStateRestartStatusExp": "RUNNING",
+		"NeighborStateLastAttemptExp":   "UNAVAILABLE",
+	}
+
 	// Validating subtest 1: Ipv4/Ipv6 traffic from ATE port1 to port2
 	t.Logf("Subtest-1: Verify traffic from ATE port1 to \"target IPv4\" and \"target IPv6\" networks on ATE port-2")
 	otg.StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
 
 	// Validating subtest 2: Restarting IS-IS on ATE port-2 and verifying traffic is not lost due to GR
 	t.Logf("Subtest-2: Restarting IS-IS on ATE port-2 and verifying traffic is not lost due to GR.")
@@ -439,19 +457,28 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig 
 	sleepTime := gracefulRestartTime*time.Second - replaceDuration
 	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
-	time.Sleep(10 * time.Second)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
+
+	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
+
+	time.Sleep(sleepTime)
 	t.Log("Verify ISIS is up again after GR timeout expiry")
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
 
 	// Initiating graceful restart, validating traffic loss after graceful restart expires before restart time
 	t.Logf("Validating traffic loss after after Restart Time expiry")
 	otg.SetControlAction(t, cs)
+
+	//The graceful restart timer is set to 30, validating traffic as soon as it expires before it initiate restart
 	time.Sleep(29 * time.Second)
 	otg.StartTraffic(t)
 	time.Sleep(5 * time.Second)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, true)
+	if verifyTraffic(t, otg, otgConfig, true) {
+		t.Error("traffic loss is not seen for flow as expected")
+	}
 
 	// Validating subtest 3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.
 	t.Logf("Subtest-3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.")
@@ -461,19 +488,26 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig 
 	replaceDuration = time.Since(startTime)
 	time.Sleep(restartWait * time.Second)
 	otg.StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, true)
+	if verifyTraffic(t, otg, otgConfig, true) {
+		t.Error("traffic loss is not seen for flow as expected")
+	}
 }
 
-func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig gosnappi.Config) {
+func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+
+	otg := ate.OTG()
+
 	otg.StartProtocols(t)
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
 
 	otg.StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
 
 	// TODO: Not able to verify because of HW limitation. Adding the below deviation instead creating new one
 	if deviations.GNOISwitchoverReasonMissingUserInitiated(dut) {
@@ -501,7 +535,7 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		intfsOperStatusUPBeforeSwitch := helpers.FetchOperStatusUPIntfs(t, dut, *args.CheckInterfacesInBinding)
 		t.Logf("intfsOperStatusUP interfaces before switchover: %v", intfsOperStatusUPBeforeSwitch)
 		if got, want := len(intfsOperStatusUPBeforeSwitch), 0; got == want {
-			t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
+			t.Errorf("get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
 		}
 
 		gnoiClient := dut.RawAPIs().GNOI(t)
@@ -521,7 +555,7 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		for {
 			var currentTime string
 			t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-			if verifyTraffic(t, otg, otgConfig, false) {
+			if !verifyTraffic(t, otg, otgConfig, false) {
 				break
 			}
 			time.Sleep(60 * time.Second)
@@ -542,7 +576,21 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 
 }
 
-func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, otgConfig gosnappi.Config) {
+func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+
+	otg := ate.OTG()
+
+	var expectedISISAdj = map[string]interface{}{
+		"IsisRouterName":                isisPort2Device,
+		"LocalStateTypeExp":             "LEVEL_1_2",
+		"LocalStateHoldTimeExp":         uint32(30),
+		"LocalStateRestartStatusExp":    "RUNNING",
+		"LocalStateLastAttemptExp":      "UNAVAILABLE",
+		"NeighborStateTypeExp":          "LEVEL_2",
+		"NeighborStateHoldTimeExp":      uint32(30),
+		"NeighborStateRestartStatusExp": "RUNNING",
+		"NeighborStateLastAttemptExp":   "SUCCEEDED",
+	}
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
@@ -553,9 +601,11 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, 
 
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()})
 	otg.StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(sleepTime)
 	otg.StopTraffic(t)
-	verifyTraffic(t, otg, otgConfig, false)
+	if verifyTraffic(t, otg, otgConfig, false) {
+		t.Error("traffic loss for flow is more than expected")
+	}
 
 	t.Logf("Initiating Kill Process on DUT")
 	gnoi.KillProcess(t, dut, "ISIS", gnoi.SigTerm, true, false)
@@ -564,7 +614,7 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, 
 		otg.StartTraffic(t)
 		time.Sleep(5 * time.Second)
 		otg.StopTraffic(t)
-		if verifyTraffic(t, otg, otgConfig, false) {
+		if !verifyTraffic(t, otg, otgConfig, false) {
 			break
 		}
 
@@ -572,4 +622,6 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, 
 			t.Fatalf("Traffic verification failed. Traffic didn't pass within the graceful restart time : %v sec", gracefulRestartTime)
 		}
 	}
+
+	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 }
