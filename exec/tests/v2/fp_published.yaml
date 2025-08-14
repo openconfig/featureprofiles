@@ -348,6 +348,15 @@ tests:
     priority: 39
     timeout: 4200
     groups: [ancx,P0]
+  - name: RT-1.21 (BGP TCP MSS and PMTUD)
+    path: feature/beg/otg_tests/bgptcp_mss_path_mtu
+    owners:
+      - fmolinar
+    mustpass: true
+    testbeds:
+      - 8808-2DUT-ATE-RT121
+    timeout: 4200
+    groups: [ancx,P0]
   - name: RT-5.8 (IPv6 Link Local)
     path: feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test
     owners:
