@@ -68,6 +68,7 @@ const (
 	innerRawPriority       = 10
 	innerSrcCount          = 0
 	innerSrcPort           = 49152
+	tolerancePer           = 5.0
 )
 
 var (
@@ -412,7 +413,7 @@ func TestMPLSOGUEDecapIPv4AndIPv6(t *testing.T) {
 	if err := flowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := lagECMPValidation.ValidateECMPonLAGWithTolPer(t, ate); err != nil {
+	if err := lagECMPValidation.ValidateECMPonLAGWithTolPer(t, ate, tolerancePer); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
 	t.Log("Verify MPLSoGUE decapsulate action for Multicast IPv4 payload")
