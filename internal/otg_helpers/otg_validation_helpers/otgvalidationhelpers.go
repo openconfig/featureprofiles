@@ -124,10 +124,10 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 	expectedPkts := totalPkts / 2
 	tolerance := float64(2)
 	if got := (math.Abs(float64(expectedPkts)-float64(p1Pkts)) * 100) / float64(expectedPkts); got > tolerance {
-		return fmt.Errorf("Port 1 packet count out of expected range: got %d, expected ~%d ±%f", p1Pkts, expectedPkts, tolerance)
+		return fmt.Errorf("port 1 packet count out of expected range: got %d, expected ~%d ±%f", p1Pkts, expectedPkts, tolerance)
 	}
 	if got := (math.Abs(float64(expectedPkts)-float64(p2Pkts)) * 100) / float64(expectedPkts); got > tolerance {
-		return fmt.Errorf("Port 2 packet count out of expected range: got %d, expected ~%d ±%f", p2Pkts, expectedPkts, tolerance)
+		return fmt.Errorf("port 2 packet count out of expected range: got %d, expected ~%d ±%f", p2Pkts, expectedPkts, tolerance)
 	}
 
 	return nil
@@ -145,11 +145,11 @@ func (v *OTGValidation) ValidateECMPonLAGWithTolPer(t *testing.T, ate *ondatra.A
 	tolerance := 5.0 // now 5%
 	pct1 := (math.Abs(float64(p1Pkts)-float64(expectedPkts)) * 100) / float64(expectedPkts)
 	if pct1 > tolerance {
-		return fmt.Errorf("Port 1 packet count out of expected range: got %d, expected ~%d ±%.0f%%", p1Pkts, expectedPkts, tolerance)
+		return fmt.Errorf("port 1 packet count out of expected range: got %d, expected ~%d ±%.0f%%", p1Pkts, expectedPkts, tolerance)
 	}
 	pct2 := (math.Abs(float64(p2Pkts)-float64(expectedPkts)) * 100) / float64(expectedPkts)
 	if pct2 > tolerance {
-		return fmt.Errorf("Port 2 packet count out of expected range: got %d, expected ~%d ±%.0f%%", p2Pkts, expectedPkts, tolerance)
+		return fmt.Errorf("port 2 packet count out of expected range: got %d, expected ~%d ±%.0f%%", p2Pkts, expectedPkts, tolerance)
 	}
 
 	return nil

@@ -48,6 +48,10 @@ type OcPolicyForwardingParams struct {
 	CloudV4NHG   string
 	CloudV6NHG   string
 	DecapPolicy  DecapPolicyParams
+	GuePort      uint32
+	IpType       string
+	Dynamic      bool
+	TunnelIP     string
 }
 
 var (
@@ -507,13 +511,31 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+			if ocPFParams.Dynamic {
+				GueDecapConfig(t, dut, ocPFParams)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 	} else {
 		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
 	}
+}
+
+func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+		                    ip decap-group type udp destination port %v payload %s
+							tunnel type %s-over-udp udp destination port %v
+							ip decap-group %s
+							tunnel type UDP
+							tunnel decap-ip %s
+							tunnel decap-interface %s
+							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
 }
 
 // MPLSStaticLSPConfig configures the interface mpls static lsp.
@@ -573,6 +595,10 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 	}
 }
 
+// MPLSStaticLSPScaleConfig configures static MPLS LSP entries on the DUT.
+// It programs either CLI-based configurations for vendors that do not support
+// OpenConfig static MPLS, or uses OpenConfig models where supported.
+// The configuration scales across IPv4 and IPv6 next hops and labels.
 func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops, nexthopsIpv6 []string, labels, labelsforIpv6 []int, ocPFParams OcPolicyForwardingParams) {
 	if deviations.StaticMplsUnsupported(dut) {
 		switch dut.Vendor() {
@@ -591,42 +617,5 @@ func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Netwo
 		}
 	} else {
 		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
-	}
-}
-
-func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIp, decapInt, policyName string, policyId int) {
-	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
-	if deviations.GueGreDecapUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			cliConfig := fmt.Sprintf(`
-                            ip decap-group type udp destination port %[1]d payload %[2]s 
-                            tunnel type %[2]s-over-udp udp destination port %[1]d
-                            ip decap-group test
-                            tunnel type UDP
-                            tunnel decap-ip %[3]s
-                            tunnel decap-interface %[4]s
-							load-balance policies
-							load-balance sand profile default
-							packet-type gue outer-ip
-                            `, guePort, ipType, tunIp, decapInt)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-
-		default:
-			t.Errorf("Deviation decapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
-		}
-	} else {
-		// TODO: As per the latest OpenConfig GNMI OC schema — the Encapsulation/Decapsulation sub-tree is not fully implemented, need to add OC commands once implemented.
-		d := &oc.Root{}
-		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		npf := ni1.GetOrCreatePolicyForwarding()
-		np := npf.GetOrCreatePolicy(policyName)
-		np.PolicyId = ygot.String(policyName)
-		npRule := np.GetOrCreateRule(uint32(policyId))
-		ip := npRule.GetOrCreateIpv4()
-		ip.DestinationAddressPrefixSet = ygot.String(tunIp)
-		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
-		// transport := npRule.GetOrCreateTransport()
-		// transport.SetDestinationPort()
 	}
 }
