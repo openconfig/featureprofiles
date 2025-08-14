@@ -54,6 +54,8 @@ const (
 	Metadata_TESTBED_DUT_400ZR_100G_4LINKS Metadata_Testbed = 10
 	Metadata_TESTBED_DUT_400FR_100G_4LINKS Metadata_Testbed = 11
 	Metadata_TESTBED_DUT_ATE_5LINKS        Metadata_Testbed = 12
+	Metadata_TESTBED_DUT_800ZR             Metadata_Testbed = 13
+	Metadata_TESTBED_DUT_800ZR_PLUS        Metadata_Testbed = 14
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -72,6 +74,8 @@ var (
 		10: "TESTBED_DUT_400ZR_100G_4LINKS",
 		11: "TESTBED_DUT_400FR_100G_4LINKS",
 		12: "TESTBED_DUT_ATE_5LINKS",
+		13: "TESTBED_DUT_800ZR",
+		14: "TESTBED_DUT_800ZR_PLUS",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -87,6 +91,8 @@ var (
 		"TESTBED_DUT_400ZR_100G_4LINKS": 10,
 		"TESTBED_DUT_400FR_100G_4LINKS": 11,
 		"TESTBED_DUT_ATE_5LINKS":        12,
+		"TESTBED_DUT_800ZR":             13,
+		"TESTBED_DUT_800ZR_PLUS":        14,
 	}
 )
 
@@ -1115,8 +1121,10 @@ type Metadata_Deviations struct {
 	// Devices that do not support policy forwarding encapsulate gre action
 	// Arista: b/409347274
 	PolicyForwardingGreEncapsulationOcUnsupported bool `protobuf:"varint,315,opt,name=policy_forwarding_gre_encapsulation_oc_unsupported,json=policyForwardingGreEncapsulationOcUnsupported,proto3" json:"policy_forwarding_gre_encapsulation_oc_unsupported,omitempty"`
-	unknownFields                                 protoimpl.UnknownFields
-	sizeCache                                     protoimpl.SizeCache
+	// Devices that must have OTN to ETH assignment.
+	OtnToEthAssignment bool `protobuf:"varint,316,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3137,6 +3145,13 @@ func (x *Metadata_Deviations) GetPolicyForwardingGreEncapsulationOcUnsupported()
 	return false
 }
 
+func (x *Metadata_Deviations) GetOtnToEthAssignment() bool {
+	if x != nil {
+		return x.OtnToEthAssignment
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3193,7 +3208,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"Ӭ\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xba\xad\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3205,7 +3220,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa7\xa3\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aۣ\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3493,13 +3508,14 @@ const file_metadata_proto_rawDesc = "" +
 	",policy_forwarding_to_next_hop_oc_unsupported\x18\xb8\x02 \x01(\bR&policyForwardingToNextHopOcUnsupported\x12E\n" +
 	"\x1fsflow_ingress_min_sampling_rate\x18\xb9\x02 \x01(\rR\x1bsflowIngressMinSamplingRate\x12:\n" +
 	"\x19qos_remark_oc_unsupported\x18\xba\x02 \x01(\bR\x16qosRemarkOcUnsupported\x12j\n" +
-	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x122\n" +
+	"\x15otn_to_eth_assignment\x18\xbc\x02 \x01(\bR\x12otnToEthAssignmentJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xf8\x02\n" +
+	"deviations\"\xab\x03\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -3514,7 +3530,9 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1dTESTBED_DUT_400ZR_100G_4LINKS\x10\n" +
 	"\x12!\n" +
 	"\x1dTESTBED_DUT_400FR_100G_4LINKS\x10\v\x12\x1a\n" +
-	"\x16TESTBED_DUT_ATE_5LINKS\x10\f\"m\n" +
+	"\x16TESTBED_DUT_ATE_5LINKS\x10\f\x12\x15\n" +
+	"\x11TESTBED_DUT_800ZR\x10\r\x12\x1a\n" +
+	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
