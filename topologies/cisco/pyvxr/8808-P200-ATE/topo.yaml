@@ -59,7 +59,7 @@ devices:
       - 57777
     xr_username: cisco
   dut2:
-    image: /ws/abhayk-sjc/BOBCAT_25.8.0.986_MIG_XR_V1/8000-x64.iso
+    cvac: $BASE_CONF_PATH
     rp_type: 8800-rp2
     num_linecards: 1
     lcc_type: '8808'
