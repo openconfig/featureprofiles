@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	TcamProfileAncx = `
+	TcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
 !
 hardware tcam
@@ -379,7 +379,7 @@ func ConfigureTcamProfile(t *testing.T, dut *ondatra.DUTDevice, tcamProfileConfi
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		if strings.ToLower(dut.Model()) == "ceos" {
-			t.Errorf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
+			t.Fatalf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
 		}
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		t.Logf("Push the Tcam profile:%s", dut.Vendor())
@@ -388,7 +388,7 @@ func ConfigureTcamProfile(t *testing.T, dut *ondatra.DUTDevice, tcamProfileConfi
 			t.Fatalf("Failed to set TCAM profile from CLI: %v", err)
 		}
 	default:
-		t.Errorf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
+		t.Fatalf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
 	}
 
 }
