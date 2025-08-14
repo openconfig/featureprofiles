@@ -3,6 +3,7 @@ package zr_terminal_device_paths_test
 import (
 	"flag"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -42,7 +43,11 @@ var (
 	ethIndexes             map[string]uint32
 	otnIndexes             map[string]uint32
 	logicalChannelPath     = "openconfig/terminal-device/logical-channels/channel[index=%v]"
-	inactivePreFECBER      = []any{0.0, 0.5, 1.0}
+	// Different acceptable values for inactive pre-FEC BER.
+	// Cisco returns 0.5 for inactive pre-FEC BER.
+	// Arista MVC800 returns 1.0 for inactive pre-FEC BER.
+	// All other vendors/platforms return 0.0 for inactive pre-FEC BER.
+	inactivePreFECBER = []float64{0.0, 0.5, 1.0}
 )
 
 type testcase struct {
@@ -50,7 +55,7 @@ type testcase struct {
 	path       string
 	got        any
 	want       any
-	oneOf      []any
+	oneOf      []float64
 	operStatus oc.E_Interface_OperStatus
 	minAllowed float64
 	maxAllowed float64
@@ -580,25 +585,24 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		t.Run(fmt.Sprintf("%s of %v", tc.desc, p.Name()), func(t *testing.T) {
 			t.Logf("\n%s: %s = %v\n\n", p.Name(), tc.path, tc.got)
 			switch {
-			case tc.oneOf != nil:
-				found := false
-				var oneOf []float64
-				for _, want := range tc.oneOf {
-					oneOf = append(oneOf, want.(float64))
-					if tc.got.(float64) == want.(float64) {
-						found = true
-						break
-					}
+			case len(tc.oneOf) > 0:
+				val, ok := tc.got.(float64)
+				if !ok {
+					t.Errorf("\n%s: %s, invalid type: \n got %v want float64\n\n", p.Name(), tc.path, tc.got)
 				}
-				if !found {
-					t.Errorf("\n%s: %s, none of the expected values: \n got %v want one of %v\n\n", p.Name(), tc.path, tc.got, oneOf)
+				if !slices.Contains(tc.oneOf, val) {
+					t.Errorf("\n%s: %s, none of the expected values: \n got %v want one of %v\n\n", p.Name(), tc.path, tc.got, tc.oneOf)
 				}
 			case tc.operStatus == oc.Interface_OperStatus_UP && tc.want != nil:
 				if diff := cmp.Diff(tc.got, tc.want); diff != "" {
 					t.Errorf("\n%s: %s, diff (-got +want):\n%s\n\n", p.Name(), tc.path, diff)
 				}
 			case tc.operStatus == oc.Interface_OperStatus_UP:
-				if tc.got.(float64) < tc.minAllowed || tc.got.(float64) > tc.maxAllowed {
+				val, ok := tc.got.(float64)
+				if !ok {
+					t.Errorf("\n%s: %s, invalid type: \n got %v want float64\n\n", p.Name(), tc.path, tc.got)
+				}
+				if val < tc.minAllowed || val > tc.maxAllowed {
 					t.Errorf("\n%s: %s, out of range:\n got %v want >= %v, <= %v\n\n", p.Name(), tc.path, tc.got, tc.minAllowed, tc.maxAllowed)
 				}
 			default:
