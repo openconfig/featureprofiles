@@ -14,4 +14,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
-tags: TAGS_AGGREGATION
+tags:  TAGS_AGGREGATION
