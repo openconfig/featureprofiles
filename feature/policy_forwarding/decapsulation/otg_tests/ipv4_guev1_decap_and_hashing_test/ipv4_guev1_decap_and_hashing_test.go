@@ -119,6 +119,14 @@ var (
 	lagTrafficDistribution = []uint64{50, 50}
 	aggID1                 = "Port-Channel1"
 	aggID2                 = "Port-Channel2"
+	constH1v4              = "198.51.100.1"
+	constH1v6              = "2001:db8:100::1"
+	constH2v4              = "198.51.110.1"
+	constH2v6              = "2001:db8:110::1"
+	constH3v4              = "198.51.120.1"
+	constH3v6              = "2001:db8:120::1"
+	constH4v4              = "198.51.130.1"
+	constH4v6              = "2001:db8:130::1"
 )
 
 type Neighbor struct {
@@ -272,7 +280,7 @@ func TestMultipathGUE(t *testing.T) {
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
 		// Generate flows with randomized L4 ports immediately after outer header
-		for flowIndex := 7; flowIndex <= 14; flowIndex++ {
+		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
 			configureFlows(t, otgConfig, macAddress, []string{otgConfig.Ports().Items()[1].Name()}, flowIndex, true)
 		}
 
@@ -290,7 +298,7 @@ func TestMultipathGUE(t *testing.T) {
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
 		// Generate flows with Immediate next header's L3 fields
-		for flowIndex := 1; flowIndex <= 14; flowIndex++ {
+		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
 			configureFlows(t, otgConfig, macAddress, []string{otgConfig.Ports().Items()[1].Name()}, flowIndex, true)
 		}
 		ate.OTG().PushConfig(t, otgConfig)
@@ -397,7 +405,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		jsonConfig := `
 		load-balance policies
 		load-balance sand profile default
-		packet-type gue outer-ip		
+		fields ipv6 outer dst-ip flow-label next-header src-ip
+        fields l4 outer dst-port src-port
+        no fields mpls
+        packet-type gue outer-ip
 		`
 		gpbSetRequest := buildCliConfigRequest(jsonConfig)
 
@@ -414,10 +425,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		jsonConfig := fmt.Sprintf(`		
 		router bgp %d
-		address-family ipv4 labeled-unicast
+		address-family ipv4
 		maximum-paths %[2]d ecmp %[2]d
 		bgp bestpath as-path multipath-relax
-		address-family ipv6 labeled-unicast
+		address-family ipv6
 		maximum-paths %[2]d ecmp %[2]d
 		bgp bestpath as-path multipath-relax
 		`, dutAS, ecmpMaxPath)
@@ -914,64 +925,64 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 
 		if incr == 1 {
 			ipInner := flow.Packet().Add().Ipv4()
-			ipInner.Src().SetValue(host1IPv4Start)
-			ipInner.Dst().SetValue(host3IPv4Start)
+			ipInner.Src().SetValue(constH1v4)
+			ipInner.Dst().SetValue(constH3v4)
 		} else {
 			ipInner := flow.Packet().Add().Ipv6()
-			ipInner.Src().SetValue(host1IPv6Start)
-			ipInner.Dst().SetValue(host3IPv6Start)
+			ipInner.Src().SetValue(constH1v6)
+			ipInner.Dst().SetValue(constH3v6)
 		}
 		tcp := flow.Packet().Add().Tcp()
 		tcp.SrcPort().SetValue(testSrcPort)
 		tcp.DstPort().SetValue(testDstPort)
 	case 2, 4:
 		ipInner := flow.Packet().Add().Ipv4()
-		ipInner.Src().SetValue(host1IPv4Start)
+		ipInner.Src().SetValue(constH1v4)
 		if incr == 2 {
-			ipInner.Dst().SetValue(host2IPv4Start)
+			ipInner.Dst().SetValue(constH2v4)
 		} else {
-			ipInner.Dst().SetValue(host4IPv4Start)
+			ipInner.Dst().SetValue(constH4v4)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().SetValue(testSrcPort)
+		udp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(10)
 		udp.DstPort().SetValue(testDstPort)
 	case 3, 5:
 		ipInner := flow.Packet().Add().Ipv4()
-		ipInner.Src().SetValue(host1IPv4Start)
+		ipInner.Src().SetValue(constH1v4)
 		if incr == 3 {
-			ipInner.Dst().SetValue(host2IPv4Start)
+			ipInner.Dst().SetValue(constH2v4)
 		} else {
-			ipInner.Dst().SetValue(host4IPv4Start)
+			ipInner.Dst().SetValue(constH4v4)
 		}
 		tcp := flow.Packet().Add().Tcp()
-		tcp.SrcPort().SetValue(testSrcPort)
+		tcp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(10)
 		tcp.DstPort().SetValue(testDstPort)
 	case 7, 9:
 		ipInner := flow.Packet().Add().Ipv6()
-		ipInner.Src().SetValue(host1IPv6Start)
+		ipInner.Src().SetValue(constH1v6)
 		if incr == 7 {
-			ipInner.Dst().SetValue(host2IPv6Start)
+			ipInner.Dst().SetValue(constH2v6)
 		} else {
-			ipInner.Dst().SetValue(host4IPv6Start)
+			ipInner.Dst().SetValue(constH4v6)
 		}
 		udp := flow.Packet().Add().Udp()
 		udp.SrcPort().Increment().SetStart(UdpSrcPort - 1).SetStep(1).SetCount(10)
 		udp.DstPort().SetValue(UdpSrcPort - 2)
 	case 8, 10:
 		ipInner := flow.Packet().Add().Ipv6()
-		ipInner.Src().SetValue(host1IPv6Start)
+		ipInner.Src().SetValue(constH1v6)
 		if incr == 8 {
-			ipInner.Dst().SetValue(host2IPv6Start)
+			ipInner.Dst().SetValue(constH2v6)
 		} else {
-			ipInner.Dst().SetValue(host4IPv6Start)
+			ipInner.Dst().SetValue(constH4v6)
 		}
 		tcp := flow.Packet().Add().Tcp()
-		tcp.SrcPort().SetValue(testSrcPort)
+		tcp.SrcPort().Increment().SetStart(testSrcPort).SetStep(1).SetCount(10)
 		tcp.DstPort().SetValue(testDstPort)
 	case 11, 12, 13, 14:
 		ipInner := flow.Packet().Add().Ipv6()
-		ipInner.Src().SetValue(host1IPv6Start)
-		ipInner.Dst().SetValue(host4IPv6Start)
+		ipInner.Src().SetValue(constH1v6)
+		ipInner.Dst().SetValue(constH4v6)
 		tcp := flow.Packet().Add().Tcp()
 		tcp.SrcPort().SetValue(testSrcPort)
 		tcp.DstPort().SetValue(testDstPort)
