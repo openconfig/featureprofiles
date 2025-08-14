@@ -16,6 +16,7 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     isis_interface_afi_unsupported:  true
+    policy_definition_config_path_augmented: true
   }
 }
 platform_exceptions: {

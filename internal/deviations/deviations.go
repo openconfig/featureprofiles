@@ -1592,3 +1592,8 @@ func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
+
+// PolicyDefinitionConfigPathAugmented returns true if the policy definition config path is augmented and can't be unmarshalled by the test.
+func PolicyDefinitionConfigPathAugmented(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyDefinitionConfigPathAugmented()
+}
