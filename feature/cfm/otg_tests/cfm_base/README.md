@@ -618,29 +618,30 @@ Verify:
 }
 ```
 
+```yaml
 paths:
     # interface configs
-    /interfaces/interface/config/description
-    /interfaces/interface/config/enabled
-    /interfaces/interface/config/mtu
-    /interfaces/interface/config/name
-    /interfaces/interface/config/type
-	  /interfaces/interface/rates/config/load-interval
-    /interfaces/interface/subinterfaces/subinterface/config/description
-    /interfaces/interface/subinterfaces/subinterface/config/enabled
-	  /interfaces/interface/subinterfaces/subinterface/config/index
-    /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu
-    /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu
-	  /interfaces/interface/aggregation/config/lag-type
+    /interfaces/interface/config/description:
+    /interfaces/interface/config/enabled:
+    /interfaces/interface/config/mtu:
+    /interfaces/interface/config/name:
+    /interfaces/interface/config/type:
+	  /interfaces/interface/rates/config/load-interval:
+    /interfaces/interface/subinterfaces/subinterface/config/description:
+    /interfaces/interface/subinterfaces/subinterface/config/enabled:
+	  /interfaces/interface/subinterfaces/subinterface/config/index:
+    /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
+	  /interfaces/interface/aggregation/config/lag-type:
 
     #psuedowire configs
-    /network-instances/network-instance/config/name
-    /network-instances/network-instance/config/type
-    /network-instances/network-instance/connection-points/connection-point/config/connection-point-id
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/config/endpoint-id
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/interface
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface
-    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier
+    /network-instances/network-instance/config/name:
+    /network-instances/network-instance/config/type:
+    /network-instances/network-instance/connection-points/connection-point/config/connection-point-id:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/config/endpoint-id:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/interface:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface:
+    /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier:
 
     #TODO: Add new OCs for labels and next-hop-group under connection-point 
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label 
@@ -709,30 +710,30 @@ paths:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:    
 
     # Config Paths for CFM
-    /oam/cfm/domains/domain/config/char-string
-    /oam/cfm/domains/domain/config/level
-    /oam/cfm/domains/domain/config/md-id
-    /oam/cfm/domains/domain/config/md-name-type
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ccm-interval
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/group-name/oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/loss-threshold
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-id
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-name-type
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/unsigned-int16
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/ccm-enabled
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/direction
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/interface
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/local-mep-id
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/config/profile-name
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/rdi/config/transmit-on-defect
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/config/id
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/burst-interval
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/intervals-archived
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/measurement-interval
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/measurement-type
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/packet-per-burst
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/packets-per-meaurement-period
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/profile-name
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/repetition-period
+    /oam/cfm/domains/domain/config/char-string:
+    /oam/cfm/domains/domain/config/level:
+    /oam/cfm/domains/domain/config/md-id:
+    /oam/cfm/domains/domain/config/md-name-type:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ccm-interval:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/group-name/oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/loss-threshold:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-name-type:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/unsigned-int16:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/ccm-enabled:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/direction:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/interface:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/local-mep-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/config/profile-name:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/rdi/config/transmit-on-defect:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/config/id:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/burst-interval:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/intervals-archived:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/measurement-interval:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/measurement-type:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/packet-per-burst:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/packets-per-meaurement-period:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/profile-name:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/repetition-period:
 
 rpcs:
   gnmi:
@@ -742,6 +743,7 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
 ```
+
 ## Required DUT platform
 * MFF
 * FFF
