@@ -23,8 +23,8 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"strconv"
 	"net"
+	"strconv"
 
 	"strings"
 	"testing"
@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	containerTar   = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
+	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 )
 
 const (
@@ -189,8 +189,6 @@ func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientC
 	}
 	return conn
 }
-
-
 
 // TestDial implements CNTR-2, validating that it is possible for an external caller to dial into a service
 // running in a container on a DUT. The service used is the cntr service defined by cntr.proto.
