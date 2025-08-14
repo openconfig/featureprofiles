@@ -643,8 +643,8 @@ paths:
     /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/subinterface:
     /network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/virtual-circuit-identifier:
 
-    #TODO: Add new OCs for labels and next-hop-group under connection-point 
-    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label 
+    #TODO: Add new OCs for labels and next-hop-group under connection-point
+    #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/local-label
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/local/config/remote-label
     #/network-instances/network-instance/connection-points/connection-point/endpoints/endpoint/remote/config/next-hop-group
 
@@ -655,7 +655,7 @@ paths:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
-    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/type:          
+    #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/type:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dst-ip:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/src-ip:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/gre/config/dscp:
@@ -686,39 +686,35 @@ paths:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts:
 
-    /oam/cfm/domains/domain/md-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/ma-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/local-mep-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/profile-name:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/id:
-    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/profile-name:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/delay-measurement-state/frame-delay-two-way-average:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/delay-measurement-state/frame-delay-two-way-max:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/delay-measurement-state/frame-delay-two-way-min:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_delay/state/measurement-type:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/far-end-average-frame-loss-ratio:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/far-end-max-frame-loss-ratio:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/far-end-min-frame-loss-ratio:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/near-end-average-frame-loss-ratio:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/near-end-max-frame-loss-ratio:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/loss-measurement-state/near-end-min-frame-loss-ratio:
-    /oam/cfm/domains/maintenance-domain/D12/maintenance-associations/maintenance-association/S1/mep-endpoints/mep-endpoint/11/pm-profiles/pm-profile/Y1731_loss/state/measurement-type:
-
+    /oam/cfm/domains/domain/state/md-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/state/ma-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/state/local-mep-id:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/state/id:
+    /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/state/profile-name:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-average:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-max:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-min:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/measurement-type:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-average-frame-loss-ratio:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-max-frame-loss-ratio:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-min-frame-loss-ratio:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-average-frame-loss-ratio:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-max-frame-loss-ratio:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-min-frame-loss-ratio:
 
 
     # Config paths for GRE decap
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:    
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
 
     # Config Paths for CFM
-    /oam/cfm/domains/domain/config/char-string:
+    /oam/cfm/domains/domain/config/name:
     /oam/cfm/domains/domain/config/level:
     /oam/cfm/domains/domain/config/md-id:
     /oam/cfm/domains/domain/config/md-name-type:
     /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ccm-interval:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/group-name/oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/loss-threshold:
+    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/loss-threshold:
     /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-id:
     /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-name-type:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/unsigned-int16:
     /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/ccm-enabled:
     /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/direction:
     /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/interface:
@@ -742,6 +738,7 @@ rpcs:
       replace: true
     gNMI.Subscribe:
       on_change: true
+
 ```
 
 ## Required DUT platform
