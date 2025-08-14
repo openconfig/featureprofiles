@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -216,4 +217,63 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
+}
+
+// NextHopGroupConfigForIpOverUdp configures the interface next-hop-group config for ip over udp.
+func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, nhAddress string, nexthopGroupName string, tos, ttl uint8, deleteTtl bool) {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		cli := ""
+		groupType := ""
+
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if traffictype == "V4Udp" {
+				groupType = "ipv4-over-udp"
+			} else if traffictype == "V6Udp" {
+				groupType = "ipv6-over-udp"
+			}
+
+			if nhAddress != "" {
+				cli = fmt.Sprintf(`
+					nexthop-group %s type %s
+					tunnel-source intf Ethernet1/1
+					fec hierarchical
+   					entry  0 tunnel-destination %s
+					`, nexthopGroupName, groupType, nhAddress)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			} else if ttl != 0 {
+				cli = fmt.Sprintf(`
+					nexthop-group %s type %s
+					ttl %v
+					`, nexthopGroupName, groupType, ttl)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+			if deleteTtl {
+				cli = fmt.Sprintf(
+					`nexthop-group %s type %s
+					no ttl %v
+					`, nexthopGroupName, groupType, ttl)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		t.Helper()
+		nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup(nexthopGroupName)
+		nhg.GetOrCreateNextHop("Dest A-NH1").Index = ygot.String("Dest A-NH1")
+
+		// Set the encap header for each next-hop
+		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+		ueh1.GetOrCreateUdpV4().DstIp = ygot.String(nhAddress)
+
+		// if tos != 0 {
+		// 	ueh1.GetOrCreateUdpV4().Dscp = ygot.Uint8(tos)
+		// }
+		if ttl != 0 {
+			ueh1.GetOrCreateUdpV4().IpTtl = ygot.Uint8(ttl)
+		}
+	}
+
 }
