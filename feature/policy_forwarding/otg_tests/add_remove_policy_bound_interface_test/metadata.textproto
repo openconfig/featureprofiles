@@ -1,0 +1,34 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "93de65a7-8566-4106-96c2-91d3ea82545e"
+plan_id:  "PF-1.24"
+description:  "Add and remove interface bound to PBF"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    static_protocol_name:  "static"
+    interface_enabled:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    static_protocol_name:  "STATIC"
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    interface_enabled:  true
+  }
+}
