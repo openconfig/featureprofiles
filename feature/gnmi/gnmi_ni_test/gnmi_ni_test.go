@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -40,44 +41,48 @@ var (
 func TestCodelab(t *testing.T) {
 	// configure DUT
 	dut := ondatra.DUT(t, "dut")
-	ConfigureDUT(t, dut)
-	ConfigureAdditionalNetworkInstance(t, dut, customVRFName)
+	batch := &gnmi.SetBatch{}
+	ConfigureDUT(batch, t, dut)
+	ConfigureAdditionalNetworkInstance(batch, t, dut, customVRFName)
 }
 
 // ConfigureDUT configures port1 and port2 on the DUT with default network instance.
-func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 
 	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
 
 	// Configure default network instance.
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	cfgplugins.ConfigureDefaultNetworkInstance(batch, t, dut)
 
 	// Configure gNMI server on default network instance.
-	fptest.CreateGNMIServer(t, dut, deviations.DefaultNetworkInstance(dut))
+	cfgplugins.CreateGNMIServer(batch, t, dut, deviations.DefaultNetworkInstance(dut))
 
 	// Configuring basic interface and network instance as some devices only populate OC after configuration.
-	gnmi.Update(t, dut, gnmi.OC().Interface(dp1.Name()).Config(), dutPort1.NewOCInterface(dp1.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(dp2.Name()).Config(), dutPort2.NewOCInterface(dp2.Name(), dut))
-
+	port1IntfPath := dutPort1.NewOCInterface(dp1.Name(), dut)
+	gnmi.BatchUpdate(batch, gnmi.OC().Interface(dp1.Name()).Config(), port1IntfPath)
 	// Deviations for vendors that require explicit interface to network instance assignment.
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		cfgplugins.AssignToNetworkInstance(batch, t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
 // ConfigureAdditionalNetworkInstance configures a new network instance in DUT and changes the network instance of port2
-func ConfigureAdditionalNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	// Configure interface, non-default network instance
 	t.Logf("\nConfiguring network instance and gNMI server: Network instance: %s \n", ni)
-	fptest.ConfigureCustomNetworkInstance(t, dut, ni)
-
-	// Assign port2 to custom network instance for all vendors
-	fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), customVRFName, 0)
+	cfgplugins.ConfigureCustomNetworkInstance(batch, t, dut, ni)
 
 	// Configure non-default gnmi server.
-	fptest.CreateGNMIServer(t, dut, customVRFName)
+	cfgplugins.CreateGNMIServer(batch, t, dut, customVRFName)
+
+	// Assign port2 to custom network instance for all vendors
+	dp2 := dut.Port(t, "port2")
+	port2IntfPath := dutPort2.NewOCInterface(dp2.Name(), dut)
+	gnmi.BatchUpdate(batch, gnmi.OC().Interface(dp2.Name()).Config(), port2IntfPath)
+	cfgplugins.AssignToNetworkInstance(batch, t, dut, dp2.Name(), customVRFName, 0)
+
+	t.Log("\nApplying configuration to DUT\n")
+	batch.Set(t, dut)
 
 	for _, netInstance := range gnmi.GetAll(t, dut, gnmi.OC().NetworkInstanceAny().State()) {
 		t.Logf("Network instance: %s", netInstance.GetName())
@@ -95,7 +100,6 @@ func ConfigureAdditionalNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, ni
 			validateGnmiServerState(t, customInstanceState)
 		}
 	}
-	t.Log("\n")
 
 	// Two Servers should be running on the DUT.
 	gnmiServerCount := len(gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State()))
