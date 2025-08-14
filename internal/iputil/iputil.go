@@ -90,7 +90,7 @@ func GenerateIPv4sWithStep(startIP string, count int, stepIP string) ([]string, 
 	ips := make([]string, count)
 	for i := int(0); i < count; i++ {
 		next := ipInt + uint32(i)*stepInt
-		if next > math.MaxUint32 {
+		if next > uint32(math.MaxUint32) {
 			return nil, fmt.Errorf("step caused IPv4 overflow at index %d", i)
 		}
 		ips[i] = intToIPv4(next).String()
