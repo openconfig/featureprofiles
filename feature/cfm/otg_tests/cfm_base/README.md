@@ -686,21 +686,21 @@ paths:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
     /interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts:
 
-    /oam/cfm/domains/domain/state/md-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/state/ma-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/state/local-mep-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/state/id:
+    /oam/cfm/domains/maintenance-domain/state/md-id:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/state/ma-id:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/state/local-mep-id:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/state/id:
     /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/state/profile-name:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-average:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-max:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-min:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/measurement-type:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-average-frame-loss-ratio:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-max-frame-loss-ratio:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-min-frame-loss-ratio:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-average-frame-loss-ratio:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-max-frame-loss-ratio:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-min-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-average:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-max:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/delay-measurement-state/frame-delay-two-way-min:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/measurement-type:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-average-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-max-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/far-end-min-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-average-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-max-frame-loss-ratio:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/state/loss-measurement-state/near-end-min-frame-loss-ratio:
 
 
     # Config paths for GRE decap
