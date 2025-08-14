@@ -392,6 +392,9 @@ func matchingCommunityRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func verifyNonMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	if deviations.PolicyDefinitionConfigPathAugmented(dut) {
+		return
+	}
 	rPolicy := gnmi.Get[*oc.RoutingPolicy](t, dut, gnmi.OC().RoutingPolicy().State())
 
 	rPolicyDef := rPolicy.GetPolicyDefinition(v4RoutePolicy)
@@ -607,6 +610,9 @@ func matchingCommunityRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func verifyNonMatchingPrefixTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	if deviations.PolicyDefinitionConfigPathAugmented(dut) {
+		return
+	}
 	rPolicy := gnmi.Get[*oc.RoutingPolicy](t, dut, gnmi.OC().RoutingPolicy().State())
 
 	rPolicyDef := rPolicy.GetPolicyDefinition(v6RoutePolicy)
