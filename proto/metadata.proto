@@ -900,6 +900,9 @@ message Metadata {
     // Arista: b/409347274
     bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
 
+    // Device does not support 'origin' field in gNMI/gNOI RPC paths.
+    bool skip_origin = 316;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
