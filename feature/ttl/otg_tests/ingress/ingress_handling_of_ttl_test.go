@@ -1,11 +1,9 @@
 package ingress_handling_of_ttl_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -53,10 +51,6 @@ const (
 )
 
 var (
-	ruleMap = map[string]string{
-		IPv4: rulev4,
-		IPv6: rulev6,
-	}
 	// DUT ports
 	dutPort1 = attrs.Attributes{
 		Name:    "port1",
@@ -734,8 +728,7 @@ func configureFlows(t *testing.T, config *gosnappi.Config, tc testCase, dscp uin
 
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) || deviations.PolicyForwardingToNextHopOcUnsupported(dut) {
-		//t.Fatalf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
-		checkPolicyStatisticsFromCLI(t, dut, tc)
+		t.Fatalf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
 	} else {
 		checkPolicyStatisticsFromOC(t, dut, tc)
 	}
@@ -856,44 +849,4 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 		t.Fatalf("Failed to configure static route: %v", err)
 	}
 	b.Set(t, dut)
-}
-
-func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	t.Logf("Checking policy statistics for flow %s", tc.flowName)
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		//extract text from CLI output between rule name and packets
-		ruleName := ruleMap[tc.ipType]
-		policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, ruleName, ruleName)
-		cliOutput := runCliCommand(t, dut, policyCountersCommand)
-		cliOutput = strings.TrimSpace(cliOutput)
-		if cliOutput == "" {
-			t.Errorf("No output for CLI command '%s'", policyCountersCommand)
-			return
-		}
-		totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
-		if err != nil {
-			t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
-			return
-		}
-		previouslyMatched := ruleMatchedPackets[ruleName]
-		if totalMatched != previouslyMatched+noOfPackets {
-			t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, ruleName, tc.flowName, totalMatched-previouslyMatched)
-		} else {
-			t.Logf("%d packets matched by policy %s rule %s for flow %s", noOfPackets, trafficPolicyName, ruleName, tc.flowName)
-		}
-		ruleMatchedPackets[ruleName] = totalMatched
-	default:
-		t.Errorf("Vendor %s is not supported for policy statistics check through CLI", dut.Vendor())
-	}
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Errorf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
 }
