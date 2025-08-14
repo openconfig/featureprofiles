@@ -223,9 +223,7 @@ Verify:
 
 * Device Health and soak for at least 6 hrs.
 
-## OpenConfig Path and RPC Coverage
-
-### CFM configs
+## Canonical OC  
 
 ``` json
 {
@@ -619,6 +617,8 @@ Verify:
   }
 }
 ```
+
+## OpenConfig Path and RPC Coverage  
 
 ```yaml
 paths:
