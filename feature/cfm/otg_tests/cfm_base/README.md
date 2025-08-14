@@ -707,21 +707,21 @@ paths:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
 
     # Config Paths for CFM
-    /oam/cfm/domains/domain/config/name:
-    /oam/cfm/domains/domain/config/level:
-    /oam/cfm/domains/domain/config/md-id:
-    /oam/cfm/domains/domain/config/md-name-type:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ccm-interval:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/loss-threshold:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/config/ma-name-type:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/ccm-enabled:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/direction:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/interface:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/local-mep-id:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/config/profile-name:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/rdi/config/transmit-on-defect:
-    /oam/cfm/domains/domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/config/id:
+    #/oam/cfm/domains/domain/config/name:
+    /oam/cfm/domains/maintenance-domain/config/level:
+    /oam/cfm/domains/maintenance-domain/config/md-id:
+    /oam/cfm/domains/maintenance-domain/config/md-name-type:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/config/ccm-interval:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/config/loss-threshold:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/config/ma-id:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/config/ma-name-type:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/ccm-enabled:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/direction:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/interface:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/config/local-mep-id:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/pm-profiles/pm-profile/config/profile-name:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/rdi/config/transmit-on-defect:
+    /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/mep-endpoints/mep-endpoint/remote-meps/remote-mep/config/id:
     /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/burst-interval:
     /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/intervals-archived:
     /oam/cfm/performance-measurement-profiles-global/performance-measurement-profile/config/measurement-interval:
