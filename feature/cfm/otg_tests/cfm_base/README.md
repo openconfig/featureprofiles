@@ -227,392 +227,390 @@ Verify:
 
 ``` json
 {
-  "oam": {
-    "cfm": {
-      "domains": {
-        "maintenance-domain": [
-          {
-            "config": {
-              "char-string": "D1",
-              "level": 5,
-              "md-id": "1",
-              "md-name-type": "CHARACTER_STRING"
-            },
-            "maintenance-associations": {
-              "maintenance-association": [
-                {
-                  "config": {
-                    "ccm-interval": "100MS",
-                    "group-name": "GEO_1",
-                    "loss-threshold": 3,
-                    "ma-id": "S1",
-                    "ma-name-type": "UINT16",
-                    "unsigned-int16": 1
-                  },
+  "cfm": {
+    "domains": {
+      "maintenance-domain": [
+        {
+          "config": {
+            "char-string": "D1",
+            "level": 5,
+            "md-id": "1",
+            "md-name-type": "CHARACTER_STRING"
+          },
+          "maintenance-associations": {
+            "maintenance-association": [
+              {
+                "config": {
+                  "ccm-interval": "100MS",
+                  "group-name": "GEO_1",
+                  "loss-threshold": 3,
                   "ma-id": "S1",
-                  "mep-endpoints": {
-                    "mep-endpoint": [
-                      {
-                        "config": {
-                          "ccm-enabled": true,
-                          "direction": "UP",
-                          "interface": "Bundle-Ether43.1600",
-                          "local-mep-id": 40
-                        },
-                        "local-mep-id": 40,
-                        "pm-profiles": {
-                          "pm-profile": [
-                            {
-                              "config": {
-                                "profile-name": "cfm_delay_Bundle-Ether43_1600"
-                              },
+                  "ma-name-type": "UINT16",
+                  "unsigned-int16": 1
+                },
+                "ma-id": "S1",
+                "mep-endpoints": {
+                  "mep-endpoint": [
+                    {
+                      "config": {
+                        "ccm-enabled": true,
+                        "direction": "UP",
+                        "interface": "Bundle-Ether43.1600",
+                        "local-mep-id": 40
+                      },
+                      "local-mep-id": 40,
+                      "pm-profiles": {
+                        "pm-profile": [
+                          {
+                            "config": {
                               "profile-name": "cfm_delay_Bundle-Ether43_1600"
                             },
-                            {
-                              "config": {
-                                "profile-name": "cfm_loss_Bundle-Ether43_1600"
-                              },
+                            "profile-name": "cfm_delay_Bundle-Ether43_1600"
+                          },
+                          {
+                            "config": {
                               "profile-name": "cfm_loss_Bundle-Ether43_1600"
-                            }
-                          ]
-                        },
-                        "rdi": {
-                          "config": {
-                            "transmit-on-defect": true
+                            },
+                            "profile-name": "cfm_loss_Bundle-Ether43_1600"
                           }
-                        },
-                        "remote-meps": {
-                          "remote-mep": [
-                            {
-                              "config": {
-                                "id": 39
-                              },
-                              "id": 39
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            },
-            "md-id": "1"
-          },
-          {
-            "config": {
-              "char-string": "D2",
-              "level": 5,
-              "md-id": "2",
-              "md-name-type": "CHARACTER_STRING"
-            },
-            "maintenance-associations": {
-              "maintenance-association": [
-                {
-                  "config": {
-                    "ccm-interval": "100MS",
-                    "group-name": "GEO_2",
-                    "loss-threshold": 3,
-                    "ma-id": "S1",
-                    "ma-name-type": "UINT16",
-                    "unsigned-int16": 1
-                  },
-                  "ma-id": "S1",
-                  "mep-endpoints": {
-                    "mep-endpoint": [
-                      {
+                        ]
+                      },
+                      "rdi": {
                         "config": {
-                          "ccm-enabled": true,
-                          "direction": "UP",
-                          "interface": "Bundle-Ether5.4010",
-                          "local-mep-id": 6
-                        },
-                        "local-mep-id": 6,
-                        "pm-profiles": {
-                          "pm-profile": [
-                            {
-                              "config": {
-                                "profile-name": "cfm_delay_Bundle-Ether5_4010"
-                              },
+                          "transmit-on-defect": true
+                        }
+                      },
+                      "remote-meps": {
+                        "remote-mep": [
+                          {
+                            "config": {
+                              "id": 39
+                            },
+                            "id": 39
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "md-id": "1"
+        },
+        {
+          "config": {
+            "char-string": "D2",
+            "level": 5,
+            "md-id": "2",
+            "md-name-type": "CHARACTER_STRING"
+          },
+          "maintenance-associations": {
+            "maintenance-association": [
+              {
+                "config": {
+                  "ccm-interval": "100MS",
+                  "group-name": "GEO_2",
+                  "loss-threshold": 3,
+                  "ma-id": "S1",
+                  "ma-name-type": "UINT16",
+                  "unsigned-int16": 1
+                },
+                "ma-id": "S1",
+                "mep-endpoints": {
+                  "mep-endpoint": [
+                    {
+                      "config": {
+                        "ccm-enabled": true,
+                        "direction": "UP",
+                        "interface": "Bundle-Ether5.4010",
+                        "local-mep-id": 6
+                      },
+                      "local-mep-id": 6,
+                      "pm-profiles": {
+                        "pm-profile": [
+                          {
+                            "config": {
                               "profile-name": "cfm_delay_Bundle-Ether5_4010"
                             },
-                            {
-                              "config": {
-                                "profile-name": "cfm_loss_Bundle-Ether5_4010"
-                              },
+                            "profile-name": "cfm_delay_Bundle-Ether5_4010"
+                          },
+                          {
+                            "config": {
                               "profile-name": "cfm_loss_Bundle-Ether5_4010"
-                            }
-                          ]
-                        },
-                        "rdi": {
-                          "config": {
-                            "transmit-on-defect": true
+                            },
+                            "profile-name": "cfm_loss_Bundle-Ether5_4010"
                           }
-                        },
-                        "remote-meps": {
-                          "remote-mep": [
-                            {
-                              "config": {
-                                "id": 5
-                              },
-                              "id": 5
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            },
-            "md-id": "2"
-          },
-          {
-            "config": {
-              "char-string": "D3",
-              "level": 5,
-              "md-id": "3",
-              "md-name-type": "CHARACTER_STRING"
-            },
-            "maintenance-associations": {
-              "maintenance-association": [
-                {
-                  "config": {
-                    "ccm-interval": "100MS",
-                    "group-name": "GEO_3",
-                    "loss-threshold": 3,
-                    "ma-id": "S1",
-                    "ma-name-type": "UINT16",
-                    "unsigned-int16": 1
-                  },
-                  "ma-id": "S1",
-                  "mep-endpoints": {
-                    "mep-endpoint": [
-                      {
+                        ]
+                      },
+                      "rdi": {
                         "config": {
-                          "ccm-enabled": true,
-                          "direction": "UP",
-                          "interface": "Bundle-Ether5.4050",
-                          "local-mep-id": 8
-                        },
-                        "local-mep-id": 8,
-                        "pm-profiles": {
-                          "pm-profile": [
-                            {
-                              "config": {
-                                "profile-name": "cfm_delay_Bundle-Ether5_4050"
-                              },
+                          "transmit-on-defect": true
+                        }
+                      },
+                      "remote-meps": {
+                        "remote-mep": [
+                          {
+                            "config": {
+                              "id": 5
+                            },
+                            "id": 5
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "md-id": "2"
+        },
+        {
+          "config": {
+            "char-string": "D3",
+            "level": 5,
+            "md-id": "3",
+            "md-name-type": "CHARACTER_STRING"
+          },
+          "maintenance-associations": {
+            "maintenance-association": [
+              {
+                "config": {
+                  "ccm-interval": "100MS",
+                  "group-name": "GEO_3",
+                  "loss-threshold": 3,
+                  "ma-id": "S1",
+                  "ma-name-type": "UINT16",
+                  "unsigned-int16": 1
+                },
+                "ma-id": "S1",
+                "mep-endpoints": {
+                  "mep-endpoint": [
+                    {
+                      "config": {
+                        "ccm-enabled": true,
+                        "direction": "UP",
+                        "interface": "Bundle-Ether5.4050",
+                        "local-mep-id": 8
+                      },
+                      "local-mep-id": 8,
+                      "pm-profiles": {
+                        "pm-profile": [
+                          {
+                            "config": {
                               "profile-name": "cfm_delay_Bundle-Ether5_4050"
                             },
-                            {
-                              "config": {
-                                "profile-name": "cfm_loss_Bundle-Ether5_4050"
-                              },
+                            "profile-name": "cfm_delay_Bundle-Ether5_4050"
+                          },
+                          {
+                            "config": {
                               "profile-name": "cfm_loss_Bundle-Ether5_4050"
-                            }
-                          ]
-                        },
-                        "rdi": {
-                          "config": {
-                            "transmit-on-defect": true
+                            },
+                            "profile-name": "cfm_loss_Bundle-Ether5_4050"
                           }
-                        },
-                        "remote-meps": {
-                          "remote-mep": [
-                            {
-                              "config": {
-                                "id": 7
-                              },
-                              "id": 7
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            },
-            "md-id": "3"
-          },
-          {
-            "config": {
-              "char-string": "D4",
-              "level": 5,
-              "md-id": "4",
-              "md-name-type": "CHARACTER_STRING"
-            },
-            "maintenance-associations": {
-              "maintenance-association": [
-                {
-                  "config": {
-                    "ccm-interval": "100MS",
-                    "group-name": "GEO_4",
-                    "loss-threshold": 3,
-                    "ma-id": "S1",
-                    "ma-name-type": "UINT16",
-                    "unsigned-int16": 1
-                  },
-                  "ma-id": "S1",
-                  "mep-endpoints": {
-                    "mep-endpoint": [
-                      {
+                        ]
+                      },
+                      "rdi": {
                         "config": {
-                          "ccm-enabled": true,
-                          "direction": "UP",
-                          "interface": "Bundle-Ether43.1100",
-                          "local-mep-id": 36
-                        },
-                        "local-mep-id": 36,
-                        "pm-profiles": {
-                          "pm-profile": [
-                            {
-                              "config": {
-                                "profile-name": "cfm_delay_Bundle-Ether43_1100"
-                              },
+                          "transmit-on-defect": true
+                        }
+                      },
+                      "remote-meps": {
+                        "remote-mep": [
+                          {
+                            "config": {
+                              "id": 7
+                            },
+                            "id": 7
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "md-id": "3"
+        },
+        {
+          "config": {
+            "char-string": "D4",
+            "level": 5,
+            "md-id": "4",
+            "md-name-type": "CHARACTER_STRING"
+          },
+          "maintenance-associations": {
+            "maintenance-association": [
+              {
+                "config": {
+                  "ccm-interval": "100MS",
+                  "group-name": "GEO_4",
+                  "loss-threshold": 3,
+                  "ma-id": "S1",
+                  "ma-name-type": "UINT16",
+                  "unsigned-int16": 1
+                },
+                "ma-id": "S1",
+                "mep-endpoints": {
+                  "mep-endpoint": [
+                    {
+                      "config": {
+                        "ccm-enabled": true,
+                        "direction": "UP",
+                        "interface": "Bundle-Ether43.1100",
+                        "local-mep-id": 36
+                      },
+                      "local-mep-id": 36,
+                      "pm-profiles": {
+                        "pm-profile": [
+                          {
+                            "config": {
                               "profile-name": "cfm_delay_Bundle-Ether43_1100"
                             },
-                            {
-                              "config": {
-                                "profile-name": "cfm_loss_Bundle-Ether43_1100"
-                              },
+                            "profile-name": "cfm_delay_Bundle-Ether43_1100"
+                          },
+                          {
+                            "config": {
                               "profile-name": "cfm_loss_Bundle-Ether43_1100"
-                            }
-                          ]
-                        },
-                        "rdi": {
-                          "config": {
-                            "transmit-on-defect": true
+                            },
+                            "profile-name": "cfm_loss_Bundle-Ether43_1100"
                           }
-                        },
-                        "remote-meps": {
-                          "remote-mep": [
-                            {
-                              "config": {
-                                "id": 35
-                              },
-                              "id": 35
-                            }
-                          ]
+                        ]
+                      },
+                      "rdi": {
+                        "config": {
+                          "transmit-on-defect": true
                         }
+                      },
+                      "remote-meps": {
+                        "remote-mep": [
+                          {
+                            "config": {
+                              "id": 35
+                            },
+                            "id": 35
+                          }
+                        ]
                       }
-                    ]
-                  }
+                    }
+                  ]
                 }
-              ]
-            },
-            "md-id": "4"
-          }
-        ]
-      },
-      "performance-measurement-profiles-global": {
-        "performance-measurement-profile": [
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "DMM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_delay_Bundle-Ether43_1100",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_delay_Bundle-Ether43_1100"
+              }
+            ]
           },
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "DMM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_delay_Bundle-Ether43_1600",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_delay_Bundle-Ether43_1600"
+          "md-id": "4"
+        }
+      ]
+    },
+    "performance-measurement-profiles-global": {
+      "performance-measurement-profile": [
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "DMM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_delay_Bundle-Ether43_1100",
+            "repetition-period": 1
           },
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "DMM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_delay_Bundle-Ether5_4010",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_delay_Bundle-Ether5_4010"
+          "profile-name": "cfm_delay_Bundle-Ether43_1100"
+        },
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "DMM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_delay_Bundle-Ether43_1600",
+            "repetition-period": 1
           },
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "DMM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_delay_Bundle-Ether5_4050",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_delay_Bundle-Ether5_4050"
+          "profile-name": "cfm_delay_Bundle-Ether43_1600"
+        },
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "DMM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_delay_Bundle-Ether5_4010",
+            "repetition-period": 1
           },
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "SLM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_loss_Bundle-Ether43_1100",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_loss_Bundle-Ether43_1100"
+          "profile-name": "cfm_delay_Bundle-Ether5_4010"
+        },
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "DMM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_delay_Bundle-Ether5_4050",
+            "repetition-period": 1
           },
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "SLM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_loss_Bundle-Ether43_1600",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_loss_Bundle-Ether43_1600"
+          "profile-name": "cfm_delay_Bundle-Ether5_4050"
+        },
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "SLM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_loss_Bundle-Ether43_1100",
+            "repetition-period": 1
           },
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "SLM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_loss_Bundle-Ether5_4010",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_loss_Bundle-Ether5_4010"
+          "profile-name": "cfm_loss_Bundle-Ether43_1100"
+        },
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "SLM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_loss_Bundle-Ether43_1600",
+            "repetition-period": 1
           },
-          {
-            "config": {
-              "burst-interval": 10000,
-              "intervals-archived": 5,
-              "measurement-interval": 1,
-              "measurement-type": "SLM",
-              "packet-per-burst": 100,
-              "packets-per-meaurement-period": 60,
-              "profile-name": "cfm_loss_Bundle-Ether5_4050",
-              "repetition-period": 1
-            },
-            "profile-name": "cfm_loss_Bundle-Ether5_4050"
-          }
-        ]
-      }
+          "profile-name": "cfm_loss_Bundle-Ether43_1600"
+        },
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "SLM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_loss_Bundle-Ether5_4010",
+            "repetition-period": 1
+          },
+          "profile-name": "cfm_loss_Bundle-Ether5_4010"
+        },
+        {
+          "config": {
+            "burst-interval": 10000,
+            "intervals-archived": 5,
+            "measurement-interval": 1,
+            "measurement-type": "SLM",
+            "packet-per-burst": 100,
+            "packets-per-meaurement-period": 60,
+            "profile-name": "cfm_loss_Bundle-Ether5_4050",
+            "repetition-period": 1
+          },
+          "profile-name": "cfm_loss_Bundle-Ether5_4050"
+        }
+      ]
     }
   }
 }
