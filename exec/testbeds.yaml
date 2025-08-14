@@ -469,7 +469,7 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/808-2DUT-ATE-RT121/topo.yaml
     baseconf:
-      dut: topologies/cisco/pyvxr/808-2DUT-ATE-RT121/baseconf_dut1.conf
+      dut1: topologies/cisco/pyvxr/808-2DUT-ATE-RT121/baseconf_dut1.conf
       dut2: topologies/cisco/pyvxr/808-2DUT-ATE-RT121/baseconf_dut2.conf    
   8818-DUT-PEER_SIM:
     sim: true
