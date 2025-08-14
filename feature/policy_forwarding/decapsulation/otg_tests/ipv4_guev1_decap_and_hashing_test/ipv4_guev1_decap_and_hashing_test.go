@@ -111,7 +111,6 @@ var (
 	host2IPv4Start         = "198.51.110.0"
 	host2IPv6Start         = "2001:db8:110::"
 	host3IPv4Start         = "198.51.120.0"
-	host3IPv6Start         = "2001:db8:120::"
 	host4IPv4Start         = "198.51.130.0"
 	host4IPv6Start         = "2001:db8:130::"
 	ate1LoopbackIP         = "172.16.1.0"
