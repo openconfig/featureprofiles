@@ -112,3 +112,50 @@ func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevic
 	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
 	return lossPct
 }
+
+func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj map[string]interface{}) {
+	isisAdj := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter(expectedAdj["IsisRouterName"].(string)).Adjacencies().AdjacencyAny().State())
+
+	for _, adj := range isisAdj {
+		localStateLevel := adj.LocalState.GetLevelType().String()
+		if localStateLevel != expectedAdj["LocalStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected local state level. got: %v, expected: %v", localStateLevel, expectedAdj["LocalStateTypeExp"])
+		}
+
+		localStateHoldtime := adj.LocalState.GetHoldTimer()
+		if localStateHoldtime != expectedAdj["LocalStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected local state hold timer. got: %v, expected: %v", localStateHoldtime, expectedAdj["LocalStateHoldTimeExp"])
+		}
+
+		localStateRestartingStatus := adj.LocalState.GetLocalRestartingStatus().GetCurrentState().String()
+		if localStateRestartingStatus != expectedAdj["LocalStateRestartStatusExp"].(string) {
+			t.Errorf("didn't receive expected local state restarting status. got: %v, expected: %v", localStateRestartingStatus, expectedAdj["LocalStateRestartStatusExp"])
+		}
+
+		localStateAttemptStatus := adj.LocalState.GetLocalRestartingStatus().GetLocalLastRestartingAttemptStatus().GetLocalLastRestartingAttemptStatusType().String()
+		if localStateAttemptStatus != expectedAdj["LocalStateLastAttemptExp"].(string) {
+			t.Errorf("didn't receive expected local restarting status. got: %v, expected: %v", localStateAttemptStatus, expectedAdj["LocalStateLastAttemptExp"])
+		}
+
+		neighStateLevel := adj.NeighborState.GetLevelType().String()
+		if neighStateLevel != expectedAdj["NeighborStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state level. got: %v, expected: %v", neighStateLevel, expectedAdj["NeighborStateTypeExp"])
+		}
+
+		neighHoldtime := adj.NeighborState.GetHoldTimer()
+		if neighHoldtime != expectedAdj["NeighborStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected neighbor state hold timer. got: %v, expected: %v", neighHoldtime, expectedAdj["NeighborStateHoldTimeExp"])
+		}
+
+		neighRestartingState := adj.NeighborState.GetNeighRestartingStatus().GetCurrentState().String()
+		if neighRestartingState != expectedAdj["NeighborStateRestartStatusExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state restarting status. got: %v, expected: %v", neighRestartingState, expectedAdj["NeighborStateRestartStatusExp"])
+		}
+
+		neighLastAttemptStatus := adj.NeighborState.GetNeighRestartingStatus().GetNeighLastRestartingAttemptStatus().GetNeighLastRestartingAttemptStatusType().String()
+		if neighLastAttemptStatus != expectedAdj["NeighborStateLastAttemptExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state last restart attempt status. got: %v, expected: %v", neighLastAttemptStatus, expectedAdj["NeighborStateLastAttemptExp"])
+		}
+	}
+
+}
