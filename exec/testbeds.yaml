@@ -272,7 +272,7 @@ testbeds:
       gnmi_port: 59202
       rest_port: 39202
 
-  8202-FLM275203KT:
+  8202-FLM275203KT: &8202-FLM275203KT_DEFAULTS
     hw: 8202-FLM275203KT
     owner: arvbaska
     testbed: topologies/cisco/hw/8202-FLM275203KT/testbed
@@ -284,6 +284,12 @@ testbeds:
       controller_port: 49203
       gnmi_port: 59203
       rest_port: 39203
+
+  8202-FLM275203KT_B2B
+    <<: *8202-FLM275203KT_DEFAULTS
+    testbed: topologies/cisco/hw/8202-FLM275203KT_B2B/testbed
+    binding: topologies/cisco/hw/8202-FLM275203KT_B2B/binding
+    baseconf: topologies/cisco/hw/8202-FLM275203KT_B2B/baseconfig_b2b.proto
 
   8202-FLM275101MJ:
     hw: 8202-FLM275101MJ
