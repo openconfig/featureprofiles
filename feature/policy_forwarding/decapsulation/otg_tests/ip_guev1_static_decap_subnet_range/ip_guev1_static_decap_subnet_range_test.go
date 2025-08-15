@@ -423,16 +423,19 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	return pcapFile.Name()
 }
 
-func verfiy_policer_matched_packets(t *testing.T, dut *ondatra.DUTDevice) uint64 {
+func verify_policer_matched_packets(t *testing.T, dut *ondatra.DUTDevice) uint64 {
 	matchpackets := uint64(0)
 	const timeout = 10 * time.Second
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
-    if !deviations.PolicyRuleCountersOCUnsupported(dut) {
+    if deviations.PolicyRuleCountersOCUnsupported(dut) {
+		t.Logf("Returning Matched Packet as Zero value due to Bug 425628787")
+	} else {
 		_, ok := gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State(), timeout, isPresent).Await(t)
 		if !ok {
 			t.Errorf("Unable to find matched packets")
 		}
 		matchpackets = gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(policyName).Rule(policyId).MatchedPkts().State())
+
 	} 
 	return matchpackets
 }
@@ -442,14 +445,18 @@ func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64, cou
 	t.Logf("Policer counters After Traffic %v", finalpacket)
 	if countersmatch {
 		t.Logf("Traffic Packet Counters on DUT based on Policer. Expecting Packet Increment after Traffic")
-		if finalpacket-intialpacket >= packetPerSecond {
+		if intialpacket == 0 {
+            t.Errorf("Fail : Unable to find the policer matched packets. Please refer the bug ID #425628787")
+		} else if finalpacket-intialpacket >= packetPerSecond {
 			t.Logf("Pass : policer counters got incremented after start and stop traffic")
 		} else {
 			t.Errorf("Fail : policer counters not incremented after start and stop traffic")
 		}
 	} else {
 		t.Logf("Traffic Packet Counters on DUT based on Policer. Expecting no packet Increment after Traffic ")
-		if finalpacket-intialpacket == 0 {
+		if intialpacket == 0 {
+            t.Errorf("Fail : Unable to find the policer matched packets. Please refer the bug ID #425628787")
+		} else if finalpacket-intialpacket == 0 {
 			t.Logf("Pass : policer counters did not incremented as expected")
 		} else {
 			t.Errorf("Fail : policer counters incremented unexpectedly")
@@ -463,7 +470,7 @@ func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv4")
 	protocolStart(t, dut, ate, topo)
 	startCapture(t, ate)
-	intialpacket1 := verfiy_policer_matched_packets(t, dut)
+	intialpacket1 := verify_policer_matched_packets(t, dut)
 	trafficStartStop(t, ate, topo)
 	stopCapture(t, ate)
 	if trafficValidation {
@@ -472,7 +479,7 @@ func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
-	finalpacket1 := verfiy_policer_matched_packets(t, dut)
+	finalpacket1 := verify_policer_matched_packets(t, dut)
 	if verifyCounters {
 		compare_counters(t, intialpacket1, finalpacket1, countersMatch)
 	}
@@ -483,7 +490,7 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	configureIPv6Traffic(t, ate, topo, trafficID, ateUdpPort, destIp)
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv6")
 	protocolStart(t, dut, ate, topo)
-	intialpacket1 := verfiy_policer_matched_packets(t, dut)
+	intialpacket1 := verify_policer_matched_packets(t, dut)
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo)
 	stopCapture(t, ate)
@@ -493,7 +500,7 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
-	finalpacket1 := verfiy_policer_matched_packets(t, dut)
+	finalpacket1 := verify_policer_matched_packets(t, dut)
 	if verifyCounters {
 		compare_counters(t, intialpacket1, finalpacket1, countersMatch)
 	}
