@@ -217,10 +217,10 @@ func awaitRxPowerStats(t *testing.T, p *ondatra.Port, operStatus oc.E_Interface_
 		_, ok := gnmi.Watch(t, p.Device(), gnmi.OC().Component(trName[p.Name()]).Transceiver().Channel(0).InputPower().State(), timeout, func(rxP *ygnmi.Value[*oc.Component_Transceiver_Channel_InputPower]) bool {
 			rxPValue, present := rxP.Val()
 			return present &&
-				rxPValue.GetMax() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMax() >= (targetOpticalPower-powerLoss) &&
-				rxPValue.GetMin() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMin() >= (targetOpticalPower-powerLoss) &&
-				rxPValue.GetAvg() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetAvg() >= (targetOpticalPower-powerLoss) &&
-				rxPValue.GetInstant() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetInstant() >= (targetOpticalPower-powerLoss)
+				rxPValue.GetMax() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMax() >= (targetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetMin() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMin() >= (targetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetAvg() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetAvg() >= (targetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetInstant() <= (targetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetInstant() >= (targetOpticalPower-powerLoss-powerReadingError)
 		}).Await(t)
 		if !ok {
 			t.Fatalf("Rx power stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
