@@ -1025,15 +1025,6 @@ func verifyIpv6DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, en
 	}
 }
 
-// func contains(arr []int, target int) bool {
-// 	for _, element := range arr {
-// 		if element == target {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
 func verfiy_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
 	dp1 := dut.Port(t, "port1")
 	const timeout = 10 * time.Second
