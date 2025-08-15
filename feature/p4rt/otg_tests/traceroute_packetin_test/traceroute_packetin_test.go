@@ -18,7 +18,6 @@ package traceroute_packetin_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -44,7 +43,6 @@ var (
 	tracerouteSrcMAC      = "00:01:00:02:00:03"
 	deviceID              = uint64(1)
 	portId                = uint32(10)
-	electionId            = uint64(100)
 	METADATA_INGRESS_PORT = uint32(1)
 	METADATA_EGRESS_PORT  = uint32(2)
 	TTL1                  = uint8(1)
@@ -171,68 +169,89 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNode).Config(), &c)
 }
 
-// setupP4RTClient sends client arbitration message for both leader and follower clients,
-// then sends setforwordingpipelineconfig with leader client.
-func setupP4RTClient(ctx context.Context, args *testArgs) error {
+// creates p4rt stream and sends client arbitration message for a single client.
+func setupP4RTClient(ctx context.Context, client *p4rt_client.P4RTClient, electionID uint64) error {
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
 		DeviceId:    deviceID,
 		ElectionIdH: uint64(0),
-		ElectionIdL: electionId,
+		ElectionIdL: electionID,
 	}
-
-	// Send ClientArbitration message on both p4rt leader and follower clients.
-	clients := []*p4rt_client.P4RTClient{args.leader, args.follower}
-	for index, client := range clients {
-		if client != nil {
-			client.StreamChannelCreate(&streamParameter)
-			if err := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
-				Update: &p4_v1.StreamMessageRequest_Arbitration{
-					Arbitration: &p4_v1.MasterArbitrationUpdate{
-						DeviceId: streamParameter.DeviceId,
-						ElectionId: &p4_v1.Uint128{
-							High: streamParameter.ElectionIdH,
-							Low:  streamParameter.ElectionIdL - uint64(index),
-						},
-					},
+	streamCreateErr := client.StreamChannelCreate(&streamParameter)
+	if streamCreateErr != nil {
+		return fmt.Errorf("could not create P4RT client stream: %v", streamCreateErr)
+	}
+	sendMsgErr := client.StreamChannelSendMsg(&streamName, &p4_v1.StreamMessageRequest{
+		Update: &p4_v1.StreamMessageRequest_Arbitration{
+			Arbitration: &p4_v1.MasterArbitrationUpdate{
+				DeviceId: streamParameter.DeviceId,
+				ElectionId: &p4_v1.Uint128{
+					High: streamParameter.ElectionIdH,
+					Low:  streamParameter.ElectionIdL,
 				},
-			}); err != nil {
-				return fmt.Errorf("errors seen when sending ClientArbitration message: %v", err)
-			}
-			if _, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1); arbErr != nil {
-				if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
-					return err
-				}
-				return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
-			}
-		}
-	}
-
-	// Load p4info file.
-	p4Info, err := utils.P4InfoLoad(p4InfoFile)
-	if err != nil {
-		return errors.New("Errors seen when loading p4info file.")
-	}
-
-	// Send SetForwardingPipelineConfig for p4rt leader client.
-	if err := args.leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
-		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
-		Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
-		Config: &p4_v1.ForwardingPipelineConfig{
-			P4Info: p4Info,
-			Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
-				Cookie: 159,
 			},
 		},
-	}); err != nil {
-		return errors.New("Errors seen when sending SetForwardingPipelineConfig.")
+	})
+	if sendMsgErr != nil {
+		return fmt.Errorf("could not send ClientArbitration message: %v", sendMsgErr)
+	}
+	_, _, arbErr := client.StreamChannelGetArbitrationResp(&streamName, 1)
+	if arbErr != nil {
+		if err := p4rtutils.StreamTermErr(client.StreamTermErr); err != nil {
+			return fmt.Errorf("stream term error while getting arbitration response: %v", err)
+		}
+		return fmt.Errorf("errors seen in ClientArbitration response: %v", arbErr)
 	}
 	return nil
 }
 
-// getTracerouteParameter returns Traceroute related parameters for testPacketIn testcase.
+// setupP4RTLeaderAndFollower sends client arbitration message for both leader and follower clients,
+// then sends setforwordingpipelineconfig with leader client.
+func setupP4RTLeaderAndFollower(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, setForwardingPipelineConfig bool, electionID uint64) (*p4rt_client.P4RTClient, *p4rt_client.P4RTClient, error) {
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+		return nil, nil, fmt.Errorf("could not initialize p4rt client: %v", err)
+	}
+	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+		return nil, nil, fmt.Errorf("could not initialize p4rt client: %v", err)
+	}
+	// Send ClientArbitration message on both p4rt leader and follower clients.
+	clients := []*p4rt_client.P4RTClient{leader, follower}
+	for index, client := range clients {
+		if client != nil {
+			if err := setupP4RTClient(ctx, client, electionID-uint64(index)); err != nil {
+				return nil, nil, fmt.Errorf("could not setup p4rt client: %v", err)
+			}
+		}
+	}
+
+	if setForwardingPipelineConfig {
+		// Load p4info file.
+		p4Info, err := utils.P4InfoLoad(p4InfoFile)
+		if err != nil {
+			return nil, nil, fmt.Errorf("errors seen when loading p4info file: %v", err)
+		}
+		// Send SetForwardingPipelineConfig for p4rt leader client.
+		if err := leader.SetForwardingPipelineConfig(&p4_v1.SetForwardingPipelineConfigRequest{
+			DeviceId:   deviceID,
+			ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
+			Action:     p4_v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT,
+			Config: &p4_v1.ForwardingPipelineConfig{
+				P4Info: p4Info,
+				Cookie: &p4_v1.ForwardingPipelineConfig_Cookie{
+					Cookie: 159,
+				},
+			},
+		}); err != nil {
+			return nil, nil, fmt.Errorf("errors seen when sending SetForwardingPipelineConfig: %v", err)
+		}
+	}
+	return leader, follower, nil
+}
+
+// getTracerouteParameter returns Traceroute related parameters for startTraficAndTestPacketIn testcase.
 func getTracerouteParameter(t *testing.T) PacketIO {
 	return &TraceroutePacketIO{
 		PacketIOPacket: PacketIOPacket{
@@ -241,6 +260,41 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 		},
 		IngressPort: fmt.Sprint(portId),
 		EgressPort:  fmt.Sprint(portId + 1),
+	}
+}
+
+func testPacketInForLeader(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, electionID uint64) {
+	leader, follower, err := setupP4RTLeaderAndFollower(ctx, t, dut /*setForwardingPipelineConfig=*/, true, electionID)
+	if err != nil {
+		t.Fatalf("Could not setup p4rt client: %v", err)
+	}
+	args := &testArgs{
+		ctx:      ctx,
+		leader:   leader,
+		follower: follower,
+		dut:      dut,
+		ate:      ate,
+		top:      top,
+		packetIO: getTracerouteParameter(t),
+	}
+	packetInTests := []struct {
+		desc   string
+		isIPv4 bool
+	}{{
+		desc:   "Test PacketIn for IPv4",
+		isIPv4: true,
+	}, {
+		desc:   "Test PacketIn for IPv6",
+		isIPv4: false,
+	}}
+	for _, test := range packetInTests {
+		t.Run(test.desc, func(t *testing.T) {
+			if err := programmTableEntry(leader, args.packetIO /*delete=*/, false, test.isIPv4, electionID); err != nil {
+				t.Fatalf("there is error when programming entry")
+			}
+			defer programmTableEntry(leader, args.packetIO /*delete=*/, true, test.isIPv4, electionID)
+			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
+		})
 	}
 }
 
@@ -260,32 +314,10 @@ func TestPacketIn(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
-	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
-		t.Fatalf("Could not initialize p4rt client: %v", err)
-	}
-
-	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
-		t.Fatalf("Could not initialize p4rt client: %v", err)
-	}
-
-	args := &testArgs{
-		ctx:      ctx,
-		leader:   leader,
-		follower: follower,
-		dut:      dut,
-		ate:      ate,
-		top:      top,
-	}
-
-	if err := setupP4RTClient(ctx, args); err != nil {
-		t.Fatalf("Could not setup p4rt client: %v", err)
-	}
-
-	args.packetIO = getTracerouteParameter(t)
-	testPacketIn(ctx, t, args, true)  // testPacketin for Ipv4
-	testPacketIn(ctx, t, args, false) // testPacketin for Ipv6
+	t.Run("Create P4RT clients, start traffic, and validate packetins sent to leader", func(t *testing.T) {
+		electionID := uint64(100)
+		testPacketInForLeader(ctx, t, dut, ate, top, electionID)
+	})
 }
 
 type TraceroutePacketIO struct {

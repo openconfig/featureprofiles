@@ -59,10 +59,10 @@ type testArgs struct {
 }
 
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.
-func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, isIPv4 bool) error {
+func programmTableEntry(client *p4rt_client.P4RTClient, packetIO PacketIO, delete bool, isIPv4 bool, electionID uint64) error {
 	err := client.Write(&p4_v1.WriteRequest{
 		DeviceId:   deviceID,
-		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionId},
+		ElectionId: &p4_v1.Uint128{High: uint64(0), Low: electionID},
 		Updates: p4rtutils.ACLWbbIngressTableEntryGet(
 			packetIO.GetTableEntry(delete, isIPv4),
 		),
@@ -133,27 +133,10 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	return total
 }
 
-// testPacketIn programs p4rt table entry and sends traffic related to Traceroute,
-// then validates packetin message metadata and payload.
-func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool) {
+// startTraficAndTestPacketIn sends traffic related to Traceroutethen validates packetin message metadata and payload.
+func startTraficAndTestPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool) {
 	leader := args.leader
 	follower := args.follower
-
-	if isIPv4 {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, isIPv4); err != nil {
-			t.Fatalf("There is error when programming entry")
-		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, isIPv4)
-	} else {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
-			t.Fatalf("There is error when programming entry")
-		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, false)
-	}
 
 	// Send Traceroute traffic from ATE
 	srcEndPoint := ateInterface(t, args.top, "port1")
