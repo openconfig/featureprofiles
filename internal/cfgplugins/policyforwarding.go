@@ -48,6 +48,10 @@ type OcPolicyForwardingParams struct {
 	CloudV4NHG   string
 	CloudV6NHG   string
 	DecapPolicy  DecapPolicyParams
+	GuePort      uint32
+	IpType       string
+	Dynamic      bool
+	TunnelIP     string
 }
 
 var (
@@ -507,13 +511,31 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+			if ocPFParams.Dynamic {
+				GueDecapConfig(t, dut, ocPFParams)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 	} else {
 		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
 	}
+}
+
+func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+		                    ip decap-group type udp destination port %v payload %s
+							tunnel type %s-over-udp udp destination port %v
+							ip decap-group %s
+							tunnel type UDP
+							tunnel decap-ip %s
+							tunnel decap-interface %s
+							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
 }
 
 // MPLSStaticLSPConfig configures the interface mpls static lsp.
@@ -570,5 +592,30 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	}
+}
+
+// MPLSStaticLSPScaleConfig configures static MPLS LSP entries on the DUT.
+// It programs either CLI-based configurations for vendors that do not support
+// OpenConfig static MPLS, or uses OpenConfig models where supported.
+// The configuration scales across IPv4 and IPv6 next hops and labels.
+func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops, nexthopsIpv6 []string, labels, labelsforIpv6 []int, ocPFParams OcPolicyForwardingParams) {
+	if deviations.StaticMplsUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			var mplsStaticLspConfig, mplsStaticLspConfigV6 string
+			for i, nexthop := range nexthops {
+				mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", labels[i], nexthop)
+			}
+			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfig)
+			for i, nexthopIpv6 := range nexthopsIpv6 {
+				mplsStaticLspConfigV6 += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", labelsforIpv6[i], nexthopIpv6)
+			}
+			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfigV6)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
+		}
+	} else {
+		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
