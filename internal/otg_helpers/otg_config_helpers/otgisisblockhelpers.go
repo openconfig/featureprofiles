@@ -5,7 +5,7 @@ import (
 	"net"
 	"strings"
 
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
 // V4IsisStRouteInfo is a struct that contains the data needed to generate a V4 route in the ISIS topology.
