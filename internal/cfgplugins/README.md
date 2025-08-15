@@ -12,6 +12,10 @@ to compose configurations used in featureprofiles tests.
 
 ## Implementing cfgplugins
 
+The cfgplugins structure should align with the /feature folder, which in turn
+is roughly aligned with the OpenConfig data model tree.  Top level feature
+folders should have a cfgplugins file using the same name.  
+
 Each function in `cfgplugins` should define a struct to hold the required
 attributes, which is then passed to the configuration generation function. The
 code in the function should construct and return an ondatra `gnmi.BatchReplace`
