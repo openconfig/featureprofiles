@@ -501,7 +501,7 @@ Block12 | 16x16 | 53 | 20 | 54.0.0.0/8
       }
     ]
   }
-}"
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
