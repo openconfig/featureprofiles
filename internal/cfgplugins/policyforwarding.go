@@ -497,10 +497,11 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
 			if ocPFParams.Dynamic {
 				t.Logf("Going into decap")
-				GreDecapConfig(t, dut, ocPFParams)
+				aristaGreDecapCLIConfig(t, dut, ocPFParams)
+			} else {
+                helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
@@ -515,10 +516,11 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			if ocPFParams.Dynamic {
 				t.Logf("Going into decap")
-				GueDecapConfig(t, dut, ocPFParams)
+				aristaGueDecapCLIConfig(t, dut, ocPFParams)
+			} else {
+                helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
@@ -528,7 +530,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
-func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
 	cliConfig := fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
@@ -542,7 +544,7 @@ func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForward
 
 }
 
-func GreDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
 	cliConfig := fmt.Sprintf(`
 			ip decap-group %s
