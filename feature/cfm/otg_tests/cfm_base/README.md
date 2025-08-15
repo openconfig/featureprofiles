@@ -666,27 +666,6 @@ paths:
 
 
     # Telemetry paths
-    /interfaces/interface/state/counters/in-discards:
-    /interfaces/interface/state/counters/in-errors:
-    /interfaces/interface/state/counters/in-multicast-pkts:
-    /interfaces/interface/state/counters/in-pkts:
-    /interfaces/interface/state/counters/in-unicast-pkts:
-    /interfaces/interface/state/counters/out-discards:
-    /interfaces/interface/state/counters/out-errors:
-    /interfaces/interface/state/counters/out-multicast-pkts:
-    /interfaces/interface/state/counters/out-pkts:
-    /interfaces/interface/state/counters/out-unicast-pkts:
-
-    /interfaces/interface/subinterfaces/subinterface/state/counters/in-discards:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/in-errors:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/in-multicast-pkts:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/in-unicast-pkts:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/out-discards:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/out-errors:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/out-multicast-pkts:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
-    /interfaces/interface/subinterfaces/subinterface/state/counters/out-unicast-pkts:
 
     /oam/cfm/domains/maintenance-domain/state/md-id:
     /oam/cfm/domains/maintenance-domain/maintenance-associations/maintenance-association/state/ma-id:
