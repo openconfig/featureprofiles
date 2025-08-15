@@ -264,7 +264,48 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 }
 
 func testPacketInForLeader(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, electionID uint64) {
-	leader, follower, err := setupP4RTLeaderAndFollower(ctx, t, dut /*setForwardingPipelineConfig=*/, true, electionID)
+	leader, follower, err := setupP4RTLeaderAndFollower(ctx, t, dut, true /*setForwardingPipelineConfig*/, electionID)
+	if err != nil {
+		t.Fatalf("Could not setup p4rt client: %v", err)
+	}
+	defer func() {
+		leader.StreamChannelDestroy(&streamName)
+		leader.ServerDisconnect()
+		follower.StreamChannelDestroy(&streamName)
+		follower.ServerDisconnect()
+	}()
+	args := &testArgs{
+		ctx:      ctx,
+		leader:   leader,
+		follower: follower,
+		dut:      dut,
+		ate:      ate,
+		top:      top,
+		packetIO: getTracerouteParameter(t),
+	}
+	packetInTests := []struct {
+		desc   string
+		isIPv4 bool
+	}{{
+		desc:   "Test PacketIn for IPv4",
+		isIPv4: true,
+	}, {
+		desc:   "Test PacketIn for IPv6",
+		isIPv4: false,
+	}}
+	for _, test := range packetInTests {
+		t.Run(test.desc, func(t *testing.T) {
+			if err := programmTableEntry(leader, args.packetIO, false /*delete*/, test.isIPv4, electionID); err != nil {
+				t.Fatalf("there is error when programming entry")
+			}
+			defer programmTableEntry(leader, args.packetIO, true /*delete*/, test.isIPv4, electionID)
+			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
+		})
+	}
+}
+
+func testPacketInAfterClientReconnection(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, electionID uint64) {
+	leader, follower, err := setupP4RTLeaderAndFollower(ctx, t, dut, true /*setForwardingPipelineConfig*/, electionID)
 	if err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
@@ -289,10 +330,37 @@ func testPacketInForLeader(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}}
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
-			if err := programmTableEntry(leader, args.packetIO /*delete=*/, false, test.isIPv4, electionID); err != nil {
+			if err := programmTableEntry(leader, args.packetIO, false /*delete*/, test.isIPv4, electionID); err != nil {
 				t.Fatalf("there is error when programming entry")
 			}
-			defer programmTableEntry(leader, args.packetIO /*delete=*/, true, test.isIPv4, electionID)
+			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
+			// Observation: defer programmTableEntry(leader, args.packetIO, true /*delete*/, test.isIPv4, electionID)
+			// is not included so we can test if the policy remains in the table after the client connection drops and reconnects.
+		})
+	}
+
+	leader.StreamChannelDestroy(&streamName)
+	leader.ServerDisconnect()
+	follower.StreamChannelDestroy(&streamName)
+	follower.ServerDisconnect()
+
+	// Observation: use the same electionID as the disconnected clients.
+	// If it does not work it means that the disconnection did not work.
+	newLeader, newFollower, err := setupP4RTLeaderAndFollower(ctx, t, dut, false /*setForwardingPipelineConfig*/, electionID)
+	if err != nil {
+		t.Fatalf("Could not setup new p4rt client: %v", err)
+	}
+	defer func() {
+		newLeader.StreamChannelDestroy(&streamName)
+		newLeader.ServerDisconnect()
+		newFollower.StreamChannelDestroy(&streamName)
+		newFollower.ServerDisconnect()
+	}()
+	args.leader = newLeader
+	args.follower = newFollower
+	for _, test := range packetInTests {
+		t.Run(test.desc, func(t *testing.T) {
+			defer programmTableEntry(args.leader, args.packetIO, true /*delete*/, test.isIPv4, electionID)
 			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
 		})
 	}
@@ -317,6 +385,10 @@ func TestPacketIn(t *testing.T) {
 	t.Run("Create P4RT clients, start traffic, and validate packetins sent to leader", func(t *testing.T) {
 		electionID := uint64(100)
 		testPacketInForLeader(ctx, t, dut, ate, top, electionID)
+	})
+	t.Run("Create P4RT client, disconnect, start traffic, and validate packetins sent", func(t *testing.T) {
+		electionID := uint64(200)
+		testPacketInAfterClientReconnection(ctx, t, dut, ate, top, electionID)
 	})
 }
 
