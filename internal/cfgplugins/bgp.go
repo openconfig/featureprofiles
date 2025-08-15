@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -552,5 +553,40 @@ func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
 		if want := oc.Interface_OperStatus_UP; status != want {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
+	}
+}
+
+// DeviationAristaBGPNeighborMaxPrefixes updates the max-prefixes of a specific BGP neighbor.
+// This is an Arista specific augmented model which sets the following path:
+// /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/prefix-limit/config/max-prefixes
+// Set max-prefixes to 0 will mean no limit will be set.
+// Tracking the removal of this deviation in b/438620249
+func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, maxPrefixes uint32) {
+	gpbSetRequest := &gnmipb.SetRequest{
+		Update: []*gnmipb.Update{{
+			Path: &gnmipb.Path{
+				Elem: []*gnmipb.PathElem{
+					{Name: "network-instances"},
+					{Name: "network-instance", Key: map[string]string{"name": deviations.DefaultNetworkInstance(dut)}},
+					{Name: "protocols"},
+					{Name: "protocol", Key: map[string]string{"name": "BGP", "identifier": "BGP"}},
+					{Name: "bgp"},
+					{Name: "neighbors"},
+					{Name: "neighbor", Key: map[string]string{"neighbor-address": neighborIP}},
+					{Name: "prefix-limit"},
+					{Name: "config"},
+					{Name: "max-prefixes"},
+				},
+			},
+			Val: &gnmipb.TypedValue{
+				Value: &gnmipb.TypedValue_UintVal{
+					UintVal: uint64(maxPrefixes),
+				},
+			},
+		}},
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(t.Context(), gpbSetRequest); err != nil {
+		t.Errorf("Unexpected error max-prefix: %v", err)
 	}
 }
