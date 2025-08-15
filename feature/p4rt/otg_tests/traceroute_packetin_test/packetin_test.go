@@ -135,6 +135,7 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 
 // startTraficAndTestPacketIn sends traffic related to Traceroutethen validates packetin message metadata and payload.
 func startTraficAndTestPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool) {
+	t.Helper()
 	leader := args.leader
 	follower := args.follower
 
@@ -235,6 +236,7 @@ func startTraficAndTestPacketIn(ctx context.Context, t *testing.T, args *testArg
 }
 
 func ateInterface(t *testing.T, topo gosnappi.Config, portID string) gosnappi.Port {
+	t.Helper()
 	for _, p := range topo.Ports().Items() {
 		if p.Name() == portID {
 			return p

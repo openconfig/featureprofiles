@@ -170,7 +170,8 @@ func configureDeviceID(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 }
 
 // creates p4rt stream and sends client arbitration message for a single client.
-func setupP4RTClient(ctx context.Context, client *p4rt_client.P4RTClient, electionID uint64) error {
+func setupP4RTClient(ctx context.Context, t *testing.T, client *p4rt_client.P4RTClient, electionID uint64) error {
+	t.Helper()
 	// Setup p4rt-client stream parameters
 	streamParameter := p4rt_client.P4RTStreamParameters{
 		Name:        streamName,
@@ -209,6 +210,7 @@ func setupP4RTClient(ctx context.Context, client *p4rt_client.P4RTClient, electi
 // setupP4RTLeaderAndFollower sends client arbitration message for both leader and follower clients,
 // then sends setforwordingpipelineconfig with leader client.
 func setupP4RTLeaderAndFollower(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, setForwardingPipelineConfig bool, electionID uint64) (*p4rt_client.P4RTClient, *p4rt_client.P4RTClient, error) {
+	t.Helper()
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		return nil, nil, fmt.Errorf("could not initialize p4rt client: %v", err)
@@ -221,7 +223,7 @@ func setupP4RTLeaderAndFollower(ctx context.Context, t *testing.T, dut *ondatra.
 	clients := []*p4rt_client.P4RTClient{leader, follower}
 	for index, client := range clients {
 		if client != nil {
-			if err := setupP4RTClient(ctx, client, electionID-uint64(index)); err != nil {
+			if err := setupP4RTClient(ctx, t, client, electionID-uint64(index)); err != nil {
 				return nil, nil, fmt.Errorf("could not setup p4rt client: %v", err)
 			}
 		}
@@ -253,6 +255,7 @@ func setupP4RTLeaderAndFollower(ctx context.Context, t *testing.T, dut *ondatra.
 
 // getTracerouteParameter returns Traceroute related parameters for startTraficAndTestPacketIn testcase.
 func getTracerouteParameter(t *testing.T) PacketIO {
+	t.Helper()
 	return &TraceroutePacketIO{
 		PacketIOPacket: PacketIOPacket{
 			TTL:      &TTL1,
@@ -264,7 +267,50 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 }
 
 func testPacketInForLeader(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, electionID uint64) {
-	leader, follower, err := setupP4RTLeaderAndFollower(ctx, t, dut /*setForwardingPipelineConfig=*/, true, electionID)
+	t.Helper()
+	leader, follower, err := setupP4RTLeaderAndFollower(ctx, t, dut, true /*setForwardingPipelineConfig*/, electionID)
+	if err != nil {
+		t.Fatalf("Could not setup p4rt client: %v", err)
+	}
+	defer func() {
+		leader.StreamChannelDestroy(&streamName)
+		leader.ServerDisconnect()
+		follower.StreamChannelDestroy(&streamName)
+		follower.ServerDisconnect()
+	}()
+	args := &testArgs{
+		ctx:      ctx,
+		leader:   leader,
+		follower: follower,
+		dut:      dut,
+		ate:      ate,
+		top:      top,
+		packetIO: getTracerouteParameter(t),
+	}
+	packetInTests := []struct {
+		desc   string
+		isIPv4 bool
+	}{{
+		desc:   "Test PacketIn for IPv4",
+		isIPv4: true,
+	}, {
+		desc:   "Test PacketIn for IPv6",
+		isIPv4: false,
+	}}
+	for _, test := range packetInTests {
+		t.Run(test.desc, func(t *testing.T) {
+			if err := programmTableEntry(leader, args.packetIO, false /*delete*/, test.isIPv4, electionID); err != nil {
+				t.Fatalf("there is error when programming entry")
+			}
+			defer programmTableEntry(leader, args.packetIO, true /*delete*/, test.isIPv4, electionID)
+			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
+		})
+	}
+}
+
+func testPacketInAfterClientReconnection(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, electionID uint64) {
+	t.Helper()
+	leader, follower, err := setupP4RTLeaderAndFollower(ctx, t, dut, true /*setForwardingPipelineConfig*/, electionID)
 	if err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
@@ -289,10 +335,36 @@ func testPacketInForLeader(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 	}}
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
-			if err := programmTableEntry(leader, args.packetIO /*delete=*/, false, test.isIPv4, electionID); err != nil {
+			if err := programmTableEntry(leader, args.packetIO, false /*delete*/, test.isIPv4, electionID); err != nil {
 				t.Fatalf("there is error when programming entry")
 			}
-			defer programmTableEntry(leader, args.packetIO /*delete=*/, true, test.isIPv4, electionID)
+			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
+			// Observation: defer programmTableEntry(leader, args.packetIO, true /*delete*/, test.isIPv4, electionID)
+			// is not included so we can test if the policy remains in the table after the client connection drops and reconnects.
+		})
+	}
+
+	leader.StreamChannelDestroy(&streamName)
+	leader.ServerDisconnect()
+	follower.StreamChannelDestroy(&streamName)
+	follower.ServerDisconnect()
+
+	newLeaderElectionID := electionID + 1
+	newLeader, newFollower, err := setupP4RTLeaderAndFollower(ctx, t, dut, false /*setForwardingPipelineConfig*/, newLeaderElectionID)
+	if err != nil {
+		t.Fatalf("Could not setup new p4rt client: %v", err)
+	}
+	defer func() {
+		newLeader.StreamChannelDestroy(&streamName)
+		newLeader.ServerDisconnect()
+		newFollower.StreamChannelDestroy(&streamName)
+		newFollower.ServerDisconnect()
+	}()
+	args.leader = newLeader
+	args.follower = newFollower
+	for _, test := range packetInTests {
+		t.Run(test.desc, func(t *testing.T) {
+			defer programmTableEntry(args.leader, args.packetIO, true /*delete*/, test.isIPv4, newLeaderElectionID)
 			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
 		})
 	}
@@ -300,7 +372,7 @@ func testPacketInForLeader(ctx context.Context, t *testing.T, dut *ondatra.DUTDe
 
 func TestPacketIn(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Configure the DUT
 	configureDUT(t, dut)
@@ -316,7 +388,11 @@ func TestPacketIn(t *testing.T) {
 
 	t.Run("Create P4RT clients, start traffic, and validate packetins sent to leader", func(t *testing.T) {
 		electionID := uint64(100)
-		testPacketInForLeader(ctx, t, dut, ate, top, electionID)
+		testPacketInForLeader(t.Context(), t, dut, ate, top, electionID)
+	})
+	t.Run("Create P4RT client, disconnect, start traffic, and validate packetins sent", func(t *testing.T) {
+		electionID := uint64(200)
+		testPacketInAfterClientReconnection(t.Context(), t, dut, ate, top, electionID)
 	})
 }
 
