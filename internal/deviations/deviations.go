@@ -1592,3 +1592,8 @@ func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
+
+// OTNToETHAssignment returns true if the device must have the OTN to ETH assignment.
+func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnToEthAssignment()
+}
