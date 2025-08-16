@@ -263,7 +263,7 @@ func AssignETHIndexes(t *testing.T, dut *ondatra.DUTDevice) map[string]uint32 {
 }
 
 // UpdateAllConfig configures all the ports.
-func UpdateAllConfig(t *testing.T, dut *ondatra.DUTDevice, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
+func UpdateAllConfig(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
 	t.Helper()
 	// Set the OC parameters according to the PMD type and operational mode.
 	var (
@@ -275,8 +275,6 @@ func UpdateAllConfig(t *testing.T, dut *ondatra.DUTDevice, frequency uint64, tar
 		otnIndexes          = AssignOTNIndexes(t, dut)
 		ethIndexes          = AssignETHIndexes(t, dut)
 	)
-	// Create a batch to configure all the OC paths.
-	batch := &gnmi.SetBatch{}
 	for _, p := range dut.Ports() {
 		switch p.PMD() {
 		case ondatra.PMD400GBASEZR, ondatra.PMD400GBASEZRP:
@@ -315,7 +313,6 @@ func UpdateAllConfig(t *testing.T, dut *ondatra.DUTDevice, frequency uint64, tar
 		updateOTNChannelConfig(batch, dut, och, otnIndexes[p.Name()], ethIndexes[p.Name()], allocation, tribProtocol)
 		updateETHChannelConfig(batch, dut, p, transceiverName, otnIndexes[p.Name()], ethIndexes[p.Name()], allocation, rateClass, tribProtocol)
 	}
-	batch.Set(t, dut)
 }
 
 // updateInterfaceConfig updates the interface config.
