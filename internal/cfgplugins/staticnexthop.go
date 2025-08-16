@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -215,5 +216,59 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 		}
 	} else {
 		configureNextHopGroups(t, ni, params)
+	}
+}
+
+func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthopGroupName string, groupType string, srcAddr []string, dstAddr string, tos, ttl uint8) {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		cli := ""
+		tunnelConfig := ""
+		tosConfig := ""
+		ttlConfig := ""
+
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if len(srcAddr) != 0 && dstAddr != "" {
+				for entryNum, addr := range srcAddr {
+					tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+						entryNum, dstAddr, addr)
+				}
+			}
+			if tos != 0 {
+				tosConfig = fmt.Sprintf(`tos %v`, tos)
+			}
+			if ttl != 0 {
+				ttlConfig = fmt.Sprintf(`ttl %v`, ttl)
+			}
+
+			cli = fmt.Sprintf(`
+				nexthop-group %s type %s
+				%s
+				%s
+				%s
+				`, nexthopGroupName, groupType, tunnelConfig, tosConfig, ttlConfig)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		t.Helper()
+		nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup(nexthopGroupName)
+		nhg.GetOrCreateNextHop(nexthopGroupName).SetIndex(nexthopGroupName)
+
+		// Set the encap header for each next-hop
+		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop(nexthopGroupName).GetOrCreateEncapHeader(1)
+		ueh1.GetOrCreateUdpV4().SetDstIp(dstAddr)
+
+		for _, addr := range srcAddr {
+			ueh1.GetOrCreateUdpV4().SetSrcIp(addr)
+		}
+
+		if tos != 0 {
+			ueh1.GetOrCreateUdpV4().SetDscp(tos)
+		}
+		if ttl != 0 {
+			ueh1.GetOrCreateUdpV4().SetIpTtl(ttl)
+		}
 	}
 }
