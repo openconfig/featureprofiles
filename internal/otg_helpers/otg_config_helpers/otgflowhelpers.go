@@ -120,6 +120,7 @@ type MPLSFlowParams struct {
 	MPLSExp        uint32
 	MPLSLabelCount uint32
 	MPLSExpCount   uint32
+	MPLSLabelStep  uint32
 }
 
 // SizeWeightPair represents a custom Size profile for a traffic flow.
@@ -206,6 +207,9 @@ func (f *Flow) AddMPLSHeader() {
 	mplsHdr := f.flow.Packet().Add().Mpls()
 	if f.MPLSFlow.MPLSLabelCount != 0 {
 		mplsHdr.Label().Increment().SetStart(f.MPLSFlow.MPLSLabel).SetCount(f.MPLSFlow.MPLSLabelCount)
+		if f.MPLSFlow.MPLSLabelStep != 0 {
+			mplsHdr.Label().Increment().SetStart(f.MPLSFlow.MPLSLabel).SetCount(f.MPLSFlow.MPLSLabelCount).SetStep(f.MPLSFlow.MPLSLabelStep)
+		}
 	} else {
 		mplsHdr.Label().SetValue(f.MPLSFlow.MPLSLabel)
 	}

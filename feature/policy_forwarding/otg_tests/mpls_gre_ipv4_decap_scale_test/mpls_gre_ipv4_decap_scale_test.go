@@ -29,16 +29,19 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	mplsLabelCount  = 2000
-	intCount        = 2000
-	dutIntStartIP   = "169.254.0.1"
-	otgIntStartIP   = "169.254.0.2"
-	dutIntStartIpV6 = "2000:0:0:1::1"
-	otgIntStartIpV6 = "2000:0:0:1::2"
-	intStepV4       = "0.0.0.4"
-	intStepV6       = "0:0:0:1::"
+	ethernetCsmacd        = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag         = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	mplsLabelCount        = 2000
+	intCount              = 2000
+	dutIntStartIP         = "169.254.0.1"
+	otgIntStartIP         = "169.254.0.2"
+	dutIntStartIpV6       = "2000:0:0:1::1"
+	otgIntStartIpV6       = "2000:0:0:1::2"
+	intStepV4             = "0.0.0.4"
+	intStepV6             = "0:0:0:1::"
+	mplsLabelStep         = 200
+	mplsLabelStartforIpv4 = 16
+	mplsLabelStartforIpv6 = 524280
 )
 
 var (
@@ -103,7 +106,7 @@ var (
 		FlowName:          "MPLSOGRE traffic IPv4 interface IPv4 Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 10000},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 99991, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsLabelStartforIpv4, MPLSExp: 7, MPLSLabelCount: mplsLabelCount, MPLSLabelStep: mplsLabelStep},
 		GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
 	}
 	// FlowOuterIPv4Validation MPLSOGRE traffic IPv4 interface IPv4 Payload.
@@ -125,7 +128,7 @@ var (
 		FlowName:          "MPLSOGRE traffic IPv6 interface IPv6 Payload",
 		EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg2.AggMAC},
 		IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 10000},
-		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: 110993, MPLSExp: 7, MPLSLabelCount: mplsLabelCount},
+		MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: mplsLabelStartforIpv6, MPLSExp: 7, MPLSLabelCount: mplsLabelCount, MPLSLabelStep: mplsLabelStep},
 		GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
 	}
 	// FlowOuterIPv6Validation MPLSOGRE traffic IPv6 interface IPv6 Payload.
@@ -255,16 +258,26 @@ func TestSetup(t *testing.T) {
 	}
 	mplsStaticLabels := func() []int {
 		r := make([]int, mplsLabelCount)
+		start := mplsLabelStartforIpv4
 		for i := range r {
-			r[i] = 99991 + i
+			if i == 0 {
+				r[i] = start
+			} else {
+				r[i] = r[i-1] + mplsLabelStep
+			}
 		}
 		return r
 	}()
 
 	mplsStaticLabelsForIpv6 := func() []int {
 		r := make([]int, mplsLabelCount)
+		start := mplsLabelStartforIpv6
 		for i := range r {
-			r[i] = 110993 + i
+			if i == 0 {
+				r[i] = start
+			} else {
+				r[i] = r[i-1] + mplsLabelStep
+			}
 		}
 		return r
 	}()
