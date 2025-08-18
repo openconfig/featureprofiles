@@ -42,8 +42,6 @@ message Metadata {
     TESTBED_DUT_400ZR_100G_4LINKS = 10;
     TESTBED_DUT_400FR_100G_4LINKS = 11;
     TESTBED_DUT_ATE_5LINKS = 12;
-    TESTBED_DUT_800ZR = 13;
-    TESTBED_DUT_800ZR_PLUS = 14;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
