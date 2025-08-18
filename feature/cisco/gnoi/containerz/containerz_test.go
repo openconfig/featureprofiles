@@ -316,7 +316,7 @@ func TestContainerzWorkflow(t *testing.T) {
 	t.Logf("=== COMPLETED TestContainerzWorkflow ===")
 }
 
-func sTestRemoveContainer(t *testing.T) {
+func TestRemoveContainer(t *testing.T) {
 	t.Logf("=== STARTING TestRemoveContainer ===")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
