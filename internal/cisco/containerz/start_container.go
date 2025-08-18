@@ -72,6 +72,11 @@ func startContainerRequestWithOptions(ctx context.Context, image string, tag str
 		return nil, err
 	}
 
+	deviceMappings, err := devices(optionz.devices)
+	if err != nil {
+		return nil, err
+	}
+
 	capabilities, err := capabilities(optionz.capAdd, optionz.capRemove)
 	if err != nil {
 		return nil, err
@@ -95,10 +100,17 @@ func startContainerRequestWithOptions(ctx context.Context, image string, tag str
 		Environment:  envMappings,
 		InstanceName: instance,
 		Volumes:      volumeMappings,
+		Devices:      deviceMappings,
 		Network:      optionz.network,
 		Cap:          capabilities,
 		RunAs:        runAs,
 		Restart:      restartPolicy,
+		Labels:       optionz.labels,
+		Limits: &cpb.StartContainerRequest_Limits{
+			MaxCpu:       optionz.cpus,
+			SoftMemBytes: optionz.softMem,
+			HardMemBytes: optionz.hardMem,
+		},
 	}, nil
 }
 
@@ -224,4 +236,49 @@ func capabilities(capAdd, capRemove []string) (*cpb.StartContainerRequest_Capabi
 		Add:    capAdd,
 		Remove: capRemove,
 	}, nil
+}
+
+func devices(devices []string) ([]*cpb.Device, error) {
+	devs := make([]*cpb.Device, 0, len(devices))
+
+	for _, dev := range devices {
+		parts := strings.SplitN(dev, ":", 3)
+		switch len(parts) {
+		case 1: // Example: /dev/video0
+			devs = append(devs, &cpb.Device{
+				SrcPath:     parts[0],
+				DstPath:     parts[0],
+				Permissions: []cpb.Device_Permission{cpb.Device_READ, cpb.Device_WRITE, cpb.Device_MKNOD},
+			})
+		case 2: // Example: /dev/video0:/dev/video1
+			devs = append(devs, &cpb.Device{
+				SrcPath:     parts[0],
+				DstPath:     parts[1],
+				Permissions: []cpb.Device_Permission{cpb.Device_READ, cpb.Device_WRITE},
+			})
+		case 3: // Example: /dev/video0:/dev/video1:rwm
+			var perms []cpb.Device_Permission
+			for _, p := range parts[2] {
+				switch p {
+				case 'r':
+					perms = append(perms, cpb.Device_READ)
+				case 'w':
+					perms = append(perms, cpb.Device_WRITE)
+				case 'm':
+					perms = append(perms, cpb.Device_MKNOD)
+				default:
+					return nil, fmt.Errorf("unknown device permission %c", p)
+				}
+			}
+			devs = append(devs, &cpb.Device{
+				SrcPath:     parts[0],
+				DstPath:     parts[1],
+				Permissions: perms,
+			})
+		default:
+			return nil, fmt.Errorf("device definition %s is invalid", dev)
+		}
+	}
+
+	return devs, nil
 }
