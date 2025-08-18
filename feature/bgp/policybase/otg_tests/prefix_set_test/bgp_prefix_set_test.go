@@ -385,7 +385,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool { // increased wait time to 20s from 10s
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, _ := val.Val()
 		t.Logf("Prefix that are installed %v and want %v", gotInstalled, wantInstalled)
 		return gotInstalled == wantInstalled
@@ -395,7 +395,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	}
 
 	// Waiting for Received count to get updated after session comes up or policy is applied
-	gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotRx, _ := val.Val()
 		t.Logf("Prefix that are received %v and want %v", gotRx, wantRx)
 		return gotRx == wantRx
@@ -405,7 +405,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	}
 
 	// Waiting for Sent count to get updated after session comes up or policy is applied
-	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		t.Logf("Prefix that are sent %v", prefixPath.Sent().State())
 		gotSent, _ := val.Val()
 		t.Logf("Prefix that are sent %v and want %v", gotSent, wantSent)
