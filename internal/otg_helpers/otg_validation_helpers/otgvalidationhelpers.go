@@ -117,14 +117,12 @@ func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj 
 	isisAdj := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter(expectedAdj["IsisRouterName"].(string)).Adjacencies().AdjacencyAny().State())
 
 	for _, adj := range isisAdj {
-		localStateLevel := adj.LocalState.GetLevelType().String()
-		if localStateLevel != expectedAdj["LocalStateTypeExp"].(string) {
-			t.Errorf("didn't receive expected local state level. got: %v, expected: %v", localStateLevel, expectedAdj["LocalStateTypeExp"])
+		if adj.LocalState.GetLevelType().String() != expectedAdj["LocalStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected local state level. got: %v, expected: %v", adj.LocalState.GetLevelType().String(), expectedAdj["LocalStateTypeExp"])
 		}
 
-		localStateHoldtime := adj.LocalState.GetHoldTimer()
-		if localStateHoldtime != expectedAdj["LocalStateHoldTimeExp"] {
-			t.Errorf("didn't receive expected local state hold timer. got: %v, expected: %v", localStateHoldtime, expectedAdj["LocalStateHoldTimeExp"])
+		if adj.LocalState.GetHoldTimer() != expectedAdj["LocalStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected local state hold timer. got: %v, expected: %v", adj.LocalState.GetHoldTimer(), expectedAdj["LocalStateHoldTimeExp"])
 		}
 
 		localStateRestartingStatus := adj.LocalState.GetLocalRestartingStatus().GetCurrentState().String()
@@ -137,14 +135,12 @@ func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj 
 			t.Errorf("didn't receive expected local restarting status. got: %v, expected: %v", localStateAttemptStatus, expectedAdj["LocalStateLastAttemptExp"])
 		}
 
-		neighStateLevel := adj.NeighborState.GetLevelType().String()
-		if neighStateLevel != expectedAdj["NeighborStateTypeExp"].(string) {
-			t.Errorf("didn't receive expected neighbor state level. got: %v, expected: %v", neighStateLevel, expectedAdj["NeighborStateTypeExp"])
+		if adj.NeighborState.GetLevelType().String() != expectedAdj["NeighborStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state level. got: %v, expected: %v", adj.NeighborState.GetLevelType().String(), expectedAdj["NeighborStateTypeExp"])
 		}
 
-		neighHoldtime := adj.NeighborState.GetHoldTimer()
-		if neighHoldtime != expectedAdj["NeighborStateHoldTimeExp"] {
-			t.Errorf("didn't receive expected neighbor state hold timer. got: %v, expected: %v", neighHoldtime, expectedAdj["NeighborStateHoldTimeExp"])
+		if adj.NeighborState.GetHoldTimer() != expectedAdj["NeighborStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected neighbor state hold timer. got: %v, expected: %v", adj.NeighborState.GetHoldTimer(), expectedAdj["NeighborStateHoldTimeExp"])
 		}
 
 		neighRestartingState := adj.NeighborState.GetNeighRestartingStatus().GetCurrentState().String()
