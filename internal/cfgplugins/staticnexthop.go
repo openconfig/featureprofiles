@@ -156,44 +156,45 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 
 }
 
+// NextHopGroupConfigScale configures the interface next-hop-group config.
 func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, intCount int, mplsStaticLabels, mplsStaticLabelsForIpv6 []int, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
-    if deviations.NextHopGroupOCUnsupported(dut) {
-        switch dut.Vendor() {
-        case ondatra.ARISTA:
-            tunnelSources := []string{
-                "10.235.143.208", "10.235.143.209", "10.235.143.210", "10.235.143.211",
-                "10.235.143.212", "10.235.143.213", "10.235.143.215", "10.235.143.216",
-                "10.235.143.217", "10.235.143.218", "10.235.143.219", "10.235.143.220",
-                "10.235.143.221", "10.235.143.222", "10.235.143.223", "10.235.143.224",
-            }
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			tunnelSources := []string{
+				"10.235.143.208", "10.235.143.209", "10.235.143.210", "10.235.143.211",
+				"10.235.143.212", "10.235.143.213", "10.235.143.215", "10.235.143.216",
+				"10.235.143.217", "10.235.143.218", "10.235.143.219", "10.235.143.220",
+				"10.235.143.221", "10.235.143.222", "10.235.143.223", "10.235.143.224",
+			}
 
-            buildConfig := func(prefix string, labels []int) string {
-                var b strings.Builder
-                for i := 1; i <= intCount; i++ {
-                    b.WriteString(fmt.Sprintf(`
+			buildConfig := func(prefix string, labels []int) string {
+				var b strings.Builder
+				for i := 1; i <= intCount; i++ {
+					b.WriteString(fmt.Sprintf(`
 nexthop-group %s%d type mpls-over-gre
  tos 96
  ttl 64
  fec hierarchical`, prefix, i))
-                    for entry, src := range tunnelSources {
-                        b.WriteString(fmt.Sprintf(`
+					for entry, src := range tunnelSources {
+						b.WriteString(fmt.Sprintf(`
  entry  %d push label-stack %d tunnel-destination 10.99.1.%d tunnel-source %s`,
-                            entry, labels[i-1], i, src))
-                    }
-                    b.WriteString("\n!")
-                }
-                return b.String()
-            }
+							entry, labels[i-1], i, src))
+					}
+					b.WriteString("\n!")
+				}
+				return b.String()
+			}
 
-            helpers.GnmiCLIConfig(t, dut, buildConfig("1V4_vlan_3_", mplsStaticLabels))
-            helpers.GnmiCLIConfig(t, dut, buildConfig("1V6_vlan_3_", mplsStaticLabelsForIpv6))
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V4_vlan_3_", mplsStaticLabels))
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V6_vlan_3_", mplsStaticLabelsForIpv6))
 
-        default:
-            t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
-        }
-    } else {
-        configureNextHopGroups(t, ni, params)
-    }
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		configureNextHopGroups(t, ni, params)
+	}
 }
 
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.
