@@ -48,6 +48,10 @@ type OcPolicyForwardingParams struct {
 	CloudV4NHG   string
 	CloudV6NHG   string
 	DecapPolicy  DecapPolicyParams
+	GuePort      uint32
+	IpType       string
+	Dynamic      bool
+	TunnelIP     string
 }
 
 var (
@@ -493,7 +497,12 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+			if ocPFParams.Dynamic {
+				t.Logf("Going into decap")
+				aristaGreDecapCLIConfig(t, dut, ocPFParams)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
@@ -507,13 +516,45 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+			if ocPFParams.Dynamic {
+				t.Logf("Going into decap")
+				aristaGueDecapCLIConfig(t, dut, ocPFParams)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
 	} else {
 		DecapPolicyRulesandActionsGue(t, pf, ocPFParams)
 	}
+}
+
+// aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
+func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+		                    ip decap-group type udp destination port %v payload %s
+							tunnel type %s-over-udp udp destination port %v
+							ip decap-group %s
+							tunnel type UDP
+							tunnel decap-ip %s
+							tunnel decap-interface %s
+							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+}
+
+// aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
+func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, params.AppliedPolicyName, params.TunnelIP)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
 }
 
 // MPLSStaticLSPConfig configures the interface mpls static lsp.
