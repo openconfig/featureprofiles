@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package egresstrafficclassificationandrewritetest
+package egress_traffic_classification_and_rewrite_test
 
 import (
 	"net"
@@ -40,44 +40,32 @@ import (
 )
 
 const (
-	advertisedRoutesV4Prefix = 32
-	advertisedRoutesV6Prefix = 128
-	ipv4PrefixLen            = 30
-	ipv6PrefixLen            = 126
-	ate1Asn                  = 65002
-	ate2Asn                  = 65003
-	dutAsn                   = 65001
-	ipv4Src                  = "198.51.100.1"
-	ipv4Dst                  = "203.0.113.1"
-	ipv6Src                  = "2001:DB8:1::1"
-	ipv6Dst                  = "2001:DB8:2::1"
-	peerv4Grp1Name           = "BGP-PEER-GROUP1-V4"
-	peerv6Grp1Name           = "BGP-PEER-GROUP1-V6"
-	peerv4Grp2Name           = "BGP-PEER-GROUP2-V4"
-	peerv6Grp2Name           = "BGP-PEER-GROUP2-V6"
-	v4NetName1               = "BGPv4RR1"
-	v6NetName1               = "BGPv6RR1"
-	v4NetName2               = "BGPv4RR2"
-	v6NetName2               = "BGPv6RR2"
-	frameSize                = 512
-	packetPerSecond          = 100
-	guePort                  = 6080
-	policyId                 = 1
-	greProtocol              = 47
-	trafficSleepTime         = 10
-	captureWait              = 10
-	mplsPopLabelv4           = 10020
+	ipv4PrefixLen    = 30
+	ipv6PrefixLen    = 126
+	ate1Asn          = 65002
+	ate2Asn          = 65003
+	dutAsn           = 65001
+	ipv4Src          = "198.51.100.1"
+	ipv4Dst          = "203.0.113.1"
+	ipv6Src          = "2001:DB8:1::1"
+	ipv6Dst          = "2001:DB8:2::1"
+	peerv4Grp1Name   = "BGP-PEER-GROUP1-V4"
+	peerv6Grp1Name   = "BGP-PEER-GROUP1-V6"
+	peerv4Grp2Name   = "BGP-PEER-GROUP2-V4"
+	peerv6Grp2Name   = "BGP-PEER-GROUP2-V6"
+	v4NetName1       = "BGPv4RR1"
+	v6NetName1       = "BGPv6RR1"
+	v4NetName2       = "BGPv4RR2"
+	v6NetName2       = "BGPv6RR2"
+	frameSize        = 512
+	packetPerSecond  = 100
+	guePort          = 6080
+	trafficSleepTime = 10
+	captureWait      = 10
+	mplsPopLabelv4   = 10020
 )
 
 var (
-	dutlo0Attrs = attrs.Attributes{
-		Name:    "Loopback0",
-		IPv4:    "192.0.20.2",
-		IPv6:    "2001:DB8:0::10",
-		IPv4Len: 32,
-		IPv6Len: 128,
-	}
-
 	atePort1 = attrs.Attributes{
 		Name:    "ateP1",
 		MAC:     "02:00:01:01:01:01",
@@ -111,13 +99,6 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 )
-
-// Struct is to pass bgp session parameters.
-type bgpTestParams struct {
-	localAS, peerAS, nbrLocalAS uint32
-	peerIP                      string
-	RouterID                    string
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -743,7 +724,7 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		verifyTrafficFlow(t, ate, trafficID.desc)
 	}
 
-	verifyIpv6DscpCapture(t, ate, "port2", enableMpls, enableGue, enableGre)
+	verifyIpv6DscpCapture(t, ate, "port2", enableGue, enableGre)
 
 	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
 	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
@@ -869,7 +850,7 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		t.Logf("Verify Traffic flow %s", trafficID.desc)
 		verifyTrafficFlow(t, ate, trafficID.desc)
 	}
-	verifyIpv4DscpCapture(t, ate, "port2", enableMpls, enableGue, enableGre)
+	verifyIpv4DscpCapture(t, ate, "port2", enableGue, enableGre)
 
 	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
 	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
@@ -953,7 +934,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	return pcapFile.Name()
 }
 
-func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, enableMpls bool, enableGue bool, enableGre bool) {
+func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, enableGue bool, enableGre bool) {
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
 	if err != nil {
@@ -989,7 +970,7 @@ func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, en
 
 }
 
-func verifyIpv6DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, enableMpls bool, enableGue bool, enableGre bool) {
+func verifyIpv6DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, enableGue bool, enableGre bool) {
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
 	if err != nil {
