@@ -23,7 +23,7 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v1.32.0
 	github.com/openconfig/attestz v0.5.0
 	github.com/openconfig/bootz v0.5.0
-	github.com/openconfig/containerz v0.0.0-20250408205203-029560584812
+	github.com/openconfig/containerz v0.0.0-20250612100728-d6a2691c3371
 	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnmic/pkg/api v0.1.9
@@ -137,7 +137,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jstemmer/go-junit-report/v2 v2.1.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
