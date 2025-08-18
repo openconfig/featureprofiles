@@ -1121,8 +1121,11 @@ type Metadata_Deviations struct {
 	// Devices that do not support policy forwarding encapsulate gre action
 	// Arista: b/409347274
 	PolicyForwardingGreEncapsulationOcUnsupported bool `protobuf:"varint,315,opt,name=policy_forwarding_gre_encapsulation_oc_unsupported,json=policyForwardingGreEncapsulationOcUnsupported,proto3" json:"policy_forwarding_gre_encapsulation_oc_unsupported,omitempty"`
+	// policy rule based counters unsupported
+	// Arista : https://partnerissuetracker.corp.google.com/issues/425628787
+	PolicyRuleCountersOcUnsupported bool `protobuf:"varint,316,opt,name=policy_rule_counters_oc_unsupported,json=policyRuleCountersOcUnsupported,proto3" json:"policy_rule_counters_oc_unsupported,omitempty"`
 	// Devices that must have OTN to ETH assignment.
-	OtnToEthAssignment bool `protobuf:"varint,316,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
+	OtnToEthAssignment bool `protobuf:"varint,317,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -3145,6 +3148,13 @@ func (x *Metadata_Deviations) GetPolicyForwardingGreEncapsulationOcUnsupported()
 	return false
 }
 
+func (x *Metadata_Deviations) GetPolicyRuleCountersOcUnsupported() bool {
+	if x != nil {
+		return x.PolicyRuleCountersOcUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetOtnToEthAssignment() bool {
 	if x != nil {
 		return x.OtnToEthAssignment
@@ -3208,7 +3218,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xba\xad\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x89\xae\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3220,7 +3230,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aۣ\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xaa\xa4\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3508,8 +3518,9 @@ const file_metadata_proto_rawDesc = "" +
 	",policy_forwarding_to_next_hop_oc_unsupported\x18\xb8\x02 \x01(\bR&policyForwardingToNextHopOcUnsupported\x12E\n" +
 	"\x1fsflow_ingress_min_sampling_rate\x18\xb9\x02 \x01(\rR\x1bsflowIngressMinSamplingRate\x12:\n" +
 	"\x19qos_remark_oc_unsupported\x18\xba\x02 \x01(\bR\x16qosRemarkOcUnsupported\x12j\n" +
-	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x122\n" +
-	"\x15otn_to_eth_assignment\x18\xbc\x02 \x01(\bR\x12otnToEthAssignmentJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x12M\n" +
+	"#policy_rule_counters_oc_unsupported\x18\xbc\x02 \x01(\bR\x1fpolicyRuleCountersOcUnsupported\x122\n" +
+	"\x15otn_to_eth_assignment\x18\xbd\x02 \x01(\bR\x12otnToEthAssignmentJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
