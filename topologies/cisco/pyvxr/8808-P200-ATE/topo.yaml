@@ -49,6 +49,7 @@ devices:
       - 88-LC2-36EF-M
       - 88-LC2-36EF-M
     platform: spitfire_d
+    cli_commands: reload location all noprompt
     pre_config: hw-module profile npu-compatibility P200
     pre_cli: reload location all noprompt
     xr_hostname: dut
@@ -59,7 +60,7 @@ devices:
       - 57777
     xr_username: cisco
   dut2:
-    image: /ws/abhayk-sjc/BOBCAT_25.8.0.986_MIG_XR_V1/8000-x64.iso
+    cvac: $BASE_CONF_PATH
     rp_type: 8800-rp2
     num_linecards: 1
     lcc_type: '8808'
@@ -71,6 +72,7 @@ devices:
     linecard_types:
       - 88-LC2-36EF-M
     platform: spitfire_d
+    cli_commands: reload location all noprompt
     pre_config: hw-module profile npu-compatibility P200
     pre_cli: reload location all noprompt
     xr_hostname: dut
