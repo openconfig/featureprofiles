@@ -906,10 +906,6 @@ message Metadata {
     // Arista : https://partnerissuetracker.corp.google.com/issues/425628787
     bool policy_rule_counters_oc_unsupported = 316;
 
-    // policy rule based counters unsupported
-    // Arista : https://partnerissuetracker.corp.google.com/issues/425628787
-    bool policy_rule_counters_oc_unsupported = 316;
-
     // Devices that must have OTN to ETH assignment.
     bool otn_to_eth_assignment = 317;
 
