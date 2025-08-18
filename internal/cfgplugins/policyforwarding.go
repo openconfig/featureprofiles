@@ -501,7 +501,7 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 				t.Logf("Going into decap")
 				aristaGreDecapCLIConfig(t, dut, ocPFParams)
 			} else {
-                helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+				helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
@@ -520,7 +520,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 				t.Logf("Going into decap")
 				aristaGueDecapCLIConfig(t, dut, ocPFParams)
 			} else {
-                helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
+				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
@@ -530,6 +530,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
+// aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
 	cliConfig := fmt.Sprintf(`
@@ -544,6 +545,7 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 }
 
+// aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
 func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
 	cliConfig := fmt.Sprintf(`
