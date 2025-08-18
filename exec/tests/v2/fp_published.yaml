@@ -354,7 +354,7 @@ tests:
       - fmolinar
     mustpass: true
     testbeds:
-      - 8808-2DUT-ATE-RT121
+      - 8808-DUT1DUT2-ATE
     timeout: 4200
     groups: [ancx,P0]
   - name: RT-5.8 (IPv6 Link Local)
