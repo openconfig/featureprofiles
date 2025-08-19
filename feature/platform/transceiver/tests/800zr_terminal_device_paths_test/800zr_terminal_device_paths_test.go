@@ -37,11 +37,6 @@ var (
 	frequencyList          cfgplugins.FrequencyList
 	targetOpticalPowerList cfgplugins.TargetOpticalPowerList
 	operationalModeList    cfgplugins.OperationalModeList
-	allocation             float64
-	tribProtocol           oc.E_TransportTypes_TRIBUTARY_PROTOCOL_TYPE
-	rateClass              oc.E_TransportTypes_TRIBUTARY_RATE_CLASS_TYPE
-	ethIndexes             map[string]uint32
-	otnIndexes             map[string]uint32
 	logicalChannelPath     = "openconfig/terminal-device/logical-channels/channel[index=%v]"
 	// Different acceptable values for inactive pre-FEC BER.
 	// Cisco returns 0.5 for inactive pre-FEC BER.
@@ -83,19 +78,23 @@ func TestTerminalDevicePaths(t *testing.T) {
 			for _, targetOpticalPower := range targetOpticalPowerList {
 
 				t.Logf("\n*** Configure interfaces with Operational Mode: %v, Optical Frequency: %v, Target Power: %v\n\n\n", operationalMode, frequency, targetOpticalPower)
+				params := &cfgplugins.ConfigParameters{
+					Enabled:            true,
+					Frequency:          frequency,
+					TargetOpticalPower: targetOpticalPower,
+					OperationalMode:    operationalMode,
+				}
 				batch := &gnmi.SetBatch{}
-				cfgplugins.NewInterfaceConfigAll(t, dut, batch, frequency, targetOpticalPower, operationalMode)
+				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
 				batch.Set(t, dut)
-
-				populateValidationVariables(t, dut, operationalMode)
 
 				// Create sample steams for each port.
 				ethStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
 				otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
 				interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 				for _, p := range dut.Ports() {
-					ethStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndexes[p.Name()]).State(), samplingInterval)
-					otnStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[p.Name()]).State(), samplingInterval)
+					ethStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).State(), samplingInterval)
+					otnStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).State(), samplingInterval)
 					interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(p.Name()).State(), samplingInterval)
 					defer ethStreams[p.Name()].Close()
 					defer otnStreams[p.Name()].Close()
@@ -105,41 +104,43 @@ func TestTerminalDevicePaths(t *testing.T) {
 				// Wait for streaming telemetry to report the channels as up.
 				for _, p := range dut.Ports() {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-					awaitQValueStats(t, dut, p, oc.Interface_OperStatus_UP)
+					awaitQValueStats(t, dut, p, params, oc.Interface_OperStatus_UP)
 				}
 				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
 				for _, p := range dut.Ports() {
-					validateNextSample(t, dut, p, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
+					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
 				}
 
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
-					cfgplugins.ToggleInterfaceState(t, p, false, operationalMode)
+					params.Enabled = false
+					cfgplugins.ToggleInterfaceState(t, p, params)
 				}
 
 				// Wait for streaming telemetry to report the channels as down and validate stats updated.
 				for _, p := range dut.Ports() {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
-					awaitQValueStats(t, dut, p, oc.Interface_OperStatus_DOWN)
+					awaitQValueStats(t, dut, p, params, oc.Interface_OperStatus_DOWN)
 				}
 				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
 				for _, p := range dut.Ports() {
-					validateNextSample(t, dut, p, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
+					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
-					cfgplugins.ToggleInterfaceState(t, p, true, operationalMode)
+					params.Enabled = true
+					cfgplugins.ToggleInterfaceState(t, p, params)
 				}
 
 				// Wait for streaming telemetry to report the channels as up and validate stats updated.
 				for _, p := range dut.Ports() {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-					awaitQValueStats(t, dut, p, oc.Interface_OperStatus_UP)
+					awaitQValueStats(t, dut, p, params, oc.Interface_OperStatus_UP)
 				}
 				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
 				for _, p := range dut.Ports() {
-					validateNextSample(t, dut, p, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
+					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
 				}
 			}
 		}
@@ -159,36 +160,8 @@ func setToDefaults(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// populateValidationVariables populates the validation parameters.
-func populateValidationVariables(t *testing.T, dut *ondatra.DUTDevice, operationalMode uint16) {
-	ethIndexes = cfgplugins.AssignETHIndexes(t, dut)
-	otnIndexes = cfgplugins.AssignOTNIndexes(t, dut)
-	pmd := dut.Ports()[0].PMD()
-	switch pmd {
-	case ondatra.PMD400GBASEZR, ondatra.PMD400GBASEZRP:
-		allocation = 400
-		tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE
-		rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
-	case ondatra.PMD800GBASEZR, ondatra.PMD800GBASEZRP:
-		switch operationalMode {
-		case 1, 2:
-			allocation = 800
-			tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_800GE
-			rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_800G
-		case 3, 4:
-			allocation = 400
-			tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE
-			rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
-		default:
-			t.Fatalf("Unsupported operational mode for %v: %v", pmd, operationalMode)
-		}
-	default:
-		t.Fatalf("Unsupported PMD type for %v", pmd)
-	}
-}
-
 // awaitQValueStats waits for the QValue stats (i.e., min/max/avg) to be within the expected range.
-func awaitQValueStats(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, operStatus oc.E_Interface_OperStatus) {
+func awaitQValueStats(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, operStatus oc.E_Interface_OperStatus) {
 	if p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
 		// Skip the QValue stats validation for 800ZR and 800ZR Plus due to OC stats bug for logical channels.
 		t.Logf("Skipping the QValue stats validation for 800ZR and 800ZR Plus due to OC stats bug for logical channels.")
@@ -197,7 +170,7 @@ func awaitQValueStats(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, ope
 	}
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
-		_, ok := gnmi.Watch(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[p.Name()]).Otn().QValue().State(), timeout, func(min *ygnmi.Value[*oc.TerminalDevice_Channel_Otn_QValue]) bool {
+		_, ok := gnmi.Watch(t, dut, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Otn().QValue().State(), timeout, func(min *ygnmi.Value[*oc.TerminalDevice_Channel_Otn_QValue]) bool {
 			qValue, present := min.Val()
 			return present &&
 				qValue.GetMin() <= maxAllowedQValue && qValue.GetMin() >= minAllowedQValue &&
@@ -209,7 +182,7 @@ func awaitQValueStats(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, ope
 			t.Fatalf("QValue stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
 		}
 	case oc.Interface_OperStatus_DOWN:
-		_, ok := gnmi.Watch(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[p.Name()]).Otn().QValue().State(), timeout, func(max *ygnmi.Value[*oc.TerminalDevice_Channel_Otn_QValue]) bool {
+		_, ok := gnmi.Watch(t, dut, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Otn().QValue().State(), timeout, func(max *ygnmi.Value[*oc.TerminalDevice_Channel_Otn_QValue]) bool {
 			qValue, present := max.Val()
 			return present && qValue.GetMin() == inactiveQValue && qValue.GetAvg() == inactiveQValue && qValue.GetMax() == inactiveQValue && qValue.GetInstant() == inactiveQValue
 		}).Await(t)
@@ -222,7 +195,7 @@ func awaitQValueStats(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, ope
 }
 
 // validateNextSample validates the stream data.
-func validateNextSample(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, wantOperStatus oc.E_Interface_OperStatus, interfaceData *ygnmi.Value[*oc.Interface], otnChannelData, ethChannelData *ygnmi.Value[*oc.TerminalDevice_Channel], operationalMode uint16) {
+func validateNextSample(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, wantOperStatus oc.E_Interface_OperStatus, interfaceData *ygnmi.Value[*oc.Interface], otnChannelData, ethChannelData *ygnmi.Value[*oc.TerminalDevice_Channel], operationalMode uint16) {
 	// Validate Interface OperStatus Telemetry.
 	if interfaceData == nil {
 		t.Errorf("Data not received for %v.", p.Name())
@@ -255,7 +228,7 @@ func validateNextSample(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, w
 		t.Errorf("OTN Channel value is empty for %v.", p.Name())
 		return
 	}
-	validateOTNChannelTelemetry(t, dut, p, otnChannelValue, gotOperStatus)
+	validateOTNChannelTelemetry(t, dut, p, params, otnChannelValue, gotOperStatus)
 
 	// Validate Ethernet Channel Telemetry.
 	if ethChannelData == nil {
@@ -267,11 +240,11 @@ func validateNextSample(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, w
 		t.Errorf("Ethernet Channel value is empty for %v.", p.Name())
 		return
 	}
-	validateEthernetChannelTelemetry(t, dut, p, ethChannelValue)
+	validateEthernetChannelTelemetry(t, dut, p, params, ethChannelValue)
 }
 
 // validateOTNChannelTelemetry validates the OTN channel telemetry.
-func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, otnChannel *oc.TerminalDevice_Channel, operStatus oc.E_Interface_OperStatus) {
+func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, otnChannel *oc.TerminalDevice_Channel, operStatus oc.E_Interface_OperStatus) {
 	var firstAssignmentIndex uint32
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
 		firstAssignmentIndex = 1
@@ -281,61 +254,61 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 	tcs := []testcase{
 		{
 			desc: "OTN Index Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/index", otnIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/index", params.OTNIndexes[p.Name()]),
 			got:  otnChannel.GetIndex(),
-			want: otnIndexes[p.Name()],
+			want: params.OTNIndexes[p.Name()],
 		},
 		{
 			desc: "OTN Description Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/description", otnIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/description", params.OTNIndexes[p.Name()]),
 			got:  otnChannel.GetDescription(),
 			want: "OTN Logical Channel",
 		},
 		{
 			desc: "OTN Logical Channel Type Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/logical-channel-type", otnIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/logical-channel-type", params.OTNIndexes[p.Name()]),
 			got:  otnChannel.GetLogicalChannelType(),
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 		},
 		{
 			desc: "OTN Loopback Mode Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/loopback-mode", otnIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/loopback-mode", params.OTNIndexes[p.Name()]),
 			got:  otnChannel.GetLoopbackMode(),
 			want: oc.TerminalDevice_LoopbackModeType_NONE,
 		},
 		{
 			desc: "OTN to Optical Channel Assignment Index Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/index", otnIndexes[p.Name()], firstAssignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/index", params.OTNIndexes[p.Name()], firstAssignmentIndex),
 			got:  otnChannel.GetAssignment(firstAssignmentIndex).GetIndex(),
 			want: uint32(firstAssignmentIndex),
 		},
 		{
 			desc: "OTN to Optical Channel Assignment Optical Channel Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/optical-channel", otnIndexes[p.Name()], firstAssignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/optical-channel", params.OTNIndexes[p.Name()], firstAssignmentIndex),
 			got:  otnChannel.GetAssignment(firstAssignmentIndex).GetOpticalChannel(),
 			want: components.OpticalChannelComponentFromPort(t, dut, p),
 		},
 		{
 			desc: "OTN to Optical Channel Assignment Description Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/description", otnIndexes[p.Name()], firstAssignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/description", params.OTNIndexes[p.Name()], firstAssignmentIndex),
 			got:  otnChannel.GetAssignment(firstAssignmentIndex).GetDescription(),
 			want: "OTN to Optical Channel",
 		},
 		{
 			desc: "OTN to Optical Channel Assignment Allocation Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/allocation", otnIndexes[p.Name()], firstAssignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/allocation", params.OTNIndexes[p.Name()], firstAssignmentIndex),
 			got:  otnChannel.GetAssignment(firstAssignmentIndex).GetAllocation(),
-			want: allocation,
+			want: params.Allocation,
 		},
 		{
 			desc: "OTN to Optical Channel Assignment Type Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/assignment-type", otnIndexes[p.Name()], firstAssignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/assignment-type", params.OTNIndexes[p.Name()], firstAssignmentIndex),
 			got:  otnChannel.GetAssignment(firstAssignmentIndex).GetAssignmentType(),
 			want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
 		},
 		{
 			desc:       "Instant QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/instant", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/instant", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetInstant(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: otnChannel.GetOtn().GetQValue().GetMin() * (1 - errorTolerance),
@@ -343,14 +316,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Instant QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/instant", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/instant", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetInstant(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveQValue,
 		},
 		{
 			desc:       "Average QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/avg", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/avg", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetAvg(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: otnChannel.GetOtn().GetQValue().GetMin() * (1 - errorTolerance),
@@ -358,14 +331,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Average QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/avg", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/avg", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetAvg(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveQValue,
 		},
 		{
 			desc:       "Minimum QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/min", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/min", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetMin(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedQValue,
@@ -373,14 +346,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Minimum QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/min", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/min", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetMin(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveQValue,
 		},
 		{
 			desc:       "Maximum QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/max", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/max", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetMax(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedQValue,
@@ -388,14 +361,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Maximum QValue Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/max", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/q-value/max", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetQValue().GetMax(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveQValue,
 		},
 		{
 			desc:       "Instant ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/instant", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/instant", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetInstant(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: otnChannel.GetOtn().GetEsnr().GetMin() * (1 - errorTolerance),
@@ -403,14 +376,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Instant ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/instant", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/instant", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetInstant(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveESNR,
 		},
 		{
 			desc:       "Average ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/avg", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/avg", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetAvg(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: otnChannel.GetOtn().GetEsnr().GetMin() * (1 - errorTolerance),
@@ -418,14 +391,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Average ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/avg", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/avg", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetAvg(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveESNR,
 		},
 		{
 			desc:       "Minimum ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/min", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/min", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetMin(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedESNR,
@@ -433,14 +406,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Minimum ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/min", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/min", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetMin(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveESNR,
 		},
 		{
 			desc:       "Maximum ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/max", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/max", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetMax(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedESNR,
@@ -448,14 +421,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Maximum ESNR Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/max", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/esnr/max", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetEsnr().GetMax(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			want:       inactiveESNR,
 		},
 		{
 			desc:       "Instant PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/instant", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/instant", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetInstant(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: otnChannel.GetOtn().GetPreFecBer().GetMin() * (1 - errorTolerance),
@@ -463,14 +436,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Instant PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/instant", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/instant", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetInstant(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			oneOf:      inactivePreFECBER,
 		},
 		{
 			desc:       "Average PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/avg", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/avg", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetAvg(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: otnChannel.GetOtn().GetPreFecBer().GetMin() * (1 - errorTolerance),
@@ -478,14 +451,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Average PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/avg", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/avg", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetAvg(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			oneOf:      inactivePreFECBER,
 		},
 		{
 			desc:       "Minimum PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/min", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/min", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetMin(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedPreFECBER,
@@ -493,14 +466,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Minimum PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/min", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/min", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetMin(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			oneOf:      inactivePreFECBER,
 		},
 		{
 			desc:       "Maximum PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/max", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/max", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetMax(),
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedPreFECBER,
@@ -508,14 +481,14 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		},
 		{
 			desc:       "Maximum PreFECBER Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/max", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/pre-fec-ber/max", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetPreFecBer().GetMax(),
 			operStatus: oc.Interface_OperStatus_DOWN,
 			oneOf:      inactivePreFECBER,
 		},
 		{
 			desc:       "FEC Uncorrectable Block Count Validation",
-			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/fec-uncorrectable-blocks", otnIndexes[p.Name()]),
+			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/fec-uncorrectable-blocks", params.OTNIndexes[p.Name()]),
 			got:        otnChannel.GetOtn().GetFecUncorrectableBlocks(),
 			operStatus: oc.Interface_OperStatus_UP,
 			want:       uint64(0),
@@ -525,31 +498,31 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 		tcs = append(tcs, []testcase{
 			{
 				desc: "OTN to Logical Channel Assignment Index Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/index", otnIndexes[p.Name()], firstAssignmentIndex+1),
+				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/index", params.OTNIndexes[p.Name()], firstAssignmentIndex+1),
 				got:  otnChannel.GetAssignment(firstAssignmentIndex + 1).GetIndex(),
 				want: uint32(firstAssignmentIndex + 1),
 			},
 			{
 				desc: "OTN to Logical Channel Assignment Optical Channel Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/logical-channel", otnIndexes[p.Name()], firstAssignmentIndex+1),
+				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/logical-channel", params.OTNIndexes[p.Name()], firstAssignmentIndex+1),
 				got:  otnChannel.GetAssignment(firstAssignmentIndex + 1).GetLogicalChannel(),
-				want: ethIndexes[p.Name()],
+				want: params.ETHIndexes[p.Name()],
 			},
 			{
 				desc: "OTN to Logical Channel Assignment Description Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/description", otnIndexes[p.Name()], firstAssignmentIndex+1),
+				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/description", params.OTNIndexes[p.Name()], firstAssignmentIndex+1),
 				got:  otnChannel.GetAssignment(firstAssignmentIndex + 1).GetDescription(),
 				want: "OTN to ETH",
 			},
 			{
 				desc: "OTN to Logical Channel Assignment Allocation Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/allocation", otnIndexes[p.Name()], firstAssignmentIndex+1),
+				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/allocation", params.OTNIndexes[p.Name()], firstAssignmentIndex+1),
 				got:  otnChannel.GetAssignment(firstAssignmentIndex + 1).GetAllocation(),
-				want: allocation,
+				want: params.Allocation,
 			},
 			{
 				desc: "OTN to Logical Channel Assignment Type Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/assignment-type", otnIndexes[p.Name()], firstAssignmentIndex+1),
+				path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/assignment-type", params.OTNIndexes[p.Name()], firstAssignmentIndex+1),
 				got:  otnChannel.GetAssignment(firstAssignmentIndex + 1).GetAssignmentType(),
 				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 			},
@@ -558,22 +531,22 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		tcs = append(tcs, testcase{
 			desc: "Rate Class",
-			path: fmt.Sprintf(logicalChannelPath+"/state/rate-class", otnIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/rate-class", params.OTNIndexes[p.Name()]),
 			got:  otnChannel.GetRateClass(),
-			want: rateClass,
+			want: params.RateClass,
 		})
 	}
 	if !deviations.OTNChannelTribUnsupported(dut) {
 		tcs = append(tcs, []testcase{
 			{
 				desc: "OTN Trib Protocol Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/state/trib-protocol", otnIndexes[p.Name()]),
+				path: fmt.Sprintf(logicalChannelPath+"/state/trib-protocol", params.OTNIndexes[p.Name()]),
 				got:  otnChannel.GetTribProtocol(),
-				want: tribProtocol,
+				want: params.TribProtocol,
 			},
 			{
 				desc: "OTN Admin State Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/state/admin-state", otnIndexes[p.Name()]),
+				path: fmt.Sprintf(logicalChannelPath+"/state/admin-state", params.OTNIndexes[p.Name()]),
 				got:  otnChannel.GetAdminState(),
 				want: oc.TerminalDevice_AdminStateType_ENABLED,
 			},
@@ -617,7 +590,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 }
 
 // validateEthernetChannelTelemetry validates the ethernet channel telemetry.
-func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, ethChannel *oc.TerminalDevice_Channel) {
+func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, ethChannel *oc.TerminalDevice_Channel) {
 	var assignmentIndex uint32
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
 		assignmentIndex = 1
@@ -627,49 +600,49 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *o
 	tcs := []testcase{
 		{
 			desc: "ETH Index Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/index", ethIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/index", params.ETHIndexes[p.Name()]),
 			got:  ethChannel.GetIndex(),
-			want: ethIndexes[p.Name()],
+			want: params.ETHIndexes[p.Name()],
 		},
 		{
 			desc: "ETH Description Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/description", ethIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/description", params.ETHIndexes[p.Name()]),
 			got:  ethChannel.GetDescription(),
 			want: "ETH Logical Channel",
 		},
 		{
 			desc: "ETH Logical Channel Type Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/logical-channel-type", ethIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/logical-channel-type", params.ETHIndexes[p.Name()]),
 			got:  ethChannel.GetLogicalChannelType(),
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
 		},
 		{
 			desc: "ETH Loopback Mode Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/loopback-mode", ethIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/loopback-mode", params.ETHIndexes[p.Name()]),
 			got:  ethChannel.GetLoopbackMode(),
 			want: oc.TerminalDevice_LoopbackModeType_NONE,
 		},
 		{
 			desc: "ETH Assignment Index Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/index", ethIndexes[p.Name()], assignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/index", params.ETHIndexes[p.Name()], assignmentIndex),
 			got:  ethChannel.GetAssignment(assignmentIndex).GetIndex(),
 			want: uint32(assignmentIndex),
 		},
 		{
 			desc: "ETH Assignment Logical Channel Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/logical-channel", ethIndexes[p.Name()], assignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/logical-channel", params.ETHIndexes[p.Name()], assignmentIndex),
 			got:  ethChannel.GetAssignment(assignmentIndex).GetLogicalChannel(),
-			want: otnIndexes[p.Name()],
+			want: params.OTNIndexes[p.Name()],
 		},
 		{
 			desc: "ETH Assignment Allocation Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/allocation", ethIndexes[p.Name()], assignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/allocation", params.ETHIndexes[p.Name()], assignmentIndex),
 			got:  ethChannel.GetAssignment(assignmentIndex).GetAllocation(),
-			want: allocation,
+			want: params.Allocation,
 		},
 		{
 			desc: "ETH Assignment Type Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/assignment-type", ethIndexes[p.Name()], assignmentIndex),
+			path: fmt.Sprintf(logicalChannelPath+"/logical-channel-assignments/assignment[index=%v]/state/assignment-type", params.ETHIndexes[p.Name()], assignmentIndex),
 			got:  ethChannel.GetAssignment(assignmentIndex).GetAssignmentType(),
 			want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 		},
@@ -677,22 +650,22 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *o
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		tcs = append(tcs, testcase{
 			desc: "ETH Rate Class Validation",
-			path: fmt.Sprintf(logicalChannelPath+"/state/rate-class", ethIndexes[p.Name()]),
+			path: fmt.Sprintf(logicalChannelPath+"/state/rate-class", params.ETHIndexes[p.Name()]),
 			got:  ethChannel.GetRateClass(),
-			want: rateClass,
+			want: params.RateClass,
 		})
 	}
 	if !deviations.OTNChannelTribUnsupported(dut) {
 		tcs = append(tcs, []testcase{
 			{
 				desc: "ETH Trib Protocol Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/state/trib-protocol", ethIndexes[p.Name()]),
+				path: fmt.Sprintf(logicalChannelPath+"/state/trib-protocol", params.ETHIndexes[p.Name()]),
 				got:  ethChannel.GetTribProtocol(),
-				want: tribProtocol,
+				want: params.TribProtocol,
 			},
 			{
 				desc: "ETH Admin State Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/state/admin-state", ethIndexes[p.Name()]),
+				path: fmt.Sprintf(logicalChannelPath+"/state/admin-state", params.ETHIndexes[p.Name()]),
 				got:  ethChannel.GetAdminState(),
 				want: oc.TerminalDevice_AdminStateType_ENABLED,
 			},
@@ -702,13 +675,13 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *o
 		tcs = append(tcs, []testcase{
 			{
 				desc: "ETH Ingress Interface Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/ingress/state/interface", ethIndexes[p.Name()]),
+				path: fmt.Sprintf(logicalChannelPath+"/ingress/state/interface", params.ETHIndexes[p.Name()]),
 				got:  ethChannel.GetIngress().GetInterface(),
 				want: p.Name(),
 			},
 			{
 				desc: "ETH Ingress Transceiver Validation",
-				path: fmt.Sprintf(logicalChannelPath+"/ingress/state/transceiver", ethIndexes[p.Name()]),
+				path: fmt.Sprintf(logicalChannelPath+"/ingress/state/transceiver", params.ETHIndexes[p.Name()]),
 				got:  ethChannel.GetIngress().GetTransceiver(),
 				want: gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()),
 			},
