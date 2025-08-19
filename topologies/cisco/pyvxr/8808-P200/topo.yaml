@@ -43,13 +43,15 @@ devices:
       - 88-LC2-36EF-M
     platform: spitfire_d
     cli_commands: reload location all noprompt
+    pre_config: hw-module profile npu-compatibility P200
+    pre_cli: reload location all noprompt
     xr_hostname: dut
     xr_password: cisco123
     xr_port_redir:
       - 22
       - 23
       - 57777
-    xr_username: cisco
+    xr_username: cafyauto
 connections:
   hubs:
     port1:

@@ -644,16 +644,25 @@ func TestIPv4StaticProcessRestart(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv4"
+	var aCount, bCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ProcessRestart(t, dut, "ipv4_static")
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after ipv4_static process restart:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after ipv4_static process restart:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -666,16 +675,25 @@ func TestIPv4RIBMgrProcessRestart(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv4"
+	var aCount, bCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv4", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ProcessRestart(t, dut, "rib_mgr")
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv4", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after rib_mgr process restart:%v", aCount)
+	if cliOutput != nil {
+		aCount := strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after rib_mgr process restart:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -687,16 +705,25 @@ func TestIPv4EmsdProcessRestart(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv4"
+	var aCount, bCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv4", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ProcessRestart(t, dut, "emsd")
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv4", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after emsd process restart:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after emsd process restart:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -709,18 +736,27 @@ func TestIPv4ReloadDUT(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv4"
+	var aCount, bCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ReloadRouter(t, dut)
 	time.Sleep(180 * time.Second)
 
 	cliHandle = dut.RawAPIs().CLI(t)
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after Router reload:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after Router reload:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -733,18 +769,27 @@ func TestIPv4RPFO(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv4"
+	var aCount, bCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.RPFO(t, dut)
 	time.Sleep(120 * time.Second)
 
 	cliHandle = dut.RawAPIs().CLI(t)
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after RPFO:%v", aCount)
+	if cliOutput != nil {
+		aCount := strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after RPFO:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -759,21 +804,30 @@ func TestIPv4FlapInterfaces(t *testing.T) {
 	ipAf := "ipv4"
 	dut := ondatra.DUT(t, "dut2")
 	allInterfaceList := getInterfaceNameList(t, dut)
+	var aCount, bCount int
 
 	interfaceList = append(interfaceList, allInterfaceList[:6]...)
 	interfaceList = append(interfaceList, "Bundle-Ether100")
 	interfaceList = append(interfaceList, "Bundle-Ether101")
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.FlapBulkInterfaces(t, dut, interfaceList)
 	time.Sleep(120 * time.Second)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after Flap interfaces:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after Flap interfaces:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -786,6 +840,7 @@ func TestIPv4DelMemberPort(t *testing.T) {
 
 	bundleInterfaceList := []string{}
 	downMemberInterfaceList := []string{}
+	var aCount, bCount int
 
 	ipAf := "ipv4"
 	dut := ondatra.DUT(t, "dut2")
@@ -796,14 +851,22 @@ func TestIPv4DelMemberPort(t *testing.T) {
 	downMemberInterfaceList = append(downMemberInterfaceList, bundleInterfaceList[2])
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured:%v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured:%v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	DelAddMemberPort(t, dut, downMemberInterfaceList)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after Member port delete:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after Member port delete:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -818,6 +881,7 @@ func TestIPv4AddMemberPort(t *testing.T) {
 	upMemberInterfaceList := []string{}
 	upInterfaceList := []string{}
 	bundleNames := []string{"Bundle-Ether100", "Bundle-Ether101"}
+	var aCount, bCount int
 
 	ipAf := "ipv4"
 	dut := ondatra.DUT(t, "dut2")
@@ -828,14 +892,21 @@ func TestIPv4AddMemberPort(t *testing.T) {
 	upMemberInterfaceList = append(upMemberInterfaceList, bundleInterfaceList[2])
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes configured:%v", bCount)
-
+	if cliOutput != nil {
+		bCount := strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes configured:%v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 	DelAddMemberPort(t, dut, upMemberInterfaceList, bundleNames)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv4 Static routes present after Member port add:%v", aCount)
+	if cliOutput != nil {
+		aCount := strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv4 Static routes present after Member port add:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -858,13 +929,18 @@ func TestIPv4NonDefaultVRF(t *testing.T) {
 	configVRF(t, dut2)
 
 	cliOutput, _ := showRouteCLI(t, dut2, cliHandle, ipAf, "", "static")
-	prefixes := extractPrefixes(cliOutput.Output(), "ipv4")
-	for i := 0; i < len(prefixes); i++ {
-		if prefixes[i][:4] == "100." {
-			gnmi.Delete(t, dut2, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
-				Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Static(prefixes[i]).Config())
+	if cliOutput != nil {
+		prefixes := extractPrefixes(cliOutput.Output(), "ipv4")
+		for i := 0; i < len(prefixes); i++ {
+			if prefixes[i][:4] == "100." {
+				gnmi.Delete(t, dut2, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+					Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Static(prefixes[i]).Config())
+			}
 		}
+	} else {
+		t.Error("CLI output is nil, cannot extract static route prefixes")
 	}
+
 	vrfIntf := dut2.Port(t, "port12").Name()
 	localPrefix := fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_VRF_BASE_IPv4, ipv4LBPrefixLen)
 	unrslvPrefix := fmt.Sprintf("%s/%d", UNRSLV_STATIC_ROUTE_VRF_BASE_IPv4, ipv4LBPrefixLen)
@@ -1516,16 +1592,25 @@ func TestIPv6StaticProcessRestart(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv6"
+	var bCount, aCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ProcessRestart(t, dut, "ipv6_static")
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes present after ipv6_static process restart:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes present after ipv6_static process restart:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -1537,16 +1622,25 @@ func TestIPv6RIBMgrProcessRestart(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv6"
+	var bCount, aCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ProcessRestart(t, dut, "rib_mgr")
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes present after rib_mgr process restart:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes present after rib_mgr process restart:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -1558,16 +1652,25 @@ func TestIPv6EmsdProcessRestart(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv6"
+	var bCount, aCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ProcessRestart(t, dut, "emsd")
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes present after emsd process restart:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes present after emsd process restart:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -1579,18 +1682,27 @@ func TestIPv6ReloadDUT(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv6"
+	var bCount, aCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.ReloadRouter(t, dut)
 	time.Sleep(180 * time.Second)
 
 	cliHandle = dut.RawAPIs().CLI(t)
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes present after Router reload:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes present after Router reload:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -1602,18 +1714,27 @@ func TestIPv6RPFO(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut2")
 	ipAf := "ipv6"
+	var bCount, aCount int
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.RPFO(t, dut)
 	time.Sleep(120 * time.Second)
 
 	cliHandle = dut.RawAPIs().CLI(t)
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes present after RPFO:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes present after RPFO:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -1626,6 +1747,7 @@ func TestIPv6FlapInterfaces(t *testing.T) {
 	interfaceList := []string{}
 	ipAf := "ipv6"
 	dut := ondatra.DUT(t, "dut2")
+	var bCount, aCount int
 	allInterfaceList := getInterfaceNameList(t, dut)
 
 	interfaceList = append(interfaceList, allInterfaceList[:6]...)
@@ -1633,15 +1755,23 @@ func TestIPv6FlapInterfaces(t *testing.T) {
 	interfaceList = append(interfaceList, "Bundle-Ether101")
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured: %v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured: %v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	util.FlapBulkInterfaces(t, dut, interfaceList)
 	time.Sleep(120 * time.Second)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes present after Flap interfaces:%v", aCount)
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes present after Flap interfaces:%v", aCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	if bCount != aCount {
 		t.Error("Number of static routes do not match")
@@ -1654,6 +1784,7 @@ func TestIPv6DelMemberPort(t *testing.T) {
 	downInterfaceList := []string{}
 	bundleInterfaceList := []string{}
 	downMemberInterfaceList := []string{}
+	var bCount, aCount int
 
 	ipAf := "ipv6"
 	dut := ondatra.DUT(t, "dut2")
@@ -1667,13 +1798,21 @@ func TestIPv6DelMemberPort(t *testing.T) {
 	util.SetInterfaceStateScale(t, dut, downInterfaceList, false)
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured:%v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured:%v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	DelAddMemberPort(t, dut, downMemberInterfaceList)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 	t.Logf("IPv6 Static routes present after Member port delete:%v", aCount)
 
 	if bCount != aCount {
@@ -1688,6 +1827,7 @@ func TestIPv6AddMemberPort(t *testing.T) {
 	upMemberInterfaceList := []string{}
 	upInterfaceList := []string{}
 	bundleNames := []string{"Bundle-Ether100", "Bundle-Ether101"}
+	var bCount, aCount int
 
 	ipAf := "ipv6"
 	dut := ondatra.DUT(t, "dut2")
@@ -1698,13 +1838,21 @@ func TestIPv6AddMemberPort(t *testing.T) {
 	upMemberInterfaceList = append(upMemberInterfaceList, bundleInterfaceList[2])
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	bCount := strings.Count(cliOutput.Output(), "S ")
-	t.Logf("IPv6 Static routes configured:%v", bCount)
+	if cliOutput != nil {
+		bCount = strings.Count(cliOutput.Output(), "S ")
+		t.Logf("IPv6 Static routes configured:%v", bCount)
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 
 	DelAddMemberPort(t, dut, upMemberInterfaceList, bundleNames)
 
 	cliOutput, _ = showRouteCLI(t, dut, cliHandle, "ipv6", "", "static")
-	aCount := strings.Count(cliOutput.Output(), "S ")
+	if cliOutput != nil {
+		aCount = strings.Count(cliOutput.Output(), "S ")
+	} else {
+		t.Error("CLI output is nil, cannot count static routes")
+	}
 	t.Logf("IPv6 Static routes present after Member port add:%v", aCount)
 
 	if bCount != aCount {
@@ -1726,12 +1874,16 @@ func TestIPv6NonDefaultVRF(t *testing.T) {
 	configVRF(t, dut2)
 
 	cliOutput, _ := showRouteCLI(t, dut2, cliHandle, "ipv6", "", "static")
-	prefixes := extractPrefixes(cliOutput.Output(), "ipv6")
-	for i := 0; i < len(prefixes); i++ {
-		if prefixes[i][:4] == "100:" {
-			gnmi.Delete(t, dut2, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
-				Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Static(prefixes[i]).Config())
+	if cliOutput != nil {
+		prefixes := extractPrefixes(cliOutput.Output(), "ipv6")
+		for i := 0; i < len(prefixes); i++ {
+			if prefixes[i][:4] == "100:" {
+				gnmi.Delete(t, dut2, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+					Protocol(ProtocolSTATIC, *ciscoFlags.DefaultNetworkInstance).Static(prefixes[i]).Config())
+			}
 		}
+	} else {
+		t.Error("CLI output is nil, cannot extract static route prefixes")
 	}
 	vrfIntf := dut2.Port(t, "port12").Name()
 	localPrefix := fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_VRF_BASE_IPv6, ipv6LBPrefixLen)
@@ -2570,18 +2722,22 @@ func validateIPv4StaticRouteRecurse(t *testing.T, dut *ondatra.DUTDevice, ipAf, 
 	}
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, v4Prefix)
-	if installRIB == true {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+	if cliOutput != nil {
+		if installRIB == true {
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+			} else {
+				t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			}
 		} else {
-			t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
+			} else {
+				t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
+			}
 		}
 	} else {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
-		} else {
-			t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
-		}
+		t.Error("CLI output is nil for show route cli")
 	}
 }
 
@@ -2621,18 +2777,22 @@ func validateIPv4StaticRouteRecurseAttributes(t *testing.T, dut *ondatra.DUTDevi
 		t.Errorf("Error in running-config for route with prefix :%v", v4Prefix)
 	}
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, v4Prefix)
-	if installRIB == true {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+	if cliOutput != nil {
+		if installRIB == true {
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+			} else {
+				t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			}
 		} else {
-			t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
+			} else {
+				t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
+			}
 		}
 	} else {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
-		} else {
-			t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
-		}
+		t.Error("CLI output is nil for show route cli")
 	}
 }
 
@@ -2661,18 +2821,22 @@ func validateIPv4StaticRouteNoRecurse(t *testing.T, dut *ondatra.DUTDevice, noRe
 	}
 
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, v4Prefix)
-	if installRIB == true {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+	if cliOutput != nil {
+		if installRIB == true {
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+			} else {
+				t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			}
 		} else {
-			t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
+			} else {
+				t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
+			}
 		}
 	} else {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
-		} else {
-			t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
-		}
+		t.Error("CLI output is nil for show route cli")
 	}
 }
 
@@ -2699,18 +2863,22 @@ func validateIPv4StaticRouteRecurseVRF(t *testing.T, dut *ondatra.DUTDevice, ipA
 	}
 
 	cliOutput, _ := showRouteVRFCLI(t, dut, cliHandle, nonDefaultVRF, ipAf, v4Prefix)
-	if installRIB == true {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+	if cliOutput != nil {
+		if installRIB == true {
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Logf("Route installed in RIB for prefix %s as expected", v4Prefix)
+			} else {
+				t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			}
 		} else {
-			t.Errorf("Error for prefix %s, Route not installed in RIB ", v4Prefix)
+			if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
+				t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
+			} else {
+				t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
+			}
 		}
 	} else {
-		if strings.Contains(cliOutput.Output(), v4Prefix) && strings.Contains(cliOutput.Output(), "static") {
-			t.Errorf("Error for prefix %s, Route should not be installed", v4Prefix)
-		} else {
-			t.Logf("Route for prefix %s not installed in RIB as expected", v4Prefix)
-		}
+		t.Errorf("cliOutput is nil for show route vrf %s", nonDefaultVRF)
 	}
 }
 
@@ -2746,23 +2914,28 @@ func validateIPv4StaticRouteRecurseAttributesScale(t *testing.T, dut *ondatra.DU
 
 	validCount = 0
 	cliOutput, _ := showRouteCLI(t, dut, cliHandle, ipAf, "", "static")
-	prefixes := extractPrefixes(cliOutput.Output(), ipAf)
+	if cliOutput != nil {
+		prefixes := extractPrefixes(cliOutput.Output(), ipAf)
 
-	for i := 0; i < len(prefixes); i++ {
-		if prefixes[i][:4] == "200:" && ipAf == "ipv6" ||
-			prefixes[i][:4] == "200." && ipAf == "ipv4" {
-			validCount++
+		for i := 0; i < len(prefixes); i++ {
+			if prefixes[i][:4] == "200:" && ipAf == "ipv6" ||
+				prefixes[i][:4] == "200." && ipAf == "ipv4" {
+				validCount++
+			}
 		}
-	}
-	if delete != true {
-		if validCount != 750 {
-			t.Errorf("Total number of valid static routes in RIB is %v, want 750", validCount)
+		if delete != true {
+			if validCount != 750 {
+				t.Errorf("Total number of valid static routes in RIB is %v, want 750", validCount)
+			}
+		} else {
+			if validCount != 0 {
+				t.Errorf("Total number of static routes in RIB is %v, want 0", validCount)
+			}
 		}
 	} else {
-		if validCount != 0 {
-			t.Errorf("Total number of static routes in RIB is %v, want 0", validCount)
-		}
+		t.Error("CLI output is nil, cannot extract static route prefixes")
 	}
+
 }
 func validateIPv6StaticRouteRecurse(t *testing.T, dut *ondatra.DUTDevice, v6Prefix string,
 	installConfig, installRIB bool) {

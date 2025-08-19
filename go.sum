@@ -267,8 +267,8 @@ github.com/kevinburke/ssh_config v1.2.0 h1:x584FjTGwHzMwvHx18PXxbBVzfnxogHaAReU4
 github.com/kevinburke/ssh_config v1.2.0/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
-github.com/klauspost/compress v1.17.11 h1:In6xLpyWOi1+C7tXUUWv2ot1QvBjxevKAaI6IXrJmUc=
-github.com/klauspost/compress v1.17.11/go.mod h1:pMDklpSncoRMuLFrf1W9Ss9KT+0rH90U12bZKk7uwG0=
+github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
+github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/fs v0.1.0 h1:Jskdu9ieNAYnjxsi0LbQp1ulIKZV1LAFgK1tWhpZgl8=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
@@ -342,8 +342,8 @@ github.com/openconfig/attestz v0.5.0 h1:1XDcw8CaAxS9+Yrrmj69qChwa2Y5q/TlcU9h4up3
 github.com/openconfig/attestz v0.5.0/go.mod h1:b4sZBEyj054i4TKG1iB/ZQXMvz/15KDSDmhGVANYD9g=
 github.com/openconfig/bootz v0.5.0 h1:hUFHFPJe7fLALlTommhzAlE54QCwA00Hcm7oSU43VRs=
 github.com/openconfig/bootz v0.5.0/go.mod h1:gVwTP3oF9lMh0JaERfXyIhCor/hGUWc598gJiYpZMpM=
-github.com/openconfig/containerz v0.0.0-20250408205203-029560584812 h1:qjDaXTJ8aOKUJmZrUNuYEn7rMARSkQaZUjgGHvmmqI8=
-github.com/openconfig/containerz v0.0.0-20250408205203-029560584812/go.mod h1:0anbhHTN0LNn42iX5k8RTBiiO2mCp4q3vxcBHCKMOCg=
+github.com/openconfig/containerz v0.0.0-20250612100728-d6a2691c3371 h1:GiP32fY1GI5pKVh/0euxpBOf+XqSafhlBN/vE8DJTX8=
+github.com/openconfig/containerz v0.0.0-20250612100728-d6a2691c3371/go.mod h1:3FgKJ7fVlLkX+Bfn4RkZmCrpDN7h+7lx110MdwpoV2M=
 github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64 h1:pS4NcCl49ker3FYRkvY+erNUw1CgL/lB8gnDQbax6Yk=
 github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64/go.mod h1:FDF5sbP9BbP2IM6EUopcAWfGJ5OPZ4VV2EYQ9vvqLjA=
 github.com/openconfig/gnmi v0.14.1 h1:qKMuFvhIRR2/xxCOsStPQ25aKpbMDdWr3kI+nP9bhMs=
