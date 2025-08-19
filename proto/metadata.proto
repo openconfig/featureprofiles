@@ -907,6 +907,7 @@ message Metadata {
     bool policy_rule_counters_oc_unsupported = 316;
 
     // Devices that must have OTN to ETH assignment.
+    // Arista : https://partnerissuetracker.corp.google.com/issues/434922681
     bool otn_to_eth_assignment = 317;
 
     // Reserved field numbers and identifiers.
