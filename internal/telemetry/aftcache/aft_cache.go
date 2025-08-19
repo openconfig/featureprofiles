@@ -377,10 +377,10 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 		return nil
 	}
 	if n.GetUpdate().GetPrefix().GetOrigin() == "" {
-		n.GetUpdate().GetPrefix().Origin = "openconfig"
+		n.GetUpdate().Prefix = &gnmipb.Path{Origin: "openconfig"}
 	}
 	if n.GetUpdate().GetPrefix().GetTarget() == "" {
-		n.GetUpdate().GetPrefix().Target = c.target
+		n.GetUpdate().Prefix = &gnmipb.Path{Target: c.target}
 	}
 	err := c.cache.GnmiUpdate(n.GetUpdate())
 	if err != nil {
