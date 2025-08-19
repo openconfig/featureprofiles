@@ -899,21 +899,19 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 			queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
 			t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
 			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
-
 			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
 				t.Errorf("Stats not matching for queue %+v", queueName)
 			}
-			t.Logf("clear qos counters on all interfaces")
-			cliHandle := args.dut.RawAPIs().CLI(t)
-			resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-			t.Logf(resp.Output(), err)
-			t.Logf("sleeping after clearing qos counters")
-			time.Sleep(3 * time.Minute)
 		}
+		t.Logf("clear qos counters on all interfaces")
+		cliHandle := args.dut.RawAPIs().CLI(t)
+		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+		t.Logf(resp.Output(), err)
+		t.Logf("sleeping after clearing qos counters")
+		time.Sleep(3 * time.Minute)
 	}
 }
-
 func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
