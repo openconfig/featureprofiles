@@ -262,61 +262,74 @@ func AssignETHIndexes(t *testing.T, dut *ondatra.DUTDevice) map[string]uint32 {
 	return ethIndexes
 }
 
-// UpdateAllConfig configures all the ports.
-func UpdateAllConfig(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
+// configParameters contains the configuration parameters for the ports.
+type configParameters struct {
+	hwPortName          string
+	transceiverName     string
+	opticalChannelName  string
+	otnIndex            uint32
+	ethIndex            uint32
+	frequency           uint64
+	targetOpticalPower  float64
+	operationalMode     uint16
+	portSpeed           oc.E_IfEthernet_ETHERNET_SPEED
+	numPhysicalChannels uint8
+	rateClass           oc.E_TransportTypes_TRIBUTARY_RATE_CLASS_TYPE
+	tribProtocol        oc.E_TransportTypes_TRIBUTARY_PROTOCOL_TYPE
+	allocation          float64
+}
+
+// NewInterfaceConfigAll configures all the ports.
+func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
 	t.Helper()
-	// Set the OC parameters according to the PMD type and operational mode.
-	var (
-		portSpeed           oc.E_IfEthernet_ETHERNET_SPEED
-		numPhysicalChannels uint8
-		rateClass           oc.E_TransportTypes_TRIBUTARY_RATE_CLASS_TYPE
-		tribProtocol        oc.E_TransportTypes_TRIBUTARY_PROTOCOL_TYPE
-		allocation          float64
-		otnIndexes          = AssignOTNIndexes(t, dut)
-		ethIndexes          = AssignETHIndexes(t, dut)
-	)
 	for _, p := range dut.Ports() {
+		params := &configParameters{
+			hwPortName:         gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State()),
+			transceiverName:    gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State()),
+			opticalChannelName: components.OpticalChannelComponentFromPort(t, dut, p),
+			otnIndex:           AssignOTNIndexes(t, dut)[p.Name()],
+			ethIndex:           AssignETHIndexes(t, dut)[p.Name()],
+			frequency:          frequency,
+			targetOpticalPower: targetOpticalPower,
+			operationalMode:    operationalMode,
+		}
 		switch p.PMD() {
 		case ondatra.PMD400GBASEZR, ondatra.PMD400GBASEZRP:
-			portSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
-			numPhysicalChannels = 8
-			rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
-			tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE
-			allocation = 400
+			params.portSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+			params.numPhysicalChannels = 8
+			params.rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
+			params.tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE
+			params.allocation = 400
 		case ondatra.PMD800GBASEZR, ondatra.PMD800GBASEZRP:
 			switch operationalMode {
 			case 1, 2:
-				portSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
-				numPhysicalChannels = 8
-				rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_800G
-				tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_800GE
-				allocation = 800
+				params.portSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
+				params.numPhysicalChannels = 8
+				params.rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_800G
+				params.tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_800GE
+				params.allocation = 800
 			case 3, 4:
-				portSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
-				numPhysicalChannels = 4
-				rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
-				tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE
-				allocation = 400
+				params.portSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+				params.numPhysicalChannels = 4
+				params.rateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
+				params.tribProtocol = oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE
+				params.allocation = 400
 			default:
 				t.Fatalf("Unsupported operational mode for %v: %v", p.PMD(), operationalMode)
 			}
 		default:
 			t.Fatalf("Unsupported PMD type for %v", p.PMD())
 		}
-		// Get the hardware port, transceiver and optical channel names.
-		hwPort := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-		transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-		och := components.OpticalChannelComponentFromPort(t, dut, p)
-		updateInterfaceConfig(batch, p, portSpeed)
-		updateHWPortConfig(batch, p, hwPort, portSpeed, numPhysicalChannels)
-		updateOpticalChannelConfig(batch, och, frequency, targetOpticalPower, operationalMode)
-		updateOTNChannelConfig(batch, dut, och, otnIndexes[p.Name()], ethIndexes[p.Name()], allocation, tribProtocol)
-		updateETHChannelConfig(batch, dut, p, transceiverName, otnIndexes[p.Name()], ethIndexes[p.Name()], allocation, rateClass, tribProtocol)
+		updateInterfaceConfig(batch, p, params)
+		updateHWPortConfig(batch, p, params)
+		updateOpticalChannelConfig(batch, params)
+		updateOTNChannelConfig(batch, dut, params)
+		updateETHChannelConfig(batch, dut, p, params)
 	}
 }
 
 // updateInterfaceConfig updates the interface config.
-func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, portSpeed oc.E_IfEthernet_ETHERNET_SPEED) {
+func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *configParameters) {
 	i := &oc.Interface{
 		Name:    ygot.String(p.Name()),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
@@ -324,7 +337,7 @@ func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, portSpeed oc.E
 	}
 	if p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
 		i.Ethernet = &oc.Interface_Ethernet{
-			PortSpeed:  portSpeed,
+			PortSpeed:  params.portSpeed,
 			DuplexMode: oc.Ethernet_DuplexMode_FULL,
 		}
 	}
@@ -332,20 +345,20 @@ func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, portSpeed oc.E
 }
 
 // updateHWPortConfig updates the hardware port config.
-func updateHWPortConfig(batch *gnmi.SetBatch, p *ondatra.Port, hwPort string, portSpeed oc.E_IfEthernet_ETHERNET_SPEED, numPhysicalChannels uint8) {
+func updateHWPortConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *configParameters) {
 	if p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP {
 		return // No HwPort config for 400GZR/400GZR Plus.
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().Component(hwPort).Config(), &oc.Component{
-		Name: ygot.String(hwPort),
+	gnmi.BatchReplace(batch, gnmi.OC().Component(params.hwPortName).Config(), &oc.Component{
+		Name: ygot.String(params.hwPortName),
 		Port: &oc.Component_Port{
 			BreakoutMode: &oc.Component_Port_BreakoutMode{
 				Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
 					1: {
 						Index:               ygot.Uint8(1),
-						BreakoutSpeed:       portSpeed,
+						BreakoutSpeed:       params.portSpeed,
 						NumBreakouts:        ygot.Uint8(1),
-						NumPhysicalChannels: ygot.Uint8(numPhysicalChannels),
+						NumPhysicalChannels: ygot.Uint8(params.numPhysicalChannels),
 					},
 				},
 			},
@@ -354,20 +367,20 @@ func updateHWPortConfig(batch *gnmi.SetBatch, p *ondatra.Port, hwPort string, po
 }
 
 // updateOpticalChannelConfig updates the optical channel config.
-func updateOpticalChannelConfig(batch *gnmi.SetBatch, opticalChannel string, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
+func updateOpticalChannelConfig(batch *gnmi.SetBatch, params *configParameters) {
 
-	gnmi.BatchReplace(batch, gnmi.OC().Component(opticalChannel).Config(), &oc.Component{
-		Name: ygot.String(opticalChannel),
+	gnmi.BatchReplace(batch, gnmi.OC().Component(params.opticalChannelName).Config(), &oc.Component{
+		Name: ygot.String(params.opticalChannelName),
 		OpticalChannel: &oc.Component_OpticalChannel{
-			OperationalMode:   ygot.Uint16(operationalMode),
-			Frequency:         ygot.Uint64(frequency),
-			TargetOutputPower: ygot.Float64(targetOpticalPower),
+			OperationalMode:   ygot.Uint16(params.operationalMode),
+			Frequency:         ygot.Uint64(params.frequency),
+			TargetOutputPower: ygot.Float64(params.targetOpticalPower),
 		},
 	})
 }
 
 // updateOTNChannelConfig updates the OTN channel config.
-func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32, allocation float64, tribProtocol oc.E_TransportTypes_TRIBUTARY_PROTOCOL_TYPE) {
+func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params *configParameters) {
 	var firstAssignmentIndex uint32
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
 		firstAssignmentIndex = 1
@@ -375,40 +388,40 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, och st
 		firstAssignmentIndex = 0
 	}
 	if deviations.OTNToETHAssignment(dut) {
-		gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
+		gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
-			Index:              ygot.Uint32(otnIndex),
+			Index:              ygot.Uint32(params.otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				firstAssignmentIndex: {
 					Index:          ygot.Uint32(firstAssignmentIndex),
-					OpticalChannel: ygot.String(och),
+					OpticalChannel: ygot.String(params.opticalChannelName),
 					Description:    ygot.String("OTN to Optical Channel"),
-					Allocation:     ygot.Float64(allocation),
+					Allocation:     ygot.Float64(params.allocation),
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
 				},
 				firstAssignmentIndex + 1: {
 					Index:          ygot.Uint32(firstAssignmentIndex + 1),
-					LogicalChannel: ygot.Uint32(ethIndex),
+					LogicalChannel: ygot.Uint32(params.ethIndex),
 					Description:    ygot.String("OTN to ETH"),
-					Allocation:     ygot.Float64(allocation),
+					Allocation:     ygot.Float64(params.allocation),
 					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 				},
 			},
 		})
 	} else {
-		gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
+		gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
-			Index:              ygot.Uint32(otnIndex),
+			Index:              ygot.Uint32(params.otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
-			TribProtocol:       tribProtocol,
+			TribProtocol:       params.tribProtocol,
 			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				firstAssignmentIndex: {
 					Index:          ygot.Uint32(firstAssignmentIndex),
-					OpticalChannel: ygot.String(och),
+					OpticalChannel: ygot.String(params.opticalChannelName),
 					Description:    ygot.String("OTN to Optical Channel"),
-					Allocation:     ygot.Float64(allocation),
+					Allocation:     ygot.Float64(params.allocation),
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
 				},
 			},
@@ -417,7 +430,7 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, och st
 }
 
 // updateETHChannelConfig updates the ETH channel config.
-func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, transceiverName string, otnIndex, ethIndex uint32, allocation float64, rateClass oc.E_TransportTypes_TRIBUTARY_RATE_CLASS_TYPE, tribProtocol oc.E_TransportTypes_TRIBUTARY_PROTOCOL_TYPE) {
+func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *configParameters) {
 	var assignmentIndex uint32
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
 		assignmentIndex = 1
@@ -428,15 +441,15 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	if !deviations.EthChannelIngressParametersUnsupported(dut) {
 		ingress = &oc.TerminalDevice_Channel_Ingress{
 			Interface:   ygot.String(p.Name()),
-			Transceiver: ygot.String(transceiverName),
+			Transceiver: ygot.String(params.transceiverName),
 		}
 	}
 	assignment := map[uint32]*oc.TerminalDevice_Channel_Assignment{
 		assignmentIndex: {
 			Index:          ygot.Uint32(assignmentIndex),
-			LogicalChannel: ygot.Uint32(otnIndex),
+			LogicalChannel: ygot.Uint32(params.otnIndex),
 			Description:    ygot.String("ETH to OTN"),
-			Allocation:     ygot.Float64(allocation),
+			Allocation:     ygot.Float64(params.allocation),
 			AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 		},
 	}
@@ -445,19 +458,19 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	}
 	channel := &oc.TerminalDevice_Channel{
 		Description:        ygot.String("ETH Logical Channel"),
-		Index:              ygot.Uint32(ethIndex),
+		Index:              ygot.Uint32(params.ethIndex),
 		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
 		Ingress:            ingress,
 		Assignment:         assignment,
 	}
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
-		channel.RateClass = rateClass
+		channel.RateClass = params.rateClass
 	}
 	if !deviations.OTNChannelTribUnsupported(dut) {
-		channel.TribProtocol = tribProtocol
+		channel.TribProtocol = params.tribProtocol
 		channel.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), channel)
+	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.ethIndex).Config(), channel)
 }
 
 // ToggleInterfaceState toggles the interface with operational mode.

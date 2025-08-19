@@ -92,7 +92,7 @@ func TestComponentPaths(t *testing.T) {
 
 				t.Logf("\n*** Configure interfaces with Operational Mode: %v, Optical Frequency: %v, Target Power: %v\n\n\n", operationalMode, frequency, targetOpticalPower)
 				batch := &gnmi.SetBatch{}
-				cfgplugins.UpdateAllConfig(t, dut, batch, frequency, targetOpticalPower, operationalMode)
+				cfgplugins.NewInterfaceConfigAll(t, dut, batch, frequency, targetOpticalPower, operationalMode)
 				batch.Set(t, dut)
 
 				populateValidationVariables(t, dut, operationalMode)
