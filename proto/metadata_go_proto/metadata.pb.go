@@ -1104,8 +1104,21 @@ type Metadata_Deviations struct {
 	IsisSrNodeSegmentConfigUnsupported bool `protobuf:"varint,311,opt,name=isis_sr_node_segment_config_unsupported,json=isisSrNodeSegmentConfigUnsupported,proto3" json:"isis_sr_node_segment_config_unsupported,omitempty"`
 	// Devices that do not support policy forwarding on next-hop
 	PolicyForwardingToNextHopOcUnsupported bool `protobuf:"varint,312,opt,name=policy_forwarding_to_next_hop_oc_unsupported,json=policyForwardingToNextHopOcUnsupported,proto3" json:"policy_forwarding_to_next_hop_oc_unsupported,omitempty"`
-	unknownFields                          protoimpl.UnknownFields
-	sizeCache                              protoimpl.SizeCache
+	// Cisco: b/402672689
+	// Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
+	// this deviation to set specific value of N. Returns N=1,000,000 by default.
+	SflowIngressMinSamplingRate uint32 `protobuf:"varint,313,opt,name=sflow_ingress_min_sampling_rate,json=sflowIngressMinSamplingRate,proto3" json:"sflow_ingress_min_sampling_rate,omitempty"`
+	// DUT not supporting with qos remarking
+	// Arista: b/415889077
+	QosRemarkOcUnsupported bool `protobuf:"varint,314,opt,name=qos_remark_oc_unsupported,json=qosRemarkOcUnsupported,proto3" json:"qos_remark_oc_unsupported,omitempty"`
+	// Devices that do not support policy forwarding encapsulate gre action
+	// Arista: b/409347274
+	PolicyForwardingGreEncapsulationOcUnsupported bool `protobuf:"varint,315,opt,name=policy_forwarding_gre_encapsulation_oc_unsupported,json=policyForwardingGreEncapsulationOcUnsupported,proto3" json:"policy_forwarding_gre_encapsulation_oc_unsupported,omitempty"`
+	// policy rule based counters unsupported
+	// Arista : https://partnerissuetracker.corp.google.com/issues/425628787
+	PolicyRuleCountersOcUnsupported bool `protobuf:"varint,316,opt,name=policy_rule_counters_oc_unsupported,json=policyRuleCountersOcUnsupported,proto3" json:"policy_rule_counters_oc_unsupported,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3105,6 +3118,34 @@ func (x *Metadata_Deviations) GetPolicyForwardingToNextHopOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetSflowIngressMinSamplingRate() uint32 {
+	if x != nil {
+		return x.SflowIngressMinSamplingRate
+	}
+	return 0
+}
+
+func (x *Metadata_Deviations) GetQosRemarkOcUnsupported() bool {
+	if x != nil {
+		return x.QosRemarkOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetPolicyForwardingGreEncapsulationOcUnsupported() bool {
+	if x != nil {
+		return x.PolicyForwardingGreEncapsulationOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetPolicyRuleCountersOcUnsupported() bool {
+	if x != nil {
+		return x.PolicyRuleCountersOcUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3161,7 +3202,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe4\xaa\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa2\xad\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3173,7 +3214,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb8\xa1\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf6\xa3\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3458,7 +3499,11 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1aisis_srgb_srlb_unsupported\x18\xb5\x02 \x01(\bR\x17isisSrgbSrlbUnsupported\x12X\n" +
 	")isis_sr_prefix_segment_config_unsupported\x18\xb6\x02 \x01(\bR$isisSrPrefixSegmentConfigUnsupported\x12T\n" +
 	"'isis_sr_node_segment_config_unsupported\x18\xb7\x02 \x01(\bR\"isisSrNodeSegmentConfigUnsupported\x12]\n" +
-	",policy_forwarding_to_next_hop_oc_unsupported\x18\xb8\x02 \x01(\bR&policyForwardingToNextHopOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	",policy_forwarding_to_next_hop_oc_unsupported\x18\xb8\x02 \x01(\bR&policyForwardingToNextHopOcUnsupported\x12E\n" +
+	"\x1fsflow_ingress_min_sampling_rate\x18\xb9\x02 \x01(\rR\x1bsflowIngressMinSamplingRate\x12:\n" +
+	"\x19qos_remark_oc_unsupported\x18\xba\x02 \x01(\bR\x16qosRemarkOcUnsupported\x12j\n" +
+	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x12M\n" +
+	"#policy_rule_counters_oc_unsupported\x18\xbc\x02 \x01(\bR\x1fpolicyRuleCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
