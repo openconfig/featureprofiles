@@ -90,21 +90,9 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 
-	atePorts = map[string]*attrs.Attributes{
-		"port1": &atePort1,
-		"port2": &atePort2,
-	}
-
-	dutPorts = map[string]*attrs.Attributes{
-		"port1": &dutPort1,
-		"port2": &dutPort2,
-	}
-
 	// Advertised networks from ATE port-2
-	ipv4Network = "192.168.10.0/24"
-	ipv6Network = "2024:db8:128:128::/64"
-	ipv4Prefix  = "192.168.10.0"
-	ipv6Prefix  = "2024:db8:128:128::"
+	ipv4Prefix = "192.168.10.0"
+	ipv6Prefix = "2024:db8:128:128::"
 
 	port2isis gosnappi.DeviceIsisRouter
 )
