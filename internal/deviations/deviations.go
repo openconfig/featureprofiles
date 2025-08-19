@@ -1593,6 +1593,11 @@ func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool 
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
 
+// PolicyRuleCountersOCUnsupported returns true if policy forwarding Rule Counters is not supported on vendors
+func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyRuleCountersOcUnsupported()
+}
+
 // SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
 func SkipOrigin(dut *ondatra.DUTDevice) bool {
     return lookupDUTDeviations(dut).GetSkipOrigin()
