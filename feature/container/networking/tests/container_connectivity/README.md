@@ -85,6 +85,13 @@ service on `tcp/[::]60062`.
 *   Instruct C2 to make a gRPC dial call to C2's listen port with a specified
     timeout, ensure that an RPC response is received.
 
+## Canonical OC
+
+<!-- This test does not require any specific OpenConfig configuration, so this section is empty to satisfy the validator. -->
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
 rpcs:
