@@ -852,6 +852,10 @@ message Metadata {
     // Nokia b/430183279
     bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
 
+    // Arista b/422275961
+    // disable hardware nexthop proxying
+    bool disable_hardware_nexthop_proxy = 302;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
