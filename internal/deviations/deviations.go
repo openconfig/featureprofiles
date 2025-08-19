@@ -1597,3 +1597,8 @@ func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool 
 func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyRuleCountersOcUnsupported()
 }
+
+// TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
+func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
+}
