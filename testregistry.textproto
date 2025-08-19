@@ -1499,6 +1499,14 @@ test: {
   exec: " "
 }
 test: {
+  id: "TRANSCEIVER-101"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/800zr_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-102"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/800zr_terminal_device_paths_test/README.md"
+}
+test: {
   id: "TRANSCEIVER-11"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_logical_channels_test/README.md"
 }
