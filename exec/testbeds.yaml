@@ -272,7 +272,7 @@ testbeds:
       gnmi_port: 59202
       rest_port: 39202
 
-  8202-FLM275203KT:
+  8202-FLM275203KT: &8202-FLM275203KT_DEFAULTS
     hw: 8202-FLM275203KT
     owner: arvbaska
     testbed: topologies/cisco/hw/8202-FLM275203KT/testbed
@@ -284,6 +284,12 @@ testbeds:
       controller_port: 49203
       gnmi_port: 59203
       rest_port: 39203
+
+  8202-FLM275203KT_B2B:
+    <<: *8202-FLM275203KT_DEFAULTS
+    testbed: topologies/cisco/hw/8202-FLM275203KT_B2B/testbed
+    binding: topologies/cisco/hw/8202-FLM275203KT_B2B/binding
+    baseconf: topologies/cisco/hw/8202-FLM275203KT_B2B/baseconfig_b2b.proto
 
   8202-FLM275101MJ:
     hw: 8202-FLM275101MJ
@@ -451,6 +457,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-ATE/basefp.conf
+  8808-ATE-HOTFIX:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-ATE-HOTFIX/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-ATE-HOTFIX/basefp.conf
   8818-18LC:
     sim: true
     topology: topologies/cisco/pyvxr/8818-18LC/topo.yaml
@@ -460,7 +470,13 @@ testbeds:
     topology: topologies/cisco/pyvxr/8808-2DUT-ATE/topo.yaml
     baseconf:
       dut: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp.conf
-      dut2: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp_peer.conf    
+      dut2: topologies/cisco/pyvxr/8808-2DUT-ATE/basefp_peer.conf  
+  8808-DUT1DUT2-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-DUT1DUT2-ATE/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-DUT1DUT2-ATE/baseconf_dut1.conf
+      dut2: topologies/cisco/pyvxr/8808-DUT1DUT2-ATE/baseconf_dut2.conf    
   8818-DUT-PEER_SIM:
     sim: true
     topology: topologies/cisco/pyvxr/8818-DUT-PEER_SIM/topo.yaml
@@ -470,13 +486,25 @@ testbeds:
   8808-P200:
     sim: true
     topology: topologies/cisco/pyvxr/8808-P200/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8808-P200/basefp.conf 
+    baseconf: topologies/cisco/pyvxr/8808-P200/basefp.conf
+  8808-P200-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-ATE/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8808-P200-ATE/dut1_basefp.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-ATE/dut2_basefp.conf
   8812-2DUT:   
     sim: true
     topology: topologies/cisco/pyvxr/8812-2DUT/topo.yaml
     baseconf:
       dut1: topologies/cisco/pyvxr/8812-2DUT/DUT1_baseconfig.conf
       dut2: topologies/cisco/pyvxr/8812-2DUT/DUT2_baseconfig.conf
+  8812-2DUT-ATE:    
+    sim: true
+    topology: topologies/cisco/pyvxr/8812-2DUT-ATE/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8812-2DUT-ATE/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8812-2DUT-ATE/DUT2_baseconfig.conf
   8818-ATE-16P:
     sim: true
     topology: topologies/cisco/pyvxr/8818-ATE-16P/topo.yaml

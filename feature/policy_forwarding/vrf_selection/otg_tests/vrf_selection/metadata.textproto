@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "db187faa-0f6d-44f8-86d2-832df9c285fc"
+plan_id:  "PF-1.6"
+description:  "Policy based VRF selection for IPV4/IPV6"
+testbed:  TESTBED_DUT_ATE_2LINKS

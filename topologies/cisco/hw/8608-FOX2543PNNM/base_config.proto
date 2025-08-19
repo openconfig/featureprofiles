@@ -19,6 +19,7 @@ replace: {
 " group root-lr\n"
 " secret 10 $6$hsihZ/iPPNqK4Z/.$EE9at4oGBAKB7nEJM2HCZ7iS7tZgChIs3ZmHpcXSvMqTSeLi81s1nyrENB14mytCl2xyg7jP36FPby1hZz6TF0\n"
 "!\n"
+"vty-pool default 0 99 line-template vty\n"
 "grpc\n"
 " tls-mutual\n"
 "!\n"

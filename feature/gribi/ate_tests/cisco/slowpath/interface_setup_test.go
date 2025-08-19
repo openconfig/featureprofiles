@@ -39,6 +39,7 @@ var (
 			Name:    "port1",
 			IPv4:    dutPort1IPv4(0),
 			IPv4Len: ipv4PrefixLen,
+			IPv6:    "192:0:1::1",
 		},
 		numSubIntf: 0,
 		ip:         dutPort1IPv4,
@@ -49,6 +50,7 @@ var (
 			Name:    "port1",
 			IPv4:    atePort1IPv4(0),
 			IPv4Len: ipv4PrefixLen,
+			IPv6:    "192:0:1::2",
 		},
 		numSubIntf: 0,
 		ip:         atePort1IPv4,
@@ -356,14 +358,22 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	// Configure DUT ports.
-	dutPort1.configInterfaceDUT(t, dut)
+	//dutPort1.configInterfaceDUT(t, dut)
+	d := gnmi.OC()
+
+	p1 := dut.Port(t, "port1")
+	i1 := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	gnmi.Replace(t, dut, d.Interface(*i1.Name).Config(), configBunInterfaceDUT(i1, &dutPort1.Attributes))
+	BE120 := generateBundleMemberInterfaceConfig(t, p1.Name(), *i1.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE120)
+	dutPort8.configInterfaceDUT(t, dut)
+
 	dutPort2.configInterfaceDUT(t, dut)
 	dutPort3.configInterfaceDUT(t, dut)
 	dutPort4.configInterfaceDUT(t, dut)
 	dutPort5.configInterfaceDUT(t, dut)
 	dutPort6.configInterfaceDUT(t, dut)
 	p7 := dut.Port(t, "port7")
-	d := gnmi.OC()
 	i7 := &oc.Interface{Name: ygot.String("Bundle-Ether126")}
 	gnmi.Replace(t, dut, d.Interface(*i7.Name).Config(), configBunInterfaceDUT(i7, &dutPort7.Attributes))
 	BE126 := generateBundleMemberInterfaceConfig(t, p7.Name(), *i7.Name)

@@ -18,6 +18,7 @@ replace: {
 		"aaa authorization exec default group tacacs+ local\n"
 		"aaa authentication login console local\n"
 		"aaa authentication login default group tacacs+ local\n"
+		"vty-pool default 0 99 line-template vty\n"
 		"grpc\n"
 		" port 57777\n"
 		"!\n"

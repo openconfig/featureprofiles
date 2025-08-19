@@ -18,6 +18,7 @@ package b4_scale_profile_test
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"net"
 	"net/netip"
 	"strings"
@@ -61,11 +62,13 @@ var (
 	IPBlockEncapB       = "138.2.1.1/16" // IPBlockEncapB represents the ipv4 entries in EncapVRFB
 	IPBlockEncapC       = "138.3.1.1/16" // IPBlockEncapC represents the ipv4 entries in EncapVRFC
 	IPBlockEncapD       = "138.4.1.1/16" // IPBlockEncapD represents the ipv4 entries in EncapVRFD
+	IPBlockEncapE       = "138.5.1.1/16" // IPBlockEncapE represents the ipv4 entries in EncapVRFE
 	IPBlockDecap        = "102.0.0.1/15" // IPBlockDecap represents the ipv4 entries in Decap VRF
 	IPv6BlockEncapA     = "2001:DB8:0:1::/64"
 	IPv6BlockEncapB     = "2001:DB8:1:1::/64"
 	IPv6BlockEncapC     = "2001:DB8:2:1::/64"
 	IPv6BlockEncapD     = "2001:DB8:3:1::/64"
+	IPv6BlockEncapE     = "2001:DB8:4:1::/64"
 	lastNhIndex     int = 50000
 	lastNhgIndex    int
 
@@ -73,11 +76,13 @@ var (
 	encapVrfBIPv4Enries = iputil.GenerateIPs(IPBlockEncapB, encapIPv4Count)
 	encapVrfCIPv4Enries = iputil.GenerateIPs(IPBlockEncapC, encapIPv4Count)
 	encapVrfDIPv4Enries = iputil.GenerateIPs(IPBlockEncapD, encapIPv4Count)
+	encapVrfEIPv4Enries = iputil.GenerateIPs(IPBlockEncapE, encapIPv4Count)
 
 	encapVrfAIPv6Enries = createIPv6Entries(IPv6BlockEncapA, encapIPv6Count)
 	encapVrfBIPv6Enries = createIPv6Entries(IPv6BlockEncapB, encapIPv6Count)
 	encapVrfCIPv6Enries = createIPv6Entries(IPv6BlockEncapC, encapIPv6Count)
 	encapVrfDIPv6Enries = createIPv6Entries(IPv6BlockEncapD, encapIPv6Count)
+	encapVrfEIPv6Enries = createIPv6Entries(IPv6BlockEncapE, encapIPv6Count)
 )
 
 // IPPool for IPs
@@ -499,26 +504,44 @@ func installEncapEntries(t *testing.T, vrf string, routeParams *routesParam, arg
 }
 
 // createIPv6Entries creates IPv6 Entries given the totalCount and starting prefix
+// func createIPv6Entries(startIP string, count uint64) []string {
 func createIPv6Entries(startIP string, count uint64) []string {
+	var results []string
 
-	_, netCIDR, _ := net.ParseCIDR(startIP)
-	netMask := binary.BigEndian.Uint64(netCIDR.Mask)
-	maskSize, _ := netCIDR.Mask.Size()
-	firstIP := binary.BigEndian.Uint64(netCIDR.IP)
-	lastIP := (firstIP & netMask) | (netMask ^ 0xffffffff)
-	entries := []string{}
+	ip, ipnet, err := net.ParseCIDR(startIP)
+	if err != nil {
+		fmt.Println("Invalid CIDR block:", err)
+		return results
+	}
 
-	for i := firstIP; i <= lastIP; i++ {
-		ipv6 := make(net.IP, 16)
-		binary.BigEndian.PutUint64(ipv6, i)
-		// make last byte non-zero
-		p, _ := netip.ParsePrefix(fmt.Sprintf("%v/%d", ipv6, maskSize))
-		entries = append(entries, p.Addr().Next().String())
-		if uint64(len(entries)) >= count {
-			break
+	// Convert IP to big.Int for arithmetic
+	ipInt := big.NewInt(0).SetBytes(ip)
+
+	for i := uint64(0); i < count; i++ {
+		// Create a copy to avoid modifying original
+		newIPInt := big.NewInt(0).Add(ipInt, big.NewInt(0).SetUint64(i))
+
+		// Convert back to 16-byte IPv6
+		ipBytes := newIPInt.Bytes()
+
+		// Ensure leading zeros are preserved to 16 bytes
+		if len(ipBytes) < net.IPv6len {
+			padded := make([]byte, net.IPv6len)
+			copy(padded[net.IPv6len-len(ipBytes):], ipBytes)
+			ipBytes = padded
+		}
+
+		newIP := net.IP(ipBytes)
+
+		// Check if the new IP is within the CIDR block
+		if ipnet.Contains(newIP) {
+			results = append(results, newIP.String())
+		} else {
+			break // Stop if we exceed the block
 		}
 	}
-	return entries
+
+	return results
 }
 
 // Generate weights for next hops when assigning to a next-hop-group

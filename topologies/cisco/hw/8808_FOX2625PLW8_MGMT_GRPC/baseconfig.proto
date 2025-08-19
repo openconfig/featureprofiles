@@ -32,6 +32,7 @@ replace: {
 " secret 10 $6$MaIdA07J8XZm6A0.$yeORzJ/jWzAYC.Y0WQ6ySU.ioOrm04uXKBu8.8WXAhUK0ha.ZnEAMIXnqICvPq.58DrFMIYS2R41O3JwvVfQZ0\n"
 "!\n"
 " vrf mgmt\n"
+"vty-pool default 0 99 line-template vty\n"
 "grpc\n"
 " vrf mgmt\n"
 " port 57999\n"
@@ -114,6 +115,8 @@ replace: {
 "ssh server vrf default\n"
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile npu-compatibility Q200\n"
+"hw-module profile netflow sflow-enable location 0/7/CPU0\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "end\n"
 }
 }
