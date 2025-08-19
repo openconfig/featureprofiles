@@ -104,27 +104,12 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-type BGPNeighbor struct {
-	as         uint32
-	neighborip string
-	version    IPFamily
-}
-type IPFamily int
-
-const (
-	// UnknownIPFamily indicates an unspecified or unknown IP address family.
-	UnknownIPFamily IPFamily = iota
-	IPv4
-	IPv6
-)
-
 type testCase struct {
-	name        string
-	ipType      string
-	enableMpls  bool
-	enableGre   bool
-	enableGue   bool
-	enableDecap bool
+	name       string
+	ipType     string
+	enableMpls bool
+	enableGre  bool
+	enableGue  bool
 }
 
 func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
