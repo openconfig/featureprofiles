@@ -780,7 +780,7 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	verifyTrafficFlow(t, ate, "MplsSwap")
 	verifyMplsSwapPushCapture(t, ate, "port2", mplsSwapLabelTo, true)
 
-	cfgplugins.RemoveStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo, lspNextHopIndex)
+	cfgplugins.RemoveStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo)
 
 }
 
