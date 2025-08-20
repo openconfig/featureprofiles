@@ -9,7 +9,7 @@ Validate the P4RT server handles Metadata set in Table Entry correctly.
 *   Enable P4RT on a single FAP by configuring an ID on the device and one or
     more interfaces.
 *   Instantiate a `primary` P4RT client and execute Client Arbitration and Set
-    the Forwarding Pipeline using the `wbb.p4info.pb.txt` file.
+    the Forwarding Pipeline using the `data/wbb.p4info.pb.txt` file.
 *   Write a `TableEntry` with `Metadata` field set and validate correct
     `Metadata` is retrieved in `ReadRequest` for the below scenarios:
     *   Using Update Type as `INSERT`, Write a TableEntry with the `Metadata`

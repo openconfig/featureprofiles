@@ -19,165 +19,168 @@ BGP policy configuration with prefix-set matching
   * IPv4-prefix-set-1  - exact match on 10.23.15.0/26
   * IPv4-prefix-set-2  - match on 10.23.0.0/16
   * [TODO] IPv4-prefix-set-3  - match on 10.23.15.0/26, 10.23.17.0/26
-    ```
-    {
-      "openconfig-routing-policy:routing-policy": {
+    
+#### Canonical OC
+```json
+{
+    "routing-policy": {
         "defined-sets": {
-          "prefix-sets": {
-            "prefix-set": [
-              {
-                "name": "IPV4-prefix-set-1",
-                "config": {
-                  "name": "IPV4-prefix-set-1",
-                  "mode": "IPV4"
-                },
-                "prefixes": {
-                  "prefix": [
+            "prefix-sets": {
+                "prefix-set": [
                     {
-                      "ip-prefix": "10.23.15.0/26",
-                      "masklength-range": "exact",
-                      "config": {
-                        "ip-prefix": "10.23.15.0/26",
-                        "masklength-range": "exact"
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "name": "IPV4-prefix-set-2",
-                "config": {
-                  "name": "IPV4-prefix-set-2",
-                  "mode": "IPV4"
-                },
-                "prefixes": {
-                  "prefix": [
-                    {
-                      "ip-prefix": "10.23.0.0/16",
-                      "masklength-range": "exact",
-                      "config": {
-                        "ip-prefix": "10.23.0.0/16",
-                        "masklength-range": "exact"
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "name": "IPV4-prefix-set-3",
-                "config": {
-                  "name": "IPV4-prefix-set-3",
-                  "mode": "IPV4"
-                },
-                "prefixes": {
-                  "prefix": [
-                    {
-                      "ip-prefix": "10.23.15.0/26",
-                      "masklength-range": "exact",
-                      "config": {
-                        "ip-prefix": "10.23.15.0/26",
-                        "masklength-range": "exact"
-                      }
+                        "config": {
+                            "mode": "IPV4",
+                            "name": "IPv4-prefix-set-1"
+                        },
+                        "name": "IPv4-prefix-set-1",
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "config": {
+                                        "ip-prefix": "10.23.15.0/26",
+                                        "masklength-range": "exact"
+                                    },
+                                    "ip-prefix": "10.23.15.0/26",
+                                    "masklength-range": "exact"
+                                }
+                            ]
+                        }
                     },
                     {
-                      "ip-prefix": "10.23.17.0/26",
-                      "masklength-range": "exact",
-                      "config": {
-                        "ip-prefix": "10.23.17.0/26",
-                        "masklength-range": "exact"
-                      }
+                        "config": {
+                            "mode": "IPV4",
+                            "name": "IPv4-prefix-set-2"
+                        },
+                        "name": "IPv4-prefix-set-2",
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "config": {
+                                        "ip-prefix": "10.23.0.0/16",
+                                        "masklength-range": "16..32"
+                                    },
+                                    "ip-prefix": "10.23.0.0/16",
+                                    "masklength-range": "16..32"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "config": {
+                            "mode": "IPV4",
+                            "name": "IPv4-prefix-set-3"
+                        },
+                        "name": "IPv4-prefix-set-3",
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "config": {
+                                        "ip-prefix": "10.23.15.0/26",
+                                        "masklength-range": "exact"
+                                    },
+                                    "ip-prefix": "10.23.15.0/26",
+                                    "masklength-range": "exact"
+                                },
+                                {
+                                    "config": {
+                                        "ip-prefix": "10.23.17.0/26",
+                                        "masklength-range": "exact"
+                                    },
+                                    "ip-prefix": "10.23.17.0/26",
+                                    "masklength-range": "exact"
+                                }
+                            ]
+                        }
                     }
-                  ]
-                }
-              }
-            ]
-          }
+                ]
+            }
         }
-      }
     }
-    ```
+}
+```
 * For IPv6:
   * Create three prefix-sets as below:
   * IPv6-prefix-set-1  - exact match on 2001:4860:f804::/48
   * IPv6-prefix-set-2  - 65-128 match on ::/0
   * [TODO] IPv6-prefix-set-3  - exact match on 2001:4860:f804::/48, 2001:4860:f806::/48
-    ```
-    {
-      "openconfig-routing-policy:routing-policy": {
+#### Canonical OC
+```json
+{
+    "routing-policy": {
         "defined-sets": {
-          "prefix-sets": {
-            "prefix-set": [
-              {
-                "name": "IPV6-prefix-set-1",
-                "config": {
-                  "name": "IPV6-prefix-set-1",
-                  "mode": "IPV6"
-                },
-                "prefixes": {
-                  "prefix": [
+            "prefix-sets": {
+                "prefix-set": [
                     {
-                      "ip-prefix": "2001:4860:f804::/48",
-                      "masklength-range": "exact",
-                      "config": {
-                        "ip-prefix": "2001:4860:f804::/48",
-                        "masklength-range": "exact"
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "name": "IPV6-prefix-set-2",
-                "config": {
-                  "name": "IPV6-prefix-set-2",
-                  "mode": "IPV6"
-                },
-                "prefixes": {
-                  "prefix": [
-                    {
-                      "ip-prefix": "::/0",
-                      "masklength-range": "65..128",
-                      "config": {
-                        "ip-prefix": "::/0",
-                        "masklength-range": "65..128"
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "name": "IPV6-prefix-set-3",
-                "config": {
-                  "name": "IPV6-prefix-set-3",
-                  "mode": "IPV6"
-                },
-                "prefixes": {
-                  "prefix": [
-                    {
-                      "ip-prefix": "2001:4860:f804::/48",
-                      "masklength-range": "exact",
-                      "config": {
-                        "ip-prefix": "2001:4860:f804::/48",
-                        "masklength-range": "exact"
-                      }
+                        "name": "IPV6-prefix-set-1",
+                        "config": {
+                            "name": "IPV6-prefix-set-1",
+                            "mode": "IPV6"
+                        },
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "ip-prefix": "2001:4860:f804::/48",
+                                    "masklength-range": "exact",
+                                    "config": {
+                                        "ip-prefix": "2001:4860:f804::/48",
+                                        "masklength-range": "exact"
+                                    }
+                                }
+                            ]
+                        }
                     },
                     {
-                      "ip-prefix": "2001:4860:f806::/48",
-                      "masklength-range": "exact",
-                      "config": {
-                        "ip-prefix": "2001:4860:f806::/48",
-                        "masklength-range": "exact"
-                      }
+                        "name": "IPV6-prefix-set-2",
+                        "config": {
+                            "name": "IPV6-prefix-set-2",
+                            "mode": "IPV6"
+                        },
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "ip-prefix": "::/0",
+                                    "masklength-range": "65..128",
+                                    "config": {
+                                        "ip-prefix": "::/0",
+                                        "masklength-range": "65..128"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "IPv6-prefix-set-3",
+                        "config": {
+                            "name": "IPv6-prefix-set-3",
+                            "mode": "IPV6"
+                        },
+                        "prefixes": {
+                            "prefix": [
+                                {
+                                    "ip-prefix": "2001:4860:f804::/48",
+                                    "masklength-range": "exact",
+                                    "config": {
+                                        "ip-prefix": "2001:4860:f804::/48",
+                                        "masklength-range": "exact"
+                                    }
+                                },
+                                {
+                                    "ip-prefix": "2001:4860:f806::/48",
+                                    "masklength-range": "exact",
+                                    "config": {
+                                        "ip-prefix": "2001:4860:f806::/48",
+                                        "masklength-range": "exact"
+                                    }
+                                }
+                            ]
+                        }
                     }
-                  ]
-                }
-              }
-            ]
-          }
+                ]
+            }
         }
-      }
     }
-    ```
+}
+```
 ### RT-1.33.1 mach with option ANY  
 * For IPv4 and IPv6:
   * Configure BGP policy on DUT to allow routes based on IPv4-prefix-set-2 and reject routes based on IPv4-prefix-set-1 
@@ -190,186 +193,187 @@ BGP policy configuration with prefix-set matching
 * Test configuration
   * Generate new policies (bgpInvertIPv4, bgpInvertPv6)
     * Configure BGP policy on DUT to reject IPv4 routes that are NOT covered in IPv4-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv4 route.
-      ```
-      {
-        "openconfig-routing-policy:routing-policy": {
-          "policy-definitions": {
+
+```json
+{
+    "routing-policy": {
+        "policy-definitions": {
             "policy-definition": [
-              {
-                "name": "bgpInvertIPv4",
-                "config": {
-                  "name": "bgpInvertIPv4"
-                },
-                "statements": {
-                  "statement": [
-                    {
-                      "name": "stm1",
-                      "openconfig-routing-policy:config": {
-                        "name": "stm1"
-                      },
-                      "openconfig-routing-policy:conditions": {
-                        "match-prefix-set": {
-                          "config": {
-                            "prefix-set": "IPV4-prefix-set-3",
-                            "match-set-options": "INVERT"
-                          }
-                        }
-                      },
-                      "openconfig-routing-policy:actions": {
-                        "config": {
-                          "policy-result": "REJECT_ROUTE"
-                        }
-                      }
-                    },
-                    {
-                      "name": "stm2",
-                      "openconfig-routing-policy:config": {
-                        "name": "stm2"
-                      },
-                      "openconfig-routing-policy:actions": {
-                        "config": {
-                          "policy-result": "ACCEPT_ROUTE"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      }
-      ```
-    * Configure BGP policy on DUT to reject IPv6 routes that are NOT covered in IPv6-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv6 route.
-      ```
-      {
-        "openconfig-routing-policy:routing-policy": {
-          "policy-definitions": {
-            "policy-definition": [
-              {
-                "name": "bgpInvertIPV6",
-                "config": {
-                  "name": "bgpInvertIPV6"
-                },
-                "statements": {
-                  "statement": [
-                    {
-                      "name": "stm1",
-                      "openconfig-routing-policy:config": {
-                        "name": "stm1"
-                      },
-                      "openconfig-routing-policy:conditions": {
-                        "match-prefix-set": {
-                          "config": {
-                            "prefix-set": "IPV6-prefix-set-3",
-                            "match-set-options": "INVERT"
-                          }
-                        }
-                      },
-                      "openconfig-routing-policy:actions": {
-                        "config": {
-                          "policy-result": "REJECT_ROUTE"
-                        }
-                      }
-                    },
-                    {
-                      "name": "stm2",
-                      "openconfig-routing-policy:config": {
-                        "name": "stm2"
-                      },
-                      "openconfig-routing-policy:actions": {
-                        "config": {
-                          "policy-result": "ACCEPT_ROUTE"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      }
-      ```
-  * Attach bgpInvertIPv4, bgpInvertIPv6 as import policies to DUT port-1 eBGP session
-    ```
-    {
-      "openconfig-network-instance:network-instances": {
-        "network-instance": [
-          {
-            "name": "DEFAULT",
-            "config": {
-              "name": "DEFAULT"
-            },
-            "protocols": {
-              "protocol": [
                 {
-                  "identifier": "openconfig-policy-types:BGP",
-                  "name": "DEFAULT",
-                  "config": {
-                    "identifier": "openconfig-policy-types:BGP",
-                    "name": "DEFAULT"
-                  },
-                  "bgp": {
-                    "neighbors": {
-                      "neighbor": [
-                        {
-                          "neighbor-address": "<IPv4-port1-ATE-address>",
-                          "config": {
-                            "neighbor-address": "<IPv4-port1-ATE-address>"
-                          },
-                          "afi-safis": {
-                            "afi-safi": [
-                              {
-                                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
-                                "config": {
-                                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST"
+                    "name": "bgpInvertIPv4",
+                    "config": {
+                        "name": "bgpInvertIPv4"
+                    },
+                    "statements": {
+                        "statement": [
+                            {
+                                "name": "stm1",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm1"
                                 },
-                                "apply-policy": {
-                                  "config": {
-                                    "import-policy": "bgpInvertIPv4",
-                                    "default-import-policy": "ACCEPT_ROUTE",
-                                    "defaul-export-policy": "ACCEPT_ROUTE"
-                                  }
-                                }
-                              }
-                            ]
-                          }
-                        },
-                        {
-                          "neighbor-address": "<IPv6-port1-ATE-address>",
-                          "config": {
-                            "neighbor-address": "<IPv6-port1-ATE-address>"
-                          },
-                          "afi-safis": {
-                            "afi-safi": [
-                              {
-                                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                                "config": {
-                                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST"
+                                "openconfig-routing-policy:conditions": {
+                                    "match-prefix-set": {
+                                        "config": {
+                                            "prefix-set": "IPv4-prefix-set-3",
+                                            "match-set-options": "INVERT"
+                                        }
+                                    }
                                 },
-                                "apply-policy": {
-                                  "config": {
-                                    "import-policy": "bgpInvertIPv6",
-                                    "default-import-policy": "ACCEPT_ROUTE",
-                                    "defaul-export-policy": "ACCEPT_ROUTE"
-                                  }
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "REJECT_ROUTE"
+                                    }
                                 }
-                              }
-                            ]
-                          }
-                        }
-                      ]
+                            },
+                            {
+                                "name": "stm2",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm2"
+                                },
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "ACCEPT_ROUTE"
+                                    }
+                                }
+                            }
+                        ]
                     }
-                  }
                 }
-              ]
-            }
-          }
-        ]
-      }
+            ]
+        }
     }
-    ```
+}
+```
+    * Configure BGP policy on DUT to reject IPv6 routes that are NOT covered in IPv6-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv6 route.
+
+```json
+{
+    "routing-policy": {
+        "policy-definitions": {
+            "policy-definition": [
+                {
+                    "name": "bgpInvertIPV6",
+                    "config": {
+                        "name": "bgpInvertIPV6"
+                    },
+                    "statements": {
+                        "statement": [
+                            {
+                                "name": "stm1",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm1"
+                                },
+                                "openconfig-routing-policy:conditions": {
+                                    "match-prefix-set": {
+                                        "config": {
+                                            "prefix-set": "IPv6-prefix-set-3",
+                                            "match-set-options": "INVERT"
+                                        }
+                                    }
+                                },
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "REJECT_ROUTE"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "stm2",
+                                "openconfig-routing-policy:config": {
+                                    "name": "stm2"
+                                },
+                                "openconfig-routing-policy:actions": {
+                                    "config": {
+                                        "policy-result": "ACCEPT_ROUTE"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+```
+  * Attach bgpInvertIPv4, bgpInvertIPv6 as import policies to DUT port-1 eBGP session
+
+```json
+{
+    "network-instances": {
+        "network-instance": [
+            {
+                "name": "DEFAULT",
+                "config": {
+                    "name": "DEFAULT"
+                },
+                "protocols": {
+                    "protocol": [
+                        {
+                            "identifier": "openconfig-policy-types:BGP",
+                            "name": "DEFAULT",
+                            "config": {
+                                "identifier": "openconfig-policy-types:BGP",
+                                "name": "DEFAULT"
+                            },
+                            "bgp": {
+                                "neighbors": {
+                                    "neighbor": [
+                                        {
+                                            "neighbor-address": "192.0.2.2",
+                                            "config": {
+                                                "neighbor-address": "192.0.2.2"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "default-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "neighbor-address": "2001:db8::192:0:2:2",
+                                            "config": {
+                                                "neighbor-address": "2001:db8::192:0:2:2"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "default-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
   * Push the generated configuration to the DUT using gnmi.Set with replace option.
   * Advertise from OTG port-1 BGP prefixes:
     * 10.23.15.0/26, 10.23.16.0/26, 10.23.17.0/26
@@ -382,84 +386,83 @@ BGP policy configuration with prefix-set matching
 * Test configuration
   * Generate the same config as for RT-1.33.2 above, with following modification:
   * Attach bgpInvertIPv4, bgpInvertIPv6 as export policies to DUT port-1 eBGP session
-    ```
-    {
-      "openconfig-network-instance:network-instances": {
+
+```json
+{
+    "network-instances": {
         "network-instance": [
-          {
-            "name": "DEFAULT",
-            "config": {
-              "name": "DEFAULT"
-            },
-            "protocols": {
-              "protocol": [
-                {
-                  "identifier": "openconfig-policy-types:BGP",
-                  "name": "DEFAULT",
-                  "config": {
-                    "identifier": "openconfig-policy-types:BGP",
+            {
+                "name": "DEFAULT",
+                "config": {
                     "name": "DEFAULT"
-                  },
-                  "bgp": {
-                    "neighbors": {
-                      "neighbor": [
+                },
+                "protocols": {
+                    "protocol": [
                         {
-                          "neighbor-address": "<IPv4-port1-ATE-address>",
-                          "config": {
-                            "neighbor-address": "<IPv4-port1-ATE-address>"
-                          },
-                          "afi-safis": {
-                            "afi-safi": [
-                              {
-                                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
-                                "config": {
-                                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST"
-                                },
-                                "apply-policy": {
-                                  "config": {
-                                    "import-policy": "bgpInvertIPv4",
-                                    "default-import-policy": "ACCEPT_ROUTE",
-                                    "defaul-export-policy": "ACCEPT_ROUTE"
-                                  }
+                            "identifier": "openconfig-policy-types:BGP",
+                            "name": "DEFAULT",
+                            "config": {
+                                "identifier": "openconfig-policy-types:BGP",
+                                "name": "DEFAULT"
+                            },
+                            "bgp": {
+                                "neighbors": {
+                                    "neighbor": [
+                                        {
+                                            "neighbor-address": "192.0.2.2",
+                                            "config": {
+                                                "neighbor-address": "192.0.2.2"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "default-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "neighbor-address": "2001:db8::192:0:2:2",
+                                            "config": {
+                                                "neighbor-address": "2001:db8::192:0:2:2"
+                                            },
+                                            "afi-safis": {
+                                                "afi-safi": [
+                                                    {
+                                                        "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                                                        "config": {
+                                                            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST"
+                                                        },
+                                                        "apply-policy": {
+                                                            "config": {
+                                                                "default-import-policy": "ACCEPT_ROUTE",
+                                                                "default-export-policy": "ACCEPT_ROUTE"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
                                 }
-                              }
-                            ]
-                          }
-                        },
-                        {
-                          "neighbor-address": "<IPv6-port1-ATE-address>",
-                          "config": {
-                            "neighbor-address": "<IPv6-port1-ATE-address>"
-                          },
-                          "afi-safis": {
-                            "afi-safi": [
-                              {
-                                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
-                                "config": {
-                                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST"
-                                },
-                                "apply-policy": {
-                                  "config": {
-                                    "import-policy": "bgpInvertIPv6",
-                                    "default-import-policy": "ACCEPT_ROUTE",
-                                    "defaul-export-policy": "ACCEPT_ROUTE"
-                                  }
-                                }
-                              }
-                            ]
-                          }
+                            }
                         }
-                      ]
-                    }
-                  }
+                    ]
                 }
-              ]
             }
-          }
         ]
-      }
     }
-    ```
+}
+```
   * Push the generated configuration to the DUT using gnmi.Set with replace option.
 * Behaviour validation
   * use the same validation as for RT-1.33.2 above

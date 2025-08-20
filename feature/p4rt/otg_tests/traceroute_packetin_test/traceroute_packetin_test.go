@@ -39,7 +39,7 @@ import (
 )
 
 var (
-	p4InfoFile            = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile            = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName            = "p4rt"
 	tracerouteSrcMAC      = "00:01:00:02:00:03"
 	deviceID              = uint64(1)
@@ -307,14 +307,7 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 			TTL:      0x1,
 			TTLMask:  0xFF,
 			Priority: 1,
-		},
-			{
-				Type:     actionType,
-				IsIpv4:   0x1,
-				TTL:      0x0,
-				TTLMask:  0xFF,
-				Priority: 1,
-			}}
+		}}
 	} else {
 		actionType := p4_v1.Update_INSERT
 		if delete {
@@ -326,14 +319,7 @@ func (traceroute *TraceroutePacketIO) GetTableEntry(delete bool, IsIpv4 bool) []
 			TTL:      0x1,
 			TTLMask:  0xFF,
 			Priority: 1,
-		},
-			{
-				Type:     actionType,
-				IsIpv6:   0x1,
-				TTL:      0x0,
-				TTLMask:  0xFF,
-				Priority: 1,
-			}}
+		}}
 	}
 }
 

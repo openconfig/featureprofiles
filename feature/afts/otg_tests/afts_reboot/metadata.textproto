@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ed774b43-ba3e-4ba9-84b7-e7bdf4d6298d"
+plan_id: "AFT-5.1"
+description: "AFTs DUT Reboot"
+testbed: TESTBED_DUT_ATE_2LINKS

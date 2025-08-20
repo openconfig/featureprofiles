@@ -1,4 +1,4 @@
-# PF-1.17 - MPLSoGRE and MPLSoGUE MACsec 
+# PF-1.17: MPLSoGRE and MPLSoGUE MACsec 
 
 ## Summary
 This test verifies MACSec with MPLSoGRE and MPLSoGUE IP encap and decap traffic on the test device.
@@ -89,6 +89,7 @@ Verify:
 * Header fields are as expected in both directions
 * No packet loss when keys one through five expires as configured
 * 100 percent packet loss after all the keys configured expires
+
 
 ## Canonical OpenConfig for MACsec configuration
  

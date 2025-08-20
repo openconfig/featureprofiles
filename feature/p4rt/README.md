@@ -8,7 +8,7 @@ This document specifies the requirements for p4rt test implementation.
     following Google compatible format:
 
     1.  WBB P4 Protobuf file:
-        https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/wbb.p4info.pb.txt
+        https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/data/wbb.p4info.pb.txt
 
 3.  Tests should create new P4RT clients using the `p4rt_client.NewP4RTClient()`
     function, which sets up the `StreamTermErr` channel required to check errors

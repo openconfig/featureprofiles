@@ -1,0 +1,19 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "670a5ddb-d187-418d-a64e-e8cd8fc1140e"
+plan_id: "TRANSCEIVER-101"
+description: "Telemetry: ZR platform OC paths streaming."
+testbed: TESTBED_DUT_800ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    channel_assignment_rate_class_parameters_unsupported: true
+    missing_port_to_optical_channel_component_mapping: true
+    otn_channel_trib_unsupported: true
+    otn_to_eth_assignment: true
+  }
+}

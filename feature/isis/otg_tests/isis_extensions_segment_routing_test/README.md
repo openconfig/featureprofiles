@@ -1,4 +1,4 @@
-# RT-2.15 IS-IS Extensions for Segment Routing
+# RT-2.15: IS-IS Extensions for Segment Routing
 
 ## Summary
 
@@ -49,14 +49,6 @@
 *   Verify that the DUT advertises the loopback prefixes with the correct Prefix SIDs.
 *   Send labeled traffic from ATE1 to the loopback prefixes on the DUT
 *   Verify correct forwarding using Prefix SIDs.
-*   Verify that corresponding SID forwarding counters are incremented.
-
-### SR-1.2.4: Anycast SID Validation.
-
-*   Configure the DUT to advertise an Anycast SID representing a service reachable via both loopback interfaces.  
-*   Verify that the DUT advertises the Anycast SID.
-*   Send traffic from both ATEs towards the Anycast SID.
-*   Verify that traffic is load-balanced between the DUT's loopback interfaces based on IGP metrics.
 *   Verify that corresponding SID forwarding counters are incremented.
 
 ## OpenConfig Path and RPC Coverage
