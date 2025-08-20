@@ -473,7 +473,6 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 	startTime = time.Now()
 	otg.SetControlAction(t, cs)
 	startStopISISRouter(t, otg, []string{isisPort2Device}, "DOWN")
-	replaceDuration = time.Since(startTime)
 	time.Sleep(restartWait * time.Second)
 	otg.StartTraffic(t)
 	time.Sleep(sleepTime)

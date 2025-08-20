@@ -113,6 +113,7 @@ func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevic
 	return lossPct
 }
 
+// ValidateOTGISISTelemetry validates the isis adjancency states
 func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj map[string]interface{}) {
 	isisAdj := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter(expectedAdj["IsisRouterName"].(string)).Adjacencies().AdjacencyAny().State())
 
