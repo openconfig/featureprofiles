@@ -91,6 +91,7 @@ const (
 	aclTypeIPv6 = oc.Acl_ACL_TYPE_ACL_IPV6
 
 	ipProtoTCP = 6
+	bgpPort    = 179
 )
 
 var prfxListSrcIpv4List = []string{"60.1.0.0", "70.1.0.0", "80.1.0.0", "90.1.0.0"}
@@ -343,7 +344,7 @@ func configACL(t *testing.T, dut *ondatra.DUTDevice, aclConfig aclConfig) {
 			aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 			a := aclEntry.GetOrCreateIpv4()
 			a.Protocol = oc.UnionUint8(ipProtoTCP)
-			aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(179)
+			aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(bgpPort)
 			a.SetSourceAddress(oc.Transport_DestinationPort_ANY.String())
 			a.SetDestinationAddress(oc.Transport_DestinationPort_ANY.String())
 		}
@@ -1246,8 +1247,8 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	configureDUT(t, dut, false)
 
 	// Configure OTG
-	config = configureOTG(t, ate, true)
-	otgConfig.PushConfig(t, config)
+	configV4 := configureOTG(t, ate, true)
+	otgConfig.PushConfig(t, configV4)
 
 	// Configure ACL_IPV4_Match_using_prefix_list_prfxv4-1
 	ports := "100-65500"
@@ -1312,7 +1313,7 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		10000,
 		20000,
 		"ipv4")
-	config.Flows().Append(flow)
+	configV4.Flows().Append(flow)
 
 	// Traffic from ATE port2 to other ports
 	flow = createFlow(
@@ -1325,7 +1326,7 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		10000,
 		20000,
 		"ipv4")
-	config.Flows().Append(flow)
+	configV4.Flows().Append(flow)
 
 	// Traffic from ATE port3 to other ports
 	flow = createFlow(
@@ -1337,7 +1338,7 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		10000,
 		20000,
 		"ipv4")
-	config.Flows().Append(flow)
+	configV4.Flows().Append(flow)
 
 	// Traffic from ATE port4 to other ports
 	flow = createFlow(
@@ -1349,22 +1350,22 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		10000,
 		20000,
 		"ipv4")
-	config.Flows().Append(flow)
+	configV4.Flows().Append(flow)
 
-	otgConfig.PushConfig(t, config)
+	otgConfig.PushConfig(t, configV4)
 
 	otgConfig.StartProtocols(t)
 
-	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
-	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
+	otgutils.WaitForARP(t, otgConfig, configV4, "IPv4")
+	otgutils.WaitForARP(t, otgConfig, configV4, "IPv6")
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(time.Second * 60)
 	otgConfig.StopTraffic(t)
 
 	// Verify Traffic
-	otgutils.LogFlowMetrics(t, otgConfig, config)
-	otgutils.LogPortMetrics(t, otgConfig, config)
+	otgutils.LogFlowMetrics(t, otgConfig, configV4)
+	otgutils.LogPortMetrics(t, otgConfig, configV4)
 	for _, flowName := range []string{"prfxListPort1ToMany", "prfxListPort2ToMany", "prfxListPort3ToMany", "prfxListPort4ToMany"} {
 		validateTrafficLoss(t, otgConfig, flowName)
 	}
@@ -1372,8 +1373,8 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 
 func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config) {
 	// Configure OTG
-	config = configureOTG(t, ate, true)
-	otgConfig.PushConfig(t, config)
+	configV6 := configureOTG(t, ate, true)
+	otgConfig.PushConfig(t, configV6)
 
 	// Configure ACL_IPV6_Match_using_prefix_list_prfxv6-1
 	ports := "100-65500"
@@ -1418,7 +1419,7 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	dstPrefixAddress = fmt.Sprintf("%s/%d", prfxListDstIpv6List[3], prfxListDstV6Subnet)
 	configureTrafficPolicy(t, dut, "ACL_IPV6_Match_using_prefix_list_prfxv6-4", "ipv6", srcPrefixAddress, dstPrefixAddress, srcPort, dstPort, dut.Port(t, "port4").Name())
 
-	config.Flows().Clear()
+	configV6.Flows().Clear()
 
 	// Traffic from ATE port1 to other ports
 	flow := createFlow(
@@ -1431,7 +1432,7 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		2000,
 		"ipv6",
 	)
-	config.Flows().Append(flow)
+	configV6.Flows().Append(flow)
 
 	// Traffic from ATE port2 to other ports
 	flow = createFlow(
@@ -1444,7 +1445,7 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		2000,
 		"ipv6",
 	)
-	config.Flows().Append(flow)
+	configV6.Flows().Append(flow)
 
 	// Traffic from ATE port3 to other ports
 	flow = createFlow(
@@ -1457,7 +1458,7 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		2000,
 		"ipv6",
 	)
-	config.Flows().Append(flow)
+	configV6.Flows().Append(flow)
 
 	// Traffic from ATE port4 to other ports
 	flow = createFlow(
@@ -1470,22 +1471,22 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 		2000,
 		"ipv6",
 	)
-	config.Flows().Append(flow)
+	configV6.Flows().Append(flow)
 
-	otgConfig.PushConfig(t, config)
+	otgConfig.PushConfig(t, configV6)
 
 	otgConfig.StartProtocols(t)
 
-	otgutils.WaitForARP(t, otgConfig, config, "IPv4")
-	otgutils.WaitForARP(t, otgConfig, config, "IPv6")
+	otgutils.WaitForARP(t, otgConfig, configV6, "IPv4")
+	otgutils.WaitForARP(t, otgConfig, configV6, "IPv6")
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(time.Second * 60)
 	otgConfig.StopTraffic(t)
 
 	// Verify Traffic
-	otgutils.LogFlowMetrics(t, otgConfig, config)
-	otgutils.LogPortMetrics(t, otgConfig, config)
+	otgutils.LogFlowMetrics(t, otgConfig, configV6)
+	otgutils.LogPortMetrics(t, otgConfig, configV6)
 	for _, flowName := range []string{"prfxv6ListPort1ToMany", "prfxv6ListPort2ToMany", "prfxv6ListPort3ToMany", "prfxv6ListPort4ToMany"} {
 		validateTrafficLoss(t, otgConfig, flowName)
 	}
