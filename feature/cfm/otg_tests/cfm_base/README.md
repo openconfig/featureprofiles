@@ -787,7 +787,7 @@ paths:
 
     #Tunnels/Next-hop group configs
 
-    #TODO: Add new OC for GRE encap headers
+    #TODO: Add new OC for GRE encap headers (https://github.com/openconfig/public/pull/1308)
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/index:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/config/next-hop:
     #/network-instances/network-instance/static/next-hop-groups/next-hop-group/nexthops/nexthop/encap-headers/encap-header/config/index:
