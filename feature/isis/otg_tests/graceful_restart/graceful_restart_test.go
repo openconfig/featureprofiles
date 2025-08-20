@@ -470,7 +470,6 @@ func testGrHelper(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 
 	// Validating subtest 3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.
 	t.Logf("Subtest-3: Disable IS-IS on ATE port-2 and verifying traffic is lost due to GR.")
-	startTime = time.Now()
 	otg.SetControlAction(t, cs)
 	startStopISISRouter(t, otg, []string{isisPort2Device}, "DOWN")
 	time.Sleep(restartWait * time.Second)
