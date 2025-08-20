@@ -331,8 +331,8 @@ github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY0
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa/SXYcNpJFjjZvenxO/xnTwuUCgCEinhNLfU=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
-github.com/openconfig/ondatra v0.10.2 h1:SITBq5bLLFZMF3SKq6INBzUlQGlI7OpxlAmmneRWm/k=
-github.com/openconfig/ondatra v0.10.2/go.mod h1:s2oPnIN/08A8gUBGGvjuuhMGcxlO5f96JbFQKzDA6m0=
+github.com/openconfig/ondatra v0.11.0 h1:89i3rS8dAnJ8DAPMDvjEEdmPV4achXnq0753g4046n0=
+github.com/openconfig/ondatra v0.11.0/go.mod h1:s2oPnIN/08A8gUBGGvjuuhMGcxlO5f96JbFQKzDA6m0=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
