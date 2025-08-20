@@ -855,6 +855,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	outerIpHdr := flow.Packet().Add().Ipv4()
 	outerIpHdr.Src().SetValue(flowValues.outHdrSrcIP)
 	outerIpHdr.Dst().SetValue(flowValues.outHdrDstIP)
+	outerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
 	outerIpHdr.Priority().Raw().SetValue(outerTrafficClass)
 	if flowValues.udp {
 		UDPHeader := flow.Packet().Add().Udp()
@@ -867,11 +868,13 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 		innerIpHdr.Protocol().SetValue(flowValues.proto)
 		innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 		innerIpHdr.Dst().SetValue(flowValues.InnHdrDstIP)
+		innerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
 	} else {
 		if flowValues.isInnHdrV4 {
 			innerIpHdr := flow.Packet().Add().Ipv4()
 			innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 			innerIpHdr.Dst().SetValue(flowValues.InnHdrDstIP)
+			innerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
 			innerIpHdr.Priority().Raw().SetValue(innerTrafficClass)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -881,6 +884,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
 			innerIpv6Hdr.TrafficClass().SetValue(innerTrafficClass)
+			innerIpv6Hdr.HopLimit().SetValue(uint32(correspondingTTL))
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -1741,13 +1745,11 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 		} else {
 			testStats.IPv6CapturedPackets++
 			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
-			if actualDscp := uint32(ipv6Packet.TrafficClass); actualDscp != expectedInHdrDscp {
+			// In IPv6 packets, ECN uses last two bits of the TOS byte. And TOS field be calculated as DSCP<<2 (left shift by 2)+ ECN.
+			v6ExpectedInHdrDscp := expectedInHdrDscp<<2 + expectedInHdrEcn
+			if actualDscp := uint32(ipv6Packet.TrafficClass); actualDscp != v6ExpectedInHdrDscp {
 				testStats.IPv6DscpMismatchPackets++
 				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
-			}
-			if actualEcn := uint32(ipv6Packet.TrafficClass & 0x03); actualEcn != expectedInHdrEcn {
-				testStats.IPv6EcnMismatchPackets++
-				t.Errorf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
 			}
 		}
 	}
@@ -1969,7 +1971,7 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 						isInnHdrV4:  true,
 						InnHdrSrcIP: atePort1.IPv4,
 						InnHdrDstIP: ipv4InnerDst,
-						inHdrDscp:   []uint32{dscpEncapA1},               // Different than outer DSCP
+						inHdrDscp:   []uint32{dscpEncapNoMatch},          // Different than outer DSCP
 						inHdrEcn:    []uint32{ecnCongestionExperienced}}) // Different than outer ECN
 
 					flow2 := createFlow(&flowArgs{flowName: flow6in4,
@@ -1980,7 +1982,7 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 						isInnHdrV4:    false,
 						InnHdrSrcIPv6: atePort1.IPv6,
 						InnHdrDstIPv6: ipv6InnerDst,
-						inHdrDscp:     []uint32{dscpEncapA1},               // Different than outer DSCP
+						inHdrDscp:     []uint32{dscpEncapNoMatch},          // Different than outer DSCP
 						inHdrEcn:      []uint32{ecnCongestionExperienced}}) // Different than outer ECN
 
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
@@ -1988,8 +1990,8 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 						outDstIP:      []string{ipv4OuterDst111},
 						inHdrIP:       ipv4InnerDst,
-						inHdrDscp:     dscpEncapNoMatch, // We expect the outer DSCP to be copied to the inner packet.
-						inHdrEcn:      ecnCapable1,      // We expect the outer ECN to be copied to the inner packet.
+						inHdrDscp:     dscpEncapNoMatch,         // Inner packets DSCP will be propagated to outer header
+						inHdrEcn:      ecnCongestionExperienced, // IF packet has marked ECN 11, it will be copied to outer HDR
 						validateTTL:   true,
 						validateDecap: true})
 				})
