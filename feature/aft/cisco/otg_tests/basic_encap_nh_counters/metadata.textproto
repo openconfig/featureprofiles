@@ -1,5 +1,6 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
+plan_id:  "basic_encap_nh_counters"
 testbed:  TESTBED_DUT_ATE_8LINKS
 platform_exceptions:  {
   platform:  {
