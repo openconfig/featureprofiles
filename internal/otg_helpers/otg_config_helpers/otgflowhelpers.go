@@ -93,6 +93,8 @@ type IPv6FlowParams struct {
 	IPv6Dst           string
 	IPv6SrcCount      uint32
 	IPv6DstCount      uint32
+	IPv6SrcStep       string
+	IPv6DstStep       string
 	HopLimit          uint32
 	TrafficClass      uint32
 	TrafficClassCount uint32
@@ -260,11 +262,17 @@ func (f *Flow) AddIPv6Header() {
 	ipv6Hdr := f.flow.Packet().Add().Ipv6()
 	if f.IPv6Flow.IPv6SrcCount != 0 {
 		ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount)
+		if f.IPv6Flow.IPv6SrcStep != "" {
+			ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount).SetStep(f.IPv6Flow.IPv6SrcStep)
+		}
 	} else {
 		ipv6Hdr.Src().SetValue(f.IPv6Flow.IPv6Src)
 	}
 	if f.IPv6Flow.IPv6DstCount != 0 {
 		ipv6Hdr.Dst().Increment().SetStart(f.IPv6Flow.IPv6Dst).SetCount(f.IPv6Flow.IPv6DstCount)
+		if f.IPv6Flow.IPv6DstStep != "" {
+			ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount).SetStep(f.IPv6Flow.IPv6DstStep)
+		}
 	} else {
 		ipv6Hdr.Dst().SetValue(f.IPv6Flow.IPv6Dst)
 	}

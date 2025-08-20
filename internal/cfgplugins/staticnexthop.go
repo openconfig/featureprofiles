@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -135,15 +136,32 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
-			} else if traffictype == "dualstack" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
-			} else if traffictype == "multicloudv4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+			if params.StaticNHGName == "gre_encap" {
+				if traffictype == "dualstack" {
+					var nextHopGreConfig string
+					nextHopGreConfig += fmt.Sprintf("nexthop-group %s type gre\n", params.StaticNHGName)
+					nextHopGreConfig += "   ttl 64\n"
+					nextHopGreConfig += "   fec hierarchical\n"
+
+					for i, nexthop := range params.NHIPAddrs {
+						sourceIP := fmt.Sprintf("10.235.143.%d", i)
+						nextHopGreConfig += fmt.Sprintf("   entry  %d tunnel-destination %s tunnel-source %s\n", i, nexthop, sourceIP)
+					}
+
+					nextHopGreConfig += "!\n"
+					helpers.GnmiCLIConfig(t, dut, nextHopGreConfig)
+				}
+			} else {
+				if traffictype == "v4" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				} else if traffictype == "dualstack" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
+				} else if traffictype == "v6" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				} else if traffictype == "multicloudv4" {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+				}
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
@@ -166,6 +184,7 @@ type StaticNextHopGroupParams struct {
 	OuterIpv4Src2Def string
 	OuterDscpDef     uint8
 	OuterTTLDef      uint8
+	NHIPAddrs        []string
 
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
 
