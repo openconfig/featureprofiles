@@ -64,7 +64,7 @@ jobs:
           readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
           affected_readmes=()
-          for path in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | sort -u); do
+          for path in $(git diff --name-only --diff-filter=ACMRT "${BASE}" "${HEAD}" | grep -E '^\W*feature' | sort -u); do
             if [[ "$path" == *README.md ]]; then
               affected_readmes+=("$path")
             fi
@@ -87,4 +87,5 @@ jobs:
 
         # TODO: Validate READMEs that have been converted to the new format.
         # echo "########## Validating already-converted READMEs:"
+
 
