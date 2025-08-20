@@ -1605,5 +1605,5 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 
 // SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
 func SkipOrigin(dut *ondatra.DUTDevice) bool {
-    return lookupDUTDeviations(dut).GetSkipOrigin()
+	return lookupDUTDeviations(dut).GetSkipOrigin()
 }
