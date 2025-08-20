@@ -225,6 +225,140 @@ Verify:
 
 ## Canonical OC  
 
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "GEO_1",
+          "enabled": true,
+          "mtu": 9080,
+          "name": "Bundle-Ether43",
+          "type": "ieee8023adLag"
+        },
+        "name": "Bundle-Ether43",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "description": "GEO_1",
+                "enabled": true,
+                "index": 1600
+              },
+              "index": 1600,
+              "vlan": {
+                "match": {
+                  "single-tagged": {
+                    "config": {
+                      "vlan-id": 1600
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "GEO_2",
+          "enabled": true,
+          "mtu": 9080,
+          "name": "Bundle-Ether5",
+          "type": "ieee8023adLag"
+        },
+        "name": "Bundle-Ether5",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "description": "GEO_2",
+                "enabled": true,
+                "index": 4010
+              },
+              "index": 4010,
+              "vlan": {
+                "match": {
+                  "single-tagged": {
+                    "config": {
+                      "vlan-id": 4010
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "GEO_3",
+          "enabled": true,
+          "mtu": 9080,
+          "name": "Bundle-Ether5",
+          "type": "ieee8023adLag"
+        },
+        "name": "Bundle-Ether5",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "description": "GEO_3",
+                "enabled": true,
+                "index": 4050
+              },
+              "index": 4050,
+              "vlan": {
+                "match": {
+                  "single-tagged": {
+                    "config": {
+                      "vlan-id": 4050
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "GEO_4",
+          "enabled": true,
+          "mtu": 9080,
+          "name": "Bundle-Ether43",
+          "type": "ieee8023adLag"
+        },
+        "name": "Bundle-Ether43",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "description": "GEO_4",
+                "enabled": true,
+                "index": 1100
+              },
+              "index": 1100,
+              "vlan": {
+                "match": {
+                  "single-tagged": {
+                    "config": {
+                      "vlan-id": 1100
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+
 ``` json
 {
   "oam": {
