@@ -242,7 +242,7 @@ Verify:
               "maintenance-association": [
                 {
                   "config": {
-                    "ccm-interval": "100MS",
+                    "ccm-interval": "300MS",
                     "group-name": "GEO_1",
                     "loss-threshold": 3,
                     "ma-id": "S1",
@@ -310,7 +310,7 @@ Verify:
               "maintenance-association": [
                 {
                   "config": {
-                    "ccm-interval": "100MS",
+                    "ccm-interval": "300MS",
                     "group-name": "GEO_2",
                     "loss-threshold": 3,
                     "ma-id": "S1",
@@ -378,7 +378,7 @@ Verify:
               "maintenance-association": [
                 {
                   "config": {
-                    "ccm-interval": "100MS",
+                    "ccm-interval": "300MS",
                     "group-name": "GEO_3",
                     "loss-threshold": 3,
                     "ma-id": "S1",
@@ -446,7 +446,7 @@ Verify:
               "maintenance-association": [
                 {
                   "config": {
-                    "ccm-interval": "100MS",
+                    "ccm-interval": "300MS",
                     "group-name": "GEO_4",
                     "loss-threshold": 3,
                     "ma-id": "S1",
