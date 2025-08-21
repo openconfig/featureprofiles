@@ -121,7 +121,7 @@ Use following FIB chain diagrams for reference and debugging.
 | Unoptimized |     DCGate     |                2nd FRR                |           10          |          255          |             X             |             9             |
 | Unoptimized |     DCGate     |           Decap + Fallback            |           10          |          255          |             X             |             9             |
 | Unoptimized |     DCGate     | Transit where encap prefix is not     |           10          |          255          |             X             |            254            |
-|             |                | programmed,&backup lookup in default  |           10          |          255          |             X             |            254            |
+|             |                | programmed,&backup lookup in default  |                       |                       |                           |                           |
 
 ## Key Features Tested
 
