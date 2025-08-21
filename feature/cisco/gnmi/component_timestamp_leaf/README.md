@@ -1,5 +1,7 @@
 # last_reboot_time: Google: Update behavior of component timestamp leafs to latest
 
+Introduced in 25.4.1
+
 Previous behavior of the following leaf was to updated to match the description of boot-time leaf in version of 0.31.0.
 /openconfig-platform:components/component/state/last-reboot-time
 Related Openconfig PR
