@@ -10,7 +10,7 @@ tests:
     internal: true
     timeout: 1800
   - name: last_reboot
-    path: feature/cisco/gnmi/leaf
+    path: feature/cisco/gnmi/component_timestamp_leaf
     mustpass: true
     internal: true
     timeout: 9000

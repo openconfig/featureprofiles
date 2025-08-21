@@ -38,14 +38,13 @@ func reloadRouterWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, rebootMe
 	t.Logf("Reload Response %v ", Resp)
 
 	startReboot := time.Now()
-	time.Sleep(5 * time.Second)
 	const maxRebootTime = 30
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
-		time.Sleep(90 * time.Second)
+		time.Sleep(10 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
@@ -141,11 +140,11 @@ func TestInitialBootTime(t *testing.T) {
 	if len(controllerCards) > 0 {
 		controllerCard = controllerCards[0]
 	} else {
-		t.Error("could not find controller card")
+		t.Fatal("could not find controller card")
 	}
 
 	if !(gnmi.Lookup(t, dut, gnmi.OC().Component(controllerCard).LastRebootTime().State()).IsPresent()) {
-		t.Error("value for LastRebootTime is not present")
+		t.Fatal("value for LastRebootTime is not present")
 	}
 
 }
@@ -165,7 +164,7 @@ func TestRouterLastRebootTime(t *testing.T) {
 	if len(controllerCards) > 0 {
 		controllerCard = controllerCards[0]
 	} else {
-		t.Error("could not find controller card")
+		t.Fatal("could not find controller card")
 	}
 
 	//reload with each reboot method listed above
@@ -180,7 +179,7 @@ func TestRouterLastRebootTime(t *testing.T) {
 			lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).LastRebootTime().State())
 
 			if lastRebootTimeAfter < lastRebootTimeBefore {
-				t.Errorf("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, lastRebootTimeBefore)
+				t.Fatal("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, lastRebootTimeBefore)
 			}
 		})
 	}
@@ -226,12 +225,10 @@ func TestLCReloadLastRebootTime(t *testing.T) {
 
 			reloadLineCardsWithRebootMethod(t, dut, rebootMethod)
 
-			time.Sleep(time.Minute * 3)
-
 			for _, lc := range linecards {
 				lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(lc).LastRebootTime().State())
 				if lastRebootTimeAfter < rebootTimes[lc] {
-					t.Errorf("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, rebootTimes[lc])
+					t.Fatal("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, rebootTimes[lc])
 				}
 			}
 		})
@@ -259,7 +256,7 @@ func TestRPFOLastRebootTime(t *testing.T) {
 	lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(rpActive).LastRebootTime().State())
 
 	if lastRebootTimeAfter < lastRebootTimeBefore {
-		t.Errorf("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, lastRebootTimeBefore)
+		t.Fatalf("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, lastRebootTimeBefore)
 	}
 
 }
