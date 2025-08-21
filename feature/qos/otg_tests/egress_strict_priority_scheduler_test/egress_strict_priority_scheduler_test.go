@@ -60,7 +60,7 @@ func TestEgressStrictPrioritySchedulerTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	t.Logf("Configuring TCAM Profile")
-	cfgplugins.ConfigureTcamProfile(t, dut)
+	cfgplugins.ConfigureTcamProfile(t, dut, cfgplugins.TcamProfileMplsTracking)
 
 	t.Logf("Configuring QoS Global parameters")
 	cfgplugins.NewQosInitialize(t, dut)
