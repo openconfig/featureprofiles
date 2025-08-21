@@ -59,8 +59,8 @@ func TestMain(m *testing.M) {
 func TestEgressStrictPrioritySchedulerBurstTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	t.Logf("Configuring TCAM Profile")
-	cfgplugins.ConfigureTcamProfile(t, dut, cfgplugins.TcamProfileMplsTracking)
+	t.Logf("Configuring Hardware Init")
+	configureHardwareInit(t, dut)
 
 	t.Logf("Configuring QoS Global parameters")
 	configureQoSGlobalParams(t, dut)
@@ -2615,6 +2615,14 @@ func configureMplsExpClassifierCLI(t *testing.T, dut *ondatra.DUTDevice, classif
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("Failed to set QoS Exp mappings from CLI: %v", err)
 	}
+}
+
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureMplsTracking)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 }
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
