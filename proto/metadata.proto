@@ -909,6 +909,9 @@ message Metadata {
     // Devices that must have OTN to ETH assignment.
     // Arista : https://partnerissuetracker.corp.google.com/issues/434922681
     bool otn_to_eth_assignment = 317;
+    
+    // Devices that do not support import export policies configured in network instance
+    bool network_instance_import_export_policy_oc_unsuppored = 318;
 
     // Device does not support 'origin' field in gNMI/gNOI RPC paths.
     // Arista: https://partnerissuetracker.corp.google.com/issues/439656904

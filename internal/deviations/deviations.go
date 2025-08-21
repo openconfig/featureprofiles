@@ -1607,3 +1607,8 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 func SkipOrigin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipOrigin()
 }
+
+// NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
+func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+}
