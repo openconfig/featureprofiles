@@ -481,7 +481,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
-		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original Outer ttl is 100, after decap decrement -1, and copy from outer to inner 
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
@@ -626,7 +626,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
-		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original Outer ttl is 100, after decap decrement -1, and copy from outer to inner
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
