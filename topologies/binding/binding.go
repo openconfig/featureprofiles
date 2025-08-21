@@ -223,9 +223,9 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			},
 		}
 	case binding.KeyAuth:
-		signer, err := ssh.ParsePrivateKey(auth.Key)
-		if err != nil {
-			return nil, fmt.Errorf("parsing private key failed: %v", err)
+		var signer ssh.Signer
+		if err := ssh.Unmarshal(auth.Key, signer); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal private key: %v", err)
 		}
 		config = &ssh.ClientConfig{
 			User: auth.User,
