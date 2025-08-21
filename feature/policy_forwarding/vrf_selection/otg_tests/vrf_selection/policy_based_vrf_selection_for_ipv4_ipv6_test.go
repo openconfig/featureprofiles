@@ -17,7 +17,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -110,15 +109,15 @@ var (
 	dutInterfaceMap = map[string]bool{}
 
 	interfaceCounterPackets = map[string]uint64{}
-	vrfToInterfaceMap       = map[string]string{}
+	niToInterfaceMap        = map[string]string{}
 
 	pktCountError = uint64(pktCountErrorPct * noOfPackets)
 
 	sourcePort                = ate1Port1
 	defaultDestinationPort    = ate2Port1
 	nonDefaultDestinationPort = ate2Port2
-	nonDefaultVRF             = "NonDefaultVRF"
-	defaultVRF                = ""
+	nonDefaultNIName          = "NonDefaultNI"
+	defaultNIName             = ""
 )
 
 type testCase struct {
@@ -134,7 +133,7 @@ func TestPolicyBasedVRFSelection(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
-	defaultVRF = deviations.DefaultNetworkInstance(dut)
+	defaultNIName = deviations.DefaultNetworkInstance(dut)
 
 	configureDUT(t, dut)
 	config := configureATE(t, ate)
@@ -144,63 +143,63 @@ func TestPolicyBasedVRFSelection(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), config, IPv4)
 	otgutils.WaitForARP(t, ate.OTG(), config, IPv6)
 
-	verifyBGP(t, dut, dutPort1, ate1Port1, defaultVRF)
-	verifyBGP(t, dut, dutPort2, ate2Port1, defaultVRF)
-	verifyBGP(t, dut, dutPort3, ate2Port2, nonDefaultVRF)
+	verifyBGP(t, dut, ate1Port1, defaultNIName)
+	verifyBGP(t, dut, ate2Port1, defaultNIName)
+	verifyBGP(t, dut, ate2Port2, nonDefaultNIName)
 
 	dp2 := dut.Port(t, "port2")
 	dp3 := dut.Port(t, "port3")
 
-	vrfToInterfaceMap[defaultVRF] = dp2.Name()
-	vrfToInterfaceMap[nonDefaultVRF] = dp3.Name()
+	niToInterfaceMap[defaultNIName] = dp2.Name()
+	niToInterfaceMap[nonDefaultNIName] = dp3.Name()
 
-	verifyRoutes(t, dut, defaultVRF)
-	verifyRoutes(t, dut, nonDefaultVRF)
+	verifyRoutes(t, dut, defaultNIName)
+	verifyRoutes(t, dut, nonDefaultNIName)
 
 	testCases := []testCase{
 		{
 			name: "PF-1.6.1: Default VRF for all flows with regular traffic profile",
 			vrfRules: []cfgplugins.VrfRule{
-				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, VrfName: defaultVRF},
-				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, VrfName: defaultVRF},
-				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, VrfName: defaultVRF},
-				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, VrfName: defaultVRF},
+				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, NetInstName: defaultNIName},
+				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, NetInstName: defaultNIName},
+				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, NetInstName: defaultNIName},
+				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, NetInstName: defaultNIName},
 			},
 		},
 		{
 			name: "PF-1.6.2: Traffic from ATE1 to ATE2, 1 Prefix migrated to Non-Default VRF using the VRF selection policy",
 			vrfRules: []cfgplugins.VrfRule{
-				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, VrfName: defaultVRF},
-				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, VrfName: defaultVRF},
-				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, VrfName: defaultVRF},
+				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, NetInstName: defaultNIName},
+				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, NetInstName: defaultNIName},
+				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, NetInstName: defaultNIName},
 			},
 		},
 		{
 			name: "PF-1.6.3: Traffic from ATE1 to ATE2, 2 Prefixes migrated to Non-Default VRF using the VRF selection policy",
 			vrfRules: []cfgplugins.VrfRule{
-				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, VrfName: defaultVRF},
-				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, VrfName: defaultVRF},
+				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, NetInstName: defaultNIName},
+				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, NetInstName: defaultNIName},
 			},
 		},
 		{
 			name: "PF-1.6.4: Traffic from ATE1 to ATE2, 3 Prefixes migrated to Non-Default VRF using the VRF selection policy",
 			vrfRules: []cfgplugins.VrfRule{
-				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, VrfName: defaultVRF},
+				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, NetInstName: defaultNIName},
 			},
 		},
 		{
 			name: "PF-1.6.5: Traffic from ATE1 to ATE2, 4 Prefixes migrated to Non-Default VRF using the VRF selection policy",
 			vrfRules: []cfgplugins.VrfRule{
-				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, VrfName: nonDefaultVRF},
-				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, VrfName: nonDefaultVRF},
+				{Index: 1, IpType: IPv4, SourcePrefix: ipv4Prefix1, PrefixLength: ipv4PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 2, IpType: IPv4, SourcePrefix: ipv4Prefix2, PrefixLength: ipv4PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 3, IpType: IPv6, SourcePrefix: ipv6Prefix3, PrefixLength: ipv6PrefixLen, NetInstName: nonDefaultNIName},
+				{Index: 4, IpType: IPv6, SourcePrefix: ipv6Prefix4, PrefixLength: ipv6PrefixLen, NetInstName: nonDefaultNIName},
 			},
 		},
 	}
@@ -216,13 +215,13 @@ func configureFlows(t *testing.T, config *gosnappi.Config, tc testCase) {
 	(*config).Flows().Clear()
 	for _, rule := range tc.vrfRules {
 		var destinationPort attrs.Attributes
-		switch rule.VrfName {
-		case defaultVRF:
+		switch rule.NetInstName {
+		case defaultNIName:
 			destinationPort = defaultDestinationPort
-		case nonDefaultVRF:
+		case nonDefaultNIName:
 			destinationPort = nonDefaultDestinationPort
 		default:
-			t.Fatalf("Invalid VRF name %s in rule %d", rule.VrfName, rule.Index)
+			t.Fatalf("Invalid VRF name %s in rule %d", rule.NetInstName, rule.Index)
 		}
 		flowName := fmt.Sprintf("%sPrefix%d", rule.IpType, rule.Index)
 		flow := (*config).Flows().Add().SetName(flowName)
@@ -255,8 +254,8 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, tc testCase, ate *ondatra.ATE
 	otg := ate.OTG()
 	t.Logf("Configuring Policy Forwarding for testcase %s", tc.name)
 	interfaceName := dut.Port(t, "port1").Name()
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config())
-	cfgplugins.ConfigureVrfSelectionPolicy(t, dut, defaultVRF, vrfSelectionPolicyName, interfaceName, tc.vrfRules)
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(defaultNIName).PolicyForwarding().Config())
+	configureVrfSelectionPolicy(t, dut, defaultNIName, vrfSelectionPolicyName, interfaceName, tc.vrfRules)
 
 	configureFlows(t, &config, tc)
 
@@ -270,6 +269,13 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, tc testCase, ate *ondatra.ATE
 	}
 	verifyDutInterfaceCounters(t, dut, tc)
 	verifyFlowStatistics(t, ate, config)
+}
+
+func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, niName, policyName, interfaceName string, vrfRules []cfgplugins.VrfRule) {
+	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(niName)
+	cfgplugins.ConfigureVrfSelectionPolicy(t, dut, pf, policyName, vrfRules)
+	cfgplugins.ApplyVrfSelectionPolicyToInterfaceOC(t, pf, interfaceName, policyName)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(niName).Config(), ni)
 }
 
 func verifyFlowStatistics(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
@@ -312,72 +318,47 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutInterfaceMap[dp2.Name()] = egress
 	dutInterfaceMap[dp3.Name()] = egress
 
-	t.Logf("Configuring TCAM profile")
-	cfgplugins.ConfigureTcamProfile(t, dut, cfgplugins.TcamProfileVrfSelectionExtended)
+	t.Logf("Configuring Hardware Init")
+	configureHardwareInit(t, dut)
 
-	cfgplugins.EnableDefaultVrfBgp(t, dut, dutDefaultAS)
+	cfgplugins.EnableDefaultNetworkInstanceBgp(t, dut, dutDefaultAS)
 	isDefaultVrf := true
-	t.Logf("Configuring VRFs")
-	cfgplugins.ConfigureVrfWithBgp(t, dut, defaultVRF, isDefaultVrf, dp1.Name(), dutPort1.IPv4, ate1Port1.IPv4, dutDefaultAS, dutDefaultAS, IPv4)
-	cfgplugins.ConfigureVrfWithBgp(t, dut, defaultVRF, isDefaultVrf, dp2.Name(), dutPort2.IPv4, ate2Port1.IPv4, dutDefaultAS, ateAS1, IPv4)
-	cfgplugins.ConfigureVrfWithBgp(t, dut, defaultVRF, isDefaultVrf, dp2.Name(), dutPort2.IPv4, ate2Port1.IPv6, dutDefaultAS, ateAS1, IPv6)
-	cfgplugins.ConfigureVrfWithBgp(t, dut, nonDefaultVRF, !isDefaultVrf, dp3.Name(), dutPort3.IPv4, ate2Port2.IPv4, dutNonDefaultAS, ateAS2, IPv4)
-	cfgplugins.ConfigureVrfWithBgp(t, dut, nonDefaultVRF, !isDefaultVrf, dp3.Name(), dutPort3.IPv4, ate2Port2.IPv6, dutNonDefaultAS, ateAS2, IPv6)
+	t.Logf("Configuring Network Instances")
+	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, defaultNIName, isDefaultVrf)
+	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, nonDefaultNIName, !isDefaultVrf)
+
+	t.Logf("Configuring BGP")
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv4, ate1Port1.IPv4, dutDefaultAS, dutDefaultAS, IPv4, true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, ate2Port1.IPv4, dutDefaultAS, ateAS1, IPv4, true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, ate2Port1.IPv6, dutDefaultAS, ateAS1, IPv6, true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort3.IPv4, ate2Port2.IPv4, dutNonDefaultAS, ateAS2, IPv4, true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort3.IPv4, ate2Port2.IPv6, dutNonDefaultAS, ateAS2, IPv6, true)
+
+	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, defaultNIName, defaultNI)
+	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, nonDefaultNIName, nonDefaultNI)
 
 	t.Logf("Configuring Interfaces")
-	configureDUTPort(t, dut, &dutPort1, dp1, defaultVRF)
-	configureDUTPort(t, dut, &dutPort2, dp2, defaultVRF)
-	configureDUTPort(t, dut, &dutPort3, dp3, nonDefaultVRF)
+	configureDUTPort(t, dut, &dutPort1, dp1, defaultNIName)
+	configureDUTPort(t, dut, &dutPort2, dp2, defaultNIName)
+	configureDUTPort(t, dut, &dutPort3, dp3, nonDefaultNIName)
+}
+
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 }
 
 func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port, niName string) {
 	d := gnmi.OC()
+	cfgplugins.AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
 	i := attrs.NewOCInterface(p.Name(), dut)
-	i.Description = ygot.String(attrs.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	i.GetOrCreateEthernet()
-	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
-	a := i4.GetOrCreateAddress(attrs.IPv4)
-	a.PrefixLength = ygot.Uint8(attrs.IPv4Len)
-
-	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	i6.Enabled = ygot.Bool(true)
-	a6 := i6.GetOrCreateAddress(attrs.IPv6)
-	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
-
 	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), i)
-	AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p)
-	}
 }
 
-func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
-	t.Helper()
-	if ni == "" {
-		t.Fatalf("Network instance not provided for interface assignment")
-	}
-	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
-	intf := &oc.Interface{Name: ygot.String(i)}
-	netInstIntf, err := netInst.NewInterface(intf.GetName())
-	if err != nil {
-		t.Errorf("Error fetching NewInterface for %s", intf.GetName())
-	}
-	netInstIntf.Interface = ygot.String(intf.GetName())
-	netInstIntf.Subinterface = ygot.Uint32(si)
-	netInstIntf.Id = ygot.String(intf.GetName())
-	if intf.GetOrCreateSubinterface(si) != nil {
-		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
-	}
-}
-
-func verifyBGP(t *testing.T, dut *ondatra.DUTDevice, dutPort, otgPort attrs.Attributes, vrfName string) {
+func verifyBGP(t *testing.T, dut *ondatra.DUTDevice, otgPort attrs.Attributes, vrfName string) {
 	bgpPath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	t.Logf("Waiting for BGP session to be ESTABLISHED in %s", vrfName)
@@ -411,7 +392,7 @@ func verifyDutInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, tc testCas
 	expectedIngressPkts := uint64(totalFlowCount * noOfPackets)
 	expectedEgressPacketsPerVRF := make(map[string]uint64)
 	for _, rule := range tc.vrfRules {
-		expectedEgressPacketsPerVRF[vrfToInterfaceMap[rule.VrfName]] += uint64(noOfPackets)
+		expectedEgressPacketsPerVRF[niToInterfaceMap[rule.NetInstName]] += uint64(noOfPackets)
 	}
 
 	for intfName, direction := range dutInterfaceMap {

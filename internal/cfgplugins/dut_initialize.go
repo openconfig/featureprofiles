@@ -23,8 +23,14 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+type FeatureType int
+
 const (
-	TcamProfileMplsTracking = `
+	FeatureMplsTracking FeatureType = iota
+	FeatureVrfSelectionExtended
+	FeaturePolicyForwarding
+
+	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
 !
 hardware tcam
@@ -164,7 +170,7 @@ hardware tcam
 !
 `
 
-	TcamProfileVrfSelectionExtended = `
+	aristaTcamProfileVrfSelectionExtended = `
 hardware tcam
    profile vrf-selection-with-ip6-sip
       feature acl port ip
@@ -324,7 +330,7 @@ hardware tcam
 	  !
 	system profile vrf-selection-with-ip6-sip
 `
-	TcamProfilePolicyForwarding = `
+	aristaTcamProfilePolicyForwarding = `
     hardware tcam
   	profile tcam-policy-forwarding
       feature traffic-policy port ipv4
@@ -356,6 +362,14 @@ hardware tcam
     `
 )
 
+var (
+	aristaTcamProfileMap = map[FeatureType]string{
+		FeatureMplsTracking:         aristaTcamProfileMplsTracking,
+		FeatureVrfSelectionExtended: aristaTcamProfileVrfSelectionExtended,
+		FeaturePolicyForwarding:     aristaTcamProfilePolicyForwarding,
+	}
+)
+
 func buildCliSetRequest(config string) *gpb.SetRequest {
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
@@ -375,20 +389,27 @@ func buildCliSetRequest(config string) *gpb.SetRequest {
 	return gpbSetRequest
 }
 
-func ConfigureTcamProfile(t *testing.T, dut *ondatra.DUTDevice, tcamProfileConfig string) {
+func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureType) string {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		if strings.ToLower(dut.Model()) == "ceos" {
-			t.Fatalf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
+			return ""
 		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		t.Logf("Push the Tcam profile:%s", dut.Vendor())
-		gpbSetRequest := buildCliSetRequest(tcamProfileConfig)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Failed to set TCAM profile from CLI: %v", err)
-		}
+		return aristaTcamProfileMap[feature]
 	default:
-		t.Fatalf("TCAM profile not supported on %s %s", dut.Name(), dut.Model())
+		return ""
 	}
+}
 
+func PushDUTHardwareInitConfig(t *testing.T, dut *ondatra.DUTDevice, hardwareInitConf string) {
+	if hardwareInitConf == "" {
+		t.Logf("No hardware init config provided")
+		return
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	t.Log("Pushing hardware init config")
+	gpbSetRequest := buildCliSetRequest(hardwareInitConf)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("Failed to set hardware init config: %v", err)
+	}
 }
