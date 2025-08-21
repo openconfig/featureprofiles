@@ -193,6 +193,9 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		return err
 	}
 
+	if _, err = ts.AwaitAdjacency(); err != nil {
+		return fmt.Errorf("no IS-IS adjacency formed: %v", err)
+	}
 	return nil
 }
 
@@ -271,23 +274,6 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 	return niProtocol
 }
 
-func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
-	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT").Isis()
-
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		dutIntf = dutIntf + ".0"
-	}
-	nbrPath := statePath.Interface(dutIntf)
-	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-		state, present := val.Val()
-		return present && state == oc.Isis_IsisInterfaceAdjState_UP
-	}).Await(t)
-	if !ok {
-		t.Fatalf("IS-IS state on %v has no adjacencies", dutIntf)
-	}
-}
 func (tc *testCase) waitForBGPSession(t *testing.T) error {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateP2.IPv4)
@@ -600,8 +586,6 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
 	tc.configureATE(t)
-
-	verifyISISTelemetry(t, dut, dut.Port(t, "port1").Name())
 
 	t.Log("Waiting for BGP neighbor to establish...")
 	if err := tc.waitForBGPSession(t); err != nil {
