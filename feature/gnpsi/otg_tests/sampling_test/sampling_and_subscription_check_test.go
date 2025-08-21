@@ -1,9 +1,8 @@
 package sampling_test
 
 import (
-	"context"
 	"fmt"
-	"os"
+	"net"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,6 +19,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gnpsi/proto/gnpsi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
@@ -31,29 +31,29 @@ import (
 )
 
 const (
-	sampleSize                        = 256
-	grpcPort                          = 6070
-	trafficTime                       = 30 * time.Second
-	IPv4                              = "IPv4"
-	IPv6                              = "IPv6"
-	samplingRate                      = 1000000
-	packetRate                        = 500000
-	defaultPacketsToSend       uint32 = 6000000
-	flowCountTolerancePct             = 0.5
-	samplesThresholdForRestart        = 5
-	subscriptionTolerance             = 2
-	gnpsiClientsInParallel            = 2
-	reconnectRetries                  = 5
-	reconnectWaitTime                 = 3 * time.Second
-	profileName                       = "gnpsiProf"
-	certFile                          = "gnpsi.crt"
-	keyFile                           = "gnpsi.key"
+	sampleSize                    = 256
+	trafficTime                   = 30 * time.Second
+	ipv4                          = "IPv4"
+	ipv6                          = "IPv6"
+	port1                         = "port1"
+	port2                         = "port2"
+	samplingRate                  = 1000000
+	packetRate                    = 500000
+	defaultPacketsToSend   uint32 = 6000000
+	flowCountTolerancePct         = 0.5
+	subscriptionTolerance         = 2
+	gnpsiClientsInParallel        = 2
+	reconnectRetries              = 5
+	reconnectWaitTime             = 3 * time.Second
+	profileName                   = "gnpsiProf"
+	certFile                      = "gnpsi.crt"
+	keyFile                       = "gnpsi.key"
 )
 
 var (
 	// DUT ports
 	dutPort1 = attrs.Attributes{
-		Name:    "port1",
+		Name:    port1,
 		Desc:    "Dut port 1",
 		IPv4:    "192.168.1.1",
 		IPv4Len: 30,
@@ -62,7 +62,7 @@ var (
 	}
 
 	dutPort2 = attrs.Attributes{
-		Name:    "port2",
+		Name:    port2,
 		Desc:    "Dut port 2",
 		IPv4:    "192.168.1.5",
 		IPv4Len: 30,
@@ -70,17 +70,9 @@ var (
 		IPv6Len: 126,
 	}
 
-	dutlo0Attrs = attrs.Attributes{
-		Name:    "Loopback0",
-		IPv4:    "192.0.20.2",
-		IPv6:    "2001:DB8:0::10",
-		IPv4Len: 32,
-		IPv6Len: 128,
-	}
-
 	// ATE ports
 	otgPort1 = attrs.Attributes{
-		Name:    "port1",
+		Name:    port1,
 		Desc:    "Otg port 1",
 		MAC:     "00:01:12:00:00:01",
 		IPv4:    "192.168.1.2",
@@ -90,7 +82,7 @@ var (
 	}
 
 	otgPort2 = attrs.Attributes{
-		Name:    "port2",
+		Name:    port2,
 		Desc:    "Otg port 2",
 		MAC:     "00:01:12:00:00:02",
 		IPv4:    "192.168.1.6",
@@ -99,14 +91,23 @@ var (
 		IPv6Len: 126,
 	}
 
-	adjustedFrameSizeMap = map[uint32]map[string]uint32{
-		64: {"IPv4": 66, "IPv6": 86},
+	defaultLoopbackAttrs = attrs.Attributes{
+		Desc:    "Default loopback interface attributes",
+		IPv4:    "192.0.20.2",
+		IPv4Len: 32,
 	}
 
-	atePortPair = []attrs.Attributes{otgPort1, otgPort2}
+	dutLoopbackAttrs attrs.Attributes
+
+	//adjustedFrameSizeMap contains the actual size that the SFlow packet is reporting for a specific frame size
+	//This size depends on the ip type of the packet
+	//If a value is not contained in the map it is expected that the SFlow packet reported size is equal to the sent frame size
+	adjustedFrameSizeMap = map[uint32]map[string]uint32{
+		64: {ipv4: 66, ipv6: 86},
+	}
 )
 
-type sflowPacket struct {
+type sFlowPacket struct {
 	ingressIntf  uint32
 	egressIntf   uint32
 	samplingRate uint32
@@ -137,19 +138,16 @@ func TestSamplingAndSubscription(t *testing.T) {
 
 	configureDUT(t, dut)
 
-	ap1 := ate.Port(t, "port1")
-	ap2 := ate.Port(t, "port2")
-
-	grpcAddress := fmt.Sprintf("%s:%d", dut.Name(), grpcPort)
-	t.Logf("gNPSI server address: %s", grpcAddress)
+	ap1 := ate.Port(t, port1)
+	ap2 := ate.Port(t, port2)
 
 	otgPort1.AddToOTG(top, ap1, &dutPort1)
 	otgPort2.AddToOTG(top, ap2, &dutPort2)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+	otgutils.WaitForARP(t, ate.OTG(), top, ipv4)
+	otgutils.WaitForARP(t, ate.OTG(), top, ipv6)
 
 	testCases := []testCase{{
 		name: "gNPSI 1.1: Validate DUT configuration of gNPSI server, connect OTG client and verify samples",
@@ -179,40 +177,46 @@ func verifySFlowSamplesMultipleFlows(t *testing.T, ate *ondatra.ATEDevice, dut *
 
 	flowConfigs := []flowConfig{
 		{
-			name:      "FlowIPv4_64",
-			ipType:    IPv4,
-			frameSize: 64,
+			name:          "FlowIPv4_64",
+			ipType:        ipv4,
+			frameSize:     64,
+			packetsToSend: defaultPacketsToSend,
 		}, {
-			name:      "FlowIPv6_64",
-			ipType:    IPv6,
-			frameSize: 64,
+			name:          "FlowIPv6_64",
+			ipType:        ipv6,
+			frameSize:     64,
+			packetsToSend: defaultPacketsToSend,
 		}, {
-			name:      "FlowIPv4_512",
-			ipType:    IPv4,
-			frameSize: 512,
+			name:          "FlowIPv4_512",
+			ipType:        ipv4,
+			frameSize:     512,
+			packetsToSend: defaultPacketsToSend,
 		}, {
-			name:      "FlowIPv6_512",
-			ipType:    IPv6,
-			frameSize: 512,
+			name:          "FlowIPv6_512",
+			ipType:        ipv6,
+			frameSize:     512,
+			packetsToSend: defaultPacketsToSend,
 		}, {
-			name:      "FlowIPv4_1500",
-			ipType:    IPv4,
-			frameSize: 1500,
+			name:          "FlowIPv4_1500",
+			ipType:        ipv4,
+			frameSize:     1500,
+			packetsToSend: defaultPacketsToSend,
 		}, {
-			name:      "FlowIPv6_1500",
-			ipType:    IPv6,
-			frameSize: 1500,
+			name:          "FlowIPv6_1500",
+			ipType:        ipv6,
+			frameSize:     1500,
+			packetsToSend: defaultPacketsToSend,
 		},
 	}
 
 	gnpsiclient := dut.RawAPIs().GNPSI(t)
-	stream, err := gnpsiclient.Subscribe(context.Background(), &gnpsi.Request{})
+	stream, err := gnpsiclient.Subscribe(t.Context(), &gnpsi.Request{})
 	if err != nil {
 		t.Fatalf("Failed to connect to gNPSI server: %v", err)
 	}
 
-	wrapSFlowPacket := func(record layers.SFlowRawPacketFlowRecord, flow layers.SFlowFlowSample) sflowPacket {
-		return sflowPacket{
+	wrapSFlowPacket := func(record layers.SFlowRawPacketFlowRecord, flow layers.SFlowFlowSample) sFlowPacket {
+		return sFlowPacket{
 			ingressIntf:  flow.InputInterface,
 			egressIntf:   flow.OutputInterface,
 			samplingRate: flow.SamplingRate,
@@ -228,13 +232,12 @@ func verifySFlowSamplesMultipleFlows(t *testing.T, ate *ondatra.ATEDevice, dut *
 
 		sampleCount := 0
 		samplesWithFlows := 0
-		sflowPacketsToValidate := []sflowPacket{}
+		sFlowPacketsToValidate := []sFlowPacket{}
 		t.Logf("Starting traffic for %s", fc.name)
 		go func() {
 			otg.StartTraffic(t)
 			waitForTraffic(t, otg, fc.name, trafficTime)
 		}()
-		time.Sleep(2 * time.Second)
 		timeout := time.After(trafficTime)
 		continueLoop := true
 		for continueLoop {
@@ -244,46 +247,49 @@ func verifySFlowSamplesMultipleFlows(t *testing.T, ate *ondatra.ATEDevice, dut *
 				if sampleCount == 0 {
 					t.Errorf("[ERROR] No samples received from gNPSI")
 				} else {
-					t.Logf("Total SFlow packets: %d", len(sflowPacketsToValidate))
-					checkSFlowPackets(t, dut, sflowPacketsToValidate, fc)
+					t.Logf("Total SFlow packets: %d", len(sFlowPacketsToValidate))
+					checkSFlowPackets(t, dut, sFlowPacketsToValidate, fc)
 				}
 				continueLoop = false
 			default:
 				resp, err := stream.Recv()
 				if err != nil {
-					t.Errorf("[ERROR] Error receiving gNPSI sample: %v", err)
-					continue
+					t.Fatalf("[ERROR] Error receiving gNPSI sample: %v", err)
 				}
 				sampleCount++
 				t.Logf("Received gNPSI sample no %d:", sampleCount)
-				if len(resp.Packet) > 0 {
-					sflow := new(layers.SFlowDatagram)
-					err := sflow.DecodeFromBytes(resp.Packet, gopacket.NilDecodeFeedback)
-					if err != nil {
-						t.Errorf("[ERROR] Failed to decode SFlow packet: %v", err)
-						continue
-					}
-					if len(sflow.FlowSamples) > 0 {
-						t.Logf("Found flow samples in this SFlow packet")
-						samplesWithFlows++
-						for _, flow := range sflow.FlowSamples {
-							for _, record := range flow.Records {
-								switch r := record.(type) {
-								case layers.SFlowRawPacketFlowRecord:
-									sflowPacketsToValidate = append(sflowPacketsToValidate, wrapSFlowPacket(r, flow))
-								case layers.SFlowExtendedSwitchFlowRecord:
-									continue
-								case layers.SFlowExtendedRouterFlowRecord:
-									continue
-								default:
-									t.Logf("Unknown record type: %T, value: %+v", r, r)
-								}
-							}
+				if len(resp.Packet) == 0 {
+					t.Logf("[ERROR] No packet data in gNPSI sample")
+					continue
+				}
+				sFlow := new(layers.SFlowDatagram)
+				err = sFlow.DecodeFromBytes(resp.Packet, gopacket.NilDecodeFeedback)
+				if err != nil {
+					t.Errorf("[ERROR] Failed to decode SFlow packet: %v", err)
+					continue
+				}
+				if len(sFlow.FlowSamples) == 0 {
+					t.Logf("No flow samples in this SFlow packet")
+					continue
+				}
+
+				t.Logf("Found flow samples in this SFlow packet")
+				samplesWithFlows++
+				for _, flow := range sFlow.FlowSamples {
+					for _, record := range flow.Records {
+						switch r := record.(type) {
+						case layers.SFlowRawPacketFlowRecord:
+							sFlowPacketsToValidate = append(sFlowPacketsToValidate, wrapSFlowPacket(r, flow))
+						case layers.SFlowExtendedSwitchFlowRecord:
+							continue
+						case layers.SFlowExtendedRouterFlowRecord:
+							continue
+						default:
+							t.Logf("Unknown record type: %T, value: %+v", r, r)
 						}
-					} else {
-						t.Logf("No flow samples in this SFlow packet")
 					}
 				}
+
 			}
 		}
 		otgutils.LogFlowMetrics(t, otg, top)
@@ -294,7 +300,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 	otg := ate.OTG()
 	flow := flowConfig{
 		name:          "Flow_TC2_IPv4_256",
-		ipType:        IPv4,
+		ipType:        ipv4,
 		frameSize:     256,
 		packetsToSend: 10000000,
 	}
@@ -307,7 +313,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 
 	for range gnpsiClientsInParallel {
 		gnpsiclient := dut.RawAPIs().GNPSI(t)
-		stream, err := gnpsiclient.Subscribe(context.Background(), &gnpsi.Request{})
+		stream, err := gnpsiclient.Subscribe(t.Context(), &gnpsi.Request{})
 		if err != nil {
 			t.Fatalf("Failed to connect to gNPSI server: %v", err)
 		}
@@ -370,15 +376,15 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 			t.Logf("Received gNPSI sample no %d from client %d", sampleCountPerClient[index], index+1)
 			sampleCountPerClient[index]++
 			if len(resp.Packet) > 0 {
-				sflow := new(layers.SFlowDatagram)
-				err := sflow.DecodeFromBytes(resp.Packet, gopacket.NilDecodeFeedback)
+				sFlow := new(layers.SFlowDatagram)
+				err := sFlow.DecodeFromBytes(resp.Packet, gopacket.NilDecodeFeedback)
 				if err != nil {
 					t.Errorf("[ERROR] Failed to decode SFlow packet: %v", err)
 					continue
 				}
-				if len(sflow.FlowSamples) > 0 {
+				if len(sFlow.FlowSamples) > 0 {
 					t.Logf("Found flow samples in this SFlow packet")
-					for _, flow := range sflow.FlowSamples {
+					for _, flow := range sFlow.FlowSamples {
 						for _, record := range flow.Records {
 							switch r := record.(type) {
 							case layers.SFlowRawPacketFlowRecord:
@@ -405,7 +411,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 	otg := ate.OTG()
 	flow := flowConfig{
 		name:          "Flow_TC3_IPv4_256",
-		ipType:        IPv4,
+		ipType:        ipv4,
 		frameSize:     256,
 		packetsToSend: 20000000,
 	}
@@ -415,7 +421,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 	otg.StartProtocols(t)
 
 	gnpsiclient := dut.RawAPIs().GNPSI(t)
-	stream, err := gnpsiclient.Subscribe(context.Background(), &gnpsi.Request{})
+	stream, err := gnpsiclient.Subscribe(t.Context(), &gnpsi.Request{})
 	if err != nil {
 		t.Fatalf("Failed to connect to gNPSI server: %v", err)
 	}
@@ -442,7 +448,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 				if reconnect {
 					t.Logf("Received %d samples before reconnect", sampleCount)
 					stream.CloseSend()
-					stream, err = gnpsiclient.Subscribe(context.Background(), &gnpsi.Request{})
+					stream, err = gnpsiclient.Subscribe(t.Context(), &gnpsi.Request{})
 					if err != nil {
 						t.Fatalf("Failed to reconnect to gNPSI server: %v", err)
 						return
@@ -476,7 +482,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	otg := ate.OTG()
 	flow := flowConfig{
 		name:          "Flow_TC4_IPv4_256",
-		ipType:        IPv4,
+		ipType:        ipv4,
 		frameSize:     256,
 		packetsToSend: 20000000,
 	}
@@ -486,7 +492,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	otg.StartProtocols(t)
 
 	gnpsiclient := dut.RawAPIs().GNPSI(t)
-	stream, err := gnpsiclient.Subscribe(context.Background(), &gnpsi.Request{})
+	stream, err := gnpsiclient.Subscribe(t.Context(), &gnpsi.Request{})
 	if err != nil {
 		t.Fatalf("Failed to connect to gNPSI server: %v", err)
 	}
@@ -539,7 +545,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 						t.Logf("gNPSI service is unavailable, trying to reconnect")
 						reconnected := false
 						for range reconnectRetries {
-							stream, err = gnpsiclient.Subscribe(context.Background(), &gnpsi.Request{})
+							stream, err = gnpsiclient.Subscribe(t.Context(), &gnpsi.Request{})
 							if err == nil {
 								t.Logf("Reconnected to gNPSI server successfully. Resetting sample count.")
 								sampleCount = 0
@@ -587,34 +593,30 @@ transport grpc test
 	}
 }
 
-func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sflowPackets []sflowPacket, flowConfig flowConfig) {
+func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets []sFlowPacket, flowConfig flowConfig) {
 	expectedSFlowCount := int(flowConfig.packetsToSend / samplingRate)
 	flowCountTolerance := int(float32(expectedSFlowCount)*flowCountTolerancePct) + 1
-	if len(sflowPackets) < expectedSFlowCount-flowCountTolerance || len(sflowPackets) > expectedSFlowCount+flowCountTolerance {
+	if len(sFlowPackets) < expectedSFlowCount-flowCountTolerance || len(sFlowPackets) > expectedSFlowCount+flowCountTolerance {
 		t.Errorf("[ERROR] Unexpected number of sFlow packets: got %d, want %d ± %d",
-			len(sflowPackets), expectedSFlowCount, flowCountTolerance)
+			len(sFlowPackets), expectedSFlowCount, flowCountTolerance)
 	} else {
-		t.Logf("Received sFlow packets: %d, within expected range %d ± %d ", len(sflowPackets), expectedSFlowCount, flowCountTolerance)
+		t.Logf("Received sFlow packets: %d, within expected range %d ± %d ", len(sFlowPackets), expectedSFlowCount, flowCountTolerance)
 	}
 
-	processInterfaceNumber := func(dut *ondatra.DUTDevice, intfName string) uint32 {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			if strings.HasPrefix(intfName, "Ethernet") {
-				num, _ := strings.CutPrefix(intfName, "Ethernet")
-				parts := strings.Split(num, "/")
-				if len(parts) == 2 {
-					slot, _ := strconv.Atoi(parts[0])
-					port, _ := strconv.Atoi(parts[1])
-					return uint32(slot*1000 + port)
-				}
-			}
+	for index, sFlowPkt := range sFlowPackets {
+		verifySFlowPacket(t, dut, sFlowPkt, flowConfig, index+1)
+		switch flowConfig.ipType {
+		case ipv4:
+			verifyIpv4SFlowSample(t, sFlowPkt)
+		case ipv6:
+			verifyIpv6SFlowSample(t, sFlowPkt)
 		}
-		return 0
 	}
+}
 
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
+func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacket, flowConfig flowConfig, pktIndex int) {
+	dp1 := dut.Port(t, port1)
+	dp2 := dut.Port(t, port2)
 	ingressIntf := processInterfaceNumber(dut, dp1.Name())
 	egressIntf := processInterfaceNumber(dut, dp2.Name())
 
@@ -623,68 +625,82 @@ func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sflowPackets []sflo
 		adjustedSize = adjustedValues[flowConfig.ipType]
 	}
 
-	for index, sflowPacket := range sflowPackets {
-		if sflowPacket.size != adjustedSize {
-			t.Errorf("[ERROR] SFlow packet size %d does not match expected frame size %d", sflowPacket.size, flowConfig.frameSize)
-		} else {
-			t.Logf("SFlow Packet %d: Size matches expected frame size %d", index+1, flowConfig.frameSize)
-		}
-		if sflowPacket.samplingRate != samplingRate {
-			t.Errorf("[ERROR] SFlow packet %d: Sampling rate %d does not match expected rate %d", index+1, sflowPacket.samplingRate, samplingRate)
-		} else {
-			t.Logf("SFlow Packet %d: Sampling rate matches expected rate %d", index+1, samplingRate)
-		}
+	if sFlowPkt.size != adjustedSize {
+		t.Errorf("[ERROR] SFlow packet size %d does not match expected frame size %d", sFlowPkt.size, flowConfig.frameSize)
+	}
+	if sFlowPkt.samplingRate != samplingRate {
+		t.Errorf("[ERROR] SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, samplingRate)
+	}
+	if sFlowPkt.ingressIntf != ingressIntf {
+		t.Errorf("[ERROR] SFlow packet %d: Ingress interface %d does not match expected interface %d", pktIndex, sFlowPkt.ingressIntf, ingressIntf)
+	}
+	if sFlowPkt.egressIntf != egressIntf {
+		t.Errorf("[ERROR] SFlow packet %d: Egress interface %d does not match expected interface %d", pktIndex, sFlowPkt.egressIntf, egressIntf)
+	}
 
-		if sflowPacket.ingressIntf != ingressIntf {
-			t.Errorf("[ERROR] SFlow packet %d: Ingress interface %d does not match expected interface %d", index+1, sflowPacket.ingressIntf, ingressIntf)
-		} else {
-			t.Logf("SFlow Packet %d: Ingress interface matches expected interface %d", index+1, ingressIntf)
-		}
+	t.Logf("SFlow Packet %d: Size %d, Sampling rate %d, Ingress interface %d, Egress interface %d", pktIndex, flowConfig.frameSize, samplingRate, ingressIntf, egressIntf)
+}
 
-		if sflowPacket.egressIntf != egressIntf {
-			t.Errorf("[ERROR] SFlow packet %d: Egress interface %d does not match expected interface %d", index+1, sflowPacket.egressIntf, egressIntf)
-		} else {
-			t.Logf("SFlow Packet %d: Egress interface matches expected interface %d", index+1, egressIntf)
-		}
+func verifyIpv4SFlowSample(t *testing.T, sFlowPkt sFlowPacket) {
+	ipLayer := sFlowPkt.packet.Layer(layers.LayerTypeIPv4)
+	if ipLayer == nil {
+		t.Errorf("[ERROR] No IPv4 layer found in packet")
+		return
+	}
+	ipv4, ok := ipLayer.(*layers.IPv4)
+	if !ok {
+		t.Errorf("[ERROR] Failed to extract IPv4 layer")
+		return
+	}
+	initialSrc := net.ParseIP(otgPort1.IPv4)
+	initialDst := net.ParseIP(otgPort2.IPv4)
+	t.Logf("Source IP: %s, Destination IP: %s", ipv4.SrcIP, ipv4.DstIP)
+	if !ipv4.SrcIP.Equal(initialSrc) || !ipv4.DstIP.Equal(initialDst) {
+		t.Errorf("[ERROR] IPv4 source or destination IP does not match expected values: got %s -> %s, want %s -> %s",
+			ipv4.SrcIP, ipv4.DstIP, otgPort1.IPv4, otgPort2.IPv4)
+	}
+}
 
-		switch flowConfig.ipType {
-		case IPv4:
-			ipLayer := sflowPacket.packet.Layer(layers.LayerTypeIPv4)
-			if ipLayer != nil {
-				ipv4 := ipLayer.(*layers.IPv4)
-				t.Logf("Source IP: %s, Destination IP: %s", ipv4.SrcIP, ipv4.DstIP)
-				if ipv4.SrcIP.String() != atePortPair[0].IPv4 || ipv4.DstIP.String() != atePortPair[1].IPv4 {
-					t.Errorf("[ERROR] IPv4 source or destination IP does not match expected values: got %s -> %s, want %s -> %s",
-						ipv4.SrcIP, ipv4.DstIP, atePortPair[0].IPv4, atePortPair[1].IPv4)
-				} else {
-					t.Logf("Sflow Packet %d: IPv4 source and destination IP match expected values", index+1)
-				}
+func verifyIpv6SFlowSample(t *testing.T, sFlowPkt sFlowPacket) {
+	ipLayer := sFlowPkt.packet.Layer(layers.LayerTypeIPv6)
+	if ipLayer == nil {
+		t.Errorf("[ERROR] No IPv6 layer found in packet")
+		return
+	}
+	ipv6, ok := ipLayer.(*layers.IPv6)
+	if !ok {
+		t.Errorf("[ERROR] Failed to extract IPv6 layer")
+		return
+	}
+	initialSrc := net.ParseIP(otgPort1.IPv6)
+	initialDst := net.ParseIP(otgPort2.IPv6)
+	t.Logf("Source IP: %s, Destination IP: %s", ipv6.SrcIP, ipv6.DstIP)
+	if !ipv6.SrcIP.Equal(initialSrc) || !ipv6.DstIP.Equal(initialDst) {
+		t.Errorf("[ERROR] IPv6 source or destination IP does not match expected values: got %s -> %s, want %s -> %s",
+			ipv6.SrcIP.String(), ipv6.DstIP.String(), otgPort1.IPv6, otgPort2.IPv6)
+	}
+}
 
-			} else {
-				t.Errorf("[ERROR] No IPv4 layer found in packet")
-			}
-		case IPv6:
-			ipLayer := sflowPacket.packet.Layer(layers.LayerTypeIPv6)
-			if ipLayer != nil {
-				ipv6 := ipLayer.(*layers.IPv6)
-				t.Logf("Source IP: %s, Destination IP: %s", ipv6.SrcIP, ipv6.DstIP)
-				if !strings.EqualFold(ipv6.SrcIP.String(), atePortPair[0].IPv6) || !strings.EqualFold(ipv6.DstIP.String(), atePortPair[1].IPv6) {
-					t.Errorf("[ERROR] IPv6 source or destination IP does not match expected values: got %s -> %s, want %s -> %s",
-						ipv6.SrcIP, ipv6.DstIP, atePortPair[0].IPv6, atePortPair[1].IPv6)
-				} else {
-					t.Logf("Sflow Packet %d: IPv6 source and destination IP match expected values", index+1)
-				}
-			} else {
-				t.Errorf("[ERROR] No IPv6 layer found in packet")
+func processInterfaceNumber(dut *ondatra.DUTDevice, intfName string) uint32 {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		if strings.HasPrefix(intfName, "Ethernet") {
+			num, _ := strings.CutPrefix(intfName, "Ethernet")
+			parts := strings.Split(num, "/")
+			if len(parts) == 2 {
+				slot, _ := strconv.Atoi(parts[0])
+				port, _ := strconv.Atoi(parts[1])
+				return uint32(slot*1000 + port)
 			}
 		}
 	}
+	return 0
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
+	dp1 := dut.Port(t, port1)
+	dp2 := dut.Port(t, port2)
 
 	t.Logf("Configuring Loopback Interface")
 	configureLoopbackInterface(t, dut)
@@ -694,14 +710,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDUTPort(t, dut, &dutPort2, dp2)
 
 	t.Log("Configuring SSL Profile")
-	configureSslProfile(t, dut, false)
+	configureSSLProfile(t, dut)
 
 	t.Log("Configuring sFlow")
 	configureSFlow(t, dut)
 
 	t.Log("Configuring gNPSI")
-	configureGnpsi(t, dut)
-
+	configureGNPSI(t, dut)
 }
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
@@ -722,29 +737,26 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
-	dutlo0Attrs.Name = loopbackIntfName
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loopIntf := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
+	dutLoopbackAttrs.Name = loopbackIntfName
+	loopbackIntf := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
+	ipv4Addrs := gnmi.LookupAll(t, dut, loopbackIntf.Ipv4().AddressAny().State())
+	if len(ipv4Addrs) == 0 {
+		loopIntf := defaultLoopbackAttrs.NewOCInterface(loopbackIntfName, dut)
 		loopIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loopIntf)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
+		dutLoopbackAttrs.IPv4 = defaultLoopbackAttrs.IPv4
+		return
 	}
+
+	v4, ok := ipv4Addrs[0].Val()
+	if !ok {
+		t.Fatalf("Unable to get loopback ipv4 address for %s", loopbackIntfName)
+	}
+	dutLoopbackAttrs.IPv4 = v4.GetIp()
+	t.Logf("Got DUT IPv4 loopback address: %v", dutLoopbackAttrs.IPv4)
 }
 
-func configureSslProfile(t *testing.T, dut *ondatra.DUTDevice, getCertificates bool) {
+func configureSSLProfile(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		cli := fmt.Sprintf(`
@@ -761,23 +773,6 @@ tls versions 1.2 1.3
 !
 `, keyFile, certFile, keyFile, profileName, certFile, keyFile, certFile)
 		helpers.GnmiCLIConfig(t, dut, cli)
-
-		if getCertificates {
-			certPath := "/persist/secure/ssl/certs/"
-			keyPath := "/persist/secure/ssl/keys/"
-
-			getCertDataCommand := fmt.Sprintf("bash cat %s%s", certPath, certFile)
-			data := runCliCommand(t, dut, getCertDataCommand)
-			if data != "" {
-				os.WriteFile(certFile, []byte(data), 0644)
-			}
-
-			getKeyDataCommand := fmt.Sprintf("bash cat %s%s", keyPath, keyFile)
-			data = runCliCommand(t, dut, getKeyDataCommand)
-			if data != "" {
-				os.WriteFile(keyFile, []byte(data), 0644)
-			}
-		}
 	default:
 		t.Errorf("SSL profile configuration not implemented for vendor %s", dut.Vendor())
 	}
@@ -785,19 +780,17 @@ tls versions 1.2 1.3
 
 func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 	sfBatch := &gnmi.SetBatch{}
-
-	sflowConfig := new(oc.Sampling_Sflow)
-
-	sflowConfig.Enabled = ygot.Bool(true)
-	sflowConfig.SampleSize = ygot.Uint16(256)
-	sflowConfig.IngressSamplingRate = ygot.Uint32(samplingRate)
-
-	sflowConfig.GetOrCreateInterface(dut.Port(t, "port1").Name()).Enabled = ygot.Bool(true)
-	collectors := cfgplugins.NewSFlowCollector(t, sfBatch, nil, dut, deviations.DefaultNetworkInstance(dut), dutlo0Attrs.Name, dutlo0Attrs.IPv4, "", IPv4)
-	for _, c := range collectors {
-		sflowConfig.AppendCollector(c)
+	sFlowConfig := &oc.Sampling_Sflow{
+		Enabled:             ygot.Bool(true),
+		SampleSize:          ygot.Uint16(sampleSize),
+		IngressSamplingRate: ygot.Uint32(samplingRate),
 	}
-	cfgplugins.NewSFlowGlobalCfg(t, sfBatch, sflowConfig, dut, deviations.DefaultNetworkInstance(dut), dutlo0Attrs.Name, dutlo0Attrs.IPv4, "", IPv4)
+	sFlowConfig.GetOrCreateInterface(dut.Port(t, port1).Name()).Enabled = ygot.Bool(true)
+	collectors := cfgplugins.NewSFlowCollector(t, sfBatch, nil, dut, deviations.DefaultNetworkInstance(dut), dutLoopbackAttrs.Name, dutLoopbackAttrs.IPv4, "", ipv4)
+	for _, c := range collectors {
+		sFlowConfig.AppendCollector(c)
+	}
+	cfgplugins.NewSFlowGlobalCfg(t, sfBatch, sFlowConfig, dut, deviations.DefaultNetworkInstance(dut), dutLoopbackAttrs.Name, dutLoopbackAttrs.IPv4, "", ipv4)
 
 	sfBatch.Set(t, dut)
 
@@ -815,21 +808,24 @@ func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Got sampling config: %v", json)
 }
 
-func configureGnpsi(t *testing.T, dut *ondatra.DUTDevice) {
+func configureGNPSI(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.GnpsiOcUnsupported(dut) {
-		configureGnpsiFromCLI(t, dut)
+		configureGNPSIFromCLI(t, dut)
 	} else {
-		configureGnpsiFromOC(t, dut)
+		configureGNPSIFromOC(t, dut)
 	}
 }
 
-func configureGnpsiFromOC(t *testing.T, dut *ondatra.DUTDevice) {
+func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice) {
 	//TODO : Implement gNPSI OC configuration when supported in OC
 	t.Fatalf("gNPSI OC configuration is not supported: %s - %s", dut.Version(), dut.Model())
 }
 
-func configureGnpsiFromCLI(t *testing.T, dut *ondatra.DUTDevice) {
+func configureGNPSIFromCLI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configuring gNPSI from CLI")
+	svc := introspect.GNPSI
+	dialer := introspect.DUTDialer(t, dut, svc)
+	t.Logf("Using gNPSI port: %d", dialer.DevicePort)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		cli := fmt.Sprintf(`
@@ -837,9 +833,9 @@ management api gnpsi
 transport grpc test
 ssl profile %s
 port %d
-source sflow
+source sFlow
 no disabled
-`, profileName, grpcPort)
+`, profileName, dialer.DevicePort)
 		helpers.GnmiCLIConfig(t, dut, cli)
 	default:
 		t.Errorf("gNPSI configuration not implemented for vendor %s", dut.Vendor())
@@ -849,32 +845,11 @@ no disabled
 func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
 	d := gnmi.OC()
-	i := attrs.NewOCInterface(p.Name(), dut)
-	i.Description = ygot.String(attrs.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	i.GetOrCreateEthernet()
-	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
-	a := i4.GetOrCreateAddress(attrs.IPv4)
-	a.PrefixLength = ygot.Uint8(attrs.IPv4Len)
-
-	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	i6.Enabled = ygot.Bool(true)
-	a6 := i6.GetOrCreateAddress(attrs.IPv6)
-	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
-
-	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), i)
+	intf := attrs.NewOCInterface(p.Name(), dut)
+	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation ", dut.Vendor(), dut.Model(), dut.Version())
-	}
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p)
 	}
 }
 
@@ -882,38 +857,28 @@ func configureFlow(t *testing.T, config *gosnappi.Config, fc *flowConfig) {
 	(*config).Flows().Clear()
 	flow := (*config).Flows().Add().SetName(fc.name)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{fmt.Sprintf("%s.%s", atePortPair[0].Name, fc.ipType)}).SetRxNames([]string{fmt.Sprintf("%s.%s", atePortPair[1].Name, fc.ipType)})
+	txName := fmt.Sprintf("%s.%s", port1, fc.ipType)
+	rxName := fmt.Sprintf("%s.%s", port2, fc.ipType)
+	flow.TxRx().Device().
+		SetTxNames([]string{txName}).
+		SetRxNames([]string{rxName})
 	flow.Size().SetFixed(fc.frameSize)
 	flow.Rate().SetPps(packetRate)
-	if fc.packetsToSend == 0 {
-		fc.packetsToSend = defaultPacketsToSend
-	}
 	flow.Duration().SetFixedPackets(gosnappi.NewFlowFixedPackets().SetPackets(fc.packetsToSend))
 
 	eth := flow.Packet().Add().Ethernet()
-	eth.Src().SetValue(atePortPair[0].MAC)
+	eth.Src().SetValue(otgPort1.MAC)
 
 	switch fc.ipType {
-	case IPv4:
+	case ipv4:
 		ipv4 := flow.Packet().Add().Ipv4()
-		ipv4.Src().SetValue(atePortPair[0].IPv4)
-		ipv4.Dst().SetValue(atePortPair[1].IPv4)
-	case IPv6:
+		ipv4.Src().SetValue(otgPort1.IPv4)
+		ipv4.Dst().SetValue(otgPort2.IPv4)
+	case ipv6:
 		ipv6 := flow.Packet().Add().Ipv6()
-		ipv6.Src().SetValue(atePortPair[0].IPv6)
-		ipv6.Dst().SetValue(atePortPair[1].IPv6)
+		ipv6.Src().SetValue(otgPort1.IPv6)
+		ipv6.Dst().SetValue(otgPort2.IPv6)
 	default:
 		t.Errorf("[ERROR] Invalid traffic type %s", fc.ipType)
 	}
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Errorf("[ERROR] Failed to execute CLI command '%s': %v", cliCommand, err)
-		return ""
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
 }
