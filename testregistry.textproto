@@ -1500,11 +1500,11 @@ test: {
 }
 test: {
   id: "TRANSCEIVER-101"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/800zr_platform_paths_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_platform_paths_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-102"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/800zr_terminal_device_paths_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_terminal_device_paths_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-11"
