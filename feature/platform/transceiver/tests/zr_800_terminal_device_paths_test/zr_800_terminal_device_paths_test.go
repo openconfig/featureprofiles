@@ -1,4 +1,4 @@
-package zr_terminal_device_paths_test
+package zr_800_terminal_device_paths_test
 
 import (
 	"flag"
