@@ -1602,3 +1602,8 @@ func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
 func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnToEthAssignment()
 }
+
+// GnpsiOcUnsupported returns true if there's no OC support configuring gNPSI
+func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
+}
