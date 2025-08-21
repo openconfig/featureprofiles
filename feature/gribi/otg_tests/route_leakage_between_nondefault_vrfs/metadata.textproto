@@ -1,7 +1,18 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "d69c4f39-8c4f-4188-ac00-65d171d8c97f"
+uuid:  "C09345B2-BDDF-4E5C-B4C4-22424E8CB602"
 plan_id:  "TE-6.3"
 description:  "Route Leakage between Non Default VRF"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    network_instance_import_export_policy_oc_unsuppored: true
+  }
+}
+tags:  TAGS_AGGREGATION
