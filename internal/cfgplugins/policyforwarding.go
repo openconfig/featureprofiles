@@ -613,3 +613,32 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
 	}
 }
+
+func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, vrfRules []VrfRule) {
+	t.Logf("Configuring VRF Selection Policy")
+	policy := pf.GetOrCreatePolicy(policyName)
+	policy.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+
+	for _, vrfRule := range vrfRules {
+		rule := policy.GetOrCreateRule(vrfRule.Index)
+		switch vrfRule.IpType {
+		case IPv4:
+			rule.GetOrCreateIpv4().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+		case IPv6:
+			rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+		default:
+			t.Fatalf("Unsupported IP type %s in vrf rule", vrfRule.IpType)
+		}
+		rule.GetOrCreateTransport()
+		ruleAction := rule.GetOrCreateAction()
+		ruleAction.SetNetworkInstance(vrfRule.NetInstName)
+	}
+}
+
+func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
+	t.Helper()
+	iface := pf.GetOrCreateInterface(interfaceID)
+	iface.ApplyVrfSelectionPolicy = ygot.String(appliedPolicyName)
+	iface.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceID)
+	iface.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+}
