@@ -162,12 +162,6 @@ func setToDefaults(t *testing.T, dut *ondatra.DUTDevice) {
 
 // awaitQValueStats waits for the QValue stats (i.e., min/max/avg) to be within the expected range.
 func awaitQValueStats(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, operStatus oc.E_Interface_OperStatus) {
-	if p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
-		// Skip the QValue stats validation for 800ZR and 800ZR Plus due to OC stats bug for logical channels.
-		t.Logf("Skipping the QValue stats validation for 800ZR and 800ZR Plus due to OC stats bug for logical channels.")
-		time.Sleep(1 * time.Minute)
-		return
-	}
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
 		_, ok := gnmi.Watch(t, dut, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Otn().QValue().State(), timeout, func(min *ygnmi.Value[*oc.TerminalDevice_Channel_Otn_QValue]) bool {
