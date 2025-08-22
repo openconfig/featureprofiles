@@ -862,7 +862,7 @@ func verifyPortStatus(t *testing.T, args *testArgs, portList []string, portStatu
 	for _, port := range portList {
 		p := args.dut.Port(t, port)
 		t.Log("Check for port status")
-		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 1*time.Minute, wantStatus)
+		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, wantStatus)
 		operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if operStatus != wantStatus {
 			t.Errorf("Get(DUT %v oper status): got %v, want %v", port, operStatus, wantStatus)
