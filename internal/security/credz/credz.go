@@ -589,22 +589,13 @@ func CreateHibaKeys(t *testing.T, dir string) {
 }
 
 // SSHWithPassword dials ssh with password based authentication to be used in credentialz tests.
-func SSHWithPassword(target, username, password string) (*ssh.Client, error) {
-	return ssh.Dial(
-		"tcp",
-		target,
-		&ssh.ClientConfig{
-			User: username,
-			Auth: []ssh.AuthMethod{
-				ssh.Password(password),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
-		},
-	)
+func SSHWithPassword(ctx context.Context, dut *ondatra.DUTDevice, username, password string) (binding.SSHClient, error) {
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.PasswordAuth{User: username, Password: password})
 }
 
 // SSHWithCertificate dials ssh with user certificate to be used in credentialz tests.
-func SSHWithCertificate(t *testing.T, target, username, dir string) (*ssh.Client, error) {
+func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
+
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
@@ -626,15 +617,11 @@ func SSHWithCertificate(t *testing.T, target, username, dir string) (*ssh.Client
 		t.Fatalf("Failed creating certificate signer, error: %s", err)
 	}
 
-	return ssh.Dial(
-		"tcp",
-		target,
-		sshClientConfigWithPublicKeys(username, certificateSigner),
-	)
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: ssh.Marshal(certificateSigner)})
 }
 
 // SSHWithKey dials ssh with key based authentication to be used in credentialz tests.
-func SSHWithKey(t *testing.T, target, username, dir string) (*ssh.Client, error) {
+func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
@@ -643,12 +630,7 @@ func SSHWithKey(t *testing.T, target, username, dir string) (*ssh.Client, error)
 	if err != nil {
 		t.Fatalf("Failed parsing private key, error: %s", err)
 	}
-
-	return ssh.Dial(
-		"tcp",
-		target,
-		sshClientConfigWithPublicKeys(username, signer),
-	)
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: ssh.Marshal(signer)})
 }
 
 func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
