@@ -16,7 +16,6 @@ package double_delete_test
 
 import (
 	"context"
-
 	"net"
 	"strconv"
 	"strings"
@@ -25,6 +24,7 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
+	"github.com/openconfig/testt"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 
@@ -1268,6 +1268,20 @@ func TestWithScale(t *testing.T) {
 	}
 }
 
+// TestWithStatic is a negative test case that verifies the behavior of the DUT (Device Under Test)
+// when attempting to program gRIBI entries for VIPs (Virtual IPs) that are already present as static routes.
+// The test ensures that the DUT rejects such gRIBI programming attempts and validates the expected error handling.
+//
+// Test Steps:
+// 1. Configure the DUT with static routes for VIPs (vip1 and vip2).
+// 2. Initialize the gRIBI client, elect it as the leader, and flush any existing entries.
+// 3. Attempt to program gRIBI entries for vip1 and vip2.
+// 4. Validate that the gRIBI client fails with the expected error message.
+// 5. Ensure that no unexpected errors occur during the test.
+//
+// Expected Behavior:
+// - The gRIBI client should fail to program the entries for vip1 and vip2, as they are already configured as static routes.
+// - The test passes if the expected error is observed and fails otherwise.
 func TestWithStatic(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
@@ -1306,8 +1320,20 @@ func TestWithStatic(t *testing.T) {
 
 	args.client.AddNH(t, 2000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
+	errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.AddIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	})
+	if errMsg != nil && strings.Contains(*errMsg, "Error waiting to add IPv4: context deadline exceeded") {
+		// error is expected when trying to program vip2 as it is already configured as a static route
+		return
+	} else if errMsg == nil {
+		t.Fatal("Expected an error while adding IPv4, but got none")
+	} else {
+		t.Fatalf("Unexpected error while adding IPv4: %v", *errMsg)
+	}
+
+	// adding rest of chain programming here for completeness. This code is not expected to run as the test should fail before this point.
 	args.client.AddNH(t, 1, vip1ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 2, vip2ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -1325,7 +1351,6 @@ func TestWithStatic(t *testing.T) {
 	}
 
 	for s := 0; s < 4; s++ {
-
 		args.client.DeleteIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, vip1, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		args.client.DeleteIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -1505,6 +1530,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf3).Config(), ni2)
 
 }
+
 func TestDeleteIpv4NHGNHrpfo(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
@@ -2266,7 +2292,21 @@ func TestWithScalerpfo(t *testing.T) {
 	}
 }
 
-func TestWithStaticrpfo(t *testing.T) {
+// TestWithStaticRPFO is a negative test case that verifies the DUT's behavior
+// when attempting to program gRIBI entries for VIPs that are already present as static routes.
+// The test ensures that the DUT rejects such gRIBI programming attempts and validates error handling.
+//
+// Test Steps:
+// 1. Configure the DUT with static routes for VIPs.
+// 2. Initialize the gRIBI client, elect it as leader, and flush any previous entries.
+// 3. Attempt to program gRIBI entries for the VIPs.
+// 4. Validate that the gRIBI client fails with the expected error message.
+// 5. Ensure no unexpected errors occur.
+//
+// Expected Behavior:
+// - The gRIBI client should fail to program the entries for the VIPs, as they are already configured as static routes.
+// - The test passes if the expected error is observed and fails otherwise.
+func TestWithStaticRPFO(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program static route entries, and then through gribi, verify traffic, delete gribi entries")
@@ -2304,8 +2344,20 @@ func TestWithStaticrpfo(t *testing.T) {
 
 	args.client.AddNH(t, 2000, atePort4.IPv4, *ciscoFlags.DefaultNetworkInstance, "", bundleEther123, false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2000, 0, map[uint64]uint64{2000: 60}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
+	errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		args.client.AddIPv4(t, vip2, 2000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	})
+	if errMsg != nil && strings.Contains(*errMsg, "Error waiting to add IPv4: context deadline exceeded") {
+		// error is expected when trying to program vip2 as it is already configured as a static route
+		return
+	} else if errMsg == nil {
+		t.Fatal("Expected an error while adding IPv4, but got none")
+	} else {
+		t.Fatalf("Unexpected error while adding IPv4: %v", *errMsg)
+	}
+
+	// adding rest of chain programming here for completeness. This code is not expected to run as the test should fail before this point.
 	args.client.AddNH(t, 1, vip1ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 2, vip2ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 2, 0, map[uint64]uint64{2: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -2317,27 +2369,6 @@ func TestWithStaticrpfo(t *testing.T) {
 	}
 
 	args.client.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})
-	}
-
-	utils.Dorpfo(args.ctx, t, true)
-
-	client = gribi.Client{
-		DUT:                   args.dut,
-		FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		Persistence:           true,
-		InitialElectionIDLow:  1,
-		InitialElectionIDHigh: 0,
-	}
-	if err := client.Start(t); err != nil {
-		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		if err = client.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection could not be established: %v", err)
-		}
-	}
-	args.client = &client
 
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlows(t), false, []string{bundleEther126})

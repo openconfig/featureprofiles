@@ -1,9 +1,6 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
-
-uuid:  "36cc79b5-3766-4cb4-b83b-1baea1468888"
-plan_id:  "TE-16.1"
-description:  "basic encapsulation tests"
+plan_id:  "basic_encap_nh_counters"
 testbed:  TESTBED_DUT_ATE_8LINKS
 platform_exceptions:  {
   platform:  {
