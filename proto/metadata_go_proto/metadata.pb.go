@@ -21,13 +21,12 @@
 package metadata_go_proto
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -1129,8 +1128,14 @@ type Metadata_Deviations struct {
 	OtnToEthAssignment bool `protobuf:"varint,317,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
 	// Devices that do not support import export policies configured in network instance
 	NetworkInstanceImportExportPolicyOcUnsuppored bool `protobuf:"varint,318,opt,name=network_instance_import_export_policy_oc_unsuppored,json=networkInstanceImportExportPolicyOcUnsuppored,proto3" json:"network_instance_import_export_policy_oc_unsuppored,omitempty"`
-	unknownFields                                 protoimpl.UnknownFields
-	sizeCache                                     protoimpl.SizeCache
+	// Arista b/434586172
+	// Device doesnot support configuring prefix list inside ACL
+	ConfigAclWithPrefixlistUnsupported bool `protobuf:"varint,318,opt,name=config_acl_with_prefixlist_unsupported,json=configAclWithPrefixlistUnsupported,proto3" json:"config_acl_with_prefixlist_unsupported,omitempty"`
+	// Arista b/434815087
+	// Device doesnot support configuring source/destination address as ANY inside ACL
+	ConfigAclValueAnyOcUnsupported bool `protobuf:"varint,319,opt,name=config_acl_value_any_oc_unsupported,json=configAclValueAnyOcUnsupported,proto3" json:"config_acl_value_any_oc_unsupported,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3172,6 +3177,20 @@ func (x *Metadata_Deviations) GetNetworkInstanceImportExportPolicyOcUnsuppored()
 	return false
 }
 
+func (x *Metadata_Deviations) GetConfigAclWithPrefixlistUnsupported() bool {
+	if x != nil {
+		return x.ConfigAclWithPrefixlistUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetConfigAclValueAnyOcUnsupported() bool {
+	if x != nil {
+		return x.ConfigAclValueAnyOcUnsupported
+  }
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3532,6 +3551,9 @@ const file_metadata_proto_rawDesc = "" +
 	"#policy_rule_counters_oc_unsupported\x18\xbc\x02 \x01(\bR\x1fpolicyRuleCountersOcUnsupported\x122\n" +
 	"\x15otn_to_eth_assignment\x18\xbd\x02 \x01(\bR\x12otnToEthAssignment\x12k\n" +
 	"3network_instance_import_export_policy_oc_unsuppored\x18\xbe\x02 \x01(\bR-networkInstanceImportExportPolicyOcUnsupporedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+  "&config_acl_with_prefixlist_unsupported\x18\xbe\x02 \x01(\bR\"configAclWithPrefixlistUnsupported\x12L\n" +
+	"#config_acl_value_any_oc_unsupported\x18\xbf\x02 \x01(\bR\x1econfigAclValueAnyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
