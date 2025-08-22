@@ -1607,3 +1607,7 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
 }
+
+func DisableHardwareNexthopProxy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDisableHardwareNexthopProxy()
+}
