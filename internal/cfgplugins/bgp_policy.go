@@ -81,16 +81,16 @@ func DeviationJuniperRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondat
 
 // DeviationAristaRoutingPolicyBGPAsPathSetUnsupported is used for DUTs that don't support filtering by AS-Set (in tests such as RT-1.64)
 // This deviation implements CLI to perform the same function
-func DeviationAristaRoutingPolicyBGPAsPathSetUnsupported(t *testing.T, dut *ondatra.DUTDevice, aclName string, routeMap string, asPathRegex string, sequence string) {
-	// ip as-path access list "aclName" permit "asPathRegex"
-	// ip as-path access list "aclName" deny .*
+func DeviationAristaRoutingPolicyBGPAsPathSetUnsupported(t *testing.T, dut *ondatra.DUTDevice, aclName string, routeMap string, asPathRegex string) {
+	// ip as-path access-list "aclName" permit "asPathRegex"
+	// ip as-path access-list "aclName" deny .*
 	// route-map "routeMap" "sequence"
 	// 	match as-path "aclName"
 	config := fmt.Sprintf(`
-ip as-path access list %s permit %s
-ip as-path access list %s deny .*
-route-map %s %s
+ip as-path access-list %s permit %s
+ip as-path access-list %s deny .*
+route-map %s
 match as-path %s
-`, aclName, asPathRegex, aclName, routeMap, sequence, aclName)
+`, aclName, asPathRegex, aclName, routeMap, aclName)
 	helpers.GnmiCLIConfig(t, dut, config)
 }

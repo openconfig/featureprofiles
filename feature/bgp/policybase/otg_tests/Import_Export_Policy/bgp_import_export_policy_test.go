@@ -465,7 +465,9 @@ func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice, policyType str
 	}
 	if policyType == "as-path-deny" {
 		if deviations.BgpAspathsetUnsupported(dut) {
-			cfgplugins.DeviationAristaRoutingPolicyBGPAsPathSetUnsupported(t, dut, "aclRegexAsPathAllowed", "FILTER-IN", "^65000$", "10")
+			if dut.Vendor() == ondatra.ARISTA {
+				cfgplugins.DeviationAristaRoutingPolicyBGPAsPathSetUnsupported(t, dut, "aclRegexAsPathAllowed", "FILTER-IN", "^65002$")
+			}
 		} else {
 			d := &oc.Root{}
 			rp := d.GetOrCreateRoutingPolicy()
@@ -520,7 +522,7 @@ func TestBgpImportExportPolicy(t *testing.T) {
 	}{
 		{
 			name:             "### RT-1.64.1 Verify BGP Peering without policy",
-			dutConf:          bgpCreateNbr(t, &bgpTestParams{localAS: dutAS, peerAS: ateAS, nbrLocalAS: ateAS, transportMode: nbrLvlActive}, dut),
+			dutConf:          bgpCreateNbr(t, &bgpTestParams{localAS: dutAS, peerAS: ateAS, nbrLocalAS: ateAS, transportMode: nbrLvlPassive}, dut),
 			ateConf:          configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, transportMode: nbrLvlActive, wantOTGPrefixesv4: otgAdvertisedRoutesv4Net, wantOTGPrefixesv6: otgAdvertisedRoutesv6Net, wantOTGDeniedPrefixesv4: otgDeniedRoutesv4Net, wantOTGDeniedPrefixesv6: otgDeniedRoutesv6Net}, []uint32{}, []string{}),
 			wantBGPState:     oc.Bgp_Neighbor_SessionState_ESTABLISHED,
 			dutTransportMode: nbrLvlPassive,
@@ -530,7 +532,7 @@ func TestBgpImportExportPolicy(t *testing.T) {
 		},
 		{
 			name:             "### RT-1.64.2 Test Export Policy (Prefix-list based)",
-			dutConf:          bgpCreateNbr(t, &bgpTestParams{localAS: dutAS, peerAS: ateAS, nbrLocalAS: ateAS, transportMode: nbrLvlActive}, dut),
+			dutConf:          bgpCreateNbr(t, &bgpTestParams{localAS: dutAS, peerAS: ateAS, nbrLocalAS: ateAS, transportMode: nbrLvlPassive}, dut),
 			ateConf:          configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, transportMode: nbrLvlActive, wantOTGPrefixesv4: otgAdvertisedRoutesv4Net, wantOTGPrefixesv6: otgAdvertisedRoutesv6Net, wantOTGDeniedPrefixesv4: otgDeniedRoutesv4Net, wantOTGDeniedPrefixesv6: otgDeniedRoutesv6Net}, []uint32{}, []string{}),
 			wantBGPState:     oc.Bgp_Neighbor_SessionState_ESTABLISHED,
 			dutTransportMode: nbrLvlPassive,
@@ -540,7 +542,7 @@ func TestBgpImportExportPolicy(t *testing.T) {
 		},
 		{
 			name:             "### RT-1.64.3 Test Import Policy (AS-Path based)",
-			dutConf:          bgpCreateNbr(t, &bgpTestParams{localAS: dutAS, peerAS: ateAS, nbrLocalAS: ateAS, transportMode: nbrLvlActive}, dut),
+			dutConf:          bgpCreateNbr(t, &bgpTestParams{localAS: dutAS, peerAS: ateAS, nbrLocalAS: ateAS, transportMode: nbrLvlPassive}, dut),
 			ateConf:          configureATE(t, &bgpTestParams{localAS: ateAS, peerIP: dutIP, transportMode: nbrLvlActive, wantOTGPrefixesv4: otgAdvertisedRoutesv4Net, wantOTGPrefixesv6: otgAdvertisedRoutesv6Net, wantOTGDeniedPrefixesv4: otgDeniedRoutesv4Net, wantOTGDeniedPrefixesv6: otgDeniedRoutesv6Net}, []uint32{}, []string{}),
 			wantBGPState:     oc.Bgp_Neighbor_SessionState_ESTABLISHED,
 			dutTransportMode: nbrLvlPassive,
