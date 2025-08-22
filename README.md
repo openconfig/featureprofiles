@@ -9,7 +9,7 @@ protocols such as BGP, IS-IS.
 Feature profiles also includes a suite of
 [Ondatra](https://github.com/openconfig/ondatra) tests for validating the
 network device behavior for each defined feature. If you are new to Ondatra,
-please start by reading the Ondata
+please start by reading the Ondatra
 [README](https://github.com/openconfig/ondatra#readme) and taking the [Ondatra
 tour](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/openconfig/ondatra/main/internal/tour/tour.pdf).
 
@@ -134,6 +134,39 @@ go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/ncptx/
 
 ```
 kne delete topologies/kne/juniper/ncptx/topology.textproto
+```
+### cPTX (i.e. cJunosEvolved)
+
+`cJunosEvolved` is a KVM based container that has replaced the cPTX.
+It was first released in 25.2R1.
+The image for it is freely available on the Juniper public website:
+
+https://support.juniper.net/support/downloads/?p=cjunos-evolved
+
+> NOTE: `cJunosEvolved` images come tagged in the following format,
+cjunosevolved:<release identifer> e.g.: cjunosevolved:25.2R1.8-EVO
+
+You need to retag the image to  "cptx:latest" to match the textproto files
+and the KNE repo.
+
+> NOTE: `cJunosEvolved (cPTX)` images require the host supports nested virtualization.
+
+1. Create the topology:
+
+```
+kne create topologies/kne/juniper/cptx/topology.textproto
+```
+
+2. Run a sample test:
+
+```
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
+```
+
+3. Cleanup:
+
+```
+kne delete topologies/kne/juniper/cptx/topology.textproto
 ```
 
 ## Nokia
