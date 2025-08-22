@@ -62,10 +62,10 @@ const (
 	trafficFrameSize = 512
 	trafficRatePps   = 100
 	trafficTimeout   = 30 * time.Second
-	ATE1SysID        = "640000000001"
-	ATE2SysID        = "640000000002"
-	DUTAreaAddress   = "49.0001"
-	DUTSysID         = "1920.0000.2001"
+	ate1SysId        = "640000000001"
+	ate2SysId        = "640000000002"
+	dutAreaAddress   = "49.0001"
+	dutSysId         = "1920.0000.2001"
 )
 
 var (
@@ -226,7 +226,7 @@ func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := root.GetOrCreateNetworkInstance(niName)
 
 	dutConfPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
-	dutConf := addISISOC(DUTAreaAddress, DUTSysID, dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name(), dut)
+	dutConf := addISISOC(dutAreaAddress, dutSysId, dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 
 	if deviations.IsisSrgbSrlbUnsupported(dut) {
@@ -300,7 +300,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	// Add IS-IS in ATE port1
 	devices := otgConfig.Devices().Items()
-	port1isis := devices[0].Isis().SetSystemId(ATE1SysID).SetName("dev1Isis")
+	port1isis := devices[0].Isis().SetSystemId(ate1SysId).SetName("dev1Isis")
 
 	// port 1 device 1 isis basic
 	port1isis.Basic().SetIpv4TeRouterId(atePort1.IPv4)
@@ -327,7 +327,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	devIsisport1.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
 
 	// Add IS-IS in ATE port2
-	port2isis := otgConfig.Devices().Items()[1].Isis().SetSystemId(ATE2SysID).SetName("dev2Isis")
+	port2isis := otgConfig.Devices().Items()[1].Isis().SetSystemId(ate2SysId).SetName("dev2Isis")
 
 	port2isis.Basic().SetIpv4TeRouterId(atePort2.IPv4)
 	port2isis.Basic().SetHostname(port2isis.Name())
@@ -455,7 +455,7 @@ func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 	return capture.Name()
 }
 
-func validatePackets(t *testing.T, filename string, protocolType string) {
+func validatePackets(t *testing.T, filename string, protocolType string) (errMsg string) {
 	mplsPacketCount := int32(0)
 
 	handle, err := pcap.OpenOffline(filename)
@@ -479,7 +479,7 @@ func validatePackets(t *testing.T, filename string, protocolType string) {
 					t.Logf("TTL decremented by 1")
 					break
 				} else {
-					t.Errorf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.TTL)
+					errMsg = fmt.Sprintf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.TTL)
 				}
 			}
 		} else {
@@ -494,124 +494,116 @@ func validatePackets(t *testing.T, filename string, protocolType string) {
 					t.Logf("TTL decremented by 1")
 					break
 				} else {
-					t.Errorf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.HopLimit)
+					errMsg = fmt.Sprintf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.HopLimit)
 				}
 			}
 		}
 	}
 
 	if mplsPacketCount != 0 {
-		t.Errorf("MPLS label is not popped by the DUT")
+		errMsg = fmt.Sprintf("MPLS label is not popped by the DUT")
 	}
+
+	return errMsg
 }
 
 // verifyTrafficValidations runs traffic and validates ATE flow metrics and DUT counters.
-func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
+func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) (string, uint64, uint64) {
 	t.Helper()
 	otg := ate.OTG()
 
-	dutP1 := dut.Port(t, "port1")
-	dutP2 := dut.Port(t, "port2")
+	var errMsg string
+	var totalTxFromATE, totalRxAtATE uint64
 
-	// Capture initial DUT interface counters for delta calculation.
-	dutP1InCountersBefore := gnmi.Get(t, dut, gnmi.OC().Interface(dutP1.Name()).Counters().State())
-	dutP2OutCountersBefore := gnmi.Get(t, dut, gnmi.OC().Interface(dutP2.Name()).Counters().State())
+	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+	rxPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
 
+	totalTxFromATE += txPkts
+	totalRxAtATE += rxPkts
+
+	if txPkts < uint64(packetsPerFlow) {
+		t.Logf("Flow %s: Expected to transmit at least %d packets, but only %d were reported sent.", flowName, packetsPerFlow, txPkts)
+	}
+	if rxPkts < txPkts {
+		lossPct := float32(0)
+		if txPkts > 0 {
+			lossPct = (float32(txPkts-rxPkts) * 100) / float32(txPkts)
+		}
+		errMsg = fmt.Sprintf("Flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f",
+			flowName, txPkts, rxPkts, lossPct)
+	} else if txPkts > 0 {
+		t.Logf("Flow %s: Successfully transmitted %d packets and received %d packets with no loss.",
+			flowName, txPkts, rxPkts)
+	} else if packetsPerFlow > 0 { // Expected to send but didn't
+		errMsg = fmt.Sprintf("Flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow)
+	}
+
+	return errMsg, totalTxFromATE, totalRxAtATE
+
+}
+
+func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("Starting capture")
 	cs := startCapture(t, ate.OTG())
 
 	t.Logf("Starting traffic on ATE...")
-	otg.StartTraffic(t)
+	ate.OTG().StartTraffic(t)
 	t.Logf("Waiting for %v for traffic to complete and stats to update...", trafficTimeout)
 	time.Sleep(trafficTimeout)
-	otg.StopTraffic(t)
+	ate.OTG().StopTraffic(t)
 	t.Logf("Traffic stopped.")
 
 	t.Logf("Stop Capture")
 	stopCapture(t, ate.OTG(), cs)
+}
 
-	capture := processCapture(t, ate.OTG(), "port2")
+func captureDUTCounters(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
+	dutP1 := dut.Port(t, "port1")
+	dutP2 := dut.Port(t, "port2")
 
-	otgutils.LogFlowMetrics(t, otg, top)
-	otgutils.LogPortMetrics(t, otg, top)
+	// Capture initial DUT interface counters for delta calculation.
+	dutP1InCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dutP1.Name()).Counters().State()).GetInUnicastPkts()
+	dutP2OutCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dutP2.Name()).Counters().State()).GetOutUnicastPkts()
 
-	// Capture final DUT interface counters.
-	dutP1InCountersAfter := gnmi.Get(t, dut, gnmi.OC().Interface(dutP1.Name()).Counters().State())
-	dutP2OutCountersAfter := gnmi.Get(t, dut, gnmi.OC().Interface(dutP2.Name()).Counters().State())
+	return dutP1InCounters, dutP2OutCounters
+}
 
-	var totalTxFromATE, totalRxAtATE uint64
-	flowNames := []struct {
-		name     string
-		flowType string
-	}{
-		{
-			name:     flowV4Name,
-			flowType: "ipv4",
-		},
-		{
-			name:     flowV6Name,
-			flowType: "ipv6",
-		},
-	}
-
-	for _, flowName := range flowNames {
-		t.Run(fmt.Sprintf("ValidateFlow_%s", flowName), func(t *testing.T) {
-			flowPath := gnmi.OTG().Flow(flowName.name)
-			txPkts := gnmi.Get(t, otg, flowPath.Counters().OutPkts().State())
-			rxPkts := gnmi.Get(t, otg, flowPath.Counters().InPkts().State())
-
-			totalTxFromATE += txPkts
-			totalRxAtATE += rxPkts
-
-			if txPkts < uint64(packetsPerFlow) {
-				t.Logf("Flow %s: Expected to transmit at least %d packets, but only %d were reported sent.", flowName, packetsPerFlow, txPkts)
-			}
-			if rxPkts < txPkts {
-				lossPct := float32(0)
-				if txPkts > 0 {
-					lossPct = (float32(txPkts-rxPkts) * 100) / float32(txPkts)
-				}
-				t.Errorf("Flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f",
-					flowName, txPkts, rxPkts, lossPct)
-			} else if txPkts > 0 {
-				t.Logf("Flow %s: Successfully transmitted %d packets and received %d packets with no loss.",
-					flowName, txPkts, rxPkts)
-			} else if packetsPerFlow > 0 { // Expected to send but didn't
-				t.Errorf("Flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow)
-			}
-
-			validatePackets(t, capture, flowName.flowType)
-		})
-	}
-
+func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dutP1InCountersAfter, dutP2OutCountersBefore, dutP2OutCountersAfter, totalTxFromATE, totalRxAtATE uint64) (errMsg string) {
 	// DUT Counter Validation (Delta Check)
-	inPktsDelta := dutP1InCountersAfter.GetInUnicastPkts() - dutP1InCountersBefore.GetInUnicastPkts()
-	outPktsDelta := dutP2OutCountersAfter.GetOutUnicastPkts() - dutP2OutCountersBefore.GetOutUnicastPkts()
+	inPktsDelta := dutP1InCountersAfter - dutP1InCountersBefore
+	outPktsDelta := dutP2OutCountersAfter - dutP2OutCountersBefore
 
-	t.Logf("DUT Port1 (%s) InUnicastPkts: Before=%d, After=%d, Delta=%d",
-		dutP1.Name(), dutP1InCountersBefore.GetInUnicastPkts(), dutP1InCountersAfter.GetInUnicastPkts(), inPktsDelta)
-	t.Logf("DUT Port2 (%s) OutUnicastPkts: Before=%d, After=%d, Delta=%d",
-		dutP2.Name(), dutP2OutCountersBefore.GetOutUnicastPkts(), dutP2OutCountersAfter.GetOutUnicastPkts(), outPktsDelta)
+	t.Logf("DUT Port1 InUnicastPkts: Before=%d, After=%d, Delta=%d",
+		dutP1InCountersBefore, dutP1InCountersAfter, inPktsDelta)
+
+	t.Logf("DUT Port2 OutUnicastPkts: Before=%d, After=%d, Delta=%d",
+		dutP2OutCountersBefore, dutP2OutCountersAfter, outPktsDelta)
+
 	t.Logf("Total packets sent by ATE (sum of flows reported by ATE): %d", totalTxFromATE)
 	t.Logf("Total packets received by ATE (sum of flows reported by ATE): %d", totalRxAtATE)
 
-	expectedTotalTraffic := uint64(packetsPerFlow * len(flowNames))
+	expectedTotalTraffic := uint64(packetsPerFlow * flowCount)
 	if totalTxFromATE > 0 {
 		// Check if DUT ingress counters reflect ATE Tx.
 		// Allow a small difference (e.g., 2%) due to other control plane packets or timing of counter polling.
 		if float64(inPktsDelta) < float64(totalTxFromATE)*0.98 {
-			t.Errorf("DUT Port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d). Expected approx %d.", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
+			errMsg = fmt.Sprintf("DUT Port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d). Expected approx %d.", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
 		}
 		// Check if DUT egress counters reflect ATE Rx.
 		if float64(outPktsDelta) < float64(totalRxAtATE)*0.98 {
-			t.Errorf("DUT Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d). Potential drop in DUT. Expected approx %d.", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
+			errMsg = fmt.Sprintf("DUT Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d). Potential drop in DUT. Expected approx %d.", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
 		}
 	} else if expectedTotalTraffic > 0 {
-		t.Errorf("No traffic was reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
+		errMsg = fmt.Sprintf("No traffic was reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
 	}
+
+	return errMsg
 }
 
 func TestMPLSExplicitNull(t *testing.T) {
+	var err string
+	var ateTxCounters, ateRxCounters uint64
+
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
@@ -632,8 +624,49 @@ func TestMPLSExplicitNull(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv6")
 
-	// 4. Run Traffic and Verify
-	verifyTrafficValidations(t, dut, ate, otgConfig)
+	// Capture the DUT counters before initialising traffic
+	dutP1BeforeCounters, dutP2BeforeCounters := captureDUTCounters(t, dut)
+	// Start Traffic & capture
+	sendTrafficCapture(t, ate)
+
+	capture := processCapture(t, ate.OTG(), "port2")
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	// Capture the DUT counters after traffic
+	dutP1AfterCounters, dutP2AfterCounters := captureDUTCounters(t, dut)
+
+	flowNames := []struct {
+		name     string
+		flowType string
+	}{
+		{
+			name:     flowV4Name,
+			flowType: "ipv4",
+		},
+		{
+			name:     flowV6Name,
+			flowType: "ipv6",
+		},
+	}
+	for _, flowName := range flowNames {
+		t.Run(fmt.Sprintf("ValidateFlow_%s", flowName), func(t *testing.T) {
+			err, ateTxCounters, ateRxCounters = verifyTrafficValidations(t, dut, ate, flowName.name)
+			if err != "" {
+				t.Errorf("%s", err)
+			}
+			err = validatePackets(t, capture, flowName.flowType)
+			if err != "" {
+				t.Errorf("%s", err)
+			}
+		})
+	}
+
+	err = validateDUTCounters(t, len(flowNames), dutP1BeforeCounters, dutP1AfterCounters, dutP2BeforeCounters, dutP2AfterCounters, ateTxCounters, ateRxCounters)
+	if err != "" {
+		t.Errorf("%s", err)
+	}
 
 	t.Log("MPLS Explicit Null Test Completed.")
 }
