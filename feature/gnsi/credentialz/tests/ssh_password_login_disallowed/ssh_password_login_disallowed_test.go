@@ -34,6 +34,7 @@ import (
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	cpb "github.com/openconfig/gnsi/credentialz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 )
 
 const (
@@ -49,7 +50,7 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
+	// target := credz.GetDutTarget(t, dut)
 	recordStartTime := timestamppb.New(time.Now())
 
 	// Create temporary directory for storing ssh keys/certificates.
@@ -87,9 +88,11 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with password fails as expected.
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
 		for {
-			_, err := credz.SSHWithPassword(target, username, password)
+			_, err := credz.SSHWithPassword(ctx, dut, username, password)
 			if err != nil {
 				t.Logf("Dialing ssh failed as expected.")
 				break
@@ -120,10 +123,13 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with certificate succeeds.
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
-		var conn *ssh.Client
+		// var conn *ssh.Client
+		var conn binding.SSHClient
 		for {
-			conn, err = credz.SSHWithCertificate(t, target, username, dir)
+			conn, err = credz.SSHWithCertificate(ctx, t, dut, username, dir)
 			if err == nil {
 				t.Logf("Dialing ssh succeeded as expected.")
 				defer conn.Close()
@@ -137,12 +143,12 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Send command for accounting.
-		sess, err := conn.NewSession()
+		sess, err := conn.RunCommand(ctx, "show version")
 		if err != nil {
 			t.Fatalf("Failed creating ssh session, error: %s", err)
 		}
-		defer sess.Close()
-		sess.Run(command)
+		defer sess.Output()
+		sess.Output()
 
 		// Verify ssh counters.
 		if !deviations.SSHServerCountersUnsupported(dut) {
@@ -157,7 +163,7 @@ func TestCredentialz(t *testing.T) {
 
 		// Verify accounting record.
 		acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		acctzSubClient, err := acctzClient.RecordSubscribe(ctx, &acctzpb.RecordRequest{Timestamp: recordStartTime})
 		if err != nil {
