@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -72,7 +73,7 @@ var (
 	otgAdvertisedRoutesv6Net    = []string{"2001:db8:300:100::0", "2001:db8:300:101::0", "2001:db8:400:100::1", "2001:db8:400:101::1"}
 	otgDeniedRoutesv6Net        = []string{"2001:db8:400:100::1", "2001:db8:400:101::1"}
 	otgAdvertisedRoutesv4Prefix = []uint32{32, 32, 32, 32}
-	otgAdvertisedRoutesv6Prefix = []uint32{127, 127, 127, 127}
+	otgAdvertisedRoutesv6Prefix = []uint32{127, 127, 128, 128}
 	routeCount                  = 1
 )
 
@@ -86,6 +87,8 @@ const (
 	nbrLvlPassive  = "nbrLevelPassive"
 	nbrLvlActive   = "nbrLevelActive"
 	rplPermitAll   = "PERMIT-ALL"
+	rejectAspath   = "REJECT-AS-PATH"
+	regexAsSet     = "REGEX-AS-SET"
 )
 
 // configureDUT is used to configure interfaces on the DUT.
@@ -461,42 +464,25 @@ func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice, policyType str
 		batchConfig.Set(t, dut)
 	}
 	if policyType == "as-path-deny" {
-		d := &oc.Root{}
-		rp := d.GetOrCreateRoutingPolicy()
-		pd := rp.GetOrCreatePolicyDefinition("community-match")
-		statements := []policyStatement{
-			{
-				name: "accept_specific_as_path",
-				cs: communitySet{
-					name:            "specific_as_path",
-					communityMatch:  []string{"65002:1"},
-					matchSetOptions: oc.BgpPolicy_MatchSetOptionsType_ANY,
-				},
-				policyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-			},
-		}
-		for _, s := range statements {
-			stmt, err := pd.AppendNewStatement(s.name)
+		if deviations.BgpAspathsetUnsupported(dut) {
+			cfgplugins.DeviationAristaRoutingPolicyBGPAsPathSetUnsupported(t, dut, "aclRegexAsPathAllowed", "FILTER-IN", "^65000$", "10")
+		} else {
+			d := &oc.Root{}
+			rp := d.GetOrCreateRoutingPolicy()
+			rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(regexAsSet).SetAsPathSetMember([]string{"65002 .*"})
+			pdefAs := rp.GetOrCreatePolicyDefinition(rejectAspath)
+
+			stmt70, err := pdefAs.AppendNewStatement("20")
 			if err != nil {
-				t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
+				t.Errorf("Error while creating new statement %v", err)
 			}
-			if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-				stmt.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(s.cs.name)
-			} else {
-				matchCommunitySet := stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-				matchCommunitySet.SetCommunitySet(s.cs.name)
-				matchCommunitySet.SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(s.cs.matchSetOptions))
-			}
-			stmt.GetOrCreateActions().PolicyResult = s.policyResult
+			stmt70.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+			stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(regexAsSet)
+			stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+
+			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 		}
 
-		pdAllow := rp.GetOrCreatePolicyDefinition("ALLOW")
-		st, err := pdAllow.AppendNewStatement("id-1")
-		if err != nil {
-			t.Logf("Policy definition: %v", err)
-		}
-		st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 }
 
