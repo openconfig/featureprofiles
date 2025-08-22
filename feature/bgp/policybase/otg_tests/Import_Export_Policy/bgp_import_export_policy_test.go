@@ -66,8 +66,6 @@ var (
 	loopbackIntfName            string
 	dutAdvertisedRoutesv4Net    = []string{"172.16.1.0", "172.16.2.0", "192.168.10.0"}
 	dutAdvertisedRoutesv6Net    = []string{"2001:db8:250:110::0", "2001:db8:251:110::0", "2001:db8:299:110::0"}
-	dutAdvertisedRoutesv4Prefix = []uint32{24, 24, 24}
-	dutAdvertisedRoutesv6Prefix = []uint32{64, 64, 64}
 	otgAdvertisedRoutesv4Net    = []string{"192.0.2.1", "192.0.2.2", "198.51.100.1", "198.51.100.2"}
 	otgDeniedRoutesv4Net        = []string{"198.51.100.1", "198.51.100.2"}
 	otgAdvertisedRoutesv6Net    = []string{"2001:db8:300:100::0", "2001:db8:300:101::0", "2001:db8:400:100::1", "2001:db8:400:101::1"}
@@ -182,8 +180,6 @@ type bgpTestParams struct {
 	transportMode               string
 	wantOTGPrefixesv4           []string
 	wantOTGPrefixesv6           []string
-	wantDUTPrefixesv4           []string
-	wantDUTPrefixesv6           []string
 	wantOTGDeniedPrefixesv4     []string
 	wantOTGDeniedPrefixesv6     []string
 }
@@ -434,18 +430,6 @@ func configurePrefixMatchPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet,
 	stmt5.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(prefixSet)
 	stmt5.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	return rp
-}
-
-type communitySet struct {
-	name            string
-	communityMatch  []string
-	matchSetOptions oc.E_BgpPolicy_MatchSetOptionsType
-}
-
-type policyStatement struct {
-	name         string
-	cs           communitySet
-	policyResult oc.E_RoutingPolicy_PolicyResultType
 }
 
 func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice, policyType string) {
