@@ -59,8 +59,8 @@ func TestMain(m *testing.M) {
 func TestEgressStrictPrioritySchedulerTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	t.Logf("Configuring TCAM Profile")
-	cfgplugins.ConfigureTcamProfile(t, dut)
+	t.Logf("Configuring Hardware Init")
+	configureHardwareInit(t, dut)
 
 	t.Logf("Configuring QoS Global parameters")
 	cfgplugins.NewQosInitialize(t, dut)
@@ -2064,6 +2064,14 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 	q = cfgplugins.NewQoSSchedulerInterface(t, dut, q, schedulerIntfs, "port3")
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
+}
+
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureMplsTracking)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 }
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
