@@ -82,6 +82,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	cfgplugins.AssignToNetworkInstance(batch, t, dut, dp2.Name(), customVRFName, 0)
 
 	t.Log("\nApplying configuration to DUT\n")
+
 	batch.Set(t, dut)
 
 	for _, netInstance := range gnmi.GetAll(t, dut, gnmi.OC().NetworkInstanceAny().State()) {

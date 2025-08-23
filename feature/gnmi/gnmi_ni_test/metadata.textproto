@@ -1,6 +1,4 @@
-# metadata.textproto
-
-# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "bc288f94-cb04-4bb0-b1d7-621cfaa7e9f4"
