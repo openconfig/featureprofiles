@@ -47,20 +47,9 @@ func TestMain(m *testing.M) {
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	target := credz.GetDutTarget(t, dut)
+	dir := t.TempDir()
 
-	// Create temporary directory for storing ssh keys/certificates.
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("creating temp dir, err: %s", err)
-	}
-	defer func(dir string) {
-		err = os.RemoveAll(dir)
-		if err != nil {
-			t.Logf("error removing temp directory, error: %s", err)
-		}
-	}(dir)
-
-	credz.CreateHibaKeys(t, dir)
+	credz.CreateHibaKeys(t, dut, dir)
 	credz.SetupUser(t, dut, username)
 
 	// Set only public key authentication for our test.
