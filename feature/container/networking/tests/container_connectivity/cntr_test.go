@@ -15,7 +15,7 @@
 */
 
 // Package cntr_test implements an ONDATRA test for container functionalities
-// as described in the CNTR-[234] tests in README.md.
+// as described in the CNTR-2.x tests in README.md.
 package cntr_test
 
 import (
@@ -66,7 +66,7 @@ func DialService(ctx context.Context, t *testing.T, name string, dut *ondatra.DU
 	return conn, func() { conn.Close() }
 }
 
-// TestDial implements CNTR-2, validating that it is possible for an external caller to dial into a service
+// TestDial implements CNTR-2.1, validating that it is possible for an external caller to dial into a service
 // running in a container on a DUT. The service used is the cntr service defined by cntr.proto.
 func TestDial(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -75,7 +75,7 @@ func TestDial(t *testing.T) {
 	stop()
 }
 
-// TestDialLocal implements CNTR-3, validating that it is possible for a
+// TestDialLocal implements CNTR-2.2, validating that it is possible for a
 // container running on the device to connect to local gRPC services that are
 // running on the DUT.
 func TestDialLocal(t *testing.T) {
@@ -136,7 +136,7 @@ func TestDialLocal(t *testing.T) {
 	}
 }
 
-// TestConnectRemote implements CNTR-4, validating that it is possible for a container to connect to a container
+// TestConnectRemote implements CNTR-2.3, validating that it is possible for a container to connect to a container
 // on an adjacent node via gRPC using IPv6 link local addresses. r0 and r1 in the topology are configured with
 // IPv6 link-local addresses via gNMI, and the CNTR service is used to trigger a connection between the two addresses.
 //
@@ -225,6 +225,49 @@ func TestConnectRemote(t *testing.T) {
 				t.Fatalf("could not make request to remote device, got err: %v", err)
 			}
 			t.Logf("got response, %s", prototext.Format(got))
+		})
+	}
+}
+
+// TestConnectLocalContainer implements CNTR-2.4, validating that it is possible for a container
+// to connect to another container on the same node. dut:r0 is expected to be configured with
+// two containers, one listening on tcp/60061 (corresponding to the "cntr1" service) and another
+// on tcp/60062 (corresponding to the "cntr2" service).
+func TestConnectLocalContainer(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	dut := ondatra.DUT(t, "r0")
+
+	tests := []struct {
+		desc      string
+		clientSvc string
+		dialAddr  string
+	}{{
+		desc:      "C1 -> C2",
+		clientSvc: "cntr1",
+		dialAddr:  "localhost:60062",
+	}, {
+		desc:      "C2 -> C1",
+		clientSvc: "cntr2",
+		dialAddr:  "localhost:60061",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			conn, stop := DialService(ctx, t, tt.clientSvc, dut)
+			defer stop()
+
+			client := cpb.NewCntrClient(conn)
+			got, err := client.Dial(ctx, &cpb.DialRequest{
+				Addr: tt.dialAddr,
+				Request: &cpb.DialRequest_Ping{
+					Ping: &cpb.PingRequest{},
+				},
+			})
+			if err != nil {
+				t.Fatalf("Could not make request from %s to %s, got err: %v", tt.clientSvc, tt.dialAddr, err)
+			}
+			t.Logf("Got response from %s dialing %s: %s", tt.clientSvc, tt.dialAddr, prototext.Format(got))
 		})
 	}
 }
