@@ -33,7 +33,7 @@ Deploy two DUTs running in the following configuration:
 where c1 is an instance of the "listener" container image, and c2 is an instance
 of the "dialer" image.
 
-The test should: * ensure that c1 is listening on `[::]:60071` running a gRPC
+The test should: * ensure that c1 is listening on `[::]:60061` running a gRPC
 service. * use gNMI to configure and/or discover the link local addresses
 configured on DUT1 port 1 and DUT2 port1. * instruct c2 to make a dial call and
 isue a simple RPC to the address configured by c1. If the dial call succeeds
@@ -47,7 +47,7 @@ service on `tcp/[::]60062`.
 
 *   Instruct C1 to make a gRPC dial call to C2's listen port with a specified
     timeout, ensure that an RPC response is received.
-*   Instruct C2 to make a gRPC dial call to C2's listen port with a specified
+*   Instruct C2 to make a gRPC dial call to C1's listen port with a specified
     timeout, ensure that an RPC response is received.
 
 ## OpenConfig Path and RPC Coverage
