@@ -5,3 +5,15 @@ uuid:  "f7622128-5fb5-4a9a-95b4-d66a6e59934e"
 plan_id:  "TUN-2.9"
 description:  "ECMP hashing on outer and inner packets with MPLSoUDP encapsulation"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    static_protocol_name:  "STATIC"
+    gribi_mac_override_static_arp_static_route:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+    gribi_encap_header_unsupported:  true
+  }
+}
