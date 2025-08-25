@@ -1038,8 +1038,9 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
                             ok_nonzero_returncodes=(1,),
                             extra_env_vars=test_env,
                             cwd=test_ws)
-        stop_time = self.get_current_time()
     finally:
+        stop_time = self.get_current_time()
+        
         # Move gRPC binary log file if it exists
         grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
         if os.path.exists(grpc_bin_log_file):
@@ -1056,41 +1057,38 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         if xml_root is None:
             if test_ignore_aborted or test_skip:
                 xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
-            else:
-                xml_root = _generate_dummy_suite(test_name, abort=True)
-                test_did_pass = False
 
-        suites = xml_root.findall("testsuite")
-        for suite in suites:
-            test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
+        if xml_root:
+            suites = xml_root.findall("testsuite")
+            for suite in suites:
+                test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
-        # Collect debug files if requested or if the test failed
-        collect_debug_files = collect_debug_files or force_collect_debug_files
-        core_check_only = (test_did_pass and not force_collect_debug_files) or (not test_did_pass and not collect_debug_files)
-        core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
-            ws=ws,
-            internal_fp_repo_dir=internal_fp_repo_dir,
-            reserved_testbed=reserved_testbed,
-            out_dir = os.path.join(test_log_directory_path, "debug_files"),
-            timestamp=start_timestamp,
-            core_check=True,
-            collect_tech=not core_check_only,
-            collect_snapshot=not core_check_only,
-            run_cmds=True,
-            split_files_per_dut=True
-        )).get('core_files', [])
+            # Collect debug files if requested or if the test failed
+            collect_debug_files = collect_debug_files or force_collect_debug_files
+            core_check_only = (test_did_pass and not force_collect_debug_files) or (not test_did_pass and not collect_debug_files)
+            core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
+                ws=ws,
+                internal_fp_repo_dir=internal_fp_repo_dir,
+                reserved_testbed=reserved_testbed,
+                out_dir = os.path.join(test_log_directory_path, "debug_files"),
+                timestamp=start_timestamp,
+                core_check=True,
+                collect_tech=not core_check_only,
+                collect_snapshot=not core_check_only,
+                run_cmds=True,
+                split_files_per_dut=True
+            )).get('core_files', [])
 
-        for suite in suites:
-            _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
-        _write_xml_tree(xml_root, xunit_results_filepath)
+            for suite in suites:
+                _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
+            _write_xml_tree(xml_root, xunit_results_filepath)
 
-        logger.info(f"xunit_results_filepath {xunit_results_filepath}")
+            if not test_show_skipped:
+                check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
 
-        # Handle skipped tests and return results
-        if not Path(xunit_results_filepath).is_file():
+            logger.info(f"xunit_results_filepath {xunit_results_filepath}")
+        else:
             logger.warn('Test did not produce expected xunit result')
-        elif not test_show_skipped:
-            check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 def _git_checkout_repo(repo, repo_branch=None, repo_rev=None, repo_pr=None):
