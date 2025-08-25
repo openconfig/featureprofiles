@@ -159,7 +159,13 @@ func StopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState)
 func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *PacketValidation) error {
 	t.Helper()
 	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.PortName))
-	f, err := os.CreateTemp("", "pcap")
+
+	// Check if capture data is empty
+	if len(bytes) == 0 {
+		return fmt.Errorf("no packets captured on port %s", packetVal.PortName)
+	}
+
+	f, err := os.CreateTemp("", "capture_*.pcap")
 	if err != nil {
 		return fmt.Errorf("could not create temporary pcap file: %v", err)
 	}

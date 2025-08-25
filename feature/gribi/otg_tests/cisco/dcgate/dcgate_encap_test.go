@@ -216,6 +216,10 @@ func TestBasicEncap(t *testing.T) {
 			if tc.skip {
 				t.SkipNow()
 			}
+
+			// Clear any existing captures at the start of each test to ensure clean state
+			clearCapture(t, otg.OTG(), topo)
+
 			// Add EMSD restart test
 			if strings.Contains(tc.name, "Process Recovery") {
 				t.Logf("Restarting emsd at %s", time.Now())
