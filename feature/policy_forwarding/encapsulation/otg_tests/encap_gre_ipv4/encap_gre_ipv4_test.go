@@ -523,26 +523,31 @@ func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 
 func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	t.Logf("Checking policy statistics for flow %s", tc.flowName)
-	//extract text from CLI output between rule name and packets
-	policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, tc.policyRule, tc.policyRule)
-	cliOutput := runCliCommand(t, dut, policyCountersCommand)
-	cliOutput = strings.TrimSpace(cliOutput)
-	if cliOutput == "" {
-		t.Errorf("No output for CLI command '%s'", policyCountersCommand)
-		return
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		//extract text from CLI output between rule name and packets
+		policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, tc.policyRule, tc.policyRule)
+		cliOutput := runCliCommand(t, dut, policyCountersCommand)
+		cliOutput = strings.TrimSpace(cliOutput)
+		if cliOutput == "" {
+			t.Errorf("No output for CLI command '%s'", policyCountersCommand)
+			return
+		}
+		totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
+		if err != nil {
+			t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
+			return
+		}
+		previouslyMatched := ruleMatchedPackets[tc.policyRule]
+		if totalMatched != previouslyMatched+noOfPackets {
+			t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
+		} else {
+			t.Logf("%d packets matched by policy %s rule %s for flow %s", totalMatched-previouslyMatched, trafficPolicyName, tc.policyRule, tc.flowName)
+		}
+		ruleMatchedPackets[tc.policyRule] = totalMatched
+	default:
+		t.Errorf("Vendor %s is not supported for policy statistics check through CLI", dut.Vendor())
 	}
-	totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
-	if err != nil {
-		t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
-		return
-	}
-	previouslyMatched := ruleMatchedPackets[tc.policyRule]
-	if totalMatched != previouslyMatched+noOfPackets {
-		t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
-	} else {
-		t.Logf("%d packets matched by policy %s rule %s for flow %s", totalMatched-previouslyMatched, trafficPolicyName, tc.policyRule, tc.flowName)
-	}
-	ruleMatchedPackets[tc.policyRule] = totalMatched
 }
 
 func checkPolicyStatisticsFromOC(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
