@@ -457,7 +457,7 @@ func createHibaKeysCopy(t *testing.T, keysDir string) {
 	}
 }
 
-func createHibaKeysGen(t *testing.T, dut *ondatra.DUTDevice, hibaCa, hibaGen, keysDir string) {
+func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 	caCmd := exec.Command(
 		hibaCa,
 		"-c",
@@ -501,7 +501,7 @@ func createHibaKeysGen(t *testing.T, dut *ondatra.DUTDevice, hibaCa, hibaGen, ke
 		hibaGen,
 		"-i",
 		"-f", fmt.Sprintf("%s/policy/identities/prod", keysDir),
-		"domain", "google.com",
+		"domain", "example.com",
 	)
 	err = prodIdentityCmd.Run()
 	if err != nil {
@@ -578,7 +578,7 @@ func CreateHibaKeys(t *testing.T, dut *ondatra.DUTDevice, keysDir string) {
 		t.Log("hiba-ca and/or hiba-gen not found on path, will try to use certs in local test dir if present.")
 		createHibaKeysCopy(t, keysDir)
 	} else {
-		createHibaKeysGen(t, dut, hibaCa, hibaGen, keysDir)
+		createHibaKeysGen(t, hibaCa, hibaGen, keysDir)
 	}
 }
 
