@@ -42,6 +42,8 @@ message Metadata {
     TESTBED_DUT_400ZR_100G_4LINKS = 10;
     TESTBED_DUT_400FR_100G_4LINKS = 11;
     TESTBED_DUT_ATE_5LINKS = 12;
+    TESTBED_DUT_800ZR = 13;
+    TESTBED_DUT_800ZR_PLUS = 14;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -891,6 +893,25 @@ message Metadata {
     // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
     // this deviation to set specific value of N. Returns N=1,000,000 by default.
     uint32 sflow_ingress_min_sampling_rate = 313;
+
+    // DUT not supporting with qos remarking
+    // Arista: b/415889077
+    bool qos_remark_oc_unsupported = 314;
+
+    // Devices that do not support policy forwarding encapsulate gre action
+    // Arista: b/409347274
+    bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
+  
+    // policy rule based counters unsupported
+    // Arista : https://partnerissuetracker.corp.google.com/issues/425628787
+    bool policy_rule_counters_oc_unsupported = 316;
+
+    // Devices that must have OTN to ETH assignment.
+    // Arista : https://partnerissuetracker.corp.google.com/issues/434922681
+    bool otn_to_eth_assignment = 317;
+    
+    // Devices that do not support import export policies configured in network instance
+    bool network_instance_import_export_policy_oc_unsuppored = 318;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
