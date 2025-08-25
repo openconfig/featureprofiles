@@ -32,6 +32,7 @@ import (
 	"crypto/tls"
 	"flag" // NOLINT
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/openconfig/gnmi/testing/fake/testing/grpc/config"
@@ -140,6 +141,9 @@ func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, 
 		}
 		msg, err := gr.Recv()
 		if err != nil {
+			if err == io.EOF {
+				return &cpb.DialResponse{}, nil
+			}
 			return nil, err
 		}
 		a, err := anypb.New(msg)
