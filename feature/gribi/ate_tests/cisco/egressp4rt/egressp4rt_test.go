@@ -1245,9 +1245,6 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	dut := ondatra.DUT(t, "dut")
 	baseconfig(t)
 
-	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
-	// addStaticRoute(t, dut)
-	addDefaultRouteviaGRIBI(t, args)
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
@@ -1266,6 +1263,11 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
+
+	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
+	// addStaticRoute(t, dut)
+	addDefaultRouteviaGRIBI(t, args)
+
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 	configPBR(t, dut, "PBR", true)
 
