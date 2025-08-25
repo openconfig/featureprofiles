@@ -95,14 +95,6 @@ deviations: {
       vendor: ARISTA
       software_version_regex: "*.*"
     }
-    deviation_values: {
-      oc_standard_value: {
-        string_val: ""
-      }
-      vendor_specific_value: {
-        string_val: ""
-      }
-    }
   }
 }
 deviations: {
@@ -127,11 +119,6 @@ deviations: {
 deviations: {
   name: "explicit_enable_bgp_on_default_vrf"
   type: DEVIATION_TYPE_PATH
-  impacted_paths: {
-    ocpaths: {
-      name: ""
-    }
-  }
   platforms: {
     issue_url: ""
     platform: {
@@ -158,14 +145,6 @@ deviations: {
     platform: {
       vendor: ARISTA
       software_version_regex: "*.*"
-    }
-    deviation_values: {
-      oc_standard_value: {
-        string_val: ""
-      }
-      vendor_specific_value: {
-        string_val: ""
-      }
     }
   }
 }
@@ -259,9 +238,6 @@ deviations: {
       software_version_regex: "*.*"
     }
     deviation_values: {
-      oc_standard_value: {
-        string_val: ""
-      }
       vendor_specific_value: {
         string_val: "Chassis"
       }
@@ -271,11 +247,6 @@ deviations: {
 deviations: {
   name: "isis_instance_enabled_required"
   type: DEVIATION_TYPE_PATH
-  impacted_paths: {
-    ocpaths: {
-      name: ""
-    }
-  }
   platforms: {
     issue_url: ""
     platform: {
