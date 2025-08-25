@@ -20,12 +20,8 @@ package cntr_test
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"fmt"
-	"net"
-	"strconv"
-
 	"strings"
 	"testing"
 	"time"
@@ -33,16 +29,14 @@ import (
 	"github.com/kr/pretty"
 	"github.com/openconfig/containerz/client"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra/binding"
 	gnoic "github.com/openconfig/gnoi/containerz"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
-	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 
@@ -155,37 +149,11 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 }
 
 // dialContainer dials a gRPC service running on a container on a device at the specified port.
-// It works for both KNE and static bindings by introspecting the connection details.
 func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientConn {
 	t.Helper()
-
-	var introspector introspect.Introspector
-	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &introspector); err != nil {
-		t.Fatalf("DUT does not support introspector interface: %v", err)
-	}
-	// Use gNMI to get a dialer, as it's a common service that should be present.
-	// We use it to discover the hostname/IP of the DUT.
-	dialer, err := introspector.Dialer(introspect.GNMI)
+	conn, err := dut.RawAPIs().BindingDUT().DialContainer(context.Background(), port)
 	if err != nil {
-		t.Fatalf("could not get dialer for gNMI: %v", err)
-	}
-
-	host, _, err := net.SplitHostPort(dialer.DialTarget)
-	if err != nil {
-		// If SplitHostPort fails, it might be because there is no port.
-		// This can be the case for physical devices where target is just the hostname/IP.
-		host = dialer.DialTarget
-	}
-
-	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	t.Logf("Dialing gRPC address: %s", addr)
-
-	tlsc := credentials.NewTLS(&tls.Config{
-		InsecureSkipVerify: true, // NOLINT
-	})
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(tlsc))
-	if err != nil {
-		t.Fatalf("Failed to dial %s: %v", addr, err)
+		t.Fatalf("DialContainer failed: %v", err)
 	}
 	return conn
 }
@@ -225,6 +193,12 @@ func TestDial(t *testing.T) {
 	}
 }
 
+// DUTCredentialer is an interface for getting credentials from a DUT binding.
+type DUTCredentialer interface {
+	RPCUsername() string
+	RPCPassword() string
+}
+
 // TestDialLocal implements CNTR-3, validating that it is possible for a
 // container running on the device to connect to local gRPC services that are
 // running on the DUT.
@@ -252,6 +226,13 @@ func TestDialLocal(t *testing.T) {
 		time.Sleep(2 * time.Second)
 	}
 
+	var creds DUTCredentialer
+	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &creds); err != nil {
+		t.Fatalf("Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface.", err, dut.Name())
+	}
+	username := creds.RPCUsername()
+	password := creds.RPCPassword()
+
 	tests := []struct {
 		desc     string
 		inMsg    *cpb.DialRequest
@@ -261,6 +242,8 @@ func TestDialLocal(t *testing.T) {
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
 			Addr: "localhost:9339",
+			Username: username,
+			Password: password,
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GNMI,
 			},
@@ -270,6 +253,8 @@ func TestDialLocal(t *testing.T) {
 		desc: "dial gRIBI",
 		inMsg: &cpb.DialRequest{
 			Addr: "localhost:9340",
+			Username: username,
+			Password: password,
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GRIBI,
 			},
@@ -279,6 +264,8 @@ func TestDialLocal(t *testing.T) {
 		desc: "dial something not listening",
 		inMsg: &cpb.DialRequest{
 			Addr: "localhost:4242",
+			Username: username,
+			Password: password,
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GRIBI,
 			},
