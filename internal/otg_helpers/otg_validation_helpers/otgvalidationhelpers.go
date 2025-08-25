@@ -103,6 +103,17 @@ func (v *OTGValidation) ValidatePortIsActive(t *testing.T, ate *ondatra.ATEDevic
 	return nil
 }
 
+// ReturnLossPercentage validates the percentage of traffic loss on the flows.
+func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevice) float32 {
+	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().OutPkts().State())
+	if outPkts == 0 {
+		t.Fatalf("Get(out packets for flow %q): got %v, want nonzero", v.Flow.Name, outPkts)
+	}
+	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
+	return lossPct
+}
+
 // ValidateOTGISISTelemetry validates the isis adjancency states
 func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj map[string]interface{}) {
 	isisAdj := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter(expectedAdj["IsisRouterName"].(string)).Adjacencies().AdjacencyAny().State())
@@ -145,17 +156,6 @@ func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj 
 		}
 	}
 
-}
-
-// ReturnLossPercentage validates the percentage of traffic loss on the flows.
-func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevice) float32 {
-	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().OutPkts().State())
-	if outPkts == 0 {
-		t.Fatalf("Get(out packets for flow %q): got %v, want nonzero", v.Flow.Name, outPkts)
-	}
-	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
-	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
-	return lossPct
 }
 
 // ValidateECMPonLAG checks LAG port counters to ensure that
