@@ -1,4 +1,4 @@
-package zr_platform_paths_test
+package zr_800_platform_paths_test
 
 import (
 	"flag"
