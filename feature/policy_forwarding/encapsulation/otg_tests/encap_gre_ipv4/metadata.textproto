@@ -25,6 +25,7 @@ platform_exceptions: {
     default_network_instance: "default"
     policy_forwarding_to_next_hop_oc_unsupported: true
     policy_forwarding_gre_encapsulation_oc_unsupported: true
+    policy_forwarding_unsupported: true
     qos_remark_oc_unsupported: true
   }
 }
