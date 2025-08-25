@@ -4,7 +4,7 @@
 uuid: "e2b5d167-5536-475b-ba26-8939a15ffb0e"
 plan_id: "gNMI-1.19"
 description: "ConfigPush and ConfigPull after Control Card switchover"
-testbed: TESTBED_DUT_ATE_8LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA

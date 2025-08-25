@@ -67,8 +67,3 @@ rpcs:
 ## DUT
 
 MFF
-
-## Canonical OC
-```json
-{}
-``` 
