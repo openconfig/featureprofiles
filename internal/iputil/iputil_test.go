@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/gnmi/errdiff"
 )
 
 func TestGenerateIPs(t *testing.T) {
@@ -51,7 +52,7 @@ func TestGenerateIPv4sWithStep(t *testing.T) {
 		count   int
 		stepIP  string
 		want    []string
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name:    "valid case",
@@ -59,28 +60,28 @@ func TestGenerateIPv4sWithStep(t *testing.T) {
 			count:   3,
 			stepIP:  "0.0.0.1",
 			want:    []string{"192.168.0.1", "192.168.0.2", "192.168.0.3"},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name:    "invalid startIP",
 			startIP: "999.168.0.1",
 			count:   3,
 			stepIP:  "0.0.0.1",
-			wantErr: true,
+			wantErr: "invalid startIP",
 		},
 		{
 			name:    "invalid stepIP",
 			startIP: "192.168.0.1",
 			count:   3,
 			stepIP:  "0.0.999.1",
-			wantErr: true,
+			wantErr: "invalid stepIP",
 		},
 		{
 			name:    "negative count",
 			startIP: "192.168.0.1",
 			count:   -5,
 			stepIP:  "0.0.0.1",
-			wantErr: true,
+			wantErr: "negative count",
 		},
 		{
 			name:    "zero count",
@@ -88,29 +89,29 @@ func TestGenerateIPv4sWithStep(t *testing.T) {
 			count:   0,
 			stepIP:  "0.0.0.1",
 			want:    []string{},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name:    "count causes overflow",
 			startIP: "255.255.255.250",
 			count:   10,
 			stepIP:  "0.0.0.1",
-			wantErr: true,
+			wantErr: "count causes overflow",
 		},
 		{
 			name:    "step causes overflow",
 			startIP: "255.255.255.250",
 			count:   2,
 			stepIP:  "0.0.0.10",
-			wantErr: true,
+			wantErr: "step causes overflow",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateIPv4sWithStep(tt.startIP, tt.count, tt.stepIP)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateIPv4sWithStep() error = %v, wantErr %v", err, tt.wantErr)
+			if diff := errdiff.Substring(err, tt.wantErr); diff != "" {
+				t.Errorf("GenerateIPv4sWithStep() unexpected error (-want,+got): %s", diff)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("GenerateIPv4sWithStep() mismatch (-want +got):\n%s", diff)
@@ -126,7 +127,7 @@ func TestGenerateIPv6sWithStep(t *testing.T) {
 		count   int
 		stepIP  string
 		want    []string
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name:    "valid IPv6 sequence",
@@ -134,28 +135,28 @@ func TestGenerateIPv6sWithStep(t *testing.T) {
 			count:   3,
 			stepIP:  "::1",
 			want:    []string{"2001:db8::1", "2001:db8::2", "2001:db8::3"},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name:    "invalid start IPv6",
 			startIP: "invalid",
 			count:   3,
 			stepIP:  "::1",
-			wantErr: true,
+			wantErr: "invalid start IPv6",
 		},
 		{
 			name:    "invalid step IPv6",
 			startIP: "2001:db8::1",
 			count:   3,
 			stepIP:  "invalid",
-			wantErr: true,
+			wantErr: "invalid step IPv6",
 		},
 		{
 			name:    "negative count",
 			startIP: "2001:db8::1",
 			count:   -1,
 			stepIP:  "::1",
-			wantErr: true,
+			wantErr: "negative count",
 		},
 		{
 			name:    "zero count",
@@ -163,25 +164,25 @@ func TestGenerateIPv6sWithStep(t *testing.T) {
 			count:   0,
 			stepIP:  "::1",
 			want:    []string{},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name:    "overflow IPv6",
 			startIP: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe",
 			count:   3,
 			stepIP:  "::1",
-			wantErr: true,
+			wantErr: "overflow IPv6",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateIPv6sWithStep(tt.startIP, tt.count, tt.stepIP)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateIPv6sWithStep() error = %v, wantErr %v", err, tt.wantErr)
+			if diff := errdiff.Substring(err, tt.wantErr); diff != "" {
+				t.Errorf("GenerateIPv6sWithStep() unexpected error (-want,+got): %s", diff)
 			}
-			if !tt.wantErr && !cmp.Equal(got, tt.want) {
-				t.Errorf("GenerateIPv6sWithStep() mismatch (-want +got):\n%s", cmp.Diff(tt.want, got))
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("GenerateIPv6sWithStep() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -194,59 +195,61 @@ func TestGenerateMACs(t *testing.T) {
 		count     int
 		stepMAC   string
 		want      []string
-		wantError bool
+		wantError string
 	}{
 		{
-			name:     "valid MAC sequence",
-			startMAC: "00:00:00:00:00:AA",
-			count:    3,
-			stepMAC:  "00:00:00:00:00:01",
-			want:     []string{"00:00:00:00:00:aa", "00:00:00:00:00:ab", "00:00:00:00:00:ac"},
+			name:      "valid MAC sequence",
+			startMAC:  "00:00:00:00:00:AA",
+			count:     3,
+			stepMAC:   "00:00:00:00:00:01",
+			want:      []string{"00:00:00:00:00:aa", "00:00:00:00:00:ab", "00:00:00:00:00:ac"},
+			wantError: "",
 		},
 		{
 			name:      "invalid base MAC",
 			startMAC:  "invalid",
 			count:     3,
 			stepMAC:   "00:00:00:00:00:01",
-			wantError: true,
+			wantError: "invalid base MAC",
 		},
 		{
 			name:      "invalid step MAC",
 			startMAC:  "00:00:00:00:00:AA",
 			count:     3,
 			stepMAC:   "invalid",
-			wantError: true,
+			wantError: "invalid step MAC",
 		},
 		{
 			name:      "negative count",
 			startMAC:  "00:00:00:00:00:AA",
 			count:     -1,
 			stepMAC:   "00:00:00:00:00:01",
-			wantError: true,
+			wantError: "negative count",
 		},
 		{
-			name:     "zero count",
-			startMAC: "00:00:00:00:00:AA",
-			count:    0,
-			stepMAC:  "00:00:00:00:00:01",
-			want:     []string{},
+			name:      "zero count",
+			startMAC:  "00:00:00:00:00:AA",
+			count:     0,
+			stepMAC:   "00:00:00:00:00:01",
+			want:      []string{},
+			wantError: "",
 		},
 		{
 			name:      "overflow MAC",
 			startMAC:  "ff:ff:ff:ff:ff:fe",
 			count:     3,
 			stepMAC:   "00:00:00:00:00:01",
-			wantError: true,
+			wantError: "overflow MAC",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateMACs(tt.startMAC, tt.count, tt.stepMAC)
-			if (err != nil) != tt.wantError {
+			if diff := errdiff.Substring(err, tt.wantError); diff != "" {
 				t.Errorf("GenerateMACs() error = %v, wantError %v", err, tt.wantError)
 			}
-			if !tt.wantError && !cmp.Equal(got, tt.want) {
+			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("GenerateMACs() mismatch (-want +got):\n%s", cmp.Diff(tt.want, got))
 			}
 		})

@@ -342,7 +342,7 @@ func TestSetup(t *testing.T) {
 	}
 
 	// Get default parameters for OC Policy Forwarding
-	ocPFParams := defaultOcPolicyForwardingParams()
+	ocPFParams := defaultOCPolicyForwardingParams()
 
 	// Pass ocPFParams to configureDut
 	configureDut(t, dut, netConfig, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
@@ -380,9 +380,9 @@ func TestSetup(t *testing.T) {
 	configureOTG(t)
 }
 
-// defaultOcPolicyForwardingParams provides default parameters for the generator,
+// defaultOCPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
+func defaultOCPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         "Agg1.10",
@@ -413,7 +413,7 @@ func TestMPLSOGUEDecapIPv4AndIPv6(t *testing.T) {
 	if err := flowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := lagECMPValidation.ValidateECMPonLAGWithTolPer(t, ate, tolerancePer); err != nil {
+	if err := lagECMPValidation.ValidateECMPonLAGWithTolerance(t, ate, tolerancePer); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
 	t.Log("Verify MPLSoGUE decapsulate action for Multicast IPv4 payload")
@@ -490,7 +490,7 @@ func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers
 	paramsOuter.AddUDPHeader()
 	paramsOuter.AddMPLSHeader()
 	if paramsInner.IPv4Flow != nil {
-		*paramsOuter.IPv4Flow = *paramsInner.IPv4Flow
+		paramsOuter.IPv4Flow = paramsInner.IPv4Flow
 		paramsOuter.AddIPv4Header()
 	}
 	if paramsInner.IPv6Flow != nil {
@@ -606,11 +606,11 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 	}
 
 	if a.IPv6Sec != "" {
-		s6_2 := s.GetOrCreateIpv6()
+		s62 := s.GetOrCreateIpv6()
 		if deviations.InterfaceEnabled(dut) {
-			s6_2.Enabled = ygot.Bool(true)
+			s62.Enabled = ygot.Bool(true)
 		}
-		s6_2.GetOrCreateAddress(a.IPv6Sec).PrefixLength = ygot.Uint8(a.IPv6Len)
+		s62.GetOrCreateAddress(a.IPv6Sec).PrefixLength = ygot.Uint8(a.IPv6Len)
 	}
 }
 

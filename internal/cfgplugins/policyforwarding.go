@@ -497,7 +497,12 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+			if ocPFParams.Dynamic {
+				t.Logf("Going into decap")
+				aristaGreDecapCLIConfig(t, dut, ocPFParams)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
@@ -512,7 +517,8 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
-				GueDecapConfig(t, dut, ocPFParams)
+				t.Logf("Going into decap")
+				aristaGueDecapCLIConfig(t, dut, ocPFParams)
 			} else {
 				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			}
@@ -524,7 +530,8 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
-func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+// aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
+func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
 	cliConfig := fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
@@ -534,6 +541,18 @@ func GueDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForward
 							tunnel decap-ip %s
 							tunnel decap-interface %s
 							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+}
+
+// aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
+func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, params.AppliedPolicyName, params.TunnelIP)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
@@ -592,6 +611,53 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	}
+}
+
+func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
+	t.Helper()
+	iface := pf.GetOrCreateInterface(interfaceID)
+	iface.ApplyVrfSelectionPolicy = ygot.String(appliedPolicyName)
+	iface.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceID)
+	iface.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+}
+
+// GUEDecapConfig configures GUE (Generic UDP Encapsulation) decapsulation
+// on the given DUT using CLI commands. It creates an IP decap group
+// of type UDP, applies a tunnel configuration, and associates the decap
+// with the specified interface.
+func GUEDecapConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+		                    ip decap-group type udp destination port %v payload %s
+							tunnel type %s-over-udp udp destination port %v
+							ip decap-group %s
+							tunnel type UDP
+							tunnel decap-ip %s
+							tunnel decap-interface %s
+							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID,
+	)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
+
+func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, vrfRules []VrfRule) {
+	t.Logf("Configuring VRF Selection Policy")
+	policy := pf.GetOrCreatePolicy(policyName)
+	policy.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+
+	for _, vrfRule := range vrfRules {
+		rule := policy.GetOrCreateRule(vrfRule.Index)
+		switch vrfRule.IpType {
+		case IPv4:
+			rule.GetOrCreateIpv4().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+		case IPv6:
+			rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+		default:
+			t.Fatalf("Unsupported IP type %s in vrf rule", vrfRule.IpType)
+		}
+		rule.GetOrCreateTransport()
+		ruleAction := rule.GetOrCreateAction()
+		ruleAction.SetNetworkInstance(vrfRule.NetInstName)
 	}
 }
 

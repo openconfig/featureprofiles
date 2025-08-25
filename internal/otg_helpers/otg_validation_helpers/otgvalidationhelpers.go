@@ -103,6 +103,50 @@ func (v *OTGValidation) ValidatePortIsActive(t *testing.T, ate *ondatra.ATEDevic
 	return nil
 }
 
+// ValidateOTGISISTelemetry validates the isis adjancency states
+func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj map[string]interface{}) {
+	isisAdj := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter(expectedAdj["IsisRouterName"].(string)).Adjacencies().AdjacencyAny().State())
+
+	for _, adj := range isisAdj {
+		if adj.LocalState.GetLevelType().String() != expectedAdj["LocalStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected local state level. got: %v, expected: %v", adj.LocalState.GetLevelType().String(), expectedAdj["LocalStateTypeExp"])
+		}
+
+		if adj.LocalState.GetHoldTimer() != expectedAdj["LocalStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected local state hold timer. got: %v, expected: %v", adj.LocalState.GetHoldTimer(), expectedAdj["LocalStateHoldTimeExp"])
+		}
+
+		localStateRestartingStatus := adj.LocalState.GetLocalRestartingStatus().GetCurrentState().String()
+		if localStateRestartingStatus != expectedAdj["LocalStateRestartStatusExp"].(string) {
+			t.Errorf("didn't receive expected local state restarting status. got: %v, expected: %v", localStateRestartingStatus, expectedAdj["LocalStateRestartStatusExp"])
+		}
+
+		localStateAttemptStatus := adj.LocalState.GetLocalRestartingStatus().GetLocalLastRestartingAttemptStatus().GetLocalLastRestartingAttemptStatusType().String()
+		if localStateAttemptStatus != expectedAdj["LocalStateLastAttemptExp"].(string) {
+			t.Errorf("didn't receive expected local restarting status. got: %v, expected: %v", localStateAttemptStatus, expectedAdj["LocalStateLastAttemptExp"])
+		}
+
+		if adj.NeighborState.GetLevelType().String() != expectedAdj["NeighborStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state level. got: %v, expected: %v", adj.NeighborState.GetLevelType().String(), expectedAdj["NeighborStateTypeExp"])
+		}
+
+		if adj.NeighborState.GetHoldTimer() != expectedAdj["NeighborStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected neighbor state hold timer. got: %v, expected: %v", adj.NeighborState.GetHoldTimer(), expectedAdj["NeighborStateHoldTimeExp"])
+		}
+
+		neighRestartingState := adj.NeighborState.GetNeighRestartingStatus().GetCurrentState().String()
+		if neighRestartingState != expectedAdj["NeighborStateRestartStatusExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state restarting status. got: %v, expected: %v", neighRestartingState, expectedAdj["NeighborStateRestartStatusExp"])
+		}
+
+		neighLastAttemptStatus := adj.NeighborState.GetNeighRestartingStatus().GetNeighLastRestartingAttemptStatus().GetNeighLastRestartingAttemptStatusType().String()
+		if neighLastAttemptStatus != expectedAdj["NeighborStateLastAttemptExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state last restart attempt status. got: %v, expected: %v", neighLastAttemptStatus, expectedAdj["NeighborStateLastAttemptExp"])
+		}
+	}
+
+}
+
 // ReturnLossPercentage validates the percentage of traffic loss on the flows.
 func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevice) float32 {
 	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().OutPkts().State())
@@ -133,10 +177,10 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 	return nil
 }
 
-// ValidateECMPonLAGWithTolPer checks LAG port counters to ensure that
-// traffic is evenly distributed across all LAG member ports within a
-// tolerance of 5 percent during scale tests.
-func (v *OTGValidation) ValidateECMPonLAGWithTolPer(t *testing.T, ate *ondatra.ATEDevice, tolerancePer float64) error {
+// ValidateECMPonLAGWithTolerance checks LAG port counters to ensure that
+// traffic is evenly distributed across all LAG member ports within the
+// tolerance provided as input.
+func (v *OTGValidation) ValidateECMPonLAGWithTolerance(t *testing.T, ate *ondatra.ATEDevice, tolerancePer float64) error {
 	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	p1Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())
 	p2Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[1]).ID()).Counters().InFrames().State())
