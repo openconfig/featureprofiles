@@ -3,6 +3,7 @@ package otgvalidationhelpers
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -155,4 +156,44 @@ func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj 
 		}
 	}
 
+}
+
+// ValidateECMPonLAG checks LAG port counters to ensure that
+// traffic is evenly distributed across all LAG member ports within a tolerance of 2 percent.
+func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) error {
+	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	p1Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())
+	p2Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[1]).ID()).Counters().InFrames().State())
+
+	expectedPkts := totalPkts / 2
+	tolerance := float64(2)
+	if got := (math.Abs(float64(expectedPkts)-float64(p1Pkts)) * 100) / float64(expectedPkts); got > tolerance {
+		return fmt.Errorf("port 1 packet count out of expected range: got %d, expected ~%d ±%f", p1Pkts, expectedPkts, tolerance)
+	}
+	if got := (math.Abs(float64(expectedPkts)-float64(p2Pkts)) * 100) / float64(expectedPkts); got > tolerance {
+		return fmt.Errorf("port 2 packet count out of expected range: got %d, expected ~%d ±%f", p2Pkts, expectedPkts, tolerance)
+	}
+
+	return nil
+}
+
+// ValidateECMPonLAGWithTolerance checks LAG port counters to ensure that
+// traffic is evenly distributed across all LAG member ports within the
+// tolerance provided as input.
+func (v *OTGValidation) ValidateECMPonLAGWithTolerance(t *testing.T, ate *ondatra.ATEDevice, tolerancePer float64) error {
+	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	p1Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())
+	p2Pkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[1]).ID()).Counters().InFrames().State())
+
+	expectedPkts := totalPkts / 2
+	pct1 := (math.Abs(float64(p1Pkts)-float64(expectedPkts)) * 100) / float64(expectedPkts)
+	if pct1 > tolerancePer {
+		return fmt.Errorf("port 1 packet count out of expected range: got %d, expected ~%d ±%.0f%%", p1Pkts, expectedPkts, tolerancePer)
+	}
+	pct2 := (math.Abs(float64(p2Pkts)-float64(expectedPkts)) * 100) / float64(expectedPkts)
+	if pct2 > tolerancePer {
+		return fmt.Errorf("port 2 packet count out of expected range: got %d, expected ~%d ±%.0f%%", p2Pkts, expectedPkts, tolerancePer)
+	}
+
+	return nil
 }
