@@ -129,6 +129,15 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 }
 
+func clearAllQosCounters(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Logf("clear qos counters on all interfaces")
+	cliHandle := dut.RawAPIs().CLI(t)
+	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+	t.Logf(resp.Output(), err)
+	t.Logf("sleeping after clearing qos counters")
+	time.Sleep(3 * time.Minute)
+}
+
 // testSchedulerwrr tests the Weighted Round Robin (WRR) scheduling on the DUT (Device Under Test).
 func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.clientA.FlushServer(t)
@@ -729,12 +738,7 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 				}
 			}
 		}
-		t.Logf("clear qos counters on all interfaces")
-		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp.Output(), err)
-		t.Logf("sleeping after clearing qos counters")
-		time.Sleep(3 * time.Minute)
+		clearAllQosCounters(t, args.dut)
 	}
 }
 
@@ -822,12 +826,7 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 				}
 			}
 		}
-		t.Logf("clear qos counters on all interfaces")
-		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp.Output(), err)
-		t.Logf("sleeping after clearing qos counters")
-		time.Sleep(3 * time.Minute)
+		clearAllQosCounters(t, args.dut)
 	}
 }
 
@@ -904,12 +903,7 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 				t.Errorf("Stats not matching for queue %+v", queueName)
 			}
 		}
-		t.Logf("clear qos counters on all interfaces")
-		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp.Output(), err)
-		t.Logf("sleeping after clearing qos counters")
-		time.Sleep(3 * time.Minute)
+		clearAllQosCounters(t, args.dut)
 	}
 }
 func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
