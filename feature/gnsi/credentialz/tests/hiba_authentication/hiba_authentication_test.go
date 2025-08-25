@@ -16,7 +16,6 @@ package hibaauthentication_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
