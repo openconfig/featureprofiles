@@ -223,9 +223,28 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			},
 		}
 	case binding.KeyAuth:
-		var signer ssh.Signer
-		if err := ssh.Unmarshal(auth.Key, signer); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal private key: %v", err)
+		signer, err := ssh.ParsePrivateKey(a.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		config = &ssh.ClientConfig{
+			User: auth.User,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(signer),
+			},
+		}
+	case binding.CertificateAuth:
+		signer, err := ssh.ParsePrivateKey(a.PrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		cert, _, _, _, err := ssh.ParseAuthorizedKey(a.Certificate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse certificate: %w", err)
+		}
+		signer, err = ssh.NewCertSigner(cert.(*ssh.Certificate), signer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create certificate signer: %w", err)
 		}
 		config = &ssh.ClientConfig{
 			User: auth.User,
