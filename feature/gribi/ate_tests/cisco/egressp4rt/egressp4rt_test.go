@@ -104,7 +104,7 @@ func addDefaultRouteviaGRIBI(t *testing.T, args *testArgs) {
 	args.client.AddNHG(t, uint64(3301), 0, map[uint64]uint64{(303): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "0.0.0.0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv6(t, "0::0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
-}}
+}
 
 // func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 // 	t.Helper()
