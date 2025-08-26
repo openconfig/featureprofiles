@@ -887,7 +887,7 @@ tests:
     owners:
       - harikri4
   - name: ACCTZ-4.2 (Record Payload Truncation)
-    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    path: feature/gnsi/acctz/tests/record_payload_truncation
     mustpass: false
     timeout: 21000
     priority: 65
