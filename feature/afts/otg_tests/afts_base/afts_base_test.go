@@ -238,24 +238,25 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 	peerGroupV6 := bgp.GetOrCreatePeerGroup(peerGrpNameV6)
 	peerGroupV6.SetPeerAs(ateAS)
 
-	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
-		peerGroupV4.GetOrCreateUseMultiplePaths().SetEnabled(true)
-		peerGroupV6.GetOrCreateUseMultiplePaths().SetEnabled(true)
-	}
 	afiSAFI := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afiSAFI.SetEnabled(true)
-	afiSAFI.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
 	asisafi6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	asisafi6.SetEnabled(true)
-	asisafi6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
 
 	peerGroupV4AfiSafi := peerGroupV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	peerGroupV4AfiSafi.SetEnabled(true)
-	peerGroupV4AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
 	peerGroupV6AfiSafi := peerGroupV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	peerGroupV6AfiSafi.SetEnabled(true)
-	peerGroupV6AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
 
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+		peerGroupV4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	} else {
+		afiSAFI.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		asisafi6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		peerGroupV4AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	}
 	for _, nbr := range nbrs {
 		neighbor := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		neighbor.SetPeerAs(nbr.as)

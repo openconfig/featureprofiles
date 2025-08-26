@@ -384,11 +384,12 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 	if update.GetPrefix() == nil {
 		update.Prefix = &gnmipb.Path{}
 	}
-	if update.GetPrefix().GetOrigin() == "" {
-		update.GetPrefix().Origin = "openconfig"
+	prefix := update.GetPrefix()
+	if prefix.GetOrigin() == "" {
+		prefix.Origin = "openconfig"
 	}
-	if update.GetPrefix().GetTarget() == "" {
-		update.GetPrefix().Target = c.target
+	if prefix.GetTarget() == "" {
+		prefix.Target = c.target
 	}
 	err := c.cache.GnmiUpdate(update)
 
