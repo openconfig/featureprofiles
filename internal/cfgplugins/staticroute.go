@@ -16,8 +16,11 @@ package cfgplugins
 
 import (
 	"errors"
+	"fmt"
+	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -56,4 +59,18 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
 	return s, nil
+}
+
+func NewStaticRouteNextHopGroupCfg(t *testing.T, batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice, nexthopGrp string) {
+	if nexthopGrp != "" {
+		if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(d) {
+			switch d.Vendor() {
+			case ondatra.ARISTA:
+				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, nexthopGrp)
+				helpers.GnmiCLIConfig(t, d, cli)
+			}
+		} else {
+			NewStaticRouteCfg(batch, cfg, d)
+		}
+	}
 }
