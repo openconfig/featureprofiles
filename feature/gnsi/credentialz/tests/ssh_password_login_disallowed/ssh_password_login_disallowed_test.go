@@ -18,8 +18,6 @@ import (
 	"context"
 	"os"
 
-	"golang.org/x/crypto/ssh"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 

@@ -600,37 +600,22 @@ func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
 	}
-	signer, err := ssh.ParsePrivateKey(privateKeyContents)
-	if err != nil {
-		t.Fatalf("Failed parsing private key, error: %s", err)
-	}
+
 	certificateContents, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading certificate contents, error: %s", err)
 	}
-	certificate, _, _, _, err := ssh.ParseAuthorizedKey(certificateContents)
-	if err != nil {
-		t.Fatalf("Failed parsing certificate contents, error: %s", err)
-	}
-	certificateSigner, err := ssh.NewCertSigner(certificate.(*ssh.Certificate), signer)
-	if err != nil {
-		t.Fatalf("Failed creating certificate signer, error: %s", err)
-	}
 
-	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: ssh.Marshal(certificateSigner)})
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.CertificateAuth{User: username, PrivateKey: privateKeyContents, Certificate: certificateContents})
 }
 
 // SSHWithKey dials ssh with key based authentication to be used in credentialz tests.
-func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
+func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, target, username, dir string) (binding.SSHClient, error) {
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
 	}
-	signer, err := ssh.ParsePrivateKey(privateKeyContents)
-	if err != nil {
-		t.Fatalf("Failed parsing private key, error: %s", err)
-	}
-	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: ssh.Marshal(signer)})
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
 
 func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {

@@ -15,6 +15,7 @@
 package sshpublickeyauthentication_test
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -25,6 +26,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+)
+
+const (
+	username                  = "testuser"
+	authorizedKeysListVersion = "v1.0"
 )
 
 const (
@@ -59,7 +65,9 @@ func TestCredentialz(t *testing.T) {
 	credz.SetupUser(t, dut, username)
 
 	t.Run("auth should fail ssh public key not authorized for user", func(t *testing.T) {
-		_, err := credz.SSHWithKey(t, target, username, dir)
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err = credz.SSHWithKey(ctx, t, dut, target, username, dir)
 		if err == nil {
 			t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
 		}
@@ -80,18 +88,16 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with key succeeds.
-		sshClient, err := credz.SSHWithKey(t, target, username, dir)
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		sshClient, err := credz.SSHWithKey(ctx, t, dut, target, username, dir)
 		if err != nil {
 			t.Fatalf("Dialing ssh failed, but we expected to succeed. error: %v", err)
 		}
-		sess, err := sshClient.NewSession()
-		if err != nil {
-			t.Fatalf("NewSession failed, err: %v", err)
-		}
-		defer sess.Close()
+		defer sshClient.Close()
 		t.Logf("SSH session established")
 
-		res, err := sess.CombinedOutput("show version")
+		res, err := sshClient.RunCommand(ctx, "show version")
 		if err != nil {
 			t.Fatalf("CombinedOutput failed, err: %v", err)
 		}
