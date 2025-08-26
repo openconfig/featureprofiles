@@ -5,15 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path/filepath"git 
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/containerztest"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 
@@ -38,223 +38,25 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func containerzClient(ctx context.Context, t *testing.T) *client.Client {
-	dut := ondatra.DUT(t, "dut")
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		if deviations.ContainerzOCUnsupported(dut) {
-			dut.Config().New().WithAristaText(`
-				management api gnoi
-				service containerz
-				  transport gnmi default
-				  !
-				  container runtime
-					 vrf default
-				!
-			`).Append(t)
-		}
-	case ondatra.NOKIA:
-		break
-	default:
-		t.Fatalf("dut %s does not support containerz", dut.Name())
-	}
-
-	t.Logf("Waiting for device to ingest its config.")
-	time.Sleep(time.Minute)
-
-	return client.NewClientFromStub(dut.RawAPIs().GNOI(t).Containerz())
-}
-
-// StartContainerOptions holds parameters for starting a container.
-type StartContainerOptions struct {
-	ImageName           string
-	ImageTag            string
-	TarPath             string
-	InstanceName        string
-	Command             string
-	Ports               []string
-	RemoveExistingImage bool
-	PollForRunningState bool
-	PollTimeout         time.Duration
-	PollInterval        time.Duration
-}
-
-// withDefaults returns a new StartContainerOptions with default values applied
-// for fields that were zero-valued in the original options.
-func (o StartContainerOptions) withDefaults() StartContainerOptions {
-	res := o // Create a copy
-
-	if res.ImageName == "" {
-		res.ImageName = imageName
-	}
-	if res.ImageTag == "" {
-		res.ImageTag = "latest"
-	}
-	if res.TarPath == "" {
-		res.TarPath = *containerTar
-	}
-	if res.InstanceName == "" {
-		res.InstanceName = instanceName
-	}
-	if res.Command == "" {
-		res.Command = "./cntrsrv"
-	}
-	if len(res.Ports) == 0 {
-		res.Ports = []string{"60061:60061"} // Default port
-	}
-	if res.PollTimeout == 0 {
-		res.PollTimeout = 30 * time.Second
-	}
-	if res.PollInterval == 0 {
-		res.PollInterval = 5 * time.Second // Also used for fixed sleep if not polling
-	}
-	// Boolean fields (RemoveExistingImage, PollForRunningState) default to false (their zero value).
-	return res
-}
-
-// deployAndStartContainer sets up and starts a container according to the provided options.
-// It ensures the image is present (pushing it if necessary) and the container is started.
-func deployAndStartContainer(ctx context.Context, t *testing.T, cli *client.Client, opts StartContainerOptions) error {
-	// Mark as test helper
-	t.Helper()
-
-	// Apply default values for any unspecified options.
-	opts = opts.withDefaults()
-
-	// 1. Remove existing container instance to ensure a clean start.
-	t.Logf("Attempting to remove existing container instance %s before start.", opts.InstanceName)
-	if err := cli.RemoveContainer(ctx, opts.InstanceName, true); err != nil {
-		if status.Code(err) != codes.NotFound {
-			t.Logf("Pre-start removal of container %s failed: %v", opts.InstanceName, err)
-		} else {
-			t.Logf("Container instance %s was not found or successfully removed.", opts.InstanceName)
-		}
-	}
-
-	// 2. Optionally remove existing image before push.
-	if opts.RemoveExistingImage {
-		t.Logf("Attempting to remove existing image %s:%s before push.", opts.ImageName, opts.ImageTag)
-		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, true); err != nil {
-			s, _ := status.FromError(err)
-			if s.Code() != codes.NotFound && err.Error() != client.ErrNotFound.Error() {
-				t.Logf("Pre-push removal of image %s:%s failed (continuing with push): %v", opts.ImageName, opts.ImageTag, err)
-			} else {
-				t.Logf("Image %s:%s was not found or successfully removed before push.", opts.ImageName, opts.ImageTag)
-			}
-		}
-	}
-
-	// 3. Push the image.
-	t.Logf("Pushing image %s:%s from %s.", opts.ImageName, opts.ImageTag, opts.TarPath)
-	progCh, err := cli.PushImage(ctx, opts.ImageName, opts.ImageTag, opts.TarPath, false)
-	if err != nil {
-		t.Fatalf("Initial call to PushImage for %s:%s failed: %v", opts.ImageName, opts.ImageTag, err)
-	}
-	for prog := range progCh {
-		if prog.Error != nil {
-			t.Fatalf("Error during push of image %s:%s: %v", opts.ImageName, opts.ImageTag, prog.Error)
-		}
-		if prog.Finished {
-			t.Logf("Successfully pushed image %s:%s.", prog.Image, prog.Tag)
-		} else {
-			t.Logf("Push progress for %s:%s: %d bytes received.", opts.ImageName, opts.ImageTag, prog.BytesReceived)
-		}
-	}
-
-	// 4. Verify the image exists after push.
-	t.Logf("Verifying image %s:%s exists after push.", opts.ImageName, opts.ImageTag)
-	imgListCh, err := cli.ListImage(ctx, 0, map[string][]string{"name": {opts.ImageName}, "tag": {opts.ImageTag}})
-	if err != nil {
-		t.Fatalf("Failed to list images after push for %s:%s: %v", opts.ImageName, opts.ImageTag, err)
-	}
-	foundImage := false
-	for img := range imgListCh {
-		if img.Error != nil {
-			t.Fatalf("Error received during ListImage iteration for %s:%s: %v", opts.ImageName, opts.ImageTag, img.Error)
-		}
-		if img.ImageName == opts.ImageName && img.ImageTag == opts.ImageTag {
-			foundImage = true
-			break
-		}
-	}
-	if !foundImage {
-		t.Fatalf("Image %s:%s not found after successful push.", opts.ImageName, opts.ImageTag)
-	}
-	t.Logf("Image %s:%s verified successfully after push.", opts.ImageName, opts.ImageTag)
-
-	// 5. Start the container.
-	t.Logf("Starting container %s with image %s:%s, command '%s', ports %v.", opts.InstanceName, opts.ImageName, opts.ImageTag, opts.Command, opts.Ports)
-	startResp, err := cli.StartContainer(ctx, opts.ImageName, opts.ImageTag, opts.Command, opts.InstanceName, client.WithPorts(opts.Ports))
-	if err != nil {
-		t.Fatalf("Unable to start container %s: %v", opts.InstanceName, err)
-	}
-	t.Logf("StartContainer called for %s, response: %s", opts.InstanceName, startResp)
-
-	// 6. Wait for container to be running or fixed sleep.
-	if opts.PollForRunningState {
-		t.Logf("Polling for container %s to reach RUNNING state (timeout: %v, interval: %v).", opts.InstanceName, opts.PollTimeout, opts.PollInterval)
-		startTime := time.Now()
-		for time.Since(startTime) < opts.PollTimeout {
-			listContCh, listErr := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {opts.InstanceName}})
-			if listErr != nil {
-				return fmt.Errorf("unable to list container %s state during polling: %w", opts.InstanceName, listErr)
-			}
-			containerIsRunning := false
-			for info := range listContCh {
-				if info.Error != nil {
-					return fmt.Errorf("error message received while listing container %s during polling: %w", opts.InstanceName, info.Error)
-				}
-				if (info.Name == opts.InstanceName || info.Name == "/"+opts.InstanceName) && info.State == cpb.ListContainerResponse_RUNNING.String() {
-					t.Logf("Container %s confirmed RUNNING.", opts.InstanceName)
-					containerIsRunning = true
-					break
-				}
-			}
-			if containerIsRunning {
-				return nil
-			}
-			time.Sleep(opts.PollInterval)
-		}
-		return fmt.Errorf("container %s did not reach RUNNING state within %v", opts.InstanceName, opts.PollTimeout)
-	}
-	// Original behavior: fixed sleep. Use PollInterval as the sleep duration for simplicity.
-	t.Logf("Waiting for %v for container %s to stabilize (fixed sleep, no polling).", opts.PollInterval, opts.InstanceName)
-	time.Sleep(opts.PollInterval)
-	return nil
-}
-
 // startContainer sets up and starts the default test container.
 // It returns the client. It calls t.Fatalf on failure.
 func startContainer(ctx context.Context, t *testing.T) *client.Client {
 	t.Helper()
-	cli := containerzClient(ctx, t)
+	dut := ondatra.DUT(t, "dut")
+	cli := containerztest.Client(t, dut)
 
-	opts := StartContainerOptions{
+	opts := containerztest.StartContainerOptions{
 		// Defaults will be used for ImageName, ImageTag, TarPath, InstanceName, Command, Ports.
+		TarPath:             *containerTar,
 		RemoveExistingImage: false,
 		PollForRunningState: false,
 		PollInterval:        5 * time.Second,
 	}
 
-	if err := deployAndStartContainer(ctx, t, cli, opts); err != nil {
+	if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
 		t.Fatalf("Failed to start default container: %v", err)
 	}
 	return cli
-}
-
-func stopContainer(ctx context.Context, t *testing.T, cli *client.Client, instNameToStop string) {
-	t.Helper()
-	t.Logf("Attempting to stop container %s", instNameToStop)
-	if err := cli.StopContainer(ctx, instNameToStop, true); err != nil {
-		s, _ := status.FromError(err)
-		if s.Code() == codes.NotFound {
-			t.Logf("StopContainer: Container %s not found (may have already been stopped and removed): %v", instNameToStop, err)
-		} else {
-			t.Logf("StopContainer for %s encountered an issue: %v", instNameToStop, err)
-		}
-	} else {
-		t.Logf("Container %s stopped successfully.", instNameToStop)
-	}
 }
 
 // TestDeployAndStartContainer implements CNTR-1.1 validating that it is
@@ -264,8 +66,9 @@ func TestDeployAndStartContainer(t *testing.T) {
 
 	// Positive test: Deploy and start a container successfully.
 	t.Run("SuccessfulDeployAndStart", func(t *testing.T) {
-		cli := containerzClient(ctx, t)
-		opts := StartContainerOptions{
+		dut := ondatra.DUT(t, "dut")
+		cli := containerztest.Client(t, dut)
+		opts := containerztest.StartContainerOptions{
 			InstanceName:        instanceName,
 			ImageName:           imageName,
 			ImageTag:            "latest",
@@ -278,18 +81,19 @@ func TestDeployAndStartContainer(t *testing.T) {
 			PollInterval:        5 * time.Second,
 		}
 
-		if err := deployAndStartContainer(ctx, t, cli, opts); err != nil {
+		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
 			t.Fatalf("Failed to deploy and start container %s: %v", opts.InstanceName, err)
 		}
-		defer stopContainer(ctx, t, cli, opts.InstanceName)
-		t.Logf("Container %s successfully started and running (verified by deployAndStartContainer).", opts.InstanceName)
+		defer containerztest.Stop(ctx, t, cli, opts.InstanceName)
+		t.Logf("Container %s successfully started and running (verified by DeployAndStart).", opts.InstanceName)
 	})
 
 	// Negative Test: Attempt to start container with a non-existent image
 	t.Run("StartWithNonExistentImage", func(t *testing.T) {
 		nonExistentImageName := "non-existent-image"
 		instanceName := "test-non-existent-img"
-		cli := containerzClient(ctx, t) // Get client for this subtest.
+		dut := ondatra.DUT(t, "dut")
+		cli := containerztest.Client(t, dut) // Get client for this subtest.
 		if _, err := cli.StartContainer(ctx, nonExistentImageName, "latest", "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
 			t.Errorf("Expected error when starting container with non-existent image %s, but got nil", nonExistentImageName)
 			// Attempt to clean up if it somehow started
@@ -308,7 +112,8 @@ func TestDeployAndStartContainer(t *testing.T) {
 		// For simplicity, we assume 'imageName' ("cntrsrv") with 'latest' tag was pushed.
 		nonExistentTag := "non-existent-tag"
 		instanceName := "test-non-existent-tag"
-		cli := containerzClient(ctx, t)
+		dut := ondatra.DUT(t, "dut")
+		cli := containerztest.Client(t, dut)
 		if _, err := cli.StartContainer(ctx, imageName, nonExistentTag, "./cmd", instanceName, client.WithPorts([]string{"60061:60061"})); err == nil {
 			t.Errorf("Expected error when starting container %s with non-existent tag %s, but got nil", imageName, nonExistentTag)
 			if removeErr := cli.RemoveContainer(ctx, instanceName, true); removeErr != nil {
@@ -324,12 +129,13 @@ func TestDeployAndStartContainer(t *testing.T) {
 // running container.
 func TestRetrieveLogs(t *testing.T) {
 	ctx := context.Background()
-	baseCli := containerzClient(ctx, t)
+	dut := ondatra.DUT(t, "dut")
+	baseCli := containerztest.Client(t, dut)
 
 	// Positive Test: Retrieve logs from a running container
 	t.Run("SuccessfulLogRetrieval", func(t *testing.T) {
 		localStartedCli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, localStartedCli, instanceName) // Stops default 'instanceName'
+		defer containerztest.Stop(ctx, t, localStartedCli, instanceName) // Stops default 'instanceName'
 
 		logCh, err := localStartedCli.Logs(ctx, instanceName, false)
 		if err != nil {
@@ -425,7 +231,7 @@ func TestRetrieveLogs(t *testing.T) {
 			}
 		}()
 
-		opts := StartContainerOptions{
+		opts := containerztest.StartContainerOptions{
 			InstanceName:        stoppedInstanceName,
 			ImageName:           localImageName,
 			ImageTag:            "latest",
@@ -438,7 +244,7 @@ func TestRetrieveLogs(t *testing.T) {
 			PollInterval:        3 * time.Second,
 		}
 
-		if err := deployAndStartContainer(ctx, t, baseCli, opts); err != nil {
+		if err := containerztest.DeployAndStart(ctx, t, baseCli, opts); err != nil {
 			t.Fatalf("Failed to set up container %s for stopped log test: %v", stoppedInstanceName, err)
 		}
 		t.Logf("Container %s started for stopped log test.", stoppedInstanceName)
@@ -502,7 +308,8 @@ func TestRetrieveLogs(t *testing.T) {
 // TestListContainers implements CNTR-1.3 validating listing running containers.
 func TestListContainers(t *testing.T) {
 	ctx := context.Background()
-	baseCli := containerzClient(ctx, t)
+	dut := ondatra.DUT(t, "dut")
+	baseCli := containerztest.Client(t, dut)
 
 	t.Run("ListWhenTargetContainerIsNotRunning", func(t *testing.T) {
 		// Ensure our main test container 'instanceName' is not running.
@@ -544,7 +351,7 @@ func TestListContainers(t *testing.T) {
 	t.Run("ListFindsSpecificRunningContainer", func(t *testing.T) {
 		// startContainer will ensure 'instanceName' with 'imageName:latest' is running.
 		localStartedCli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, localStartedCli, instanceName)
+		defer containerztest.Stop(ctx, t, localStartedCli, instanceName)
 
 		listCh, err := localStartedCli.ListContainer(ctx, true, 0, nil)
 		if err != nil {
@@ -577,7 +384,8 @@ func TestListContainers(t *testing.T) {
 // TestStopContainer implements CNTR-1.4 validating that stopping a container works as expected.
 func TestStopContainer(t *testing.T) {
 	ctx := context.Background()
-	baseCli := containerzClient(ctx, t)
+	dut := ondatra.DUT(t, "dut")
+	baseCli := containerztest.Client(t, dut)
 
 	t.Run("StopRunningContainer", func(t *testing.T) {
 		localStartedCli := startContainer(ctx, t)
@@ -665,7 +473,8 @@ func TestStopContainer(t *testing.T) {
 // if they can actually be used.
 func TestVolumes(t *testing.T) {
 	ctx := context.Background()
-	cli := containerzClient(ctx, t)
+	dut := ondatra.DUT(t, "dut")
+	cli := containerztest.Client(t, dut)
 	volumeName := "test-vol-positive"
 
 	// Positive Test: Create, List, and Remove a volume successfully
@@ -768,12 +577,13 @@ func TestVolumes(t *testing.T) {
 // identified by a different tag than the current running container image.
 func TestUpgrade(t *testing.T) {
 	ctx := context.Background()
-	baseCli := containerzClient(ctx, t)
+	dut := ondatra.DUT(t, "dut")
+	baseCli := containerztest.Client(t, dut)
 
 	// Positive Test: Successful upgrade
 	t.Run("SuccessfulUpgrade", func(t *testing.T) {
 		cli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, cli, instanceName)
+		defer containerztest.Stop(ctx, t, cli, instanceName)
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
 		progCh, err := cli.PushImage(ctx, imageName, "upgrade", *containerUpgradeTar, false)
@@ -827,7 +637,7 @@ func TestUpgrade(t *testing.T) {
 	// Negative Test: Upgrade to a non-existent image
 	t.Run("UpgradeToNonExistentImage", func(t *testing.T) {
 		cli := startContainer(ctx, t) // Starts 'instanceName' with 'imageName:latest'
-		defer stopContainer(ctx, t, cli, instanceName)
+		defer containerztest.Stop(ctx, t, cli, instanceName)
 
 		nonExistentImage := "non-existent-image-for-upgrade"
 		if _, err := cli.UpdateContainer(ctx, nonExistentImage, "latest", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err == nil {
@@ -845,7 +655,7 @@ func TestUpgrade(t *testing.T) {
 	// Negative Test: Upgrade to an existing image but non-existent tag.
 	t.Run("UpgradeToNonExistentTag", func(t *testing.T) {
 		cli := startContainer(ctx, t)
-		defer stopContainer(ctx, t, cli, instanceName)
+		defer containerztest.Stop(ctx, t, cli, instanceName)
 
 		nonExistentTag := "non-existent-tag-for-upgrade"
 		// Ensure the base image 'imageName:latest' exists from startContainer.
@@ -915,7 +725,8 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 // 2. Set the --plugin_tar flag to the path of the generated rootfs.tar.gz.
 func TestPlugins(t *testing.T) {
 	ctx := context.Background()
-	cli := containerzClient(ctx, t)
+	dut := ondatra.DUT(t, "dut")
+	cli := containerztest.Client(t, dut)
 	// Common SSH parameters for plugin setup
 	const (
 		sshHost        = "localhost"

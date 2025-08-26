@@ -32,11 +32,9 @@ import (
 	"crypto/tls"
 	"flag" // NOLINT
 	"fmt"
-	"io"
 	"net"
 
 	"github.com/openconfig/gnmi/testing/fake/testing/grpc/config"
-	"github.com/openconfig/ondatra/knebind/creds"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -74,13 +72,14 @@ func (c *C) Ping(_ context.Context, _ *cpb.PingRequest) (*cpb.PingResponse, erro
 
 // rpcCredentials stores the per-RPC username and password used for authentication.
 type rpcCredentials struct {
-	*creds.UserPass
+	Username string
+	Password string
 }
 
 func (r *rpcCredentials) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
 	return map[string]string{
-		"username": "admin",
-		"password": "admin",
+		"username": r.Username,
+		"password": r.Password,
 	}, nil
 }
 
@@ -91,7 +90,7 @@ func (r *rpcCredentials) RequireTransportSecurity() bool {
 // Dial connects to the remote gRPC CNTR server hosted at the address in the request proto.
 func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, error) {
 	conn, err := grpc.NewClient(req.GetAddr(),
-		grpc.WithPerRPCCredentials(&rpcCredentials{}),
+		grpc.WithPerRPCCredentials(&rpcCredentials{ Username: req.GetUsername(), Password: req.GetPassword()}),
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true, // NOLINT
 		})))
@@ -141,9 +140,6 @@ func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, 
 		}
 		msg, err := gr.Recv()
 		if err != nil {
-			if err == io.EOF {
-				return &cpb.DialResponse{}, nil
-			}
 			return nil, err
 		}
 		a, err := anypb.New(msg)
