@@ -18,7 +18,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -169,7 +168,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProtocol)
 
 	// Configure GUE Encap
-	configureGueTunnel(t, dut, gueDstIPv4, 0, 0)
+	configureGueTunnel(t, dut, []string{gueDstIPv4}, 0, 0)
 
 	t.Log("Configuring Static Routes")
 
@@ -184,7 +183,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		},
 	}
 
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(t, b, sV4, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
 	b.Set(t, dut)
@@ -193,35 +192,32 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	sV4 = &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          staticpnhIPv6,
+		NexthopGroup:    true,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString(nexthopGroupName),
 		},
 	}
 
-	cfgplugins.NewStaticRouteNextHopGroupCfg(t, b, sV4, dut, nexthopGroupName)
+	if _, err := cfgplugins.NewStaticRouteCfg(t, b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
 
 	sV4 = &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          staticpngv6IPv6,
+		NexthopGroup:    true,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"1": oc.UnionString(nexthopGroupNameV6),
 		},
 	}
 
-	cfgplugins.NewStaticRouteNextHopGroupCfg(t, b, sV4, dut, nexthopGroupNameV6)
-
-	// Apply load balancing
-	if deviations.LoadIntervalNotSupported(dut) {
-		cli := `
-			load-balance policies
-			load-balance sand profile default
-			packet-type gue outer-ip
-			`
-		helpers.GnmiCLIConfig(t, dut, cli)
-	} else {
-		// TODO: OC does not yet support selecting the load-balancing hash mode on LAG members.
-		t.Logf("Load balancing is currently not supported via OpenConfig. Will fix once it's implemented.")
+	if _, err := cfgplugins.NewStaticRouteCfg(t, b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
+	b.Set(t, dut)
+
+	cfgplugins.ConfigureLoadbalance(t, dut)
 }
 
 func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes) {
@@ -266,23 +262,16 @@ func setupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*
 }
 
 // configureGueTunnel configures a GUE tunnel with optional ToS and TTL.
-func configureGueTunnel(t *testing.T, dut *ondatra.DUTDevice, dstAddr string, tos, ttl uint8) {
+func configureGueTunnel(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, tos, ttl uint8) {
 	t.Helper()
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 	// Create nexthop group for v4
-	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, "V4Udp", ni, dstAddr, nexthopGroupName, tos, ttl, false)
-	// Create nexthop group for v6
-	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, "V6Udp", ni, dstAddr, nexthopGroupNameV6, tos, ttl, false)
+	cfgplugins.ConfigureGueTunnel(t, dut, "V4Udp", GuePolicyName, nexthopGroupName, dut.Port(t, "port1").Name(), dstAddr, []string{}, ttl)
 
-	// Configure traffic policy
-	if deviations.PolicyForwardingOCUnsupported(dut) {
-		cfgplugins.CreatePolicyForwardingNexthopConfig(t, dut, GuePolicyName, "rule1", "ipv4", nexthopGroupName)
-		cfgplugins.CreatePolicyForwardingNexthopConfig(t, dut, GuePolicyName, "rule2", "ipv6", nexthopGroupNameV6)
-	} else {
-		cfgplugins.ConfigurePolicyForwardingNextHopFromOC(t, dut, GuePolicyName, 1, "", nexthopGroupName)
-	}
+	// Create nexthop group for v6
+	cfgplugins.ConfigureGueTunnel(t, dut, "V6Udp", GuePolicyName, nexthopGroupNameV6, dut.Port(t, "port1").Name(), dstAddr, []string{}, ttl)
 
 	// Apply traffic policy on interface
 	interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
@@ -292,12 +281,8 @@ func configureGueTunnel(t *testing.T, dut *ondatra.DUTDevice, dstAddr string, to
 	cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), GuePolicyName, ni, interfacePolicyParams)
 
 	// Create global settingd for gue tunnel
-	if deviations.PolicyForwardingOCUnsupported(dut) {
-		cfgplugins.ConfigureUdpEncapHeader(t, dut, "ipv4-over-udp", fmt.Sprintf("%d", gueProtocolPort))
-		cfgplugins.ConfigureUdpEncapHeader(t, dut, "ipv6-over-udp", fmt.Sprintf("%d", gueProtocolPort))
-	} else {
-		// TODO: OC support of gue encapsulation is not present
-	}
+	cfgplugins.ConfigureUdpEncapHeader(t, dut, "ipv4-over-udp", fmt.Sprintf("%d", gueProtocolPort))
+	cfgplugins.ConfigureUdpEncapHeader(t, dut, "ipv6-over-udp", fmt.Sprintf("%d", gueProtocolPort))
 }
 
 func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, policyName string, protocolType string, nexthopGroupName string, tos, ttl uint8, deleteTos, deleteTtl bool) {
@@ -308,7 +293,7 @@ func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, policyName st
 	if ttl != 0 || deleteTtl {
 		d := &oc.Root{}
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, protocolType, ni, "", nexthopGroupName, tos, ttl, deleteTtl)
+		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, protocolType, ni, "", []string{}, nexthopGroupName, ttl, deleteTtl)
 	}
 
 }

@@ -656,16 +656,21 @@ func CreatePolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 }
 
-func ConfigurePolicyForwardingNextHopFromOC(t *testing.T, dut *ondatra.DUTDevice, policyName string, rule uint32, dstAddr string, nexthopGroupName string) {
-	pf := &oc.Root{}
-	ni := pf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	policy := ni.GetOrCreatePolicyForwarding().GetOrCreatePolicy(policyName)
+func ConfigurePolicyForwardingNextHopFromOC(dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, rule uint32, dstAddr []string, srcAddr []string, nexthopGroupName string) {
+	policy := pf.GetOrCreatePolicy(policyName)
 	policy.Type = oc.Policy_Type_PBR_POLICY
 
 	rule1 := policy.GetOrCreateRule(rule)
 	rule1.GetOrCreateTransport()
-	if dstAddr != "" {
-		rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(dstAddr)
+	if len(dstAddr) != 0 {
+		for _, addr := range dstAddr {
+			rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
+		}
+	}
+	if len(srcAddr) != 0 {
+		for _, addr := range srcAddr {
+			rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
+		}
 	}
 	rule1.GetOrCreateAction().SetNextHop(nexthopGroupName)
 }

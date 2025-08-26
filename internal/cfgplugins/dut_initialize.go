@@ -611,3 +611,23 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 }
+
+// func ConfigureLoadBalancePolicy(t *testing.T, dut *ondatra.DUTDevice) {
+// 	if deviations.LoadBalancePolicyNotSupported(dut) {
+// 		switch dut.Vendor() {
+// 		case ondatra.ARISTA:
+// 			cli := `
+// 			load-balance policies
+// 			load-balance sand profile default
+// 			packet-type gue outer-ip
+// 			`
+// 			helpers.GnmiCLIConfig(t, dut, cli)
+
+// 		default:
+// 			t.Errorf("Deviation LoadBalancePolicyNotSupported is not handled for the dut: %v", dut.Vendor())
+// 		}
+// 	} else {
+// 		// TODO: OC does not yet support selecting the load-balancing hash mode on LAG members.
+// 		t.Logf("Load balancing is currently not supported via OpenConfig. Will fix once it's implemented.")
+// 	}
+// }

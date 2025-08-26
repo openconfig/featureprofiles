@@ -19,5 +19,6 @@ platform_exceptions: {
     load_interval_not_supported: true
     interface_policy_forwarding_unsupported: true
     qos_classification_unsupported: true
+    load_balance_policy_oc_unsupported: true
   }
 }

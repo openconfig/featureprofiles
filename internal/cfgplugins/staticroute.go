@@ -40,7 +40,7 @@ type StaticRouteCfg struct {
 // Prefix and NextHops.
 //
 // Configuration deviations are applied based on the ondatra device passed in.
-func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
+func NewStaticRouteCfg(t *testing.T, batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
 	if cfg == nil {
 		return nil, errors.New("cfg must be defined")
 	}
@@ -53,6 +53,19 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
 	for k, v := range cfg.NextHops {
+		if cfg.NexthopGroup {
+			if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(d) {
+				switch d.Vendor() {
+				case ondatra.ARISTA:
+					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
+					helpers.GnmiCLIConfig(t, d, cli)
+
+				default:
+					t.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %v", d.Vendor())
+				}
+			}
+			return s, nil
+		}
 		nh := s.GetOrCreateNextHop(k)
 		nh.NextHop = v
 	}
