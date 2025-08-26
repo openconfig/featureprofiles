@@ -27,17 +27,14 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
-	"github.com/openconfig/containerz/client"
+	"github.com/openconfig/featureprofiles/internal/containerztest"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra/binding"
-	gnoic "github.com/openconfig/gnoi/containerz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
@@ -57,101 +54,44 @@ const (
 	cntrPort     = 60061
 )
 
-// waitForContainerRunning polls until a container instance is in the RUNNING state.
-func waitForContainerRunning(ctx context.Context, t *testing.T, cli *client.Client, targetName, instanceName string, timeout time.Duration) error {
-	t.Helper()
-	pollCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	for {
-		listContCh, err := cli.ListContainer(pollCtx, true, 0, map[string][]string{"name": {instanceName}})
-		if err != nil {
-			return fmt.Errorf("unable to list container %s on %s during polling: %w", instanceName, targetName, err)
-		}
-
-		var containerIsRunning bool
-		for info := range listContCh {
-			if info.Error != nil {
-				return fmt.Errorf("error message received while listing container %s on %s during polling: %w", instanceName, targetName, info.Error)
-			}
-			if (info.Name == instanceName || info.Name == "/"+instanceName) && info.State == gnoic.ListContainerResponse_RUNNING.String() {
-				t.Logf("Container %s on %s confirmed RUNNING.", instanceName, targetName)
-				containerIsRunning = true
-				break
-			}
-		}
-
-		if containerIsRunning {
-			return nil
-		}
-
-		if pollCtx.Err() != nil {
-			return fmt.Errorf("timed out waiting for container %s on %s to be RUNNING", instanceName, targetName)
-		}
-		time.Sleep(5 * time.Second)
-	}
-}
-
 // setupContainer deploys and starts the cntrsrv container on the DUT.
 // It returns a function to clean up the container.
 func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 	t.Helper()
 	ctx := context.Background()
 
-	cli := client.NewClientFromStub(dut.RawAPIs().GNOI(t).Containerz())
+	cli := containerztest.Client(t, dut)
 
-	// 1. Remove existing container instance to ensure a clean start.
-	t.Logf("Attempting to remove existing container instance %s on %s before start.", instanceName, dut.Name())
-	if err := cli.RemoveContainer(ctx, instanceName, true); err != nil {
-		if status.Code(err) != codes.NotFound {
-			t.Logf("Pre-start removal of container %s on %s failed: %v", instanceName, dut.Name(), err)
-		}
+	opts := containerztest.StartContainerOptions{
+		ImageName:           imageName,
+		InstanceName:        instanceName,
+		Command:             fmt.Sprintf("./cntrsrv --port=%d", cntrPort),
+		TarPath:             *containerTar,
+		Network:             "host",
+		PollForRunningState: true,
 	}
 
-	// 2. Push the image.
-	t.Logf("Pushing image %s:latest from %s to %s.", imageName, *containerTar, dut.Name())
-	progCh, err := cli.PushImage(ctx, imageName, "latest", *containerTar, false)
-	if err != nil {
-		t.Fatalf("Initial call to PushImage for %s:latest on %s failed: %v", imageName, dut.Name(), err)
-	}
-	for prog := range progCh {
-		if prog.Error != nil {
-			t.Fatalf("Error during push of image %s:latest on %s: %v", imageName, dut.Name(), prog.Error)
-		}
-		if prog.Finished {
-			t.Logf("Successfully pushed image %s:%s to %s.", prog.Image, prog.Tag, dut.Name())
-		}
-	}
-
-	// 3. Start the container.
-	startCmd := fmt.Sprintf("./cntrsrv --port=%d", cntrPort)
-	t.Logf("Starting container %s on %s with image %s:latest, command '%s', and host networking.", instanceName, dut.Name(), imageName, startCmd)
-
-	if _, err := cli.StartContainer(ctx, imageName, "latest", startCmd, instanceName, client.WithNetwork("host")); err != nil {
-		t.Fatalf("Unable to start container %s on %s: %v", instanceName, dut.Name(), err)
-	}
-	t.Logf("StartContainer called for %s on %s", instanceName, dut.Name())
-
-	// 4. Wait for container to be running.
-	t.Logf("Polling for container %s on %s to reach RUNNING state.", instanceName, dut.Name())
-	if err := waitForContainerRunning(ctx, t, cli, dut.Name(), instanceName, 30*time.Second); err != nil {
-		t.Fatalf("Container %s on %s did not reach RUNNING state: %v", instanceName, dut.Name(), err)
+	if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
+		t.Fatalf("Failed to start container: %v", err)
 	}
 
 	return func() {
-		t.Logf("Cleaning up container %s on %s", instanceName, dut.Name())
-		if err := cli.StopContainer(ctx, instanceName, true); err != nil {
-			if s, ok := status.FromError(err); !ok || s.Code() != codes.NotFound {
-				t.Errorf("Failed to stop container %s on %s: %v", instanceName, dut.Name(), err)
-			}
-		}
+		containerztest.Stop(ctx, t, cli, instanceName)
 	}
 }
 
 // dialContainer dials a gRPC service running on a container on a device at the specified port.
 func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientConn {
 	t.Helper()
-	conn, err := dut.RawAPIs().BindingDUT().DialContainer(context.Background(), port)
+	var dialer interface {
+		DialContainer(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
+	}
+	bindingDUT := dut.RawAPIs().BindingDUT()
+	if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
+		t.Skipf("BindingDUT %T does not implement DialContainer, which is required for this test: %v", bindingDUT, err)
+	}
+
+	conn, err := dialer.DialContainer(context.Background(), port)
 	if err != nil {
 		t.Fatalf("DialContainer failed: %v", err)
 	}
@@ -241,7 +181,7 @@ func TestDialLocal(t *testing.T) {
 	}{{
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
-			Addr: "localhost:9339",
+			Addr:     "localhost:9339",
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
@@ -252,7 +192,7 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial gRIBI",
 		inMsg: &cpb.DialRequest{
-			Addr: "localhost:9340",
+			Addr:     "localhost:9340",
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
@@ -263,7 +203,7 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial something not listening",
 		inMsg: &cpb.DialRequest{
-			Addr: "localhost:4242",
+			Addr:     "localhost:4242",
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
@@ -279,6 +219,12 @@ func TestDialLocal(t *testing.T) {
 			defer cancel()
 			// Use the client established before the sub-tests.
 			got, err := client.Dial(ctx, tt.inMsg)
+			// For the gRIBI Get RPC, an EOF error is returned if the server has no entries to
+			// stream back. This is the expected behavior for a successful connection to a
+			// gRIBI service on a device with an empty RIB, so we treat it as a non-error.
+			if tt.inMsg.GetSrv() == cpb.Service_ST_GRIBI && err != nil && strings.Contains(err.Error(), "EOF") {
+				err = nil
+			}
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Dial(): got unexpected error, err: %v, wantErr? %v", err, tt.wantErr)
 			}
