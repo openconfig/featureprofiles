@@ -100,11 +100,11 @@ func baseconfig(t *testing.T) {
 func addDefaultRouteviaGRIBI(t *testing.T, args *testArgs) {
 	t.Helper()
 	// Add recycle entry
-	args.client.AddNH(t, vipNH(3), "", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, baseNHG(1001), 0, map[uint64]uint64{vipNH(3): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
-}
+	args.client.AddNH(t, uint64(303), "", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, uint64(3301), 0, map[uint64]uint64{(303): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, "0.0.0.0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv6(t, "0::0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
+}}
 
 // func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 // 	t.Helper()
