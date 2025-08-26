@@ -223,7 +223,7 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			},
 		}
 	case binding.KeyAuth:
-		signer, err := ssh.ParsePrivateKey(a.Key)
+		signer, err := ssh.ParsePrivateKey(d.Key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse private key: %w", err)
 		}
@@ -234,11 +234,11 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			},
 		}
 	case binding.CertificateAuth:
-		signer, err := ssh.ParsePrivateKey(a.PrivateKey)
+		signer, err := ssh.ParsePrivateKey(d.PrivateKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse private key: %w", err)
 		}
-		cert, _, _, _, err := ssh.ParseAuthorizedKey(a.Certificate)
+		cert, _, _, _, err := ssh.ParseAuthorizedKey(d.Certificate)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse certificate: %w", err)
 		}
