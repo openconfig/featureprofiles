@@ -32,13 +32,14 @@ type StaticRouteCfg struct {
 	NetworkInstance string
 	Prefix          string
 	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	NexthopGroup    bool
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
 // Prefix and NextHops.
 //
 // Configuration deviations are applied based on the ondatra device passed in.
-func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
+func NewStaticRouteCfg(t *testing.T, batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
 	if cfg == nil {
 		return nil, errors.New("cfg must be defined")
 	}
@@ -51,6 +52,19 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
 	for k, v := range cfg.NextHops {
+		if cfg.NexthopGroup {
+			if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(d) {
+				switch d.Vendor() {
+				case ondatra.ARISTA:
+					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
+					helpers.GnmiCLIConfig(t, d, cli)
+
+				default:
+					t.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %v", d.Vendor())
+				}
+			}
+			return s, nil
+		}
 		nh := s.GetOrCreateNextHop(k)
 		nh.NextHop = v
 	}
@@ -59,18 +73,4 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
 	return s, nil
-}
-
-func NewStaticRouteNextHopGroupCfg(t *testing.T, batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice, nexthopGrp string) {
-	if nexthopGrp != "" {
-		if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(d) {
-			switch d.Vendor() {
-			case ondatra.ARISTA:
-				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, nexthopGrp)
-				helpers.GnmiCLIConfig(t, d, cli)
-			}
-		} else {
-			NewStaticRouteCfg(batch, cfg, d)
-		}
-	}
 }

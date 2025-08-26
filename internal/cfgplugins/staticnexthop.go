@@ -220,7 +220,7 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 }
 
 // NextHopGroupConfigForIpOverUdp configures the interface next-hop-group config for ip over udp.
-func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, nhAddress string, nexthopGroupName string, tos, ttl uint8, deleteTtl bool) {
+func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, intfName string, nhAddress []string, nexthopGroupName string, ttl uint8, deleteTtl bool) {
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		cli := ""
 		groupType := ""
@@ -233,15 +233,20 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, traffi
 				groupType = "ipv6-over-udp"
 			}
 
-			if nhAddress != "" {
+			if len(nhAddress) > 0 {
+				tunnelDst := ""
+				for i, addr := range nhAddress {
+					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
+				}
 				cli = fmt.Sprintf(`
 					nexthop-group %s type %s
-					tunnel-source intf Ethernet1/1
+					tunnel-source intf %s
 					fec hierarchical
-   					entry  0 tunnel-destination %s
-					`, nexthopGroupName, groupType, nhAddress)
+   					%s
+					`, nexthopGroupName, groupType, intfName, tunnelDst)
 				helpers.GnmiCLIConfig(t, dut, cli)
-			} else if ttl != 0 {
+			}
+			if ttl != 0 {
 				cli = fmt.Sprintf(`
 					nexthop-group %s type %s
 					ttl %v
@@ -266,11 +271,9 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, traffi
 
 		// Set the encap header for each next-hop
 		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
-		ueh1.GetOrCreateUdpV4().DstIp = ygot.String(nhAddress)
-
-		// if tos != 0 {
-		// 	ueh1.GetOrCreateUdpV4().Dscp = ygot.Uint8(tos)
-		// }
+		for _, addr := range nhAddress {
+			ueh1.GetOrCreateUdpV4().DstIp = ygot.String(addr)
+		}
 		if ttl != 0 {
 			ueh1.GetOrCreateUdpV4().IpTtl = ygot.Uint8(ttl)
 		}
