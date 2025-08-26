@@ -554,16 +554,21 @@ func CreatePolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 }
 
-func ConfigurePolicyForwardingNextHopFromOC(t *testing.T, dut *ondatra.DUTDevice, policyName string, rule uint32, dstAddr string, nexthopGroupName string) {
-	pf := &oc.Root{}
-	ni := pf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	policy := ni.GetOrCreatePolicyForwarding().GetOrCreatePolicy(policyName)
+func ConfigurePolicyForwardingNextHopFromOC(dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, rule uint32, dstAddr []string, srcAddr []string, nexthopGroupName string) {
+	policy := pf.GetOrCreatePolicy(policyName)
 	policy.Type = oc.Policy_Type_PBR_POLICY
 
 	rule1 := policy.GetOrCreateRule(rule)
 	rule1.GetOrCreateTransport()
-	if dstAddr != "" {
-		rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(dstAddr)
+	if len(dstAddr) != 0 {
+		for _, addr := range dstAddr {
+			rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
+		}
+	}
+	if len(srcAddr) != 0 {
+		for _, addr := range srcAddr {
+			rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
+		}
 	}
 	rule1.GetOrCreateAction().SetNextHop(nexthopGroupName)
 }
@@ -673,5 +678,32 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	}
+}
+
+func ConfigureGueTunnel(t *testing.T, dut *ondatra.DUTDevice, trafficType string, policyName string, nexthopGroupName string, srcIntfName string, dstAddr []string, srcAddr []string, ttl uint8) {
+	t.Helper()
+
+	_, ni, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+	// Create nexthop group for v4
+	NextHopGroupConfigForIpOverUdp(t, dut, trafficType, ni, srcIntfName, dstAddr, nexthopGroupName, ttl, false)
+
+	// Configure traffic policy
+	if deviations.PolicyForwardingOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			switch trafficType {
+			case "V4Udp":
+				CreatePolicyForwardingNexthopConfig(t, dut, policyName, "rule1", "ipv4", nexthopGroupName)
+			case "V6Udp":
+				CreatePolicyForwardingNexthopConfig(t, dut, policyName, "rule2", "ipv6", nexthopGroupName)
+			default:
+				t.Logf("Unsupported traffic type %s", trafficType)
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	} else {
+		ConfigurePolicyForwardingNextHopFromOC(dut, pf, policyName, 1, dstAddr, srcAddr, nexthopGroupName)
 	}
 }
