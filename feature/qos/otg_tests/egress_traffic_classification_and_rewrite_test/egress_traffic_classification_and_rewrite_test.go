@@ -294,11 +294,13 @@ func ConfigureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i := a.NewOCInterface(p.Name(), dut)
 	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
-	i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-
+	s5 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s5.Enabled = ygot.Bool(true)
+	}
 	return i
 }
 
