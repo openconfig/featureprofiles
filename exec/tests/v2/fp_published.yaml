@@ -1099,7 +1099,12 @@ tests:
     owners:
       - sprem
     mustpass: true
-    pr: 3613
+    otg_version:
+      controller: 1.20.0-6
+      hw: 1.20.0-1
+      gnmi: 1.20.2 
+    internal: false
+    pr: 4448
     groups: [ancx,P1]
   - name: RT-1.33 (BGP Policy with prefix-set matching)
     path: feature/bgp/policybase/otg_tests/prefix_set_test
