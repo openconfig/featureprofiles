@@ -4,4 +4,14 @@
 uuid:  "1a84121f-41a6-4a99-970a-e195476fef08"
 plan_id:  "PF-1.1"
 description:  "IPv4/IPv6 policy-forwarding to indirect NH matching DSCP/TC."
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    policy_forwarding_to_next_hop_oc_unsupported: true
+  }
+}

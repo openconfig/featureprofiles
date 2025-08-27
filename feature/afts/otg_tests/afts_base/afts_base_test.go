@@ -15,12 +15,14 @@
 package afts_base_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -157,7 +159,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	policyDefinition := routePolicy.GetOrCreatePolicyDefinition(applyPolicyName)
 	statement, err := policyDefinition.AppendNewStatement("id-1")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to append new statement to policy definition %s: %v", applyPolicyName, err)
 	}
 	statement.GetOrCreateActions().PolicyResult = applyPolicyType
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), routePolicy)
@@ -169,12 +171,19 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	}
 	dutConf := createBGPNeighbor(peerGrpNameV4P1, peerGrpNameV6P1, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
 	nbrs = []*BGPNeighbor{
 		{as: ateAS, neighborip: ateP2.IPv4, version: IPv4},
 		{as: ateAS, neighborip: ateP2.IPv6, version: IPv6},
 	}
 	dutConf = createBGPNeighbor(peerGrpNameV4P2, peerGrpNameV6P2, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
+
 	ts := isissession.MustNew(t).WithISIS()
 	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 		global := isis.GetOrCreateGlobal()
@@ -187,7 +196,14 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		}
 	})
 	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(false)
-	ts.PushAndStart(t)
+
+	if err := ts.PushAndStart(t); err != nil {
+		return err
+	}
+
+	if _, err = ts.AwaitAdjacency(); err != nil {
+		return fmt.Errorf("no IS-IS adjacency formed: %v", err)
+	}
 	return nil
 }
 
@@ -262,6 +278,12 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 	return niProtocol
 }
 
+func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BGPNeighbor) {
+	for _, nbr := range neighbors {
+		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.neighborip, 0)
+	}
+}
+
 func (tc *testCase) waitForBGPSession(t *testing.T) error {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateP2.IPv4)
@@ -269,21 +291,22 @@ func (tc *testCase) waitForBGPSession(t *testing.T) error {
 	verifySessionState := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok {
+			t.Logf("BGP session state not found for neighbor %s", val.Path.String())
 			return false
 		}
-		t.Logf("BGP session state: %s", state.String())
+		t.Logf("BGP session state for neighbor %s: %s", val.Path.String(), state.String())
 		return state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}
 
 	_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
-		return fmt.Errorf("no BGP neighbor formed yet")
+		return fmt.Errorf("BGP session with %s not established", ateP2.IPv4)
 	}
 	_, ok = gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
-		return fmt.Errorf("no BGPv6 neighbor formed yet")
+		return fmt.Errorf("BGP session with %s not established", ateP2.IPv6)
 	}
 	return nil
 }
@@ -468,7 +491,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 		}
 
 		if len(nhg.NHIDs) != wantNHCount {
-			return fmt.Errorf("next hop group %d has %d next hops, want %d", nhgID, len(nhg.NHIDs), wantNHCount)
+			return fmt.Errorf("prefix %s has %d next hops, want %d", pfix, len(nhg.NHIDs), wantNHCount)
 		}
 
 		var firstWeight uint64 = 0 // Initialize with a value that won't be a valid weight
@@ -493,7 +516,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 				return fmt.Errorf("next hop weight not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 			}
 			if weight <= 0 {
-				return fmt.Errorf("next hop weight are not proper for next-hop: %d for prefix: %s", nhID, pfix)
+				return fmt.Errorf("next hop weight is %d, want > 0 for next-hop: %d for prefix: %s", weight, nhID, pfix)
 			}
 			// Check if weights are equal
 			if firstWeight == 0 { // This is the first next hop, set the reference weight
@@ -508,9 +531,10 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 
 func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
-	aftSession := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient, tc.dut)
-	aftSession.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
-
+	streamContext, streamCancel := context.WithCancel(t.Context())
+	aftSession := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient, tc.dut)
+	aftSession.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+	streamCancel()
 	// Get the AFT from the cache.
 	aft, err := aftSession.Cache.ToAFT(tc.dut)
 	if err != nil {
@@ -573,7 +597,7 @@ func TestBGP(t *testing.T) {
 	}
 	tc.configureATE(t)
 
-	t.Log("Waiting for BGPv4 neighbor to establish...")
+	t.Log("Waiting for BGP neighbor to establish...")
 	if err := tc.waitForBGPSession(t); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
@@ -588,7 +612,7 @@ func TestBGP(t *testing.T) {
 	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
 		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
 	}
-	t.Log("ISIS verification successful")
+	t.Log("ISIS verification completed")
 
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("Stopping Port2 interface to create Churn")
