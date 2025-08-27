@@ -54,6 +54,7 @@ func EnableDefaultNetworkInstanceBgp(t *testing.T, dut *ondatra.DUTDevice, dutAS
 	gnmi.Replace(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
 }
 
+// ConfigureNetworkInstance configures a new network instance on the DUT not using batch update
 func ConfigureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, netInstName string, isDefault bool) *oc.NetworkInstance {
 	t.Logf("Creating new Network Instance: %s", netInstName)
 	root := &oc.Root{}
@@ -68,8 +69,28 @@ func ConfigureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, netInstName 
 	return ni
 }
 
+// UpdateNetworkInstanceOnDut updates the network instance on the DUT. Not using batch update
 func UpdateNetworkInstanceOnDut(t *testing.T, dut *ondatra.DUTDevice, netInstName string, netInst *oc.NetworkInstance) {
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(netInstName).Config(), netInst)
+}
+
+// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+func ConfigureDefaultNetworkInstance(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice) {
+	defNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
+	gnmi.BatchUpdate(batch, defNiPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(d)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	})
+}
+
+// ConfigureCustomNetworkInstance configures a non-default network instance name and type.
+func ConfigureCustomNetworkInstance(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, ni string) {
+	defNiPath := gnmi.OC().NetworkInstance(ni)
+	gnmi.BatchUpdate(batch, defNiPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(ni),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	})
+
 }
 
 // AssignToNetworkInstance attaches a subinterface to a network instance.
@@ -93,5 +114,37 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	}
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+	}
+}
+
+// AssignInterfaceToNetworkInstance attaches an interface to a network instance using batch update.
+// This is required for vendors that do not support subinterfaces and only support interface to network instance assignment.
+func AssignInterfaceToNetworkInstance(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+	t.Helper()
+	if ni == "" {
+		t.Fatalf("Network instance not provided for interface assignment")
+	}
+	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
+	intf := &oc.Interface{Name: ygot.String(i)}
+	netInstIntf, err := netInst.NewInterface(intf.GetName())
+	if err != nil {
+		t.Errorf("Error fetching NewInterface for %s", intf.GetName())
+	}
+	netInstIntf.Interface = ygot.String(intf.GetName())
+	netInstIntf.Subinterface = ygot.Uint32(si)
+	switch d.Vendor() {
+	case ondatra.ARISTA:
+		netInstIntf.Id = ygot.String(intf.GetName())
+	case ondatra.CISCO:
+		netInstIntf.Id = ygot.String(intf.GetName())
+	case ondatra.NOKIA:
+		netInstIntf.Id = ygot.String(intf.GetName())
+	case ondatra.JUNIPER:
+		netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
+	default:
+		netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
+	}
+	if intf.GetOrCreateSubinterface(si) != nil {
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
 }
