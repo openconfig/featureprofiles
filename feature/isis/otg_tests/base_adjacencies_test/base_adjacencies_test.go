@@ -102,13 +102,6 @@ func TestBasic(t *testing.T) {
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		}
 
-		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
-		if deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
-			checks = append(checks, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
-		} else {
-			checks = append(checks, check.Equal(isisRoot.Level(2).Enabled().State(), true))
-		}
-
 		for _, vd := range checks {
 			t.Run(vd.RelPath(isisRoot), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -703,11 +696,10 @@ func TestISISHelloTimer(t *testing.T) {
 			intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
 				GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).
 				GetOrCreateIsis().GetOrCreateInterface(intfName)
-			if !deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
-				timers1 := intf.GetOrCreateLevel(uint8(1)).GetOrCreateTimers()
-				timers1.SetHelloInterval(tc.helloInterval)
-				timers1.SetHelloMultiplier(tc.helloMultiplier)
-			}
+
+			timers1 := intf.GetOrCreateLevel(uint8(1)).GetOrCreateTimers()
+			timers1.SetHelloInterval(tc.helloInterval)
+			timers1.SetHelloMultiplier(tc.helloMultiplier)
 
 			intfLeveL2 := intf.GetOrCreateLevel(uint8(level2))
 			intfLeveL2.Enabled = ygot.Bool(true)

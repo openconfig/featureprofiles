@@ -1,0 +1,28 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "8c299aab-4df4-4213-8a1e-a7789fef0c60"
+plan_id: "AFT-1.1"
+description: "AFTs Base"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    isis_single_topology_required: true
+    skip_interface_name_check: true
+    link_local_instead_of_nh: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    interface_enabled: true
+    bgp_missing_oc_max_prefixes_configuration: true
+  }
+}
