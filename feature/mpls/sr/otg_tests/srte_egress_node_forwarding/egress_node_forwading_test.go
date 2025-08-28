@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package egress_node_forwading_test
+package egressnodeforwardingtest
 
 import (
 	"fmt"
@@ -268,6 +268,8 @@ func configureGlobalMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 
 // Congigure Static Routes on DUT
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
+	t.Helper()
+
 	b := &gnmi.SetBatch{}
 	if nexthop == "Null0" {
 		nexthop = "DROP"
@@ -455,12 +457,13 @@ func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 	return capture.Name()
 }
 
-func validatePackets(t *testing.T, filename string, protocolType string) (errMsg string) {
+func validatePackets(t *testing.T, filename string, protocolType string) error {
+
 	mplsPacketCount := int32(0)
 
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 	defer handle.Close()
 
@@ -479,7 +482,7 @@ func validatePackets(t *testing.T, filename string, protocolType string) (errMsg
 					t.Logf("TTL decremented by 1")
 					break
 				} else {
-					errMsg = fmt.Sprintf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.TTL)
+					return fmt.Errorf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.TTL)
 				}
 			}
 		} else {
@@ -494,26 +497,23 @@ func validatePackets(t *testing.T, filename string, protocolType string) (errMsg
 					t.Logf("TTL decremented by 1")
 					break
 				} else {
-					errMsg = fmt.Sprintf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.HopLimit)
+					return fmt.Errorf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.HopLimit)
 				}
 			}
 		}
 	}
 
 	if mplsPacketCount != 0 {
-		errMsg = fmt.Sprintf("MPLS label is not popped by the DUT")
+		return fmt.Errorf("MPLS label is not popped by the DUT")
 	}
 
-	return errMsg
+	return nil
 }
 
 // verifyTrafficValidations runs traffic and validates ATE flow metrics and DUT counters.
-func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) (string, uint64, uint64) {
+func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) (totalTxFromATE, totalRxAtATE uint64, err []error) {
 	t.Helper()
 	otg := ate.OTG()
-
-	var errMsg string
-	var totalTxFromATE, totalRxAtATE uint64
 
 	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
 	rxPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
@@ -524,21 +524,22 @@ func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	if txPkts < uint64(packetsPerFlow) {
 		t.Logf("Flow %s: Expected to transmit at least %d packets, but only %d were reported sent.", flowName, packetsPerFlow, txPkts)
 	}
-	if rxPkts < txPkts {
+	switch {
+	case rxPkts < txPkts:
 		lossPct := float32(0)
 		if txPkts > 0 {
 			lossPct = (float32(txPkts-rxPkts) * 100) / float32(txPkts)
 		}
-		errMsg = fmt.Sprintf("Flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f",
-			flowName, txPkts, rxPkts, lossPct)
-	} else if txPkts > 0 {
+		err = append(err, fmt.Errorf("Flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f",
+			flowName, txPkts, rxPkts, lossPct))
+	case txPkts > 0:
 		t.Logf("Flow %s: Successfully transmitted %d packets and received %d packets with no loss.",
 			flowName, txPkts, rxPkts)
-	} else if packetsPerFlow > 0 { // Expected to send but didn't
-		errMsg = fmt.Sprintf("Flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow)
+	case packetsPerFlow > 0: // Expected to send but didn't
+		err = append(err, fmt.Errorf("Flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow))
 	}
 
-	return errMsg, totalTxFromATE, totalRxAtATE
+	return totalTxFromATE, totalRxAtATE, err
 
 }
 
@@ -568,7 +569,7 @@ func captureDUTCounters(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
 	return dutP1InCounters, dutP2OutCounters
 }
 
-func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dutP1InCountersAfter, dutP2OutCountersBefore, dutP2OutCountersAfter, totalTxFromATE, totalRxAtATE uint64) (errMsg string) {
+func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dutP1InCountersAfter, dutP2OutCountersBefore, dutP2OutCountersAfter, totalTxFromATE, totalRxAtATE uint64) error {
 	// DUT Counter Validation (Delta Check)
 	inPktsDelta := dutP1InCountersAfter - dutP1InCountersBefore
 	outPktsDelta := dutP2OutCountersAfter - dutP2OutCountersBefore
@@ -583,25 +584,26 @@ func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dut
 	t.Logf("Total packets received by ATE (sum of flows reported by ATE): %d", totalRxAtATE)
 
 	expectedTotalTraffic := uint64(packetsPerFlow * flowCount)
-	if totalTxFromATE > 0 {
+	switch {
+	case totalTxFromATE > 0:
 		// Check if DUT ingress counters reflect ATE Tx.
 		// Allow a small difference (e.g., 2%) due to other control plane packets or timing of counter polling.
 		if float64(inPktsDelta) < float64(totalTxFromATE)*0.98 {
-			errMsg = fmt.Sprintf("DUT Port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d). Expected approx %d.", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
+			return fmt.Errorf("DUT Port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d). Expected approx %d.", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
 		}
 		// Check if DUT egress counters reflect ATE Rx.
 		if float64(outPktsDelta) < float64(totalRxAtATE)*0.98 {
-			errMsg = fmt.Sprintf("DUT Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d). Potential drop in DUT. Expected approx %d.", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
+			return fmt.Errorf("DUT Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d). Potential drop in DUT. Expected approx %d.", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
 		}
-	} else if expectedTotalTraffic > 0 {
-		errMsg = fmt.Sprintf("No traffic was reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
+	case expectedTotalTraffic > 0:
+		return fmt.Errorf("No traffic was reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
 	}
 
-	return errMsg
+	return nil
 }
 
 func TestMPLSExplicitNull(t *testing.T) {
-	var err string
+	var err []error
 	var ateTxCounters, ateRxCounters uint64
 
 	dut := ondatra.DUT(t, "dut")
@@ -652,19 +654,19 @@ func TestMPLSExplicitNull(t *testing.T) {
 	}
 	for _, flowName := range flowNames {
 		t.Run(fmt.Sprintf("ValidateFlow_%s", flowName), func(t *testing.T) {
-			err, ateTxCounters, ateRxCounters = verifyTrafficValidations(t, dut, ate, flowName.name)
-			if err != "" {
+			ateTxCounters, ateRxCounters, err = verifyTrafficValidations(t, dut, ate, flowName.name)
+			if len(err) > 0 {
 				t.Errorf("%s", err)
 			}
-			err = validatePackets(t, capture, flowName.flowType)
-			if err != "" {
+			err := validatePackets(t, capture, flowName.flowType)
+			if err != nil {
 				t.Errorf("%s", err)
 			}
 		})
 	}
 
-	err = validateDUTCounters(t, len(flowNames), dutP1BeforeCounters, dutP1AfterCounters, dutP2BeforeCounters, dutP2AfterCounters, ateTxCounters, ateRxCounters)
-	if err != "" {
+	counterErr := validateDUTCounters(t, len(flowNames), dutP1BeforeCounters, dutP1AfterCounters, dutP2BeforeCounters, dutP2AfterCounters, ateTxCounters, ateRxCounters)
+	if counterErr != nil {
 		t.Errorf("%s", err)
 	}
 
