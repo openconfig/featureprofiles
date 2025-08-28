@@ -376,13 +376,23 @@ func (c *aftCache) addAFTNotification(n *gnmipb.SubscribeResponse) error {
 		// No-op for now.
 		return nil
 	}
-	if n.GetUpdate().GetPrefix().GetOrigin() == "" {
-		n.GetUpdate().GetPrefix().Origin = "openconfig"
+
+	update := n.GetUpdate()
+	if update == nil {
+		return fmt.Errorf("SubscribeResponse missing Update: %v", n)
 	}
-	if n.GetUpdate().GetPrefix().GetTarget() == "" {
-		n.GetUpdate().GetPrefix().Target = c.target
+	if update.GetPrefix() == nil {
+		update.Prefix = &gnmipb.Path{}
 	}
-	err := c.cache.GnmiUpdate(n.GetUpdate())
+	prefix := update.GetPrefix()
+	if prefix.GetOrigin() == "" {
+		prefix.Origin = "openconfig"
+	}
+	if prefix.GetTarget() == "" {
+		prefix.Target = c.target
+	}
+	err := c.cache.GnmiUpdate(update)
+
 	if err != nil {
 		return err
 	}
