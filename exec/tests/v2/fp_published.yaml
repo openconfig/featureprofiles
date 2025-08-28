@@ -861,38 +861,40 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: ACCTZ-1.1 (Record Subscribe Full)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_full
+    path: feature/gnsi/acctz/tests/record_subscribe_full
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-2.1 (Record Subscribe Partial)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    path: feature/gnsi/acctz/tests/record_subscribe_partial
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    path: feature/gnsi/acctz/tests/record_subscribe_non_grpc
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-4.1 (Record History Truncation)
-    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    path: feature/gnsi/acctz/tests/record_history_truncation
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-4.2 (Record Payload Truncation)
     path: feature/gnsi/acctz/tests/record_payload_truncation
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
+    pr: 1710
+    internal: true
     owners:
       - harikri4
   - name: Credentialz-1 (Password console login)
