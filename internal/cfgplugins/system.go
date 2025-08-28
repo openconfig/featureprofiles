@@ -36,7 +36,7 @@ import (
 )
 
 // CreateGNMIServer creates a gNMI server on the DUT on a given network-instance.
-func CreateGNMIServer(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, ni string) {
+func NewGNMIServer(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, ni string) {
 	gnmiServerPath := gnmi.OC().System().GrpcServer(ni)
 	gnmi.BatchUpdate(batch, gnmiServerPath.Config(), &oc.System_GrpcServer{
 		Name:            ygot.String(ni),

@@ -25,11 +25,13 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// Consts
 const (
 	IPv4 = "IPv4"
 	IPv6 = "IPv6"
 )
 
+// Vrf struct
 type VrfRule struct {
 	Index        uint32
 	IpType       string
@@ -75,7 +77,7 @@ func UpdateNetworkInstanceOnDut(t *testing.T, dut *ondatra.DUTDevice, netInstNam
 }
 
 // ConfigureDefaultNetworkInstance configures the default network instance name and type.
-func ConfigureDefaultNetworkInstance(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice) {
+func NewDefaultNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice) {
 	defNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
 	gnmi.BatchUpdate(batch, defNiPath.Config(), &oc.NetworkInstance{
 		Name: ygot.String(deviations.DefaultNetworkInstance(d)),
@@ -84,7 +86,7 @@ func ConfigureDefaultNetworkInstance(batch *gnmi.SetBatch, t testing.TB, d *onda
 }
 
 // ConfigureCustomNetworkInstance configures a non-default network instance name and type.
-func ConfigureCustomNetworkInstance(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, ni string) {
+func NewCustomNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, ni string) {
 	defNiPath := gnmi.OC().NetworkInstance(ni)
 	gnmi.BatchUpdate(batch, defNiPath.Config(), &oc.NetworkInstance{
 		Name: ygot.String(ni),

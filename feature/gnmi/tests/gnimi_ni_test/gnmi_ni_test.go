@@ -52,10 +52,10 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, "port1")
 
 	// Configure default network instance.
-	cfgplugins.ConfigureDefaultNetworkInstance(batch, t, dut)
+	cfgplugins.NewDefaultNetworkInstance(t, batch, dut)
 
 	// Configure gNMI server on default network instance.
-	cfgplugins.CreateGNMIServer(batch, t, dut, deviations.DefaultNetworkInstance(dut))
+	cfgplugins.NewGNMIServer(t, batch, dut, deviations.DefaultNetworkInstance(dut))
 
 	// Configuring basic interface and network instance as some devices only populate OC after configuration.
 	port1IntfPath := dutPort1.NewOCInterface(dp1.Name(), dut)
@@ -70,10 +70,10 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	// Configure interface, non-default network instance
 	t.Logf("\nConfiguring network instance and gNMI server: Network instance: %s \n", ni)
-	cfgplugins.ConfigureCustomNetworkInstance(batch, t, dut, ni)
+	cfgplugins.NewCustomNetworkInstance(t, batch, dut, ni)
 
 	// Configure non-default gnmi server.
-	cfgplugins.CreateGNMIServer(batch, t, dut, customVRFName)
+	cfgplugins.NewGNMIServer(t, batch, dut, customVRFName)
 
 	// Assign port2 to custom network instance for all vendors
 	dp2 := dut.Port(t, "port2")
