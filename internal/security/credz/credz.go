@@ -41,6 +41,7 @@ const (
 	digits            = "0123456789"
 	symbols           = "!@#$%^&*(){}[]\\|:;\"'"
 	space             = " "
+	dutKey            = "dut"
 	userKey           = "testuser"
 	caKey             = "ca"
 	minPasswordLength = 24
@@ -487,7 +488,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		hibaCa,
 		"-c",
 		"-d", keysDir,
-		"-h", "-I", dut.ID(),
+		"-h", "-I", dutKey,
 		"--",
 		"-q", "-N", "",
 	)
@@ -534,7 +535,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		"-d", keysDir,
 		"-s",
 		"-h",
-		"-I", dut.ID(),
+		"-I", dutKey,
 		"-H", "prod",
 		"-V", "+52w",
 	)
