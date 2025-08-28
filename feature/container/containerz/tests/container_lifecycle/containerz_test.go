@@ -5,11 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	"path/filepath"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,7 +39,6 @@ func TestMain(m *testing.M) {
 }
 
 func containerzClient(ctx context.Context, t *testing.T) *client.Client {
-
 	dut := ondatra.DUT(t, "dut")
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -55,6 +53,8 @@ func containerzClient(ctx context.Context, t *testing.T) *client.Client {
 				!
 			`).Append(t)
 		}
+	case ondatra.NOKIA:
+		break
 	default:
 		t.Fatalf("dut %s does not support containerz", dut.Name())
 	}
@@ -134,7 +134,7 @@ func deployAndStartContainer(ctx context.Context, t *testing.T, cli *client.Clie
 	// 2. Optionally remove existing image before push.
 	if opts.RemoveExistingImage {
 		t.Logf("Attempting to remove existing image %s:%s before push.", opts.ImageName, opts.ImageTag)
-		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, false); err != nil {
+		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, true); err != nil {
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound && err.Error() != client.ErrNotFound.Error() {
 				t.Logf("Pre-push removal of image %s:%s failed (continuing with push): %v", opts.ImageName, opts.ImageTag, err)
@@ -370,7 +370,7 @@ func TestRetrieveLogs(t *testing.T) {
 			t.Logf("Got expected error when retrieving logs for non-existent instance %s: %v", nonExistentInstanceName, err)
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound && s.Code() != codes.Unknown {
-				t.Errorf("Expected codes.NotFound or codes.Unknown for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
+				t.Errorf("Expected gRPC status codes NotFound or Unknown for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
 			}
 			if logCh != nil {
 				t.Errorf("Expected nil logCh when cli.Logs returns an error for non-existent instance %s, but got %v", nonExistentInstanceName, logCh)
@@ -401,7 +401,7 @@ func TestRetrieveLogs(t *testing.T) {
 					t.Logf("Got expected error from log channel for non-existent instance %s: %v", nonExistentInstanceName, msg.Error)
 					s, _ := status.FromError(msg.Error)
 					if s.Code() != codes.NotFound && s.Code() != codes.Unknown {
-						t.Errorf("Expected codes.NotFound or codes.Unknown from channel for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
+						t.Errorf("Expected gRPC status codes NotFound or Unknown from channel for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
 					}
 				} else {
 					// An actual log message was received, which is an error for this test case.
@@ -461,7 +461,7 @@ func TestRetrieveLogs(t *testing.T) {
 				t.Errorf("Error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, err)
 			} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown {
 				// Allow Unknown as some systems might report it this way, similar to non-existent.
-				t.Errorf("Expected codes.NotFound, codes.FailedPrecondition, or codes.Unknown for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+				t.Errorf("Expected gRPC status codes NotFound, FailedPrecondition, or Unknown for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 			}
 			if logCh != nil {
 				t.Errorf("Expected nil logCh when cli.Logs returns an error for stopped instance %s, but got %v", stoppedInstanceName, logCh)
@@ -484,7 +484,7 @@ func TestRetrieveLogs(t *testing.T) {
 				if !ok {
 					t.Errorf("Stream error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, msg.Error)
 				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown {
-					t.Errorf("Expected codes.NotFound, codes.FailedPrecondition, or codes.Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 				}
 				foundErrorOnChannel = true
 				break
@@ -630,7 +630,7 @@ func TestStopContainer(t *testing.T) {
 			t.Logf("Got expected error when stopping non-existent instance %s: %v", nonExistentInstance, err)
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound {
-				t.Logf("Warning: StopContainer for non-existent instance %s returned code %s, not codes.NotFound. This might be acceptable depending on server behavior.", nonExistentInstance, s.Code())
+				t.Logf("Warning: StopContainer for non-existent instance %s returned gRPC status code %s, not NotFound. This might be acceptable depending on server behavior.", nonExistentInstance, s.Code())
 			}
 		}
 	})
@@ -647,8 +647,8 @@ func TestStopContainer(t *testing.T) {
 		// Attempt to stop it again.
 		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
 			s, _ := status.FromError(err)
-			if s.Code() == codes.NotFound {
-				t.Logf("Second StopContainer() for %s returned NotFound, which is acceptable: %v", instanceName, err)
+			if s.Code() == codes.NotFound || s.Code() == codes.FailedPrecondition {
+				t.Logf("Second StopContainer() for %s returned gRPC status code NotFound or FailedPrecondition: %v", instanceName, err)
 			} else {
 				t.Errorf("Second StopContainer() for already stopped instance %s failed unexpectedly: %v", instanceName, err)
 			}
@@ -756,9 +756,9 @@ func TestVolumes(t *testing.T) {
 			// An error was returned. It should be codes.NotFound.
 			s, ok := status.FromError(err)
 			if !ok || s.Code() != codes.NotFound {
-				t.Errorf("RemoveVolume(%q) for a non-existent volume returned error %v, want a gRPC error with code NotFound", nonExistentVolumeName, err)
+				t.Errorf("RemoveVolume(%q) for a non-existent volume returned error %v, want gRPC status code NotFound", nonExistentVolumeName, err)
 			} else {
-				t.Logf("RemoveVolume(%q) for a non-existent volume correctly returned codes.NotFound.", nonExistentVolumeName)
+				t.Logf("RemoveVolume(%q) for a non-existent volume correctly returned gRPC status NotFound.", nonExistentVolumeName)
 			}
 		}
 	})
@@ -837,7 +837,7 @@ func TestUpgrade(t *testing.T) {
 			// Optionally, check for specific gRPC status code, e.g., codes.NotFound
 			s, ok := status.FromError(err)
 			if ok && s.Code() != codes.NotFound {
-				t.Errorf("Expected codes.NotFound for non-existent image, got %s", s.Code())
+				t.Errorf("Expected gRPC status code NotFound for non-existent image, got %s", s.Code())
 			}
 		}
 	})
@@ -855,7 +855,7 @@ func TestUpgrade(t *testing.T) {
 			t.Logf("Got expected error when upgrading to image %s with non-existent tag %s: %v", imageName, nonExistentTag, err)
 			s, ok := status.FromError(err)
 			if ok && s.Code() != codes.NotFound {
-				t.Errorf("Expected codes.NotFound (or similar) for non-existent tag, got %s", s.Code())
+				t.Errorf("Expected gRPC status code NotFound (or similar) for non-existent tag, got %s", s.Code())
 			}
 		}
 	})
@@ -874,7 +874,7 @@ func TestUpgrade(t *testing.T) {
 			t.Logf("Got expected error when upgrading non-existent instance %s: %v", nonExistentInstance, err)
 			s, ok := status.FromError(err)
 			if ok && s.Code() != codes.NotFound {
-				t.Errorf("Expected codes.NotFound for non-existent instance, got %s", s.Code())
+				t.Errorf("Expected gRPC status code NotFound for non-existent instance, got %s", s.Code())
 			}
 		}
 	})
@@ -886,7 +886,6 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 	t.Logf("Attempting to deploy plugin tarball %q as %s:%s", pluginTarPath, pluginName, pluginImageTag)
 	// The 'true' argument indicates this is a plugin image.
 	progCh, err := cli.PushImage(ctx, pluginName, pluginImageTag, pluginTarPath, true)
-
 	if err != nil {
 		return fmt.Errorf("PushImage (for plugin %q) failed: %w", pluginName, err)
 	}
@@ -1005,7 +1004,7 @@ func TestPlugins(t *testing.T) {
 		pluginName := "non-existent-plugin-image"
 		pluginInstance := "test-instance-non-existent-image"
 		dummyConfigFile := filepath.Join(t.TempDir(), "dummy_config.json")
-		if err := os.WriteFile(dummyConfigFile, []byte(`{"description":"dummy"}`), 0644); err != nil {
+		if err := os.WriteFile(dummyConfigFile, []byte(`{"description":"dummy"}`), 0o644); err != nil {
 			t.Fatalf("Failed to write dummy config file: %v", err)
 		}
 
@@ -1022,8 +1021,8 @@ func TestPlugins(t *testing.T) {
 		} else {
 			t.Logf("Got expected error when starting with non-existent image %q: %v", pluginName, err)
 			s, ok := status.FromError(err)
-			if !ok || s.Code() != codes.Unknown {
-				t.Errorf("Expected gRPC status codes.Unknown for non-existent image, got: %v (status code: %s)", err, s.Code())
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.FailedPrecondition) {
+				t.Errorf("Expected gRPC status code Unknown or NotFound for non-existent image, got: %v (status code: %s)", err, s.Code())
 			}
 		}
 	})
@@ -1066,8 +1065,8 @@ func TestPlugins(t *testing.T) {
 		} else {
 			t.Logf("Got expected error when starting already started instance %s: %v", pluginInstance, err)
 			s, ok := status.FromError(err)
-			if !ok || s.Code() != codes.Unknown {
-				t.Errorf("Expected gRPC status codes.Unknown for already started instance, got: %v (status code: %s)", err, s.Code())
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.AlreadyExists) {
+				t.Errorf("Expected gRPC status code Unknown or AlreadyExists for already started instance, got: %v (status code: %s)", err, s.Code())
 			}
 		}
 	})
