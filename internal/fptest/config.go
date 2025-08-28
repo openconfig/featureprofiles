@@ -60,6 +60,15 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 								p.DisableAdvertisement = nil
 							}
 						}
+				for _, sub := range intf.Subinterface {
+					if sub.Ipv6 != nil {
+						sub.Ipv6.Autoconf = nil
+						if adv := sub.Ipv6.GetRouterAdvertisement(); adv != nil {
+							adv.Suppress = nil
+							for _, p := range sub.Ipv6.GetRouterAdvertisement().Prefix {
+								p.DisableAdvertisement = nil
+							}
+						}
 					}
 				}
 				config.AppendInterface(intf)
@@ -128,6 +137,7 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 				iface.Ethernet = e
 			}
 			// need to set mac address for mgmt interface to nil
+			if iname == "MgmtEth0/RP0/CPU0/0" || iname == "MgmtEth0/RP1/CPU0/0" && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
 			if iname == "MgmtEth0/RP0/CPU0/0" || iname == "MgmtEth0/RP1/CPU0/0" && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
 				e.MacAddress = nil
 			}
