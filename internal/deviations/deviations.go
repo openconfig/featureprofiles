@@ -2524,3 +2524,8 @@ func BgpAfiSafiSendCommunityTypeUnsupported(dut *ondatra.DUTDevice) bool {
 func ISISInterfaceAuthenticationContainerUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceAuthenticationContainerUnsupported()
 }
+
+// TempSensorNamePattern returns the pattern used to identify temperature sensors for this DUT.
+func TempSensorNamePattern(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetTempSensorNamePattern()
+}
