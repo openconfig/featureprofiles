@@ -346,7 +346,7 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	//Example : components/component[name=FPC0:PIC0:NPU1]/properties/property[name=epp-epc-cfg-common-trapcode-dual-hash-miss-pps]/state/value: 0
 	property := "epp-epc-cfg-common-trapcode-dual-hash-miss"
 	count := gnmi.Get(t, dut, gnmi.OC().Component(parent).Property(property).State()).GetValue()
-	t.Logf("property is %s count  value is %d", property,count)
+	t.Logf("property is %s count  value is %d", property, count)
 	property = "epp-epc-cfg-common-trapcode-dual-hash-miss-pps"
 	val := gnmi.Get(t, dut, gnmi.OC().Component(parent).Property(property).State()).GetValue()
 	rate := 0

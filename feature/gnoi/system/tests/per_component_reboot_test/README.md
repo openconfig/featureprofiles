@@ -21,6 +21,11 @@ paths used for test setup are not listed here.
 
 TODO(OCPATH): Add component names to component paths.
 
+## Canonical OC
+```json
+{}
+```   
+
 ```yaml
 paths:
     ## Config paths: N/A
