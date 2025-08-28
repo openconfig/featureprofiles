@@ -42,7 +42,6 @@ const (
 	symbols           = "!@#$%^&*(){}[]\\|:;\"'"
 	space             = " "
 	userKey           = "testuser"
-	dutKey            = "dut"
 	caKey             = "ca"
 	minPasswordLength = 24
 	maxPasswordLength = 32
@@ -344,7 +343,7 @@ func GetDutTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
 	if err != nil {
 		t.Log("DUT does not support `Service` function, will attempt to use dut name field")
-		return fmt.Sprintf("%s:%d", dut.ID(), defaultSSHPort)
+		return fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
 	}
 	dutSSHService, err := serviceDUT.Service("ssh")
 	if err != nil {
