@@ -1597,3 +1597,18 @@ func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool 
 func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyRuleCountersOcUnsupported()
 }
+
+// OTNToETHAssignment returns true if the device must have the OTN to ETH assignment.
+func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnToEthAssignment()
+}
+
+// NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
+func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+}
+
+// SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
+func SkipOrigin(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipOrigin()
+}
