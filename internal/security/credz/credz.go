@@ -279,7 +279,7 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 	var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
 
 	if keyDir != "" {
-		data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.Name()))
+		data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host private key, error: %s", err)
 		}
@@ -289,7 +289,7 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 	}
 
 	if certDir != "" {
-		data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.Name()))
+		data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
@@ -344,7 +344,7 @@ func GetDutTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
 	if err != nil {
 		t.Log("DUT does not support `Service` function, will attempt to use dut name field")
-		return fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
+		return fmt.Sprintf("%s:%d", dut.ID(), defaultSSHPort)
 	}
 	dutSSHService, err := serviceDUT.Service("ssh")
 	if err != nil {
@@ -403,18 +403,18 @@ func CreateUserCertificate(t *testing.T, dir, userPrincipal string) {
 
 // CreateHostCertificate takes in dut key contents & creates ssh host certificate in the specified directory.
 func CreateHostCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string, dutKeyContents []byte) {
-	err := os.WriteFile(fmt.Sprintf("%s/%s.pub", dir, dut.Name()), dutKeyContents, 0o777)
+	err := os.WriteFile(fmt.Sprintf("%s/%s.pub", dir, dut.ID()), dutKeyContents, 0o777)
 	if err != nil {
 		t.Fatalf("Failed writing dut public key to temp dir, error: %s", err)
 	}
 	cmd := exec.Command(
 		"ssh-keygen",
 		"-s", caKey, // sign using this ca key
-		"-I", dut.Name(), // key identity
+		"-I", dut.ID(), // key identity
 		"-h",                 // create host (not user) certificate
 		"-n", "dut.test.com", // principal(s)
 		"-V", "+52w", // validity
-		fmt.Sprintf("%s.pub", dut.Name()),
+		fmt.Sprintf("%s.pub", dut.ID()),
 	)
 	cmd.Dir = dir
 	err = cmd.Run()
@@ -501,7 +501,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		hibaGen,
 		"-i",
 		"-f", fmt.Sprintf("%s/policy/identities/prod", keysDir),
-		"domain", "example.com",
+		"domain", "google.com",
 	)
 	err = prodIdentityCmd.Run()
 	if err != nil {
@@ -572,8 +572,6 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 func CreateHibaKeys(t *testing.T, dut *ondatra.DUTDevice, keysDir string) {
 	hibaCa, _ := exec.LookPath("hiba-ca.sh")
 	hibaGen, _ := exec.LookPath("hiba-gen")
-	// hibaCa := runfiles.Path("google3/third_party/hiba/hiba-ca.sh")
-	// hibaGen := runfiles.Path("google3/third_party/hiba/hiba-gen")
 	if hibaCa == "" || hibaGen == "" {
 		t.Log("hiba-ca and/or hiba-gen not found on path, will try to use certs in local test dir if present.")
 		createHibaKeysCopy(t, keysDir)
