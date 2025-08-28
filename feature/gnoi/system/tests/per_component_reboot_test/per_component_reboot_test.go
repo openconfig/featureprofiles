@@ -15,11 +15,9 @@
 package per_component_reboot_test
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -55,8 +53,6 @@ const (
 )
 
 var (
-	trapstatsRe = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+([\w\.\s]+)\s+(\d+)\s+(\d+)`)
-
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
 		IPv4:    "192.168.1.1",
@@ -238,77 +234,6 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 	ip := flow.Packet().Add().Ipv4()
 	ip.Src().SetValue(ateSrc.IPv4)
 	ip.Dst().SetValue(dutSrc.IPv4)
-}
-
-// trapStats represents a single row of trap statistics.
-type trapStats struct {
-	dev      int
-	trapcode int
-	name     string
-	count    int
-	rate     int
-}
-
-// parseTrapStats parses the output of the request pfe execute target fpc* command " show cda trapstats" | no-more command.
-func parseTrapStats(t *testing.T, output string) ([]trapStats, error) {
-	t.Helper()
-
-	var stats []trapStats
-	var parsingTable bool
-	scanner := bufio.NewScanner(strings.NewReader(output))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, "DEV") {
-			parsingTable = true
-			continue
-		}
-
-		if !parsingTable {
-			continue
-		}
-
-		match := trapstatsRe.FindStringSubmatch(line)
-		if match == nil {
-			if len(strings.TrimSpace(line)) > 0 {
-				return nil, fmt.Errorf("invalid line format: %s", line)
-			}
-			continue
-		}
-
-		dev, err := strconv.Atoi(strings.TrimSpace(match[1]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing DEV: %w", err)
-		}
-		trapCode, err := strconv.Atoi(strings.TrimSpace(match[2]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing TRAPCODE: %w", err)
-		}
-		name := strings.TrimSpace(match[3])
-		count, err := strconv.Atoi(strings.TrimSpace(match[4]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing COUNT: %w", err)
-		}
-		rate, err := strconv.Atoi(strings.TrimSpace(match[5]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing RATE: %w", err)
-		}
-
-		stats = append(stats, trapStats{
-			dev:      dev,
-			trapcode: trapCode,
-			name:     name,
-			count:    count,
-			rate:     rate,
-		})
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading output: %w", err)
-	}
-
-	return stats, nil
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
