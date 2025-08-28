@@ -487,7 +487,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		hibaCa,
 		"-c",
 		"-d", keysDir,
-		"-h", "-I", dutKey,
+		"-h", "-I", dut.ID(),
 		"--",
 		"-q", "-N", "",
 	)
@@ -534,7 +534,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		"-d", keysDir,
 		"-s",
 		"-h",
-		"-I", dutKey,
+		"-I", dut.ID(),
 		"-H", "prod",
 		"-V", "+52w",
 	)
