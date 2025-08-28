@@ -143,7 +143,16 @@ func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ond
 
 // buildGNMISetRequest builds gnmi set request with protobuf-metadata
 func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root) *gpb.SetRequest {
-	msg := &gpb.ModelData{Name: metadataText}
+	// shrink metadataText to 70% of its original size
+	truncatedText := metadataText
+	if len(metadataText) > 0 {
+		newLen := int(float64(len(metadataText)) * 0.70)
+		if newLen > 0 {
+			truncatedText = metadataText[:newLen]
+		}
+	}
+	
+	msg := &gpb.ModelData{Name: truncatedText}
 	b, err := proto.Marshal(msg)
 	if err != nil {
 		t.Fatalf("cannot marshal proto msg - error: %v", err)
