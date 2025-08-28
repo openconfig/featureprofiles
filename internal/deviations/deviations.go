@@ -1612,3 +1612,8 @@ func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool
 func SkipOrigin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipOrigin()
 }
+
+// TempSensorNamePattern returns the pattern to identify temperature sensors for this DUT.
+func TempSensorNamePattern(dut *ondatra.DUTDevice) string {
+    return lookupDUTDeviations(dut).GetTempSensorNamePattern()
+}
