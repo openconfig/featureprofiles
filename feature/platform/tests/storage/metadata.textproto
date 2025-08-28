@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "18e8fca1-9e13-4226-8e91-5d00d336938c"
+plan_id:  "Storage-1.1"
+description:  "Storage File System Check"
+testbed:  TESTBED_DUT_ATE_2LINKS
