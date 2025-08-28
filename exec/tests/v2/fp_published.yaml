@@ -574,13 +574,15 @@ tests:
     priority: 1
     groups: [ancx,P1]
   - name: RT-6.1 (Core LLDP TLV Population)
-    path: feature/lldp/ate_tests/core_lldp_tlv_population_test
+    path: feature/lldp/otg_tests/core_lldp_tlv_population_test
     owners:
       - agvarghe
     mustpass: true
     priority: 1002
-    testbeds:
-      - 2DUT-TB2
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7 
   - name: SR-1.1 (Forwarding to Node-SID)
     path: feature/mpls/sr/otg_tests/isis_node_sid_forward
     owners:
