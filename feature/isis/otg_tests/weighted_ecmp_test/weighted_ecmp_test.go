@@ -525,6 +525,9 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 
 	var maxPaths uint8 = 3
+	if deviations.PredefinedMaxEcmpPaths(dut) {
+		maxPaths = 16
+	}
 	globalISIS.MaxEcmpPaths = &maxPaths
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)

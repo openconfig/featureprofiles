@@ -1612,3 +1612,8 @@ func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool
 func SkipOrigin(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipOrigin()
 }
+
+// PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
+func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
+}
