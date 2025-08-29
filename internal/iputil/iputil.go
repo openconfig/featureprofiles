@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"net/netip"
 )
 
 // GenerateIPs creates list of n IPs using ipBlock
@@ -39,5 +40,28 @@ func GenerateIPs(ipBlock string, n int) []string {
 		n--
 	}
 
+	return entries
+}
+
+// generateIPv6Entries creates IPv6 Entries given the totalCount and starting prefix
+func GenerateIPv6(startIP string, count uint64) []string {
+
+	_, netCIDR, _ := net.ParseCIDR(startIP)
+	netMask := binary.BigEndian.Uint64(netCIDR.Mask)
+	maskSize, _ := netCIDR.Mask.Size()
+	firstIP := binary.BigEndian.Uint64(netCIDR.IP)
+	lastIP := (firstIP & netMask) | (netMask ^ 0xffffffff)
+	entries := []string{}
+
+	for i := firstIP; i <= lastIP; i++ {
+		ipv6 := make(net.IP, 16)
+		binary.BigEndian.PutUint64(ipv6, i)
+		// make last byte non-zero
+		p, _ := netip.ParsePrefix(fmt.Sprintf("%v/%d", ipv6, maskSize))
+		entries = append(entries, p.Addr().Next().String())
+		if uint64(len(entries)) >= count {
+			break
+		}
+	}
 	return entries
 }
