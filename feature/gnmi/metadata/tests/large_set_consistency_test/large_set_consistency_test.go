@@ -237,8 +237,6 @@ func checkLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DU
 }
 
 func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, baselineConfig *oc.Root, size int, done *atomic.Int64) {
-	// Reduce size to 70% of original to account for base64 encoding overhead
-	size = int(float64(size) * 0.70)
 	randomBytes := make([]byte, size)
 	_, err := io.ReadFull(rand.Reader, randomBytes)
 	if err != nil {
