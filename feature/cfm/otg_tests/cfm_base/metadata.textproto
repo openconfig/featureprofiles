@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "101ebaf7-467a-48f9-865b-2b255ea49c9a"
+plan_id: "CFM-1.1"
+description: "CFM over ETHoCWoMPLSoGRE"
+testbed: TESTBED_DUT_ATE_2LINKS

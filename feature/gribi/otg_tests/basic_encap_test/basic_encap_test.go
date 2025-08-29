@@ -347,9 +347,11 @@ func TestBasicEncap(t *testing.T) {
 	}
 
 	defer c.Close(t)
+	// flush all AFT entries after test
+	defer c.FlushAll(t)
 	c.BecomeLeader(t)
 
-	// Flush all existing AFT entries on the router
+	// flush all existing AFT entries on the router
 	c.FlushAll(t)
 
 	programEntries(t, dut, &c)
