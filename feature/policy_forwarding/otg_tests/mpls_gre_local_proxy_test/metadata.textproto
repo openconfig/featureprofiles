@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "feae3402-857a-4a5c-8cbf-b8a5a16c0861"
+plan_id:  "PF-1.16"
+description:  "MPLSoGRE IPV4 encapsulation IPV4/IPV6 local proxy test"
+testbed:  TESTBED_DUT_ATE_2LINKS

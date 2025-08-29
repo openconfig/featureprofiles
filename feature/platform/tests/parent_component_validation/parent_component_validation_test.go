@@ -54,21 +54,38 @@ func TestInterfaceParentComponent(t *testing.T) {
 		{
 			desc:    "Port1",
 			port:    "port1",
+<<<<<<< HEAD
 			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9])$",
+=======
+			pattern: "^(SwitchChip(?:[0-9]/[0-9])?|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+>>>>>>> 0d29c221e5bc6797e0dcb0f7f2a7e52d698c3da7
 		},
 		{
 			desc:    "Port2",
 			port:    "port2",
+<<<<<<< HEAD
 			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9])$",
+=======
+			pattern: "^(SwitchChip(?:[0-9]/[0-9])?|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+>>>>>>> 0d29c221e5bc6797e0dcb0f7f2a7e52d698c3da7
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			dp := dut.Port(t, tc.port)
+<<<<<<< HEAD
 			//convert interface to hardware port to get the parent
 			hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
 			parent := checkParentComponent(t, dut, hardwarePort)
+=======
+			hardwarePortName := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+			hVal, present := hardwarePortName.Val()
+			if !present {
+				t.Errorf("Hardware port NOT found for interface: %s", dp.Name())
+			}
+			parent := checkParentComponent(t, dut, hVal)
+>>>>>>> 0d29c221e5bc6797e0dcb0f7f2a7e52d698c3da7
 			t.Logf("Interface %s parent is %s", dp.Name(), parent)
 			if ok, err := regexp.MatchString(tc.pattern, parent); !ok || err != nil {
 				t.Errorf("Interface %s parent did not match pattern %s: %v", dp.Name(), tc.pattern, err)
