@@ -39,3 +39,7 @@ rpcs:
     system.System.Reboot:
     system.System.RebootStatus:
 ```
+## Canonical OC
+```json
+{}
+```   
