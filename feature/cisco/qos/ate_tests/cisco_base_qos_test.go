@@ -311,7 +311,6 @@ func TestScheduler(t *testing.T) {
 	}
 
 	dutPorts := sortPorts(dut.Ports())
-	memIntfList := []string{"Bundle-Ether121", dutPorts[1].Name()}
 
 	for _, tt := range QosSchedulerTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -351,7 +350,6 @@ func TestScheduler(t *testing.T) {
 				top:           top,
 				usecase:       0,
 				dutPorts:      dutPorts,
-				memIntfList:   memIntfList,
 				interfaces:    &interfaces,
 				interfaceList: interfaceList,
 				prefix: &gribiPrefix{
@@ -425,7 +423,6 @@ func TestWrrTrafficQos(t *testing.T) {
 	}
 
 	dutPorts := sortPorts(dut.Ports())
-	memIntfList := []string{"Bundle-Ether121", dutPorts[1].Name()}
 
 	for _, tt := range QoSWrrTrafficTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -455,7 +452,6 @@ func TestWrrTrafficQos(t *testing.T) {
 				dutPorts:      dutPorts,
 				interfaces:    &interfaces,
 				interfaceList: interfaceList,
-				memIntfList:   memIntfList,
 				prefix: &gribiPrefix{
 					scale:           1,
 					host:            "11.11.11.0",
@@ -525,7 +521,6 @@ func TestGooglePopgate(t *testing.T) {
 		out: interfaceList,
 	}
 	dutPorts := sortPorts(dut.Ports())
-	memIntfList := []string{"Bundle-Ether121", dutPorts[1].Name()}
 
 	for _, tt := range QosSPopGateTestcases {
 		// Each case will run with its own gRIBI fluent client.
@@ -557,7 +552,6 @@ func TestGooglePopgate(t *testing.T) {
 				dutPorts:      dutPorts,
 				interfaces:    &interfaces,
 				interfaceList: interfaceList,
-				memIntfList:   memIntfList,
 				prefix: &gribiPrefix{
 					scale:           1,
 					host:            "11.11.11.0",

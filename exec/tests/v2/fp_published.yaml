@@ -574,13 +574,15 @@ tests:
     priority: 1
     groups: [ancx,P1]
   - name: RT-6.1 (Core LLDP TLV Population)
-    path: feature/lldp/ate_tests/core_lldp_tlv_population_test
+    path: feature/lldp/otg_tests/core_lldp_tlv_population_test
     owners:
       - agvarghe
     mustpass: true
     priority: 1002
-    testbeds:
-      - 2DUT-TB2
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7 
   - name: SR-1.1 (Forwarding to Node-SID)
     path: feature/mpls/sr/otg_tests/isis_node_sid_forward
     owners:
@@ -859,38 +861,40 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: ACCTZ-1.1 (Record Subscribe Full)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_full
+    path: feature/gnsi/acctz/tests/record_subscribe_full
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-2.1 (Record Subscribe Partial)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    path: feature/gnsi/acctz/tests/record_subscribe_partial
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    path: feature/gnsi/acctz/tests/record_subscribe_non_grpc
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-4.1 (Record History Truncation)
-    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    path: feature/gnsi/acctz/tests/record_history_truncation
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-4.2 (Record Payload Truncation)
-    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    path: feature/gnsi/acctz/tests/record_payload_truncation
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
+    pr: 1710
+    internal: true
     owners:
       - harikri4
   - name: Credentialz-1 (Password console login)
@@ -1099,7 +1103,12 @@ tests:
     owners:
       - sprem
     mustpass: true
-    pr: 3613
+    otg_version:
+      controller: 1.20.0-6
+      hw: 1.20.0-1
+      gnmi: 1.20.2 
+    internal: false
+    pr: 4448
     groups: [ancx,P1]
   - name: RT-1.33 (BGP Policy with prefix-set matching)
     path: feature/bgp/policybase/otg_tests/prefix_set_test
@@ -1496,15 +1505,6 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    pr: 3709
-    groups: [newfnt]
   - name: Credentialz-2 (SSH Password Login Disallowed)
     path: feature/security/gnsi/credentialz/tests/ssh_password_login_disallowed
     priority: 2
@@ -1521,32 +1521,8 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: ACCTZ-4.2 (Record Payload Truncation)
-    path: feature/security/gnsi/acctz/tests/record_payload_truncation
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
   - name: Credentialz-3 (Host Certificates)
     path: feature/security/gnsi/credentialz/tests/host_certificates
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
-  - name: ACCTZ-2.1 (Record Subscribe Partial)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
-  - name: ACCTZ-4.1 (Record History Truncation)
-    path: feature/security/gnsi/acctz/tests/record_history_truncation
     priority: 2
     owners:
       - arvbaska
@@ -1569,16 +1545,8 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: ACCTZ-1.1 (Record Subscribe Full)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_full
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
   - name: ACCTZ-10.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction)
-    path: feature/security/gnsi/acctz/AccountingAuthenErrorMulti
+    path: feature/gnsi/acctz/AccountingAuthenErrorMulti
     owners:
     - mananpat
     mustpass: false
@@ -1586,7 +1554,7 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-5.1 (gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - client becomes silent)
-    path: feature/security/gnsi/acctz/RecordSubscribeIdleTimeout
+    path: feature/gnsi/acctz/RecordSubscribeIdleTimeout
     owners:
     - mananpat
     mustpass: false
@@ -1594,14 +1562,14 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-6.1 (gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - DoA client)
-    path: feature/security/gnsi/acctz/RecordSubscribeIdleTimeoutDoA
+    path: feature/gnsi/acctz/RecordSubscribeIdleTimeoutDoA
     owners:
       - mananpat
     mustpass: false
     priority: 3
     groups: [newfnt]
   - name: ACCTZ-7.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction)
-    path: feature/security/gnsi/acctz/AccountingAuthenFailMulti
+    path: feature/gnsi/acctz/AccountingAuthenFailMulti
     owners:
       - mananpat
     mustpass: false
@@ -1609,7 +1577,7 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-8.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction)
-    path: feature/security/gnsi/acctz/AccountingAuthenFailUni
+    path: feature/gnsi/acctz/AccountingAuthenFailUni
     owners:
       - mananpat
     mustpass: false
@@ -1617,7 +1585,7 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-9.1 (gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation)
-    path: feature/security/gnsi/acctz/AccountingPrivEscalation
+    path: feature/gnsi/acctz/AccountingPrivEscalation
     owners:
       - mananpat
     mustpass: false
