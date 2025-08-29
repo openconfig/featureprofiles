@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "89f00d76-47ec-4256-b7f3-8ca82feffdd2"
+plan_id:  "PF-1.2"
+description:  "Policy-based traffic GRE Encapsulation to IPv4 GRE tunnel"
+testbed:  TESTBED_DUT_ATE_2LINKS
