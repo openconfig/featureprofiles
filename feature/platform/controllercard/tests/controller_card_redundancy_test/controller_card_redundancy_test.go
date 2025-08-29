@@ -192,7 +192,6 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 			t.Errorf("Controller card redundant role is not returning a valid value for %s", redundantRole.State())
 		}
 		t.Logf("The value of redundant role is %v", redundantRoleCard)
-<<<<<<< HEAD
 		// Validate controller card last switchover time
 		lastSwitchoverTime := gnmi.OC().Component(controllerCard).LastSwitchoverTime()
 		lastSwitchoverTimeCard := gnmi.Get(t, dut, lastSwitchoverTime.State())
@@ -217,8 +216,6 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 			t.Errorf("Controller card last switchover reason details is not returning a valid value for %s", lastSwitchoverReasonDetails.State())
 		}
 		t.Logf("The value of last switchover reason details is %v", lastSwitchoverReasonDetailsCard)
-=======
->>>>>>> 0d29c221e5bc6797e0dcb0f7f2a7e52d698c3da7
 		// Validate controller card last reboot time
 		lastRebootTime := gnmi.OC().Component(controllerCard).LastRebootTime()
 		lastRebootTimeCard := gnmi.Get(t, dut, lastRebootTime.State())
