@@ -15,6 +15,7 @@
 package egressnodeforwarding_test
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -160,7 +161,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-func addISISOC(areaAddress, sysID, ifaceName1 string, ifaceName2 string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func addISISOC(areaAddress, sysID, ifaceName1, ifaceName2 string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := inst.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
@@ -442,15 +443,15 @@ func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
 	otg.SetControlState(t, cs)
 }
 
-func processCapture(t *testing.T, otg *otg.OTG, port string) string {
+func mustProcessCapture(t *testing.T, otg *otg.OTG, port string) string {
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
 	time.Sleep(30 * time.Second)
 	capture, err := os.CreateTemp("", "pcap")
 	if err != nil {
-		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
+		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
 	}
 	if _, err := capture.Write(bytes); err != nil {
-		t.Errorf("ERROR: Could not write bytes to pcap file: %v\n", err)
+		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
 	}
 	defer capture.Close()
 
@@ -482,7 +483,7 @@ func validatePackets(t *testing.T, filename string, protocolType string) error {
 					t.Logf("TTL decremented by 1")
 					break
 				} else {
-					return fmt.Errorf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.TTL)
+					return fmt.Errorf("unexpected TTL - got: %v, want: %v", ip.TTL, mplsOuterTTL-1)
 				}
 			}
 		} else {
@@ -497,7 +498,7 @@ func validatePackets(t *testing.T, filename string, protocolType string) error {
 					t.Logf("TTL decremented by 1")
 					break
 				} else {
-					return fmt.Errorf("Didin't get TTL as expected. Expected: %v, Got: %v", mplsOuterTTL-1, ip.HopLimit)
+					return fmt.Errorf("unexpected TTL - got: %v, want: %v", ip.HopLimit, mplsOuterTTL-1)
 				}
 			}
 		}
@@ -511,7 +512,7 @@ func validatePackets(t *testing.T, filename string, protocolType string) error {
 }
 
 // verifyTrafficValidations runs traffic and validates ATE flow metrics and DUT counters.
-func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) (totalTxFromATE, totalRxAtATE uint64, err []error) {
+func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) (totalTxFromATE, totalRxAtATE uint64, err error) {
 	t.Helper()
 	otg := ate.OTG()
 
@@ -530,16 +531,16 @@ func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		if txPkts > 0 {
 			lossPct = (float32(txPkts-rxPkts) * 100) / float32(txPkts)
 		}
-		err = append(err, fmt.Errorf("Flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f",
-			flowName, txPkts, rxPkts, lossPct))
+		err = fmt.Errorf("Flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f",
+			flowName, txPkts, rxPkts, lossPct)
 	case txPkts > 0:
 		t.Logf("Flow %s: Successfully transmitted %d packets and received %d packets with no loss.",
 			flowName, txPkts, rxPkts)
 	case packetsPerFlow > 0: // Expected to send but didn't
-		err = append(err, fmt.Errorf("Flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow))
+		err = fmt.Errorf("Flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow)
 	}
 
-	return totalTxFromATE, totalRxAtATE, err
+	return totalTxFromATE, totalRxAtATE, errors.Join(err)
 
 }
 
@@ -603,7 +604,7 @@ func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dut
 }
 
 func TestMPLSExplicitNull(t *testing.T) {
-	var err []error
+	var err error
 	var ateTxCounters, ateRxCounters uint64
 
 	dut := ondatra.DUT(t, "dut")
@@ -631,7 +632,7 @@ func TestMPLSExplicitNull(t *testing.T) {
 	// Start Traffic & capture
 	sendTrafficCapture(t, ate)
 
-	capture := processCapture(t, ate.OTG(), "port2")
+	capture := mustProcessCapture(t, ate.OTG(), "port2")
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
 	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
@@ -655,19 +656,19 @@ func TestMPLSExplicitNull(t *testing.T) {
 	for _, flowName := range flowNames {
 		t.Run(fmt.Sprintf("ValidateFlow_%s", flowName), func(t *testing.T) {
 			ateTxCounters, ateRxCounters, err = verifyTrafficValidations(t, dut, ate, flowName.name)
-			if len(err) > 0 {
-				t.Errorf("%s", err)
-			}
-			err := validatePackets(t, capture, flowName.flowType)
 			if err != nil {
-				t.Errorf("%s", err)
+				t.Error(err)
+			}
+			err = validatePackets(t, capture, flowName.flowType)
+			if err != nil {
+				t.Error(err)
 			}
 		})
 	}
 
-	counterErr := validateDUTCounters(t, len(flowNames), dutP1BeforeCounters, dutP1AfterCounters, dutP2BeforeCounters, dutP2AfterCounters, ateTxCounters, ateRxCounters)
-	if counterErr != nil {
-		t.Errorf("%s", err)
+	err = validateDUTCounters(t, len(flowNames), dutP1BeforeCounters, dutP1AfterCounters, dutP2BeforeCounters, dutP2AfterCounters, ateTxCounters, ateRxCounters)
+	if err != nil {
+		t.Error(err)
 	}
 
 	t.Log("MPLS Explicit Null Test Completed.")
