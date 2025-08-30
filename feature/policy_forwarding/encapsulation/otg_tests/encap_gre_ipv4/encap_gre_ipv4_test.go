@@ -633,11 +633,11 @@ func checkGreCapture(t *testing.T, tc testCase) {
 	dscpPackets := make(map[uint8]uint32)
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
-
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		if ipLayer == nil {
 			continue
 		}
+		sourceDscp := (uint8)(dscpValues[int(packetCount)%len(dscpValues)])
 		packetCount += 1
 		ipOuterLayer, ok := ipLayer.(*layers.IPv4)
 		if !ok || ipOuterLayer == nil {
@@ -678,12 +678,16 @@ func checkGreCapture(t *testing.T, tc testCase) {
 			}
 			innerPacketTOS = ipInnerPacket.TrafficClass
 			dscp = innerPacketTOS
+			sourceDscp = sourceDscp << 2
 		}
 
 		tunnelPackets[ipOuterLayer.DstIP.String()] += 1
 		if tc.checkEncapDscp {
 			if ipOuterLayer.TOS != innerPacketTOS {
-				t.Errorf("TOS mismatch: outer TOS %d, inner TOS %d", ipOuterLayer.TOS, innerPacketTOS)
+				t.Errorf("DSCP mismatch: outer DSCP %d, inner DSCP %d", ipOuterLayer.TOS, innerPacketTOS)
+			}
+			if dscp != sourceDscp {
+				t.Errorf("DSCP mismatch: source DSCP %d, received DSCP %d", sourceDscp, dscp)
 			}
 			dscpPackets[dscp] += 1
 		}
