@@ -30,7 +30,16 @@ The test will fail if the values at any stage do not match the expected results.
 }
 ```
 
-## gNMI Paths Tested
+## OpenConfig Path and RPC Coverage
 
-- `/system/dns/config/search`
-- `/system/dns/state/search`
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+paths:
+  /system/dns/config/search:
+  /system/dns/state/search:
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
