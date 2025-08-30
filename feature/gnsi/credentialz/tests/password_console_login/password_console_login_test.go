@@ -15,6 +15,7 @@
 package passwordconsolelogin_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -40,7 +41,7 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
+	// target := credz.GetDutTarget(t, dut)
 
 	// Setup test user and password.
 	credz.SetupUser(t, dut, username)
@@ -77,7 +78,9 @@ func TestCredentialz(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Verify ssh succeeds/fails based on expected result.
-			client, err := credz.SSHWithPassword(target, tc.loginUser, tc.loginPassword)
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+			client, err := credz.SSHWithPassword(ctx, dut, tc.loginUser, tc.loginPassword)
 			if tc.expectFail {
 				if err == nil {
 					t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
