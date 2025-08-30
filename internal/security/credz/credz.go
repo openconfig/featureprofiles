@@ -610,12 +610,12 @@ func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, targe
 	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
 
-func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
-	return &ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
-	}
-}
+// func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
+//	return &ssh.ClientConfig{
+//		User: username,
+//		Auth: []ssh.AuthMethod{
+//			ssh.PublicKeys(signer),
+//		},
+//		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
+//	}
+// }
