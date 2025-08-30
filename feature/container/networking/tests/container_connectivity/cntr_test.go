@@ -15,7 +15,7 @@
 */
 
 // Package cntr_test implements an ONDATRA test for container functionalities
-// as described in the CNTR-[234] tests in README.md.
+// as described in the CNTR-2.x tests in README.md.
 package cntr_test
 
 import (
@@ -66,7 +66,7 @@ func DialService(ctx context.Context, t *testing.T, name string, dut *ondatra.DU
 	return conn, func() { conn.Close() }
 }
 
-// TestDial implements CNTR-2, validating that it is possible for an external caller to dial into a service
+// TestDial implements CNTR-2.1, validating that it is possible for an external caller to dial into a service
 // running in a container on a DUT. The service used is the cntr service defined by cntr.proto.
 func TestDial(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -75,7 +75,7 @@ func TestDial(t *testing.T) {
 	stop()
 }
 
-// TestDialLocal implements CNTR-3, validating that it is possible for a
+// TestDialLocal implements CNTR-2.2, validating that it is possible for a
 // container running on the device to connect to local gRPC services that are
 // running on the DUT.
 func TestDialLocal(t *testing.T) {
@@ -136,7 +136,7 @@ func TestDialLocal(t *testing.T) {
 	}
 }
 
-// TestConnectRemote implements CNTR-4, validating that it is possible for a container to connect to a container
+// TestConnectRemote implements CNTR-2.3, validating that it is possible for a container to connect to a container
 // on an adjacent node via gRPC using IPv6 link local addresses. r0 and r1 in the topology are configured with
 // IPv6 link-local addresses via gNMI, and the CNTR service is used to trigger a connection between the two addresses.
 //
