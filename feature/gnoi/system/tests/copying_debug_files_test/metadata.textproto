@@ -13,3 +13,11 @@ platform_exceptions: {
     chassis_get_rpc_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    skip_origin: true
+  }
+}
