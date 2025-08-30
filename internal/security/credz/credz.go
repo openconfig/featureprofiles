@@ -32,7 +32,7 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"golang.org/x/crypto/ssh"
+	// "golang.org/x/crypto/ssh"
 )
 
 const (
