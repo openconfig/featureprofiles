@@ -13,6 +13,23 @@ The test follows these steps:
 
 The test will fail if the values at any stage do not match the expected results.
 
+## Canonical OC
+
+```json
+{
+  "system": {
+    "dns": {
+      "config": {
+        "search": [
+          "google.com",
+          "youtube.com"
+        ]
+      }
+    }
+  }
+}
+```
+
 ## gNMI Paths Tested
 
 - `/system/dns/config/search`
