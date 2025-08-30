@@ -64,7 +64,7 @@ func TestCredentialz(t *testing.T) {
 
 	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, uint64(hostCertificateCreatedOn))
 	dutKey := credz.GetDutPublicKey(t, dut)
-	credz.CreateHostCertificate(t, dir, dutKey)
+	credz.CreateHostCertificate(t, dut, dir, dutKey)
 	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion, uint64(hostCertificateCreatedOn))
 
 	t.Run("dut should return signed host certificate", func(t *testing.T) {
