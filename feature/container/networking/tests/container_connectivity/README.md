@@ -53,6 +53,13 @@ gRPC service on `tcp/[::]60062`.
 *   Instruct `C2` to make a gRPC dial call to `C1`'s listen port with a
     specified timeout, ensure that an RPC response is received.
 
+## Canonical OC
+
+Not applicable to this test.
+
+```json
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
