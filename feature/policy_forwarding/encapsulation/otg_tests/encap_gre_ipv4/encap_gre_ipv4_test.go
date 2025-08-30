@@ -14,11 +14,10 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/qoscfg"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -37,39 +36,11 @@ const (
 	tunnelCount       = 32
 	captureFilePath   = "/tmp/capture.pcap"
 	testTimeout       = 10 * time.Second
-	IPv4              = "IPv4"
-	IPv6              = "IPv6"
-
-	tcamProfileConfig = `
-    hardware tcam
-  	profile tcam-test
-      feature traffic-policy port ipv4
-         sequence 45
-         key size limit 160
-         key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
-         action count drop redirect set-dscp set-tc
-         packet ipv4 forwarding routed
-      !
-      feature traffic-policy port ipv6
-         sequence 25
-         key size limit 160
-         key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
-         action count drop redirect set-dscp set-tc
-         packet ipv6 forwarding routed
-      !
-   system profile tcam-test
-    !
-    hardware counter feature gre tunnel interface out
-    !
-    hardware counter feature traffic-policy in
-    !
-    hardware counter feature traffic-policy out
-    !
-    hardware counter feature route ipv4
-    !
-    hardware counter feature nexthop
-    !
-    `
+	ipv4              = "IPv4"
+	ipv6              = "IPv6"
+	ipv4PrefixLen     = 32
+	ipv6PrefixLen     = 128
+	nhGroupName       = "SRC_NH"
 )
 
 var (
@@ -104,7 +75,8 @@ var (
 	otgPort3 = attrs.Attributes{Desc: "OTG port 1", Name: "port3", MAC: "00:01:12:00:00:03", IPv4: "192.0.2.10", IPv4Len: 30, IPv6: "2001:DB8:0::A", IPv6Len: 126, MTU: 2000}
 
 	tunnelDestinations = []string{}
-	dscpValues         = []uint32{0, 8, 16, 24, 32, 40, 48, 56}
+	dscpValues         = []uint8{0, 8, 16, 24, 32, 40, 48, 56}
+	classifierName     = "qos-classifier-1"
 )
 
 type ipFlow interface {
@@ -153,7 +125,7 @@ func TestEncapGREIPv4(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:           "PF-1.1.1: Verify PF GRE encapsulate action for IPv4 traffic",
-			ipType:         IPv4,
+			ipType:         ipv4,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
@@ -174,7 +146,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		},
 		{
 			name:           "PF-1.1.2: Verify PF GRE encapsulate action for IPv6 traffic",
-			ipType:         IPv6,
+			ipType:         ipv6,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
@@ -195,7 +167,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		},
 		{
 			name:            "PF-1.1.3: Verify PF IPV4 forward action",
-			ipType:          IPv4,
+			ipType:          ipv4,
 			srcDstPortPair:  []attrs.Attributes{otgPort1, otgPort3},
 			applyCustomFlow: nil,
 			verifyOutput: func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, tc testCase) {
@@ -209,7 +181,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		},
 		{
 			name:            "PF-1.1.4: Verify PF IPV6 forward action",
-			ipType:          IPv6,
+			ipType:          ipv6,
 			srcDstPortPair:  []attrs.Attributes{otgPort1, otgPort3},
 			applyCustomFlow: nil,
 			verifyOutput: func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, tc testCase) {
@@ -223,7 +195,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		},
 		{
 			name:           "PF-1.1.5: Verify PF GRE DSCP copy to outer header for IPv4 traffic",
-			ipType:         IPv4,
+			ipType:         ipv4,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
@@ -231,7 +203,12 @@ func TestEncapGREIPv4(t *testing.T) {
 				if !ok || foundIpv4 == nil {
 					return
 				}
-				foundIpv4.Priority().Dscp().Phb().SetValues(dscpValues)
+
+				var dscpValues32 []uint32
+				for _, v := range dscpValues {
+					dscpValues32 = append(dscpValues32, uint32(v))
+				}
+				foundIpv4.Priority().Dscp().Phb().SetValues(dscpValues32)
 			},
 			verifyOutput: func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, tc testCase) {
 				checkGreCapture(t, tc)
@@ -244,7 +221,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		},
 		{
 			name:           "PF-1.1.6: Verify PF GRE DSCP copy to outer header for IPv6 traffic",
-			ipType:         IPv6,
+			ipType:         ipv6,
 			capturePort:    "port2",
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
@@ -255,7 +232,7 @@ func TestEncapGREIPv4(t *testing.T) {
 
 				var tcValues []uint32
 				for _, dscp := range dscpValues {
-					tcValues = append(tcValues, dscp<<2)
+					tcValues = append(tcValues, uint32(dscp<<2))
 				}
 				foundIpv6.TrafficClass().SetValues(tcValues)
 			},
@@ -290,12 +267,12 @@ func configureFlows(t *testing.T, config *gosnappi.Config, tc testCase) {
 	eth.Src().SetValue(tc.srcDstPortPair[0].MAC)
 	var ipPacket ipFlow
 	switch tc.ipType {
-	case IPv4:
+	case ipv4:
 		ipv4 := flow.Packet().Add().Ipv4()
 		ipv4.Src().SetValue(tc.srcDstPortPair[0].IPv4)
 		ipv4.Dst().SetValue(tc.srcDstPortPair[1].IPv4)
 		ipPacket = ipv4
-	case IPv6:
+	case ipv6:
 		ipv6 := flow.Packet().Add().Ipv6()
 		ipv6.Src().SetValue(tc.srcDstPortPair[0].IPv6)
 		ipv6.Dst().SetValue(tc.srcDstPortPair[1].IPv6)
@@ -363,6 +340,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dp2 := dut.Port(t, "port2")
 	dp3 := dut.Port(t, "port3")
 
+	interfaceName := dut.Port(t, "port1").Name()
+
 	t.Logf("Configuring Interfaces")
 	configureDUTPort(t, dut, &dutPort1, dp1)
 	configureDUTPort(t, dut, &dutPort2, dp2)
@@ -370,14 +349,78 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	configureLoopbackInterface(t, dut)
 
-	t.Logf("Configuring TCAM Profile")
-	configureTcamProfile(t, dut)
+	t.Logf("Configuring Hardware Init")
+	configureHardwareInit(t, dut)
+
+	encapTarget := make(map[string]*oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre_Target)
+	width := len(fmt.Sprintf("%d", tunnelCount))
+	for index, dest := range tunnelDestinations {
+		key := fmt.Sprintf("gre%0*d", width, index+1)
+		encapTarget[key] = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre_Target{
+			Source:      ygot.String(dutlo0Attrs.IPv4),
+			Destination: ygot.String(dest),
+		}
+	}
+
+	policyRules := []cfgplugins.PolicyForwardingRule{
+		{
+			Id:                 1,
+			Name:               "rule_ipv4_pass",
+			IpType:             ipv4,
+			DestinationAddress: fmt.Sprintf("%s/%d", otgPort3.IPv4, ipv4PrefixLen),
+			Action: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+				NextHop: ygot.String(dutPort3.IPv4),
+			},
+		},
+		{
+			Id:                 2,
+			Name:               "rule_ipv6_pass",
+			IpType:             ipv6,
+			DestinationAddress: fmt.Sprintf("%s/%d", otgPort3.IPv6, ipv6PrefixLen),
+			Action: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+				NextHop: ygot.String(dutPort3.IPv6),
+			},
+		},
+		{
+			Id:                 3,
+			Name:               "rule_ipv4_encap",
+			IpType:             ipv4,
+			DestinationAddress: fmt.Sprintf("%s/%d", otgPort2.IPv4, ipv4PrefixLen),
+			Action: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+				EncapsulateGre: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre{
+					Target: encapTarget,
+				},
+			},
+		},
+		{
+			Id:                 4,
+			Name:               "rule_ipv6_encap",
+			IpType:             ipv6,
+			DestinationAddress: fmt.Sprintf("%s/%d", otgPort2.IPv6, ipv6PrefixLen),
+			Action: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
+				EncapsulateGre: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre{
+					Target: encapTarget,
+				},
+			},
+		},
+	}
 
 	t.Logf("Configuring Policy Forwarding")
-	configurePolicyForwarding(t, dut)
+	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+	cfgplugins.NewPolicyForwardingEncapGre(t, dut, pf, trafficPolicyName, interfaceName, nhGroupName, policyRules)
+	cfgplugins.ApplyPolicyToInterfaceOC(t, pf, interfaceName, trafficPolicyName)
+	if !deviations.PolicyForwardingOCUnsupported(dut) {
+		cfgplugins.PushPolicyForwardingConfig(t, dut, ni)
+	}
 
 	t.Logf("Configuring QOS")
-	configureQoSClassifier(t, dut)
+	ipv6DscpValues := []uint8{}
+	for _, dscp := range dscpValues {
+		ipv6DscpValues = append(ipv6DscpValues, dscp<<2)
+	}
+	qos := &oc.Qos{}
+	cfgplugins.ConfigureQosClassifierDscpRemark(t, dut, qos, classifierName, interfaceName, dscpValues, ipv6DscpValues)
+	cfgplugins.PushQosClassifierToDUT(t, dut, qos, interfaceName, classifierName, true)
 
 	t.Logf("Configuring Static Routes")
 	configureStaticRoutes(t, dut)
@@ -389,37 +432,22 @@ func configureTunnelDestinations() {
 	}
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+}
+
 func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
 	d := gnmi.OC()
 	i := attrs.NewOCInterface(p.Name(), dut)
-	i.Description = ygot.String(attrs.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	i.GetOrCreateEthernet()
-	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
-	a := i4.GetOrCreateAddress(attrs.IPv4)
-	a.PrefixLength = ygot.Uint8(attrs.IPv4Len)
-
-	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	i6.Enabled = ygot.Bool(true)
-	a6 := i6.GetOrCreateAddress(attrs.IPv6)
-	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
-
 	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), i)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation ", dut.Vendor(), dut.Model(), dut.Version())
+		cfgplugins.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p)
-	}
-
 }
 
 func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
@@ -448,20 +476,6 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func configureTcamProfile(t *testing.T, dut *ondatra.DUTDevice) {
-	if dut.Vendor() != ondatra.ARISTA || strings.ToLower(dut.Model()) == "ceos" {
-		t.Logf("Tcam profile not supported on %s %s", dut.Name(), dut.Model())
-		return
-	}
-
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
-	gpbSetRequest := buildCliSetRequest(tcamProfileConfig)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Failed to set tcam profile from cli: %v", err)
-	}
-}
-
 func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 
 	configStaticRoute(t, dut, "192.0.2.0/30", "192.0.2.10", "0")
@@ -472,32 +486,21 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
-	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	static.SetEnabled(true)
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop(index)
-	nh.NextHop = oc.UnionString(nexthop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-}
-
-func buildCliSetRequest(config string) *gpb.SetRequest {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Origin: "cli",
-					Elem:   []*gpb.PathElem{},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_AsciiVal{
-						AsciiVal: config,
-					},
-				},
-			},
+	b := &gnmi.SetBatch{}
+	if nexthop == "Null0" {
+		nexthop = "DROP"
+	}
+	routeCfg := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefix,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			index: oc.UnionString(nexthop),
 		},
 	}
-	return gpbSetRequest
+	if _, err := cfgplugins.NewStaticRouteCfg(b, routeCfg, dut); err != nil {
+		t.Fatalf("Failed to configure static route: %v", err)
+	}
+	b.Set(t, dut)
 }
 
 func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
@@ -508,228 +511,6 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 	}
 	t.Logf("Received from cli: %s", output.Output())
 	return output.Output()
-}
-
-func configurePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice) {
-	interfaceName := dut.Port(t, "port1").Name()
-	if deviations.PolicyForwardingToNextHopOcUnsupported(dut) || deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
-		t.Logf("Configuring pf through CLI")
-		configurePolicyForwardingFromCLI(t, dut, trafficPolicyName, interfaceName)
-	} else {
-		t.Logf("Configuring pf through OC")
-		configurePolicyForwardingFromOC(t, dut, trafficPolicyName, interfaceName)
-	}
-}
-
-func configurePolicyForwardingFromCLI(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string) {
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	tpConfig := trafficPolicyCliConfig(dut, policyName, interfaceName)
-	t.Logf("Push the CLI Policy config:%s", dut.Vendor())
-	gpbSetRequest := buildCliSetRequest(tpConfig)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Errorf("Failed to set policy forwarding from cli: %v", err)
-	}
-}
-
-func configurePolicyForwardingFromOC(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string) {
-	pf := &oc.Root{}
-	ni := pf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	policy := ni.GetOrCreatePolicyForwarding().GetOrCreatePolicy(policyName)
-	policy.Type = oc.Policy_Type_PBR_POLICY
-	// Rule 1: Match IPV4-SRC1 and accept/forward
-	rule1 := policy.GetOrCreateRule(1)
-	rule1.GetOrCreateTransport()
-	rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(fmt.Sprintf("%s/32", otgPort2.IPv4))
-	rule1.GetOrCreateAction().SetNextHop(dutPort3.IPv4)
-
-	// Rule 2: Match IPV6-SRC1 and accept/forward
-	rule2 := policy.GetOrCreateRule(2)
-	rule2.GetOrCreateIpv6().DestinationAddress = ygot.String(fmt.Sprintf("%s/32", otgPort3.IPv4))
-	rule2.GetOrCreateAction().SetNextHop(dutPort3.IPv6)
-
-	// Rule 3: Match IPV4-SRC2 and encapsulate to 32 IPv4 GRE destinations
-	rule3 := policy.GetOrCreateRule(3)
-	rule3.GetOrCreateIpv4().DestinationAddress = ygot.String(fmt.Sprintf("%s/128", otgPort2.IPv4))
-	encapGre3 := rule3.GetOrCreateAction().GetOrCreateEncapsulateGre()
-	for i, dest := range tunnelDestinations {
-		targetName := fmt.Sprintf("gre%d", i)
-		encapGre3.GetOrCreateTarget(targetName).Source = ygot.String(dutlo0Attrs.IPv4)
-		encapGre3.GetOrCreateTarget(targetName).Destination = ygot.String(dest)
-	}
-
-	// Rule 4: Match IPV6-SRC2 and encapsulate to 32 IPv4 GRE destinations
-	rule4 := policy.GetOrCreateRule(4)
-	rule4.GetOrCreateIpv6().DestinationAddress = ygot.String(fmt.Sprintf("%s/128", otgPort3.IPv6))
-	encapGre4 := rule4.GetOrCreateAction().GetOrCreateEncapsulateGre()
-	for i, dest := range tunnelDestinations {
-		targetName := fmt.Sprintf("gre%d", i)
-		encapGre4.GetOrCreateTarget(targetName).Source = ygot.String(dutlo0Attrs.IPv4)
-		encapGre4.GetOrCreateTarget(targetName).Destination = ygot.String(dest)
-	}
-
-	// Apply the policy to DUT Port 1
-	ni.GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceName).ApplyForwardingPolicy = ygot.String(policyName)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), ni.PolicyForwarding)
-}
-
-// ConfigureQoSClassifier configures QoS classifier for incoming traffic on ATE Port1.
-func configureQoSClassifier(t *testing.T, dut *ondatra.DUTDevice) {
-	interfaceName := dut.Port(t, "port1").Name()
-	classifierName := "qos-classifier-1"
-	ipv4DscpValues := []uint8{0, 8, 16, 24, 32, 40, 48, 56}
-	ipv6DscpValues := []uint8{0, 32, 64, 96, 128, 160, 192, 224}
-	if deviations.QosRemarkOCUnsupported(dut) {
-		t.Logf("Configuring qos through CLI")
-		configureQoSClassifierFromCLI(t, dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
-	} else {
-		t.Logf("Configuring qos through OC")
-		configureQoSClassifierFromOC(t, dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
-	}
-}
-
-func configureQoSClassifierFromCLI(t *testing.T, dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	qosConfig := qosClassifierCliConfig(dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
-	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
-	gpbSetRequest := buildCliSetRequest(qosConfig)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Errorf("Failed to set qos classifier from cli: %v", err)
-	}
-}
-
-func configureQoSClassifierFromOC(t *testing.T, dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
-	qos := &oc.Qos{}
-	classifier := qos.GetOrCreateClassifier(classifierName)
-	classifier.SetType(oc.Qos_Classifier_Type_IPV4)
-	classifier.SetName(classifierName)
-
-	// Create terms for IPv4 DSCP values
-	for i, dscp := range ipv4DscpValues {
-		term := classifier.GetOrCreateTerm(fmt.Sprintf("termV4-%d", i+1))
-		term.Id = ygot.String(fmt.Sprintf("termV4-%d", i+1))
-		term.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{dscp}
-		term.GetOrCreateActions().GetOrCreateRemark().SetSetDscp(5)
-		term.GetOrCreateActions().GetOrCreateRemark().SetDscp = ygot.Uint8(dscp)
-	}
-
-	// Create terms for IPv6 DSCP values
-	for i, dscp := range ipv6DscpValues {
-		term := classifier.GetOrCreateTerm(fmt.Sprintf("termV6-%d", i+1))
-		term.Id = ygot.String(fmt.Sprintf("termV6-%d", i+1))
-		term.GetOrCreateConditions().GetOrCreateIpv6().DscpSet = []uint8{dscp}
-		term.GetOrCreateActions().GetOrCreateRemark().SetDscp = ygot.Uint8(dscp)
-	}
-
-	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
-	qoscfg.SetInputClassifier(t, dut, qos, interfaceName, oc.Input_Classifier_Type_IPV4, classifier.GetName())
-}
-
-func qosClassifierCliConfig(dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) string {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		return `
-        qos rewrite dscp
-        !
-        `
-		// cliConfig := fmt.Sprintf("qos map dscp-classifier %s\n", classifierName)
-		// for i, dscp := range ipv4DscpValues {
-		//  cliConfig += fmt.Sprintf(`
-		//  dscp %d class termV4-%d
-		//  qos map dscp-remark remarkV4-%d
-		//  match dscp %d
-		//  set dscp %d
-		//  !
-		//  `, dscp, i+1, i+1, dscp, dscp)
-		// }
-
-		// // Add terms for IPv6 DSCP values
-		// for i, dscp := range ipv6DscpValues {
-		//  cliConfig += fmt.Sprintf(`
-		//  dscp %d class termV6-%d
-		//  qos map dscp-remark remarkV6-%d
-		//  match dscp %d
-		//  set dscp %d
-		//  !
-		//  `, dscp, i+1, i+1, dscp, dscp)
-		// }
-
-		// // Apply the classifier to the interface
-		// cliConfig += fmt.Sprintf(`
-		// interface %s
-		// service-policy input %s
-		// !
-		// `, interfaceName, classifierName)
-
-		//return cliConfig
-	default:
-		return ""
-	}
-}
-
-func trafficPolicyCliConfig(dut *ondatra.DUTDevice, policyName string, interfaceName string) string {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		var v4MatchRules, v6MatchRules string
-		v4MatchRules += fmt.Sprintf(`
-        match rule-src1-v4 ipv4
-        destination prefix %s/32
-        actions
-        count
-        redirect next-hop group SRC1_NH
-        !
-        `, otgPort2.IPv4)
-
-		v4MatchRules += fmt.Sprintf(`
-        match rule-src2-v4 ipv4
-        destination prefix %s/32
-        actions
-        count
-        !
-        `, otgPort3.IPv4)
-
-		v6MatchRules += fmt.Sprintf(`
-        match rule-src1-v6 ipv6
-        destination prefix %s/128
-        actions
-        count
-        redirect next-hop group SRC1_NH
-        !
-        `, otgPort2.IPv6)
-
-		v6MatchRules += fmt.Sprintf(`
-        match rule-src2-v6 ipv6
-        destination prefix %s/128
-        actions
-        count
-        !
-        `, otgPort3.IPv6)
-
-		ipv4GreNH := fmt.Sprintf(`
-        nexthop-group SRC1_NH type gre
-        tunnel-source intf %s
-        `, dutlo0Attrs.Name)
-
-		for index, dest := range tunnelDestinations {
-			ipv4GreNH += fmt.Sprintf(`
-            entry %d tunnel-destination %s
-            `, index, dest)
-		}
-
-		// Apply Policy on the interface
-		trafficPolicyConfig := fmt.Sprintf(`
-            traffic-policies
-            traffic-policy %s
-            %s
-            %s
-            %s
-            !
-            interface %s
-            traffic-policy input %s
-            `, policyName, v4MatchRules, v6MatchRules, ipv4GreNH, interfaceName, trafficPolicyName)
-		return trafficPolicyConfig
-	default:
-		return ""
-	}
 }
 
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
@@ -765,7 +546,6 @@ func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testC
 }
 
 func checkPolicyStatisticsFromOC(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	///network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
 	totalMatched := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(trafficPolicyName).Rule(uint32(ruleSequenceMap[tc.policyRule])).MatchedPkts().State())
 	previouslyMatched := ruleMatchedPackets[tc.policyRule]
 	if totalMatched != previouslyMatched+noOfPackets {
@@ -842,9 +622,9 @@ func checkGreCapture(t *testing.T, tc testCase) {
 
 	var innerLayerType gopacket.LayerType
 	switch tc.ipType {
-	case IPv4:
+	case ipv4:
 		innerLayerType = layers.LayerTypeIPv4
-	case IPv6:
+	case ipv6:
 		innerLayerType = layers.LayerTypeIPv6
 	}
 	var packetCount uint32 = 0
@@ -882,7 +662,7 @@ func checkGreCapture(t *testing.T, tc testCase) {
 		}
 		var innerPacketTOS, dscp uint8
 		switch tc.ipType {
-		case IPv4:
+		case ipv4:
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv4)
 			if !ok || ipInnerPacket == nil {
 				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
@@ -890,7 +670,7 @@ func checkGreCapture(t *testing.T, tc testCase) {
 			}
 			innerPacketTOS = ipInnerPacket.TOS
 			dscp = innerPacketTOS >> 2
-		case IPv6:
+		case ipv6:
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv6)
 			if !ok || ipInnerPacket == nil {
 				t.Errorf("Inner layer of type %s not found", innerLayerType.String())
