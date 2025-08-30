@@ -33,11 +33,6 @@ const (
 	authorizedKeysListVersion = "v1.0"
 )
 
-const (
-	username                  = "testuser"
-	authorizedKeysListVersion = "v1.0"
-)
-
 var authorizedKeysListCreatedOn int64
 
 func TestMain(m *testing.M) {
