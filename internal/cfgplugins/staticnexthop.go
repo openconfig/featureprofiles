@@ -2,6 +2,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -138,28 +139,27 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 		case ondatra.ARISTA:
 			if params.StaticNHGName == "gre_encap" {
 				if traffictype == "dualstack" {
-					var nextHopGreConfig string
-					nextHopGreConfig += fmt.Sprintf("nexthop-group %s type gre\n", params.StaticNHGName)
-					nextHopGreConfig += "   ttl 64\n"
-					nextHopGreConfig += "   fec hierarchical\n"
+					nextHopGreConfig := new(strings.Builder)
+					fmt.Fprintf(nextHopGreConfig, "nexthop-group %s type gre\n", params.StaticNHGName)
+					fmt.Fprint(nextHopGreConfig, "   ttl 64\n")
+					fmt.Fprint(nextHopGreConfig, "   fec hierarchical\n")
 
 					for i, nexthop := range params.NHIPAddrs {
-						sourceIP := fmt.Sprintf("10.235.143.%d", i)
-						nextHopGreConfig += fmt.Sprintf("   entry  %d tunnel-destination %s tunnel-source %s\n", i, nexthop, sourceIP)
+						fmt.Fprintf(nextHopGreConfig, "   entry  %d tunnel-destination %s tunnel-source %s\n", i, nexthop, fmt.Sprintf("10.235.143.%d", i))
 					}
-
-					nextHopGreConfig += "!\n"
-					helpers.GnmiCLIConfig(t, dut, nextHopGreConfig)
+					fmt.Fprint(nextHopGreConfig, "!\n")
+					helpers.GnmiCLIConfig(t, dut, nextHopGreConfig.String())
 				}
 			} else {
-				if traffictype == "v4" {
+				switch traffictype {
+				case "v4":
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
-				} else if traffictype == "dualstack" {
+				case "dualstack":
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-				} else if traffictype == "v6" {
+				case "v6":
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
-				} else if traffictype == "multicloudv4" {
+				case "multicloudv4":
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 				}
 			}

@@ -320,36 +320,37 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 				if traffictype == "dualstack" {
 					var PolicyForwardingGreConfig string
 					PolicyForwardingGreConfig += fmt.Sprintf(`
-									Traffic-policies
-									traffic-policy tp_gre_encap
-										match ipv4-all-default ipv4
-											actions
-												count
-												redirect next-hop group %s
-												set traffic class 3
-										!
-										match ipv6-all-default ipv6
-											actions
-												count
-												redirect next-hop group %s
-												set traffic class 3
-										!
-									!
-									interface %s
-									traffic-policy input tp_gre_encap
-									!
-									`, params.AppliedPolicyName, params.AppliedPolicyName, params.InterfaceID)
+                    traffic-policies
+                    traffic-policy tp_gre_encap
+                        match ipv4-all-default ipv4
+                            actions
+                                count
+                                redirect next-hop group %s
+                                set traffic class 3
+                        !
+                        match ipv6-all-default ipv6
+                            actions
+                                count
+                                redirect next-hop group %s
+                                set traffic class 3
+                        !
+                    !
+                    interface %s
+                    traffic-policy input tp_gre_encap
+                    !
+                `, params.AppliedPolicyName, params.AppliedPolicyName, params.InterfaceID)
 
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingGreConfig)
 				}
 			} else {
-				if traffictype == "v4" {
+				switch traffictype {
+				case "v4":
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv4Arista)
-				} else if traffictype == "v6" {
+				case "v6":
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv6Arista)
-				} else if traffictype == "dualstack" {
+				case "dualstack":
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
-				} else if traffictype == "multicloudv4" {
+				case "multicloudv4":
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
 				}
 			}

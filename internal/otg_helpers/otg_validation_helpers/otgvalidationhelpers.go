@@ -35,11 +35,13 @@ type OTGValidation struct {
 	Flow      *FlowParams
 }
 
+// PortWeightage is a struct to hold Port weightage parameters
 type PortWeightage struct {
 	PortName  string
 	Weightage float64
 }
 
+// OTGECMPValidation is a struct to hold OTG ecmp Validation parameters
 type OTGECMPValidation struct {
 	PortWeightages []PortWeightage
 	Flows          []string
@@ -136,10 +138,10 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 		actualPkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
 		expectedPkts := (float64(totalPkts) * p.Weightage) / 100
 
-		t.Logf("Port: %s, Packets Received: %d", p.PortName, actualPkts)
+		t.Logf("port: %s, Packets Received: %d", p.PortName, actualPkts)
 
 		if float64(actualPkts) < expectedPkts*(1-ev.TolerancePct) || float64(actualPkts) > expectedPkts*(1+ev.TolerancePct) {
-			t.Errorf("Port %s: Actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, expectedPkts*(1-ev.TolerancePct), expectedPkts*(1+ev.TolerancePct))
+			t.Errorf("port %s: Actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, expectedPkts*(1-ev.TolerancePct), expectedPkts*(1+ev.TolerancePct))
 		}
 
 	}

@@ -145,7 +145,7 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgingress.Interfaces[0].Name}},
 	}
 	// IPv4 Payload
-	FlowIPv4 = &otgconfighelpers.Flow{
+	flowIPv4 = &otgconfighelpers.Flow{
 		TxNames:   []string{interface1.Name + ".IPv4"},
 		RxNames:   []string{interface2.Name + ".IPv4", interface3.Name + ".IPv4", interface4.Name + ".IPv4"},
 		FrameSize: 512,
@@ -155,11 +155,11 @@ var (
 		IPv4Flow:  &otgconfighelpers.IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4SrcCount: 2000},
 	}
 
-	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
+	flowIPv4Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgingress.Name, otgegress.Name}},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowIPv4.FlowName, TolerancePct: 0.5},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv4.FlowName, TolerancePct: 0.5},
 	}
-	FlowIPv6 = &otgconfighelpers.Flow{
+	flowIPv6 = &otgconfighelpers.Flow{
 		TxNames:   []string{interface1.Name + ".IPv6"},
 		RxNames:   []string{interface2.Name + ".IPv6", interface3.Name + ".IPv6", interface4.Name + ".IPv6"},
 		FrameSize: 512,
@@ -169,11 +169,11 @@ var (
 		IPv6Flow:  &otgconfighelpers.IPv6FlowParams{IPv6Src: "3000:1::1", IPv6Dst: "2000:1::1", IPv6SrcCount: 2000, IPv6SrcStep: "1::1"},
 	}
 
-	FlowIPv6Validation = &otgvalidationhelpers.OTGValidation{
+	flowIPv6Validation = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgingress.Name, otgegress.Name}},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: FlowIPv6.FlowName, TolerancePct: 0.5},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv6.FlowName, TolerancePct: 0.5},
 	}
-	ECMPValidation = &otgvalidationhelpers.OTGECMPValidation{
+	ecmpValidation = &otgvalidationhelpers.OTGECMPValidation{
 		PortWeightages: []otgvalidationhelpers.PortWeightage{
 			{PortName: otgagg1.MemberPorts[0], Weightage: 16.0},
 			{PortName: otgagg1.MemberPorts[1], Weightage: 16.0},
@@ -182,12 +182,12 @@ var (
 			{PortName: otgegress.Name, Weightage: 32.0},
 		},
 
-		Flows:        []string{FlowIPv4.FlowName, FlowIPv6.FlowName},
+		Flows:        []string{flowIPv4.FlowName, flowIPv6.FlowName},
 		TolerancePct: 0.2,
 	}
 )
 
-func ConfigureOTG(t *testing.T) {
+func configureOTG(t *testing.T) {
 	t.Helper()
 	top.Captures().Clear()
 	ate := ondatra.ATE(t, "ate")
@@ -203,7 +203,7 @@ func ConfigureOTG(t *testing.T) {
 }
 
 // Modified to create and pass OC root, ni, pf
-func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	config := &oc.Root{}
 
 	dp1 := dut.Port(t, "port1")
@@ -220,7 +220,7 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	configureInterfaces(t, dut, egressLag2Ports, []*attrs.Attributes{&egressLag2Intf}, aggID)
 	configureStaticRoutes(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-	EncapInGRE(t, dut, pf, ni, ocPFParams, ocNHGParams)
+	encapInGRE(t, dut, pf, ni, ocPFParams, ocNHGParams)
 
 }
 
@@ -230,29 +230,29 @@ func TestSetup(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// Get default parameters for OC Policy Forwarding
-	ocPFParams := GetDefaultOcPolicyForwardingParams(t, dut)
-	ocNHGParams := GetDefaultStaticNextHopGroupParams()
+	ocPFParams := fetchDefaultOcPolicyForwardingParams(t, dut)
+	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
 
 	// Pass ocPFParams to ConfigureDut
-	ConfigureDut(t, dut, ocPFParams, ocNHGParams)
-	ConfigureOTG(t)
+	configureDut(t, dut, ocPFParams, ocNHGParams)
+	configureOTG(t)
 }
 
 func TestTunnelBaselineStats(t *testing.T) {
 	t.Log("TUN:1.6.2-Gather baseline stats by passing traffic")
 	ate := ondatra.ATE(t, "ate")
-	createflow(t, top, FlowIPv4, true)
-	createflow(t, top, FlowIPv6, false)
+	createflow(t, top, flowIPv4, true)
+	createflow(t, top, flowIPv6, false)
 	sendTraffic(t, ate)
 	time.Sleep(20 * time.Second)
 	ate.OTG().StopTraffic(t)
-	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := FlowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := ECMPValidation.ValidateECMP(t, ate); err != nil {
+	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
 
@@ -280,13 +280,13 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 
 	time.Sleep(20 * time.Second)
 	ate.OTG().StopTraffic(t)
-	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := FlowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := ECMPValidation.ValidateECMP(t, ate); err != nil {
+	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
 }
@@ -313,20 +313,20 @@ func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
 
 	time.Sleep(20 * time.Second)
 	ate.OTG().StopTraffic(t)
-	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := FlowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
+	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
-	if err := ECMPValidation.ValidateECMP(t, ate); err != nil {
+	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
 }
 
-// GetDefaultStaticNextHopGroupParams provides default parameters for the generator.
+// fetchDefaultStaticNextHopGroupParams provides default parameters for the generator.
 // matching the values in the provided JSON example.
-func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
+func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 
 	nhipaddrs := []string{}
 
@@ -340,9 +340,9 @@ func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 	}
 }
 
-// GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// fetchDefaultOcPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func GetDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) cfgplugins.OcPolicyForwardingParams {
+func fetchDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         dut.Port(t, "port1").Name(),
@@ -362,13 +362,13 @@ func configureInterfaceProperties(t *testing.T, dut *ondatra.DUTDevice, aggID st
 
 // function should also include the OC config , within these deviations there should be a switch statement is needed
 // Modified to accept pf, ni, and ocPFParams
-func EncapInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+func encapInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	cfgplugins.NextHopGroupConfig(t, dut, "dualstack", ni, ocNHGParams)
 	cfgplugins.PolicyForwardingConfig(t, dut, "dualstack", pf, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
-		PushPolicyForwardingConfig(t, dut, ni)
+		pushPolicyForwardingConfig(t, dut, ni)
 	}
 }
 
@@ -450,11 +450,11 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 	}
 
 	if a.IPv6Sec != "" {
-		s6_2 := s.GetOrCreateIpv6()
+		s62 := s.GetOrCreateIpv6()
 		if deviations.InterfaceEnabled(dut) {
-			s6_2.Enabled = ygot.Bool(true)
+			s62.Enabled = ygot.Bool(true)
 		}
-		s6_2.GetOrCreateAddress(a.IPv6Sec).PrefixLength = ygot.Uint8(a.IPv6Len)
+		s62.GetOrCreateAddress(a.IPv6Sec).PrefixLength = ygot.Uint8(a.IPv6Len)
 	}
 }
 
@@ -486,7 +486,7 @@ func deleteStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
-func PushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance) {
+func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance) {
 	t.Helper()
 	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
 	gnmi.Replace(t, dut, niPath, ni)
