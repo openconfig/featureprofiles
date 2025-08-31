@@ -270,8 +270,10 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
 	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 		ipv4Entry, present := val.Val()
-		t.Log(ipv4Entry.GetPrefix())
-		return present == false && ipv4Entry.GetPrefix() != fmt.Sprintf("%s/24", staticRoute)
+		if !present && ipv4Entry == nil {
+			return true
+		}
+		return false
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
 	} else {
