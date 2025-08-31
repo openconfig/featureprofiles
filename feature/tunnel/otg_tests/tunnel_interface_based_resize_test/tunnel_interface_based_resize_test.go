@@ -33,10 +33,8 @@ const (
 var (
 	top             = gosnappi.NewConfig()
 	aggID           string
-	ingressPort     = "port1"
 	egressLag1Ports = []string{"port2", "port3"}
 	egressLag2Ports = []string{"port4", "port5"}
-	egressPort      = "port6"
 	staticRoute     = "10.99.20.0"
 	ingressIntf     = attrs.Attributes{
 		Desc:    "ingress_interface",
@@ -350,16 +348,6 @@ func fetchDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) 
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   "gre_encap",
 	}
-}
-
-func configureInterfaceProperties(t *testing.T, dut *ondatra.DUTDevice, aggID string, a *attrs.Attributes, ocPFParams cfgplugins.OcPolicyForwardingParams) {
-	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-
-	if a.IPv4 != "" {
-		cfgplugins.InterfacelocalProxyConfig(t, dut, a, aggID)
-	}
-	cfgplugins.InterfaceQosClassificationConfig(t, dut, a, aggID)
-	cfgplugins.InterfacePolicyForwardingConfig(t, dut, a, aggID, pf, ocPFParams)
 }
 
 // function should also include the OC config , within these deviations there should be a switch statement is needed
