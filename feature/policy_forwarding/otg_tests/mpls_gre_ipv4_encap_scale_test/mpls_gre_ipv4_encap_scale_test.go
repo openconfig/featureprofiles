@@ -117,10 +117,7 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv4.FlowName, TolerancePct: 0.5},
 	}
-	lagECMPValidation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Ports: agg2.MemberPorts},
-		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv4.FlowName},
-	}
+
 	// MPLSOGRE Encap IPv6 interface IPv6 Payload
 	flowIPv6 = &otgconfighelpers.Flow{
 		TxNames:   []string{},
