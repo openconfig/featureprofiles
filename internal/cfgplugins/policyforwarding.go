@@ -34,6 +34,12 @@ type DecapPolicyParams struct {
 	StaticLSPNameMulticast    string
 	StaticLSPLabelMulticast   uint32
 	StaticLSPNextHopMulticast string
+	// Mpls Scale LSP params
+	ScaleStaticLSP          bool
+	MplsStaticLabels        []int
+	MplsStaticLabelsForIpv6 []int
+	NextHops                []string
+	NextHopsV6              []string
 }
 
 // OcPolicyForwardingParams holds parameters for generating the OC Policy Forwarding config.
@@ -457,22 +463,6 @@ func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
 }
 
-// MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
-func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
-	t.Helper()
-	mplsCfgv4 := ni.GetOrCreateMpls()
-	staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
-	egressv4 := staticMplsCfgv4.GetOrCreateEgress()
-	egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv4)
-	egressv4.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv4)
-
-	mplsCfgv6 := ni.GetOrCreateMpls()
-	staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv6)
-	egressv6 := staticMplsCfgv6.GetOrCreateEgress()
-	egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
-	egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
-}
-
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
 // policy to the given interface ID.
 func ApplyPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
@@ -516,20 +506,6 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
-// MPLSStaticLSPConfig configures the interface mpls static lsp.
-func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
-	if deviations.StaticMplsUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, staticLSPArista)
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
-		}
-	} else {
-		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
-	}
-}
-
 // Configure GRE decapsulated. Adding deviation when device doesn't support OC
 func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, decapIp string, policyName string, portName string, decapGrpName string) {
 	if deviations.GreDecapsulationOCUnsupported(dut) {
@@ -570,27 +546,5 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
-	}
-}
-
-func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops []string, labels []int, nexthopsIpv6 []string, labelsforIpv6 []int, ocPFParams OcPolicyForwardingParams) {
-	if deviations.StaticMplsUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			var mplsStaticLspConfig string
-			var mplsStaticLspConfigV6 string
-			for i, nexthop := range nexthops {
-				mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", labels[i], nexthop)
-			}
-			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfig)
-			for i, nexthopIpv6 := range nexthopsIpv6 {
-				mplsStaticLspConfigV6 += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", labelsforIpv6[i], nexthopIpv6)
-			}
-			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfigV6)
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
-		}
-	} else {
-		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
