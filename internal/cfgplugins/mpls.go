@@ -247,7 +247,7 @@ func RemoveStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 // MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
 func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
 	t.Helper()
-	if params.DecapPolicy.ScaleStaticLSP == true {
+	if params.DecapPolicy.ScaleStaticLSP {
 		mplsCfgv4 := ni.GetOrCreateMpls()
 		for i, nexthop := range params.DecapPolicy.NextHops {
 			staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(
@@ -287,7 +287,7 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 	if deviations.StaticMplsUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if ocPFParams.DecapPolicy.ScaleStaticLSP == true {
+			if ocPFParams.DecapPolicy.ScaleStaticLSP {
 				var mplsStaticLspConfig string
 				var mplsStaticLspConfigV6 string
 				for i, nexthop := range ocPFParams.DecapPolicy.NextHops {
