@@ -318,7 +318,7 @@ func TestSetup(t *testing.T) {
 	agg1.Interfaces = interfaces
 
 	// Get default parameters for OC Policy Forwarding
-	ocPFParams := fetchDefaultOcPolicyForwardingParams()
+	ocPFParams := fetchDefaultOCPolicyForwardingParams()
 	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
 
 	// Pass ocPFParams to ConfigureDut
@@ -342,9 +342,9 @@ func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams 
 	}
 }
 
-// fetchDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// fetchDefaultOCPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func fetchDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
+func fetchDefaultOCPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         "Agg1.10",
