@@ -20,7 +20,18 @@ platform_exceptions: {
   }
   deviations: {
     default_network_instance: "default"
-    isis_single_topology_required: true
-    low_scale_aft: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    interface_enabled: true
+    bgp_missing_oc_max_prefixes_configuration: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+    multipath_unsupported_neighbor_or_afisafi: true
   }
 }
