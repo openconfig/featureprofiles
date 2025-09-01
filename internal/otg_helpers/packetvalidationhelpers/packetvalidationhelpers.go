@@ -67,6 +67,8 @@ const (
 type ValidationType string
 
 const (
+	// ValidateIPv4Header validates the  VLAN header.
+	ValidateVlanHeader ValidationType = "ValidateVlanHeader"
 	// ValidateIPv4Header validates the  IPv4 header.
 	ValidateIPv4Header ValidationType = "ValidateIPv4Header"
 	// ValidateIPv6Header validates the IPv6 header.
@@ -88,6 +90,7 @@ type PacketValidation struct {
 	PortName         string
 	CaptureName      string
 	CaptureCount     int
+	VlanLayer        *VlanLayer
 	IPv4Layer        *IPv4Layer
 	IPv6Layer        *IPv6Layer
 	GreLayer         *GreLayer
@@ -98,6 +101,11 @@ type PacketValidation struct {
 	InnerIPLayerIPv6 *IPv6Layer
 	// Validations is a list of validations to perform on the captured packets.
 	Validations []ValidationType
+}
+
+// VlanLayer is a struct to hold the vlan layer parameters
+type VlanLayer struct {
+	VlanID uint16
 }
 
 // IPv4Layer is a struct to hold the IP layer parameters.
@@ -171,8 +179,8 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	if _, err := f.Write(bytes); err != nil {
 		return fmt.Errorf("could not write bytes to pcap file: %v", err)
 	}
-	// defer os.Remove(f.Name()) // Clean up the temporary file
-	// f.Close()
+	defer os.Remove(f.Name()) // Clean up the temporary file
+	f.Close()
 
 	handle, err := pcap.OpenOffline(f.Name())
 	if err != nil {
@@ -186,6 +194,10 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	// Iterate over the validations specified in packetVal.Validations.
 	for _, validation := range packetVal.Validations {
 		switch validation {
+		case ValidateVlanHeader:
+			if err := validateVlanHeader(t, packetSource, packetVal); err != nil {
+				return err
+			}
 		case ValidateIPv4Header:
 			if err := validateIPv4Header(t, packetSource, packetVal); err != nil {
 				return err
@@ -228,13 +240,28 @@ func ClearCapture(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
 }
 
+func validateVlanHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
+	t.Helper()
+	t.Log("Validating Vlan header")
+
+	for packet := range packetSource.Packets() {
+		vlanLayer := packet.Layer(layers.LayerTypeDot1Q)
+		vlan, _ := vlanLayer.(*layers.Dot1Q)
+
+		if vlan.VLANIdentifier != packetVal.VlanLayer.VlanID {
+			return fmt.Errorf("vlan id is not set properly. Vlan ID is: %d, expected: %d", vlan.VLANIdentifier, packetVal.VlanLayer.VlanID)
+		}
+	}
+
+	return nil
+}
+
 // validateIPv4Header validates the outer IPv4 header.
 func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
 	t.Helper()
 	t.Log("Validating IPv4 header")
 
 	for packet := range packetSource.Packets() {
-		// t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if !packetVal.IPv4Layer.SkipProtocolCheck {

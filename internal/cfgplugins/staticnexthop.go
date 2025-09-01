@@ -219,11 +219,10 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 	}
 }
 
-func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthopGroupName string, groupType string, srcAddr []string, dstAddr string, tos, ttl uint8) {
+func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthopGroupName string, groupType string, srcAddr []string, dstAddr string, ttl uint8) {
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		cli := ""
 		tunnelConfig := ""
-		tosConfig := ""
 		ttlConfig := ""
 
 		switch dut.Vendor() {
@@ -234,9 +233,6 @@ func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *o
 						entryNum, dstAddr, addr)
 				}
 			}
-			if tos != 0 {
-				tosConfig = fmt.Sprintf(`tos %v`, tos)
-			}
 			if ttl != 0 {
 				ttlConfig = fmt.Sprintf(`ttl %v`, ttl)
 			}
@@ -245,8 +241,7 @@ func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *o
 				nexthop-group %s type %s
 				%s
 				%s
-				%s
-				`, nexthopGroupName, groupType, tunnelConfig, tosConfig, ttlConfig)
+				`, nexthopGroupName, groupType, tunnelConfig, ttlConfig)
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
@@ -264,9 +259,6 @@ func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *o
 			ueh1.GetOrCreateUdpV4().SetSrcIp(addr)
 		}
 
-		if tos != 0 {
-			ueh1.GetOrCreateUdpV4().SetDscp(tos)
-		}
 		if ttl != 0 {
 			ueh1.GetOrCreateUdpV4().SetIpTtl(ttl)
 		}
