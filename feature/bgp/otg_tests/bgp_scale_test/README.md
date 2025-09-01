@@ -1968,7 +1968,7 @@ paths:
 
   ## Telemetry State paths
   /interfaces/interface/state/admin-status:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent:
