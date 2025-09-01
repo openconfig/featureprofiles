@@ -217,9 +217,6 @@ func TestBasicEncap(t *testing.T) {
 				t.SkipNow()
 			}
 
-			// Clear any existing captures at the start of each test to ensure clean state
-			clearCapture(t, otg.OTG(), topo)
-
 			// Add EMSD restart test
 			if strings.Contains(tc.name, "Process Recovery") {
 				t.Logf("Restarting emsd at %s", time.Now())
@@ -247,6 +244,7 @@ func TestBasicEncap(t *testing.T) {
 			}
 			if otgMutliPortCaptureSupported {
 				enableCapture(t, otg.OTG(), topo, tc.capturePorts)
+				defer clearCapture(t, otg.OTG(), topo)
 				t.Log("Start capture and send traffic")
 				sendTraffic(t, tcArgs, tc.flows, true)
 				t.Log("Validate captured packet attributes")
@@ -254,10 +252,10 @@ func TestBasicEncap(t *testing.T) {
 				if tc.validateEncapRatio {
 					validateTunnelEncapRatio(t, tunCounter)
 				}
-				clearCapture(t, otg.OTG(), topo)
 			} else {
 				for _, port := range tc.capturePorts {
 					enableCapture(t, otg.OTG(), topo, []string{port})
+					defer clearCapture(t, otg.OTG(), topo)
 					t.Log("Start capture and send traffic")
 					sendTraffic(t, tcArgs, tc.flows, true)
 					t.Log("Validate captured packet attributes")
@@ -265,7 +263,6 @@ func TestBasicEncap(t *testing.T) {
 					if tc.validateEncapRatio {
 						validateTunnelEncapRatio(t, tunCounter)
 					}
-					clearCapture(t, otg.OTG(), topo)
 				}
 			}
 			t.Log("Validate traffic flows")
