@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -170,12 +171,19 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	}
 	dutConf := createBGPNeighbor(peerGrpNameV4P1, peerGrpNameV6P1, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
 	nbrs = []*BGPNeighbor{
 		{as: ateAS, neighborip: ateP2.IPv4, version: IPv4},
 		{as: ateAS, neighborip: ateP2.IPv6, version: IPv6},
 	}
 	dutConf = createBGPNeighbor(peerGrpNameV4P2, peerGrpNameV6P2, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
+
 	ts := isissession.MustNew(t).WithISIS()
 	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 		global := isis.GetOrCreateGlobal()
@@ -232,18 +240,23 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 
 	afiSAFI := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afiSAFI.SetEnabled(true)
-	afiSAFI.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
 	asisafi6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	asisafi6.SetEnabled(true)
-	asisafi6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
 
 	peerGroupV4AfiSafi := peerGroupV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	peerGroupV4AfiSafi.SetEnabled(true)
-	peerGroupV4AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
 	peerGroupV6AfiSafi := peerGroupV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	peerGroupV6AfiSafi.SetEnabled(true)
-	peerGroupV6AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
 
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+		peerGroupV4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	} else {
+		afiSAFI.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		asisafi6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		peerGroupV4AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	}
 	for _, nbr := range nbrs {
 		neighbor := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		neighbor.SetPeerAs(nbr.as)
@@ -268,6 +281,12 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 		}
 	}
 	return niProtocol
+}
+
+func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BGPNeighbor) {
+	for _, nbr := range neighbors {
+		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.neighborip, 0)
+	}
 }
 
 func (tc *testCase) waitForBGPSession(t *testing.T) error {
