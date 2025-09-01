@@ -220,72 +220,44 @@ graph LR
 
 ```json
 {
-  "openconfig-network-instance:bgp": {
-    "global": {
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "global": {
       "afi-safis": {
         "afi-safi": [
           {
-            "add-paths": {
-              "config": {
-                "receive": false,
-                "send": false
-              }
-            },
-            "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+            "afi-safi-name": "IPV4_UNICAST",
             "config": {
-              "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+              "afi-safi-name": "IPV4_UNICAST",
               "enabled": true
             },
-            "route-selection-options": {
-              "config": {
-                "ignore-next-hop-igp-metric": false
-              }
-            },
             "use-multiple-paths": {
-              "config": {
-                "enabled": false
-              },
               "ebgp": {
                 "config": {
                   "maximum-paths": 64
-                }
-              },
-              "ibgp": {
-                "config": {
-                  "maximum-paths": 1
                 }
               }
             }
           },
           {
-            "add-paths": {
-              "config": {
-                "receive": false,
-                "send": false
-              }
-            },
-            "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+            "afi-safi-name": "IPV6_UNICAST",
             "config": {
-              "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+              "afi-safi-name": "IPV6_UNICAST",
               "enabled": true
             },
-            "route-selection-options": {
-              "config": {
-                "ignore-next-hop-igp-metric": false
-              }
-            },
             "use-multiple-paths": {
-              "config": {
-                "enabled": false
-              },
               "ebgp": {
                 "config": {
                   "maximum-paths": 64
-                }
-              },
-              "ibgp": {
-                "config": {
-                  "maximum-paths": 1
                 }
               }
             }
@@ -294,7 +266,7 @@ graph LR
       },
       "config": {
         "as": 64500,
-        "router-id": "44.44.44.44"
+        "router-id": "203.1.113.200"
       },
       "default-route-distance": {
         "config": {
@@ -307,21 +279,6 @@ graph LR
           "restart-time": 120,
           "stale-routes-time": 300
         }
-      },
-      "route-selection-options": {
-        "config": {
-          "always-compare-med": false,
-          "external-compare-router-id": true,
-          "ignore-as-path-length": false,
-          "ignore-next-hop-igp-metric": false
-        }
-      },
-      "use-multiple-paths": {
-        "ebgp": {
-          "config": {
-            "allow-multiple-as": true
-          }
-        }
       }
     },
     "neighbors": {
@@ -330,121 +287,14 @@ graph LR
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -456,282 +306,32 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
-          },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
-          },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
           },
           "config": {
             "enabled": true,
             "neighbor-address": "1000:1:11:0:50:1:1:2",
             "peer-as": 800101,
-            "peer-group": "BGP-PEER-GROUP-V62-1",
-            "route-flap-damping": false,
-            "send-community": "NONE"
+            "peer-group": "BGP-PEER-GROUP-V62-1"
           },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
-          },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
-          "neighbor-address": "1000:1:11:0:50:1:1:2",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "1000:1:11:0:50:1:1:2"
         },
         {
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -743,284 +343,365 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:1:12:0:50:1:1:2",
+            "peer-as": 800101,
+            "peer-group": "BGP-PEER-GROUP-V62-1"
           },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
+          "neighbor-address": "1000:1:12:0:50:1:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
           },
-
-
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:1:13:0:50:1:1:2",
+            "peer-as": 800101,
+            "peer-group": "BGP-PEER-GROUP-V62-1"
+          },
+          "neighbor-address": "1000:1:13:0:50:1:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:1:14:0:50:1:1:2",
+            "peer-as": 800101,
+            "peer-group": "BGP-PEER-GROUP-V62-1"
+          },
+          "neighbor-address": "1000:1:14:0:50:1:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:1:15:0:50:1:1:2",
+            "peer-as": 800201,
+            "peer-group": "BGP-PEER-GROUP-V62-2"
+          },
+          "neighbor-address": "1000:1:15:0:50:1:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:2:21:0:50:2:1:2",
+            "peer-as": 800102,
+            "peer-group": "BGP-PEER-GROUP-V63-1"
+          },
+          "neighbor-address": "1000:2:21:0:50:2:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:2:22:0:50:2:1:2",
+            "peer-as": 800102,
+            "peer-group": "BGP-PEER-GROUP-V63-1"
+          },
+          "neighbor-address": "1000:2:22:0:50:2:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:2:23:0:50:2:1:2",
+            "peer-as": 800102,
+            "peer-group": "BGP-PEER-GROUP-V63-1"
+          },
+          "neighbor-address": "1000:2:23:0:50:2:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:2:24:0:50:2:1:2",
+            "peer-as": 800102,
+            "peer-group": "BGP-PEER-GROUP-V63-1"
+          },
+          "neighbor-address": "1000:2:24:0:50:2:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "1000:2:25:0:50:2:1:2",
+            "peer-as": 800202,
+            "peer-group": "BGP-PEER-GROUP-V63-2"
+          },
+          "neighbor-address": "1000:2:25:0:50:2:1:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
           "config": {
             "enabled": true,
             "neighbor-address": "192.0.2.2",
             "peer-as": 800100,
-            "peer-group": "BGP-PEER-GROUP-V41",
-            "route-flap-damping": false,
-            "send-community": "NONE"
+            "peer-group": "BGP-PEER-GROUP-V41"
           },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
-          },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
-          "neighbor-address": "192.0.2.2",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "192.0.2.2"
         },
         {
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -1032,282 +713,32 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
-          },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
-          },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
           },
           "config": {
             "enabled": true,
             "neighbor-address": "2001:db8::192:0:2:2",
             "peer-as": 800100,
-            "peer-group": "BGP-PEER-GROUP-V61",
-            "route-flap-damping": false,
-            "send-community": "NONE"
+            "peer-group": "BGP-PEER-GROUP-V61"
           },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
-          },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
-          "neighbor-address": "2001:db8::192:0:2:2",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "2001:db8::192:0:2:2"
         },
         {
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -1319,282 +750,32 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
-          },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
-          },      
           "config": {
             "enabled": true,
             "neighbor-address": "2001:db8::203:0:113:1",
             "peer-as": 64500,
-            "peer-group": "BGP-RR-GROUP-V6",
-            "route-flap-damping": false,
-            "send-community": "NONE"
+            "peer-group": "BGP-RR-GROUP-V6"
           },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
-          },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
-          "neighbor-address": "2001:db8::203:0:113:1",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "2001:db8::203:0:113:1"
         },
         {
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -1606,174 +787,62 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
+          "config": {
+            "enabled": true,
+            "neighbor-address": "2001:db8::203:0:113:2",
+            "peer-as": 64500,
+            "peer-group": "BGP-RR-GROUP-V6"
           },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
+          "neighbor-address": "2001:db8::203:0:113:2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "IBGP-OUT"
+                    ],
+                    "import-policy": [
+                      "IBGP-IN"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
           },
           "config": {
             "enabled": true,
             "neighbor-address": "203.0.113.1",
             "peer-as": 64500,
-            "peer-group": "BGP-RR-GROUP-V4",
-            "route-flap-damping": false,
-            "send-community": "NONE"
+            "peer-group": "BGP-RR-GROUP-V4"
           },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
-          },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
-          "neighbor-address": "203.0.113.1",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "203.0.113.1"
         },
         {
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -1785,282 +854,69 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
+          "config": {
+            "enabled": true,
+            "neighbor-address": "203.0.113.2",
+            "peer-as": 64500,
+            "peer-group": "BGP-RR-GROUP-V4"
           },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
+          "neighbor-address": "203.0.113.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
           },
           "config": {
             "enabled": true,
             "neighbor-address": "50.1.1.2",
             "peer-as": 800101,
-            "peer-group": "BGP-PEER-GROUP-V42-1",
-            "route-flap-damping": false,
-            "send-community": "NONE"
+            "peer-group": "BGP-PEER-GROUP-V42-1"
           },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
-          },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
-          "neighbor-address": "50.1.1.2",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "50.1.1.2"
         },
         {
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -2072,282 +928,180 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.1.2.2",
+            "peer-as": 800101,
+            "peer-group": "BGP-PEER-GROUP-V42-1"
           },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
+          "neighbor-address": "50.1.2.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.1.3.2",
+            "peer-as": 800101,
+            "peer-group": "BGP-PEER-GROUP-V42-1"
+          },
+          "neighbor-address": "50.1.3.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.1.4.2",
+            "peer-as": 800101,
+            "peer-group": "BGP-PEER-GROUP-V42-1"
+          },
+          "neighbor-address": "50.1.4.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.1.5.2",
+            "peer-as": 800201,
+            "peer-group": "BGP-PEER-GROUP-V42-2"
+          },
+          "neighbor-address": "50.1.5.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
           },
           "config": {
             "enabled": true,
             "neighbor-address": "50.2.1.2",
             "peer-as": 800102,
-            "peer-group": "BGP-PEER-GROUP-V43-1",
-            "route-flap-damping": false,
-            "send-community": "NONE"
+            "peer-group": "BGP-PEER-GROUP-V43-1"
           },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
-          },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
-          "neighbor-address": "50.2.1.2",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "50.2.1.2"
         },
         {
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "apply-policy": {
                   "config": {
                     "export-policy": [
@@ -2359,241 +1113,137 @@ graph LR
                   }
                 },
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.2.2.2",
+            "peer-as": 800102,
+            "peer-group": "BGP-PEER-GROUP-V43-1"
           },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
+          "neighbor-address": "50.2.2.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
           },
-          "timers": {
-            "config": {
-              "hold-time": 90,
-              "keepalive-interval": 30,
-              "minimum-advertisement-interval": 30
-            }
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.2.3.2",
+            "peer-as": 800102,
+            "peer-group": "BGP-PEER-GROUP-V43-1"
           },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
-            }
-          }
+          "neighbor-address": "50.2.3.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.2.4.2",
+            "peer-as": 800102,
+            "peer-group": "BGP-PEER-GROUP-V43-1"
+          },
+          "neighbor-address": "50.2.4.2"
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "apply-policy": {
+                  "config": {
+                    "export-policy": [
+                      "ALLOW"
+                    ],
+                    "import-policy": [
+                      "ALLOW"
+                    ]
+                  }
+                },
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "enabled": true,
+            "neighbor-address": "50.2.5.2",
+            "peer-as": 800202,
+            "peer-group": "BGP-PEER-GROUP-V43-2"
+          },
+          "neighbor-address": "50.2.5.2"
         }
       ]
     },
@@ -2603,280 +1253,37 @@ graph LR
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": true
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
-          },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
-          },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
           },
           "config": {
             "description": "BGP-PEER-GROUP-V41",
             "peer-as": 800100,
-            "peer-group-name": "BGP-PEER-GROUP-V41",
-            "route-flap-damping": false,
-            "send-community": "NONE"
-          },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
+            "peer-group-name": "BGP-PEER-GROUP-V41"
           },
           "graceful-restart": {
             "config": {
               "enabled": true
             }
           },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
           "peer-group-name": "BGP-PEER-GROUP-V41",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
           "timers": {
             "config": {
               "hold-time": 240,
               "keepalive-interval": 80,
               "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
             }
           }
         },
@@ -2884,280 +1291,227 @@ graph LR
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": true
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
+          "config": {
+            "description": "BGP-PEER-GROUP-V42-1",
+            "peer-as": 800101,
+            "peer-group-name": "BGP-PEER-GROUP-V42-1"
+          },
+          "graceful-restart": {
             "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
+              "enabled": true
             }
           },
-          "as-path-options": {
+          "peer-group-name": "BGP-PEER-GROUP-V42-1",
+          "timers": {
             "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
             }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V42-2",
+            "peer-as": 800201,
+            "peer-group-name": "BGP-PEER-GROUP-V42-2"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V42-2",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V43-1",
+            "peer-as": 800102,
+            "peer-group-name": "BGP-PEER-GROUP-V43-1"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V43-1",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V43-2",
+            "peer-as": 800202,
+            "peer-group-name": "BGP-PEER-GROUP-V43-2"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V43-2",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V44-1",
+            "peer-as": 800103,
+            "peer-group-name": "BGP-PEER-GROUP-V44-1"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V44-1",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
           },
           "config": {
             "description": "BGP-PEER-GROUP-V61",
             "peer-as": 800100,
-            "peer-group-name": "BGP-PEER-GROUP-V61",
-            "route-flap-damping": false,
-            "send-community": "NONE"
-          },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
+            "peer-group-name": "BGP-PEER-GROUP-V61"
           },
           "graceful-restart": {
             "config": {
               "enabled": true
             }
           },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
           "peer-group-name": "BGP-PEER-GROUP-V61",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
           "timers": {
             "config": {
               "hold-time": 240,
               "keepalive-interval": 80,
               "minimum-advertisement-interval": 30
-            }
-          },
-          "transport": {
-            "config": {
-              "mtu-discovery": false,
-              "passive-mode": false
             }
           }
         },
@@ -3165,269 +1519,222 @@ graph LR
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": true
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
+          "config": {
+            "description": "BGP-PEER-GROUP-V62-1",
+            "peer-as": 800101,
+            "peer-group-name": "BGP-PEER-GROUP-V62-1"
+          },
+          "graceful-restart": {
             "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
+              "enabled": true
             }
           },
-          "as-path-options": {
+          "peer-group-name": "BGP-PEER-GROUP-V62-1",
+          "timers": {
             "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
             }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V62-2",
+            "peer-as": 800201,
+            "peer-group-name": "BGP-PEER-GROUP-V62-2"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V62-2",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V63-1",
+            "peer-as": 800102,
+            "peer-group-name": "BGP-PEER-GROUP-V63-1"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V63-1",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V63-2",
+            "peer-as": 800202,
+            "peer-group-name": "BGP-PEER-GROUP-V63-2"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V63-2",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "BGP-PEER-GROUP-V64-1",
+            "peer-as": 800103,
+            "peer-group-name": "BGP-PEER-GROUP-V64-1"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "BGP-PEER-GROUP-V64-1",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": true
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": false
+                }
+              }
+            ]
           },
           "config": {
             "description": "BGP-RR-GROUP-V4",
             "peer-as": 64500,
-            "peer-group-name": "BGP-RR-GROUP-V4",
-            "route-flap-damping": false,
-            "send-community": "NONE"
-          },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
+            "peer-group-name": "BGP-RR-GROUP-V4"
           },
           "graceful-restart": {
             "config": {
               "enabled": true
             }
           },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
           "peer-group-name": "BGP-RR-GROUP-V4",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
           "timers": {
             "config": {
               "hold-time": 240,
@@ -3437,9 +1744,7 @@ graph LR
           },
           "transport": {
             "config": {
-              "local-address": "44.44.44.44",
-              "mtu-discovery": false,
-              "passive-mode": false
+              "local-address": "203.1.113.200"
             }
           }
         },
@@ -3447,269 +1752,32 @@ graph LR
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
-          },
-          "apply-policy": {
-            "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
-            }
-          },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
           },
           "config": {
             "description": "BGP-RR-GROUP-V6",
             "peer-as": 64500,
-            "peer-group-name": "BGP-RR-GROUP-V6",
-            "route-flap-damping": false,
-            "send-community": "NONE"
-          },
-          "ebgp-multihop": {
-            "config": {
-              "enabled": false
-            }
-          },
-          "error-handling": {
-            "config": {
-              "treat-as-withdraw": false
-            }
+            "peer-group-name": "BGP-RR-GROUP-V6"
           },
           "graceful-restart": {
             "config": {
               "enabled": true
             }
           },
-          "logging-options": {
-            "config": {
-              "log-neighbor-state-changes": true
-            }
-          },
           "peer-group-name": "BGP-RR-GROUP-V6",
-          "route-reflector": {
-            "config": {
-              "route-reflector-client": false
-            }
-          },
           "timers": {
             "config": {
               "hold-time": 240,
@@ -3719,9 +1787,7 @@ graph LR
           },
           "transport": {
             "config": {
-              "local-address": "2001:1:db8:0:203:0:113:200",
-              "mtu-discovery": false,
-              "passive-mode": false
+              "local-address": "2001:1:db8:0:203:0:113:200"
             }
           }
         },
@@ -3729,236 +1795,32 @@ graph LR
           "afi-safis": {
             "afi-safi": [
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                "afi-safi-name": "IPV4_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
+                  "afi-safi-name": "IPV4_UNICAST",
                   "enabled": true
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               },
               {
-                "add-paths": {
-                  "config": {
-                    "receive": false,
-                    "send": false
-                  }
-                },
-                "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                "afi-safi-name": "IPV6_UNICAST",
                 "config": {
-                  "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
+                  "afi-safi-name": "IPV6_UNICAST",
                   "enabled": false
-                },
-                "ipv4-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv4-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-labeled-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "ipv6-unicast": {
-                  "config": {
-                    "send-default-route": false
-                  },
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-evpn": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l2vpn-vpls": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv4-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-multicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "l3vpn-ipv6-unicast": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv4": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "srte-policy-ipv6": {
-                  "prefix-limit": {
-                    "config": {
-                      "prevent-teardown": false
-                    }
-                  }
-                },
-                "use-multiple-paths": {
-                  "config": {
-                    "enabled": false
-                  }
                 }
               }
             ]
           },
-          "apply-policy": {
+          "config": {
+            "description": "Port4LoopV4",
+            "peer-as": 64500,
+            "peer-group-name": "Port4LoopV4"
+          },
+          "graceful-restart": {
             "config": {
-              "default-export-policy": "REJECT_ROUTE",
-              "default-import-policy": "REJECT_ROUTE"
+              "enabled": true
             }
           },
-          "as-path-options": {
-            "config": {
-              "allow-own-as": 0,
-              "disable-peer-as-filter": false,
-              "replace-peer-as": false
-            }
-          },
+          "peer-group-name": "Port4LoopV4",
           "timers": {
             "config": {
               "hold-time": 240,
@@ -3968,20 +1830,92 @@ graph LR
           },
           "transport": {
             "config": {
-              "local-address": "2001:1:db8:0:203:0:113:200",
-              "mtu-discovery": false,
-              "passive-mode": false
+              "local-address": "203.1.113.200"
+            }
+          }
+        },
+        {
+          "afi-safis": {
+            "afi-safi": [
+              {
+                "afi-safi-name": "IPV4_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV4_UNICAST",
+                  "enabled": false
+                }
+              },
+              {
+                "afi-safi-name": "IPV6_UNICAST",
+                "config": {
+                  "afi-safi-name": "IPV6_UNICAST",
+                  "enabled": true
+                }
+              }
+            ]
+          },
+          "config": {
+            "description": "Port4LoopV6",
+            "peer-as": 64500,
+            "peer-group-name": "Port4LoopV6"
+          },
+          "graceful-restart": {
+            "config": {
+              "enabled": true
+            }
+          },
+          "peer-group-name": "Port4LoopV6",
+          "timers": {
+            "config": {
+              "hold-time": 240,
+              "keepalive-interval": 80,
+              "minimum-advertisement-interval": 30
+            }
+          },
+          "transport": {
+            "config": {
+              "local-address": "2001:1:db8:0:203:0:113:200"
             }
           }
         }
       ]
     }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
   },
-  "openconfig-network-instance:config": {
-    "identifier": "openconfig-policy-types:BGP",
-    "name": "BGP"
-  },
-  "openconfig-network-instance:name": "BGP"
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "config": {
+            "name": "ALLOW"
+          },
+          "name": "ALLOW"
+        },
+        {
+          "config": {
+            "name": "IBGP-IN"
+          },
+          "name": "IBGP-IN"
+        },
+        {
+          "config": {
+            "name": "IBGP-OUT"
+          },
+          "name": "IBGP-OUT"
+        }
+      ]
+    }
+  }
 }
 ```
 
