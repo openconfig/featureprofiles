@@ -472,7 +472,7 @@ func TestEgressp4rt(t *testing.T) {
 				args.interfaceaction(t, "port6", true)
 				args.interfaceaction(t, "port8", true)
 
-				//regionalization
+				// regionalization
 
 				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, srcport)
 				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, srcport)

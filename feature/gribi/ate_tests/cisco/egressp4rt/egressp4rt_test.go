@@ -97,10 +97,27 @@ func baseconfig(t *testing.T) {
 	}
 }
 
+func configureVIP(t *testing.T, args *testArgs) {
+
+	args.client.AddNH(t, baseNH(4), atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNHG(t, baseNHG(4), 0, map[uint64]uint64{baseNH(4): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, cidr(vipIP, 32), baseNHG(4), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+}
+
+const (
+	vipIP         = "192.0.2.155"
+	baseNHOffset  = 0
+	baseNHGOffset = 100
+)
+
+func baseNH(i uint64) uint64  { return i + baseNHOffset }
+func baseNHG(i uint64) uint64 { return i + baseNHGOffset }
+
 func addDefaultRouteviaGRIBI(t *testing.T, args *testArgs) {
 	t.Helper()
 	// Add recycle entry
-	args.client.AddNH(t, uint64(303), "", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	configureVIP(t, args)
+	args.client.AddNH(t, uint64(303), vipIP, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, uint64(3301), 0, map[uint64]uint64{(303): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "0.0.0.0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv6(t, "0::0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
@@ -110,6 +127,8 @@ func addDefaultRouteviaGRIBI(t *testing.T, args *testArgs) {
 // 	t.Helper()
 // 	d := gnmi.OC()
 // 	s := &oc.Root{}
+// 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 // 	static := s.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
 // 	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
 // 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv4)
@@ -1244,6 +1263,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	// Elect client as leader and flush all the past entries
 	dut := ondatra.DUT(t, "dut")
 	baseconfig(t)
+	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1253,20 +1273,16 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		InitialElectionIDLow:  10,
 		InitialElectionIDHigh: 0,
 	}
+	args.ctx = ctx
+	args.client = &client
+	args.dut = dut
 	defer client.Close(t)
 	if err := client.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 
-	args.ctx = ctx
-	args.client = &client
-	args.dut = dut
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
-
-	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
-	// addStaticRoute(t, dut)
-	addDefaultRouteviaGRIBI(t, args)
 
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 	configPBR(t, dut, "PBR", true)
@@ -1276,6 +1292,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	configPBR(t, dut, "PBR", true)
 	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configvrfInt(t, dut, vrfEncapA, "Loopback22")
+	addDefaultRouteviaGRIBI(t, args)
 
 	nh := 1
 
