@@ -54,12 +54,12 @@ func TestInterfaceParentComponent(t *testing.T) {
 		{
 			desc:    "Port1",
 			port:    "port1",
-			pattern: "^(SwitchChip(?:[0-9]/[0-9])?|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9])$",
 		},
 		{
 			desc:    "Port2",
 			port:    "port2",
-			pattern: "^(SwitchChip(?:[0-9]/[0-9])?|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9])$",
 		},
 	}
 
