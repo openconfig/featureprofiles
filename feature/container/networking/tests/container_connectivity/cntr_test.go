@@ -84,16 +84,16 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientConn {
 	t.Helper()
 	var dialer interface {
-		DialContainer(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
+		DialGRPC(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
 	}
 	bindingDUT := dut.RawAPIs().BindingDUT()
 	if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
-		t.Skipf("BindingDUT %T does not implement DialContainer, which is required for this test: %v", bindingDUT, err)
+		t.Skipf("BindingDUT %T does not implement DialGRPC, which is required for this test: %v", bindingDUT, err)
 	}
 
-	conn, err := dialer.DialContainer(context.Background(), port)
+	conn, err := dialer.DialGRPC(context.Background(), port)
 	if err != nil {
-		t.Fatalf("DialContainer failed: %v", err)
+		t.Fatalf("DialGRPC failed: %v", err)
 	}
 	return conn
 }

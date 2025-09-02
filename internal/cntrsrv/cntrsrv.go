@@ -89,8 +89,8 @@ func (r *rpcCredentials) RequireTransportSecurity() bool {
 
 // Dial connects to the remote gRPC CNTR server hosted at the address in the request proto.
 func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, error) {
-	conn, err := grpc.NewClient(req.GetAddr(),
-		grpc.WithPerRPCCredentials(&rpcCredentials{ Username: req.GetUsername(), Password: req.GetPassword()}),
+	conn, err := grpc.DialContext(ctx, req.GetAddr(),
+		grpc.WithPerRPCCredentials(&rpcCredentials{Username: req.GetUsername(), Password: req.GetPassword()}),
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true, // NOLINT
 		})))
