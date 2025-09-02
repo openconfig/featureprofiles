@@ -46,12 +46,13 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 				!
 			`).Append(t)
 		}
+		t.Logf("Waiting for device to ingest its config.")
+		time.Sleep(time.Minute)
+	case ondatra.NOKIA:
+		break
 	default:
 		t.Fatalf("Unsupported vendor for containerz: %v", dut.Vendor())
 	}
-
-	t.Logf("Waiting for device to ingest its config.")
-	time.Sleep(time.Minute)
 
 	return client.NewClientFromStub(gnoiClient.Containerz())
 }
@@ -192,6 +193,21 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 	t.Logf("Waiting for %v for container %s to stabilize (fixed sleep, no polling).", opts.PollInterval, opts.InstanceName)
 	time.Sleep(opts.PollInterval)
 	return nil
+}
+
+// Setup is a helper function that deploys and starts a container, and returns a client
+// and a cleanup function that stops and removes the container. It calls t.Fatalf on failure.
+func Setup(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, opts StartContainerOptions) (*client.Client, func()) {
+	t.Helper()
+	cli := Client(t, dut)
+	if err := DeployAndStart(ctx, t, cli, opts); err != nil {
+		t.Fatalf("Failed to deploy and start container with options %+v: %v", opts, err)
+	}
+	t.Logf("Container %q started successfully.", opts.InstanceName)
+
+	return cli, func() {
+		Stop(ctx, t, cli, opts.InstanceName)
+	}
 }
 
 // Stop stops and removes a container instance.

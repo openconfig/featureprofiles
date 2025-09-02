@@ -69,6 +69,20 @@ type staticDUT struct {
 	dev *bindpb.Device
 }
 
+// RPCUsername returns the username for RPC connections to the DUT.
+func (d *staticDUT) RPCUsername() string {
+	// Return the device-specific username, or the global username.
+	opts := merge(d.r.Options, d.dev.Options)
+	return opts.GetUsername()
+}
+
+// RPCPassword returns the password for RPC connections to the DUT.
+func (d *staticDUT) RPCPassword() string {
+	// Return the device-specific password, or the global password.
+	opts := merge(d.r.Options, d.dev.Options)
+	return opts.GetPassword()
+}
+
 var _ introspect.Introspector = (*staticDUT)(nil)
 
 type staticATE struct {

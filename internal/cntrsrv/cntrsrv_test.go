@@ -185,16 +185,16 @@ func buildAuthenticatedGNMIServer(t *testing.T, username, password string) func(
 	}
 }
 
-// getFreePort returns a free port for testing.
-func getFreePort(t *testing.T) int {
+// freePort returns a free port for testing.
+func freePort(t *testing.T) int {
 	t.Helper()
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
-		t.Fatalf("getFreePort: could not resolve tcp addr: %v", err)
+		t.Fatalf("freePort: could not resolve tcp addr: %v", err)
 	}
 	l, err := net.ListenTCP("tcp", addr)
 	if err != nil {
-		t.Fatalf("getFreePort: could not listen on tcp addr: %v", err)
+		t.Fatalf("freePort: could not listen on tcp addr: %v", err)
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port
@@ -209,13 +209,13 @@ func TestDial(t *testing.T) {
 	}
 
 	// Dynamically get ports to avoid conflicts when running tests in parallel.
-	serverPort := uint(getFreePort(t))
-	badTargetPort := uint(getFreePort(t))
-	gribiPort := uint(getFreePort(t))
-	gnmiPort := uint(getFreePort(t))
-	gnmiAuthPort := uint(getFreePort(t))
-	gnmiBadAuthPort := uint(getFreePort(t))
-	timeoutPort := uint(getFreePort(t))
+	serverPort := uint(freePort(t))
+	badTargetPort := uint(freePort(t))
+	gribiPort := uint(freePort(t))
+	gnmiPort := uint(freePort(t))
+	gnmiAuthPort := uint(freePort(t))
+	gnmiBadAuthPort := uint(freePort(t))
+	timeoutPort := uint(freePort(t))
 
 	tests := []struct {
 		desc         string
