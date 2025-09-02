@@ -542,15 +542,11 @@ testbeds:
       - 8808-36FH_FOX2504P3CE
       - 8201-32FH-FLM254506DQ
     owner: wdolaast
-    # testbed: topologies/cisco/hw/2DUT-TB4/testbed
-    # binding: topologies/cisco/hw/2DUT-TB4/binding
-    testbed: topologies/cisco/hw/2DUT-TB4/testbed_gribi # to modify before PR merge, work around to be recognized in tblock
-    binding: topologies/cisco/hw/2DUT-TB4/binding_gribi 
+    testbed: topologies/cisco/hw/2DUT-TB4/testbed
+    binding: topologies/cisco/hw/2DUT-TB4/binding
     baseconf:
-      dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1-gribi-scale.proto
-      dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2-gribi-scale.proto
-      # dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
-      # dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
+      dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
+      dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 40065
@@ -565,8 +561,8 @@ testbeds:
     testbed: topologies/cisco/hw/2DUT-TB4/testbed_gribi
     binding: topologies/cisco/hw/2DUT-TB4/binding_gribi
     baseconf:
-      dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
-      dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
+      dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1-gribi-scale.proto
+      dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2-gribi-scale.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 40065
