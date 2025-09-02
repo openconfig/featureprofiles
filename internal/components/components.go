@@ -36,9 +36,27 @@ const (
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
+// componentsCache stores fetched components per device.
+// The key is the DUT name. This cache persists across different test functions
+// within the same execution of `go test`.
+var componentsCache = make(map[string][]*oc.Component)
+
+// fetchCachedComponents fetches all components from the DUT, using a package-level cache.
+func fetchCachedComponents(t *testing.T, dut *ondatra.DUTDevice) []*oc.Component {
+	dutName := dut.Name()
+	if cached, ok := componentsCache[dutName]; ok {
+		t.Logf("Using cached components for DUT %s.", dutName)
+		return cached
+	}
+	t.Logf("Fetching all components for DUT %s.", dutName)
+	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
+	componentsCache[dutName] = components
+	return components
+}
+
 // FindComponentsByType finds the list of components based on hardware type.
 func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
-	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
+	components := fetchCachedComponents(t, dut)
 	var s []string
 	for _, c := range components {
 		if c.GetType() == nil {
@@ -82,7 +100,7 @@ func FindActiveComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E
 
 // FindSWComponentsByType finds the list of SW components based on a type.
 func FindSWComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT) []string {
-	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
+	components := fetchCachedComponents(t, dut)
 	var s []string
 	for _, c := range components {
 		if c.GetType() == nil {
@@ -133,6 +151,9 @@ func GetSubcomponentPath(name string, useNameOnly bool) *tpb.Path {
 // DUT.
 type Y struct {
 	*ygnmi.Client
+	// typeCache caches the results of FindByType.
+	// Key: oc.Component_Type_Union, Value: []string (component names)
+	typeCache map[oc.Component_Type_Union][]string
 }
 
 // New creates a new ygnmi based helper from a *ondatra.DUTDevice.
@@ -142,11 +163,21 @@ func New(t testing.TB, dut *ondatra.DUTDevice) Y {
 	if err != nil {
 		t.Fatalf("Could not create ygnmi.Client: %v", err)
 	}
-	return Y{yc}
+	return Y{
+		Client:    yc,
+		typeCache: make(map[oc.Component_Type_Union][]string),
+	}
 }
 
 // FindByType finds the list of components based on component type.
 func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]string, error) {
+	if y.typeCache == nil {
+		y.typeCache = make(map[oc.Component_Type_Union][]string)
+	}
+	if cached, ok := y.typeCache[want]; ok {
+		return cached, nil
+	}
+
 	var names []string
 
 	anyTypePath := ocpath.Root().ComponentAny().Type()
@@ -168,6 +199,8 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 	if len(names) < 1 {
 		return nil, fmt.Errorf("none of the %d components match %v", len(values), want)
 	}
+
+	y.typeCache[want] = names
 	return names, nil
 }
 
