@@ -5,7 +5,6 @@ simulation:
 
 devices:
   dut1:    
-    platform: spitfire_f
     dual_rp: true
     num_linecards: 1
     linecard_types: [88-LC0-36FH-M]
