@@ -2,18 +2,16 @@
 
 ## Summary
 
-This test suite should ensure that the router will be able to handle below IS-IS
+This test suite should ensure that the router will be able to handle below BGP
 scale:
 
-*   200-7500 v4 EBGP sessions
-*   200-7500 v6 EBGP sessions
-*   7-31 v4 IBGP sessions
-*   7-31 v6 IBGP sessions
+*   200-1500 v4/v6 EBGP sessions
+*   7-31 v4/v6 IBGP sessions 
 *   7-31 ISIS adjacencies
 *   v4/v6 IBGP transport addresses received via ISIS
 *   60000 x ISIS prefixes
-*   1.5M IPv4 BGP prefixes; the routes are distributed across /22, /25, /24 and /30 prefix lengths
-*   60k x IPv6 prefixes; the routes are distributed across /48 , /64, /126 prefix lengths
+*   1.5M IPv4 BGP prefixes; the routes are distributed across /22[20%], /25[30%], /24[20%] and /30[30%] prefix lengths
+*   60k x IPv6 prefixes; the routes are distributed across /48[40%] , /64[40%], /126[20%] prefix lengths
 *   /25 routes are advertised with NO-ADVERTISE and 100:100 communities and redistributed into ISIS
 *   multiple features enabled to ensure interaction between different features under scale conditions:
       - ebgp multipath: 64 maximum-paths
@@ -41,6 +39,43 @@ graph LR
     E[ATE:PORT3] <-- 200 V4/V6 eBGP Peers--> F[DUT PORT3 VLAN21 to VLAN220];
     G[ATE:PORT4] <-- 7/15/31 ISIS Adj + 7/15/31 V4/V6 IBGP --> H[DUT PORT4 VLAN31 to VLAN34/VLAN45/VLAN61 ];
 ```
+
+### DUT and OTG properties
+
+
+Device  |  Port4 IPv4 | Port4 IPv6 | ISIS AREA | ISIS ID | ROUTER ID
+:------ | :-------------- | :-------------  | :-------- | :--------: | :---------:
+DUT     | 200.1.[1-31].1/30 | 1000:4:[31-61]::200::0:1/126  | 49001 | 1920.0000.2001 | 200.1.1.200
+ATE     | 200.1.[1-31].2/30 | 1000:4:[31-61]::200::0:2/126 | 49001 | 64000000000[1-31] | 203.0.113.[1-31]
+
+
+
+### Policy Definition:
+
+  * Configure the following community set on the DUT.
+    * Create a community-set named `ebgp-routes` with members as follows:
+      * `{ community-member = [ "100:101", "100:102", "100:103", "100:104", "100:105", "100:106", "100:107" ] }`
+  * Create a community-set named `SNH` with members as follows:
+      * `{ community-member = [ "100:100" ] }`
+
+  * Create a `policy-definition` named 'IBGP-IN'/'IBGP-OUT' with the following `statements`
+    * statement[name='accept_ebgp']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'ebgp-routes'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='reject_all']/
+      * actions/config/policy-result = REJECT_ROUTE
+  * Create a `policy-definition` named 'ALLOW' with the following `statements`
+    * statement[name='accept_all']/
+      * actions/config/policy-result = ACCEPT_ROUTE
+  * Create a `policy-definition` named 'BGP_TO_ISIS' with the following `statements`
+    * statement[name='snh']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'SNH'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
+      * actions/config/policy-result = ACCEPT_ROUTE
+    * statement[name='reject_all']/
+      * actions/config/policy-result = REJECT_ROUTE
+
 ### RT-1.65.1: (Initial State 200 v4/v6 EBGP sessions, 2 Byte AS, 7 v4/v6 IBGP sessions, 7 ISIS adjacencies, no routes scale ):
 
 *   Verification (Telemetry):
@@ -51,9 +86,9 @@ graph LR
     *   Verify that no core file generated
     *   Measure BGP convergence for both V4/V6 unicast AFI/SAFI
 
-### RT-1.65.2: (600 v4/v6 EBGP sessions, 2Byte/4Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies, no routes scale ):
+### RT-1.65.2: (1500 v4/v6 EBGP sessions, 2Byte/4Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies, no routes scale ):
 
-*   Modify DUT Setup to support 600 v4/v6 EBGP sessions, 2Byte/4Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies and no routes scale
+*   Modify DUT Setup to support 1500 v4/v6 EBGP sessions, 2Byte/4Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies and no routes scale
 
 *   Verification (Telemetry):
     *   Verify that all LAG port UP and all isis adjacencies are UP
@@ -63,9 +98,9 @@ graph LR
     *   Verify that no core file generated
     *   Measure BGP convergence for both V4/V6 unicast AFI/SAFI
 
-### RT-1.65.3: (600 v4/v6 EBGP sessions, 2Byte/4Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies, v4 and v6 routes scale):
+### RT-1.65.3: (1500 v4/v6 EBGP sessions, 2Byte/4Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies, v4 and v6 routes scale):
 
-*   Modify DUT Setup to support 600 v4/v6 EBGP sessions, 2 Byte/4 Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies and V4/V6 routes scale
+*   Modify DUT Setup to support 1500 v4/v6 EBGP sessions, 2 Byte/4 Byte ASs, 31 v4/v6 IBGP sessions, 31 ISIS adjacencies and V4/V6 routes scale
 
 *   Verification (Telemetry):
     *   Verify that all LAG port UP and all isis adjacencies are UP
@@ -99,7 +134,7 @@ graph LR
     1.   Create aggregate interface with LACP enabled
     2.   Create emulated router with Port4 ethernet interface
     3.   Add Port4 as member of AGG created in the step.1
-    4.   Configure Subinterfaces to emulate 7/15/31 ISIS adjacencies
+    4.   Configure Subinterfaces to emulate 7/31 ISIS adjacencies
     5. Create Loopback and associate to each sub-interface
     6.   Configure ISIS on each subinterface
             *   Set ISIS System ID
@@ -137,16 +172,14 @@ graph LR
     10. Create IPv6 Flows from Agg2 to the below ranges
             *   2001:db8:2:118::1 - 2001:db8:2:118::64 + tcp ports 12345 - 12545
             *   2001:db8:2:119::1 - 2001:db8:2:119::64 + tcp ports 12345 - 12545
-            *   fc00:abcd:2::1919:1 - fc00:abcd:2::1919:64 + tcp ports 12345 - 12545
             *   2001:db8:3:118::1 - 2001:db8:3:118::64 + tcp ports 12345 - 12545
             *   2001:db8:3:119::1 - 2001:db8:3:119::64 + tcp ports 12345 - 12545
-            *   fc00:abcd:3::1919:1 - fc00:abcd:3::1919:64 + tcp ports 12345 - 12545
     11. Push configuration to OTG
 *   Configure DUT:
     1.  Configure the DUT loopback and push path to DUT. this step will handle cases where DUT is already provisioned with a Loopback
     2.  Configure the default network instance and push path to DUT
     3. Configure BGP policies:
-            *   IBGP_IN/IBGP_OUT policies for IBGP sessions
+            *   IBGB-IN/IBGP-OUT policies for IBGP sessions
             *   ALLOW policy for EBGP session
     4.  Create an LAG interface set the interface IP address and LACP and push path to DUT
     5.  Create a LAG's member.
@@ -157,9 +190,9 @@ graph LR
             *   Set ISIS level capability to level 2 only
             *   Set metric style to wide
             *   Enable IPv4-unicast and IPv6-unicast address families.
-            *   Enable ISIS on the Loopback and the  LAG's subInterfaces (7/15/31).
+            *   Enable ISIS on the Loopback and the  LAG's subInterfaces (7/31).
             *   Create BGP_TO_ISIS policy
-            *   Export policy to redistribute EBGP routes tagged with communities 100:100/NO-ADVERTISE into ISIS. those /25 routes summarize PNH used to recursive lookup BGP routes.
+            *   Export policy to redistribute EBGP routes tagged with communities 100:100/NO-ADVERTISE into ISIS. those /25 routes (~500 /25 prefixes) summarize PNH used to recursive lookup BGP routes.
             *   Push the configuration to the DUT.
     8.  Configure BGP for DUT :
             *   Create BGP instance under the default routing instance
@@ -182,9 +215,9 @@ graph LR
             *   link BGP peers to associated BGP groups
 *   Start protocols on OTG
 *   Wait for 1 min then confirm that DUT has:
-    1. 7/15/31 ISIS adjacencies up.
-    2. 200-7500 EBGP session are up.
-    3. 7-31 IBGP session are up.
+    1. 7/31 ISIS adjacencies up.
+    2. 200/1500 EBGP session are up.
+    3. 7/31 IBGP session are up.
 
 #### Testing steps
 
@@ -203,18 +236,16 @@ graph LR
 #### Test pass fail criteria
 
 *   If any of the below conditions are not met test should be declared as a "FAIL"
-    1.  Count of ISIS adjacencies in the "UP" state is less than 7/15/31
+    1.  Count of ISIS adjacencies in the "UP" state is less than 7/31
     2.  Count of any of the below metrics was not equal to the below values :
-        a. v4 BGP sessions = 200-7500 + 7/15/31 + 1
-           (The number of v4 BGP sessions is the sum of eBGP sessions (from 200
-           to 7500), iBGP sessions (7, 15, or 31), and one session for
+        a. v4 BGP sessions is less than 208/1532
+           (The number of v4 BGP sessions is the sum of eBGP sessions [200/1500], iBGP sessions [7/31], and one session for
            convergence measurement)
-        b. v6 BGP sessions = 200-7500 + 7/15/31 + 1
+        b. v6 BGP sessions is less than 208/1532
         c. BGP capabilities successfully negotiated
         d. BGP routes successfully reflected to Port1's v4/v6 EBGP sessions
     3.  Number of TX packets is not equal to RX packets.
-    4. No critical process restarted during the test
-    5. No core file generated during the test
+    4. No critical process (RPD, Bgp-main, BGP, sr_bgp_mgr) restarted during the test
 
 ## Canonical OC
 
