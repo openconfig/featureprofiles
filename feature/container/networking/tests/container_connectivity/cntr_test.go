@@ -59,9 +59,6 @@ const (
 func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 	t.Helper()
 	ctx := context.Background()
-
-	cli := containerztest.Client(t, dut)
-
 	opts := containerztest.StartContainerOptions{
 		ImageName:           imageName,
 		InstanceName:        instanceName,
@@ -70,14 +67,8 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 		Network:             "host",
 		PollForRunningState: true,
 	}
-
-	if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
-		t.Fatalf("Failed to start container: %v", err)
-	}
-
-	return func() {
-		containerztest.Stop(ctx, t, cli, instanceName)
-	}
+	_, cleanup := containerztest.Setup(ctx, t, dut, opts)
+	return cleanup
 }
 
 // dialContainer dials a gRPC service running on a container on a device at the specified port.

@@ -40,23 +40,16 @@ func TestMain(m *testing.M) {
 
 // startContainer sets up and starts the default test container.
 // It returns the client. It calls t.Fatalf on failure.
-func startContainer(ctx context.Context, t *testing.T) *client.Client {
+func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
-	cli := containerztest.Client(t, dut)
-
 	opts := containerztest.StartContainerOptions{
-		// Defaults will be used for ImageName, ImageTag, TarPath, InstanceName, Command, Ports.
 		TarPath:             *containerTar,
 		RemoveExistingImage: false,
 		PollForRunningState: false,
 		PollInterval:        5 * time.Second,
 	}
-
-	if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
-		t.Fatalf("Failed to start default container: %v", err)
-	}
-	return cli
+	return containerztest.Setup(ctx, t, dut, opts)
 }
 
 // TestDeployAndStartContainer implements CNTR-1.1 validating that it is
@@ -67,7 +60,6 @@ func TestDeployAndStartContainer(t *testing.T) {
 	// Positive test: Deploy and start a container successfully.
 	t.Run("SuccessfulDeployAndStart", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
-		cli := containerztest.Client(t, dut)
 		opts := containerztest.StartContainerOptions{
 			InstanceName:        instanceName,
 			ImageName:           imageName,
@@ -81,11 +73,9 @@ func TestDeployAndStartContainer(t *testing.T) {
 			PollInterval:        5 * time.Second,
 		}
 
-		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
-			t.Fatalf("Failed to deploy and start container %s: %v", opts.InstanceName, err)
-		}
-		defer containerztest.Stop(ctx, t, cli, opts.InstanceName)
-		t.Logf("Container %s successfully started and running (verified by DeployAndStart).", opts.InstanceName)
+		_, cleanup := containerztest.Setup(ctx, t, dut, opts)
+		defer cleanup()
+		t.Logf("Container %s successfully started and running (verified by Setup).", opts.InstanceName)
 	})
 
 	// Negative Test: Attempt to start container with a non-existent image
@@ -134,8 +124,8 @@ func TestRetrieveLogs(t *testing.T) {
 
 	// Positive Test: Retrieve logs from a running container
 	t.Run("SuccessfulLogRetrieval", func(t *testing.T) {
-		localStartedCli := startContainer(ctx, t)
-		defer containerztest.Stop(ctx, t, localStartedCli, instanceName) // Stops default 'instanceName'
+		localStartedCli, cleanup := startContainer(ctx, t)
+		defer cleanup() // Stops default 'instanceName'
 
 		logCh, err := localStartedCli.Logs(ctx, instanceName, false)
 		if err != nil {
@@ -350,8 +340,8 @@ func TestListContainers(t *testing.T) {
 
 	t.Run("ListFindsSpecificRunningContainer", func(t *testing.T) {
 		// startContainer will ensure 'instanceName' with 'imageName:latest' is running.
-		localStartedCli := startContainer(ctx, t)
-		defer containerztest.Stop(ctx, t, localStartedCli, instanceName)
+		localStartedCli, cleanup := startContainer(ctx, t)
+		defer cleanup()
 
 		listCh, err := localStartedCli.ListContainer(ctx, true, 0, nil)
 		if err != nil {
@@ -388,7 +378,9 @@ func TestStopContainer(t *testing.T) {
 	baseCli := containerztest.Client(t, dut)
 
 	t.Run("StopRunningContainer", func(t *testing.T) {
-		localStartedCli := startContainer(ctx, t)
+		localStartedCli, cleanup := startContainer(ctx, t)
+		defer cleanup()
+
 		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
 			t.Fatalf("StopContainer() for running instance %s failed: %v", instanceName, err)
 		}
@@ -445,7 +437,9 @@ func TestStopContainer(t *testing.T) {
 
 	t.Run("StopAlreadyStoppedContainer", func(t *testing.T) {
 		// Use startContainer to set up a container, then stop it.
-		localStartedCli := startContainer(ctx, t)
+		localStartedCli, cleanup := startContainer(ctx, t)
+		defer cleanup()
+
 		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
 			t.Fatalf("Initial StopContainer() for %s failed: %v", instanceName, err)
 		}
@@ -462,9 +456,6 @@ func TestStopContainer(t *testing.T) {
 			}
 		} else {
 			t.Logf("Second StopContainer() for already stopped instance %s succeeded (no-op), which is acceptable.", instanceName)
-		}
-		if err := localStartedCli.RemoveContainer(ctx, instanceName, true); err != nil && status.Code(err) != codes.NotFound {
-			t.Logf("Cleanup: Failed to remove container %s after StopAlreadyStoppedContainer test: %v", instanceName, err)
 		}
 	})
 }
@@ -582,8 +573,8 @@ func TestUpgrade(t *testing.T) {
 
 	// Positive Test: Successful upgrade
 	t.Run("SuccessfulUpgrade", func(t *testing.T) {
-		cli := startContainer(ctx, t)
-		defer containerztest.Stop(ctx, t, cli, instanceName)
+		cli, cleanup := startContainer(ctx, t)
+		defer cleanup()
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
 		progCh, err := cli.PushImage(ctx, imageName, "upgrade", *containerUpgradeTar, false)
@@ -636,8 +627,8 @@ func TestUpgrade(t *testing.T) {
 
 	// Negative Test: Upgrade to a non-existent image
 	t.Run("UpgradeToNonExistentImage", func(t *testing.T) {
-		cli := startContainer(ctx, t) // Starts 'instanceName' with 'imageName:latest'
-		defer containerztest.Stop(ctx, t, cli, instanceName)
+		cli, cleanup := startContainer(ctx, t) // Starts 'instanceName' with 'imageName:latest'
+		defer cleanup()
 
 		nonExistentImage := "non-existent-image-for-upgrade"
 		if _, err := cli.UpdateContainer(ctx, nonExistentImage, "latest", "./cntrsrv", instanceName, false, client.WithPorts([]string{"60061:60061"})); err == nil {
@@ -654,8 +645,8 @@ func TestUpgrade(t *testing.T) {
 
 	// Negative Test: Upgrade to an existing image but non-existent tag.
 	t.Run("UpgradeToNonExistentTag", func(t *testing.T) {
-		cli := startContainer(ctx, t)
-		defer containerztest.Stop(ctx, t, cli, instanceName)
+		cli, cleanup := startContainer(ctx, t)
+		defer cleanup()
 
 		nonExistentTag := "non-existent-tag-for-upgrade"
 		// Ensure the base image 'imageName:latest' exists from startContainer.
