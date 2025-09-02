@@ -58,6 +58,7 @@ gRPC service on `tcp/[::]60062`.
 Not applicable to this test.
 
 ```json
+{}
 ```
 
 ## OpenConfig Path and RPC Coverage
