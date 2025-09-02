@@ -152,7 +152,7 @@ func GetSubcomponentPath(name string, useNameOnly bool) *tpb.Path {
 type Y struct {
 	*ygnmi.Client
 	// typeCache caches the results of FindByType.
-	// Key: oc.Component_Type_Union, Value: []string (component names)
+	// Key: oc.Component_Type_Union, Value: []string (component names).
 	typeCache map[oc.Component_Type_Union][]string
 }
 
