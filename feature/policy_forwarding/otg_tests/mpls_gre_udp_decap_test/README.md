@@ -76,9 +76,9 @@ decapsulate in GRE.
 * Push the gNMI the policy forwarding configuration
 * Push the configuration to DUT using gnmi.Set with REPLACE option
 * Configure ATE port 1 with traffic flow
-  * Flow should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv6
+  * Flow should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv4
 * Generate traffic from ATE port 1
-* Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
+* Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv4
 
 ### PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
 
