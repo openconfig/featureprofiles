@@ -493,6 +493,18 @@ testbeds:
     baseconf:
       dut: topologies/cisco/pyvxr/8808-P200-ATE/dut1_basefp.conf
       dut2: topologies/cisco/pyvxr/8808-P200-ATE/dut2_basefp.conf
+  8808-P200-2DUT:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-2DUT/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-P200-2DUT/dut1_basefp.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-2DUT/dut2_basefp.conf
+  8808-P200-OC:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-OC/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8808-P200-OC/basefp.conf
+      peer: topologies/cisco/pyvxr/8808-P200-OC/basefp_peer.conf
   8812-2DUT:   
     sim: true
     topology: topologies/cisco/pyvxr/8812-2DUT/topo.yaml
