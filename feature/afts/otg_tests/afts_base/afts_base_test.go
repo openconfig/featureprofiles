@@ -15,12 +15,14 @@
 package afts_base_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -169,12 +171,19 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	}
 	dutConf := createBGPNeighbor(peerGrpNameV4P1, peerGrpNameV6P1, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
 	nbrs = []*BGPNeighbor{
 		{as: ateAS, neighborip: ateP2.IPv4, version: IPv4},
 		{as: ateAS, neighborip: ateP2.IPv6, version: IPv6},
 	}
 	dutConf = createBGPNeighbor(peerGrpNameV4P2, peerGrpNameV6P2, nbrs, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
+
 	ts := isissession.MustNew(t).WithISIS()
 	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
 		global := isis.GetOrCreateGlobal()
@@ -231,18 +240,23 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 
 	afiSAFI := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	afiSAFI.SetEnabled(true)
-	afiSAFI.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
 	asisafi6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	asisafi6.SetEnabled(true)
-	asisafi6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
 
 	peerGroupV4AfiSafi := peerGroupV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	peerGroupV4AfiSafi.SetEnabled(true)
-	peerGroupV4AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
 	peerGroupV6AfiSafi := peerGroupV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	peerGroupV6AfiSafi.SetEnabled(true)
-	peerGroupV6AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
 
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+		peerGroupV4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	} else {
+		afiSAFI.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		asisafi6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		peerGroupV4AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	}
 	for _, nbr := range nbrs {
 		neighbor := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		neighbor.SetPeerAs(nbr.as)
@@ -267,6 +281,12 @@ func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor,
 		}
 	}
 	return niProtocol
+}
+
+func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BGPNeighbor) {
+	for _, nbr := range neighbors {
+		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.neighborip, 0)
+	}
 }
 
 func (tc *testCase) waitForBGPSession(t *testing.T) error {
@@ -514,9 +534,12 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 	return nil
 }
 
-func (tc *testCase) cache(t *testing.T, aftSession *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
-	aftSession.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
+	streamContext, streamCancel := context.WithCancel(t.Context())
+	aftSession := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient, tc.dut)
+	aftSession.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+	streamCancel()
 	// Get the AFT from the cache.
 	aft, err := aftSession.Cache.ToAFT(tc.dut)
 	if err != nil {
@@ -555,15 +578,12 @@ func TestBGP(t *testing.T) {
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
-	// Create a single AFTStreamSession to be reused.
-	aftSession := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient, tc.dut)
-
 	// Helper function for verifying AFT state when given prefixes and expected next hops.
 	verifyAFTState := func(desc string, wantNHCount int, wantV4NHs, wantV6NHs map[string]bool) *aftcache.AFTData {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.cache(t, aftSession, stoppingCondition)
+		aft, err := tc.cache(t, stoppingCondition)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
@@ -607,7 +627,7 @@ func TestBGP(t *testing.T) {
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
 	t.Log("Stopping Port1 interface to create Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
-	if _, err := tc.cache(t, aftSession, aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)); err != nil {
+	if _, err := tc.cache(t, aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
