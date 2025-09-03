@@ -76,9 +76,10 @@ decapsulate in GRE.
 * Push the gNMI the policy forwarding configuration
 * Push the configuration to DUT using gnmi.Set with REPLACE option
 * Configure ATE port 1 with traffic flow
-  * Flow should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv4
+  * Flow1 should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv4
+  * Flow2 should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv6
 * Generate traffic from ATE port 1
-* Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv4
+* Validate ATE port 2 receives both Flow1 and Flow2 innermost IPv4 and IPv6 traffic with correct VLAN.
 
 ### PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
 
@@ -87,40 +88,40 @@ decapsulate MPLS in UDP.
 
 ```json
 {
-  "openconfig-network-instance": {
-    "network-instances": [
-      {
-        "afts": {
-          "policy-forwarding": {
-            "policies": [
-              {
-                "config": {
-                  "policy-id": "default decap rule",
-                  "type": "PBR_POLICY"
-                },
-                "policy": "default decap rule",
-                "rules": [
-                  {
-                    "config": {
-                      "sequence-id": 1,
-                    },
-                    "ipv6": {
-                      "config": {
-                        "destination-address": "decap_ipv6"
-                      }
-                    },
-                    "action": {
-                      "decapsulate-mpls-in-udp": TRUE  
-                     }
-                  }
-                ]
-              }
-            ]  
-          }
-        }
-      }
-    ]
-  }
+    "openconfig-network-instance": {
+        "network-instances": [
+            {
+                "afts": {
+                    "policy-forwarding": {
+                        "policies": [
+                            {
+                                "config": {
+                                    "policy-id": "default decap rule",
+                                    "type": "PBR_POLICY"
+                                },
+                                "policy": "default decap rule",
+                                "rules": [
+                                    {
+                                        "config": {
+                                            "sequence-id": 1
+                                        },
+                                        "ipv6": {
+                                            "config": {
+                                                "destination-address": "decap_ipv6"
+                                            }
+                                        },
+                                        "action": {
+                                            "decapsulate-mpls-in-udp": true
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    }
 }
 ```
 * Push the gNMI the policy forwarding configuration
