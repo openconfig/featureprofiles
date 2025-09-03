@@ -81,7 +81,7 @@ for firex_id in firex_ids.split(','):
         test_out_dir = os.path.join(out_dir, test_path)
         test_log_file = os.path.join(test_out_dir, "test.xml")
 
-        if not os.path.exists(test_log_file) or (_did_fail(test_log_file) and _did_pass(log_files)):
+        if not os.path.exists(test_log_file) or (_did_fail(test_log_file) and _did_pass(log_file)):
             print(f"Adding {test_str}")
             total_count += 1
             os.makedirs(test_out_dir, exist_ok=True)
