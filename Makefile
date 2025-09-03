@@ -39,10 +39,12 @@ protoimports:
 	find protobuf-import -type d -empty -delete
 	# Download the required dependencies
 	go mod download
-	# Get ondatra & kne modules we use and create required directory structure
+	# Get gnmi, ondatra & kne modules we use and create required directory structure
+	go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/gnmi | xargs -L1 dirname | sort | uniq | xargs mkdir -p
 	go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
 	go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/kne | xargs -L1 dirname | sort | uniq | xargs mkdir -p
 	# Create symlinks
+	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/gnmi | xargs -L1 -- ln -s
 	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
 	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/kne | xargs -L1 -- ln -s
 	ln -s $(ROOT_DIR) protobuf-import/github.com/openconfig/featureprofiles
@@ -72,6 +74,11 @@ proto/nosimage_go_proto/nosimage.pb.go: proto/nosimage.proto protoimports
 	protoc -I='protobuf-import' --proto_path=proto --go_out=./proto/nosimage_go_proto --go_opt=paths=source_relative --go_opt=Mnosimage.proto=proto/nosimage_go_proto --go_opt=Mgithub.com/openconfig/featureprofiles/proto/ocpaths.proto=github.com/openconfig/featureprofiles/proto/ocpaths_go_proto --go_opt=Mgithub.com/openconfig/featureprofiles/proto/ocrpcs.proto=github.com/openconfig/featureprofiles/proto/ocrpcs_go_proto nosimage.proto
 	goimports -w proto/nosimage_go_proto/nosimage.pb.go
 
+proto/testregistry_go_proto/testregistry.pb.go: proto/testregistry.proto protoimports
+	mkdir -p proto/testregistry_go_proto
+	protoc -I='protobuf-import' --proto_path=proto --go_out=./proto/testregistry_go_proto --go_opt=paths=source_relative --go_opt=Mtestregistry.proto=proto/testregistry_go_proto testregistry.proto
+	goimports -w proto/testregistry_go_proto/testregistry.pb.go
+
 topologies/proto/binding/binding.pb.go: topologies/proto/binding.proto protoimports
 	mkdir -p topologies/proto/binding
 	protoc -I='protobuf-import' --proto_path=topologies/proto --go_out=. --go_opt=Mbinding.proto=topologies/proto/binding binding.proto
@@ -80,3 +87,4 @@ topologies/proto/binding/binding.pb.go: topologies/proto/binding.proto protoimpo
 clean:
 	rm -f $(GO_PROTOS)
 	rm -rf protobuf-import openconfig_public
+

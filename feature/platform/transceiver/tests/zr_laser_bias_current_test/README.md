@@ -33,9 +33,6 @@ specified operating temperature and voltage.
     the ZR optics
 
     *   /components/component/optical-channel/state/laser-bias-current/instant
-    *   /components/component/optical-channel/state/laser-bias-current/avg
-    *   /components/component/optical-channel/state/laser-bias-current/min
-    *   /components/component/optical-channel/state/laser-bias-current/max
 
 
 ## TRANSCEIVER-9.2
@@ -45,11 +42,6 @@ specified operating temperature and voltage.
 
 *   Laser bias current values must always be of type decimal64.
     When laser is in off state 0 must be reported as a valid value.
-
-**Note:** For min, max, and avg values, 10 second sampling is preferred. If the
-          min, max average values or the 10 seconds sampling is not supported,
-          the sampling interval used must be specified and this must be
-          captured by adding a deviation to the test.
 
 ## TRANSCEIVER-9.3
 
@@ -86,14 +78,21 @@ specified operating temperature and voltage.
         updated to the value in the normal range again.
         * Typical measurement range 0 to 131 mA.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /components/component/transceiver/config/enabled
-*   /interfaces/interface/config/enabled
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter coverage
-
-*   /components/component/optical-channel/state/laser-bias-current/instant
-*   /components/component/optical-channel/state/laser-bias-current/avg
-*   /components/component/optical-channel/state/laser-bias-current/min
-*   /components/component/optical-channel/state/laser-bias-current/max
+```yaml
+paths:
+    ## Config Paths ##
+    /components/component/transceiver/config/enabled:
+        platform_type: [ "OPTICAL_CHANNEL" ]
+    /interfaces/interface/config/enabled:
+    ## State Paths ##
+    /components/component/optical-channel/state/laser-bias-current/instant:
+        platform_type: [ "OPTICAL_CHANNEL" ]
+    
+rpcs:
+    gnmi:
+        gNMI.Subscribe:
+```

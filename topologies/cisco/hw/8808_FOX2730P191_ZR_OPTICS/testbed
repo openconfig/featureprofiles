@@ -1,0 +1,26 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides 2 connected ZR optics ports
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  ports {
+    id: "port1"
+    speed: S_400GB
+    pmd: PMD_400GBASE_ZR
+  }
+  ports {
+    id: "port2"
+    speed: S_400GB
+    pmd: PMD_400GBASE_ZR
+  }
+}
+
+# ZR optics
+links {
+  a: "dut:port1"
+  b: "dut:port2"
+}

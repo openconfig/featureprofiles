@@ -10,7 +10,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 )
 
-func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -59,7 +59,7 @@ func testTrafficWithInnerIPv6(t *testing.T, expectPass bool, ate *ondatra.ATEDev
 	// 	t.Errorf("LossPct for flow %s got %g, want 0", flow.Name(), got)
 	// }
 }
-func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, tgensrc_ip string, weights ...float64) {
+func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8, tgensrc_ip string) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -99,7 +99,7 @@ func testTrafficSrc(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *
 	}
 
 }
-func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, tgensrc_ip string, weights ...float64) {
+func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8, tgensrc_ip string) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -139,7 +139,7 @@ func testTrafficSrcV6(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top
 	}
 
 }
-func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
+func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, dscp uint8) {
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress("00:11:01:00:00:01")
 	ethHeader.WithDstAddress("00:01:00:02:00:00")
@@ -182,8 +182,8 @@ func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ond
 // configureATE configures port1, port2 and port3 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	top := ate.Topology().New()
-
-	p1 := ate.Port(t, "port1")
+	atePorts := sortPorts(ate.Ports())
+	p1 := atePorts[0]
 	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
 	i1.IPv4().
 		WithAddress(atePort1.IPv4CIDR()).
@@ -192,7 +192,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithAddress(atePort1.IPv6CIDR()).
 		WithDefaultGateway(dutPort1.IPv6)
 
-	p2 := ate.Port(t, "port2")
+	p2 := atePorts[1]
 	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
 	i2.IPv4().
 		WithAddress(atePort2.IPv4CIDR()).
@@ -201,37 +201,37 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 		WithAddress(atePort2.IPv6CIDR()).
 		WithDefaultGateway(dutPort2.IPv6)
 
-	p3 := ate.Port(t, "port3")
+	p3 := atePorts[2]
 	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
 	i3.IPv4().
 		WithAddress(atePort3.IPv4CIDR()).
 		WithDefaultGateway(dutPort3.IPv4)
 
-	p4 := ate.Port(t, "port4")
+	p4 := atePorts[3]
 	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
 	i4.IPv4().
 		WithAddress(atePort4.IPv4CIDR()).
 		WithDefaultGateway(dutPort4.IPv4)
 
-	p5 := ate.Port(t, "port5")
+	p5 := atePorts[4]
 	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
 	i5.IPv4().
 		WithAddress(atePort5.IPv4CIDR()).
 		WithDefaultGateway(dutPort5.IPv4)
 
-	p6 := ate.Port(t, "port6")
+	p6 := atePorts[5]
 	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
 	i6.IPv4().
 		WithAddress(atePort6.IPv4CIDR()).
 		WithDefaultGateway(dutPort6.IPv4)
 
-	p7 := ate.Port(t, "port7")
+	p7 := atePorts[6]
 	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
 	i7.IPv4().
 		WithAddress(atePort7.IPv4CIDR()).
 		WithDefaultGateway(dutPort7.IPv4)
 
-	p8 := ate.Port(t, "port8")
+	p8 := atePorts[7]
 	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
 	i8.IPv4().
 		WithAddress(atePort8.IPv4CIDR()).
@@ -268,7 +268,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, topology *ondatra.ATETopology, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
+func testTrafficForFlows(t *testing.T, ate *ondatra.ATEDevice, expectPass bool, threshold float64, flow ...*ondatra.Flow) {
 
 	ate.Traffic().Start(t, flow...)
 	time.Sleep(60 * time.Second)

@@ -268,6 +268,12 @@ func getOptionsFromBindingFile() (*bindpb.Options, error) {
 		return nil, err
 	}
 	options := b.Duts[0].Options
+	if options.CertFile == "" && options.KeyFile == "" {
+		options = b.Duts[0].Gnsi
+		if options.CertFile == "" && options.KeyFile == "" {
+			options = b.Options
+		}
+	}
 	return options, nil
 }
 
@@ -739,7 +745,7 @@ func GetSudiRootCA(t *testing.T) (string, error) {
 		return "", errors.New("Failed to Parse 'show platform security attest certificate CiscoHASUDI' cmd output")
 	}
 	certs := strings.Join(matches[:2], "\n")
-	t.Logf(certs)
+	t.Log(certs)
 	return certs, nil
 }
 
@@ -797,6 +803,7 @@ func gnsiNewConnWithIdevID(t *testing.T, target string, options *bindpb.Options)
 func createCertZProfileAndRotateTrustBundle(t *testing.T, gnsiC binding.GNSIClients, profileId string,
 	trustBundleFile string, certSource certzpb.Certificate_CertSource) error {
 
+	_, _ = gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profileId})
 	profiles, err := gnsiC.Certz().AddProfile(context.Background(), &certzpb.AddProfileRequest{SslProfileId: profileId})
 	if err != nil {
 		return err
@@ -908,6 +915,7 @@ func TestGetIAKCert(t *testing.T) {
 	}
 	targetIP := strings.Split(target, ":")[0]
 	options, err := getOptionsFromBindingFile()
+	t.Logf("options: %v", options)
 	if err != nil {
 		t.Fatalf("Error in reading Options from binding file: %v", err)
 	}
@@ -1037,7 +1045,7 @@ func TestEnrollZFlow(t *testing.T) {
 
 				err = verifyControlCardId(t, dut, resp.ControlCardId, cardType)
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("Controll Card ID values Verification Successfull")
 				}
@@ -1049,7 +1057,7 @@ func TestEnrollZFlow(t *testing.T) {
 
 				err = verifyPCRValues(t, dut, resp.PcrValues, cardType[0])
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("PCR values Verification Successfull")
 				}
@@ -1226,7 +1234,7 @@ func TestGetPCRIndices(t *testing.T) {
 
 				err = verifyControlCardId(t, dut, resp.ControlCardId, cardType)
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("Controll Card ID values Verification Successfull")
 				}
@@ -1238,7 +1246,7 @@ func TestGetPCRIndices(t *testing.T) {
 
 				err = verifyPCRValues(t, dut, resp.PcrValues, cardType[0])
 				if err != nil {
-					t.Fatalf(err.Error())
+					t.Fatal(err.Error())
 				} else {
 					t.Logf("PCR values Verification Successfull")
 				}

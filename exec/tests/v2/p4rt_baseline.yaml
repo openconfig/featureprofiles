@@ -6,7 +6,7 @@ testbeds:
   - 8808-1DUT-1ATE
 tests:
 - name: PacketIO-GDP
-  path: feature/experimental/p4rt/ate_tests/cisco
+  path: feature/experimental/p4rt/otg_tests/cisco
   args:
     - '-run_packetio_tests="true"'
     - '-run_gdp_tests="true"'
@@ -16,7 +16,7 @@ tests:
   internal: true
   branch: master
 - name: PacketIO-LLDP
-  path: feature/experimental/p4rt/ate_tests/cisco
+  path: feature/experimental/p4rt/otg_tests/cisco
   args:
     - '-run_packetio_tests="true"'
     - '-run_lldp_tests="true"'
@@ -26,7 +26,7 @@ tests:
   internal: true
   branch: master
 - name: PacketIO-TTL-IPv4
-  path: feature/experimental/p4rt/ate_tests/cisco
+  path: feature/experimental/p4rt/otg_tests/cisco
   args:
     - '-run_packetio_tests="true"'
     - '-run_ttl_tests="true"'
@@ -38,7 +38,7 @@ tests:
   internal: true
   branch: master
 - name: PacketIO-TTL-IPv6
-  path: feature/experimental/p4rt/ate_tests/cisco
+  path: feature/experimental/p4rt/otg_tests/cisco
   args:
     - '-run_packetio_tests="true"'
     - '-run_ttl_tests="true"'

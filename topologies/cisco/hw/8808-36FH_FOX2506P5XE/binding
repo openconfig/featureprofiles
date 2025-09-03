@@ -7,21 +7,15 @@
 #
 #router static
 # address-family ipv4 unicast
-#  0.0.0.0/0 5.78.0.1
-#  5.0.0.0/8 5.78.0.1
-#  5.5.14.197/32 5.78.0.1
-#  5.24.27.1/32 5.78.0.1
-#  223.255.253.253/32 5.78.0.1
-#  223.255.254.0/24 5.78.0.1
-#  223.255.254.254/32 5.78.0.1
+#   0.0.0.0/0 10.85.84.1\n"
 # !
 
-#ipv4 virtual address 5.78.18.91/16
+#ipv4 virtual address 10.85.84.236/24
 #interface MgmtEth0/RP0/CPU0/0
-# ipv4 address 5.78.18.190 255.255.0.0
+# ipv4 address 10.85.84.234 255.255.0.0
 #!         
 #interface MgmtEth0/RP1/CPU0/0
-# ipv4 address 5.78.18.191 255.255.0.0
+# ipv4 address 10.85.84.235 255.255.0.0
 #!
 
 # telnet 10.85.84.53 2005
@@ -76,7 +70,6 @@ duts {
   hardware_model: "CISCO-8808"
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
-    #  gnmi_set_file: "/Users/mbagherz/git/test_ws/src/featureprofiles/topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto"
   }
  
   options {
@@ -89,32 +82,23 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-   target: "10.85.84.159:47402"
-   #target: "10.85.84.159:9339" 
+   target: "10.85.84.236:57777"
   }
   gnmi {
-      target: "10.85.84.159:47402"
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9339" 
+      target: "10.85.84.236:57777"
   }
   gribi{
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9340"
-     target: "10.85.84.159:47402"
+     target: "10.85.84.236:57777"
   }
   ssh{
-    target: "10.85.84.159:47403"
+    target: "10.85.84.236:22"
     skip_verify: true
   }
   p4rt{
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9559"
-     target: "10.85.84.159:47402"
+     target: "10.85.84.236:57777"
   }
   gnsi{
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9559"
-     target: "10.85.84.159:47402"
+     target: "10.85.84.236:57777"
   }
 
 # Before this binding can be used with a topology, add ports mapping

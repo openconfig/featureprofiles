@@ -1,0 +1,24 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "5a5491b5-9900-4a05-b289-43feb1ceb915"
+plan_id: "P4RT-5.3"
+description: "Traceroute: PacketIn With VRF Selection"
+testbed: TESTBED_DUT_ATE_8LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    gnoi_subcomponent_path:  true
+    deprecated_vlan_id:  true
+    interface_enabled:  true
+    static_protocol_name: "STATIC"
+    default_network_instance:  "default"
+    gribi_mac_override_static_arp_static_route: true
+    missing_isis_interface_afi_safi_enable: true
+    isis_interface_afi_unsupported: true
+    isis_instance_enabled_required: true
+    ate_port_link_state_operations_unsupported: true
+  }
+}

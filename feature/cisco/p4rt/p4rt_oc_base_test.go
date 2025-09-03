@@ -48,21 +48,9 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort1 = attrs.Attributes{
-		Name:    "atePort1",
-		IPv4:    "100.120.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "100.121.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
-
-	atePort2 = attrs.Attributes{
-		Name:    "atePort2",
-		IPv4:    "100.121.1.2",
 		IPv4Len: ipv4PrefixLen,
 	}
 
@@ -72,64 +60,33 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort3 = attrs.Attributes{
-		Name:    "atePort3",
-		IPv4:    "100.122.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
-
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
 		IPv4:    "100.123.1.1",
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort4 = attrs.Attributes{
-		Name:    "atePort4",
-		IPv4:    "100.123.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
 	dutPort5 = attrs.Attributes{
 		Desc:    "dutPort5",
 		IPv4:    "100.124.1.1",
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort5 = attrs.Attributes{
-		Name:    "atePort5",
-		IPv4:    "100.124.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
 	dutPort6 = attrs.Attributes{
 		Desc:    "dutPort6",
 		IPv4:    "100.125.1.1",
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort6 = attrs.Attributes{
-		Name:    "atePort6",
-		IPv4:    "100.125.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
 	dutPort7 = attrs.Attributes{
 		Desc:    "dutPort7",
 		IPv4:    "100.126.1.1",
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	atePort7 = attrs.Attributes{
-		Name:    "atePort7",
-		IPv4:    "100.126.1.2",
-		IPv4Len: ipv4PrefixLen,
-	}
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
 		IPv4:    "100.127.1.1",
-		IPv4Len: ipv4PrefixLen,
-	}
-	atePort8 = attrs.Attributes{
-		Name:    "atePort8",
-		IPv4:    "100.127.1.2",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -137,8 +94,6 @@ var (
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top *ondatra.ATETopology
 }
 
 // Testcase defines testcase structure
@@ -208,15 +163,8 @@ func TestP4RTOC(t *testing.T) {
 	initializeNPU(t, dut)
 	configureDUT(t, dut)
 
-	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	top.Push(t).StartProtocols(t)
-
 	args := &testArgs{
 		dut: dut,
-		ate: ate,
-		top: top,
 	}
 
 	for _, tt := range P4RTOCTestcases {
@@ -227,61 +175,6 @@ func TestP4RTOC(t *testing.T) {
 			tt.fn(t, args)
 		})
 	}
-}
-
-// configureATE configures port1 through port8 on the ATE.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
-	top := ate.Topology().New()
-
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
-	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
-
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
-	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
-
-	p3 := ate.Port(t, "port3")
-	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
-	i3.IPv4().
-		WithAddress(atePort3.IPv4CIDR()).
-		WithDefaultGateway(dutPort3.IPv4)
-
-	p4 := ate.Port(t, "port4")
-	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
-	i4.IPv4().
-		WithAddress(atePort4.IPv4CIDR()).
-		WithDefaultGateway(dutPort4.IPv4)
-
-	p5 := ate.Port(t, "port5")
-	i5 := top.AddInterface(atePort5.Name).WithPort(p5)
-	i5.IPv4().
-		WithAddress(atePort5.IPv4CIDR()).
-		WithDefaultGateway(dutPort5.IPv4)
-
-	p6 := ate.Port(t, "port6")
-	i6 := top.AddInterface(atePort6.Name).WithPort(p6)
-	i6.IPv4().
-		WithAddress(atePort6.IPv4CIDR()).
-		WithDefaultGateway(dutPort6.IPv4)
-
-	p7 := ate.Port(t, "port7")
-	i7 := top.AddInterface(atePort7.Name).WithPort(p7)
-	i7.IPv4().
-		WithAddress(atePort7.IPv4CIDR()).
-		WithDefaultGateway(dutPort7.IPv4)
-
-	p8 := ate.Port(t, "port8")
-	i8 := top.AddInterface(atePort8.Name).WithPort(p8)
-	i8.IPv4().
-		WithAddress(atePort8.IPv4CIDR()).
-		WithDefaultGateway(dutPort8.IPv4)
-
-	return top
 }
 
 // getNPUs returns all the available NPUs on the router, ignoring fabric npus.
@@ -427,6 +320,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // generateBundleMemberInterfaceConfig returns interface configuration populated with bundle info
 func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+	t.Helper()
 	i := &oc.Interface{Name: ygot.String(name)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()

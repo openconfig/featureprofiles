@@ -10,9 +10,12 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -1665,5 +1668,466 @@ func TestForwardViableSDN(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember)
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
+	})
+}
+
+type InterfaceInfo struct {
+	name string
+	intf string
+	attr attrs.Attributes
+}
+
+var (
+	phyInt = attrs.Attributes{
+		Name:    "PhysicalInt",
+		Desc:    "dutsrc",
+		IPv6:    "fe80::5",
+		IPv6Len: 128,
+	}
+	beInt = attrs.Attributes{
+		Name:    "BundleInt-1",
+		Desc:    "BundleInt",
+		IPv6:    "fe80::4",
+		IPv6Len: 128,
+	}
+	// mgmtInt = attrs.Attributes{
+	// 	Name:    "MgmntInt",
+	// 	Desc:    "Management",
+	// 	IPv6:    "fe80::3",
+	// 	IPv6Len: 128,
+	// 	IPv4:    "6.1.2.41", //"5.78.26.10",
+	// 	IPv4Len: 16,
+	// }
+	beInt1 = attrs.Attributes{
+		Name:    "BundleInt-2",
+		Desc:    "BundleInt",
+		IPv6:    "fe80::2",
+		IPv6Len: 128,
+	}
+)
+
+var interfaceList = []InterfaceInfo{}
+
+const (
+	srcDUTGlobalIPv6      = "2001:db8::1"
+	srcOTGGlobalIPv6      = "2001:db8::2"
+	dstDUTGlobalIPv6      = "2001:db8::5"
+	dstOTGGlobalIPv6      = "2001:db8::6"
+	globalIPv6Len         = 126
+	linkLocalFlowName     = "SrcToDstLinkLocal"
+	globalUnicastFlowName = "SrcToDstGlobalUnicast"
+)
+
+var (
+	physicalInt1 = ""
+)
+
+type Data struct {
+	port   string
+	ipAddr string
+}
+
+var portData = []Data{}
+
+func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, interfaces := range interfaceList {
+		t.Logf("configureDUTLinkLocalInterface - %s", interfaces.attr.Name)
+		time.Sleep(1 * time.Second)
+		Intf := interfaces.attr.NewOCInterface(interfaces.intf, dut)
+		if interfaces.attr.Desc == "Management" {
+			Intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		}
+		if interfaces.attr.Desc == "BundleInt" {
+			Intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		}
+		subInt := Intf.GetOrCreateSubinterface(0)
+		subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+		if interfaces.attr.Desc == "Management" {
+			subInt.GetOrCreateIpv4().GetOrCreateAddress(interfaces.attr.IPv4).SetPrefixLength(interfaces.attr.IPv4Len)
+			connectgribi(t, dut)
+			time.Sleep(20 * time.Second)
+		}
+		subInt.GetOrCreateIpv6().GetOrCreateAddress(interfaces.attr.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), Intf)
+	}
+}
+
+func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, interfaces := range interfaceList {
+		t.Logf("verifyInterfaceTelemetry - %s", interfaces.attr.Name)
+		conf := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Address(interfaces.attr.IPv6).Config())
+		if got, want := conf.GetIp(), interfaces.attr.IPv6; got != want {
+			t.Errorf("IP address config-path mismatch for port: %s, got: %s, want: %s", interfaces.intf, got, want)
+		}
+		if got, want := conf.GetType(), oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST; got != want {
+			t.Errorf("IP address type config-path mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+		}
+		if got, want := conf.GetPrefixLength(), interfaces.attr.IPv6Len; got != want {
+			t.Errorf("IP address prefix length config-path mismatch for port: %s, got: %d, want: %d", interfaces.intf, got, want)
+		}
+
+		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Enabled().Config()), true; got != want {
+			t.Errorf("IPv6 subinterface status config-path mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+		}
+
+		state := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Address(interfaces.attr.IPv6).State())
+		if got, want := state.GetIp(), interfaces.attr.IPv6; got != want {
+			t.Errorf("IP address state mismatch for port: %s, got: %s, want: %s", interfaces.intf, got, want)
+		}
+		if got, want := state.GetType(), oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST; got != want {
+			t.Errorf("IP address type state mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+		}
+		if got, want := state.GetPrefixLength(), interfaces.attr.IPv6Len; got != want {
+			t.Errorf("IP address prefix length state mismatch for port: %s, got: %d, want: %d", interfaces.intf, got, want)
+		}
+
+		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Enabled().State()), true; got != want {
+			t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+		}
+	}
+}
+
+func configureDUTGlobalIPv6(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, pd := range portData {
+		addr := &oc.Interface_Subinterface_Ipv6_Address{
+			Ip:           ygot.String(pd.ipAddr),
+			PrefixLength: ygot.Uint8(globalIPv6Len),
+		}
+		gnmi.Update(t, dut, gnmi.OC().Interface(pd.port).Subinterface(0).Ipv6().Address(pd.ipAddr).Config(), addr)
+
+		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(pd.port).Subinterface(0).Ipv6().Address(pd.ipAddr).State(), 30*time.Second, func(val *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+			v, present := val.Val()
+			return present && v.GetType() == oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST && v.GetPrefixLength() == globalIPv6Len && v.GetIp() == pd.ipAddr
+		}).Await(t); !ok {
+			t.Errorf("Couldn't configure Global Unicast IPv6 on port: %s", pd.port)
+		}
+	}
+}
+
+func deleteDUTGlobalIPv6(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, pd := range portData {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(pd.port).Subinterface(0).Ipv6().Address(pd.ipAddr).Config())
+	}
+}
+
+func deleteDUTLocalIPv6(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, interfaces := range interfaceList {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Address(interfaces.attr.IPv6).Config())
+	}
+}
+
+func triggerDUTLocalInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, pd := range portData {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(pd.port).Enabled().Config(), false)
+		gnmi.Await(t, dut, gnmi.OC().Interface(pd.port).Enabled().State(), 60*time.Second, false)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(pd.port).Enabled().Config(), true)
+	}
+}
+
+func testInterfacetypeanyOnChange(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, interfaces := range interfaceList {
+		t.Logf("configure inetrafce %s", interfaces.intf)
+		intftype := oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if interfaces.attr.Desc == "BundleInt" {
+			intftype = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		}
+		// else {
+		// 	intftype = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		// }
+		gnmi.Update(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), &oc.Interface{
+			Name: ygot.String(interfaces.intf),
+			Type: intftype,
+		})
+	}
+	gotCount := 0
+	watcher := gnmi.WatchAll(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().AddressAny().State(),
+		time.Minute,
+		func(value *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+			ip, present := value.Val()
+			fmt.Printf("**val :%v\n", value)
+			if !present {
+				return false
+			}
+			if len(value.Path.Elem) < 2 {
+				t.Fatalf("Got erroneous path: %v", value.Path.String())
+			}
+			intf, ok := value.Path.Elem[1].Key["name"]
+			if !ok {
+				t.Fatalf("Got erroneous path: %v", value.Path.String())
+			}
+			t.Logf("intf - %s", intf)
+			t.Logf("ip - %s", ip.GetIp())
+			if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" || ip.GetIp() == "fe80::5" {
+				gotCount += 1
+				t.Logf("Interface %s id updated to target value %v", intf, ip.GetIp())
+			}
+			return gotCount == len(interfaceList)-1
+		})
+
+	configureDUTLinkLocalInterface(t, dut)
+
+	_, gotall := watcher.Await(t)
+
+	if !gotall {
+		t.Fatalf("Did not receive all values an interfacegot %v want %v", gotCount, len(interfaceList))
+	}
+}
+
+func connectgribi(t *testing.T, dut *ondatra.DUTDevice) {
+
+	client := gribi.Client{
+		DUT:                   dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	defer client.Close(t)
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	for {
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		} else {
+			t.Logf("gRIBI Connection established")
+			break
+		}
+		time.Sleep(2 * time.Minute)
+	}
+
+}
+
+func edt(t *testing.T, dut *ondatra.DUTDevice) {
+	gotCount := 0
+	watcher := gnmi.WatchAll(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().AddressAny().State(),
+		time.Minute,
+		func(value *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+			ip, present := value.Val()
+			fmt.Printf("**val :%v\n", value)
+			if !present {
+				return false
+			}
+			if len(value.Path.Elem) < 2 {
+				t.Fatalf("Got erroneous path: %v", value.Path.String())
+			}
+			intf, ok := value.Path.Elem[1].Key["name"]
+			if !ok {
+				t.Fatalf("Got erroneous path: %v", value.Path.String())
+			}
+			t.Logf("intf - %s", intf)
+			t.Logf("ip - %s", ip.GetIp())
+			if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" || ip.GetIp() == "fe80::5" {
+				gotCount += 1
+				t.Logf("Interface %s id updated to target value %v", intf, ip.GetIp())
+			}
+			return gotCount == len(interfaceList)-1
+		})
+	_, gotall := watcher.Await(t)
+	if !gotall {
+		t.Fatalf("Did not receive all values an interfacegot %v want %v", gotCount, len(interfaceList))
+	}
+
+}
+
+func TestIPv6LinkLocal(t *testing.T) {
+
+	dut := ondatra.DUT(t, "dut")
+	physicalInt1 = dut.Port(t, "port1").Name()
+	interfaceList = []InterfaceInfo{
+
+		{
+			name: "BundlelInt",
+			intf: "Bundle-Ether120",
+			attr: beInt,
+		},
+		{
+			name: "PhysicalInt",
+			intf: physicalInt1,
+			attr: phyInt,
+		},
+		// {
+		// 	name: "ManagementInt",
+		// 	intf: "MgmtEth0/RP0/CPU0/0",
+		// 	attr: mgmtInt,
+		// },
+		{
+			name: "BundlelInt",
+			intf: "Bundle-Ether121",
+			attr: beInt1,
+		},
+	}
+	portData = []Data{
+		{
+			port:   physicalInt1,
+			ipAddr: srcDUTGlobalIPv6,
+		},
+		{
+			port:   "Bundle-Ether120",
+			ipAddr: srcDUTGlobalIPv6,
+		},
+	}
+
+	t.Run("Configure Local Unicast IPv6 and verify", func(t *testing.T) {
+		gotCount := 0
+		watcher := gnmi.WatchAll(t,
+			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+			gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().AddressAny().State(),
+			time.Minute,
+			func(value *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
+				ip, present := value.Val()
+				fmt.Printf("**val :%v\n", value)
+				if !present {
+					return false
+				}
+				if len(value.Path.Elem) < 2 {
+					t.Fatalf("Got erroneous path: %v", value.Path.String())
+				}
+				intf, ok := value.Path.Elem[1].Key["name"]
+				if !ok {
+					t.Fatalf("Got erroneous path: %v", value.Path.String())
+				}
+				t.Logf("intf - %s", intf)
+				t.Logf("ip - %s", ip.GetIp())
+				if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" || ip.GetIp() == "fe80::5" {
+					gotCount += 1
+					t.Logf("Interface %s id updated to target value %v", intf, ip.GetIp())
+				}
+				return gotCount == len(interfaceList)-1
+			})
+
+		configureDUTLinkLocalInterface(t, dut)
+
+		_, gotall := watcher.Await(t)
+
+		if !gotall {
+			t.Fatalf("Did not receive all values an interfacegot %v want %v", gotCount, len(interfaceList))
+		}
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+		t.Run("Interface Telemetry", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+	})
+
+	t.Run("Delete and Addition Local Unicast IPv6", func(t *testing.T) {
+		edt(t, dut)
+		deleteDUTLocalIPv6(t, dut)
+		configureDUTLinkLocalInterface(t, dut)
+
+		t.Run("Interface Telemetry", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+	})
+
+	t.Run("Configure And Delete Global Unicast IPv6", func(t *testing.T) {
+		edt(t, dut)
+		configureDUTGlobalIPv6(t, dut)
+		deleteDUTGlobalIPv6(t, dut)
+		t.Run("Interface Telemetry", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+	})
+
+	t.Run("Disable and Enable Ports", func(t *testing.T) {
+		edt(t, dut)
+		triggerDUTLocalInterfaces(t, dut)
+		t.Run("Interface Telemetry", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+	})
+
+	t.Run("Update LLA IPv6", func(t *testing.T) {
+		edt(t, dut)
+		IPv6 := "fe80::1"
+		configureDUTLinkLocalInterface(t, dut)
+		for _, interfaces := range interfaceList {
+			Intf := &oc.Interface{Name: ygot.String(interfaces.intf)}
+			if interfaces.attr.Desc == "BundleInt" {
+				Intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+			} else {
+				Intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			}
+			subInt := Intf.GetOrCreateSubinterface(0)
+			if interfaces.attr.Desc == "Management" {
+				subInt.GetOrCreateIpv4().GetOrCreateAddress(interfaces.attr.IPv4).SetPrefixLength(interfaces.attr.IPv4Len)
+				time.Sleep(20 * time.Second)
+			}
+			subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetPrefixLength(128)
+			subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), Intf)
+		}
+
+		t.Run("Verify Telemetry", func(t *testing.T) {
+			for _, interfaces := range interfaceList {
+				conf := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Address(IPv6).Config())
+				if got, want := conf.GetIp(), IPv6; got != want {
+					t.Errorf("IP address config-path mismatch for port: %s, got: %s, want: %s", interfaces.intf, got, want)
+				}
+				if got, want := conf.GetType(), oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST; got != want {
+					t.Errorf("IP address type config-path mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+				}
+				if got, want := conf.GetPrefixLength(), interfaces.attr.IPv6Len; got != want {
+					t.Errorf("IP address prefix length config-path mismatch for port: %s, got: %d, want: %d", interfaces.intf, got, want)
+				}
+
+				if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Enabled().Config()), true; got != want {
+					t.Errorf("IPv6 subinterface status config-path mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+				}
+
+				state := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Address(IPv6).State())
+				if got, want := state.GetIp(), IPv6; got != want {
+					t.Errorf("IP address state mismatch for port: %s, got: %s, want: %s", interfaces.intf, got, want)
+				}
+				if got, want := state.GetType(), oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST; got != want {
+					t.Errorf("IP address type state mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+				}
+				if got, want := state.GetPrefixLength(), interfaces.attr.IPv6Len; got != want {
+					t.Errorf("IP address prefix length state mismatch for port: %s, got: %d, want: %d", interfaces.intf, got, want)
+				}
+
+				if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Enabled().State()), true; got != want {
+					t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", interfaces.intf, got, want)
+				}
+			}
+		})
+
+	})
+
+	t.Run("Verify LLA continues to work after ipv6_nd process restart.", func(t *testing.T) {
+		ctx := context.Background()
+		configureDUTLinkLocalInterface(t, dut)
+
+		t.Run("Interface Telemetry check before Process restart", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+
+		config.CMDViaGNMI(ctx, t, dut, "process restart ipv6_nd location 0/2/CPU0")
+		time.Sleep(time.Second * 10)
+
+		connectgribi(t, dut)
+
+		t.Run("Interface Telemetry check after Process restart", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+
+	})
+
+	t.Run("Configure Local Unicast IPv6 and verify and EDT", func(t *testing.T) {
+		testInterfacetypeanyOnChange(t, dut)
 	})
 }

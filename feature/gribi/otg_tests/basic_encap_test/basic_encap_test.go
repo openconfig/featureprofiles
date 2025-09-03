@@ -77,13 +77,13 @@ const (
 	dscpEncapB1        = 20
 	dscpEncapB2        = 28
 	dscpEncapNoMatch   = 30
-	magicIp            = "192.168.1.1"
+	magicIP            = "192.168.1.1"
 	magicMac           = "02:00:00:00:00:01"
 	tunnelDstIP1       = "203.0.113.1"
 	tunnelDstIP2       = "203.0.113.2"
 	ipv4OuterSrc111    = "198.51.100.111"
 	ipv4OuterSrc222    = "198.51.100.222"
-	ipv4OuterSrcIpInIp = "198.100.200.123"
+	ipv4OuterSrcIPInIP = "198.100.200.123"
 	vipIP1             = "192.0.2.111"
 	vipIP2             = "192.0.2.222"
 	innerV4DstIP       = "198.18.1.1"
@@ -95,7 +95,7 @@ const (
 	ipv4EntryPrefixLen = 24
 	ipv6FlowIP         = "2015:aa8::1"
 	ipv6EntryPrefix    = "2015:aa8::"
-	ipv6EntryPrefixLen = 32
+	ipv6EntryPrefixLen = 64
 	ratioTunEncap1     = 0.25 // 1/4
 	ratioTunEncap2     = 0.75 // 3/4
 	ratioTunEncapTol   = 0.05 // 5/100
@@ -209,9 +209,9 @@ var (
 	}
 
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.21",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort2",
+		IPv4Sec:    "192.0.2.21",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort2DummyIP = attrs.Attributes{
@@ -221,9 +221,9 @@ var (
 	}
 
 	dutPort3DummyIP = attrs.Attributes{
-		Desc:    "dutPort3",
-		IPv4:    "192.0.2.25",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort3",
+		IPv4Sec:    "192.0.2.25",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort3DummyIP = attrs.Attributes{
@@ -233,9 +233,9 @@ var (
 	}
 
 	dutPort4DummyIP = attrs.Attributes{
-		Desc:    "dutPort4",
-		IPv4:    "192.0.2.29",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort4",
+		IPv4Sec:    "192.0.2.29",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort4DummyIP = attrs.Attributes{
@@ -245,9 +245,9 @@ var (
 	}
 
 	dutPort5DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
-		IPv4:    "192.0.2.33",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.33",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort5DummyIP = attrs.Attributes{
@@ -304,7 +304,7 @@ var (
 		topo:     gosnappi.NewConfig(),
 	}
 	faIPinIP = flowAttr{
-		src:      ipv4OuterSrcIpInIp,
+		src:      ipv4OuterSrcIPInIP,
 		dst:      ipv4FlowIP,
 		srcMac:   otgPort1.MAC,
 		dstMac:   dutPort1.MAC,
@@ -347,9 +347,11 @@ func TestBasicEncap(t *testing.T) {
 	}
 
 	defer c.Close(t)
+	// flush all AFT entries after test
+	defer c.FlushAll(t)
 	c.BecomeLeader(t)
 
-	// Flush all existing AFT entries on the router
+	// flush all existing AFT entries on the router
 	c.FlushAll(t)
 
 	programEntries(t, dut, &c)
@@ -364,7 +366,7 @@ func TestBasicEncap(t *testing.T) {
 	}{
 		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -372,7 +374,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("Test2 IPv6 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -380,7 +382,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:  fmt.Sprintf("Test3 IPinIP Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows: []gosnappi.Flow{faIPinIP.getFlow("ipv4in4", "ip4in4a1", dscpEncapA1),
 				faIPinIP.getFlow("ipv6in4", "ip6in4a1", dscpEncapA1),
 			},
@@ -390,7 +392,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("No Match Dscp %d Traffic", dscpEncapNoMatch),
-			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch},
+			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4nm", dscpEncapNoMatch)},
 			weights:            noMatchWeight,
 			capturePorts:       otgDstPorts[:1],
@@ -418,7 +420,7 @@ func TestBasicEncap(t *testing.T) {
 				t.Log("Start capture and send traffic")
 				sendTraffic(t, tcArgs, tc.flows, true)
 				t.Log("Validate captured packet attributes")
-				var tunCounter = validatePacketCapture(t, tcArgs, tc.capturePorts, &tc.pattr)
+				tunCounter := validatePacketCapture(t, tcArgs, tc.capturePorts, &tc.pattr)
 				if tc.validateEncapRatio {
 					validateTunnelEncapRatio(t, tunCounter)
 				}
@@ -429,7 +431,7 @@ func TestBasicEncap(t *testing.T) {
 					t.Log("Start capture and send traffic")
 					sendTraffic(t, tcArgs, tc.flows, true)
 					t.Log("Validate captured packet attributes")
-					var tunCounter = validatePacketCapture(t, tcArgs, []string{port}, &tc.pattr)
+					tunCounter := validatePacketCapture(t, tcArgs, []string{port}, &tc.pattr)
 					if tc.validateEncapRatio {
 						validateTunnelEncapRatio(t, tunCounter)
 					}
@@ -448,7 +450,7 @@ func TestBasicEncap(t *testing.T) {
 // interface (clusterFacing = false)
 func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	vrfDefault := deviations.DefaultNetworkInstance(dut)
-	var pbrRules = []pbrRule{
+	pbrRules := []pbrRule{
 		{
 			sequence:    1,
 			protocol:    ipipProtocol,
@@ -531,7 +533,7 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 		},
 	}
 
-	var encapRules = []pbrRule{
+	encapRules := []pbrRule{
 		{
 			sequence: 13,
 			dscpSet:  []uint8{dscpEncapA1, dscpEncapA2},
@@ -554,14 +556,14 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 		},
 	}
 
-	var defaultClassRule = []pbrRule{
+	defaultClassRule := []pbrRule{
 		{
 			sequence: 17,
 			encapVrf: vrfDefault,
 		},
 	}
 
-	var splitDefaultClassRules = []pbrRule{
+	splitDefaultClassRules := []pbrRule{
 		{
 			sequence:  17,
 			etherType: ethertypeIPv4,
@@ -577,8 +579,6 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	if clusterFacing {
 		pbrRules = append(pbrRules, encapRules...)
 	}
-
-	pbrRules = append(pbrRules, splitDefaultClassRules...)
 
 	if deviations.PfRequireMatchDefaultRule(dut) {
 		pbrRules = append(pbrRules, splitDefaultClassRules...)
@@ -698,7 +698,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	portList := []*ondatra.Port{p2, p3, p4, p5}
 	for idx, p := range portList {
 		s := &oc.NetworkInstance_Protocol_Static{
-			Prefix: ygot.String(magicIp + "/32"),
+			Prefix: ygot.String(magicIP + "/32"),
 			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
 				strconv.Itoa(idx): {
 					Index: ygot.String(strconv.Itoa(idx)),
@@ -709,8 +709,8 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		}
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.BatchUpdate(sb, sp.Static(magicIp+"/32").Config(), s)
-		gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIp, magicMac))
+		gnmi.BatchUpdate(sb, sp.Static(magicIP+"/32").Config(), s)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIP, magicMac))
 	}
 	sb.Set(t, dut)
 }
@@ -731,13 +731,13 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 		p4 := dut.Port(t, "port4")
 		p5 := dut.Port(t, "port5")
 		nh1, op1 := gribi.NHEntry(nh10ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
-			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p2.Name(), Mac: magicMac, Dest: magicIp})
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p2.Name(), Mac: magicMac, Dest: magicIP})
 		nh2, op2 := gribi.NHEntry(nh11ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
-			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p3.Name(), Mac: magicMac, Dest: magicIp})
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p3.Name(), Mac: magicMac, Dest: magicIP})
 		nh3, op3 := gribi.NHEntry(nh100ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
-			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p4.Name(), Mac: magicMac, Dest: magicIp})
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p4.Name(), Mac: magicMac, Dest: magicIP})
 		nh4, op4 := gribi.NHEntry(nh101ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
-			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p5.Name(), Mac: magicMac, Dest: magicIp})
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p5.Name(), Mac: magicMac, Dest: magicIP})
 		nhg1, op5 := gribi.NHGEntry(nhg2ID, map[uint64]uint64{nh10ID: 1, nh11ID: 3},
 			deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 		nhg2, op6 := gribi.NHGEntry(nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3},
@@ -791,11 +791,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5} {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
-		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO {
+		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
 			e := intf.GetOrCreateEthernet()
-			e.AutoNegotiate = ygot.Bool(false)
-			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-			e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+			if !deviations.AutoNegotiateUnsupported(dut) {
+				e.AutoNegotiate = ygot.Bool(false)
+			}
+			if !deviations.DuplexModeUnsupported(dut) {
+				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+			}
+			if !deviations.PortSpeedUnsupported(dut) {
+				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+			}
 		}
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
 	}
@@ -803,6 +809,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// configure base PBF policies and network-instances
 	configureBaseconfig(t, dut)
 
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p5.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 	// apply PBF to src interface.
 	applyForwardingPolicy(t, dut, p1.Name())
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
@@ -845,7 +858,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgPort4.AddToOTG(topo, p4, &dutPort4)
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
 
-	pmd100GFRPorts := []string{}
+	var pmd100GFRPorts []string
 	for _, p := range topo.Ports().Items() {
 		port := ate.Port(t, p.Name())
 		if port.PMD() == ondatra.PMD100GBASEFR {
@@ -918,6 +931,7 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 			innerV4 := flow.Packet().Add().Ipv4()
 			innerV4.Src().SetValue(innerV4SrcIP)
 			innerV4.Dst().SetValue(innerV4DstIP)
+			innerV4.Priority().Dscp().Phb().SetValue(dscp)
 		}
 
 		// add inner ipv6 headers
@@ -925,6 +939,7 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 			innerV6 := flow.Packet().Add().Ipv6()
 			innerV6.Src().SetValue(InnerV6SrcIP)
 			innerV6.Dst().SetValue(InnerV6DstIP)
+			innerV6.TrafficClass().SetValue(dscp << 2)
 		}
 	} else if flowType == "ipv6" {
 		v6 := flow.Packet().Add().Ipv6()
@@ -945,8 +960,13 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
+
 	otg.PushConfig(t, args.topo)
 	otg.StartProtocols(t)
+
+	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv4")
+	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv6")
+
 	if capture {
 		startCapture(t, args.ate)
 		defer stopCapture(t, args.ate)
@@ -1046,11 +1066,9 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
 					break
 				}
-				if !deviations.TTLCopyUnsupported(args.dut) {
-					if got := uint32(v4Packet.TTL); got != pa.ttl {
-						t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-						break
-					}
+				if got := uint32(v4Packet.TTL); got != pa.ttl {
+					t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
+					break
 				}
 				if v4Packet.DstIP.String() == tunnelDstIP1 {
 					tunnel1Pkts++

@@ -19,6 +19,8 @@ package authz
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"crypto/tls"
 	"encoding/json"
@@ -29,6 +31,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -69,6 +73,44 @@ type Rule struct {
 	} `json:"request"`
 }
 
+type GrpcAuthzPolicy struct {
+	GrpcAuthzPolicyCreatedOn uint64
+	GrpcAuthzPolicyVersion   string
+}
+
+func getPolicyFromOcPath(t *testing.T, dut *ondatra.DUTDevice) (GrpcAuthzPolicy, error) {
+
+	policy := GrpcAuthzPolicy{
+		GrpcAuthzPolicyCreatedOn: 0,
+		GrpcAuthzPolicyVersion:   "",
+	}
+
+	// Perform a gNMI Get or Subscribe to retrieve the policy data
+	createdOn := gnmi.Get(t, dut, gnmi.OC().System().Aaa().Authorization().GrpcAuthzPolicyCreatedOn().State())
+	// if err != nil {
+	// 	return policy, fmt.Errorf("failed to retrieve GrpcAuthzPolicyCreatedOn: %v", err)
+	// }
+	version := gnmi.Get(t, dut, gnmi.OC().System().Aaa().Authorization().GrpcAuthzPolicyVersion().State())
+	// if err != nil {
+	// 	return policy, fmt.Errorf("failed to retrieve GrpcAuthzPolicyCreatedOn: %v", err)
+	// }
+
+	policy.GrpcAuthzPolicyCreatedOn = createdOn
+	policy.GrpcAuthzPolicyVersion = version
+
+	return policy, nil
+}
+
+func verifyPolicySame(t *testing.T, policy1, policy2 GrpcAuthzPolicy) {
+	if policy1.GrpcAuthzPolicyCreatedOn != policy2.GrpcAuthzPolicyCreatedOn {
+		t.Fatalf("Policy Created On mismatch: policy1=%d, policy2=%d", policy1.GrpcAuthzPolicyCreatedOn, policy2.GrpcAuthzPolicyCreatedOn)
+	}
+
+	if policy1.GrpcAuthzPolicyVersion != policy2.GrpcAuthzPolicyVersion {
+		t.Fatalf("Policy Version mismatch: policy1=%s, policy2=%s", policy1.GrpcAuthzPolicyVersion, policy2.GrpcAuthzPolicyVersion)
+	}
+}
+
 func createRule(name string, users []string, rpcs []*gnxi.RPC) Rule {
 	rule := Rule{Name: name}
 	for _, rpc := range rpcs {
@@ -103,6 +145,10 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
+	policyExpected := GrpcAuthzPolicy{
+		GrpcAuthzPolicyCreatedOn: createdOn * 1e9, // after xr bug CSCwo81858 - convert to nanoseconds
+		GrpcAuthzPolicyVersion:   version,
+	}
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
@@ -138,12 +184,29 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	if !cmp.Equal(p, tempPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, tempPolicy))
 	}
+	if len(tempPolicy.DenyRules) > 0 && tempPolicy.DenyRules[0].Name != "no-one-can-gnmi" {
+		policyBeforeFinalize, getPolicyErr := getPolicyFromOcPath(t, dut)
+		if getPolicyErr != nil {
+			t.Fatalf("failed to get policy created-on/version from device: %v", err)
+		}
+		verifyPolicySame(t, policyExpected, policyBeforeFinalize)
+	}
+
 	finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
 	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
 	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%s", prettyPrint(finalizeRotateReq))
 	if err != nil {
 		t.Fatalf("Error while finalizing rotate request  %v", err)
 	}
+
+	if len(tempPolicy.DenyRules) > 0 && tempPolicy.DenyRules[0].Name != "no-one-can-gnmi" {
+		policyAfterFinalize, getPolicyErr := getPolicyFromOcPath(t, dut)
+		if getPolicyErr != nil {
+			t.Fatalf("failed to get policy created-on/version from device: %v", err)
+		}
+		verifyPolicySame(t, policyExpected, policyAfterFinalize)
+	}
+
 	_, finalPolicy := Get(t, dut)
 	if !cmp.Equal(p, finalPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, finalPolicy))
@@ -216,9 +279,98 @@ type HardVerify struct {
 func (o *ExceptDeny) isVerifyOpt() {}
 func (o *HardVerify) isVerifyOpt() {}
 
+// GrpcCounter stores the values of the gNMI OpenConfig counters.
+type GrpcCounter struct {
+	AccessAccepts    uint64
+	AccessRejects    uint64
+	LastAccessAccept uint64
+	LastAccessReject uint64
+}
+
+// Fetch fetches the gNMI OpenConfig counter paths for AuthzPolicyCounters and populates the GrpcCounter struct.
+func (c *GrpcCounter) FetchUpdate(t *testing.T, dut *ondatra.DUTDevice, grpcServerName, rpcPath string) error {
+	// Define a map of paths and corresponding struct fields
+	paths := map[string]uint64{
+		"AccessAccepts":    c.AccessAccepts,
+		"AccessRejects":    c.AccessRejects,
+		"LastAccessAccept": c.LastAccessAccept,
+		"LastAccessReject": c.LastAccessReject,
+	}
+
+	// Define the function to construct the path dynamically
+	getPath := func(counterName string) ygnmi.SingletonQuery[uint64] {
+		switch counterName {
+		case "AccessAccepts":
+			return gnmi.OC().System().GrpcServer(grpcServerName).AuthzPolicyCounters().Rpc(rpcPath).AccessAccepts().State()
+		case "AccessRejects":
+			return gnmi.OC().System().GrpcServer(grpcServerName).AuthzPolicyCounters().Rpc(rpcPath).AccessRejects().State()
+		case "LastAccessAccept":
+			return gnmi.OC().System().GrpcServer(grpcServerName).AuthzPolicyCounters().Rpc(rpcPath).LastAccessAccept().State()
+		case "LastAccessReject":
+			return gnmi.OC().System().GrpcServer(grpcServerName).AuthzPolicyCounters().Rpc(rpcPath).LastAccessReject().State()
+		default:
+			return nil // Handle unexpected counter names
+		}
+	}
+
+	// / Iterate over the map to perform lookups
+	for counterName := range paths {
+		path := getPath(counterName)
+		result := gnmi.Lookup(t, dut, path)
+
+		value, present := result.Val()
+		if !present {
+			return nil
+			// return fmt.Errorf("value for %s not present", counterName)
+		}
+
+		switch counterName {
+		case "AccessAccepts":
+			c.AccessAccepts = value
+		case "AccessRejects":
+			c.AccessRejects = value
+		case "LastAccessAccept":
+			c.LastAccessAccept = value
+		case "LastAccessReject":
+			c.LastAccessReject = value
+		default:
+			return fmt.Errorf("wrong leaf: %v : dummy value %v", counterName, value)
+		}
+
+	}
+
+	return nil
+}
+
+// CompareDiff checks if the difference between the current grpcCounter and another grpcCounter
+// matches the expected grpcCounter difference for AccessAccepts and AccessRejects.
+// It also ensures LastAccessAccept and LastAccessReject in the other grpcCounter are >= the current instance.
+func (counter1 GrpcCounter) CompareDiff(t testing.TB, counter2, expectedDiff GrpcCounter) (GrpcCounter, bool) {
+	actualDiff := GrpcCounter{
+		AccessAccepts: counter2.AccessAccepts - counter1.AccessAccepts,
+		AccessRejects: counter2.AccessRejects - counter1.AccessRejects,
+	}
+
+	t.Logf("DIFF: %v", actualDiff)
+
+	// Check if AccessAccepts and AccessRejects differences match
+	if actualDiff.AccessAccepts != expectedDiff.AccessAccepts || actualDiff.AccessRejects != expectedDiff.AccessRejects {
+		return actualDiff, false
+	}
+
+	// Ensure LastAccessAccept and LastAccessReject in counter2 are greater than or equal to counter1
+	if counter2.LastAccessAccept < counter1.LastAccessAccept || counter2.LastAccessReject < counter1.LastAccessReject {
+		return actualDiff, false
+	}
+
+	return actualDiff, true
+}
+
 // Verify uses prob to validate if the user access for a certain rpc is expected.
-// It also execute the rpc when HardVerif is passed and verifies if it matches the expectation.
+// If HardVerify is passed, it also executes the RPC and verifies if it matches the expectation.
 func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...verifyOpt) {
+	t.Logf("RPC: %v", rpc)
+
 	expectedRes := authzpb.ProbeResponse_ACTION_PERMIT
 	expectedExecErr := codes.OK
 	hardVerify := false
@@ -228,34 +380,141 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			expectedRes = authzpb.ProbeResponse_ACTION_DENY
 			expectedExecErr = codes.PermissionDenied
 		case *HardVerify:
-			hardVerify = true
+			hardVerify = false
 		default:
 			t.Errorf("Invalid option is passed to Verify function: %T", opt)
 		}
 	}
+
+	counterBefore := GrpcCounter{}
+	_, tempPolicy := Get(t, dut)
+	if !strings.Contains(spiffe.ID, "deny-all") {
+		if len(tempPolicy.DenyRules) > 0 && tempPolicy.DenyRules[0].Name != "no-one-can-gnmi" {
+			if rpc == gnxi.RPCs.GnsiAuthzProbe {
+				t.Logf("Probe")
+			}
+			data := gnmi.LookupAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
+			sysGrpcServerName, pres := data[0].Val()
+			if !pres {
+				t.Fatalf("Got nil system grpc server data")
+			}
+
+			if tConcrete, ok := t.(*testing.T); ok {
+				err := counterBefore.FetchUpdate(tConcrete, dut, sysGrpcServerName.GetName(), rpc.Path)
+				t.Logf("counterBefore: %v", counterBefore)
+
+				if err != nil {
+					t.Fatalf("Failed to fetch update: %v", err)
+				}
+			} else {
+				t.Fatalf("Expected *testing.T, got %T", t)
+			}
+		}
+	}
+
+	// Dial the GNSI service on the DUT
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
+
+	// Perform the Probe RPC to check authorization
 	resp, err := gnsiC.Authz().Probe(context.Background(), &authzpb.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path})
 	if err != nil {
 		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authzpb.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path}), dut.Name())
 	}
 
+	// Check if the Probe response matches the expected result
 	if resp.GetAction() != expectedRes {
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", spiffe.ID, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
+	retryCount := 0
+
+	// If HardVerify is enabled, execute the RPC and verify the result
 	if hardVerify {
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
-		err := rpc.Exec(context.Background(), dut, opts)
-		if status.Code(err) != expectedExecErr {
-			if status.Code(err) == codes.Unimplemented {
-				t.Fatalf("The execution of rpc %s is failed due to error %v, please add implementation for the rpc", rpc.Path, err)
-			}
-			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
-		}
-		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+		// Retry for 10 minutes. Each retry takes 30 sec. Total retry time = 30 * 20(maxRetries) = 600 sec
+		const maxRetries = 20
+		const retryInterval = 30 * time.Second
+		// Prepare a list of codes for which retry has to be attempted
+		// we get an "server not ready" Unavailable code after reboot
+		// incase, in future we have to retry for some other error codes , we can add that code to the list
+		retryCodeList := []codes.Code{codes.Unavailable}
+		retryCount = rpcExecuteWithRetry(t, dut, spiffe, rpc, opts, maxRetries, retryInterval, expectedExecErr, retryCodeList)
+
 	}
+	if !strings.Contains(spiffe.ID, "deny-all") {
+		// _, tempPolicy := Get(t, dut)
+		if len(tempPolicy.DenyRules) > 0 && tempPolicy.DenyRules[0].Name != "no-one-can-gnmi" {
+			expectedDiff := GrpcCounter{}
+
+			if rpc == gnxi.RPCs.GnsiAuthzProbe {
+				expectedDiff.AccessAccepts += 1
+			}
+			data := gnmi.LookupAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
+			sysGrpcServerName, pres := data[0].Val()
+			if !pres {
+				t.Fatalf("Got nil system grpc server data")
+			}
+
+			counterAfter := GrpcCounter{}
+			if tConcrete, ok := t.(*testing.T); ok {
+				err := counterAfter.FetchUpdate(tConcrete, dut, sysGrpcServerName.GetName(), rpc.Path)
+				t.Logf("counterAfter: %v", counterAfter)
+
+				if err != nil {
+					t.Fatalf("Failed to fetch update: %v", err)
+				}
+			} else {
+				t.Fatalf("Expected *testing.T, got %T", t)
+			}
+
+			if expectedRes == authzpb.ProbeResponse_ACTION_PERMIT {
+				expectedDiff.AccessAccepts += uint64(retryCount + 1)
+			}
+			if expectedRes == authzpb.ProbeResponse_ACTION_DENY {
+				expectedDiff.AccessRejects += uint64(retryCount + 1)
+			}
+
+			if gotDiff, ok := counterBefore.CompareDiff(t, counterAfter, expectedDiff); !ok {
+				t.Fatalf("Counter not matching for GRPC:%v Diff, Want: %v, Got: %v", rpc.Path, expectedDiff, gotDiff)
+			}
+		}
+	}
+}
+
+// Retries the execution of an RPC until it succeeds or the maximum number of retries is reached.
+// To handel this expected error "server not ready" after reboot case, retry with timeout is implemented
+func rpcExecuteWithRetry(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts []grpc.DialOption, maxRetries int, retryInterval time.Duration, expectedExecErr codes.Code, retryCodes []codes.Code) int {
+	retryCount := 0
+	ctx := context.Background()
+	err := rpc.Exec(ctx, dut, opts)
+	// Retry the RPC execution if the error code is in the retryCodes list untill maxRetries reached
+	// loop breaks if we get another code other than retryCodes list or reach maxRetries
+	for containsCode(status.Code(err), retryCodes) && retryCount < maxRetries {
+		t.Logf("The execution of rpc %s failed for %d retries due to not ready: %v", rpc.Path, retryCount+1, err)
+		time.Sleep(retryInterval)
+		err = rpc.Exec(ctx, dut, opts)
+		retryCount++
+	}
+	// If the maximum number of retries is reached and the error code is still not the expected one, fail the test
+	if status.Code(err) != expectedExecErr {
+		t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+	} else {
+		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+		return retryCount
+	}
+	return retryCount
+}
+
+// Checks if a given code is in the list of retry codes.
+func containsCode(code codes.Code, retryCodes []codes.Code) bool {
+	for _, c := range retryCodes {
+		if c == code {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadPolicyFromJSONFile Loads Policy from a JSON File.

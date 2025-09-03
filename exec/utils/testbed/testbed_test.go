@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -29,11 +30,14 @@ func TestShowVersion(t *testing.T) {
 		"show version",
 		"show install fixes active",
 		"show platform",
+		"show inventory",
 		"show context",
-		"show running-config",
+		"terminal length 0\nshow running-config",
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
 	dut := ondatra.DUT(t, "dut")
 	sshClient := dut.RawAPIs().CLI(t)
 

@@ -597,15 +597,20 @@ func processRestart(t *testing.T, dut *ondatra.DUTDevice) {
 	config.CMDViaGNMI(context.Background(), t, dut, cli)
 	time.Sleep(60 * time.Second)
 }
+
 func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []byte, asciiVal string) {
+	// variable to store the JSON data
 	var telemetrySystem map[string]interface{}
-	err := json.Unmarshal(jsonietfVal, &telemetrySystem)
-	if err != nil {
-		t.Errorf("Error: %v", err)
+	if err := json.Unmarshal(jsonietfVal, &telemetrySystem); err != nil {
+		t.Fatalf("Error unmarshaling JSON: %v", err)
 	}
+
+	t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
+
+	// Check if the expected key exists and safely access it
 	telemetrySystemValue, ok := telemetrySystem["openconfig-telemetry:telemetry-system"]
 	if !ok {
-		t.Errorf("Key 'openconfig-telemetry:telemetry-system' not found in the JSON. Err: %v", ok)
+		t.Fatalf("Key 'openconfig-telemetry:telemetry-system' not found in the JSON. Err: %v", ok)
 	}
 	jsonVal, err := json.Marshal(telemetrySystemValue)
 	if err != nil {
@@ -636,7 +641,7 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 		},
 	}}
 	setReq := &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: []*gpb.Update{occonfig[0], nyconfig[0]}}
-	log.V(1).Infof("SetResponse:\n%s", prototext.Format(setReq))
+	log.V(1).Infof("SetRequest:\n%s", prototext.Format(setReq))
 	_, err = gnmiC.Set(context.Background(), setReq)
 	if err != nil {
 		t.Errorf("Error while set union replace with oc+ny combination %v", err)
@@ -646,17 +651,17 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 			{Name: "telemetry-system"}}},
 	}
 	sam := &gpb.GetRequest{Path: path, Type: gpb.GetRequest_CONFIG, Encoding: gpb.Encoding_JSON_IETF}
-	getres, err := gnmiC.Get(context.Background(), sam)
-	if err != nil {
-		t.Errorf("Error while set union replace with oc+ny combination %v", err)
+	getResp, err := gnmiC.Get(context.Background(), sam)
+	if getResp == nil || err != nil {
+		t.Fatalf("Error while get union replace with oc+ny combination %v", err)
 	}
 
-	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(getres))
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(getResp))
 
 	if err := json.Unmarshal(jsonVal, &telemetrySystem); err != nil {
 		t.Errorf("Error unmarshaling JSON1: %v", err)
 	}
-	if err := json.Unmarshal(getres.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal(), &telemetrySystem); err != nil {
+	if err := json.Unmarshal(getResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal(), &telemetrySystem); err != nil {
 		t.Errorf("Error unmarshaling JSON2: %v", err)
 	}
 
@@ -664,7 +669,7 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 	if !equal {
 		t.Errorf("The confugured telemetry data does not match data sent via Union Replace")
 		t.Logf("Union replace json %v", string(jsonVal))
-		t.Logf("Configured json %v", string(getres.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()))
+		t.Logf("Configured json %v", string(getResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()))
 	}
 }
 
@@ -780,6 +785,8 @@ func TestGnmiUnionReplace(t *testing.T) {
 	t.Run("Union Replace with OC and Native Yang config", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		baseConfig := baseConfig(t, dut)
+		t.Log("Base Config:", baseConfig)
+
 		cliBaseconfig := []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "cisco_cli",
@@ -794,18 +801,24 @@ func TestGnmiUnionReplace(t *testing.T) {
 		gpbReplaceReq := &gpb.SetRequest{Replace: cliBaseconfig}
 		//Replace with base config on the box
 		setRes, _ := dut.RawAPIs().GNMI(t).Set(context.Background(), gpbReplaceReq)
+		t.Logf("SetResponse for base config:\n%s", prototext.Format(setRes))
+
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(gpbReplaceReq))
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setRes))
 		var jsonietfVal []byte
+		t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
 		occliConfig, err := os.ReadFile("testdata/vrf.txt")
 		if err != nil {
 			panic(fmt.Sprintf("Cannot load base config: %v", err))
 		}
+		t.Log("OC CLI Config File Content:\n", string(occliConfig))
+
 		req := &gpb.SetRequest{}
 		prototext.Unmarshal(occliConfig, req)
 		replaceContents := req.Replace
 		for _, path := range replaceContents {
 			jsonietfVal = path.Val.GetJsonIetfVal()
+			t.Log("JSON IETF Value from Replace Contents:", string(jsonietfVal))
 		}
 
 		ocRoot := &oc.Root{}
@@ -832,9 +845,14 @@ func TestGnmiUnionReplace(t *testing.T) {
 
 		gotRes, _ := gnmiC.Get(context.Background(), inGetRequest)
 		cliJson := gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal()
+		t.Log("CLI JSON Response:", cliJson)
+
 		startIndex := strings.Index(cliJson, "{")
 		jsonString := cliJson[startIndex:]
-		jsonString = strings.Replace(jsonString, "[null]", "null", -1)
+		t.Log("Parsed JSON String:", jsonString)
+
+		jsonString = jsonString[:strings.LastIndex(jsonString, "}")+1]
+		t.Log("JSON String after removing character after }", jsonString)
 
 		var data map[string]interface{}
 		err = json.Unmarshal([]byte(jsonString), &data)
@@ -842,20 +860,19 @@ func TestGnmiUnionReplace(t *testing.T) {
 			t.Error("Error:", err)
 			return
 		}
-
+		t.Log("Unmarshalled Data:", data)
 		dataContent, ok := data["data"]
 		if !ok {
 			t.Errorf("Key 'data' not found in the JSON")
 		}
-
+		t.Log("Data Content:", dataContent)
 		extractedJSON, err := json.Marshal(dataContent)
 		if err != nil {
 			t.Errorf("Could not marshal data from json: %v", err)
 		}
-		t.Log(string(extractedJSON))
+		t.Log("Extracted JSON:", string(extractedJSON))
 
 		///////////new code here //////////
-		t.Log(dataContent)
 
 		nyconfig := []*gpb.Update{{
 			Path: &gpb.Path{
@@ -973,6 +990,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			configPath: "testdata/acl.txt",
 			checks:     aclValidator,
 		},
+		// TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 		{
 			configPath: "testdata/sflow.txt",
 			checks:     sflowValidator,
@@ -981,6 +999,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			configPath: "testdata/qos-egress.txt",
 			checks:     qosegressValidator,
 		},
+		// TODO https://wwwin-github.cisco.com/B4Test/featureprofiles/issues/1496
 		{
 			configPath: "testdata/interfaces.txt",
 			checks:     interfaceValidator,

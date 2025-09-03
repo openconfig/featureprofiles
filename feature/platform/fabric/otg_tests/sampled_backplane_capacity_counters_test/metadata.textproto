@@ -15,28 +15,6 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    explicit_interface_ref_definition: true
-    backplane_facing_capacity_unsupported: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
-    interface_enabled: true
-    explicit_port_speed: true
-    explicit_interface_in_default_vrf: true
-    qos_queue_requires_id: true
-    missing_value_for_defaults: true
-    backplane_facing_capacity_unsupported: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: ARISTA
   }
   deviations: {
@@ -44,4 +22,11 @@ platform_exceptions: {
     missing_value_for_defaults: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    oper_status_for_ic_unsupported: true
+  }
+}

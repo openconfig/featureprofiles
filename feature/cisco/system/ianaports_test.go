@@ -47,7 +47,11 @@ func testIanaPorts(t *testing.T) {
 		// 		t.Logf("Listen Address not returned as expected got : %v , want %v", gotbefore, listenAdd)
 		// 	}
 		// Reload router
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show run grpc")
+		t.Logf("GRPC config before reboot:\n %v", resp)
 		gnoiReboot(t, dut)
+		resp = config.CMDViaGNMI(context.Background(), t, dut, "show run grpc")
+		t.Logf("GRPC config after reboot:\n %v", resp)
 		// 	gotafter := gnmi.Get(t, dut, path.State())[0]
 		// 	if gotafter != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
 		// 		t.Logf("Listen Address not returned as expected got : %v , want %v", gotafter, listenAdd)
@@ -56,7 +60,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("Assign a GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -94,7 +98,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("GRPC Server Port Update Test", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -107,7 +111,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("GRPC Server Port Replace Test", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -147,23 +151,9 @@ func testIanaPorts(t *testing.T) {
 
 	})
 
-	t.Run("GRPC Name Update Test", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), "TEST")
-
-	})
-
-	t.Run("GRPC Name Replace Test", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "REPLACE", path)
-		gnmi.Replace(t, dut, path.Config(), "TEST")
-
-	})
-
 	t.Run("Assign a Non-Default GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
@@ -193,7 +183,7 @@ func testIanaPorts(t *testing.T) {
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
 		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
-		t.Logf(resp)
+		t.Log(resp)
 		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()

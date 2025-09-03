@@ -94,21 +94,41 @@ Once the ZR link is estabished proceed with the following:
         stream any invalid string values like "nil" or "-inf" until valid values
         are available for streaming.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/enabled
+```yaml
+paths:
+    # Configure parameter
+    /interfaces/interface/config/enabled:
+    # Telemetry Parameter coverage
+    /components/component/state/serial-no:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/state/part-no:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/state/type:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/state/description:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/state/mfg-name:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/state/mfg-date:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/state/hardware-version:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/state/firmware-version:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
 
-## Telemetry Parameter coverage
-
-*   /platform/components/component/state/serial-no
-*   /platform/components/component/state/part-no
-*   /platform/components/component/state/type
-*   /platform/components/component/state/description
-*   /platform/components/component/state/mfg-name
-*   /platform/components/component/state/mfg-date
-*   /platform/components/component/state/hardware-version
-*   /platform/components/component/state/firmware-version
-*   /components/component/optical-channel/state/output-power/instant
-*   /components/component/optical-channel/state/output-power/avg
-*   /components/component/optical-channel/state/output-power/min
-*   /components/component/optical-channel/state/output-power/max
+rpcs:
+    gnmi:
+        gNMI.Get:
+        gNMI.Set:
+        gNMI.Subscribe:
+```

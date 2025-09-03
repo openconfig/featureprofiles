@@ -76,7 +76,7 @@ class DUT(Device):
             if 'no-tls' in l: self.insecure = True
             if 'tls-mutual' in l: self.mtls = True
 
-            if 'port' in l: 
+            if 'port ' in l: 
                 for p in re.compile(r'[\d]+').finditer(l):
                     self.grpc_port = int(p.group(0))
              
@@ -86,7 +86,7 @@ class DUT(Device):
         self.trust_bundle_file = os.path.join(certs_dir, self.get_id(), 'ca.cert.pem')
 
     def get_model(self):
-        if platform == 'spitfire_d':
+        if self.platform == 'spitfire_d':
             return 'CISCO-8808'
         return 'CISCO-8201'
 
@@ -254,64 +254,68 @@ def is_otg(e):
     if len(d) == 1 and isinstance(d[0], dict):
         return d[0].get('hda_ref', {}).get('file', '') == '/ws/kjahed-ott/public/images/otg/ixia-c.qcow2'
     return False
-    
-parser = argparse.ArgumentParser(description='Generate Ondatra bindings for PyVXR')
-parser.add_argument('vxr_out_dir', help="path to PyVXR vxr.out directory")
-parser.add_argument('testbed_file', help="output testbed file")
-parser.add_argument('binding_file', help="output binding file")
-parser.add_argument('-certs_dir', default=None, help="certificates directory for mTLS")
-args = parser.parse_args()
 
-vxr_conf_file = os.path.join(args.vxr_out_dir, 'sim-config.yaml')
-vxr_ports_file = os.path.join(args.vxr_out_dir, 'sim-ports.yaml')
+def generate_bindings(vxr_out_dir, testbed_file, binding_file, certs_dir=None):
+    vxr_conf_file = os.path.join(vxr_out_dir, 'sim-config.yaml')
+    vxr_ports_file = os.path.join(vxr_out_dir, 'sim-ports.yaml')
 
-with open(vxr_conf_file, "r") as fp:
-    vxr_conf = yaml.safe_load(fp)
+    with open(vxr_conf_file, "r") as fp:
+        vxr_conf = yaml.safe_load(fp)
 
-with open(vxr_ports_file, "r") as fp:
-    vxr_ports = yaml.safe_load(fp)
-    
-devices = {}
-connections = []
-
-for name, entry in vxr_conf.get('devices', {}).items():
-    platform = entry.get('platform', '')
-    if platform in ['spitfire_f', 'spitfire_d']:
-        d = DUT(name, platform, entry.get('xr_hostname'), entry.get('xr_username'), 
-                entry.get('xr_password'), entry.get('cvac', None), args.certs_dir, vxr_ports)
-    elif platform == 'ixia':
-        d = IxiaWeb(name, vxr_ports)
-    elif is_otg(entry):
-        d = IxiaOTG(name, vxr_ports)
-    else: continue
-
-    devices[name] = d
-
-for name, entry in vxr_conf.get('connections', {}).get('hubs', {}).items():
-    if len(entry) < 2:
-        continue
-    connections.append(Connection(parse_connection_end(devices, entry[0]), 
-                                    parse_connection_end(devices, entry[1])))
-
-if len(connections) == 0:
-    for name, entry in vxr_conf.get('devices', {}).items():
-        for p in entry.get('data_ports', []):
-            if not devices[name].has_data_port(p):
-                devices[name].add_data_port(p)
+    with open(vxr_ports_file, "r") as fp:
+        vxr_ports = yaml.safe_load(fp)
         
-testbed = {
-    'duts': [d.to_testbed_entry() for d in devices.values() if isinstance(d, DUT)],
-    'ates': [d.to_testbed_entry() for d in devices.values() if isinstance(d, ATE)],
-    'links': [c.to_testbed_entry() for c in connections]
-}
+    devices = {}
+    connections = []
 
-binding = {
-    'duts': [d.to_binding_entry() for d in devices.values() if isinstance(d, DUT)],
-    'ates': [d.to_binding_entry() for d in devices.values() if isinstance(d, ATE)],
-}
+    for name, entry in vxr_conf.get('devices', {}).items():
+        platform = entry.get('platform', '')
+        if platform in ['spitfire_f', 'spitfire_d']:
+            d = DUT(name, platform, entry.get('xr_hostname'), entry.get('xr_username'), 
+                    entry.get('xr_password'), entry.get('cvac', None), certs_dir, vxr_ports)
+        elif platform == 'ixia':
+            d = IxiaWeb(name, vxr_ports)
+        elif is_otg(entry):
+            d = IxiaOTG(name, vxr_ports)
+        else: continue
 
-with open(args.testbed_file, "w") as fp:
-    fp.write(ProtoPrinter().dict_to_proto(testbed))
-    
-with open(args.binding_file, "w") as fp:
-    fp.write(ProtoPrinter().dict_to_proto(binding))
+        devices[name] = d
+
+    for name, entry in vxr_conf.get('connections', {}).get('hubs', {}).items():
+        if len(entry) < 2:
+            continue
+        connections.append(Connection(parse_connection_end(devices, entry[0]), 
+                                        parse_connection_end(devices, entry[1])))
+
+    if len(connections) == 0:
+        for name, entry in vxr_conf.get('devices', {}).items():
+            for p in entry.get('data_ports', []):
+                if not devices[name].has_data_port(p):
+                    devices[name].add_data_port(p)
+            
+    testbed = {
+        'duts': [d.to_testbed_entry() for d in devices.values() if isinstance(d, DUT)],
+        'ates': [d.to_testbed_entry() for d in devices.values() if isinstance(d, ATE)],
+        'links': [c.to_testbed_entry() for c in connections]
+    }
+
+    binding = {
+        'duts': [d.to_binding_entry() for d in devices.values() if isinstance(d, DUT)],
+        'ates': [d.to_binding_entry() for d in devices.values() if isinstance(d, ATE)],
+    }
+
+    with open(testbed_file, "w") as fp:
+        fp.write(ProtoPrinter().dict_to_proto(testbed))
+        
+    with open(binding_file, "w") as fp:
+        fp.write(ProtoPrinter().dict_to_proto(binding))
+
+if __name__ == "__main__": 
+    parser = argparse.ArgumentParser(description='Generate Ondatra bindings for PyVXR')
+    parser.add_argument('vxr_out_dir', help="path to PyVXR vxr.out directory")
+    parser.add_argument('testbed_file', help="output testbed file")
+    parser.add_argument('binding_file', help="output binding file")
+    parser.add_argument('-certs_dir', default=None, help="certificates directory for mTLS")
+    args = parser.parse_args()
+
+    generate_bindings(args.vxr_out_dir, args.testbed_file, args.binding_file, args.certs_dir)

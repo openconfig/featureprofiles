@@ -44,10 +44,15 @@ Test to validate basic gNMI streaming telemetry works with `SAMPLE` mode.
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-TODO(OCPATHS): Add paths
 
 ```yaml
+
 paths:
+## Config Paths ##
+/interfaces/interface/config/description:	
+
+## State Paths ##
+/interfaces/interface/state/description:
 
 rpcs:
   gnmi:

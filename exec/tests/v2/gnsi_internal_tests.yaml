@@ -42,7 +42,7 @@ tests:
   path: feature/security/gnsi/authz/tests/authz/authz1_4_test.go
   args:
     - '-test_infra_id="cafyauto"'
-  pr: 2136
+  branch: harikri4/authz4
   mustpass: true
   timeout: 21000
   owners:
@@ -72,3 +72,21 @@ tests:
   timeout: 21000
   internal: true
   branch: acctz/pre
+- name: authz4 (Authz-4 Reboot Persistent)
+  path: feature/security/gnsi/authz/tests/authz
+  args:
+    - '-test.run="(?:TestAuthz4)"'
+  internal: true
+  branch: harikri4/authz4
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4
+- name: authz4.all (Authz-4 all Reboot Persistent)
+  path: feature/security/gnsi/authz/tests/authz
+  internal: true
+  branch: harikri4/authz4
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4

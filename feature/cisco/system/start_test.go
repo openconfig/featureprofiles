@@ -41,6 +41,13 @@ var (
 			desc: "testGrpcListenAddress",
 			fn:   testGrpcListenAddress,
 		},
+		// After CSCwm71666 we cannot change the GRPC name directly
+		// Assciated TZ - https://techzone.cisco.com/t5/IOS-XR-PI-GNMI-GNOI-Infra-Eng/grpc-server-update-name-fails/m-p/13675271#M7023
+		// {
+		// 	name: "testSysNonDefaultGrpcConfig",
+		// 	desc: "testSysNonDefaultGrpcConfig",
+		// 	fn:   testSysNonDefaultGrpcConfig,
+		// },
 	}
 	CpuTestcases = []Testcase{
 		{
@@ -388,13 +395,13 @@ func TestMain(m *testing.M) {
 func TestSys(t *testing.T) {
 	TestCasesList := [][]Testcase{
 		TimeTestcases,
-		SystemTestcases, // SystemTestcase should be always before IanaportsTestcases
 		CpuTestcases,
 		HostNameTestcases,
 		IanaportsTestcases,
 		MemoryTestcases,
 		NtpTestcases,
 		SshTestcases,
+		SystemTestcases, // SystemTestcase should be always after IanaportsTestcases
 	}
 	for _, TestCases := range TestCasesList {
 		for _, tt := range TestCases {

@@ -1,0 +1,75 @@
+# gnmic based yaml file for subscription in large scale testbed 8818-DUT-PEER.
+# The username, password, and certificates are present in auto path accessible from ott-ucs1-b4 server.
+# To use for other hosts, modify the relevant fields and target information.
+# command to run:
+# gnmic --config /auto/b4ws/krinata2/featureprofiles/internal/cisco/util/orion_subs.yaml subscribe
+username: cafyauto
+password: cisco123
+port: 8818
+timeout: 10s
+insecure: false
+skip-verify: false
+tls-mutual: true
+log-file: /auto/b4ws/krinata2/featureprofiles/internal/cisco/util/gnmisubscribe.log
+calculate-latency: true
+tls-key: /auto/b4ws/krinata2/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.key.pem
+tls-cert: /auto/b4ws/krinata2/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.cert.pem
+tls-ca: /auto/b4ws/krinata2/featureprofiles/internal/cisco/security/cert/keys/CA/ca.cert.pem
+targets:
+  10.85.72.52:
+    subscriptions:
+      - orion_subscription
+    timeout: 30s
+    outputs:
+      - orionprometheus
+outputs:
+  orionprometheus:
+    type: prometheus
+    listen: ott-ucs1-b4:9804
+    export-timestamps: false
+    strings-as-labels: true
+    append-subscription-name: false
+subscriptions:
+  orion_subscription:
+    stream-subscriptions:
+      - paths: 
+        - "openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/available-pct"
+        - "openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/consumed-capacity"
+        - "openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/total"
+        - "openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity"
+        - "openconfig:interfaces/interface[name=*]/state/counters/in-broadcast-pkts"
+        - "openconfig:interfaces/interface[name=*]/state/counters/in-discards"
+        - "openconfig:interfaces/interface[name=*]/state/counters/in-errors"
+        - "openconfig:interfaces/interface[name=*]/state/counters/in-fcs-errors"
+        - "openconfig:interfaces/interface[name=*]/state/counters/in-multicast-pkts"
+        - "openconfig:interfaces/interface[name=*]/state/counters/in-octets"
+        - "openconfig:interfaces/interface[name=*]/state/counters/in-unicast-pkts"
+        - "openconfig:interfaces/interface[name=*]/state/counters/out-broadcast-pkts"
+        - "openconfig:interfaces/interface[name=*]/state/counters/out-discards"
+        - "openconfig:interfaces/interface[name=*]/state/counters/out-errors"
+        - "openconfig:interfaces/interface[name=*]/state/counters/out-multicast-pkts"
+        - "openconfig:interfaces/interface[name=*]/state/counters/out-octets"
+        - "openconfig:interfaces/interface[name=*]/state/counters/out-unicast-pkts"
+        - "openconfig:qos/interfaces/interface[interface-id=*]/output/queues/queue[name=*]/state/dropped-pkts"
+        - "openconfig:qos/interfaces/interface[interface-id=*]/output/queues/queue[name=*]/state/transmit-octets"
+        - "openconfig:qos/interfaces/interface[interface-id=*]/output/queues/queue[name=*]/state/transmit-pkts"
+        stream-mode: SAMPLE
+        sample-interval: 10s
+      - paths: 
+        - "openconfig:components/component[name=*]/integrated-circuit/state/node-id"
+        - "openconfig:components/component[name=*]/state/oper-status"
+        - "openconfig:components/component[name=*]/state/parent"
+        - "openconfig:components/component[name=*]/state/redundant-role"
+        - "openconfig:components/component[name=*]/state/switchover-ready"
+        - "openconfig:interfaces/interface[name=*]/ethernet/state/mac-address"
+        - "openconfig:interfaces/interface[name=*]/ethernet/state/port-speed"
+        - "openconfig:interfaces/interface[name=*]/state/admin-status"
+        - "openconfig:interfaces/interface[name=*]/state/forwarding-viable"
+        - "openconfig:interfaces/interface[name=*]/state/hardware-port"
+        - "openconfig:interfaces/interface[name=*]/state/id"
+        - "openconfig:interfaces/interface[name=*]/state/oper-status"
+        - "openconfig:lacp/interfaces/interface[name=*]/members/member[interface=*]/state/interface"
+        - "openconfig:network-instances/network-instance/afts"
+        - "openconfig:network-instances/network-instance/protocols/protocol/isis/interfaces/interface[interface-id=*]/levels/level/afi-safi/af/state/metric"
+        - "openconfig:system/state/software-version"
+        stream-mode: ON_CHANGE

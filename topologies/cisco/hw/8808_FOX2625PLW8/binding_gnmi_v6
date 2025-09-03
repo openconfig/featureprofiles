@@ -32,7 +32,7 @@
 ##Exec server:
 #ssh ott2lab-as3
 
-## Consoe server:
+## Console server:
 # telnet 10.85.84.53
 # Pass1: lab
 # Pass2: lab

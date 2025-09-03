@@ -1,0 +1,947 @@
+simulation:
+  slurm_flags:
+    distributed: True
+    hours: 24
+    partition: regression
+    pending_timeout: 7200
+    cluster: rch-slurm-m1 
+    location_hint: rch
+  # NSIM is more accurate to the actual hardware asic, vs NGDP
+  #vxr_sim_latest_config:
+  #   default:
+  #      ConfigEnableNgdp: 'true'
+
+devices:
+  ate: 
+    data_ports: 
+      - 1/1
+      - 1/2
+    platform: ixia
+    vnc_password_display: 1234
+    ixia_images:
+      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
+      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
+      windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.30.2309.34.qcow2
+
+  dut1R:
+    platform: spitfire_d
+    lcc_type: '8818'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
+    linecard_slots: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    num_linecards: 16
+    xr_username: cisco
+    xr_password: cisco123
+    fabcard_type: 8818-FC0
+    cli_commands: reload location all noprompt
+    save_startup_config: true
+    num_fabcards: 1
+    cvac: $BASE_CONF_PATH
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown 
+        !
+        int FH0/1/0/0-35
+        no shutdown 
+        !
+        int FH0/2/0/0-35
+        no shutdown 
+        !
+        int FH0/3/0/0-35
+        no shutdown 
+        !
+        int FH0/4/0/0-35
+        no shutdown 
+        !
+        int FH0/5/0/0-35
+        no shutdown 
+        !
+        int FH0/6/0/0-35
+        no shutdown 
+        !
+        int FH0/7/0/0-35
+        no shutdown 
+        !
+        int FH0/8/0/0-35
+        no shutdown 
+        !
+        int FH0/9/0/0-35
+        no shutdown 
+        !
+        int FH0/10/0/0-35
+        no shutdown 
+        !
+        int FH0/11/0/0-35
+        no shutdown 
+        !
+        int FH0/12/0/0-35
+        no shutdown 
+        !
+        int FH0/13/0/0-35
+        no shutdown 
+        !
+        int FH0/14/0/0-35
+        no shutdown 
+        !
+        int FH0/15/0/0-35
+        no shutdown 
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+
+  dut2R:
+    platform: spitfire_d
+    lcc_type: '8808'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M]
+    num_linecards: 2
+    num_fabcards: 1
+    save_startup_config: true
+    xr_username: cisco
+    xr_password: cisco123
+    cli_commands: reload location all noprompt
+    fabcard_type: 8808-FC0
+    linecard_slots: [0,1]
+    cvac: $BASE_CONF_PATH
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown 
+        !
+        int FH0/1/0/0-35
+        no shutdown     
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+
+  dut3R:
+    platform: spitfire_d
+    lcc_type: '8808'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M]
+    num_linecards: 2
+    num_fabcards: 1
+    fabcard_type: 8808-FC0
+    xr_username: cisco
+    xr_password: cisco123    
+    cli_commands: reload location all noprompt
+    save_startup_config: true    
+    linecard_slots: [0,1]
+    cvac: $BASE_CONF_PATH 
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown 
+        !
+        int FH0/1/0/0-35
+        no shutdown         
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+  
+
+  dut4R:
+    platform: spitfire_d
+    lcc_type: '8808'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M]
+    num_linecards: 2
+    num_fabcards: 1
+    save_startup_config: true  
+    xr_username: cisco
+    xr_password: cisco123    
+    cli_commands: reload location all noprompt  
+    fabcard_type: 8808-FC0
+    linecard_slots: [0,1]
+    cvac: $BASE_CONF_PATH 
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown 
+        !
+        int FH0/1/0/0-35
+        no shutdown            
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+
+
+  dut1E:
+    platform: spitfire_d
+    lcc_type: '8818'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
+    linecard_slots: [0,1,2,3,4,5,6,7]
+    num_linecards: 8
+    save_startup_config: true   
+    xr_username: cisco
+    xr_password: cisco123    
+    cli_commands: reload location all noprompt 
+    fabcard_type: 8818-FC0
+    num_fabcards: 1
+    cvac: $BASE_CONF_PATH
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown 
+        !
+        int FH0/1/0/0-35
+        no shutdown 
+        !
+        int FH0/2/0/0-35
+        no shutdown 
+        !
+        int FH0/3/0/0-35
+        no shutdown 
+        !
+        int FH0/4/0/0-35
+        no shutdown 
+        !
+        int FH0/5/0/0-35
+        no shutdown 
+        !
+        int FH0/6/0/0-35
+        no shutdown 
+        !
+        int FH0/7/0/0-35
+        no shutdown                  
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+
+  dut2E:
+    platform: spitfire_d
+    lcc_type: '8808'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M]
+    num_linecards: 2
+    save_startup_config: true    
+    cli_commands: reload location all noprompt
+    num_fabcards: 1
+    xr_username: cisco
+    xr_password: cisco123    
+    fabcard_type: 8808-FC0
+    linecard_slots: [0,1]
+    cvac: $BASE_CONF_PATH    
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown 
+        !
+        int FH0/1/0/0-35
+        no shutdown                  
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179
+
+  dut1V:
+    platform: spitfire_f
+    linecard_types: ['8102-64H']
+    save_startup_config: true    
+    xr_username: cisco
+    xr_password: cisco123    
+    cli_commands: reload location all noprompt
+    cvac: $BASE_CONF_PATH     
+    xr_config: |
+        int Hu0/0/0/0-64
+        no shutdown                       
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179       
+
+  dut2V:
+    platform: spitfire_f
+    linecard_types: ['8102-64H']
+    save_startup_config: true   
+    xr_username: cisco
+    xr_password: cisco123     
+    cli_commands: reload location all noprompt
+    cvac: $BASE_CONF_PATH    
+    xr_config: |
+        int Hu0/0/0/0-64
+        no shutdown                             
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179   
+
+  JupiterE:
+    platform: spitfire_d
+    lcc_type: '8808'
+    linecard_types: [88-LC0-36FH-M]
+    save_startup_config: true    
+    num_linecards: 1
+    num_fabcards: 1
+    xr_username: cisco
+    xr_password: cisco123    
+    fabcard_type: 8808-FC0
+    linecard_slots: [0]
+    cvac: $BASE_CONF_PATH          
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown              
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179         
+
+  JupiterR:
+    platform: spitfire_d
+    save_startup_config: true    
+    lcc_type: '8808'
+    linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M]
+    num_linecards: 2
+    num_fabcards: 1
+    xr_username: cisco
+    xr_password: cisco123    
+    fabcard_type: 8808-FC0
+    linecard_slots: [0,1]
+    cvac: $BASE_CONF_PATH   
+    xr_config: |
+        int FH0/0/0/0-35
+        no shutdown 
+        !
+        int FH0/1/0/0-35
+        no shutdown                    
+    xr_port_redir:
+      - 22
+      - 23
+      - 57400
+      - 179     
+
+connections:
+  hubs:
+    ixiaJupiterR:
+        - JupiterR.FourHundredGigE0/0/0/35
+        - ate.1/1 
+    ixiaJupiterE:
+        - JupiterE.FourHundredGigE0/0/0/0
+        - ate.1/2 
+    #Jupiter to dut1R with 16 links
+    JupiterR1dut1R:
+        - dut1R.FourHundredGigE0/0/0/26
+        - JupiterR.FourHundredGigE0/0/0/0
+    JupiterR2dut1R:
+        - dut1R.FourHundredGigE0/1/0/26
+        - JupiterR.FourHundredGigE0/0/0/1   
+    JupiterR3dut1R:
+        - dut1R.FourHundredGigE0/12/0/26
+        - JupiterR.FourHundredGigE0/0/0/2
+    JupiterR4dut1R:
+        - dut1R.FourHundredGigE0/13/0/26
+        - JupiterR.FourHundredGigE0/0/0/3  
+    JupiterR5dut1R:
+        - dut1R.FourHundredGigE0/2/0/26
+        - JupiterR.FourHundredGigE0/0/0/4
+    JupiterR6dut1R:
+        - dut1R.FourHundredGigE0/3/0/26
+        - JupiterR.FourHundredGigE0/0/0/5  
+    JupiterR7dut1R:
+        - dut1R.FourHundredGigE0/14/0/26
+        - JupiterR.FourHundredGigE0/0/0/6
+    JupiterR8dut1R:
+        - dut1R.FourHundredGigE0/15/0/26
+        - JupiterR.FourHundredGigE0/0/0/7     
+    JupiterR9dut1R:
+        - dut1R.FourHundredGigE0/8/0/35
+        - JupiterR.FourHundredGigE0/0/0/8
+    JupiterR10dut1R:
+        - dut1R.FourHundredGigE0/9/0/35
+        - JupiterR.FourHundredGigE0/0/0/9  
+    JupiterR11dut1R:
+        - dut1R.FourHundredGigE0/10/0/35
+        - JupiterR.FourHundredGigE0/0/0/10
+    JupiterR12dut1R:
+        - dut1R.FourHundredGigE0/11/0/35
+        - JupiterR.FourHundredGigE0/0/0/11   
+    JupiterR13dut1R:
+        - dut1R.FourHundredGigE0/12/0/35
+        - JupiterR.FourHundredGigE0/0/0/12
+    JupiterR14dut1R:
+        - dut1R.FourHundredGigE0/13/0/35
+        - JupiterR.FourHundredGigE0/0/0/13   
+    JupiterR15dut1R:
+        - dut1R.FourHundredGigE0/14/0/35
+        - JupiterR.FourHundredGigE0/0/0/14
+    JupiterR16dut1R:
+        - dut1R.FourHundredGigE0/15/0/35
+        - JupiterR.FourHundredGigE0/0/0/15
+    #Jupiter to dut2R with 16 links
+    JupiterR1dut2R:
+        - dut2R.FourHundredGigE0/0/0/7
+        - JupiterR.FourHundredGigE0/0/0/16
+    JupiterR2dut2R:
+        - dut2R.FourHundredGigE0/0/0/8
+        - JupiterR.FourHundredGigE0/0/0/17 
+    JupiterR3dut2R:
+        - dut2R.FourHundredGigE0/0/0/9
+        - JupiterR.FourHundredGigE0/0/0/18
+    JupiterR4dut2R:
+        - dut2R.FourHundredGigE0/0/0/10
+        - JupiterR.FourHundredGigE0/0/0/19  
+    JupiterR5dut2R:
+        - dut2R.FourHundredGigE0/0/0/12
+        - JupiterR.FourHundredGigE0/0/0/20
+    JupiterR6dut2R:
+        - dut2R.FourHundredGigE0/0/0/13
+        - JupiterR.FourHundredGigE0/0/0/21
+    JupiterR7dut2R:
+        - dut2R.FourHundredGigE0/0/0/14
+        - JupiterR.FourHundredGigE0/0/0/22
+    JupiterR8dut2R:
+        - dut2R.FourHundredGigE0/0/0/15
+        - JupiterR.FourHundredGigE0/0/0/23    
+    JupiterR9dut2R:
+        - dut2R.FourHundredGigE0/0/0/20
+        - JupiterR.FourHundredGigE0/0/0/24
+    JupiterR10dut2R:
+        - dut2R.FourHundredGigE0/0/0/21
+        - JupiterR.FourHundredGigE0/0/0/25 
+    JupiterR11dut2R:
+        - dut2R.FourHundredGigE0/0/0/22
+        - JupiterR.FourHundredGigE0/0/0/26
+    JupiterR12dut2R:
+        - dut2R.FourHundredGigE0/0/0/23
+        - JupiterR.FourHundredGigE0/0/0/27   
+    JupiterR13dut2R:
+        - dut2R.FourHundredGigE0/0/0/16
+        - JupiterR.FourHundredGigE0/0/0/28
+    JupiterR14dut2R:
+        - dut2R.FourHundredGigE0/0/0/17
+        - JupiterR.FourHundredGigE0/0/0/29   
+    JupiterR15dut2R:
+        - dut2R.FourHundredGigE0/0/0/18
+        - JupiterR.FourHundredGigE0/0/0/30
+    JupiterR16dut2R:
+        - dut2R.FourHundredGigE0/0/0/19
+        - JupiterR.FourHundredGigE0/0/0/31  
+    #Jupiter to dut3R with 16 links   
+    JupiterR1dut3R:
+        - dut3R.FourHundredGigE0/0/0/8
+        - JupiterR.FourHundredGigE0/1/0/0
+    JupiterR2dut3R:
+        - dut3R.FourHundredGigE0/0/0/9
+        - JupiterR.FourHundredGigE0/1/0/1   
+    JupiterR3dut3R:
+        - dut3R.FourHundredGigE0/0/0/10
+        - JupiterR.FourHundredGigE0/1/0/2
+    JupiterR4dut3R:
+        - dut3R.FourHundredGigE0/0/0/11
+        - JupiterR.FourHundredGigE0/1/0/3  
+    JupiterR5dut3R:
+        - dut3R.FourHundredGigE0/0/0/12
+        - JupiterR.FourHundredGigE0/1/0/4
+    JupiterR6dut3R:
+        - dut3R.FourHundredGigE0/0/0/13
+        - JupiterR.FourHundredGigE0/1/0/5  
+    JupiterR7dut3R:
+        - dut3R.FourHundredGigE0/0/0/14
+        - JupiterR.FourHundredGigE0/1/0/6
+    JupiterR8dut3R:
+        - dut3R.FourHundredGigE0/0/0/15
+        - JupiterR.FourHundredGigE0/1/0/7     
+    JupiterR9dut3R:
+        - dut3R.FourHundredGigE0/0/0/16
+        - JupiterR.FourHundredGigE0/1/0/8
+    JupiterR10dut3R:
+        - dut3R.FourHundredGigE0/0/0/17
+        - JupiterR.FourHundredGigE0/1/0/9  
+    JupiterR11dut3R:
+        - dut3R.FourHundredGigE0/0/0/18
+        - JupiterR.FourHundredGigE0/1/0/10
+    JupiterR12dut3R:
+        - dut3R.FourHundredGigE0/0/0/19
+        - JupiterR.FourHundredGigE0/1/0/11   
+    JupiterR13dut3R:
+        - dut3R.FourHundredGigE0/0/0/20
+        - JupiterR.FourHundredGigE0/1/0/12
+    JupiterR14dut3R:
+        - dut3R.FourHundredGigE0/0/0/21
+        - JupiterR.FourHundredGigE0/1/0/13   
+    JupiterR15dut3R:
+        - dut3R.FourHundredGigE0/0/0/22
+        - JupiterR.FourHundredGigE0/1/0/14
+    JupiterR16dut3R:
+        - dut3R.FourHundredGigE0/0/0/23
+        - JupiterR.FourHundredGigE0/1/0/15
+    #Jupiter to dut4R with 16 links
+    JupiterR1dut4R:
+        - dut4R.FourHundredGigE0/0/0/8
+        - JupiterR.FourHundredGigE0/1/0/16
+    JupiterR2dut4R:
+        - dut4R.FourHundredGigE0/0/0/9
+        - JupiterR.FourHundredGigE0/1/0/17 
+    JupiterR3dut4R:
+        - dut4R.FourHundredGigE0/0/0/10
+        - JupiterR.FourHundredGigE0/1/0/18
+    JupiterR4dut4R:
+        - dut4R.FourHundredGigE0/0/0/11
+        - JupiterR.FourHundredGigE0/1/0/19  
+    JupiterR5dut4R:
+        - dut4R.FourHundredGigE0/0/0/12
+        - JupiterR.FourHundredGigE0/1/0/20
+    JupiterR6dut4R:
+        - dut4R.FourHundredGigE0/0/0/13
+        - JupiterR.FourHundredGigE0/1/0/21
+    JupiterR7dut4R:
+        - dut4R.FourHundredGigE0/0/0/14
+        - JupiterR.FourHundredGigE0/1/0/22
+    JupiterR8dut4R:
+        - dut4R.FourHundredGigE0/0/0/15
+        - JupiterR.FourHundredGigE0/1/0/23    
+    JupiterR9dut4R:
+        - dut4R.FourHundredGigE0/0/0/16
+        - JupiterR.FourHundredGigE0/1/0/24
+    JupiterR10dut4R:
+        - dut4R.FourHundredGigE0/0/0/17
+        - JupiterR.FourHundredGigE0/1/0/25 
+    JupiterR11dut4R:
+        - dut4R.FourHundredGigE0/0/0/18
+        - JupiterR.FourHundredGigE0/1/0/26
+    JupiterR12dut4R:
+        - dut4R.FourHundredGigE0/0/0/19
+        - JupiterR.FourHundredGigE0/1/0/27   
+    JupiterR13dut4R:
+        - dut4R.FourHundredGigE0/0/0/20
+        - JupiterR.FourHundredGigE0/1/0/28
+    JupiterR14dut4R:
+        - dut4R.FourHundredGigE0/0/0/21
+        - JupiterR.FourHundredGigE0/1/0/29   
+    JupiterR15dut4R:
+        - dut4R.FourHundredGigE0/0/0/22
+        - JupiterR.FourHundredGigE0/1/0/30
+    JupiterR16dut4R:
+        - dut4R.FourHundredGigE0/0/0/23
+        - JupiterR.FourHundredGigE0/1/0/31    
+    #BR-1 to BE-1 & BE-2                                                   
+    Link1dut1Rdut1E:
+        - dut1R.FourHundredGigE0/0/0/0
+        - dut1E.FourHundredGigE0/0/0/0
+    Link2dut1Rdut1E:
+        - dut1R.FourHundredGigE0/1/0/0
+        - dut1E.FourHundredGigE0/1/0/0
+    Link3dut1Rdut1E:
+        - dut1R.FourHundredGigE0/2/0/0
+        - dut1E.FourHundredGigE0/2/0/0
+    Link4dut1Rdut1E:
+        - dut1R.FourHundredGigE0/3/0/0
+        - dut1E.FourHundredGigE0/3/0/0
+    Link1dut1Rdut2E:
+        - dut1R.FourHundredGigE0/4/0/0
+        - dut2E.FourHundredGigE0/0/0/0
+    Link2dut1Rdut2E:
+        - dut1R.FourHundredGigE0/5/0/0
+        - dut2E.FourHundredGigE0/0/0/1
+    Link3dut1Rdut2E:
+        - dut1R.FourHundredGigE0/6/0/0
+        - dut2E.FourHundredGigE0/0/0/2
+    Link4dut1Rdut2E:
+        - dut1R.FourHundredGigE0/7/0/0
+        - dut2E.FourHundredGigE0/0/0/3
+    #BR-2 to BE-1 & BE-2       
+    Link1dut2Rdut1E:
+        - dut2R.FourHundredGigE0/0/0/0
+        - dut1E.FourHundredGigE0/4/0/0       
+    Link2dut2Rdut1E:
+        - dut2R.FourHundredGigE0/0/0/1
+        - dut1E.FourHundredGigE0/5/0/0
+    Link3dut2Rdut1E:
+        - dut2R.FourHundredGigE0/0/0/2
+        - dut1E.FourHundredGigE0/6/0/0
+    Link4dut2Rdut1E:
+        - dut2R.FourHundredGigE0/0/0/3
+        - dut1E.FourHundredGigE0/7/0/0
+    Link1dut2Rdut2E:
+        - dut2R.FourHundredGigE0/0/0/4
+        - dut2E.FourHundredGigE0/0/0/4
+    Link2dut2Rdut2E:
+        - dut2R.FourHundredGigE0/0/0/5
+        - dut2E.FourHundredGigE0/0/0/5
+    Link3dut2Rdut2E:
+        - dut2R.FourHundredGigE0/0/0/6
+        - dut2E.FourHundredGigE0/0/0/6
+    Link4dut2Rdut2E:
+        - dut2R.FourHundredGigE0/1/0/7
+        - dut2E.FourHundredGigE0/0/0/7
+    #BR-3 to BE-1 & BE-2  
+    Link1dut3Rdut1E:
+        - dut3R.FourHundredGigE0/0/0/0
+        - dut1E.FourHundredGigE0/0/0/1
+    Link2dut3Rdut1E:
+        - dut3R.FourHundredGigE0/0/0/1
+        - dut1E.FourHundredGigE0/1/0/1
+    Link3dut3Rdut1E:
+        - dut3R.FourHundredGigE0/0/0/2
+        - dut1E.FourHundredGigE0/2/0/1
+    Link4dut3Rdut1E:
+        - dut3R.FourHundredGigE0/0/0/3
+        - dut1E.FourHundredGigE0/3/0/1
+    Link1dut3Rdut2E:
+        - dut3R.FourHundredGigE0/0/0/4
+        - dut2E.FourHundredGigE0/0/0/8
+    Link2dut3Rdut2E:
+        - dut3R.FourHundredGigE0/0/0/5
+        - dut2E.FourHundredGigE0/0/0/9
+    Link3dut3Rdut2E:
+        - dut3R.FourHundredGigE0/0/0/6
+        - dut2E.FourHundredGigE0/1/0/16
+    Link4dut3Rdut2E:
+        - dut3R.FourHundredGigE0/0/0/7
+        - dut2E.FourHundredGigE0/1/0/17
+    #BR-4 to BE-1 & BE-2       
+    Link1dut4Rdut1E:
+        - dut4R.FourHundredGigE0/0/0/0
+        - dut1E.FourHundredGigE0/4/0/1
+    Link2dut4Rdut1E:
+        - dut4R.FourHundredGigE0/0/0/1
+        - dut1E.FourHundredGigE0/5/0/1
+    Link3dut4Rdut1E:
+        - dut4R.FourHundredGigE0/0/0/2
+        - dut1E.FourHundredGigE0/6/0/1
+    Link4dut4Rdut1E:
+        - dut4R.FourHundredGigE0/0/0/3
+        - dut1E.FourHundredGigE0/7/0/1
+    Link1dut4Rdut2E:
+        - dut4R.FourHundredGigE0/0/0/4
+        - dut2E.FourHundredGigE0/1/0/4
+    Link2dut4Rdut2E:
+        - dut4R.FourHundredGigE0/0/0/5
+        - dut2E.FourHundredGigE0/1/0/5
+    Link3dut4Rdut2E:
+        - dut4R.FourHundredGigE0/0/0/6
+        - dut2E.FourHundredGigE0/1/0/6
+    Link4dut4Rdut2E:
+        - dut4R.FourHundredGigE0/0/0/7
+        - dut2E.FourHundredGigE0/1/0/7
+    #BR-1 to BR-2    
+    Link1dut1Rdut2R:
+        - dut1R.FourHundredGigE0/0/0/35
+        - dut2R.FourHundredGigE0/0/0/31
+    Link2dut1Rdut2R:
+        - dut1R.FourHundredGigE0/1/0/35
+        - dut2R.FourHundredGigE0/0/0/30
+    #BR-1 to BR-3
+    Link1dut1Rdut3R:
+        - dut1R.FourHundredGigE0/2/0/35
+        - dut3R.FourHundredGigE0/0/0/31
+    Link2dut1Rdut3R:
+        - dut1R.FourHundredGigE0/3/0/35
+        - dut3R.FourHundredGigE0/0/0/30
+    #BR-1 to BR-4         
+    Link1dut1Rdut4R:
+        - dut1R.FourHundredGigE0/4/0/35
+        - dut4R.FourHundredGigE0/0/0/31
+    Link2dut1Rdut4R:
+        - dut1R.FourHundredGigE0/5/0/35
+        - dut4R.FourHundredGigE0/0/0/30
+    #BR-2 to BR-3     
+    Link1dut2Rdut3R:
+        - dut2R.FourHundredGigE0/0/0/28
+        - dut3R.FourHundredGigE0/0/0/28
+    Link2dut2Rdut3R:
+        - dut2R.FourHundredGigE0/0/0/29
+        - dut3R.FourHundredGigE0/0/0/29
+    #BR-2 to BR-4 
+    Link1dut2Rdut4R:
+        - dut2R.FourHundredGigE0/0/0/26
+        - dut4R.FourHundredGigE0/0/0/28
+    Link2dut2Rdut4R:
+        - dut2R.FourHundredGigE0/0/0/27
+        - dut4R.FourHundredGigE0/0/0/29
+    #BR-3 to BR-4       
+    Link1dut3Rdut4R:
+        - dut3R.FourHundredGigE0/0/0/26
+        - dut4R.FourHundredGigE0/0/0/26
+    Link2dut3Rdut4R:
+        - dut3R.FourHundredGigE0/0/0/27
+        - dut4R.FourHundredGigE0/0/0/27
+    #BE-1 to BE-2    
+    Link1dut1Edut2E:
+        - dut1E.FourHundredGigE0/1/0/35
+        - dut2E.FourHundredGigE0/0/0/31
+    Link2dut1Edut2E:
+        - dut1E.FourHundredGigE0/2/0/35
+        - dut2E.FourHundredGigE0/0/0/30
+    Link3dut1Edut2E:
+        - dut1E.FourHundredGigE0/3/0/35
+        - dut2E.FourHundredGigE0/0/0/29
+    Link4dut1Edut2E:
+        - dut1E.FourHundredGigE0/4/0/35
+        - dut2E.FourHundredGigE0/0/0/28
+    #BR-1 to BV-1    
+    Link1dut1Rdut1V:
+        - dut1R.FourHundredGigE0/12/0/0
+        - dut1V.HundredGigE0/0/0/0
+    Link2dut1Rdut1V:
+        - dut1R.FourHundredGigE0/13/0/0
+        - dut1V.HundredGigE0/0/0/1
+    Link3dut1Rdut1V:
+        - dut1R.FourHundredGigE0/14/0/0
+        - dut1V.HundredGigE0/0/0/2
+    Link4dut1Rdut1V:
+        - dut1R.FourHundredGigE0/15/0/0
+        - dut1V.HundredGigE0/0/0/3
+    #BR-2 to BV-1    
+    Link1dut2Rdut1V:
+        - dut2R.FourHundredGigE0/0/0/32
+        - dut1V.HundredGigE0/0/0/4
+    Link2dut2Rdut1V:
+        - dut2R.FourHundredGigE0/0/0/33
+        - dut1V.HundredGigE0/0/0/5
+    Link3dut2Rdut1V:
+        - dut2R.FourHundredGigE0/0/0/34
+        - dut1V.HundredGigE0/0/0/6
+    Link4dut2Rdut1V:
+        - dut2R.FourHundredGigE0/0/0/35
+        - dut1V.HundredGigE0/0/0/7
+    #BR-3 to BV-1    
+    Link1dut3Rdut1V:
+        - dut3R.FourHundredGigE0/0/0/32
+        - dut1V.HundredGigE0/0/0/8
+    Link2dut3Rdut1V:
+        - dut3R.FourHundredGigE0/0/0/33
+        - dut1V.HundredGigE0/0/0/9
+    Link3dut3Rdut1V:
+        - dut3R.FourHundredGigE0/0/0/34
+        - dut1V.HundredGigE0/0/0/10
+    Link4dut3Rdut1V:
+        - dut3R.FourHundredGigE0/0/0/35
+        - dut1V.HundredGigE0/0/0/11
+    #BR-4 to BV-1    
+    Link1dut4Rdut1V:
+        - dut4R.FourHundredGigE0/0/0/32
+        - dut1V.HundredGigE0/0/0/12
+    Link2dut4Rdut1V:
+        - dut4R.FourHundredGigE0/0/0/33
+        - dut1V.HundredGigE0/0/0/13
+    Link3dut4Rdut1V:
+        - dut4R.FourHundredGigE0/0/0/34
+        - dut1V.HundredGigE0/0/0/14
+    Link4dut4Rdut1V:
+        - dut4R.FourHundredGigE0/0/0/35
+        - dut1V.HundredGigE0/0/0/15
+    #BE-1 to BV-1    
+    Link1dut1Edut1V:
+        - dut1E.FourHundredGigE0/0/0/3
+        - dut1V.HundredGigE0/0/0/16
+    Link2dut1Edut1V:
+        - dut1E.FourHundredGigE0/1/0/3
+        - dut1V.HundredGigE0/0/0/17
+    Link3dut1Edut1V:
+        - dut1E.FourHundredGigE0/2/0/3
+        - dut1V.HundredGigE0/0/0/18
+    Link4dut1Edut1V:
+        - dut1E.FourHundredGigE0/3/0/3
+        - dut1V.HundredGigE0/0/0/19
+    Link5dut1Edut1V:
+        - dut1E.FourHundredGigE0/4/0/3
+        - dut1V.HundredGigE0/0/0/20
+    Link6dut1Edut1V:
+        - dut1E.FourHundredGigE0/5/0/3
+        - dut1V.HundredGigE0/0/0/21
+    Link7dut1Edut1V:
+        - dut1E.FourHundredGigE0/6/0/3
+        - dut1V.HundredGigE0/0/0/22
+    Link8dut1Edut1V:
+        - dut1E.FourHundredGigE0/7/0/3
+        - dut1V.HundredGigE0/0/0/23
+    Link9dut1Edut1V:
+        - dut1E.FourHundredGigE0/2/0/32
+        - dut1V.HundredGigE0/0/0/24
+    Link10dut1Edut1V:
+        - dut1E.FourHundredGigE0/3/0/32
+        - dut1V.HundredGigE0/0/0/25
+    Link11dut1Edut1V:
+        - dut1E.FourHundredGigE0/4/0/32
+        - dut1V.HundredGigE0/0/0/26
+    Link12dut1Edut1V:
+        - dut1E.FourHundredGigE0/5/0/32
+        - dut1V.HundredGigE0/0/0/27
+    #BE-2 to BV-1    
+    Link1dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/0
+        - dut1V.HundredGigE0/0/0/28
+    Link2dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/1
+        - dut1V.HundredGigE0/0/0/29
+    Link3dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/2
+        - dut1V.HundredGigE0/0/0/30
+    Link4dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/3
+        - dut1V.HundredGigE0/0/0/31
+    Link5dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/8
+        - dut1V.HundredGigE0/0/0/32
+    Link6dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/9
+        - dut1V.HundredGigE0/0/0/33
+    Link7dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/10
+        - dut1V.HundredGigE0/0/0/34
+    Link8dut2Edut1V:
+        - dut2E.FourHundredGigE0/1/0/11
+        - dut1V.HundredGigE0/0/0/35
+    #BR-1 to BV-2    
+    Link1dut1Rdut2V:
+        - dut1R.FourHundredGigE0/0/0/11
+        - dut2V.HundredGigE0/0/0/0
+    Link2dut1Rdut2V:
+        - dut1R.FourHundredGigE0/1/0/11
+        - dut2V.HundredGigE0/0/0/1
+    #BR-2 to BV-2        
+    Link1dut2Rdut2V:
+        - dut2R.FourHundredGigE0/1/0/0
+        - dut2V.HundredGigE0/0/0/2
+    Link2dut2Rdut2V:
+        - dut2R.FourHundredGigE0/1/0/1
+        - dut2V.HundredGigE0/0/0/3
+    #BR-3 to BV-2        
+    Link1dut3Rdut2V:
+        - dut3R.FourHundredGigE0/1/0/0
+        - dut2V.HundredGigE0/0/0/4
+    Link2dut3Rdut2V:
+        - dut3R.FourHundredGigE0/1/0/1
+        - dut2V.HundredGigE0/0/0/5
+    #BR-4 to BV-2        
+    Link1dut4Rdut2V:
+        - dut4R.FourHundredGigE0/1/0/0
+        - dut2V.HundredGigE0/0/0/6
+    Link2dut4Rdut2V:
+        - dut4R.FourHundredGigE0/1/0/1
+        - dut2V.HundredGigE0/0/0/7
+
+    #BE-1 to BV-2    
+    Link1dut1Edut2V:
+        - dut1E.FourHundredGigE0/0/0/11
+        - dut2V.HundredGigE0/0/0/8
+    Link2dut1Edut2V:
+        - dut1E.FourHundredGigE0/1/0/11
+        - dut2V.HundredGigE0/0/0/9
+
+    #BE-2 to BV-2    
+    Link1dut2Edut2V:
+        - dut2E.FourHundredGigE0/1/0/13
+        - dut2V.HundredGigE0/0/0/10
+    Link2dut2Edut2V:
+        - dut2E.FourHundredGigE0/1/0/14
+        - dut2V.HundredGigE0/0/0/11
+      
+    #BV-1 to BV-2    
+    Link1dut1Vdut2V:
+        - dut1V.HundredGigE0/0/0/36
+        - dut2V.HundredGigE0/0/0/36
+    Link2dut1Vdut2V:
+        - dut1V.HundredGigE0/0/0/37
+        - dut2V.HundredGigE0/0/0/37
+    Link3dut1Rdut2V:
+        - dut1V.HundredGigE0/0/0/38
+        - dut2V.HundredGigE0/0/0/38
+    Link4dut1Rdut2V:
+        - dut1V.HundredGigE0/0/0/39
+        - dut2V.HundredGigE0/0/0/39
+
+    #Jupiter to dut1E with 16 links
+    Link1dut1EJupiterE:
+        - dut1E.FourHundredGigE0/0/0/34
+        - JupiterE.FourHundredGigE0/0/0/1
+    Link2dut1EJupiterE:
+        - dut1E.FourHundredGigE0/0/0/35
+        - JupiterE.FourHundredGigE0/0/0/2
+    Link3dut1EJupiterE:
+        - dut1E.FourHundredGigE0/1/0/33
+        - JupiterE.FourHundredGigE0/0/0/3       
+    Link4dut1EJupiterE:
+        - dut1E.FourHundredGigE0/1/0/34
+        - JupiterE.FourHundredGigE0/0/0/4  
+    Link5dut1EJupiterE:
+        - dut1E.FourHundredGigE0/2/0/33
+        - JupiterE.FourHundredGigE0/0/0/5
+    Link6dut1EJupiterE:
+        - dut1E.FourHundredGigE0/2/0/34
+        - JupiterE.FourHundredGigE0/0/0/6
+    Link7dut1EJupiterE:
+        - dut1E.FourHundredGigE0/3/0/33
+        - JupiterE.FourHundredGigE0/0/0/7  
+    Link8dut1EJupiterE:
+        - dut1E.FourHundredGigE0/3/0/34
+        - JupiterE.FourHundredGigE0/0/0/8
+    Link9dut1EJupiterE:
+        - dut1E.FourHundredGigE0/4/0/33
+        - JupiterE.FourHundredGigE0/0/0/9
+    Link10dut1EJupiterE:
+        - dut1E.FourHundredGigE0/4/0/34
+        - JupiterE.FourHundredGigE0/0/0/10
+    Link11dut1EJupiterE:
+        - dut1E.FourHundredGigE0/5/0/33
+        - JupiterE.FourHundredGigE0/0/0/11       
+    Link12dut1EJupiterE:
+        - dut1E.FourHundredGigE0/5/0/34
+        - JupiterE.FourHundredGigE0/0/0/12   
+    Link13dut1EJupiterE:
+        - dut1E.FourHundredGigE0/6/0/33
+        - JupiterE.FourHundredGigE0/0/0/13
+    Link14dut1EJupiterE:
+        - dut1E.FourHundredGigE0/6/0/34
+        - JupiterE.FourHundredGigE0/0/0/14
+    Link15dut1EJupiterE:
+        - dut1E.FourHundredGigE0/7/0/34
+        - JupiterE.FourHundredGigE0/0/0/15      
+    Link16dut1EJupiterE:
+        - dut1E.FourHundredGigE0/7/0/35
+        - JupiterE.FourHundredGigE0/0/0/16
+
+#Jupiter to dut2E with 16 links
+    Link1dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/10
+        - JupiterE.FourHundredGigE0/0/0/17
+    Link2dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/11
+        - JupiterE.FourHundredGigE0/0/0/18
+    Link3dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/12
+        - JupiterE.FourHundredGigE0/0/0/19     
+    Link4dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/13
+        - JupiterE.FourHundredGigE0/0/0/20 
+    Link5dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/14
+        - JupiterE.FourHundredGigE0/0/0/21
+    Link6dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/15
+        - JupiterE.FourHundredGigE0/0/0/22
+    Link7dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/16
+        - JupiterE.FourHundredGigE0/0/0/23     
+    Link8dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/17
+        - JupiterE.FourHundredGigE0/0/0/24        
+    Link9dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/18
+        - JupiterE.FourHundredGigE0/0/0/25
+    Link10dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/19
+        - JupiterE.FourHundredGigE0/0/0/26
+    Link11dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/20
+        - JupiterE.FourHundredGigE0/0/0/27       
+    Link12dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/21
+        - JupiterE.FourHundredGigE0/0/0/28   
+    Link13dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/22
+        - JupiterE.FourHundredGigE0/0/0/29
+    Link14dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/23
+        - JupiterE.FourHundredGigE0/0/0/30       
+    Link15dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/24
+        - JupiterE.FourHundredGigE0/0/0/31
+    Link16dut2EJupiterE:
+        - dut2E.FourHundredGigE0/0/0/25
+        - JupiterE.FourHundredGigE0/0/0/32  

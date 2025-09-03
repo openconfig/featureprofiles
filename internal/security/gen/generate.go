@@ -37,7 +37,6 @@ import (
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 
 	bpb "github.com/openconfig/gnoi/bgp"
-	cpb "github.com/openconfig/gnoi/cert"
 	dpb "github.com/openconfig/gnoi/diag"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
@@ -62,26 +61,25 @@ var (
 
 var (
 	services = map[string]protoreflect.ServiceDescriptors{
-		"gnmi":                    gnmipb.File_proto_gnmi_gnmi_proto.Services(),
+		"gnmi":                    gnmipb.File_github_com_openconfig_gnmi_proto_gnmi_gnmi_proto.Services(),
 		"gribi":                   gribipb.File_v1_proto_service_gribi_proto.Services(),
 		"gnsi.authz":              authzpb.File_github_com_openconfig_gnsi_authz_authz_proto.Services(),
 		"gnsi.certz":              certzpb.File_github_com_openconfig_gnsi_certz_certz_proto.Services(),
 		"gnsi.pathz":              pathzpb.File_github_com_openconfig_gnsi_pathz_pathz_proto.Services(),
 		"gnsi.cred":               credpb.File_github_com_openconfig_gnsi_credentialz_credentialz_proto.Services(),
 		"gnsi.acc":                accpb.File_github_com_openconfig_gnsi_acctz_acctz_proto.Services(),
-		"gnoi.bgp":                bpb.File_bgp_bgp_proto.Services(),
-		"gnoi.cert":               cpb.File_cert_cert_proto.Services(),
-		"gnoi.diag":               dpb.File_diag_diag_proto.Services(),
-		"gnoi.factory_reset":      frpb.File_factory_reset_factory_reset_proto.Services(),
-		"gnoi.file":               fpb.File_file_file_proto.Services(),
-		"gnoi.healthz":            hpb.File_healthz_healthz_proto.Services(),
-		"gnoi.layer2":             lpb.File_layer2_layer2_proto.Services(),
-		"gnoi.mppls":              mpb.File_mpls_mpls_proto.Services(),
-		"gnoi.os":                 ospb.File_os_os_proto.Services(),
-		"gnoi.otdr":               otpb.File_otdr_otdr_proto.Services(),
-		"gnoi.link_qualification": plqpb.File_packet_link_qualification_packet_link_qualification_proto.Services(),
-		"gnoi.system":             spb.File_system_system_proto.Services(),
-		"gnoi.wpb":                wpb.File_wavelength_router_wavelength_router_proto.Services(),
+		"gnoi.bgp":                bpb.File_github_com_openconfig_gnoi_bgp_bgp_proto.Services(),
+		"gnoi.diag":               dpb.File_github_com_openconfig_gnoi_diag_diag_proto.Services(),
+		"gnoi.factory_reset":      frpb.File_github_com_openconfig_gnoi_factory_reset_factory_reset_proto.Services(),
+		"gnoi.file":               fpb.File_github_com_openconfig_gnoi_file_file_proto.Services(),
+		"gnoi.healthz":            hpb.File_github_com_openconfig_gnoi_healthz_healthz_proto.Services(),
+		"gnoi.layer2":             lpb.File_github_com_openconfig_gnoi_layer2_layer2_proto.Services(),
+		"gnoi.mppls":              mpb.File_github_com_openconfig_gnoi_mpls_mpls_proto.Services(),
+		"gnoi.os":                 ospb.File_github_com_openconfig_gnoi_os_os_proto.Services(),
+		"gnoi.otdr":               otpb.File_github_com_openconfig_gnoi_otdr_otdr_proto.Services(),
+		"gnoi.link_qualification": plqpb.File_github_com_openconfig_gnoi_packet_link_qualification_packet_link_qualification_proto.Services(),
+		"gnoi.system":             spb.File_github_com_openconfig_gnoi_system_system_proto.Services(),
+		"gnoi.wpb":                wpb.File_github_com_openconfig_gnoi_wavelength_router_wavelength_router_proto.Services(),
 		"p4rt":                    p4rtpb.File_p4_v1_p4runtime_proto.Services(),
 	}
 )

@@ -21,9 +21,10 @@
   
 * gNOI-5.3.3 - Chassis Component Health Check
    * Issue Healthz Check RPC to the DUT for Chassis component to trigger the generation of Artifact ID(s). Artifacts returned should be sufficient for vendor tech support teams to determine if any of the field replaceable components are faulty and must be replaced for that device.
-   * Verify that the DUT returns the artifact IDs in the Check RPC's response.
-   * Invoke ArtifactRequest to transfer the requested Artifact ID(s).
-   * Verify that the DUT returns the artifacts requested.
+   * Verify that the DUT returns the artifact IDs in the [Check RPC's](https://github.com/openconfig/gnoi/blob/main/healthz/README.md#healthzcheck) response.
+   * Invoke ArtifactRequest to transfer the requested Artifact ID(s) via [Artifact RPC](https://github.com/openconfig/gnoi/blob/main/healthz/README.md#healthzartifact)
+   * Verify that the DUT returns the artifacts requested. TODO: (https://github.com/openconfig/featureprofiles/issues/3013) Test has gap and does not retrieve artifacts.
+   * If ArtifactHeader is of FileArtifactType and a hash field is populated, the hash should be calculated against the Artifact body. TODO: (https://github.com/openconfig/featureprofiles/issues/3013) Test has gap and doesn't validate FileArtifactType hash against artifact body content.
 
 ## Process names by vendor
 * BGP Process

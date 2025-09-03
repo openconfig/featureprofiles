@@ -1,0 +1,47 @@
+name: gnsi
+owners: 
+  - harikri4
+  - venthota
+  - anidamod
+  - khrasool
+testbeds:
+  - 8808_FOX2643Q39J
+  - 8808_FOX2731P4L7
+tests:
+  - name: AUTHZFP
+    path: feature/security/gnsi/authz/tests/authz
+    args:
+      - '-test_infra_id="cafyauto"'
+    mustpass: true
+    internal: true
+    owners:
+      - harikri4
+  - name: CERTZ
+    path: feature/security/gnsi/certz/cisco/tests
+    mustpass: true
+    owners:
+      - venthota
+  - name: CREDZ
+    path: feature/security/gnsi/credentialz/cisco/tests
+    mustpass: true
+    owners:
+      - anidamod
+  - name: ENROLLZ_ATTESTZ
+    path: feature/system/attestz/cisco/tests
+    mustpass: true
+    owners:
+      - anidamod
+  - name: PATHZ
+    path: feature/security/gnsi/pathz/cisco/tests
+    mustpass: true
+    timeout: 6000
+    owners:
+      - khrasool
+  - name: ACCTZ
+    path: feature/security/gnsi/acctz/tests
+    args:
+      - '-test.run="(?:TestPreAcctzGRPCPhase2|TestPreAcctz301)"'
+    mustpass: true
+    internal: true
+    owners:
+      - haribal

@@ -24,28 +24,16 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
     ports to a second DUT2. For most tests this setup should be sufficient.
     Ref: [Typical ATE<>DUT Test bed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 *   A and Z ends of  the link should have same 400ZR PMD. For this test a
-    single DUT ZR port connected to a single ZR ATE port is also sufficient. 
+    single DUT ZR port connected to a single ZR ATE port is also sufficient.
 
 Once the ZR link is estabished proceed with the following:
 *  verify that the following ZR transceiver telemetry paths exist and are
    streamed for both the ZR optics.
     *   /components/component/transceiver/state/supply-voltage/instant
-    *   /components/component/transceiver/state/supply-voltage/min
-    *   /components/component/transceiver/state/supply-voltage/max
-    *   /components/component/transceiver/state/supply-voltage/avg
-*   For reported data check for validity min <= avg/instant <= max
 
 *   If the modules or the devices are in a boot stage, they must not stream
     any invalid string values like "nil" or "-inf".
 *   Reported supply voltage value must always be of type decimal64.
-
-
-**Note:** For min, max, and avg values, 10 second sampling is preferred. If the
-          min, max average values or the 10 seconds sampling is not supported,
-          the sampling interval used must be specified and this must be
-          captured by adding a deviation to the test.
-
-
 *   Verify the module supply voltage is reported correctly with optics
     interface in disabled state.
 
@@ -58,13 +46,19 @@ Once the ZR link is estabished proceed with the following:
         any invalid string values like "nil" or "-inf".
     *   Reported supply voltage value must always be of type decimal64. 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/enabled
+```yaml
+paths:
+    # Config Parameter coverage
+    /interfaces/interface/config/enabled:
+    # Telemetry Parameter coverage
+    /components/component/transceiver/state/supply-voltage/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
 
-## Telemetry Parameter coverage
-
-    *   /components/component/transceiver/state/supply-voltage/instant
-    *   /components/component/transceiver/state/supply-voltage/min
-    *   /components/component/transceiver/state/supply-voltage/max
-    *   /components/component/transceiver/state/supply-voltage/avg
+rpcs:
+    gnmi:
+        gNMI.Get:
+        gNMI.Set:
+        gNMI.Subscribe:
+```

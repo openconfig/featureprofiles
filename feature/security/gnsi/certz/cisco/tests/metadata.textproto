@@ -2,14 +2,6 @@
 # proto-message: Metadata
 
 uuid: "7b4c9615-3892-4298-be2f-82a79dcfce9b"
-plan_id: "gNOI-3.3"
-description: "Supervisor Switchover"
+plan_id: "CERTZ"
+description: "General Certz Tests"
 testbed: TESTBED_DUT_ATE_2LINKS
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
-  }
-  deviations: {
-    gnoi_subcomponent_path: true
-  }
-}

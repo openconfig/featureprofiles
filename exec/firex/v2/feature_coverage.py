@@ -2,7 +2,7 @@ from firexapp.engine.celery import app
 from microservices.firex_base import InjectArgs
 from microservices.chaintasks import RunTests
 from firexkit.task import flame
-from microservices.feature_coverage import CEREBRO_PLAT_NAME_TO_PLAT, _cerebro_http_get_feature_id_path
+from microservices.feature_coverage import CEREBRO_PLAT_NAME_TO_PLAT, _cerebro_http_get_feature_id_path, _raise_no_files_from_cerebro_error
 from diff2func import map_file_to_pims_comp
 import os
 
@@ -29,11 +29,7 @@ def B4FeatureCoverageRunTests(self, uid, feature_id, platforms=["8000"], testsui
 
     cerebro_feature_files = cerebro_data['cerebro_feature_files']
     if not cerebro_feature_files:
-        raise Exception(
-            f"Cerebro has no files for {feature_id}. Coverage can't be found without "
-            "files to instrument. Make sure all DDTSes are tagged with this feature "
-            "and have diffs."
-        )
+        _raise_no_files_from_cerebro_error(self, feature_id)
 
     run_tests_results = self.enqueue_child_and_get_results(
         InjectArgs(**self.abog)
