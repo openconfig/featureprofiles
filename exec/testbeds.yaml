@@ -561,7 +561,7 @@ testbeds:
     testbed: topologies/cisco/hw/2DUT-TB4/testbed_gribi
     binding: topologies/cisco/hw/2DUT-TB4/binding_gribi
     baseconf:
-      dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1-gribi-scale.proto
+      dut1: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1-gribi-scale.proto
       dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2-gribi-scale.proto
     otg:
       host: ott-ucs4-b4
