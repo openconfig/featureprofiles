@@ -162,11 +162,13 @@ var (
 	}
 	// %loss tolerance for traffic received when there should be 100% loss
 	// make non-zero to allow for some packet gain
-	lossTolerance   = float32(0.0)
-	fps             = *flag.Int("fps", 100000, "frames per second")
-	trafficDuration = *flag.Int("traffic_duration", 20, "traffic duration in seconds") * int(time.Second)
-	capture_sflow   = *flag.Bool("capture_sflow", false, "enable sFlow capture")
-	frameSize       = *flag.Int("frame_size", 512, "frame size in bytes, default 512")
+	lossTolerance      = float32(0.0)
+	sf_fps             = flag.Uint64("sf_fps", 100000, "frames per second for traffic while validating sFlow")
+	sf_trafficDuration = flag.Int("sf_traffic_duration", 10, "traffic duration in seconds while validating sFlow")
+	capture_sflow      = *flag.Bool("capture_sflow", false, "enable sFlow capture")
+	frameSize          = flag.Int("frame_size", 512, "frame size in bytes, default 512")
+	fps                = flag.Uint64("fps", 100, "frames per second")
+	trafficDuration    = flag.Int("traffic_duration", 10, "traffic duration in seconds")
 )
 
 var (
@@ -409,6 +411,7 @@ type packetAttr struct {
 	ttl      uint32
 	inner    *packetAttr
 	sfSample *sflowSample
+	sfConfig *sflowConfig
 }
 
 type sflowSample struct {
@@ -419,11 +422,50 @@ type sflowSample struct {
 	extdGtwData     *sfRecordExtendedGatewayData
 }
 type sfRecordRawPacketHeader struct {
+	Protocol    uint32 // Protocol of the sampled packet
+	FrameLength uint32 // Original length of the packet
+	Stripped    uint32 // Number of bytes stripped from the packet
+	Header      []byte // Header bytes of the sampled packet
 }
+
 type sfRecordExtendedRouterData struct {
+	NextHop         string   // IP address of the next hop router
+	SrcAS           uint32   // Source Autonomous System
+	DstAS           uint32   // Destination Autonomous System
+	SrcPeerAS       uint32   // Source Peer AS
+	InputInterface  uint32   // SNMP index of input interface
+	OutputInterface uint32   // SNMP index of output interface
+	SrcASPath       []uint32 // AS path to source
+	DstASPath       []uint32 // AS path to destination
 }
+
 type sfRecordExtendedGatewayData struct {
+	NextHop     string   // IP address of the gateway
+	ASPath      []uint32 // AS path
+	Communities []uint32 // BGP communities
+	LocalPref   uint32   // BGP local preference
 }
+
+// flowConfig and IPType are provided in the original prompt
+type sflowConfig struct {
+	name            string
+	packetsToSend   uint32
+	ppsRate         uint64
+	frameSize       uint32
+	sflowDscp       uint8
+	samplingRate    uint
+	sampleTolerance float32
+	ip              IPType
+	inputInterface  []uint32
+	outputInterface []uint32
+}
+
+type IPType string
+
+const (
+	IPv4 = "IPv4"
+	IPv6 = "IPv6"
+)
 
 type flowAttr struct {
 	src       string   // source IP address
@@ -436,6 +478,7 @@ type flowAttr struct {
 	innerTtl  uint32
 	innerDscp uint32
 	dscp      uint32
+	fps       uint64
 	topo      gosnappi.Config
 }
 
@@ -449,6 +492,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	fa6 = flowAttr{
 		src:      otgPort1.IPv6,
@@ -459,6 +503,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	faIPinIP = flowAttr{
 		src:      ipv4OuterSrcIpInIp,
@@ -470,6 +515,7 @@ var (
 		ttl:      ttl,
 		innerTtl: innerTtl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	fa4NoPrefix = flowAttr{
 		src:      otgPort1.IPv4,
@@ -480,6 +526,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	fa6NoPrefix = flowAttr{
 		src:      otgPort1.IPv6,
@@ -490,6 +537,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	faTransit = flowAttr{
 		src:       ipv4OuterSrc111,
@@ -502,18 +550,21 @@ var (
 		innerTtl:  innerTtl,
 		innerDscp: dscpEncapNoMatch, // at egress outer DSCP will be copied to inner DSCP
 		topo:      gosnappi.NewConfig(),
+		fps:       *fps,
 	}
 )
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	dut           *ondatra.DUTDevice
-	ate           *ondatra.ATEDevice
-	topo          gosnappi.Config
-	client        *gribi.Client
-	pattr         *packetAttr
-	flows         []gosnappi.Flow
-	capture_ports []string
+	dut             *ondatra.DUTDevice
+	ate             *ondatra.ATEDevice
+	topo            gosnappi.Config
+	client          *gribi.Client
+	pattr           *packetAttr
+	flows           []gosnappi.Flow
+	capture_ports   []string
+	validateSflow   bool
+	trafficDuration int
 }
 
 // getPbrRules returns pbrRule slice for cluster facing (clusterFacing = true) or wan facing
@@ -967,9 +1018,10 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
-	flow.Size().SetFixed(uint32(frameSize))
-	flow.Rate().SetPps(uint64(fps))
+	flow.Size().SetFixed(uint32(*frameSize))
+	flow.Rate().SetPps(100) //(uint64(*fps))
 
+	fmt.Printf("+++++++++++(uint64(*fps)) = %d", uint64(*fps))
 	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(fa.srcMac)
@@ -1031,7 +1083,13 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	}
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
-	time.Sleep(time.Duration(trafficDuration))
+
+	if args.trafficDuration == 0 {
+		time.Sleep(time.Duration(*trafficDuration) * time.Second)
+	} else {
+		time.Sleep(time.Duration(args.trafficDuration) * time.Second)
+	}
+
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
 }
@@ -1091,11 +1149,151 @@ func validateTunnelEncapRatio(t *testing.T, tunCounter map[string][]int) {
 }
 
 // validatePacketCapture reads capture files and checks the encapped packet for desired protocol, dscp and ttl
+// func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, pa *packetAttr) map[string][]int {
+// 	tunCounter := make(map[string][]int)
+// 	for _, otgPortName := range otgPortNames {
+// 		l := NewLogger(t)
+
+// 		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
+// 		f, err := os.CreateTemp("", "fibchains.pcap")
+// 		if err != nil {
+// 			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
+// 		}
+// 		t.Logf("Created pcap file %s", f.Name())
+// 		if _, err := f.Write(bytes); err != nil {
+// 			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
+// 		}
+// 		f.Close()
+// 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
+// 		handle, err := pcap.OpenOffline(f.Name())
+// 		if err != nil {
+// 			// log.Fatal(err)
+// 			log.Printf("%v", err)
+// 			break
+// 		}
+// 		defer handle.Close()
+
+// 		// if err == nil {
+
+// 		if pa.sfConfig != nil {
+// 			validateSflowPackets(t, f.Name(), IPv6, *pa.sfConfig)
+// 		}
+
+// 		tunnel1Pkts := 0
+// 		tunnel2Pkts := 0
+// 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+// 		for packet := range packetSource.Packets() {
+
+// 			if ipV4Layer := packet.Layer(layers.LayerTypeIPv4); ipV4Layer != nil {
+// 				v4Packet, _ := ipV4Layer.(*layers.IPv4)
+// 				l.LogOncef("Outer IPv4 packet: %+v\n", v4Packet)
+// 				if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
+// 					l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+// 					break
+// 				} else {
+// 					l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
+// 				}
+// 				if got := int(v4Packet.TOS >> 2); got != pa.dscp {
+// 					l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
+// 				} else {
+// 					l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
+// 				}
+// 				if got := uint32(v4Packet.TTL); got != pa.ttl {
+// 					l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
+// 				} else {
+// 					l.LogOncef("Outer TTL matched: %d", pa.ttl)
+// 				}
+// 				if v4Packet.DstIP.String() == tunnelDstIP1 {
+// 					tunnel1Pkts++
+// 				}
+// 				if v4Packet.DstIP.String() == tunnelDstIP2 {
+// 					tunnel2Pkts++
+// 				}
+// 				// check for inner IPv4 packet
+// 				if v4Packet.Protocol == layers.IPProtocolIPv4 && pa.inner != nil {
+// 					nextIPV4Layer := gopacket.NewPacket(v4Packet.Payload, layers.LayerTypeIPv4, gopacket.Default)
+// 					innerIPv4Layer := nextIPV4Layer.Layer(layers.LayerTypeIPv4)
+// 					if innerIPv4Layer != nil {
+// 						innerIPv4Packet, _ := innerIPv4Layer.(*layers.IPv4)
+// 						// Process the inner IPv4 packet as needed
+// 						l.LogOncef("Inner IPv4 packet: %+v\n", innerIPv4Packet)
+// 						if got := innerIPv4Packet.Protocol; got != layers.IPProtocol(pa.inner.protocol) {
+// 							l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+// 						} else {
+// 							l.LogOncef("Inner Packet protocol type matched: %d", pa.inner.protocol)
+// 						}
+// 						if got := int(innerIPv4Packet.TOS >> 2); got != pa.inner.dscp {
+// 							l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
+// 						} else {
+// 							l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
+// 						}
+// 						if got := uint32(innerIPv4Packet.TTL); got != pa.inner.ttl {
+// 							l.LogOnceErrorf("Inner Packer TTL mismatch, got: %d, want: %d", got, pa.ttl)
+// 						} else {
+// 							l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
+// 						}
+// 					}
+// 				}
+// 				// Check if the next protocol is IPv6
+// 				if v4Packet.Protocol == layers.IPProtocolIPv6 && pa.inner != nil {
+// 					nextIPV6Layer := gopacket.NewPacket(v4Packet.Payload, layers.LayerTypeIPv6, gopacket.Default)
+// 					innerIPv6Layer := nextIPV6Layer.Layer(layers.LayerTypeIPv6)
+// 					if innerIPv6Layer != nil {
+// 						innerIPv6Packet, _ := innerIPv6Layer.(*layers.IPv6)
+// 						// Process the inner IPv6 packet as needed
+// 						l.LogOncef("Inner IPv6 packet: %+v\n", innerIPv6Packet)
+// 						if got := innerIPv6Packet.NextHeader; got != layers.IPProtocol(pa.inner.protocol) {
+// 							l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.inner.protocol)
+// 						} else {
+// 							l.LogOncef("Inner Packet protocol type matched: %d", pa.inner.protocol)
+// 						}
+// 						if got := int(innerIPv6Packet.TrafficClass >> 2); got != pa.inner.dscp {
+// 							l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.inner.dscp)
+// 						} else {
+// 							l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
+// 						}
+// 						if got := uint32(innerIPv6Packet.HopLimit); got != pa.inner.ttl {
+// 							l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.inner.ttl)
+// 						} else {
+// 							l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
+// 						}
+// 					}
+// 				}
+
+//				} else if ipV6Layer := packet.Layer(layers.LayerTypeIPv6); ipV6Layer != nil {
+//					v6Packet, _ := ipV6Layer.(*layers.IPv6)
+//					// ignore ICMPv6 packets received for neighbor discovery
+//					if v6Packet.NextHeader == layers.IPProtocolICMPv6 {
+//						t.Logf("Ignoring ICMPv6 packet received")
+//						continue
+//					}
+//					l.LogOncef("Outer IPv6 packet: %+v\n", v6Packet)
+//					if got := v6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
+//						l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+//					} else {
+//						l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
+//					}
+//					if got := int(v6Packet.TrafficClass >> 2); got != pa.dscp {
+//						l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
+//					} else {
+//						l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
+//					}
+//					if got := uint32(v6Packet.HopLimit); got != pa.ttl {
+//						l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
+//					} else {
+//						l.LogOncef("Outer TTL matched: %d", pa.ttl)
+//					}
+//				}
+//			}
+//			t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
+//			tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
+//		}
+//		return tunCounter
+//	}
 func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, pa *packetAttr) map[string][]int {
 	tunCounter := make(map[string][]int)
 	for _, otgPortName := range otgPortNames {
-		// l := NewLogger(t)
-
+		l := NewLogger(t)
 		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
 		f, err := os.CreateTemp("", "fibchains.pcap")
 		if err != nil {
@@ -1109,139 +1307,139 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
 		handle, err := pcap.OpenOffline(f.Name())
 		if err != nil {
-			// log.Fatal(err)
 			log.Printf("%v", err)
 			break
 		}
 		defer handle.Close()
 
-		// 		type flowConfig struct {
-		// 	name          string
-		// 	packetsToSend uint32
-		// 	ppsRate       uint64
-		// 	frameSize     uint32
-		// }
-		//
-		fc := flowConfig{
-			name:          "sflow-capture",
-			packetsToSend: uint32(trafficDuration * fps),
-			ppsRate:       uint64(fps),
-			frameSize:     uint32(frameSize),
-			sflowDscp:     32,
+		if pa.sfConfig != nil {
+			validateSflowPackets(t, f.Name(), IPv6, *pa.sfConfig)
 		}
-		if err == nil {
-			validatePackets(t, f.Name(), IPv6, fc)
+
+		tunnel1Pkts, tunnel2Pkts := 0, 0
+		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+		for packet := range packetSource.Packets() {
+			switch {
+			case packet.Layer(layers.LayerTypeIPv4) != nil:
+				v4Packet, _ := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+				validateIPv4Packet(l, v4Packet, pa)
+				if v4Packet.DstIP.String() == tunnelDstIP1 {
+					tunnel1Pkts++
+				}
+				if v4Packet.DstIP.String() == tunnelDstIP2 {
+					tunnel2Pkts++
+				}
+				// Check for inner IPv4 or IPv6
+				if v4Packet.Protocol == layers.IPProtocolIPv4 && pa.inner != nil {
+					validateInnerIPv4Packet(l, v4Packet.Payload, pa.inner)
+				}
+				if v4Packet.Protocol == layers.IPProtocolIPv6 && pa.inner != nil {
+					validateInnerIPv6Packet(l, v4Packet.Payload, pa.inner)
+				}
+			case packet.Layer(layers.LayerTypeIPv6) != nil:
+				v6Packet, _ := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+				// Ignore ICMPv6 packets for neighbor discovery
+				if v6Packet.NextHeader == layers.IPProtocolICMPv6 {
+					t.Logf("Ignoring ICMPv6 packet received")
+					continue
+				}
+				validateIPv6Packet(l, v6Packet, pa)
+			case packet.Layer(layers.LayerTypeSFlow) != nil:
+				// sFlow validation is already handled above if pa.sfConfig != nil
+				t.Logf("Ignoring sFlow packet received")
+				continue
+			default:
+				// Unhandled packet type
+			}
 		}
-		// packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		tunnel1Pkts := 0
-		tunnel2Pkts := 0
-		// for packet := range packetSource.Packets() {
-
-		// 	if ipV4Layer := packet.Layer(layers.LayerTypeIPv4); ipV4Layer != nil {
-		// 		v4Packet, _ := ipV4Layer.(*layers.IPv4)
-		// 		l.LogOncef("Outer IPv4 packet: %+v\n", v4Packet)
-		// 		if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
-		// 			l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-		// 			break
-		// 		} else {
-		// 			l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
-		// 		}
-		// 		if got := int(v4Packet.TOS >> 2); got != pa.dscp {
-		// 			l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
-		// 		} else {
-		// 			l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
-		// 		}
-		// 		if got := uint32(v4Packet.TTL); got != pa.ttl {
-		// 			l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
-		// 		} else {
-		// 			l.LogOncef("Outer TTL matched: %d", pa.ttl)
-		// 		}
-		// 		if v4Packet.DstIP.String() == tunnelDstIP1 {
-		// 			tunnel1Pkts++
-		// 		}
-		// 		if v4Packet.DstIP.String() == tunnelDstIP2 {
-		// 			tunnel2Pkts++
-		// 		}
-		// 		// check for inner IPv4 packet
-		// 		if v4Packet.Protocol == layers.IPProtocolIPv4 && pa.inner != nil {
-		// 			nextIPV4Layer := gopacket.NewPacket(v4Packet.Payload, layers.LayerTypeIPv4, gopacket.Default)
-		// 			innerIPv4Layer := nextIPV4Layer.Layer(layers.LayerTypeIPv4)
-		// 			if innerIPv4Layer != nil {
-		// 				innerIPv4Packet, _ := innerIPv4Layer.(*layers.IPv4)
-		// 				// Process the inner IPv4 packet as needed
-		// 				l.LogOncef("Inner IPv4 packet: %+v\n", innerIPv4Packet)
-		// 				if got := innerIPv4Packet.Protocol; got != layers.IPProtocol(pa.inner.protocol) {
-		// 					l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-		// 				} else {
-		// 					l.LogOncef("Inner Packet protocol type matched: %d", pa.inner.protocol)
-		// 				}
-		// 				if got := int(innerIPv4Packet.TOS >> 2); got != pa.inner.dscp {
-		// 					l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
-		// 				} else {
-		// 					l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
-		// 				}
-		// 				if got := uint32(innerIPv4Packet.TTL); got != pa.inner.ttl {
-		// 					l.LogOnceErrorf("Inner Packer TTL mismatch, got: %d, want: %d", got, pa.ttl)
-		// 				} else {
-		// 					l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
-		// 				}
-		// 			}
-		// 		}
-		// 		// Check if the next protocol is IPv6
-		// 		if v4Packet.Protocol == layers.IPProtocolIPv6 && pa.inner != nil {
-		// 			nextIPV6Layer := gopacket.NewPacket(v4Packet.Payload, layers.LayerTypeIPv6, gopacket.Default)
-		// 			innerIPv6Layer := nextIPV6Layer.Layer(layers.LayerTypeIPv6)
-		// 			if innerIPv6Layer != nil {
-		// 				innerIPv6Packet, _ := innerIPv6Layer.(*layers.IPv6)
-		// 				// Process the inner IPv6 packet as needed
-		// 				l.LogOncef("Inner IPv6 packet: %+v\n", innerIPv6Packet)
-		// 				if got := innerIPv6Packet.NextHeader; got != layers.IPProtocol(pa.inner.protocol) {
-		// 					l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.inner.protocol)
-		// 				} else {
-		// 					l.LogOncef("Inner Packet protocol type matched: %d", pa.inner.protocol)
-		// 				}
-		// 				if got := int(innerIPv6Packet.TrafficClass >> 2); got != pa.inner.dscp {
-		// 					l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.inner.dscp)
-		// 				} else {
-		// 					l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
-		// 				}
-		// 				if got := uint32(innerIPv6Packet.HopLimit); got != pa.inner.ttl {
-		// 					l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.inner.ttl)
-		// 				} else {
-		// 					l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
-		// 				}
-		// 			}
-		// 		}
-
-		// 	} else if ipV6Layer := packet.Layer(layers.LayerTypeIPv6); ipV6Layer != nil {
-		// 		v6Packet, _ := ipV6Layer.(*layers.IPv6)
-		// 		// ignore ICMPv6 packets received for neighbor discovery
-		// 		if v6Packet.NextHeader == layers.IPProtocolICMPv6 {
-		// 			t.Logf("Ignoring ICMPv6 packet received")
-		// 			continue
-		// 		}
-		// 		l.LogOncef("Outer IPv6 packet: %+v\n", v6Packet)
-		// 		if got := v6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
-		// 			l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-		// 		} else {
-		// 			l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
-		// 		}
-		// 		if got := int(v6Packet.TrafficClass >> 2); got != pa.dscp {
-		// 			l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
-		// 		} else {
-		// 			l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
-		// 		}
-		// 		if got := uint32(v6Packet.HopLimit); got != pa.ttl {
-		// 			l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
-		// 		} else {
-		// 			l.LogOncef("Outer TTL matched: %d", pa.ttl)
-		// 		}
-		// 	}
-		// }
-		// t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
+		t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
 		tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
 	}
 	return tunCounter
+}
+
+func validateIPv4Packet(l *Logger, v4Packet *layers.IPv4, pa *packetAttr) {
+	if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
+		l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+	} else {
+		l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
+	}
+	if got := int(v4Packet.TOS >> 2); got != pa.dscp {
+		l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
+	} else {
+		l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
+	}
+	if got := uint32(v4Packet.TTL); got != pa.ttl {
+		l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
+	} else {
+		l.LogOncef("Outer TTL matched: %d", pa.ttl)
+	}
+}
+
+func validateInnerIPv4Packet(l *Logger, payload []byte, pa *packetAttr) {
+	nextIPV4Layer := gopacket.NewPacket(payload, layers.LayerTypeIPv4, gopacket.Default)
+	innerIPv4Layer := nextIPV4Layer.Layer(layers.LayerTypeIPv4)
+	if innerIPv4Layer != nil {
+		innerIPv4Packet, _ := innerIPv4Layer.(*layers.IPv4)
+		l.LogOncef("Inner IPv4 packet: %+v\n", innerIPv4Packet)
+		if got := innerIPv4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
+			l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+		} else {
+			l.LogOncef("Inner Packet protocol type matched: %d", pa.protocol)
+		}
+		if got := int(innerIPv4Packet.TOS >> 2); got != pa.inner.dscp {
+			l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
+		} else {
+			l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
+		}
+		if got := uint32(innerIPv4Packet.TTL); got != pa.inner.ttl {
+			l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.ttl)
+		} else {
+			l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
+		}
+	}
+}
+
+func validateInnerIPv6Packet(l *Logger, payload []byte, pa *packetAttr) {
+	nextIPV6Layer := gopacket.NewPacket(payload, layers.LayerTypeIPv6, gopacket.Default)
+	innerIPv6Layer := nextIPV6Layer.Layer(layers.LayerTypeIPv6)
+	if innerIPv6Layer != nil {
+		innerIPv6Packet, _ := innerIPv6Layer.(*layers.IPv6)
+		l.LogOncef("Inner IPv6 packet: %+v\n", innerIPv6Packet)
+		if got := innerIPv6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
+			l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+		} else {
+			l.LogOncef("Inner Packet protocol type matched: %d", pa.protocol)
+		}
+		if got := int(innerIPv6Packet.TrafficClass >> 2); got != pa.inner.dscp {
+			l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.inner.dscp)
+		} else {
+			l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
+		}
+		if got := uint32(innerIPv6Packet.HopLimit); got != pa.inner.ttl {
+			l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.inner.ttl)
+		} else {
+			l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
+		}
+	}
+}
+
+func validateIPv6Packet(l *Logger, v6Packet *layers.IPv6, pa *packetAttr) {
+	if got := v6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
+		l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+	} else {
+		l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
+	}
+	if got := int(v6Packet.TrafficClass >> 2); got != pa.dscp {
+		l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
+	} else {
+		l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
+	}
+	if got := uint32(v6Packet.HopLimit); got != pa.ttl {
+		l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
+	} else {
+		l.LogOncef("Outer TTL matched: %d", pa.ttl)
+	}
 }
 
 // startCapture starts the capture on the otg ports
@@ -1482,6 +1680,13 @@ func testTransitTrafficWithTtlDscp(t *testing.T, args *testArgs, weights []float
 	}
 }
 
+func validateCapture(t *testing.T, args *testArgs) {
+	enableCapture(t, args.ate.OTG(), args.topo, args.capture_ports)
+	sendTraffic(t, args, args.flows, true)
+	defer clearCapture(t, args.ate.OTG(), args.topo)
+	validatePacketCapture(t, args, args.capture_ports, args.pattr)
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -1666,23 +1871,7 @@ type SFlowFlowSample struct {
 	Records               []SFlowRecord
 }
 
-// flowConfig and IPType are provided in the original prompt
-type flowConfig struct {
-	name          string
-	packetsToSend uint32
-	ppsRate       uint64
-	frameSize     uint32
-	sflowDscp     uint8
-}
-
-type IPType string
-
-const (
-	IPv4 = "IPv4"
-	IPv6 = "IPv6"
-)
-
-func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
+func validateSflowPackets(t *testing.T, filename string, ip IPType, fc sflowConfig) {
 	// First pass: Check for sFlow-exported packets based on IP header TOS/TrafficClass
 	// This part of the function remains largely the same as your original code.
 	handle, err := pcap.OpenOffline(filename)
@@ -1723,8 +1912,8 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 		}
 	}
 
-	// expectedSampleCount := float64(fc.packetsToSend / samplingRate)
-	expectedSampleCount := float64((120 * 100000) / samplingRate)
+	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
+	// expectedSampleCount := float64((120 * 100000) / samplingRate)
 	minAllowedSamples := expectedSampleCount * sampleTolerance
 	t.Logf("SFlow packets captured (based on IP header TOS/TrafficClass): %v", sampleCount)
 	if !found || sampleCount < int(minAllowedSamples) {
@@ -1895,6 +2084,155 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 	}
 }
 
+// // validateSflowSampleCount counts sFlow-exported packets based on IP header TOS/TrafficClass.
+// func validateSflowSampleCount(t *testing.T, filename string, ip IPType, fc sflowConfig) (int, float64, float64) {
+// 	handle, err := pcap.OpenOffline(filename)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer handle.Close()
+
+// 	loopbackIP := net.ParseIP(dutlo0Attrs.IPv4)
+// 	if ip == IPv6 {
+// 		loopbackIP = net.ParseIP(dutlo0Attrs.IPv6)
+// 	}
+// 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+
+// 	found := false
+// 	sampleCount := 0
+
+// 	for packet := range packetSource.Packets() {
+// 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
+// 			ipv4, _ := ipLayer.(*layers.IPv4)
+// 			if ipv4.SrcIP.Equal(loopbackIP) {
+// 				if (ipv4.TOS >> 2) == fc.sflowDscp {
+// 					found = true
+// 					sampleCount++
+// 				}
+// 			}
+// 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
+// 			ipv6, _ := ipLayer.(*layers.IPv6)
+// 			if ipv6.SrcIP.Equal(loopbackIP) {
+// 				if ipv6.TrafficClass == (fc.sflowDscp << 2) {
+// 					found = true
+// 					sampleCount++
+// 				}
+// 			}
+// 		}
+// 	}
+
+// 	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
+// 	minAllowedSamples := expectedSampleCount * sampleTolerance
+// 	t.Logf("SFlow packets captured (based on IP header TOS/TrafficClass): %v", sampleCount)
+// 	return sampleCount, expectedSampleCount, minAllowedSamples
+// }
+
+// // validateSflowSampleFields validates sFlow datagram and flow sample fields.
+// func validateSflowSampleFields(t *testing.T, filename string, fc sflowConfig) {
+// 	handle, err := pcap.OpenOffline(filename)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer handle.Close()
+
+// 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+
+// 	pickedFlowSamplesCount := 0
+// 	packetCount := 0
+// 	sflowSamplesTotal := uint32(0)
+
+// 	for packet := range packetSource.Packets() {
+// 		if pickedFlowSamplesCount >= 2 {
+// 			t.Log("\n--- Two SFlow Flow Samples picked and printed. Stopping further processing. ---")
+// 			break
+// 		}
+
+// 		if sflowLayer := packet.Layer(layers.LayerTypeSFlow); sflowLayer != nil {
+// 			sflowDatagram, ok := sflowLayer.(*layers.SFlowDatagram)
+// 			if !ok {
+// 				t.Logf("Warning: Could not cast SFlow layer to *layers.SFlowDatagram")
+// 				continue
+// 			}
+
+// 			packetCount++
+// 			sflowSamplesTotal += sflowDatagram.SampleCount
+
+// 			t.Logf("\nSFlow Datagram %d found. Contains %d samples (total reported: %d).",
+// 				packetCount, len(sflowDatagram.FlowSamples), sflowDatagram.SampleCount)
+
+// 			for _, flowSample := range sflowDatagram.FlowSamples {
+// 				if pickedFlowSamplesCount >= 2 {
+// 					break
+// 				}
+// 				t.Logf("\n--- SFlow Flow Sample %d Details (from Datagram %d) ---", pickedFlowSamplesCount+1, packetCount)
+// 				t.Logf("  EnterpriseID: %d", flowSample.EnterpriseID)
+// 				t.Logf("  Format: %d", flowSample.Format)
+// 				t.Logf("  SampleLength: %d", flowSample.SampleLength)
+// 				t.Logf("  SequenceNumber: %d", flowSample.SequenceNumber)
+// 				t.Logf("  SourceIDClass: %d", flowSample.SourceIDClass)
+// 				t.Logf("  SourceIDIndex: %d", flowSample.SourceIDIndex)
+// 				t.Logf("  SamplingRate: %d", flowSample.SamplingRate)
+// 				t.Logf("  SamplePool: %d", flowSample.SamplePool)
+// 				t.Logf("  Dropped: %d", flowSample.Dropped)
+// 				t.Logf("  InputInterface: %d", flowSample.InputInterface)
+// 				t.Logf("  OutputInterface: %d", flowSample.OutputInterface)
+// 				t.Logf("  RecordCount: %d", len(flowSample.Records))
+
+// 				for i, record := range flowSample.Records {
+// 					t.Logf("    --- Flow Record %d (Type: %T) ---", i+1, record)
+// 					switch r := record.(type) {
+// 					case layers.SFlowRawPacketFlowRecord:
+// 						t.Logf("      Type: Raw Packet Flow Record")
+// 						t.Logf("      Header Protocol: %d", r.HeaderProtocol)
+// 						t.Logf("      FrameLength: %d", r.FrameLength)
+// 						t.Logf("      Header Length: %d (first %d bytes of original packet)", r.HeaderLength, r.Header)
+// 					case layers.SFlowEthernetFrameFlowRecord:
+// 						t.Logf("      Type: Ethernet Frame Flow Record")
+// 						t.Logf("      FrameLength: %d", r.FrameLength)
+// 						t.Logf("      SrcMAC: %s", r.SrcMac)
+// 						t.Logf("      DstMAC: %s", r.DstMac)
+// 						t.Logf("      EtherType: %d", r.Type)
+// 					case layers.SFlowIpv4Record:
+// 						t.Logf("      Type: IPv4 Flow Record")
+// 						t.Logf("      SrcIP: %s", r.IPSrc)
+// 						t.Logf("      DstIP: %s", r.IPDst)
+// 						t.Logf("      Protocol: %d", r.Protocol)
+// 						t.Logf("      SrcPort: %d", r.PortSrc)
+// 						t.Logf("      DstPort: %d", r.PortDst)
+// 						t.Logf("      TCPFlags: %d", r.TCPFlags)
+// 						t.Logf("      TotalLength: %d", r.Length)
+// 					case layers.SFlowIpv6Record:
+// 						t.Logf("      Type: IPv6 Flow Record")
+// 						t.Logf("      SrcIP: %s", r.IPSrc)
+// 						t.Logf("      DstIP: %s", r.IPDst)
+// 						t.Logf("      Protocol: %d", r.Protocol)
+// 						t.Logf("      SrcPort: %d", r.PortSrc)
+// 						t.Logf("      DstPort: %d", r.PortDst)
+// 						t.Logf("      TCPFlags: %d", r.TCPFlags)
+// 						t.Logf("      TotalLength: %d", r.Length)
+// 					case layers.SFlowExtendedRouterFlowRecord:
+// 						t.Logf("      Type: Extended Router Flow Record")
+// 						t.Logf("      NextHop: %s", r.NextHop)
+// 						t.Logf("      SrcMask: %d", r.NextHopSourceMask)
+// 						t.Logf("      DstMask: %d", r.NextHopDestinationMask)
+// 					case layers.SFlowExtendedGatewayFlowRecord:
+// 						t.Logf("      Type: Extended Gateway Flow Record")
+// 						t.Logf("      NextHop: %s", r.NextHop)
+// 						t.Logf("      AS: %d", r.AS)
+// 						t.Logf("      SrcAS: %d", r.SourceAS)
+// 						t.Logf("      DstAS: %d", r.PeerAS)
+// 						t.Logf("      Communities: %v", r.Communities)
+// 						t.Logf("      LocalPref: %d", r.LocalPref)
+// 					default:
+// 						t.Logf("      Type: Unhandled Flow Record Type (%T)", record)
+// 					}
+// 				}
+// 				pickedFlowSamplesCount++
+// 			}
+// 		}
+// 	}
+//}
+
 // Example usage context (from your original prompt, not part of the function itself)
 /*
 flowConfigs = []flowConfig{
@@ -1971,10 +2309,238 @@ func sshRunCommand(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIC
 
 }
 
+var ifIndexMap = make(map[string]uint32)
+
+// // To store:
+// ifIndexMap["Bundle-Ether1"] = 101
+// ifIndexMap["Bundle-Ether2"] = 102
+
+// // To retrieve:
+// idx := ifIndexMap["Bundle-Ether1"]
+
+func getBundleMembers(t *testing.T, dut *ondatra.DUTDevice, bundleName string) []string {
+	return gnmi.Get(t, dut, gnmi.OC().Interface(bundleName).Aggregation().Member().State())
+}
+
+// Map bundle interface name to slice of member ifIndexes
+var bundleMemberIfIndexes = map[string][]uint32{
+	"Bundle-Ether1": {101, 102, 103, 104}, // Example ifIndexes for members
+	"Bundle-Ether2": {105, 106},
+	// ...
+}
+
+func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames []string) map[string][]uint32 {
+	var bundleMemberIfIndexes = make(map[string][]uint32)
+	// Initialize the map with bundle names and their member ifIndexes
+	for _, bundle := range bundleNames {
+		members := gnmi.Get(t, dut, gnmi.OC().Interface(bundle).Aggregation().Member().State())
+		if len(members) == 0 {
+			t.Fatalf("No member interfaces found for bundle %s", bundle)
+		}
+		for _, member := range members {
+			ifIndex := gnmi.Get(t, dut, gnmi.OC().Interface(member).Ifindex().State())
+			bundleMemberIfIndexes[bundle] = append(bundleMemberIfIndexes[bundle], ifIndex)
+		}
+	}
+	return bundleMemberIfIndexes
+}
+
+// To check if an sFlow packet's ifIndex is a member of a bundle:
+func isMemberIfIndex(bundle string, ifIndex uint32) bool {
+	for _, idx := range bundleMemberIfIndexes[bundle] {
+		if idx == ifIndex {
+			return true
+		}
+	}
+	return false
+}
+
 func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, intfs []string) {
 	for _, intf := range intfs {
 		cmd := fmt.Sprintf("show snmp interface %s ifindex", intf)
 		sshRunCommand(t, dut, sshClient, cmd)
 
 	}
+}
+
+func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *sflowConfig) {
+	if sfc != nil {
+		oldPorts := args.capture_ports
+		oldTtl := args.pattr.ttl
+		oldDscp := args.pattr.dscp
+		args.pattr.sfConfig = sfc
+		SetFlowsRate(args.flows, sfc.ppsRate)
+		args.trafficDuration = *sf_trafficDuration
+		args.pattr.dscp = int(sfc.sflowDscp)
+		args.pattr.ttl = 255
+
+		defer func() {
+			args.capture_ports = oldPorts
+			args.pattr.sfConfig = nil
+			SetFlowsRate(args.flows, *fps)
+			args.trafficDuration = *trafficDuration
+			args.pattr.ttl = oldTtl
+			args.pattr.dscp = oldDscp
+		}()
+		args.capture_ports = ports
+		validateCapture(t, args)
+
+	}
+}
+
+func SetFlowsRate(flows []gosnappi.Flow, pps uint64) {
+	for _, flow := range flows {
+		flow.Rate().SetPps(pps)
+	}
+}
+
+// NewSfRecordRawPacketHeader creates a new instance of sfRecordRawPacketHeader
+func NewSfRecordRawPacketHeader(protocol, frameLength, stripped uint32, header []byte) *sfRecordRawPacketHeader {
+	return &sfRecordRawPacketHeader{
+		Protocol:    protocol,
+		FrameLength: frameLength,
+		Stripped:    stripped,
+		Header:      header,
+	}
+}
+
+// Setters for sfRecordRawPacketHeader fields
+func (s *sfRecordRawPacketHeader) SetProtocol(protocol uint32) {
+	s.Protocol = protocol
+}
+func (s *sfRecordRawPacketHeader) SetFrameLength(frameLength uint32) {
+	s.FrameLength = frameLength
+}
+func (s *sfRecordRawPacketHeader) SetStripped(stripped uint32) {
+	s.Stripped = stripped
+}
+func (s *sfRecordRawPacketHeader) SetHeader(header []byte) {
+	s.Header = header
+}
+
+// Getters for sfRecordRawPacketHeader fields
+func (s *sfRecordRawPacketHeader) GetProtocol() uint32 {
+	return s.Protocol
+}
+func (s *sfRecordRawPacketHeader) GetFrameLength() uint32 {
+	return s.FrameLength
+}
+func (s *sfRecordRawPacketHeader) GetStripped() uint32 {
+	return s.Stripped
+}
+func (s *sfRecordRawPacketHeader) GetHeader() []byte {
+	return s.Header
+}
+
+// NewSfRecordExtendedRouterData creates a new instance of sfRecordExtendedRouterData
+func NewSfRecordExtendedRouterData(
+	nextHop string,
+	srcAS, dstAS, srcPeerAS, inputInterface, outputInterface uint32,
+	srcASPath, dstASPath []uint32,
+) *sfRecordExtendedRouterData {
+	return &sfRecordExtendedRouterData{
+		NextHop:         nextHop,
+		SrcAS:           srcAS,
+		DstAS:           dstAS,
+		SrcPeerAS:       srcPeerAS,
+		InputInterface:  inputInterface,
+		OutputInterface: outputInterface,
+		SrcASPath:       srcASPath,
+		DstASPath:       dstASPath,
+	}
+}
+
+// Setters for sfRecordExtendedRouterData fields
+func (s *sfRecordExtendedRouterData) SetNextHop(nextHop string) {
+	s.NextHop = nextHop
+}
+func (s *sfRecordExtendedRouterData) SetSrcAS(srcAS uint32) {
+	s.SrcAS = srcAS
+}
+func (s *sfRecordExtendedRouterData) SetDstAS(dstAS uint32) {
+	s.DstAS = dstAS
+}
+func (s *sfRecordExtendedRouterData) SetSrcPeerAS(srcPeerAS uint32) {
+	s.SrcPeerAS = srcPeerAS
+}
+func (s *sfRecordExtendedRouterData) SetInputInterface(inputInterface uint32) {
+	s.InputInterface = inputInterface
+}
+func (s *sfRecordExtendedRouterData) SetOutputInterface(outputInterface uint32) {
+	s.OutputInterface = outputInterface
+}
+func (s *sfRecordExtendedRouterData) SetSrcASPath(srcASPath []uint32) {
+	s.SrcASPath = srcASPath
+}
+func (s *sfRecordExtendedRouterData) SetDstASPath(dstASPath []uint32) {
+	s.DstASPath = dstASPath
+}
+
+// Getters for sfRecordExtendedRouterData fields
+func (s *sfRecordExtendedRouterData) GetNextHop() string {
+	return s.NextHop
+}
+func (s *sfRecordExtendedRouterData) GetSrcAS() uint32 {
+	return s.SrcAS
+}
+func (s *sfRecordExtendedRouterData) GetDstAS() uint32 {
+	return s.DstAS
+}
+func (s *sfRecordExtendedRouterData) GetSrcPeerAS() uint32 {
+	return s.SrcPeerAS
+}
+func (s *sfRecordExtendedRouterData) GetInputInterface() uint32 {
+	return s.InputInterface
+}
+func (s *sfRecordExtendedRouterData) GetOutputInterface() uint32 {
+	return s.OutputInterface
+}
+func (s *sfRecordExtendedRouterData) GetSrcASPath() []uint32 {
+	return s.SrcASPath
+}
+func (s *sfRecordExtendedRouterData) GetDstASPath() []uint32 {
+	return s.DstASPath
+}
+
+// NewSfRecordExtendedGatewayData creates a new instance of sfRecordExtendedGatewayData
+func NewSfRecordExtendedGatewayData(
+	nextHop string,
+	asPath []uint32,
+	communities []uint32,
+	localPref uint32,
+) *sfRecordExtendedGatewayData {
+	return &sfRecordExtendedGatewayData{
+		NextHop:     nextHop,
+		ASPath:      asPath,
+		Communities: communities,
+		LocalPref:   localPref,
+	}
+}
+
+// Setters for sfRecordExtendedGatewayData fields
+func (s *sfRecordExtendedGatewayData) SetNextHop(nextHop string) {
+	s.NextHop = nextHop
+}
+func (s *sfRecordExtendedGatewayData) SetASPath(asPath []uint32) {
+	s.ASPath = asPath
+}
+func (s *sfRecordExtendedGatewayData) SetCommunities(communities []uint32) {
+	s.Communities = communities
+}
+func (s *sfRecordExtendedGatewayData) SetLocalPref(localPref uint32) {
+	s.LocalPref = localPref
+}
+
+// Getters for sfRecordExtendedGatewayData fields
+func (s *sfRecordExtendedGatewayData) GetNextHop() string {
+	return s.NextHop
+}
+func (s *sfRecordExtendedGatewayData) GetASPath() []uint32 {
+	return s.ASPath
+}
+func (s *sfRecordExtendedGatewayData) GetCommunities() []uint32 {
+	return s.Communities
+}
+func (s *sfRecordExtendedGatewayData) GetLocalPref() uint32 {
+	return s.LocalPref
 }
