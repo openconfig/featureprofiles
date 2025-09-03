@@ -20,6 +20,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -250,5 +251,14 @@ func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggP
 	// Clear the members of the aggregate.
 	for _, port := range dutAggPorts {
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+	}
+}
+
+func ConfigureAggregateInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutLags []*attrs.Attributes) {
+	for _, lagIntf := range dutLags {
+		agg := lagIntf.NewOCInterface(aggID, dut)
+		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+		agg.Type = ieee8023adLag
+		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
 	}
 }
