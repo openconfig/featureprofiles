@@ -69,6 +69,16 @@ type PolicyForwardingRule struct {
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
 
+type GueEncapPolicyParams struct {
+	TrafficType      string
+	PolicyName       string
+	NexthopGroupName string
+	SrcIntfName      string
+	DstAddr          []string
+	SrcAddr          []string
+	Ttl              uint8
+}
+
 var (
 
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
@@ -617,21 +627,6 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interf
 	}
 }
 
-func ConfigureUdpEncapHeader(t *testing.T, dut *ondatra.DUTDevice, tunnelType string, dstPort string) {
-	if deviations.PolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		cli := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			cli = fmt.Sprintf(`tunnel type %s udp destination port %s`, tunnelType, dstPort)
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			t.Logf("Unsupported vendor %s for native command support", dut.Vendor())
-		}
-	}
-}
-
 // QosClassificationConfig configures the interface qos classification.
 func ConfigureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, delteTOS bool) {
 	if deviations.QosClassificationOCUnsupported(dut) {
@@ -987,29 +982,27 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 	}
 }
 
-func ConfigureGueTunnel(t *testing.T, dut *ondatra.DUTDevice, trafficType string, policyName string, nexthopGroupName string, srcIntfName string, dstAddr []string, srcAddr []string, ttl uint8) {
+func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
 	t.Helper()
 
-	_, ni, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
-	// Create nexthop group for v4
-	NextHopGroupConfigForIpOverUdp(t, dut, trafficType, ni, srcIntfName, dstAddr, nexthopGroupName, ttl, false)
+	_, _, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
 
 	// Configure traffic policy
 	if deviations.PolicyForwardingOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			switch trafficType {
+			switch params.TrafficType {
 			case "V4Udp":
-				CreatePolicyForwardingNexthopConfig(t, dut, policyName, "rule1", "ipv4", nexthopGroupName)
+				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
 			case "V6Udp":
-				CreatePolicyForwardingNexthopConfig(t, dut, policyName, "rule2", "ipv6", nexthopGroupName)
+				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
 			default:
-				t.Logf("Unsupported traffic type %s", trafficType)
+				t.Logf("Unsupported traffic type %s", params.TrafficType)
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
 	} else {
-		ConfigurePolicyForwardingNextHopFromOC(dut, pf, policyName, 1, dstAddr, srcAddr, nexthopGroupName)
+		ConfigurePolicyForwardingNextHopFromOC(dut, pf, params.PolicyName, 1, params.DstAddr, params.SrcAddr, params.NexthopGroupName)
 	}
 }

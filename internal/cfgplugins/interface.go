@@ -927,3 +927,12 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	}
 	return agg
 }
+
+func ConfigureAggregateInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutLags []*attrs.Attributes) {
+	for _, lagIntf := range dutLags {
+		agg := lagIntf.NewOCInterface(aggID, dut)
+		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+		agg.Type = ieee8023adLag
+		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
+	}
+}
