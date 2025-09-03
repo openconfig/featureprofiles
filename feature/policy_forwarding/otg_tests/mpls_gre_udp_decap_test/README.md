@@ -53,9 +53,9 @@ outer_ip-ttl =        "64"
                     "config": {
                       "sequence-id": 1,
                     },
-                    "ipv6": {
+                    "ipv4": {
                       "config": {
-                        "destination-address": "decap_ipv6"
+                        "destination-address": "decap_ipv4"
                       }
                     },
                     "action": {
@@ -82,45 +82,44 @@ outer_ip-ttl =        "64"
 
 ### PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
 
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate MPLS in UDP.
+## Canonical OC
 
 ```json
 {
-    "openconfig-network-instance": {
-        "network-instances": [
-            {
-                "afts": {
-                    "policy-forwarding": {
-                        "policies": [
-                            {
-                                "config": {
-                                    "policy-id": "default decap rule",
-                                    "type": "PBR_POLICY"
-                                },
-                                "policy": "default decap rule",
-                                "rules": [
-                                    {
-                                        "config": {
-                                            "sequence-id": 1
-                                        },
-                                        "ipv6": {
-                                            "config": {
-                                                "destination-address": "decap_ipv6"
-                                            }
-                                        },
-                                        "action": {
-                                            "decapsulate-mpls-in-udp": true
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
+  "openconfig-network-instance": {
+    "network-instances": [
+      {
+        "afts": {
+          "policy-forwarding": {
+            "policies": [
+              {
+                "config": {
+                  "policy-id": "default decap rule",
+                  "type": "PBR_POLICY"
+                },
+                "policy": "default decap rule",
+                "rules": [
+                  {
+                    "config": {
+                      "sequence-id": 1
+                    },
+                    "ipv6": {
+                      "config": {
+                        "destination-address": "decap_ipv4"
+                      }
+                    },
+                    "action": {
+                      "decapsulate-mpls-in-udp": true
                     }
-                }
-            }
-        ]
-    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
 }
 ```
 * Push the gNMI the policy forwarding configuration
@@ -156,4 +155,3 @@ rpcs:
 ## Required DUT platform
 
 * FFF
-
