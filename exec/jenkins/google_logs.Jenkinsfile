@@ -10,7 +10,7 @@ pipeline {
         )
         
         string(
-            defaultValue: '/auto/tftpboot-ottawa/b4/jenkins/google_logs_dropbox', 
+            defaultValue: '/auto/b4ws/jenkins/google_logs_dropbox', 
             description: 'Location where the archive should be saved',
             name: 'output_dir', 
             trim: true
