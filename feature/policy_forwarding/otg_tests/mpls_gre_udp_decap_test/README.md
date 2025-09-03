@@ -32,8 +32,7 @@ outer_ip-ttl =        "64"
 
 ### PF-1.7.1 - MPLS in GRE decapsulation set by gNMI
 
-Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate in GRE.
+## Canonical OC
 
 ```json
 {
