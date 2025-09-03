@@ -5,7 +5,7 @@
 # pairwise.
 
 duts {
-  id: "dut"
+  id: "dut1"
   vendor: CISCO
   hardware_model: "CISCO-8808"
   ports {
