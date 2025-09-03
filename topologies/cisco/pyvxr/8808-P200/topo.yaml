@@ -58,26 +58,26 @@ connections:
       - dut.EightHundredGigE0/0/0/1
       - ate.1/1
     port2:
-      - dut.EightHundredGigE0/0/0/2
+      - dut.EightHundredGigE0/0/0/22
       - ate.1/2
     port3:
-      - dut.EightHundredGigE0/0/0/3
+      - dut.EightHundredGigE0/0/0/23
       - ate.1/3
     port4:
-      - dut.EightHundredGigE0/0/0/4
+      - dut.EightHundredGigE0/0/0/24
       - ate.1/4
     port5:
-      - dut.EightHundredGigE0/0/0/5
+      - dut.EightHundredGigE0/0/0/25
       - ate.1/5
     port6:
-      - dut.EightHundredGigE0/0/0/6
+      - dut.EightHundredGigE0/0/0/26
       - ate.1/6
     port7:
-      - dut.EightHundredGigE0/0/0/7
+      - dut.EightHundredGigE0/0/0/27
       - ate.1/7
     port8:
-      - dut.EightHundredGigE0/0/0/8
+      - dut.EightHundredGigE0/0/0/28
       - ate.1/8
     port9:
-      - dut.EightHundredGigE0/0/0/9
+      - dut.EightHundredGigE0/0/0/29
       - ate.1/9
