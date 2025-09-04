@@ -55,7 +55,7 @@ outer_ip-ttl =        "64"
                       },
                       "ipv4": {
                         "config": {
-                          "destination-address": "decap_ipv4"
+                          "destination-address": "169.254.125.155/28"
                         }
                       },
                       "action": {
@@ -108,7 +108,7 @@ outer_ip-ttl =        "64"
                       },
                       "ipv4": {
                         "config": {
-                          "destination-address": "decap_ipv4"
+                          "destination-address": "169.254.126.155/28"
                         }
                       },
                       "action": {
