@@ -51,7 +51,7 @@ outer_ip-ttl =        "64"
                 "rules": [
                   {
                     "config": {
-                      "sequence-id": 1,
+                      "sequence-id": 1
                     },
                     "ipv4": {
                       "config": {
@@ -59,12 +59,12 @@ outer_ip-ttl =        "64"
                       }
                     },
                     "action": {
-                      "decapsulate-mpls-in-gre": TRUE  
-                     }
+                      "decapsulate-mpls-in-gre": true
+                    }
                   }
                 ]
               }
-            ]  
+            ]
           }
         }
       }
