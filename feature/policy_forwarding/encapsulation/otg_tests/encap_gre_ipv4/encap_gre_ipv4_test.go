@@ -1,11 +1,9 @@
 package encap_gre_ipv4_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -41,16 +40,19 @@ const (
 	ipv4PrefixLen     = 32
 	ipv6PrefixLen     = 128
 	nhGroupName       = "SRC_NH"
+	port1             = "port1"
+	port2             = "port2"
+	port3             = "port3"
 )
 
 var (
-	dutlo0Attrs = attrs.Attributes{
-		Name:    "Loopback0",
+	defaultLoopbackAttrs = attrs.Attributes{
+		Desc:    "Default loopback interface attributes",
 		IPv4:    "192.0.20.2",
-		IPv6:    "2001:DB8:0::10",
 		IPv4Len: 32,
-		IPv6Len: 128,
 	}
+
+	dutLoopbackAttrs attrs.Attributes
 
 	ruleSequenceMap = map[string]uint8{
 		"rule-src1-v4": 1,
@@ -70,9 +72,9 @@ var (
 	dutPort2 = attrs.Attributes{Desc: "Dut port 2", IPv4: "192.0.2.5", IPv4Len: 30, IPv6: "2001:DB8:0::5", IPv6Len: 126}
 	dutPort3 = attrs.Attributes{Desc: "Dut port 3", IPv4: "192.0.2.9", IPv4Len: 30, IPv6: "2001:DB8:0::9", IPv6Len: 126}
 
-	otgPort1 = attrs.Attributes{Desc: "OTG port 1", Name: "port1", MAC: "00:01:12:00:00:01", IPv4: "192.0.2.2", IPv4Len: 30, IPv6: "2001:DB8:0::2", IPv6Len: 126, MTU: 9216}
-	otgPort2 = attrs.Attributes{Desc: "OTG port 1", Name: "port2", MAC: "00:01:12:00:00:02", IPv4: "192.0.2.6", IPv4Len: 30, IPv6: "2001:DB8:0::6", IPv6Len: 126, MTU: 2000}
-	otgPort3 = attrs.Attributes{Desc: "OTG port 1", Name: "port3", MAC: "00:01:12:00:00:03", IPv4: "192.0.2.10", IPv4Len: 30, IPv6: "2001:DB8:0::A", IPv6Len: 126, MTU: 2000}
+	otgPort1 = attrs.Attributes{Desc: "OTG port 1", Name: port1, MAC: "00:01:12:00:00:01", IPv4: "192.0.2.2", IPv4Len: 30, IPv6: "2001:DB8:0::2", IPv6Len: 126, MTU: 9216}
+	otgPort2 = attrs.Attributes{Desc: "OTG port 1", Name: port2, MAC: "00:01:12:00:00:02", IPv4: "192.0.2.6", IPv4Len: 30, IPv6: "2001:DB8:0::6", IPv6Len: 126, MTU: 2000}
+	otgPort3 = attrs.Attributes{Desc: "OTG port 1", Name: port3, MAC: "00:01:12:00:00:03", IPv4: "192.0.2.10", IPv4Len: 30, IPv6: "2001:DB8:0::A", IPv6Len: 126, MTU: 2000}
 
 	tunnelDestinations = []string{}
 	dscpValues         = []uint8{0, 8, 16, 24, 32, 40, 48, 56}
@@ -109,9 +111,9 @@ func TestEncapGREIPv4(t *testing.T) {
 	configureTunnelDestinations()
 	configureDUT(t, dut)
 
-	ap1 := ate.Port(t, "port1")
-	ap2 := ate.Port(t, "port2")
-	ap3 := ate.Port(t, "port3")
+	ap1 := ate.Port(t, port1)
+	ap2 := ate.Port(t, port2)
+	ap3 := ate.Port(t, port3)
 
 	otgPort1.AddToOTG(top, ap1, &dutPort1)
 	otgPort2.AddToOTG(top, ap2, &dutPort2)
@@ -126,7 +128,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		{
 			name:           "PF-1.1.1: Verify PF GRE encapsulate action for IPv4 traffic",
 			ipType:         ipv4,
-			capturePort:    "port2",
+			capturePort:    port2,
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv4, ok := (*packet).(gosnappi.FlowIpv4)
@@ -147,7 +149,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		{
 			name:           "PF-1.1.2: Verify PF GRE encapsulate action for IPv6 traffic",
 			ipType:         ipv6,
-			capturePort:    "port2",
+			capturePort:    port2,
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv6, ok := (*packet).(gosnappi.FlowIpv6)
@@ -196,7 +198,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		{
 			name:           "PF-1.1.5: Verify PF GRE DSCP copy to outer header for IPv4 traffic",
 			ipType:         ipv4,
-			capturePort:    "port2",
+			capturePort:    port2,
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv4, ok := (*packet).(gosnappi.FlowIpv4)
@@ -222,7 +224,7 @@ func TestEncapGREIPv4(t *testing.T) {
 		{
 			name:           "PF-1.1.6: Verify PF GRE DSCP copy to outer header for IPv6 traffic",
 			ipType:         ipv6,
-			capturePort:    "port2",
+			capturePort:    port2,
 			srcDstPortPair: []attrs.Attributes{otgPort1, otgPort2},
 			applyCustomFlow: func(t *testing.T, top *gosnappi.Config, tc testCase, flow *gosnappi.Flow, packet *ipFlow) {
 				foundIpv6, ok := (*packet).(gosnappi.FlowIpv6)
@@ -335,12 +337,11 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	dp3 := dut.Port(t, "port3")
+	dp1 := dut.Port(t, port1)
+	dp2 := dut.Port(t, port2)
+	dp3 := dut.Port(t, port3)
 
-	interfaceName := dut.Port(t, "port1").Name()
+	interfaceName := dut.Port(t, port1).Name()
 
 	t.Logf("Configuring Interfaces")
 	configureDUTPort(t, dut, &dutPort1, dp1)
@@ -357,7 +358,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for index, dest := range tunnelDestinations {
 		key := fmt.Sprintf("gre%0*d", width, index+1)
 		encapTarget[key] = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre_Target{
-			Source:      ygot.String(dutlo0Attrs.IPv4),
+			Source:      ygot.String(dutLoopbackAttrs.IPv4),
 			Destination: ygot.String(dest),
 		}
 	}
@@ -420,7 +421,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	qos := &oc.Qos{}
 	cfgplugins.ConfigureQosClassifierDscpRemark(t, dut, qos, classifierName, interfaceName, dscpValues, ipv6DscpValues)
-	cfgplugins.PushQosClassifierToDUT(t, dut, qos, interfaceName, classifierName, true)
+	pushQosClassifierToDUT(t, dut, qos, interfaceName, classifierName, true)
 
 	t.Logf("Configuring Static Routes")
 	configureStaticRoutes(t, dut)
@@ -454,30 +455,26 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
-	dutlo0Attrs.Name = loopbackIntfName
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
+	dutLoopbackAttrs.Name = loopbackIntfName
+	loopbackIntf := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
+	ipv4Addrs := gnmi.LookupAll(t, dut, loopbackIntf.Ipv4().AddressAny().State())
+	if len(ipv4Addrs) == 0 {
+		loopIntf := defaultLoopbackAttrs.NewOCInterface(loopbackIntfName, dut)
+		loopIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loopIntf)
+		dutLoopbackAttrs.IPv4 = defaultLoopbackAttrs.IPv4
+		return
 	}
+
+	v4, ok := ipv4Addrs[0].Val()
+	if !ok {
+		t.Fatalf("Unable to get loopback ipv4 address for %s", loopbackIntfName)
+	}
+	dutLoopbackAttrs.IPv4 = v4.GetIp()
+	t.Logf("Got DUT IPv4 loopback address: %v", dutLoopbackAttrs.IPv4)
 }
 
 func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
-
 	configStaticRoute(t, dut, "192.0.2.0/30", "192.0.2.10", "0")
 	for index, dest := range tunnelDestinations {
 		configStaticRoute(t, dut, fmt.Sprintf("%s/32", dest), otgPort2.IPv4, strconv.Itoa(index+1))
@@ -503,50 +500,22 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 	b.Set(t, dut)
 }
 
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Errorf("Failed to execute CLI command '%s': %v", cliCommand, err)
+func pushQosClassifierToDUT(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, interfaceName, classifierName string, isInputClassifier bool) {
+	if deviations.QosRemarkOCUnsupported(dut) {
+		return
 	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+	if isInputClassifier {
+		qoscfg.SetInputClassifier(t, dut, qos, interfaceName, oc.Input_Classifier_Type_IPV4, classifierName)
+	}
+
 }
 
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
-		checkPolicyStatisticsFromCLI(t, dut, tc)
+		t.Fatalf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
 	} else {
 		checkPolicyStatisticsFromOC(t, dut, tc)
-	}
-}
-
-func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	t.Logf("Checking policy statistics for flow %s", tc.flowName)
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		//extract text from CLI output between rule name and packets
-		policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, tc.policyRule, tc.policyRule)
-		cliOutput := runCliCommand(t, dut, policyCountersCommand)
-		cliOutput = strings.TrimSpace(cliOutput)
-		if cliOutput == "" {
-			t.Errorf("No output for CLI command '%s'", policyCountersCommand)
-			return
-		}
-		totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
-		if err != nil {
-			t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
-			return
-		}
-		previouslyMatched := ruleMatchedPackets[tc.policyRule]
-		if totalMatched != previouslyMatched+noOfPackets {
-			t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
-		} else {
-			t.Logf("%d packets matched by policy %s rule %s for flow %s", totalMatched-previouslyMatched, trafficPolicyName, tc.policyRule, tc.flowName)
-		}
-		ruleMatchedPackets[tc.policyRule] = totalMatched
-	default:
-		t.Errorf("Vendor %s is not supported for policy statistics check through CLI", dut.Vendor())
 	}
 }
 

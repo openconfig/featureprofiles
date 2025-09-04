@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
@@ -205,7 +204,7 @@ func NewQoSQueue(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos) {
 
 func configureQosClassifierDscpRemarkFromCli(t *testing.T, dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
 	gnmiClient := dut.RawAPIs().GNMI(t)
-	qosConfig := qosClassifierRemarkDscpCliConfig(dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
+	qosConfig := enableQosRemarkDscpCliConfig(dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
 	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
 	gpbSetRequest := buildCliSetRequest(qosConfig)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
@@ -250,52 +249,13 @@ func configureQosClassifierDscpRemarkFromOc(t *testing.T, dut *ondatra.DUTDevice
 
 	NewQoSClassifierConfiguration(t, dut, qos, classifiers)
 }
-func PushQosClassifierToDUT(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, interfaceName, classifierName string, isInputClassifier bool) {
-	if !deviations.QosRemarkOCUnsupported(dut) {
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
-		if isInputClassifier {
-			qoscfg.SetInputClassifier(t, dut, qos, interfaceName, oc.Input_Classifier_Type_IPV4, classifierName)
-		}
-	}
-}
 
-func qosClassifierRemarkDscpCliConfig(dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) string {
+func enableQosRemarkDscpCliConfig(dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) string {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		return `
         qos rewrite dscp
-        !
-        `
-		// cliConfig := fmt.Sprintf("qos map dscp-classifier %s\n", classifierName)
-		// for i, dscp := range ipv4DscpValues {
-		//  cliConfig += fmt.Sprintf(`
-		//  dscp %d class termV4-%d
-		//  qos map dscp-remark remarkV4-%d
-		//  match dscp %d
-		//  set dscp %d
-		//  !
-		//  `, dscp, i+1, i+1, dscp, dscp)
-		// }
-
-		// // Add terms for IPv6 DSCP values
-		// for i, dscp := range ipv6DscpValues {
-		//  cliConfig += fmt.Sprintf(`
-		//  dscp %d class termV6-%d
-		//  qos map dscp-remark remarkV6-%d
-		//  match dscp %d
-		//  set dscp %d
-		//  !
-		//  `, dscp, i+1, i+1, dscp, dscp)
-		// }
-
-		// // Apply the classifier to the interface
-		// cliConfig += fmt.Sprintf(`
-		// interface %s
-		// service-policy input %s
-		// !
-		// `, interfaceName, classifierName)
-
-		//return cliConfig
+        !`
 	default:
 		return ""
 	}
