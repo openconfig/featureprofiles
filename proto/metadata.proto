@@ -913,6 +913,14 @@ message Metadata {
     // Devices that do not support import export policies configured in network instance
     bool network_instance_import_export_policy_oc_unsuppored = 318;
 
+    // Device does not support 'origin' field in gNMI/gNOI RPC paths.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
+    bool skip_origin = 319;
+
+    // Devices that support pre-defined max ecmp paths
+    // Juniper b/422688435
+     bool predefined_max_ecmp_paths = 320;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
