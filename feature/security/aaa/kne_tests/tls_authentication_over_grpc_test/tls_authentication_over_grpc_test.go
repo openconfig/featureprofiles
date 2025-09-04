@@ -20,11 +20,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -34,7 +35,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	tpb "github.com/openconfig/kne/proto/topo"
 )
 
 func TestMain(m *testing.M) {
@@ -165,24 +165,6 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 
 func TestAuthentication(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var servDUT interface {
-		Service(string) (*tpb.Service, error)
-	}
-	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &servDUT); err != nil {
-		t.Fatalf("DUT does not support Service function: %v", err)
-	}
-	sshService, err := servDUT.Service("ssh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	sshAddr := fmt.Sprintf("%s:%d", sshService.GetOutsideIp(), sshService.GetOutside())
-	gnmiService, err := servDUT.Service("gnmi")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Deliberately try to reach gnmi via the DUT (SSH) IP.
-	gnmiAddr := fmt.Sprintf("%s:%d", sshService.GetOutsideIp(), gnmiService.GetOutside())
-
 	if deviations.SetNativeUser(dut) {
 		createNativeUser(t, dut, "alice", "password", "admin")
 	} else {
@@ -216,17 +198,19 @@ func TestAuthentication(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Log("Trying SSH credentials")
-			sshClient, err := ssh.Dial("tcp", sshAddr, &ssh.ClientConfig{
-				User: tc.user,
-				Auth: []ssh.AuthMethod{
-					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
-					ssh.Password(tc.pass),
-				},
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-			})
-			if err == nil {
-				defer sshClient.Close()
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+			client, err := credz.SSHWithPassword(ctx, dut, tc.user, tc.pass)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
+				}
+				return
 			}
+			if err != nil {
+				t.Fatalf("Failed dialing ssh, error: %s", err)
+			}
+			defer client.Close()
 			if tc.wantErr != (err != nil) {
 				if tc.wantErr {
 					t.Errorf("ssh.Dial got nil error, want error for user %q, password %q", tc.user, tc.pass)
@@ -235,11 +219,11 @@ func TestAuthentication(t *testing.T) {
 				}
 			}
 
-			ctx := metadata.AppendToOutgoingContext(
+			ctx = metadata.AppendToOutgoingContext(
 				context.Background(),
 				"username", tc.user,
 				"password", tc.pass)
-			gnmi, err := gnmiClient(dut, gnmiAddr)
+			gnmi, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
