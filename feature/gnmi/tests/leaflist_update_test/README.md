@@ -43,3 +43,7 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
+
+## Required DUT platform
+
+vRX - virtual router device
