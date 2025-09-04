@@ -164,6 +164,8 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		configureFlows(t, config, tc, dscp)
 		otg.PushConfig(t, *config)
 		otg.StartProtocols(t)
+		otgutils.WaitForARP(t, ate.OTG(), *config, "IPv4")
+                otgutils.WaitForARP(t, ate.OTG(), *config, "IPv6")
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, tc.flowName, trafficTimeout)
 
