@@ -327,6 +327,7 @@ tests:
       - sprem
     mustpass: true
     priority: 38
+    timeout: 4200
     otg_version:
       controller: 1.33.0-34
       hw: 1.33.0-11
