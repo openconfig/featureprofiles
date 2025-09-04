@@ -921,6 +921,12 @@ message Metadata {
     // Juniper b/422688435
      bool predefined_max_ecmp_paths = 320;
 
+    // Device does not support to disable bgp GR-HELPER.
+    bool bgp_gr_helper_disable_unsupported = 321;
+
+    // Device does not support bgp GR-RESTART under AFI/SAFI.
+    bool bgp_graceful_restart_under_afi_safi_unsupported = 322;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
