@@ -344,24 +344,25 @@ func decapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 
 // PF-1.13.2: Verify IPV4/IPV6 traffic scale
 func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
-	t.Helper()
 	ate := ondatra.ATE(t, "ate")
 	t.Log("Verify IPV4/IPV6 traffic scale")
 	createflow(t, top, flowOuterIPv4, flowInnerIPv4, true)
 	sendTraffic(t, ate)
+	var err error
 	start := time.Now()
 	for {
-		err := flowOuterIPv4Validation.ValidateLossOnFlows(t, ate)
-		if err == nil {
+		err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate)
+		if err == nil || time.Since(start) > 1*time.Minute {
 			break
-		}
-		if time.Since(start) > 1*time.Minute {
-			t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 		}
 		time.Sleep(20 * time.Second)
 	}
 
-	if err := lagECMPValidation.ValidateECMPonLAG(t, ate); err != nil {
+	if err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+
+	if err = lagECMPValidation.ValidateECMPonLAG(t, ate); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
 	createflow(t, top, flowOuterIPv6, flowInnerIPv6, true)
@@ -369,13 +370,13 @@ func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
 	start = time.Now()
 	for {
 		err := flowOuterIPv6Validation.ValidateLossOnFlows(t, ate)
-		if err == nil {
+		if err == nil || time.Since(start) > 1*time.Minute {
 			break
 		}
-		if time.Since(start) > 1*time.Minute {
-			t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-		}
 		time.Sleep(20 * time.Second)
+	}
+	if err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
 }
 
@@ -386,7 +387,17 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 	updateFlow(t, flowOuterIPv4, flowInnerIPv4, true, 100, 1000)
 	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv4)
 	sendTrafficCapture(t, ate)
-	if err := flowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+	var err error
+	start := time.Now()
+	for {
+		err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate)
+		if err == nil || time.Since(start) > 1*time.Minute {
+			break
+		}
+		time.Sleep(20 * time.Second)
+	}
+
+	if err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv4); err != nil {
@@ -395,6 +406,19 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 	updateFlow(t, flowOuterIPv6, flowInnerIPv6, true, 100, 1000)
 	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv6)
 	sendTrafficCapture(t, ate)
+	start = time.Now()
+	for {
+		err = flowOuterIPv6Validation.ValidateLossOnFlows(t, ate)
+		if err == nil || time.Since(start) > 1*time.Minute {
+			break
+		}
+		time.Sleep(20 * time.Second)
+	}
+
+	if err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+
 	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv6); err != nil {
 		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
 	}
