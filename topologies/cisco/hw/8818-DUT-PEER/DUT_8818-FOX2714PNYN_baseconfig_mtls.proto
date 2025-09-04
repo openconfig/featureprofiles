@@ -1608,6 +1608,7 @@ replace: {
     "snmp-server mibs sensormib cache\n"
     "lldp\n"
     "!\n"
+    "hw-module profile cef iptunnel scale\n"
     "hw-module profile pbr vrf-redirect\n"
     "hw-module profile qos qos-stats-push-collection\n"
     "hw-module profile npu-compatibility Q200\n"
