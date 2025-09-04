@@ -152,6 +152,16 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
+// BGPGRHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
+func BGPGRHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
+}
+
+// BgpGracefulRestartUnderAfiSafiUnsupported returns whether the device does not support bgp GR-RESTART under AFI/SAFI.
+func BgpGracefulRestartUnderAfiSafiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartUnderAfiSafiUnsupported()
+}
+
 // MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
 func MissingBgpLastNotificationErrorCode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingBgpLastNotificationErrorCode()
