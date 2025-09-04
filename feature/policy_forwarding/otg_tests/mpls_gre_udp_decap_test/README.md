@@ -36,40 +36,38 @@ outer_ip-ttl =        "64"
 
 ```json
 {
-  "openconfig-network-instance": {
-    "network-instances": [
-      {
-        "afts": {
-          "policy-forwarding": {
-            "policies": [
-              {
-                "config": {
-                  "policy-id": "default decap rule",
-                  "type": "PBR_POLICY"
-                },
-                "policy": "default decap rule",
-                "rules": [
-                  {
+  "network-instances": [
+    {
+      "afts": {
+        "policy-forwarding": {
+          "policies": [
+            {
+              "config": {
+                "policy-id": "default decap rule",
+                "type": "PBR_POLICY"
+              },
+              "policy": "default decap rule",
+              "rules": [
+                {
+                  "config": {
+                    "sequence-id": 1
+                  },
+                  "ipv4": {
                     "config": {
-                      "sequence-id": 1
-                    },
-                    "ipv4": {
-                      "config": {
-                        "destination-address": "decap_ipv4"
-                      }
-                    },
-                    "action": {
-                      "decapsulate-mpls-in-gre": true
+                      "destination-address": "decap_ipv4"
                     }
+                  },
+                  "action": {
+                    "decapsulate-mpls-in-gre": true
                   }
-                ]
-              }
-            ]
-          }
+                }
+              ]
+            }
+          ]
         }
       }
-    ]
-  }
+    }
+  ]
 }
 ```
 * Push the gNMI the policy forwarding configuration
@@ -86,40 +84,38 @@ outer_ip-ttl =        "64"
 
 ```json
 {
-  "openconfig-network-instance": {
-    "network-instances": [
-      {
-        "afts": {
-          "policy-forwarding": {
-            "policies": [
-              {
-                "config": {
-                  "policy-id": "default decap rule",
-                  "type": "PBR_POLICY"
-                },
-                "policy": "default decap rule",
-                "rules": [
-                  {
+  "network-instances": [
+    {
+      "afts": {
+        "policy-forwarding": {
+          "policies": [
+            {
+              "config": {
+                "policy-id": "default decap rule",
+                "type": "PBR_POLICY"
+              },
+              "policy": "default decap rule",
+              "rules": [
+                {
+                  "config": {
+                    "sequence-id": 1
+                  },
+                  "ipv6": {
                     "config": {
-                      "sequence-id": 1
-                    },
-                    "ipv6": {
-                      "config": {
-                        "destination-address": "decap_ipv4"
-                      }
-                    },
-                    "action": {
-                      "decapsulate-mpls-in-udp": true
+                      "destination-address": "decap_ipv4"
                     }
+                  },
+                  "action": {
+                    "decapsulate-mpls-in-udp": true
                   }
-                ]
-              }
-            ]
-          }
+                }
+              ]
+            }
+          ]
         }
       }
-    ]
-  }
+    }
+  ]
 }
 ```
 * Push the gNMI the policy forwarding configuration
