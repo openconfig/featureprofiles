@@ -214,15 +214,14 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Ports: agg1.MemberPorts},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv4.FlowName},
 	}
-	interfaces = []*attrs.Attributes{}
 )
 
 type networkConfig struct {
-	DutIPs   []string
-	OtgIPs   []string
+	DutIPv4s []string
+	OtgIPv4s []string
 	OtgMACs  []string
-	DutIPsV6 []string
-	OtgIPsV6 []string
+	DutIPv6s []string
+	OtgIPv6s []string
 }
 
 // generateNetConfig generates and returns a networkConfig object containing
@@ -253,11 +252,11 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 	}
 
 	return &networkConfig{
-		DutIPs:   dutIPs,
-		OtgIPs:   otgIPs,
+		DutIPv4s:   dutIPs,
+		OtgIPv4s:   otgIPs,
 		OtgMACs:  otgMACs,
-		DutIPsV6: dutIPsV6,
-		OtgIPsV6: otgIPsV6,
+		DutIPv6s: dutIPsV6,
+		OtgIPv6s: otgIPsV6,
 	}, nil
 }
 
@@ -281,14 +280,14 @@ func configureOTG(t *testing.T) {
 // PF-1.20.1: Generate DUT Configuration
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, mplsStaticLabels []int, mplsStaticLabelsForIpv6 []int, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	aggID = netutil.NextAggregateInterface(t, dut)
-
+	interfaces := []*attrs.Attributes{}
 	for i := range intCount {
 		interfaces = append(interfaces, &attrs.Attributes{
 			Desc:         "Customer_connect",
 			MTU:          dutMtu,
-			IPv4:         netConfig.DutIPs[i],
+			IPv4:         netConfig.DutIPv4s[i],
 			IPv4Len:      dutIpv4Len,
-			IPv6:         netConfig.DutIPsV6[i],
+			IPv6:         netConfig.DutIPv6s[i],
 			IPv6Len:      dutIpv6Len,
 			Subinterface: uint32(i + 1),
 		})
@@ -309,7 +308,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error generating net config: %v", err)
 	}
-	mplsStaticLabels := func() []int {
+	mplsV4Labels := func() []int {
 		r := make([]int, mplsLabelCount)
 		for i := range r {
 			r[i] = mplsV4Label + i
@@ -317,7 +316,7 @@ func TestSetup(t *testing.T) {
 		return r
 	}()
 
-	mplsStaticLabelsForIpv6 := func() []int {
+	mplsV6Labels := func() []int {
 		r := make([]int, mplsLabelCount)
 		for i := range r {
 			r[i] = mplsV6Label + i
@@ -325,17 +324,15 @@ func TestSetup(t *testing.T) {
 		return r
 	}()
 
-	var interfaces []*otgconfighelpers.InterfaceProperties
-
 	for i := range intCount {
-		agg1.Interfaces = append(interfaces, &otgconfighelpers.InterfaceProperties{
+		agg1.Interfaces = append(agg1.Interfaces, &otgconfighelpers.InterfaceProperties{
 			Name:        fmt.Sprintf("agg1port%d", i+1),
-			IPv4:        netConfig.OtgIPs[i],
-			IPv4Gateway: netConfig.DutIPs[i],
+			IPv4:        netConfig.OtgIPv4s[i],
+			IPv4Gateway: netConfig.DutIPv4s[i],
 			Vlan:        uint32(i + 1),
 			IPv4Len:     dutIpv4Len,
-			IPv6:        netConfig.OtgIPsV6[i],
-			IPv6Gateway: netConfig.DutIPsV6[i],
+			IPv6:        netConfig.OtgIPv6s[i],
+			IPv6Gateway: netConfig.DutIPv6s[i],
 			IPv6Len:     dutIpv6Len,
 			MAC:         netConfig.OtgMACs[i],
 		})
@@ -345,7 +342,7 @@ func TestSetup(t *testing.T) {
 	ocPFParams := defaultOCPolicyForwardingParams()
 
 	// Pass ocPFParams to configureDut
-	configureDut(t, dut, netConfig, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
+	configureDut(t, dut, netConfig, mplsV4Labels, mplsV6Labels, ocPFParams)
 	// after agg1.Interfaces has been populated...
 	for _, intf := range agg1.Interfaces {
 		// tell the validator which ingress interfaces to watch
@@ -397,7 +394,7 @@ func decapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
-	cfgplugins.MPLSStaticLSPScaleConfig(t, dut, ni, netConfig.OtgIPs, netConfig.OtgIPsV6, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
+	cfgplugins.MPLSStaticLSPScaleConfig(t, dut, ni, netConfig.OtgIPv4s, netConfig.OtgIPv6s, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		pushPolicyForwardingConfig(t, dut, ni)
 	}
