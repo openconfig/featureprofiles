@@ -1135,6 +1135,10 @@ type Metadata_Deviations struct {
 	// Devices that support pre-defined max ecmp paths
 	// Juniper b/422688435
 	PredefinedMaxEcmpPaths bool `protobuf:"varint,320,opt,name=predefined_max_ecmp_paths,json=predefinedMaxEcmpPaths,proto3" json:"predefined_max_ecmp_paths,omitempty"`
+	// Device doesnot support explicitly enable BGP GR Helper
+	BgpGrHelperDisableUnsupported bool `protobuf:"variant,321,opt,name=bgp_gr_helper_disable_unsupported,json=bgpHelperDisableUnsupported,proto3" json:"bgp_gr_helper_disable_unsupported,omitempty"`
+	// Device doesnot support explicitly enable BGP GR under AFI/SAFI.
+	BgpGracefulRestartUnderAfiSafiUnsupported bool `protobuf:"variant,322,opt,name=bgp_graceful_restart_under_afi_safi_unsupported,json=bgpGracefulRestartUnderAfiSafiUnsupported,proto3" json:"bgp_graceful_restart_under_afi_safi_unsupported,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -1288,6 +1292,18 @@ func (x *Metadata_Deviations) GetLldpInterfaceConfigOverrideGlobal() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetBgpGrHelperDisableUnsupported() bool {
+	if x != nil {
+		return x.BgpGrHelperDisableUnsupported
+	}
+	return false
+}
+func (x *Metadata_Deviations) GetBgpGracefulRestartUnderAfiSafiUnsupported() bool {
+       if x != nil {
+               return x.BgpGracefulRestartUnderAfiSafiUnsupported
+       }
+       return false
+}
 func (x *Metadata_Deviations) GetMissingBgpLastNotificationErrorCode() bool {
 	if x != nil {
 		return x.MissingBgpLastNotificationErrorCode

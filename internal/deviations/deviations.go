@@ -152,8 +152,8 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
-// BGPGRHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
-func BGPGRHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
+// BgpGrHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
+func BgpGrHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
 }
 
