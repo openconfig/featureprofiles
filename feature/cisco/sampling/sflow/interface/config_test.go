@@ -1,7 +1,6 @@
 package sampling_test
 
 import (
-	"flag"
 	"fmt"
 	"testing"
 	"time"
@@ -11,10 +10,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
-)
-
-var (
-	interface_name = flag.String("interface_name", "FourHundredGigE0/0/0/0", "Interface name to use for testing")
 )
 
 func TestMain(m *testing.M) {
@@ -121,7 +116,15 @@ func TestNameAtContainer(t *testing.T) {
 	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
-	interfaceName := *interface_name
+	// Fetch interface list to determine the correct interface name
+	interfaceName := "FourHundredGigE0/0/0/0"
+	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
+	for _, intf := range interfaces {
+		if intf == "EightHundredGigE0/0/0/0" {
+			interfaceName = "EightHundredGigE0/0/0/0"
+			break
+		}
+	}
 	var subInterfaceNumber uint32 = 1
 	t.Logf("Configuring subinterface:%v in Intf %v", subInterfaceNumber, interfaceName)
 	configureSubInterface(t, dut, interfaceName, subInterfaceNumber)
