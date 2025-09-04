@@ -15,6 +15,7 @@
 package hibaauthentication_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -45,9 +46,7 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
 	dir := t.TempDir()
-
 	credz.CreateHibaKeys(t, dut, dir)
 	credz.SetupUser(t, dut, username)
 
@@ -66,9 +65,11 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with hiba fails as expected.
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
 		for {
-			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			_, err := credz.SSHWithCertificate(ctx, t, dut, username, fmt.Sprintf("%s/users", dir))
 			if err != nil {
 				t.Logf("Dialing ssh failed as expected.")
 				break
@@ -105,10 +106,11 @@ func TestCredentialz(t *testing.T) {
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			startingAcceptCounter, startingLastAcceptTime = credz.GetAcceptTelemetry(t, dut)
 		}
-
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
 		for {
-			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			_, err := credz.SSHWithCertificate(ctx, t, dut, username, fmt.Sprintf("%s/users", dir))
 			if err == nil {
 				t.Logf("Dialing ssh succeeded as expected.")
 				break
