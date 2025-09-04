@@ -4,4 +4,44 @@
 uuid:  "a6d9700a-2c77-4f31-bffc-52e664b20a79"
 plan_id:  "DP-1.15"
 description:  "Egress Strict Priority scheduler"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    ecn_profile_required_definition: true
+    no_zero_suppression: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    qos_octets: true
+    qos_queue_requires_id: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    unsupported_qos_output_service_policy: true
+    interface_output_queue_non_standard_name: true
+    mpls_exp_ingress_classifier_oc_unsupported: true
+  }
+}

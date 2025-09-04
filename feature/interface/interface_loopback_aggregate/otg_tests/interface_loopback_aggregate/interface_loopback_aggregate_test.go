@@ -19,11 +19,12 @@ import (
 	"testing"
 	"time"
 
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -156,7 +157,7 @@ func configAggregateIntf(dut *ondatra.DUTDevice, i *oc.Interface, a *attrs.Attri
 	g.LagType = lagType
 }
 
-// TestInterfaceLoopbackMode is to test loopback mode FACILITY.
+// TestInterfaceLoopbackMode is to test loopback mode TERMINAL.
 func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
@@ -186,7 +187,7 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Run("Admin down OTG port1", func(t *testing.T) {
 		cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 		otg.SetControlState(t, cs)
-		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
+		gnmi.Await(t, otg, gnmi.OTG().Port(ate.Port(t, "port1").ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_DOWN)
 	})
 
 	t.Run("Verify DUT port-1 is down on DUT", func(t *testing.T) {
@@ -231,21 +232,11 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 		}
 	})
 
-	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
-		if deviations.InterfaceLoopbackModeRawGnmi(dut) {
-
-			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
-
+	t.Run("Configure interface loopback mode TERMINAL on DUT AE interface", func(t *testing.T) {
+		if deviations.MemberLinkLoopbackUnsupported(dut) {
+			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
 		} else {
-			if deviations.MemberLinkLoopbackUnsupported(dut) {
-				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			} else {
-				if deviations.ExplicitSwapSrcDstMacNeededForLoopbackMode(dut) {
-					swapSrcDstMac := fmt.Sprintf("set interface %s swap-src-dst-mac true \n set interface %s loopback-mode facility \n", dutPort1.Name(), dutPort1.Name())
-					helpers.GnmiCLIConfig(t, dut, swapSrcDstMac)
-				}
-				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-			}
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
 		}
 	})
 
@@ -265,6 +256,11 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	t.Run("Admin up OTG port1", func(t *testing.T) {
 		cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
 		otg.SetControlState(t, cs)
-		gnmi.Await(t, ate, gnmi.OC().Interface(ate.Port(t, "port1").ID()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		if deviations.MemberLinkLoopbackUnsupported(dut) {
+			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_NONE)
+		} else {
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_NONE)
+		}
+		gnmi.Await(t, otg, gnmi.OTG().Port(ate.Port(t, "port1").ID()).Link().State(), 2*time.Minute, otgtelemetry.Port_Link_UP)
 	})
 }
