@@ -252,8 +252,8 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 	}
 
 	return &networkConfig{
-		DutIPv4s:   dutIPs,
-		OtgIPv4s:   otgIPs,
+		DutIPv4s: dutIPs,
+		OtgIPv4s: otgIPs,
 		OtgMACs:  otgMACs,
 		DutIPv6s: dutIPsV6,
 		OtgIPv6s: otgIPsV6,
