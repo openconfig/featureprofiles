@@ -18,6 +18,7 @@ package iputil
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"net"
 )
 
@@ -40,4 +41,12 @@ func GenerateIPs(ipBlock string, n int) []string {
 	}
 
 	return entries
+}
+
+func GenerateIPv6Prefix(baseIPv6 string, offset int64) string {
+	baseIP := net.ParseIP(baseIPv6).To16()
+	baseInt := big.NewInt(0).SetBytes(baseIP)
+	ipInt := big.NewInt(0).Add(baseInt, big.NewInt(offset))
+	ipBytes := ipInt.FillBytes(make([]byte, 16))
+	return net.IP(ipBytes).String() + "/128"
 }
