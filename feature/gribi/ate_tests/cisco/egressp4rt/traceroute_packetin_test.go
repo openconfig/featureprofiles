@@ -485,6 +485,96 @@ func TestEgressp4rt(t *testing.T) {
 	}
 }
 
+func TestEgressP4RTWithNextHopDefaultVRF(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+	var memberCount int
+	// Configure the DUT
+	baseconfig(t)
+
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	P4rtNode, ok := nodes["port1"]
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port1")
+	}
+	t.Logf("Configuring P4RT Node: %s", P4rtNode)
+	c := oc.Component{}
+	c.Name = ygot.String(P4rtNode)
+	c.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+	c.IntegratedCircuit.NodeId = ygot.Uint64(deviceId)
+	gnmi.Replace(t, dut, gnmi.OC().Component(P4rtNode).Config(), &c)
+
+	///deviceid2
+	P4rtNode2, ok := nodes["port3"]
+	fmt.Println("P4rt nodes")
+	fmt.Println(P4rtNode)
+	fmt.Println(P4rtNode2)
+	if !ok {
+		t.Fatal("Couldn't find P4RT Node for port: port3")
+	}
+	if P4rtNode != P4rtNode2 {
+		t.Logf("Configuring P4RT Node: %s", P4rtNode2)
+		c2 := oc.Component{}
+		c2.Name = ygot.String(P4rtNode2)
+		c2.IntegratedCircuit = &oc.Component_IntegratedCircuit{}
+		c2.IntegratedCircuit.NodeId = ygot.Uint64(deviceId2)
+		gnmi.Replace(t, dut, gnmi.OC().Component(P4rtNode2).Config(), &c2)
+	}
+
+	// Configure the ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	top.Push(t).StartProtocols(t)
+
+	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+		t.Fatalf("Could not initialize p4rt client: %v", err)
+	}
+
+	follower := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := follower.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+		t.Fatalf("Could not initialize p4rt client: %v", err)
+	}
+
+	// find the totoal number of ports in the DUT
+	totalPorts := dut.Ports()
+	t.Logf("Total number of ports in the DUT: %d", len(totalPorts))
+	if len(totalPorts) < 8 {
+		t.Fatalf("DUT has less than 8 ports, got %d", len(totalPorts))
+	}
+	memberCount = len(totalPorts)
+
+	args := &testArgs{
+		ctx:         ctx,
+		leader:      leader,
+		follower:    follower,
+		dut:         dut,
+		ate:         ate,
+		top:         top,
+		memberCount: memberCount,
+	}
+
+	if err := setupP4RTClient(args, deviceId, stream); err != nil {
+		t.Fatalf("Could not setup p4rt client: %v", err)
+	}
+	var deviceSet bool
+	if P4rtNode != P4rtNode2 {
+		if err := setupP4RTClient(args, deviceId2, stream2); err != nil {
+			t.Fatalf("Could not setup p4rt client: %v", err)
+		}
+		deviceSet = true
+	} else {
+		deviceSet = false
+	}
+
+	args.packetIO = getTracerouteParameter()
+	srcport := "port1"
+	//regionalization
+	t.Run("TestWithRegionalization-port1-IpinIpTcpDCRegionalization", func(t *testing.T) {
+		testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, true, srcport)
+	})
+}
+
 type TraceroutePacketIO struct {
 	PacketIOPacket
 	IngressPort string

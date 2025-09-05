@@ -1276,9 +1276,8 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	configvrfInt(t, dut, vrfEncapA, "Loopback22")
 	if gribiRecycle {
 		addDefaultRouteviaGRIBI(t, args)
-	} else {
-		addStaticRoute(t, dut)
 	}
+	addStaticRoute(t, dut)
 
 	nh := 1
 
