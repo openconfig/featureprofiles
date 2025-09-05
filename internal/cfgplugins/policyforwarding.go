@@ -1,7 +1,10 @@
 package cfgplugins
 
 import (
+	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -52,6 +55,16 @@ type OcPolicyForwardingParams struct {
 	IpType       string
 	Dynamic      bool
 	TunnelIP     string
+}
+
+type PolicyForwardingRule struct {
+	Id                 uint32
+	Name               string
+	IpType             string
+	SourceAddress      string
+	DestinationAddress string
+	Dscp               uint8
+	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
 
 var (
@@ -497,7 +510,12 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+			if ocPFParams.Dynamic {
+				t.Logf("Going into decap")
+				aristaGreDecapCLIConfig(t, dut, ocPFParams)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, decapGroupGREArista)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
@@ -512,7 +530,8 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
-				gueDecapCliArista(t, dut, ocPFParams)
+				t.Logf("Going into decap")
+				aristaGueDecapCLIConfig(t, dut, ocPFParams)
 			} else {
 				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			}
@@ -524,7 +543,8 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 	}
 }
 
-func gueDecapCliArista(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+// aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
+func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 
 	cliConfig := fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
@@ -534,6 +554,18 @@ func gueDecapCliArista(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForw
 							tunnel decap-ip %s
 							tunnel decap-interface %s
 							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+}
+
+// aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
+func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+
+	cliConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, params.AppliedPolicyName, params.TunnelIP)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
@@ -592,5 +624,192 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	}
+}
+
+func ConfigureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, vrfRules []VrfRule) {
+	t.Logf("Configuring VRF Selection Policy")
+	policy := pf.GetOrCreatePolicy(policyName)
+	policy.Type = oc.Policy_Type_VRF_SELECTION_POLICY
+
+	for _, vrfRule := range vrfRules {
+		rule := policy.GetOrCreateRule(vrfRule.Index)
+		switch vrfRule.IpType {
+		case IPv4:
+			rule.GetOrCreateIpv4().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+		case IPv6:
+			rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf("%s/%d", vrfRule.SourcePrefix, vrfRule.PrefixLength))
+		default:
+			t.Fatalf("Unsupported IP type %s in vrf rule", vrfRule.IpType)
+		}
+		rule.GetOrCreateTransport()
+		ruleAction := rule.GetOrCreateAction()
+		ruleAction.SetNetworkInstance(vrfRule.NetInstName)
+	}
+}
+
+func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
+	t.Helper()
+	iface := pf.GetOrCreateInterface(interfaceID)
+	iface.ApplyVrfSelectionPolicy = ygot.String(appliedPolicyName)
+	iface.GetOrCreateInterfaceRef().Interface = ygot.String(interfaceID)
+	iface.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+}
+
+func NewPolicyForwardingEncapGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) {
+	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) || deviations.PolicyForwardingToNextHopOcUnsupported(dut) {
+		t.Logf("Configuring pf through CLI")
+		newPolicyForwardingEncapGreFromCli(t, dut, policyName, interfaceName, targetName, rules)
+	} else {
+		t.Logf("Configuring pf through OC")
+		newPolicyForwardingEncapGreFromOC(t, pf, policyName, interfaceName, rules)
+	}
+}
+
+func newPolicyForwardingEncapGreFromCli(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) {
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	tpConfig := getTrafficPolicyCliConfig(t, dut, policyName, interfaceName, targetName, rules)
+	t.Logf("Push the CLI Policy config:%s", dut.Vendor())
+	gpbSetRequest := buildCliSetRequest(tpConfig)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Errorf("Failed to set policy forwarding from cli: %v", err)
+	}
+}
+
+func newPolicyForwardingEncapGreFromOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, policyName string, interfaceName string, rules []PolicyForwardingRule) {
+	t.Helper()
+	policy := pf.GetOrCreatePolicy(policyName)
+	policy.Type = oc.Policy_Type_PBR_POLICY
+	for _, ruleConfig := range rules {
+		t.Logf("Processing rule %s", ruleConfig.Name)
+		rule := policy.GetOrCreateRule(ruleConfig.Id)
+		switch ruleConfig.IpType {
+		case IPv4:
+			ruleIpv4 := rule.GetOrCreateIpv4()
+			if ruleConfig.SourceAddress != "" {
+				ruleIpv4.SourceAddress = ygot.String(ruleConfig.SourceAddress)
+			}
+			if ruleConfig.DestinationAddress != "" {
+				ruleIpv4.DestinationAddress = ygot.String(ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.Dscp != 0 {
+				ruleIpv4.Dscp = ygot.Uint8(ruleConfig.Dscp)
+			}
+		case IPv6:
+			ruleIpv6 := rule.GetOrCreateIpv6()
+			if ruleConfig.SourceAddress != "" {
+				ruleIpv6.SourceAddress = ygot.String(ruleConfig.SourceAddress)
+			}
+			if ruleConfig.DestinationAddress != "" {
+				ruleIpv6.DestinationAddress = ygot.String(ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.Dscp != 0 {
+				ruleIpv6.Dscp = ygot.Uint8(ruleConfig.Dscp)
+			}
+		default:
+			t.Errorf("Unknown IP type %s in PolicyForwardingRule", ruleConfig.IpType)
+			return
+		}
+		if ruleConfig.Action != nil {
+			rule.Action = ruleConfig.Action
+		}
+	}
+}
+
+func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		var matchRules, matchTarget string
+		var nhGroupTargets = make(map[string][]string)
+		var nhGroupsBySource = make(map[string]string)
+		var nhTTlBySource = make(map[string]uint8)
+		for _, ruleConfig := range rules {
+			t.Logf("Processing rule %s", ruleConfig.Name)
+			if ruleConfig.Action == nil ||
+				ruleConfig.Name == "" {
+				t.Errorf("Invalid rule configuration: %v", ruleConfig)
+				return ""
+			}
+			if ruleConfig.DestinationAddress != "" {
+				matchTarget = fmt.Sprintf("destination prefix %s", ruleConfig.DestinationAddress)
+			} else if ruleConfig.SourceAddress != "" {
+				matchTarget = fmt.Sprintf("source prefix %s", ruleConfig.SourceAddress)
+			} else {
+				t.Errorf("Rule %s must have either SourceAddress or DestinationAddress defined", ruleConfig.Name)
+				return ""
+			}
+			switch ruleConfig.IpType {
+			case IPv4, IPv6:
+				matchRules += fmt.Sprintf(`
+                match %s %s
+                %s
+                actions
+                count`, ruleConfig.Name, strings.ToLower(ruleConfig.IpType), matchTarget)
+				if (*ruleConfig.Action).NextHop != nil {
+					matchRules += fmt.Sprintf(`
+                redirect next-hop %s
+                !`, *(*ruleConfig.Action).NextHop)
+				} else if (*ruleConfig.Action).EncapsulateGre != nil {
+					for _, targetKey := range slices.Sorted(maps.Keys((*ruleConfig.Action).EncapsulateGre.Target)) {
+						target := (*ruleConfig.Action).EncapsulateGre.Target[targetKey]
+						if target != nil {
+							if target.Source == nil || target.Destination == nil {
+								t.Errorf("Target in EncapsulateGre action must have Source and Destination defined")
+								return ""
+							}
+							if !slices.Contains(nhGroupTargets[*(target.Source)], *target.Destination) {
+								nhGroupTargets[*(target.Source)] = append(nhGroupTargets[*(target.Source)], *target.Destination)
+							}
+							if target.IpTtl != nil {
+								nhTTlBySource[*(target.Source)] = *target.IpTtl
+							}
+						}
+					}
+					index := 1
+					nhGroups := ""
+					for source := range nhGroupTargets {
+						nhGroupName := fmt.Sprintf("%s_%d", targetName, index)
+						nhGroupsBySource[source] = nhGroupName
+						nhGroups += fmt.Sprintf("%s ", nhGroupName)
+					}
+					matchRules += fmt.Sprintf(`
+                    redirect next-hop group %s
+                    !`, nhGroups)
+				}
+			default:
+				t.Errorf("Unknown IP type %s in PolicyForwardingRule %s", ruleConfig.IpType, ruleConfig.Name)
+				return ""
+			}
+		}
+
+		var ipv4GreNHs string
+		for src, destinations := range nhGroupTargets {
+			ipv4GreNHs += fmt.Sprintf(`
+            nexthop-group %s type gre`, nhGroupsBySource[src])
+			if len(nhTTlBySource) > 0 && nhTTlBySource[src] > 0 {
+				ipv4GreNHs += fmt.Sprintf(`
+                ttl %d`, nhTTlBySource[src])
+			}
+			ipv4GreNHs += fmt.Sprintf(`
+            tunnel-source %s`, src)
+			for index, dest := range destinations {
+				ipv4GreNHs += fmt.Sprintf(`
+                entry %d tunnel-destination %s`, index, dest)
+			}
+		}
+
+		// Apply Policy on the interface
+		trafficPolicyConfig := fmt.Sprintf(`
+            traffic-policies
+            traffic-policy %s
+            %s
+            %s
+            !
+            interface %s
+            traffic-policy input %s
+            `, policyName, matchRules, ipv4GreNHs, interfaceName, policyName)
+		return trafficPolicyConfig
+	default:
+		return ""
 	}
 }
