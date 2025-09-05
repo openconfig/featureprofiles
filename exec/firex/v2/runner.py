@@ -99,9 +99,9 @@ def _get_venv_pip_bin(ws):
     return os.path.join(_get_venv_path(ws), 'bin', 'pip')
 
 def _get_go_env(ws=None):
-    PATH = "{}:{}".format(
-        os.path.dirname(GO_BIN), os.environ["PATH"]
-    )
+    PATH = "{}:{}:{}".format(
+        HIBA_BIN_PATH, os.path.dirname(GO_BIN), os.environ["PATH"]
+    ) 
 
     nobackup_path = _get_user_nobackup_path(ws)
     gocache = os.path.join(nobackup_path, '.gocache')
@@ -1022,9 +1022,6 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
     test_ws = test_repo_dir
     test_env = _get_go_env(ws)
-    test_env["PATH"] = "{}:{}".format(
-        HIBA_BIN_PATH, test_env["PATH"]
-    )
     test_env["GRPC_BINARY_LOG_FILTER"] = "*"
 
     # Set gateway environment variable if available
