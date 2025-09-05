@@ -192,7 +192,7 @@ Verify:
                       "action": {
                         "config": {
                           "next-hop-group": "NHG-1",
-                          "ip-ttl": 1
+                          "_comment": "ip-ttl intentionally removed due to unexpected field error"
                         }
                       }
                     },
@@ -209,7 +209,7 @@ Verify:
                       "action": {
                         "config": {
                           "next-hop-group": "NHG-1",
-                          "ip-ttl": 1
+                          "_comment": "ip-ttl intentionally removed due to unexpected field error"
                         }
                       }
                     }
