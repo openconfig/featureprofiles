@@ -97,47 +97,29 @@ func baseconfig(t *testing.T) {
 	}
 }
 
-func configureVIP(t *testing.T, args *testArgs) {
-
-	args.client.AddNH(t, baseNH(4), atePort6.IPv4, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	args.client.AddNHG(t, baseNHG(4), 0, map[uint64]uint64{baseNH(4): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, cidr(vipIP, 32), baseNHG(4), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-}
-
-const (
-	vipIP         = "192.0.2.155"
-	baseNHOffset  = 0
-	baseNHGOffset = 100
-)
-
-func baseNH(i uint64) uint64  { return i + baseNHOffset }
-func baseNHG(i uint64) uint64 { return i + baseNHGOffset }
-
 func addDefaultRouteviaGRIBI(t *testing.T, args *testArgs) {
 	t.Helper()
 	// Add recycle entry
-	configureVIP(t, args)
-	args.client.AddNH(t, uint64(303), vipIP, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddNH(t, uint64(303), "", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, uint64(3301), 0, map[uint64]uint64{(303): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv4(t, "0.0.0.0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.client.AddIPv6(t, "0::0/0", uint64(3301), *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, fluent.InstalledInFIB)
 }
 
-// func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
-// 	t.Helper()
-// 	d := gnmi.OC()
-// 	s := &oc.Root{}
-// 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := gnmi.OC()
+	s := &oc.Root{}
 
-// 	static := s.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-// 	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
-// 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv4)
-// 	gnmi.Update(t, dut, d.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
+	static := s.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
+	ipv4Nh := static.GetOrCreateStatic("0.0.0.0/0").GetOrCreateNextHop("0")
+	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv4)
+	gnmi.Update(t, dut, d.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
 
-// 	ipv6nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
-// 	ipv6nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv6)
-// 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-// }
+	ipv6nh := static.GetOrCreateStatic("::/0").GetOrCreateNextHop("0")
+	ipv6nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort6.IPv6)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+}
 
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -1217,7 +1199,7 @@ func testWithPoPUnoptimized(ctx context.Context, t *testing.T, args *testArgs, i
 
 }
 
-func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, isIPv4, encap bool, flap, te string, deviceSet bool, srcport string, opts ...*TOptions) {
+func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, isIPv4, encap bool, flap, te string, deviceSet, gribiRecycle bool, srcport string, opts ...*TOptions) {
 
 	leader := args.leader
 	follower := args.follower
@@ -1292,7 +1274,11 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	configPBR(t, dut, "PBR", true)
 	configureIntfPBR(t, dut, "PBR", "Bundle-Ether120")
 	configvrfInt(t, dut, vrfEncapA, "Loopback22")
-	addDefaultRouteviaGRIBI(t, args)
+	if gribiRecycle {
+		addDefaultRouteviaGRIBI(t, args)
+	} else {
+		addStaticRoute(t, dut)
+	}
 
 	nh := 1
 

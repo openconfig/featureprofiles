@@ -415,14 +415,14 @@ func TestEgressp4rt(t *testing.T) {
 				args.interfaceaction(t, "port8", true)
 
 				//regionalization
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpDCRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpDCRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpDCRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpDCRegionalization", deviceSet, false, srcport)
 
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, false, srcport)
 
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, false, srcport)
 				args.interfaceaction(t, "port1", true)
 			} else if j == 2 {
 				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpDC", deviceSet, srcport)
@@ -474,11 +474,11 @@ func TestEgressp4rt(t *testing.T) {
 
 				// regionalization
 
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, false, srcport)
 
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, false, srcport)
 
 			}
 		}
