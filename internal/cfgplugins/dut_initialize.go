@@ -196,3 +196,24 @@ hardware tcam
 		t.Fatalf("Failed to set TCAM profile from CLI: %v", err)
 	}
 }
+
+// ConfigureLoadbalance configures baseline DUT settings across all platforms.
+func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	// Configure load-balance policy at DUT init.
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	jsonConfig := `
+    load-balance policies
+    load-balance sand profile default
+      fields ipv6 outer dst-ip flow-label next-header src-ip
+      fields l4 outer dst-port src-port
+      no fields mpls
+      packet-type gue outer-ip
+    `
+	gpbSetRequest := buildCliSetRequest(jsonConfig)
+
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("Failed to configure load-balance from CLI: %v", err)
+	}
+}

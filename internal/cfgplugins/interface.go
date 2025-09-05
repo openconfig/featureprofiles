@@ -242,6 +242,25 @@ func SetupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggID string
 	gnmi.Update(t, dut, p.Config(), d)
 }
 
+func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
+	t.Helper()
+	d := &oc.Root{}
+	agg := d.GetOrCreateInterface(aggID)
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+
+	for _, port := range aggPorts {
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+	}
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+}
+
 // DeleteAggregate deletes the aggregate interface.
 func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
 	// Clear the aggregate minlink.

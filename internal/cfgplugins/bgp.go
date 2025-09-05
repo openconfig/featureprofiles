@@ -15,6 +15,8 @@
 package cfgplugins
 
 import (
+	"context"
+	"fmt"
 	"sort"
 	"strconv"
 	"testing"
@@ -25,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -553,4 +556,137 @@ func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
+}
+
+func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, dutAS, ate1AS, ate2AS, ate3AS, ate4AS, ate5AS, ecmpMaxPath uint32,
+	dutP1, dutP2, dutP7, ateP1, ateP2, ateP7, dutLag1, dutLag2, ateLag1, ateLag2 attrs.Attributes) {
+	t.Helper()
+	d := gnmi.OC()
+
+	dutBgpConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP",
+	)
+
+	// Create BGP config
+	dutBgpConf := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		Name:       ygot.String("BGP"),
+		Bgp:        &oc.NetworkInstance_Protocol_Bgp{},
+	}
+
+	bgp := dutBgpConf.Bgp
+	global := bgp.GetOrCreateGlobal()
+	global.As = ygot.Uint32(dutAS)
+	global.RouterId = ygot.String(dutP1.IPv4)
+
+	af4 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	af4.Enabled = ygot.Bool(true)
+	af6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	af6.Enabled = ygot.Bool(true)
+
+	// Append BGP neighbors
+	appendBGPNeighbor(t, bgp, ate1AS, dutP1.Name, ateP1.IPv4, ateP1.IPv6, false)
+	appendBGPNeighbor(t, bgp, ate5AS, dutP7.Name, ateP7.IPv4, ateP7.IPv6, false)
+	appendBGPNeighbor(t, bgp, ate2AS, dutP2.Name, ateP2.IPv4, ateP2.IPv6, false)
+	appendBGPNeighbor(t, bgp, ate3AS, dutLag1.Name, ateLag1.IPv4, ateLag1.IPv6, true)
+	appendBGPNeighbor(t, bgp, ate4AS, dutLag2.Name, ateLag2.IPv4, ateLag2.IPv6, true)
+
+	// Apply config
+	gnmi.Replace(t, dut, dutBgpConfPath.Config(), dutBgpConf)
+	ConfigureLoadbalance(t, dut)
+
+	// Handle multipath deviation
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+		t.Log("Executing CLI commands for multipath deviation")
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		jsonConfig := fmt.Sprintf(`		
+		router bgp %d
+		address-family ipv4
+		maximum-paths %[2]d ecmp %[2]d
+		bgp bestpath as-path multipath-relax
+		address-family ipv6
+		maximum-paths %[2]d ecmp %[2]d
+		bgp bestpath as-path multipath-relax
+		`, dutAS, ecmpMaxPath)
+		gpbSetRequest := buildCliConfigRequest(jsonConfig)
+
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+		}
+	} else {
+		// TODO: Once multipath is fully supported via OpenConfig across all platforms,
+		// remove CLI fallback and rely solely on OC configuration.
+		af4.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		af4.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+		af6.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		af6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+		af4.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().SetMaximumPaths(ecmpMaxPath)
+		af6.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().SetMaximumPaths(ecmpMaxPath)
+	}
+}
+
+func appendBGPNeighbor(t *testing.T, bgp *oc.NetworkInstance_Protocol_Bgp, ateAs uint32, portName, neighborIpV4, neighborIpV6 string, isLag bool) {
+	t.Helper()
+	// Peer Group for IPv4
+	pgv4 := bgp.GetOrCreatePeerGroup(portName + "BGP-PEER-GROUP-V4")
+	pgv4.PeerAs = ygot.Uint32(ateAs)
+	pgv4.PeerGroupName = ygot.String(portName + "BGP-PEER-GROUP-V4")
+	pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	pgafv4.Enabled = ygot.Bool(true)
+	rpl4 := pgafv4.GetOrCreateApplyPolicy()
+	rpl4.ImportPolicy = []string{"ALLOW"}
+	rpl4.ExportPolicy = []string{"ALLOW"}
+
+	// Peer Group for IPv6
+	pgv6 := bgp.GetOrCreatePeerGroup(portName + "BGP-PEER-GROUP-V6")
+	pgv6.PeerAs = ygot.Uint32(ateAs)
+	pgv6.PeerGroupName = ygot.String(portName + "BGP-PEER-GROUP-V6")
+	pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	pgafv6.Enabled = ygot.Bool(true)
+	rpl6 := pgafv6.GetOrCreateApplyPolicy()
+	rpl6.ImportPolicy = []string{"ALLOW"}
+	rpl6.ExportPolicy = []string{"ALLOW"}
+
+	// IPv4 Neighbor
+	nv4 := bgp.GetOrCreateNeighbor(neighborIpV4)
+	nv4.PeerAs = ygot.Uint32(ateAs)
+	nv4.Enabled = ygot.Bool(true)
+	nv4.PeerGroup = ygot.String(portName + "BGP-PEER-GROUP-V4")
+	afisafi4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afisafi4.Enabled = ygot.Bool(true)
+	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+
+	// IPv6 Neighbor
+	nv6 := bgp.GetOrCreateNeighbor(neighborIpV6)
+	nv6.PeerAs = ygot.Uint32(ateAs)
+	nv6.Enabled = ygot.Bool(true)
+	// Enable multihop on LAGs
+	if isLag {
+		nv4.GetOrCreateEbgpMultihop().SetMultihopTtl(5)
+		nv6.GetOrCreateEbgpMultihop().SetMultihopTtl(5)
+	}
+	nv6.PeerGroup = ygot.String(portName + "BGP-PEER-GROUP-V6")
+	afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	afisafi6.Enabled = ygot.Bool(true)
+	nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+}
+
+// Support method to execute GNMIC commands
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{
+			{
+				Path: &gpb.Path{
+					Origin: "cli",
+					Elem:   []*gpb.PathElem{},
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_AsciiVal{
+						AsciiVal: config,
+					},
+				},
+			},
+		},
+	}
+	return gpbSetRequest
 }
