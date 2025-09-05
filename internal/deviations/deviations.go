@@ -1617,3 +1617,8 @@ func SkipOrigin(dut *ondatra.DUTDevice) bool {
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
+
+// TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
+func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
+}
