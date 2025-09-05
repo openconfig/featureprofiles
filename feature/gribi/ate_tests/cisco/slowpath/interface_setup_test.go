@@ -343,12 +343,14 @@ func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 		gnmi.Update(t, a.dut, c.Config(), &oc.Interface{
 			Name:    ygot.String(dutP.Name()),
 			Enabled: ygot.Bool(true),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		})
 	} else {
 		// 	gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), false)
 		gnmi.Update(t, a.dut, c.Config(), &oc.Interface{
 			Name:    ygot.String(dutP.Name()),
 			Enabled: ygot.Bool(false),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		})
 	}
 }
