@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -740,16 +739,16 @@ func appendBGPNeighbor(t *testing.T, bgp *oc.NetworkInstance_Protocol_Bgp, ateAs
 }
 
 // Support method to execute GNMIC commands
-func buildCliConfigRequest(config string) *gpb.SetRequest {
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{
+func buildCliConfigRequest(config string) *gnmipb.SetRequest {
+	gpbSetRequest := &gnmipb.SetRequest{
+		Update: []*gnmipb.Update{
 			{
-				Path: &gpb.Path{
+				Path: &gnmipb.Path{
 					Origin: "cli",
-					Elem:   []*gpb.PathElem{},
+					Elem:   []*gnmipb.PathElem{},
 				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_AsciiVal{
+				Val: &gnmipb.TypedValue{
+					Value: &gnmipb.TypedValue_AsciiVal{
 						AsciiVal: config,
 					},
 				},
