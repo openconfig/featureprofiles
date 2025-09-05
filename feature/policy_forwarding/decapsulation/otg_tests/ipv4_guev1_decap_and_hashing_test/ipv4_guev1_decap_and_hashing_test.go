@@ -417,18 +417,6 @@ func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.P
 	}
 }
 
-func clearLAGInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
-	t.Helper()
-	// Clear port bindings first
-	for _, port := range aggPorts {
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Config())
-	}
-
-	// Then delete the aggregate interface itself
-	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Config())
-}
-
 func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, p1, p2 *ondatra.Port, aggID string) *oc.NetworkInstance_Protocol {
 	t.Helper()
 	d := &oc.Root{}
