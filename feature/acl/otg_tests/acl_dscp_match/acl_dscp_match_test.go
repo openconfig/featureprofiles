@@ -33,6 +33,8 @@ const (
 	AF31          uint32 = 26
 	AF41          uint32 = 34
 	ipProtoICMPv6        = 58
+	ipv4PrefixLen        = 32
+	ipv6PrefixLen        = 128
 )
 
 var (
@@ -313,13 +315,13 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	aclAcceptEntry := aclSet.GetOrCreateAclEntry(10)
 	if tc.ipType == IPv4 {
 		ipv4Acl := aclAcceptEntry.GetOrCreateIpv4()
-		ipv4Acl.SourceAddress = ygot.String(otgPort1.IPv4 + "/32")
-		ipv4Acl.DestinationAddress = ygot.String(otgPort2.IPv4 + "/32")
+		ipv4Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv4, ipv4PrefixLen))
+		ipv4Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv4, ipv4PrefixLen))
 		ipv4Acl.SetDscp(uint8(tc.aclDscpValue))
 	} else {
 		ipv6Acl := aclAcceptEntry.GetOrCreateIpv6()
-		ipv6Acl.SourceAddress = ygot.String(otgPort1.IPv6 + "/128")
-		ipv6Acl.DestinationAddress = ygot.String(otgPort2.IPv6 + "/128")
+		ipv6Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv6, ipv6PrefixLen))
+		ipv6Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv6, ipv6PrefixLen))
 		ipv6Acl.SetDscp(uint8(tc.aclDscpValue))
 	}
 	if len(tc.srcDstPortPair) == 2 {
@@ -338,8 +340,8 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 		// Adding allow rule for IPV6 ND packets
 		aclARPEntry := aclSet.GetOrCreateAclEntry(15)
 		aclARPEntry.Description = ygot.String("allow ND packets")
-		term15Ipv6Ipv6 := aclARPEntry.GetOrCreateIpv6()
-		term15Ipv6Ipv6.Protocol = oc.UnionUint8(ipProtoICMPv6)
+		aclMatchipv6 := aclARPEntry.GetOrCreateIpv6()
+		aclMatchipv6.Protocol = oc.UnionUint8(ipProtoICMPv6)
 		aclARPEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 	}
 
