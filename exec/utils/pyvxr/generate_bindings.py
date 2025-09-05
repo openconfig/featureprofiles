@@ -76,6 +76,7 @@ class DUT(Device):
             if 'no-tls' in l: self.insecure = True
             if 'tls-mutual' in l: self.mtls = True
 
+            # trailing space is intentional to prevent matching 'port-id' field
             if 'port ' in l: 
                 for p in re.compile(r'[\d]+').finditer(l):
                     self.grpc_port = int(p.group(0))
