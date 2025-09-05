@@ -2359,10 +2359,11 @@ tests:
     groups: [newfnt]
 
   - name: AFT-1.1 (AFT Streaming)
-    path: feature/aft/aft_base/otg_tests/aft_base
+    path: feature/afts/otg_tests/afts_base
     owners:
       - mananpat
     mustpass: false
+    timeout: 3200
     priority: 3
     groups: [newfnt]
 

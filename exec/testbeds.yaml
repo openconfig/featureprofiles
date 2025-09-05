@@ -256,6 +256,37 @@ testbeds:
       gnmi_port: 58818
       rest_port: 38818
 
+  8818-DUT-PEER-MTLS-V6-OOB:
+    hw:
+      - 8818-FOX2714PNYN
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
+    binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_mgmt_ipv6
+    baseconf:
+      dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
+      peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 48818
+      gnmi_port: 58818
+      rest_port: 38818
+
+  # To enable later via another PR, created below binding and baseconfig files and unused now
+  # 8818-DUT-PEER-MTLS-V6-IB:
+  #   hw:
+  #     - 8818-FOX2714PNYN
+  #   owner: arvbaska
+  #   testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
+  #   binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_data_ipv6
+  #   baseconf:
+  #     dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls_data_v6.proto
+  #     peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
+  #   otg:
+  #     host: ott-ucs4-b4
+  #     controller_port: 48818
+  #     gnmi_port: 58818
+  #     rest_port: 38818
+
   8202-DUT-PEER:
     hw:
       - 8202-FLM275101MJ
