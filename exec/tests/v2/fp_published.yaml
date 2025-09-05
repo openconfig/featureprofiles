@@ -2363,6 +2363,7 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    timeout: 3200
     priority: 3
     groups: [newfnt]
 
