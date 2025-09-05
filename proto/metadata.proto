@@ -812,12 +812,9 @@ message Metadata {
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
    
-    // Devices does not support traffic policy nexthop group
-    bool traffic_policy_to_nexthop_unsupported = 291;
-    
     // Create/Replace config leaf required 
     // Juniper b/419536104
-    bool config_leaf_create_required = 292;
+    bool config_leaf_create_required = 291;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
