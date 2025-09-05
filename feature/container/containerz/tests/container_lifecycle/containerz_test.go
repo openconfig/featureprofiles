@@ -54,7 +54,7 @@ func containerzClient(ctx context.Context, t *testing.T) *client.Client {
 			`).Append(t)
 		}
 	case ondatra.JUNIPER:
-	        break 
+	    break 
 	case ondatra.NOKIA:
 		break
 	default:
