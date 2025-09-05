@@ -35,6 +35,7 @@ logger = get_task_logger(__name__)
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
+HIBA_BIN_PATH = '/auto/b4ws/hiba'
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -1021,6 +1022,9 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
     test_ws = test_repo_dir
     test_env = _get_go_env(ws)
+    test_env["PATH"] = "{}:{}".format(
+        HIBA_BIN_PATH, test_env["PATH"]
+    )
     test_env["GRPC_BINARY_LOG_FILTER"] = "*"
 
     # Set gateway environment variable if available
