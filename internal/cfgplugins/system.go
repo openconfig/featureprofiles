@@ -29,6 +29,7 @@ package cfgplugins
 import (
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -36,7 +37,14 @@ import (
 )
 
 // CreateGNMIServer creates a gNMI server on the DUT on a given network-instance.
-func NewGNMIServer(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, ni string) {
+func CreateGNMIServer(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, nip *NetworkInstanceParams) {
+	var ni string
+	if nip.Default {
+		ni = deviations.DefaultNetworkInstance(d)
+	} else {
+		ni = nip.Name
+	}
+	t.Logf("Creating gNMI server on network instance: %s", ni)
 	gnmiServerPath := gnmi.OC().System().GrpcServer(ni)
 	gnmi.BatchUpdate(batch, gnmiServerPath.Config(), &oc.System_GrpcServer{
 		Name:            ygot.String(ni),
