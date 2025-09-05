@@ -143,9 +143,10 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
 						nexthop-group %s type %s
 						ttl %d
+						tunnel-source %s
 						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
 						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
-							dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelSrc, dynamicValues.EntryValue, dynamicValues.MplsLabel,
 							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
 						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
 					}
@@ -161,9 +162,10 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
 						nexthop-group %s type %s
 						ttl %d
+						tunnel-source %s
 						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
 						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
-							dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelSrc, dynamicValues.EntryValue, dynamicValues.MplsLabel,
 							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
 						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
 					}
@@ -223,7 +225,6 @@ type NexthopGroupUDPParams struct {
 	DSCP               uint8
 	NetworkInstanceObj *oc.NetworkInstance
 }
-
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
 func configureNextHopGroups(t *testing.T, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
 	t.Helper()
