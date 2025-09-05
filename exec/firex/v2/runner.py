@@ -35,7 +35,7 @@ logger = get_task_logger(__name__)
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
-HIBA_BIN_PATH = '/auto/b4ws/hiba'
+HIBA_BIN_PATH = '/auto/b4ws/hiba' # https://github.com/google/hiba/blob/main/README.md
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
