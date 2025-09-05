@@ -35,6 +35,7 @@ logger = get_task_logger(__name__)
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
+HIBA_BIN_PATH = '/auto/b4ws/hiba' # https://github.com/google/hiba/blob/main/README.md
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -98,9 +99,9 @@ def _get_venv_pip_bin(ws):
     return os.path.join(_get_venv_path(ws), 'bin', 'pip')
 
 def _get_go_env(ws=None):
-    PATH = "{}:{}".format(
-        os.path.dirname(GO_BIN), os.environ["PATH"]
-    )
+    PATH = "{}:{}:{}".format(
+        HIBA_BIN_PATH, os.path.dirname(GO_BIN), os.environ["PATH"]
+    ) 
 
     nobackup_path = _get_user_nobackup_path(ws)
     gocache = os.path.join(nobackup_path, '.gocache')
