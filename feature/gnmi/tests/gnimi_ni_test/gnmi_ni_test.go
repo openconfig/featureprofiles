@@ -22,19 +22,28 @@ const (
 
 var (
 	dutPort1 = attrs.Attributes{
-		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv4Len: 30,
-		IPv6:    "2001:0db8::192:0:2:1",
-		IPv6Len: 126,
+		Desc:         "dutPort1",
+		IPv4:         "192.0.2.1",
+		IPv4Len:      30,
+		IPv6:         "2001:0db8::192:0:2:1",
+		IPv6Len:      126,
+		Subinterface: 0,
 	}
 
 	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: 30,
-		IPv6:    "2001:0db8::192:0:2:5",
-		IPv6Len: 126,
+		Desc:         "dutPort2",
+		IPv4:         "192.0.2.5",
+		IPv4Len:      30,
+		IPv6:         "2001:0db8::192:0:2:5",
+		IPv6Len:      126,
+		Subinterface: 0,
+	}
+	dutPort1_NI = cfgplugins.NetworkInstance{
+		Name: "DEFAULT",
+	}
+
+	dutPort2_NI = cfgplugins.NetworkInstance{
+		Name: customVRFName,
 	}
 )
 
@@ -52,7 +61,7 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, "port1")
 
 	// Configure default network instance.
-	cfgplugins.NewDefaultNetworkInstance(t, batch, dut)
+	cfgplugins.NewNetworkInstance(t, batch, dut, true, dutPort1_NI.Name)
 
 	// Configure gNMI server on default network instance.
 	cfgplugins.NewGNMIServer(t, batch, dut, deviations.DefaultNetworkInstance(dut))
@@ -62,7 +71,7 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.BatchUpdate(batch, gnmi.OC().Interface(dp1.Name()).Config(), port1IntfPath)
 	// Deviations for vendors that require explicit interface to network instance assignment.
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		cfgplugins.AssignInterfaceToNetworkInstance(batch, t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		cfgplugins.AssignInterfaceToNetworkInstance(t, batch, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -70,7 +79,7 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	// Configure interface, non-default network instance
 	t.Logf("\nConfiguring network instance and gNMI server: Network instance: %s \n", ni)
-	cfgplugins.NewCustomNetworkInstance(t, batch, dut, ni)
+	cfgplugins.NewNetworkInstance(t, batch, dut, false, dutPort2_NI.Name)
 
 	// Configure non-default gnmi server.
 	cfgplugins.NewGNMIServer(t, batch, dut, customVRFName)
@@ -79,7 +88,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	dp2 := dut.Port(t, "port2")
 	port2IntfPath := dutPort2.NewOCInterface(dp2.Name(), dut)
 	gnmi.BatchUpdate(batch, gnmi.OC().Interface(dp2.Name()).Config(), port2IntfPath)
-	cfgplugins.AssignInterfaceToNetworkInstance(batch, t, dut, dp2.Name(), customVRFName, 0)
+	cfgplugins.AssignInterfaceToNetworkInstance(t, batch, dut, dp2.Name(), customVRFName, 0)
 
 	t.Log("\nApplying configuration to DUT\n")
 
