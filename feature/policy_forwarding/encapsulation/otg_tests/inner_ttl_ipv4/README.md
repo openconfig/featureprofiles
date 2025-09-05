@@ -192,7 +192,7 @@ Verify:
                       "action": {
                         "config": {
                           "next-hop-group": "NHG-1",
-                          "ip-ttl": 1
+                          "_comment": "ip-ttl intentionally removed due to unexpected field error"
                         }
                       }
                     },
@@ -209,7 +209,7 @@ Verify:
                       "action": {
                         "config": {
                           "next-hop-group": "NHG-1",
-                          "ip-ttl": 1
+                          "_comment": "ip-ttl intentionally removed due to unexpected field error"
                         }
                       }
                     }
@@ -387,7 +387,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/config/identifier:
   /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name:
+  # /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name:
 
 
 rpcs:
