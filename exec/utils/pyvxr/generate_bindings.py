@@ -42,7 +42,7 @@ class Device():
     def to_binding_entry(self):
         return {
             'id': self.id,
-            'ports': [{'id': v, 'name': k} for k, v in self.data_ports.items()]
+            'ports': [{'id': v, 'name': k, 'speed': get_speed(k)} for k, v in self.data_ports.items()]
         }
         
 class DUT(Device):
@@ -254,6 +254,22 @@ def is_otg(e):
     if len(d) == 1 and isinstance(d[0], dict):
         return d[0].get('hda_ref', {}).get('file', '') == '/ws/kjahed-ott/public/images/otg/ixia-c.qcow2'
     return False
+
+def get_speed(intf_name):
+    speeds = {
+        "FourHundredGigE": 400,
+        "HundredGigE": 100,
+        "TenGigE": 10,
+    }
+    index = intf_name.find("GigE")
+    if index != -1:
+        truncated_string = intf_name[:index + 4]
+        if truncated_string in speeds.keys():
+            return speeds[truncated_string]
+        else:
+            return 0
+    else:
+        return 0
 
 def generate_bindings(vxr_out_dir, testbed_file, binding_file, certs_dir=None):
     vxr_conf_file = os.path.join(vxr_out_dir, 'sim-config.yaml')
