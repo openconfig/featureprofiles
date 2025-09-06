@@ -552,6 +552,14 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8818-ATE-16P/topo.yaml
     baseconf: topologies/cisco/pyvxr/8818-ATE-16P/baseconfig.conf    
+  8201-BOOTZ:
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-BOOTZ/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-BOOTZ/basefp.cfg
+  8808-BOOTZ:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-BOOTZ/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-BOOTZ/basefp.cfg
   DVT-SIM-TOPO:
     sim: true
     topology: topologies/cisco/pyvxr/DVT-SIM-TOPO/topo.yaml

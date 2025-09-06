@@ -18,6 +18,7 @@ from getpass import getuser
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import shutil
+import socket
 import random
 import string
 import tempfile
@@ -62,6 +63,7 @@ whitelist_arguments([
     'test_revision',
     'test_pr',
     'sim_use_mtls',
+    'sim_config_bootz',
     'collect_dut_info',
     'cflow_over_ssh',
     'testbed_checks'
@@ -651,6 +653,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         force_install=False,
                         force_reboot=False,
                         sim_use_mtls=False,
+                        sim_config_bootz=False,
                         testbed_checks=False,
                         smus=None,
                         testbeds_exclude=[]):
@@ -717,6 +720,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
             c |= GenerateCertificates.s()
             c |= SimEnableMTLS.s()
 
+        if sim_config_bootz:
+            c |= SimConfigBootz.s()
+            
         # Determine if the test requires traffic generators
         is_otg = 'otg' in test_path or test_requires_otg
         is_tgen = 'ate' in test_path or is_otg or test_requires_tgen
@@ -1763,6 +1769,45 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
             f'-out {reserved_testbed["binding_file"]}'
 
         check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
+# noinspection PyPep8Naming
+# For Bootz on sim, dut mgmt interface is connected to bootz linux VM.
+# The dhcp server on the VM will point dut to bootz port on VM.
+# Add rinetd forwarding entry to forward incoming bootz connection on vm to the test host.
+@app.task(bind=True)
+def SimConfigBootz(self, testbed_logs_dir):
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+    
+    if not 'bootz' in vxr_ports:
+        logger.warning("No bootz device found in vxr ports file...Ignoring")
+        return
+    
+    if not 'xr_redir22' in vxr_ports['bootz']:
+        logger.warning("No xr_redir22 port found in vxr ports file...Ignoring")
+        return
+
+    conn_args = {
+        'username': 'root',
+        'password': 'cisco123',
+        'port': vxr_ports['bootz']['xr_redir22']
+    }
+
+    with tempfile.NamedTemporaryFile(mode='w+t') as of:
+        hostname = socket.gethostname()
+        of.writelines([
+            f"0.0.0.0 15006 {hostname}.cisco.com 15006",    # bootz
+        ])
+        of.flush()
+        scp_to_remote(vxr_ports['HostAgent'], of.name, "/root/bootz_bridge.conf", **conn_args)
+
+    cmd = f'nohup /usr/local/bin/rinetd -c /root/bootz_bridge.conf -f &'
+    remote_exec(cmd, vxr_ports['HostAgent'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
