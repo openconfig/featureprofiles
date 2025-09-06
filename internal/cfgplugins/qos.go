@@ -35,6 +35,7 @@ type QosClassifier struct {
 	TermID      string
 	TargetGroup string
 	DscpSet     []uint8
+	RemarkDscp  uint8
 }
 
 type SchedulerPolicy struct {
@@ -126,9 +127,16 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 
 		term.SetId(tc.TermID)
 		action := term.GetOrCreateActions()
-		action.SetTargetGroup(tc.TargetGroup)
-		condition := term.GetOrCreateConditions()
-		condition.GetOrCreateIpv4().SetDscpSet(tc.DscpSet)
+		if tc.TargetGroup != "" {
+			action.SetTargetGroup(tc.TargetGroup)
+		}
+		if len(tc.DscpSet) > 0 {
+			condition := term.GetOrCreateConditions()
+			condition.GetOrCreateIpv4().SetDscpSet(tc.DscpSet)
+		}
+		if tc.RemarkDscp != 0 {
+			action.GetOrCreateRemark().SetDscp = ygot.Uint8(tc.RemarkDscp)
+		}
 	}
 	return q
 }
@@ -192,5 +200,63 @@ func NewQoSQueue(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos) {
 		}
 		t.Logf("\nDUT %s %s %s requires QoS queue requires ID deviation \n\n", dut.Vendor(), dut.Model(), dut.Version())
 	}
+}
 
+func configureQosClassifierDscpRemarkFromCli(t *testing.T, dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	qosConfig := enableQosRemarkDscpCliConfig(dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
+	t.Logf("Push the CLI Qos config:%s", dut.Vendor())
+	gpbSetRequest := buildCliSetRequest(qosConfig)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Errorf("Failed to set qos classifier from cli: %v", err)
+	}
+}
+
+func ConfigureQosClassifierDscpRemark(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
+	if deviations.QosRemarkOCUnsupported(dut) {
+		t.Logf("Configuring qos dscp remark through CLI")
+		configureQosClassifierDscpRemarkFromCli(t, dut, classifierName, interfaceName, ipv4DscpValues, ipv6DscpValues)
+	} else {
+		t.Logf("Configuring qos dscp remark through OC")
+		configureQosClassifierDscpRemarkFromOc(t, dut, qos, classifierName, ipv4DscpValues, ipv6DscpValues)
+	}
+}
+
+func configureQosClassifierDscpRemarkFromOc(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, classifierName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
+	if qos == nil {
+		t.Fatal("Qos OC config must be defined")
+	}
+	var classifiers []QosClassifier
+
+	for i, dscp := range ipv4DscpValues {
+		classifiers = append(classifiers, QosClassifier{
+			Desc:       fmt.Sprintf("IPv4 DSCP term %d", i+1),
+			Name:       classifierName,
+			ClassType:  oc.Qos_Classifier_Type_IPV4,
+			TermID:     fmt.Sprintf("termV4-%d", i+1),
+			RemarkDscp: dscp,
+		})
+	}
+	for i, dscp := range ipv6DscpValues {
+		classifiers = append(classifiers, QosClassifier{
+			Desc:       fmt.Sprintf("IPv6 DSCP term %d", i+1),
+			Name:       classifierName,
+			ClassType:  oc.Qos_Classifier_Type_IPV6,
+			TermID:     fmt.Sprintf("termV6-%d", i+1),
+			RemarkDscp: dscp,
+		})
+	}
+
+	NewQoSClassifierConfiguration(t, dut, qos, classifiers)
+}
+
+func enableQosRemarkDscpCliConfig(dut *ondatra.DUTDevice, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return `
+        qos rewrite dscp
+        !`
+	default:
+		return ""
+	}
 }
