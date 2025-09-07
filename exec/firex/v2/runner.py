@@ -1348,13 +1348,14 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
 
-            mgmt_ip = mgmt_ips[dut]
-            logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
-
             extra_conf = []
-            mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
-            if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
-            else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+            if dut in mgmt_ips:
+                mgmt_ip = mgmt_ips[dut]
+                logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
+
+                mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
+                if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
+                else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
 
             # some FP tests (e.g., gNOI-3.1) expects that
             for d in data_ports.get(dut, []):
