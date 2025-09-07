@@ -1808,7 +1808,7 @@ def SimConfigBootz(self, testbed_logs_dir):
         scp_to_remote(vxr_ports['HostAgent'], of.name, "/root/bootz_bridge.conf", **conn_args)
 
     cmd = f'nohup /usr/local/bin/rinetd -c /root/bootz_bridge.conf -f &'
-    remote_exec(cmd, vxr_ports['HostAgent'], shell=True, **conn_args)
+    remote_exec(cmd, vxr_ports['bootz']['HostAgent'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
