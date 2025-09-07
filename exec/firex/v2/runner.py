@@ -1805,7 +1805,7 @@ def SimConfigBootz(self, testbed_logs_dir):
             f"0.0.0.0 15006 {hostname}.cisco.com 15006",    # bootz
         ])
         of.flush()
-        scp_to_remote(vxr_ports['HostAgent'], of.name, "/root/bootz_bridge.conf", **conn_args)
+        scp_to_remote(vxr_ports['bootz']['HostAgent'], of.name, "/root/bootz_bridge.conf", **conn_args)
 
     cmd = f'nohup /usr/local/bin/rinetd -c /root/bootz_bridge.conf -f &'
     remote_exec(cmd, vxr_ports['bootz']['HostAgent'], shell=True, **conn_args)
