@@ -1799,15 +1799,9 @@ def SimConfigBootz(self, testbed_logs_dir):
         'port': vxr_ports['bootz']['xr_redir22']
     }
 
-    with tempfile.NamedTemporaryFile(mode='w+t') as of:
-        hostname = socket.gethostname()
-        of.writelines([
-            f"0.0.0.0 15006 {hostname}.cisco.com 15006",    # bootz
-        ])
-        of.flush()
-        scp_to_remote(vxr_ports['bootz']['HostAgent'], of.name, "/root/bootz_bridge.conf", **conn_args)
-
-    cmd = f'nohup /usr/local/bin/rinetd -c /root/bootz_bridge.conf -f &'
+    hostname = socket.gethostname()
+    logger.print(f'Configuring bootz bridge to host {hostname}...')
+    cmd = f'/root/create_bootz_bridge.sh {hostname}'
     remote_exec(cmd, vxr_ports['bootz']['HostAgent'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
