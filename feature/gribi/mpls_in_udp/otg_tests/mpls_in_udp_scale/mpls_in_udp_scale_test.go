@@ -1216,9 +1216,7 @@ func programMPLSinUDPMultiEntriesSkew(
 func buildProfile5Ops(t *testing.T, dut *ondatra.DUTDevice, totalPrefixes int, nhgBase uint64, baseIPv4, baseIPv6 string) (adds, dels []fluent.GRIBIEntry) {
 	t.Helper()
 	ipv6s := buildIPv6Routes(t, dut, totalPrefixes/2, baseIPv6, nhgBase)
-	all := append(ipv6s)
-
-	for i, e := range all {
+	for i, e := range ipv6s {
 		if i%2 == 0 {
 			// ADD this entry
 			adds = append(adds, e)
