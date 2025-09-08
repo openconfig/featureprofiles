@@ -27,11 +27,14 @@ const (
 	trafficRatePps   = 1000
 	noOfPackets      = 5000
 
-	ipProtoTCP        = 6
-	AF11       uint32 = 10
-	AF21       uint32 = 18
-	AF31       uint32 = 26
-	AF41       uint32 = 34
+	ipProtoTCP           = 6
+	AF11          uint32 = 10
+	AF21          uint32 = 18
+	AF31          uint32 = 26
+	AF41          uint32 = 34
+	ipProtoICMPv6        = 58
+	ipv4PrefixLen        = 32
+	ipv6PrefixLen        = 128
 )
 
 var (
@@ -163,6 +166,8 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		configureFlows(t, config, tc, dscp)
 		otg.PushConfig(t, *config)
 		otg.StartProtocols(t)
+		otgutils.WaitForARP(t, ate.OTG(), *config, "IPv4")
+		otgutils.WaitForARP(t, ate.OTG(), *config, "IPv6")
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, tc.flowName, trafficTimeout)
 
@@ -282,7 +287,8 @@ func configureFlows(t *testing.T, config *gosnappi.Config, tc testCase, dscp uin
 
 func configureAclInterface(t *testing.T, dut *ondatra.DUTDevice, acl *oc.Acl, tc testCase) {
 	ifName := dut.Port(t, "port1").Name()
-	existingIface := gnmi.Get(t, dut, gnmi.OC().Interface(ifName).Config())
+
+	existingIface := gnmi.Get(t, dut, gnmi.OC().Interface(ifName).State())
 
 	iFace := acl.GetOrCreateInterface(ifName)
 	if tc.ipType == IPv4 {
@@ -292,7 +298,7 @@ func configureAclInterface(t *testing.T, dut *ondatra.DUTDevice, acl *oc.Acl, tc
 	}
 
 	iFace.GetOrCreateInterfaceRef().Interface = existingIface.Name
-	iFace.GetOrCreateInterfaceRef().Subinterface = existingIface.GetSubinterface(0).Ifindex
+	iFace.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 }
 
 func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
@@ -309,13 +315,13 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	aclAcceptEntry := aclSet.GetOrCreateAclEntry(10)
 	if tc.ipType == IPv4 {
 		ipv4Acl := aclAcceptEntry.GetOrCreateIpv4()
-		ipv4Acl.SetSourceAddress(fmt.Sprintf("%s/%d", otgPort1.IPv4, otgPort1.IPv4Len))
-		ipv4Acl.SetDestinationAddress(fmt.Sprintf("%s/%d", otgPort2.IPv4, otgPort2.IPv4Len))
+		ipv4Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv4, ipv4PrefixLen))
+		ipv4Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv4, ipv4PrefixLen))
 		ipv4Acl.SetDscp(uint8(tc.aclDscpValue))
 	} else {
 		ipv6Acl := aclAcceptEntry.GetOrCreateIpv6()
-		ipv6Acl.SetSourceAddress(fmt.Sprintf("%s/%d", otgPort1.IPv6, otgPort1.IPv6Len))
-		ipv6Acl.SetDestinationAddress(fmt.Sprintf("%s/%d", otgPort2.IPv6, otgPort2.IPv6Len))
+		ipv6Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv6, ipv6PrefixLen))
+		ipv6Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv6, ipv6PrefixLen))
 		ipv6Acl.SetDscp(uint8(tc.aclDscpValue))
 	}
 	if len(tc.srcDstPortPair) == 2 {
@@ -330,6 +336,16 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	}
 	aclAcceptEntry.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_ACCEPT)
 
+	if tc.ipType == IPv6 {
+		// Adding allow rule for IPV6 ND packets
+		aclARPEntry := aclSet.GetOrCreateAclEntry(15)
+		aclARPEntry.Description = ygot.String("allow ND packets")
+		aclMatchipv6 := aclARPEntry.GetOrCreateIpv6()
+		aclMatchipv6.Protocol = oc.UnionUint8(ipProtoICMPv6)
+		aclARPEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+	}
+
+	// Add a deny all rule at the end
 	aclDropEntry := aclSet.GetOrCreateAclEntry(20)
 	aclDropEntry.Description = ygot.String("dscp mismatch drop")
 	aclDropEntry.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_DROP)
