@@ -603,13 +603,6 @@ func programMPLSinUDPMultiEntries(t *testing.T, dut *ondatra.DUTDevice, vrfs []s
 	return entries
 }
 
-// awaitTimeout calls a fluent client Await, adding a timeout to the context.
-func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
-	subctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	return c.Await(subctx, t)
-}
-
 func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	sb := &gnmi.SetBatch{}
@@ -1061,9 +1054,9 @@ func expectedMPLSinUDPMultiOpResultsSkewed(
 
 	for idx, vrf := range vrfsSkewList {
 		// NH: create once per VRF
-		nhID, exists := nhCreated[vrf]
+		_, exists := nhCreated[vrf]
 		if !exists {
-			nhID = mplsNHBase + uint64(len(nhCreated))
+			nhID := mplsNHBase + uint64(len(nhCreated))
 			adds = append(adds,
 				fluent.OperationResult().
 					WithNextHopOperation(nhID).
@@ -1692,16 +1685,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// buildVRFIndexMap produces a stable index for each VRF name based on a canonical order.
-// canonicalOrder should be the list that determines label/nhID assignment (e.g. ["default","VRF_001",...])
-func buildVRFIndexMap(canonicalOrder []string) map[string]int {
-	m := make(map[string]int, len(canonicalOrder))
-	for i, v := range canonicalOrder {
-		m[v] = i
-	}
-	return m
-}
-
 // formatMPLSHeader formats MPLS header bytes for debugging output
 func formatMPLSHeader(data []byte) string {
 	if len(data) < 4 {
@@ -1739,21 +1722,6 @@ func generateSkewPattern(numVRFs, totalPrefixes int) []int {
 	// Adjust last element so the sum matches exactly
 	skew[numVRFs-1] += totalPrefixes - accum
 	return skew
-}
-
-// generateUniqueVRFs returns the VRFs list unchanged but can shuffle if needed.
-// Each VRF is unique to ensure traffic works correctly.
-func generateUniqueVRFs(vrfs []string) []string {
-	vrfList := make([]string, len(vrfs))
-	copy(vrfList, vrfs)
-
-	// optional: shuffle for random order
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(vrfList), func(i, j int) {
-		vrfList[i], vrfList[j] = vrfList[j], vrfList[i]
-	})
-
-	return vrfList
 }
 
 // generateSkewedVRFList creates a skewed VRF assignment list.
