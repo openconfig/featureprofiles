@@ -216,6 +216,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Define the MPLS classifier.
 	classifier := qos.GetOrCreateClassifier(mplsClassifierName)
+	classifier.SetName(mplsClassifierName)
 	classifier.SetType(oc.Qos_Classifier_Type_MPLS)
 
 	// Define the term to match MPLS label range.
@@ -240,6 +241,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Push QoS configuration to the DUT.
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+
 }
 
 // verifyQoS verifies the QoS classifier configuration and state on the DUT.
