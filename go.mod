@@ -1,6 +1,6 @@
 module github.com/openconfig/featureprofiles
 
-go 1.24.2
+go 1.24.4
 
 require (
 	cloud.google.com/go/pubsub v1.45.1
@@ -18,6 +18,7 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v1.33.4
 	github.com/openconfig/containerz v0.0.0-20250408205203-029560584812
 	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
+	github.com/openconfig/functional-translators v0.0.0-20250906150131-6190218830fa
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnoi v0.6.2
 	github.com/openconfig/gnoigo v0.0.0-20250422174708-0b77c31c7d66
@@ -31,7 +32,7 @@ require (
 	github.com/openconfig/ondatra v0.12.0
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.12.0
+	github.com/openconfig/ygnmi v0.13.0
 	github.com/openconfig/ygot v0.33.0
 	github.com/p4lang/p4runtime v1.4.1
 	github.com/pborman/uuid v1.2.1

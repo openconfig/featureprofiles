@@ -1617,3 +1617,9 @@ func SkipOrigin(dut *ondatra.DUTDevice) bool {
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
+
+// TransceiverThresholdsFT returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func TransceiverThresholdsFT(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetTransceiverThresholdsFt()
+}
