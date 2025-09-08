@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "1D7A5559-4899-42E8-A2E7-84AB7DFBCFF3"
+uuid: "1d7a5559-4899-42e8-a2e7-84ab7dfbcff3"
 plan_id: "PF-1.2"
 description: "Policy-based traffic GRE Encapsulation to IPv4 GRE tunnel"
 testbed: TESTBED_DUT_ATE_4LINKS
@@ -14,19 +14,18 @@ platform_exceptions: {
     tunnel_config_path_unsupported: true
   }
 }
-
-platform_exceptions: {  
+platform_exceptions: {
   platform: {
-    vendor: ARISTA  
+    vendor: ARISTA
   }
   deviations: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-    policy_forwarding_to_next_hop_oc_unsupported: true
-    policy_forwarding_gre_encapsulation_oc_unsupported: true
     policy_forwarding_unsupported: true
+    policy_forwarding_to_next_hop_oc_unsupported: true
     qos_remark_oc_unsupported: true
+    policy_forwarding_gre_encapsulation_oc_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION
