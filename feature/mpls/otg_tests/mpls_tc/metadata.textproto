@@ -4,8 +4,7 @@
 uuid:  "32ac61df-e182-4e2e-ab68-b517453dabbf"
 plan_id:  "MPLS-1.2"
 description:  "MPLS Traffic Class Marking"
-#testbed:  TESTBED_DUT_DUT_2LINKS
-testbed:  TESTBED_DUT_ATE_4LINKS
+testbed:  TESTBED_DUT_DUT_2LINKS
 
 platform_exceptions: {
   platform: {
