@@ -13,6 +13,7 @@ tests:
   args:
     - '-gribi_aft_check=false'
     - '-gribi_aft_chain_check=false'
+    - '-test.run="TestEgressp4rt"'
 - name: Egressp4rt_NextHopDefaultVRF 
   path: feature/gribi/ate_tests/cisco/egressp4rt
   timeout: 108000

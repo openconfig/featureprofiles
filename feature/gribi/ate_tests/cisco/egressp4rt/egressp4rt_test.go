@@ -1278,6 +1278,8 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		addDefaultRouteviaGRIBI(t, args)
 	}
 	addStaticRoute(t, dut)
+	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(atePort6.IPv4, int(ipv4PrefixLen))).Config())
+	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(atePort6.IPv6, int(ipv6PrefixLen))).Config())
 
 	nh := 1
 
