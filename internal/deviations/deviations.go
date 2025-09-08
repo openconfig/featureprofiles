@@ -1622,3 +1622,7 @@ func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
 }
+// LinePortUnsupported returns whether the DUT does not support line-port configuration on optical channel components.
+func LinePortUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinePortUnsupported()
+}
