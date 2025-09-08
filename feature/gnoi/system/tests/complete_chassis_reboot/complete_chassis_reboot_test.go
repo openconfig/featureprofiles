@@ -30,13 +30,18 @@ import (
 )
 
 const (
-	oneMinuteInNanoSecond = 6e10
-	oneSecondInNanoSecond = 1e9
-	rebootDelay           = 120
-	// Maximum reboot time is 900 seconds (15 minutes).
-	maxRebootTime = 900
-	// Maximum wait time for all components to be in responsive state
-	maxCompWaitTime = 600
+	// rebootDelay is the time to wait before the DUT starts the reboot process.
+	rebootDelay = 120 * time.Second
+	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
+	maxRebootTime = 15 * time.Minute
+	// maxCompWaitTime is the maximum wait time for all components to be in a responsive state after reboot.
+	maxCompWaitTime = 10 * time.Minute
+	// componentPollInterval is the interval at which component status is polled.
+	componentPollInterval = 5 * time.Second
+	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
+	rebootPollInterval = 5 * time.Second
+	// contextTimeout is the overall timeout for the gNOI reboot operation.
+	contextTimeout = 20 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -85,15 +90,15 @@ func TestChassisReboot(t *testing.T) {
 		rebootRequest *spb.RebootRequest
 	}{
 		{
-			desc: "with delay",
+			desc: "with_delay",
 			rebootRequest: &spb.RebootRequest{
 				Method:  spb.RebootMethod_COLD,
-				Delay:   rebootDelay * oneSecondInNanoSecond,
+				Delay:   uint64(rebootDelay.Nanoseconds()),
 				Message: "Reboot chassis with delay",
 				Force:   true,
 			}},
 		{
-			desc: "without delay",
+			desc: "without_delay",
 			rebootRequest: &spb.RebootRequest{
 				Method:  spb.RebootMethod_COLD,
 				Delay:   0,
@@ -103,15 +108,12 @@ func TestChassisReboot(t *testing.T) {
 	}
 
 	versions := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
-	expectedVersion := FetchUniqueItems(t, versions)
-	sort.Strings(expectedVersion)
+	expectedVersion := uniqueSortedStrings(t, versions)
 	t.Logf("DUT software version: %v", expectedVersion)
 
 	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
-
 	preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
-	preCompMatrix := []string{}
+	var preCompMatrix []string
 	for _, preComp := range preRebootCompDebug {
 		if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
 			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
@@ -119,7 +121,7 @@ func TestChassisReboot(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
 			if err != nil {
 				t.Fatalf("Error dialing gNOI: %v", err)
 			}
@@ -131,21 +133,22 @@ func TestChassisReboot(t *testing.T) {
 			}
 			start := time.Now()
 
-			t.Logf("Send reboot request: %v", tc.rebootRequest)
-			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
-			defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
-			t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+			t.Logf("Send reboot request: %v.", tc.rebootRequest)
+			ctxWithTimeout, cancel := context.WithTimeout(t.Context(), contextTimeout)
+			defer cancel()
+			_, err = gnoiClient.System().Reboot(ctxWithTimeout, tc.rebootRequest)
+			defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
 			if err != nil {
 				t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 			}
 
 			if tc.rebootRequest.GetDelay() > 1 {
-				t.Logf("Validating DUT remains reachable for at least %d seconds", rebootDelay)
+				t.Logf("Validating DUT remains reachable for at least %d seconds.", rebootDelay)
 				for {
 					time.Sleep(10 * time.Second)
 					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
-					if time.Since(start).Seconds() > rebootDelay {
-						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
+					if time.Since(start).Seconds() > rebootDelay.Seconds() {
+						t.Logf("Time elapsed (%.2f seconds) has exceeded the reboot delay of %d seconds.", time.Since(start).Seconds(), rebootDelay)
 						break
 					}
 					var latestTime time.Time
@@ -155,15 +158,15 @@ func TestChassisReboot(t *testing.T) {
 						if err != nil {
 							t.Fatalf("Failed parsing current-datetime: %s", err)
 						}
-					}); errMsg != nil && time.Since(start).Seconds() < rebootDelay {
-						t.Fatalf("Get request failed before reboot delay, %s", *errMsg)
+					}); errMsg != nil && time.Since(start).Seconds() < rebootDelay.Seconds() {
+						t.Fatalf("Get request failed before the reboot delay: %s.", *errMsg)
 					}
 
-					if err != nil && time.Since(start).Seconds() < rebootDelay {
-						t.Fatalf("Failed parsing current-datetime: %s", err)
+					if err != nil && time.Since(start).Seconds() < rebootDelay.Seconds() {
+						t.Fatalf("Failed parsing current-datetime: %s.", err)
 					}
 					if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
-						t.Errorf("Get latest system time: got %v, want newer time than %v", latestTime, prevTime)
+						t.Errorf("Get latest system time: got %v, want newer time than %v.", latestTime, prevTime)
 					}
 					prevTime = latestTime
 				}
@@ -171,81 +174,91 @@ func TestChassisReboot(t *testing.T) {
 
 			startReboot := time.Now()
 			t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-			for {
-				var currentTime string
-				t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
-				time.Sleep(30 * time.Second)
-				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-				}); errMsg != nil {
-					t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-				} else {
-					t.Logf("Device rebooted successfully with received time: %v", currentTime)
-					break
-				}
+			{
+				ticker := time.NewTicker(rebootPollInterval)
+				defer ticker.Stop()
+				timeout := time.After(maxRebootTime)
 
-				if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
-					t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+			rebootLoop:
+				for {
+					select {
+					case <-timeout:
+						t.Fatalf("Timeout exceeded: DUT did not reboot within %v seconds.", maxRebootTime)
+					case <-ticker.C:
+						var currentTime string
+						if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+							currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+						}); errMsg != nil {
+							t.Logf("Time elapsed %.2f seconds, DUT not reachable yet: %s.", time.Since(startReboot).Seconds(), *errMsg)
+						} else {
+							t.Logf("Device rebooted successfully with received time: %v.", currentTime)
+							break rebootLoop
+						}
+					}
 				}
 			}
-			t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+			t.Logf("Device boot time: %.2f seconds.", time.Since(startReboot).Seconds())
 
 			bootTimeAfterReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 			t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
 			if bootTimeAfterReboot <= bootTimeBeforeReboot {
-				t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
+				t.Errorf("Get boot time: got %v, want > %v.", bootTimeAfterReboot, bootTimeBeforeReboot)
 			}
 
 			startComp := time.Now()
-			t.Logf("Wait for all the components on DUT to come up")
+			t.Logf("Wait for all the components on DUT to come up.")
+			{
+				ticker := time.NewTicker(componentPollInterval)
+				defer ticker.Stop()
+				timeout := time.After(maxCompWaitTime)
 
-			for {
-				postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
-				postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
-				postCompMatrix := []string{}
-				for _, postComp := range postRebootCompDebug {
-					if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
-						postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+			compLoop:
+				for {
+					select {
+					case <-timeout:
+						postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+						var postCompMatrix []string
+						for _, postComp := range postRebootCompDebug {
+							if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+								postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+							}
+						}
+						if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
+							t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v.", rebootDiff)
+						}
+						postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+						t.Fatalf("Timeout exceeded: There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+					case <-ticker.C:
+						postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+						if len(preRebootCompStatus) == len(postRebootCompStatus) {
+							t.Logf("All components on the DUT are in responsive state after %.2f seconds.", time.Since(startComp).Seconds())
+							break compLoop
+						}
 					}
 				}
-
-				if len(preRebootCompStatus) == len(postRebootCompStatus) {
-					t.Logf("All components on the DUT are in responsive state")
-					time.Sleep(10 * time.Second)
-					break
-				}
-
-				if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
-					t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
-					if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
-						t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
-					}
-					t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
-				}
-				time.Sleep(10 * time.Second)
 			}
 
 			versions = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
-			swVersion := FetchUniqueItems(t, versions)
-			sort.Strings(swVersion)
+			swVersion := uniqueSortedStrings(t, versions)
 			t.Logf("DUT software version after reboot: %v", swVersion)
 			if diff := cmp.Diff(expectedVersion, swVersion); diff != "" {
-				t.Errorf("Software version differed (-want +got):\n%v", diff)
+				t.Errorf("Software version differed (-want +got):\n%v.", diff)
 			}
 		})
 	}
 }
 
-func FetchUniqueItems(t *testing.T, s []string) []string {
+func uniqueSortedStrings(t *testing.T, s []string) []string {
+	t.Helper()
 	itemExisted := make(map[string]bool)
 	var uniqueList []string
 	for _, item := range s {
-		if _, ok := itemExisted[item]; !ok {
-			itemExisted[item] = true
-			uniqueList = append(uniqueList, item)
-		} else {
-			t.Logf("Detected duplicated item: %v", item)
+		if _, ok := itemExisted[item]; ok {
+			continue
 		}
+		itemExisted[item] = true
+		uniqueList = append(uniqueList, item)
 	}
+	sort.Strings(uniqueList)
 	return uniqueList
 }
