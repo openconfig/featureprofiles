@@ -193,7 +193,7 @@ func addDHCPEntry(t *testing.T, id, ip, gw, bootzUrl string) {
 	body, _ := json.Marshal(req)
 	t.Logf("POST /records body: %s", string(body))
 	// Retry for up to ~5 minutes with 30s intervals
-	backoffs := uniformBackoffs(5*time.Minute, 30*time.Second)
+	backoffs := backoffFn(5*time.Minute, 30*time.Second)
 	resp, respBody := doRequestWithRetry(t, "POST /records", backoffs, func() (*http.Request, error) {
 		return http.NewRequest("POST", fmt.Sprintf("%s/records", *addr), bytes.NewReader(body))
 	})
