@@ -590,3 +590,35 @@ func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice,
 		t.Errorf("Unexpected error max-prefix: %v", err)
 	}
 }
+
+func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, routerId, peerAddress string, routerAS, peerAS uint32, ipType string, sendReceivePaths bool) {
+	if ni == nil {
+		t.Fatalf("Network Instance is not configured")
+	}
+	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := proto.GetOrCreateBgp()
+	global := bgp.GetOrCreateGlobal()
+	global.As = ygot.Uint32(routerAS)
+	global.RouterId = ygot.String(routerId)
+
+	neighbor := bgp.GetOrCreateNeighbor(peerAddress)
+	neighbor.PeerAs = ygot.Uint32(peerAS)
+	neighbor.Enabled = ygot.Bool(true)
+	neighbor.SendCommunityType = []oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_NONE}
+
+	neighbor.GetOrCreateApplyPolicy().DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	neighbor.GetOrCreateApplyPolicy().DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+
+	var nAfiSafi *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi
+	switch ipType {
+	case IPv4:
+		nAfiSafi = neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		nAfiSafi.GetOrCreateIpv4Unicast().SendDefaultRoute = ygot.Bool(true)
+	case IPv6:
+		nAfiSafi = neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		nAfiSafi.GetOrCreateIpv6Unicast().SendDefaultRoute = ygot.Bool(true)
+	}
+	nAfiSafi.Enabled = ygot.Bool(true)
+	nAfiSafi.GetOrCreateAddPaths().Receive = ygot.Bool(sendReceivePaths)
+	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
+}
