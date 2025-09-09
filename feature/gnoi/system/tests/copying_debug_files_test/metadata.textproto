@@ -21,3 +21,11 @@ platform_exceptions: {
     skip_origin: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    skip_origin: true
+  }
+}
