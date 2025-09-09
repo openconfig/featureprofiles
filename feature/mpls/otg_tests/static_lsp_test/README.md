@@ -22,16 +22,13 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
 ```yaml
 paths:
   ## Config paths
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/index:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/index:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/ip-address:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/interface:
 
   ## State paths
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/next-hop:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/incoming-label:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/state/ip-address:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/state/interface:

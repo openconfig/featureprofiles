@@ -94,7 +94,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	if dut.ID() == "dut1" {
 		DUTSysID = "0000.0000.0001"
-		portName = "dut1_ate_port1"
+		portName = "port11"
 		connectedPort = dut.Port(t, portName).Name()
 		baseIPv4 = DUT1_BASE_IPv4
 		loopbackIPv4 = "1.1.1.1"
@@ -104,9 +104,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		loopbackIPv6 = "1:1:1::1"
 	} else {
 		DUTSysID = "0000.0000.0002"
-		portName := "dut2_ate_port1"
+		portName := "port11"
 		connectedPort = dut.Port(t, portName).Name()
-		unresolvedPort = "HundredGigE0/0/0/3"
+		unresolvedPort = "FourHundredGigE0/0/0/3"
 		baseIPv4 = DUT2_BASE_IPv4
 		loopbackIPv4 = "2.2.2.2"
 		localV4Prefix = fmt.Sprintf("%s/%d", LOCAL_STATIC_ROUTE_BASE_IPv4, ipv4LBPrefixLen)
@@ -222,12 +222,8 @@ func configInterface(t *testing.T, dut *ondatra.DUTDevice, baseIPv4 string, base
 	} else {
 		portAttrib = &dut2Port1
 	}
-	var portName string
-	if dut.ID() == "dut1" {
-		portName = "dut1_ate_port1"
-	} else {
-		portName = "dut2_ate_port1"
-	}
+
+	portName := "port11"
 	port := dut.Port(t, portName).Name()
 	intf := &oc.Interface{Name: &port}
 	path := gnmi.OC().Interface(port)
@@ -567,8 +563,8 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice) {
 	inst := dev.GetOrCreateNetworkInstance(nonDefaultVRF)
 	inst.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	inst.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-	vrfIntf := inst.GetOrCreateInterface(dut.Port(t, "dut2_ate_port2").Name())
-	vrfIntf.SetInterface(dut.Port(t, "dut2_ate_port2").Name())
+	vrfIntf := inst.GetOrCreateInterface(dut.Port(t, "port12").Name())
+	vrfIntf.SetInterface(dut.Port(t, "port12").Name())
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), inst)
 
@@ -577,7 +573,7 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice) {
 func configVRFInterface(t *testing.T, dut *ondatra.DUTDevice) {
 
 	var portAttrib = &attrs.Attributes{}
-	vrfPortName := dut.Port(t, "dut2_ate_port2").Name()
+	vrfPortName := dut.Port(t, "port12").Name()
 	vrfIntf := &oc.Interface{Name: &vrfPortName}
 	path := gnmi.OC().Interface(vrfPortName)
 

@@ -1,0 +1,43 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This DUT-ATE testbed provides 4 links between dut - ate
+
+# dut port definitions
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+    speed: S_400GB
+  }
+  ports {
+    id: "port2"
+    speed: S_400GB
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB
+  }
+}
+
+# dut to TGEN (ATE) connections
+links {
+  a: "dut:port1"
+  b: "dut:port2"
+}
+links {
+  a: "dut:port2"
+  b: "dut:port1"
+}
+links {
+  a: "dut:port3"
+  b: "dut:port4"
+}
+links {
+  a: "dut:port4"
+  b: "dut:port3"
+}

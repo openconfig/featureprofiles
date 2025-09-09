@@ -1,0 +1,43 @@
+simulation: 
+  pyvxr_flags: 
+    spitfire_cvac_override: true
+  vxr_sim_config:
+    default:
+      ConfigEnableNgdp: 'true'
+devices:
+  dut:
+    platform: spitfire_f
+    vxr_sim_config:
+      shelf:
+        ConfigChassisSerialNumber: "FLM254206E7"
+    custom_mgmt_inf: true
+    save_startup_config: true
+    xr_hostname: dut
+    xr_username: cafyauto # don't change
+    xr_password: cisco123 # don't change
+    cli_commands: |
+      ztp secure-mode enable noprompt
+    custom:
+      jump_server:
+        id: bootz
+        ports:
+          22: 22000
+          57400: 57400
+
+  bootz:
+    platform: linux
+    vcpu: 4
+    memory: 16GB
+    image: /auto/b4ws/bootz/bootz_server.qcow2
+    xr_port_redir:
+      - 22
+      - 8123
+      - 22000 # ssh to dut - don't change
+      - 57400 # grpc to dut - don't change
+    cli_commands: |
+      /root/scripts/init.sh
+
+connections:
+  custom:
+    sd_mgmt_1:
+      ports: [bootz.eth1, dut.eth0]

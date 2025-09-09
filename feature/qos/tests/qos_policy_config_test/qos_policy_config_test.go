@@ -18,6 +18,7 @@ import (
 	"math"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -1704,37 +1705,29 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	}
 
 	cases := []struct {
-		desc        string
-		queueName   string
-		targetGroup string
+		desc      string
+		queueName string
 	}{{
-		desc:        "output-interface-BE1",
-		queueName:   queues.BE1,
-		targetGroup: "BE1",
+		desc:      "output-interface-BE1",
+		queueName: queues.BE1,
 	}, {
-		desc:        "output-interface-BE0",
-		queueName:   queues.BE0,
-		targetGroup: "BE0",
+		desc:      "output-interface-BE0",
+		queueName: queues.BE0,
 	}, {
-		desc:        "output-interface-AF1",
-		queueName:   queues.AF1,
-		targetGroup: "AF1",
+		desc:      "output-interface-AF1",
+		queueName: queues.AF1,
 	}, {
-		desc:        "output-interface-AF2",
-		queueName:   queues.AF2,
-		targetGroup: "AF2",
+		desc:      "output-interface-AF2",
+		queueName: queues.AF2,
 	}, {
-		desc:        "output-interface-AF3",
-		queueName:   queues.AF3,
-		targetGroup: "AF3",
+		desc:      "output-interface-AF3",
+		queueName: queues.AF3,
 	}, {
-		desc:        "output-interface-AF4",
-		queueName:   queues.AF4,
-		targetGroup: "AF4",
+		desc:      "output-interface-AF4",
+		queueName: queues.AF4,
 	}, {
-		desc:        "output-interface-NC1",
-		queueName:   queues.NC1,
-		targetGroup: "NC1",
+		desc:      "output-interface-NC1",
+		queueName: queues.NC1,
 	}}
 
 	t.Logf("qos output interface config cases: %v", cases)
@@ -1751,11 +1744,11 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 
 		// Verify the policy is applied by checking the telemetry path state values.
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
-		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.targetGroup)
+		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
 		if got, want := gnmi.Get(t, dut, policy.Name().State()), "scheduler"; got != want {
 			t.Errorf("policy.Name().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.targetGroup; got != want {
+		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
 			t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), "DropProfile"; got != want {
@@ -2298,7 +2291,8 @@ func testNokiaSchedulerPoliciesConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
 			t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), "DropProfile"; got != want {
+		want := "DropProfile"
+		if got, ok := gnmi.Await(t, dut, outQueue.QueueManagementProfile().State(), 10*time.Second, want).Val(); !ok {
 			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 		}
 		if got, want := gnmi.Get(t, dut, wredUniform.EnableEcn().State()), ecnConfig.ecnEnabled; got != want {

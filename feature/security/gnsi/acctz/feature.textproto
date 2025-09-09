@@ -1,7 +1,0 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/feature.proto
-# proto-message: FeatureProfile
-
-id {
-  name: "security_gnsi_acctz"
-  version: 0
-}

@@ -5,6 +5,9 @@ replace: {
     val: {
       ascii_val:
 "hostname Yukon-2\n"
+"hw-module profile pbr vrf-redirect\n"
+"hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
+"hw-module profile qos qos-stats-push-collection\n"
 "clock timezone IST Asia/Kolkata\n"
 "username cisco\n"
 " group root-lr\n"
@@ -192,6 +195,8 @@ replace: {
 " no shutdown\n"
 "!\n"
 "router static\n"
+" maximum path ipv4 140000\n"
+" maximum path ipv6 140000\n"
 " address-family ipv4 unicast\n"
 "  5.0.0.0/8 5.18.0.1\n"
 "  223.255.254.0/24 5.18.0.1\n"

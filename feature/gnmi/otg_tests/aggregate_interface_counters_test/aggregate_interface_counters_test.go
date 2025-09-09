@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package telemetry_interface_packet_counters_test
+package aggregate_interface_counters_test
 
 import (
 	"bytes"

@@ -597,18 +597,20 @@ func processRestart(t *testing.T, dut *ondatra.DUTDevice) {
 	config.CMDViaGNMI(context.Background(), t, dut, cli)
 	time.Sleep(60 * time.Second)
 }
+
 func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []byte, asciiVal string) {
+	// variable to store the JSON data
 	var telemetrySystem map[string]interface{}
-	err := json.Unmarshal(jsonietfVal, &telemetrySystem)
-	if err != nil {
-		t.Errorf("Error: %v", err)
+	if err := json.Unmarshal(jsonietfVal, &telemetrySystem); err != nil {
+		t.Fatalf("Error unmarshaling JSON: %v", err)
 	}
 
 	t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
 
+	// Check if the expected key exists and safely access it
 	telemetrySystemValue, ok := telemetrySystem["openconfig-telemetry:telemetry-system"]
 	if !ok {
-		t.Errorf("Key 'openconfig-telemetry:telemetry-system' not found in the JSON. Err: %v", ok)
+		t.Fatalf("Key 'openconfig-telemetry:telemetry-system' not found in the JSON. Err: %v", ok)
 	}
 	jsonVal, err := json.Marshal(telemetrySystemValue)
 	if err != nil {
@@ -649,17 +651,17 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 			{Name: "telemetry-system"}}},
 	}
 	sam := &gpb.GetRequest{Path: path, Type: gpb.GetRequest_CONFIG, Encoding: gpb.Encoding_JSON_IETF}
-	getres, err := gnmiC.Get(context.Background(), sam)
-	if err != nil {
-		t.Errorf("Error while get union replace with oc+ny combination %v", err)
+	getResp, err := gnmiC.Get(context.Background(), sam)
+	if getResp == nil || err != nil {
+		t.Fatalf("Error while get union replace with oc+ny combination %v", err)
 	}
 
-	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(getres))
+	log.V(1).Infof("get cli via gnmi reply: \n %s", prototext.Format(getResp))
 
 	if err := json.Unmarshal(jsonVal, &telemetrySystem); err != nil {
 		t.Errorf("Error unmarshaling JSON1: %v", err)
 	}
-	if err := json.Unmarshal(getres.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal(), &telemetrySystem); err != nil {
+	if err := json.Unmarshal(getResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal(), &telemetrySystem); err != nil {
 		t.Errorf("Error unmarshaling JSON2: %v", err)
 	}
 
@@ -667,7 +669,7 @@ func telemetryUnionReplace(t *testing.T, dut *ondatra.DUTDevice, jsonietfVal []b
 	if !equal {
 		t.Errorf("The confugured telemetry data does not match data sent via Union Replace")
 		t.Logf("Union replace json %v", string(jsonVal))
-		t.Logf("Configured json %v", string(getres.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()))
+		t.Logf("Configured json %v", string(getResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()))
 	}
 }
 
