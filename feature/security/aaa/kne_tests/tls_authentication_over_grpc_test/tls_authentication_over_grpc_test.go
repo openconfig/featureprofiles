@@ -17,7 +17,6 @@ package tls_authentication_over_grpc_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
