@@ -54,7 +54,7 @@ func (di *DUTInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 
 	chassisIDs, err := y.FindByType(ctx, chassisType)
 	if err != nil {
-		glog.Errorf("Could not find chassis: %v", err)
+		glog.ErrorContextf(ctx, "Could not find chassis: %v", err)
 		return
 	}
 
@@ -63,24 +63,24 @@ func (di *DUTInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 	componentPath := ocpath.Root().Component(chassisID)
 	component, err := ygnmi.Get(ctx, y.Client, componentPath.State())
 	if err != nil {
-		glog.Errorf("Could not get chassis: %v", err)
+		glog.ErrorContextf(ctx, "Could not get chassis: %v", err)
 		return
 	}
 
 	if glog.V(2) {
 		if out, err := json.MarshalIndent(component, "", "  "); err == nil {
-			glog.Infof("Chassis component: %s", string(out))
+			glog.InfoContextf(ctx, "Chassis component: %s", string(out))
 		}
 	}
 
 	if di.Vendor == "" && component.MfgName != nil {
 		di.Vendor = *component.MfgName
-		glog.V(2).Infof("Setting vendor from chassis mfg-name: %s", di.Vendor)
+		glog.V(2).InfoContextf(ctx, "Setting vendor from chassis mfg-name: %s", di.Vendor)
 	}
 
 	if di.Model == "" && component.PartNo != nil {
 		di.Model = *component.PartNo
-		glog.V(2).Infof("Setting model from chassis part-no: %s", di.Model)
+		glog.V(2).InfoContextf(ctx, "Setting model from chassis part-no: %s", di.Model)
 	}
 
 	if desc := component.Description; desc != nil {
@@ -91,13 +91,13 @@ func (di *DUTInfo) setFromComponentChassis(ctx context.Context, y components.Y) 
 			fallthrough
 		case di.Model == "":
 			di.Model = *desc
-			glog.V(2).Infof("Setting model from chassis description: %s", di.Model)
+			glog.V(2).InfoContextf(ctx, "Setting model from chassis description: %s", di.Model)
 		}
 	}
 
 	if di.OSVer == "" && component.SoftwareVersion != nil {
 		di.OSVer = *component.SoftwareVersion
-		glog.V(2).Infof("Setting osver from chassis software-version: %s", di.OSVer)
+		glog.V(2).InfoContextf(ctx, "Setting osver from chassis software-version: %s", di.OSVer)
 	}
 }
 
@@ -112,7 +112,7 @@ func (di *DUTInfo) setFromComponentOS(ctx context.Context, y components.Y) {
 
 	osIDs, err := y.FindByType(ctx, osType)
 	if err != nil {
-		glog.Errorf("Could not find operating-system: %v", err)
+		glog.ErrorContextf(ctx, "Could not find operating-system: %v", err)
 		return
 	}
 
@@ -121,10 +121,10 @@ func (di *DUTInfo) setFromComponentOS(ctx context.Context, y components.Y) {
 	softVerPath := ocpath.Root().Component(osID).SoftwareVersion()
 	softVer, err := ygnmi.Get(ctx, y.Client, softVerPath.State())
 	if err != nil {
-		glog.Errorf("Missing component software-version: %v", err)
+		glog.ErrorContextf(ctx, "Missing component software-version: %v", err)
 	} else {
 		di.OSVer = softVer
-		glog.V(2).Infof("Setting osver from operating-system software-version: %s", di.OSVer)
+		glog.V(2).InfoContextf(ctx, "Setting osver from operating-system software-version: %s", di.OSVer)
 	}
 }
 
@@ -138,25 +138,25 @@ func (di *DUTInfo) setFromLLDP(ctx context.Context, y components.Y) {
 	lldpPath := ocpath.Root().Lldp().SystemDescription()
 	lldp, err := ygnmi.Get(ctx, y.Client, lldpPath.State())
 	if err != nil {
-		glog.Errorf("Could not get LLDP: %v", err)
+		glog.ErrorContextf(ctx, "Could not get LLDP: %v", err)
 	}
-	glog.V(2).Infof("LLDP system-description: %s", lldp)
+	glog.V(2).InfoContextf(ctx, "LLDP system-description: %s", lldp)
 
 	if juniper := "Juniper Networks, Inc."; strings.Contains(lldp, juniper) {
 		di.Vendor = juniper
-		glog.Infof("Setting vendor from lldp system-description: %s", di.Vendor)
+		glog.InfoContextf(ctx, "Setting vendor from lldp system-description: %s", di.Vendor)
 	}
 
 	if srlinux := "SRLinux-v"; strings.HasPrefix(lldp, srlinux) {
 		if di.Vendor == "" {
 			di.Vendor = "Nokia"
-			glog.Infof("Setting vendor from lldp system-description: %s", di.Vendor)
+			glog.InfoContextf(ctx, "Setting vendor from lldp system-description: %s", di.Vendor)
 		}
 
 		if di.OSVer == "" {
 			parts := strings.Split(lldp, " ")
 			di.OSVer = parts[0][len(srlinux):]
-			glog.Infof("Setting osver from lldp system-description: %s", di.OSVer)
+			glog.InfoContextf(ctx, "Setting osver from lldp system-description: %s", di.OSVer)
 		}
 	}
 }
@@ -172,10 +172,10 @@ func (di *DUTInfo) setFromSystem(ctx context.Context, y components.Y) {
 		softVerPath := ocpath.Root().System().SoftwareVersion()
 		softVer, err := ygnmi.Get(ctx, y.Client, softVerPath.State())
 		if err != nil {
-			glog.Errorf("Missing system software-version: %v", err)
+			glog.ErrorContextf(ctx, "Missing system software-version: %v", err)
 		} else {
 			di.OSVer = softVer
-			glog.V(2).Infof("Setting osver from system software-version: %s", di.OSVer)
+			glog.V(2).InfoContextf(ctx, "Setting osver from system software-version: %s", di.OSVer)
 		}
 	}
 
@@ -268,12 +268,12 @@ func dutsInfo(ctx context.Context, m map[string]string, resv *binding.Reservatio
 	for id, dut := range resv.DUTs {
 		gnmic, err := dut.DialGNMI(ctx)
 		if err != nil {
-			glog.Errorf("Could not dial GNMI to dut %s: %v", dut.Name(), err)
+			glog.ErrorContextf(ctx, "Could not dial GNMI to dut %s: %v", dut.Name(), err)
 			continue
 		}
 		dInfo, err := NewDUTInfo(ctx, gnmic)
 		if err != nil {
-			glog.Errorf("Could not get DUTInfo for dut %v: %v", dut.Name(), err)
+			glog.ErrorContextf(ctx, "Could not get DUTInfo for dut %v: %v", dut.Name(), err)
 			continue
 		}
 		dInfo.put(m, id)

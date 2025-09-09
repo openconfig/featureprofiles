@@ -5,3 +5,15 @@ uuid:  "cbd90220-62bb-430f-bfe2-ec2ea73ef124"
 plan_id:  "PF-1.4"
 description:  "GUEv1 Decapsulation rule using destination-address-prefix-set and TTL and DSCP behavior test"
 testbed:  TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    policy_rule_counters_oc_unsupported: true
+    gue_gre_decap_unsupported: true
+  }
+}

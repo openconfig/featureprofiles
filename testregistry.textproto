@@ -325,20 +325,20 @@ test: {
 }
 test: {
   id: "DP-2.2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_nhg/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ingress_policer/otg_tests/ingress_police_nhg/README.md"
 }
 test: {
   id: "DP-2.4"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_default/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ingress_policer/otg_tests/ingress_police_default/README.md"
 }
 test: {
   id: "DP-2.5"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ingress_policer/otg_tests/ingress_police_two_rate_three_color/README.md"
 }
 test: {
   id: "DP-2.6"
   description: "Ingress policing with two rate, three color classifier"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_two_rate_three_color_with_classifier/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ingress_policer/otg_tests/ingress_police_two_rate_three_color_with_classifier/README.md"
 }
 test: {
   id: "FP-1.1"
@@ -1497,6 +1497,14 @@ test: {
   description: "400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_fec_uncorrectable_frames_test/README.md"
   exec: " "
+}
+test: {
+  id: "TRANSCEIVER-101"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-102"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_terminal_device_paths_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-11"
