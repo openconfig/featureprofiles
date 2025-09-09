@@ -20,7 +20,6 @@ platform_exceptions: {
     next_hop_group_config_unsupported: true
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
-    ipv4_static_route_with_ipv6_nh_unsupported: true
     qos_classification_unsupported: true
   }
 }
