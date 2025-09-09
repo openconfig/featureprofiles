@@ -50,6 +50,12 @@ Once the ZR link is estabished proceed to configure the following entities:
     "component": [
       {
         "config": {
+          "name": "LINE-1-1"
+        },
+        "name": "LINE-1-1"
+      },
+      {
+        "config": {
           "name": "transceiver-0/0/1"
         },
         "name": "transceiver-0/0/1",
