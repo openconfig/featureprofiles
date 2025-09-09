@@ -2476,3 +2476,15 @@ func SortOndatraPortsByID(ports []*ondatra.Port) {
 		return id1 < id2
 	})
 }
+
+// Get the publicly visible local ip address
+func GetOutboundIP(t testing.TB) net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP
+}

@@ -64,6 +64,9 @@ testbeds:
       controller_port: 40058
       gnmi_port: 50058
       rest_port: 30058
+    dhcp:
+      host: ott-ucs4-b4
+      api_port: 8001
 
   8808-FOX2508P0JU_MGMT_GRPC:
     << : *8808_FOX2508P0JU_DEFAULTS
@@ -110,6 +113,9 @@ testbeds:
       controller_port: 40053
       gnmi_port: 50053
       rest_port: 30053
+    dhcp:
+      host: ott-ucs4-b4
+      api_port: 8001
 
   8808_FOX2625PLW8: &8808_FOX2625PLW8_DEFAULTS
     hw: 8808_FOX2625PLW8

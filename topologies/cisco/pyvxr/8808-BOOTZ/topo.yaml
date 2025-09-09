@@ -33,6 +33,8 @@ devices:
     xr_port_redir:
       - 22
       - 8123
+      - 8123  # bootz api - unused
+      - 8001  # dhcp api
       - 22000 # ssh to dut - don't change
       - 57400 # grpc to dut - don't change
     cli_commands: |
