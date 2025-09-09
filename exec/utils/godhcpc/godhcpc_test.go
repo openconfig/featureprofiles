@@ -164,8 +164,23 @@ func doRequestWithRetry(t *testing.T, desc string, backoffs []time.Duration, bui
 	return nil, nil
 }
 
+func backoffFn(total, interval time.Duration) []time.Duration {
+	if total <= 0 || interval <= 0 {
+		return nil
+	}
+	n := int(total / interval)
+	if n == 0 {
+		n = 1
+	}
+	backs := make([]time.Duration, n)
+	for i := range backs {
+		backs[i] = interval
+	}
+	return backs
+}
+
 func deleteDHCPEntry(t *testing.T, id string) {
-	backoffs := []time.Duration{10 * time.Second, 30 * time.Second, 60 * time.Second}
+	backoffs := backoffFn(5*time.Minute, 30*time.Second)
 	resp, body := doRequestWithRetry(t, fmt.Sprintf("DELETE /records/%s", id), backoffs, func() (*http.Request, error) {
 		return http.NewRequest("DELETE", fmt.Sprintf("%s/records/%s", *addr, id), nil)
 	})
@@ -177,7 +192,8 @@ func addDHCPEntry(t *testing.T, id, ip, gw, bootzUrl string) {
 	req := map[string]any{"id": id, "ip": ip, "gw": gw, "bootz_urls": []string{bootzUrl}}
 	body, _ := json.Marshal(req)
 	t.Logf("POST /records body: %s", string(body))
-	backoffs := []time.Duration{10 * time.Second, 30 * time.Second, 60 * time.Second}
+	// Retry for up to ~5 minutes with 30s intervals
+	backoffs := uniformBackoffs(5*time.Minute, 30*time.Second)
 	resp, respBody := doRequestWithRetry(t, "POST /records", backoffs, func() (*http.Request, error) {
 		return http.NewRequest("POST", fmt.Sprintf("%s/records", *addr), bytes.NewReader(body))
 	})
