@@ -1617,3 +1617,8 @@ func SkipOrigin(dut *ondatra.DUTDevice) bool {
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
+
+// noECMPwithEncapDecapNhMix returns true if mixed encap and decap next hops are not supported.
+func NoEcmpWithEncapDecapNhMix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoEcmpWithEncapDecapNhMix()
+}
