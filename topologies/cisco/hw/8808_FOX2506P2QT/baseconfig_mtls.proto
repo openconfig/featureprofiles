@@ -499,6 +499,8 @@ replace: {
   " description FourHundredGigE0/7/0/34\n"
   "!\n"
   "router static\n"
+  " maximum path ipv4 140000\n"
+  " maximum path ipv6 140000\n"
   " vrf mgmt\n"
   "  address-family ipv4 unicast\n"
   "   0.0.0.0/0 10.85.84.1\n"

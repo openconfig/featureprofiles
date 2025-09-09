@@ -226,7 +226,7 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, operStatus oc.E_Interface_OperStatus) {
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
-		if instant < minAllowed || instant > maxAllowed {
+		if instant <= minAllowed || instant >= maxAllowed {
 			t.Errorf("Invalid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}

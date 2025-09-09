@@ -5,11 +5,12 @@ import os
 import re
 
 class Device():
-    def __init__(self, id, username, password, ports_map):
+    def __init__(self, id, username, password, ports_map, custom={}):
         self.id = id
         self.username = username
         self.password = password
         self.ports_map = ports_map
+        self.custom = custom
         self.data_ports = {}
 
     def get_id(self):
@@ -28,9 +29,18 @@ class Device():
         return self.data_ports[p]
     
     def get_port_redir(self, p):
+        js = self.custom.get("jump_server", None)
+        if js:
+            ports_through_js = js.get("ports", {})
+            js_ports = self.ports_map[js["id"]]
+            if p in ports_through_js:
+                return js_ports['xr_redir' + str(ports_through_js[p])]
         return self.ports_map[self.id]['xr_redir' + str(p)]
 
     def get_host_agent(self):
+        js = self.custom.get("jump_server", None)
+        if js:
+            return self.ports_map[js["id"]]['HostAgent']
         return self.ports_map[self.id]['HostAgent']
 
     def to_testbed_entry(self):
@@ -49,8 +59,8 @@ class DUT(Device):
     class Vendor(Enum):
         CISCO = 1
 
-    def __init__(self, id, platform, hostname, username, password, base_conf, certs_dir, ports_map):
-        super().__init__(id, username, password, ports_map)
+    def __init__(self, id, platform, hostname, username, password, base_conf, certs_dir, ports_map, custom):
+        super().__init__(id, username, password, ports_map, custom)
         self.platform = platform
         self.hostname = hostname
         self.mtls = False
@@ -81,8 +91,8 @@ class DUT(Device):
                     self.grpc_port = int(p.group(0))
              
     def _get_certificates(self, certs_dir):
-        self.cert_file = os.path.join(certs_dir, self.get_id(), self.get_user() + '.cert.pem')
-        self.key_file = os.path.join(certs_dir, self.get_id(), self.get_user() + '.key.pem')
+        self.cert_file = os.path.join(certs_dir, self.get_id(), self.get_username() + '.cert.pem')
+        self.key_file = os.path.join(certs_dir, self.get_id(), self.get_username() + '.key.pem')
         self.trust_bundle_file = os.path.join(certs_dir, self.get_id(), 'ca.cert.pem')
 
     def get_model(self):
@@ -272,7 +282,7 @@ def generate_bindings(vxr_out_dir, testbed_file, binding_file, certs_dir=None):
         platform = entry.get('platform', '')
         if platform in ['spitfire_f', 'spitfire_d']:
             d = DUT(name, platform, entry.get('xr_hostname'), entry.get('xr_username'), 
-                    entry.get('xr_password'), entry.get('cvac', None), certs_dir, vxr_ports)
+                    entry.get('xr_password'), entry.get('cvac', None), certs_dir, vxr_ports, custom=entry.get('custom', {}))
         elif platform == 'ixia':
             d = IxiaWeb(name, vxr_ports)
         elif is_otg(entry):
@@ -290,7 +300,7 @@ def generate_bindings(vxr_out_dir, testbed_file, binding_file, certs_dir=None):
     if len(connections) == 0:
         for name, entry in vxr_conf.get('devices', {}).items():
             for p in entry.get('data_ports', []):
-                if not devices[name].has_data_port(p):
+                if name in devices and not devices[name].has_data_port(p):
                     devices[name].add_data_port(p)
             
     testbed = {

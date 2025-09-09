@@ -65,11 +65,13 @@ func stressTestSystem(t testing.TB, dut *ondatra.DUTDevice, resource string) {
 	case "cpu":
 		stress.StressCPU(t, dut, 200, time.Second*40)
 	case "memory":
-		stress.StressMem(t, dut, 100, time.Second*40)
+		stress.StressMem(t, dut, 20, time.Second*20)
 	case "disk0":
-		stress.StressDisk0(t, dut, 100, time.Second*80)
+		// for 8808-1DUT disk0 is 3.6 GB, so 2700 MB will be about 75%
+		stress.StressDisk0(t, dut, 2700, time.Second*80)
 	case "harddisk":
-		stress.StressHardDisk(t, dut, 100, time.Second*80)
+		// for 8808-1DUT harddisk is 41 GB, so 30000 MB will be about 75%
+		stress.StressHardDisk(t, dut, 30000, time.Second*80)
 	case "power":
 		stress.StressPower(t, dut, 6000, time.Second*15)
 	default:
@@ -943,20 +945,20 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 		{
 			name:           "Memory",
 			resource:       "memory",
-			threshold:      40,
-			thresholdClear: 40,
+			threshold:      50,
+			thresholdClear: 50,
 		},
 		{
 			name:           "Disk0",
 			resource:       "disk0",
-			threshold:      15,
-			thresholdClear: 15,
+			threshold:      50,
+			thresholdClear: 50,
 		},
 		{
 			name:           "HardDisk",
 			resource:       "harddisk",
-			threshold:      15,
-			thresholdClear: 15,
+			threshold:      50,
+			thresholdClear: 50,
 		},
 	}
 
