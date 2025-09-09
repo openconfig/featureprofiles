@@ -1777,12 +1777,12 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
 # noinspection PyPep8Naming
 # Add a dhcp entry pointing to test (this) host for bootz
 @app.task(bind=True)
-def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, testbed_logs_dir, unconfig=False):
+def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, unconfig=False):
     dhcp_host = ""
     dhcp_api_port = 8001
 
     if reserved_testbed.get('sim', False):
-        vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+        vxr_ports_file = os.path.join(test_log_directory_path, "testbed_logs", "bringup_success", "sim-ports.yaml")
         with open(vxr_ports_file, "r") as fp:
             try:
                 vxr_ports = yaml.safe_load(fp)
