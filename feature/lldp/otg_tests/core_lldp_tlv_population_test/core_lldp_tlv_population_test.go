@@ -142,16 +142,19 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	p := node.Port(t, portName)
 	d := &oc.Root{}
 	lldp := d.GetOrCreateLldp()
-	lldp.SystemDescription = ygot.String("DUT")
+
+	if !deviations.MissingSystemDescriptionConfigPath(node) {
+		gnmi.Replace(t, node, gnmi.OC().Lldp().SystemDescription().Config(), "DUT")
+	}
 
 	llint := lldp.GetOrCreateInterface(p.Name())
-	llint.SetName(portName)
+	llint.SetName(p.Name())
 
+	llint.Enabled = ygot.Bool(true)
+	// Enable lldp at interface level
+	gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
+	// Configure lldp at root level
 	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
-
-	if lldpEnabled {
-		gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
-	}
 
 	if deviations.InterfaceEnabled(node) {
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
@@ -191,6 +194,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 // verifyNodeConfig verifies the config by comparing against the telemetry state object.
 func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, conf *oc.Lldp, lldpEnabled bool) {
+	dut := ondatra.DUT(t, "dut")
 	if conf == nil {
 		return
 	}
@@ -216,8 +220,10 @@ func verifyNodeConfig(t *testing.T, node gnmi.DeviceOrOpts, port *ondatra.Port, 
 	} else {
 		t.Errorf("LLDP SystemName is not proper, got %s", state.GetSystemName())
 	}
-	if state.GetSystemDescription() != "DUT" {
-		t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
+	if !deviations.MissingSystemDescriptionConfigPath(dut) {
+		if state.GetSystemDescription() != "DUT" {
+			t.Errorf("LLDP systemDescription is not proper, got %s", state.GetSystemDescription())
+		}
 	}
 
 	got := state.GetInterface(port.Name()).GetName()

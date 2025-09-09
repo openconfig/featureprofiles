@@ -4,6 +4,11 @@
 
 Ensure that IS-IS metric change can drain traffic from a DUT trunk interface
 
+## Canonical OC
+```json
+{}
+```  
+
 ## Procedure
 * Connect three ATE ports to the DUT
 * Port-2 and port-3 each makes a one-member trunk port with the same ISIS metric 10 configured for the trunk interfaces (trunk-2 and trunk-3).  
