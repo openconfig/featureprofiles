@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -61,6 +62,15 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	startTime := time.Now()
+	t.Logf("Vendor: %s", dut.Vendor())
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// Wait for the config to be applied.
+		t.Logf("Sleeping for 10 seconds to allow config to be applied")
+		time.Sleep(10 * time.Second)
+		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size 10\n aaa accounting history-memory 10 \n!")
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	}
 	sendOversizedPayload(t, dut)
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 
