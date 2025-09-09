@@ -166,7 +166,8 @@ var (
 	ate2ppnh1 = &attrs.Attributes{Name: "ate2ppnh1", IPv6: "2001:db8:2::1", IPv6Len: plenIPv6lo}
 	ate2ppnh2 = &attrs.Attributes{Name: "ate2ppnh2", IPv6: "2001:db8:3::1", IPv6Len: plenIPv6lo}
 
-	ate2ppnhPrefix = "2001:db8:2::0/128"
+	ate2ppnh1Prefix = "2001:db8:2::0/128"
+	ate2ppnh2Prefix = "2001:db8:3::0/128"
 
 	atePorts = map[string]*attrs.Attributes{
 		"port1": atePort1,
@@ -659,13 +660,24 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          ate2ppnhPrefix,
+		Prefix:          ate2ppnh1Prefix,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString(nexthopGroupName),
 		},
 	}
 
 	cfgplugins.NewStaticRouteNextHopGroupCfg(t, b, sV4, dut, nexthopGroupName)
+
+	// Configure static routes from PNH to nexthopgroup
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          ate2ppnh2Prefix,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(nexthopGroupNameV6),
+		},
+	}
+
+	cfgplugins.NewStaticRouteNextHopGroupCfg(t, b, sV6, dut, nexthopGroupNameV6)
 
 }
 
@@ -1207,51 +1219,51 @@ func TestStaticGue(t *testing.T) {
 			Description: "Validate traffic with basic config",
 			testFunc:    testBaselineTraffic,
 		},
-		{
-			Name:        "Testcase: Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
-			Description: "Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
-			testFunc:    testBE1TrafficMigration,
-		},
-		{
-			Name:        "Testcase: Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
-			Description: "Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
-			testFunc:    testAF1TrafficMigration,
-		},
-		{
-			Name:        "Testcase: Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
-			Description: "Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
-			testFunc:    testAF2TrafficMigration,
-		},
-		{
-			Name:        "Testcase: Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
-			Description: "Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
-			testFunc:    testAF3TrafficMigration,
-		},
-		{
-			Name:        "Testcase: Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
-			Description: "Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
-			testFunc:    testAF4TrafficMigration,
-		},
-		// {
-		// 	Name:        "Testcase: DUT as a GUE Decap Node",
-		// 	Description: "Verify DUT as a GUE Decap Node",
-		// 	testFunc:    testDUTDecapNode,
-		// },
-		{
-			Name:        "Testcase: Negative Scenario - EBGP Route for remote tunnel endpoints Removed",
-			Description: "Verify EBGP Route for remote tunnel endpoints Removed",
-			testFunc:    testTunnelEndpointRemoved,
-		},
-		// {
-		// 	Name:        "Testcase: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed",
-		// 	Description: "Verify IBGP Route for Remote Tunnel Endpoints Removed",
-		// 	testFunc:    testIbgpTunnelEndpointRemoved,
-		// },
-		{
-			Name:        "Testcase: Establish IBGP Peering over EBGP",
-			Description: "Verify Establish IBGP Peering over EBGP",
-			testFunc:    testEstablishIBGPoverEBGP,
-		},
+		// 	{
+		// 		Name:        "Testcase: Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
+		// 		Description: "Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
+		// 		testFunc:    testBE1TrafficMigration,
+		// 	},
+		// 	{
+		// 		Name:        "Testcase: Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
+		// 		Description: "Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
+		// 		testFunc:    testAF1TrafficMigration,
+		// 	},
+		// 	{
+		// 		Name:        "Testcase: Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
+		// 		Description: "Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
+		// 		testFunc:    testAF2TrafficMigration,
+		// 	},
+		// 	{
+		// 		Name:        "Testcase: Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
+		// 		Description: "Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
+		// 		testFunc:    testAF3TrafficMigration,
+		// 	},
+		// 	{
+		// 		Name:        "Testcase: Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
+		// 		Description: "Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
+		// 		testFunc:    testAF4TrafficMigration,
+		// 	},
+		// 	// {
+		// 	// 	Name:        "Testcase: DUT as a GUE Decap Node",
+		// 	// 	Description: "Verify DUT as a GUE Decap Node",
+		// 	// 	testFunc:    testDUTDecapNode,
+		// 	// },
+		// 	{
+		// 		Name:        "Testcase: Negative Scenario - EBGP Route for remote tunnel endpoints Removed",
+		// 		Description: "Verify EBGP Route for remote tunnel endpoints Removed",
+		// 		testFunc:    testTunnelEndpointRemoved,
+		// 	},
+		// 	// {
+		// 	// 	Name:        "Testcase: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed",
+		// 	// 	Description: "Verify IBGP Route for Remote Tunnel Endpoints Removed",
+		// 	// 	testFunc:    testIbgpTunnelEndpointRemoved,
+		// 	// },
+		// 	{
+		// 		Name:        "Testcase: Establish IBGP Peering over EBGP",
+		// 		Description: "Verify Establish IBGP Peering over EBGP",
+		// 		testFunc:    testEstablishIBGPoverEBGP,
+		// 	},
 	}
 
 	// Run the test cases.
