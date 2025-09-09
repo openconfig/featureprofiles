@@ -41,29 +41,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
-	return func(user, instruction string, questions []string, echos []bool) ([]string, error) {
-		if len(questions) == 0 {
-			return []string{}, nil
-		}
-		return []string{password}, nil
-	}
-}
-
-func gnmiClient(dut *ondatra.DUTDevice, gnmiAddr string) (gpb.GNMIClient, error) {
-	conn, err := grpc.NewClient(
-		gnmiAddr,
-		grpc.WithTransportCredentials(
-			credentials.NewTLS(&tls.Config{
-				InsecureSkipVerify: true, // NOLINT
-			})),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("grpc.NewClient => unexpected failure dialing GNMI (should not require auth): %w", err)
-	}
-	return gpb.NewGNMIClient(conn), nil
-}
-
 // helper function for native model;
 // Configure a new user by passing a username and password and assign that user to a role
 // ensure role has write access
