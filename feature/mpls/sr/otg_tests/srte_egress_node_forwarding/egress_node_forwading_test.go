@@ -15,7 +15,6 @@
 package egressnodeforwarding_test
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -252,10 +251,10 @@ func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// IPv4 static route to ATE Port2
-	configStaticRoute(t, dut, ateTrafficDstIPv4Net, atePort2.IPv4)
+	mustConfigStaticRoute(t, dut, ateTrafficDstIPv4Net, atePort2.IPv4)
 
 	// IPv6 static route to ATE Port2
-	configStaticRoute(t, dut, ateTrafficDstIPv6Net, atePort2.IPv6)
+	mustConfigStaticRoute(t, dut, ateTrafficDstIPv6Net, atePort2.IPv6)
 
 }
 
@@ -268,7 +267,7 @@ func configureGlobalMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // Congigure Static Routes on DUT
-func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
+func mustConfigStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
 	t.Helper()
 
 	b := &gnmi.SetBatch{}
@@ -505,7 +504,7 @@ func validatePackets(t *testing.T, filename string, protocolType string) error {
 	}
 
 	if mplsPacketCount != 0 {
-		return fmt.Errorf("MPLS label is not popped by the DUT")
+		return fmt.Errorf("mpls label is not popped by the DUT")
 	}
 
 	return nil
@@ -531,16 +530,14 @@ func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		if txPkts > 0 {
 			lossPct = (float32(txPkts-rxPkts) * 100) / float32(txPkts)
 		}
-		err = fmt.Errorf("Flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f",
-			flowName, txPkts, rxPkts, lossPct)
+		return 0, 0, fmt.Errorf("flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f", flowName, txPkts, rxPkts, lossPct)
 	case txPkts > 0:
-		t.Logf("Flow %s: Successfully transmitted %d packets and received %d packets with no loss.",
-			flowName, txPkts, rxPkts)
+		t.Logf("Flow %s: Successfully transmitted %d packets and received %d packets with no loss.", flowName, txPkts, rxPkts)
 	case packetsPerFlow > 0: // Expected to send but didn't
-		err = fmt.Errorf("Flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow)
+		return 0, 0, fmt.Errorf("flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow)
 	}
 
-	return totalTxFromATE, totalRxAtATE, errors.Join(err)
+	return totalTxFromATE, totalRxAtATE, nil
 
 }
 
@@ -590,14 +587,14 @@ func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dut
 		// Check if DUT ingress counters reflect ATE Tx.
 		// Allow a small difference (e.g., 2%) due to other control plane packets or timing of counter polling.
 		if float64(inPktsDelta) < float64(totalTxFromATE)*0.98 {
-			return fmt.Errorf("DUT Port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d). Expected approx %d.", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
+			return fmt.Errorf("dut port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d). Expected approx %d.", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
 		}
 		// Check if DUT egress counters reflect ATE Rx.
 		if float64(outPktsDelta) < float64(totalRxAtATE)*0.98 {
-			return fmt.Errorf("DUT Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d). Potential drop in DUT. Expected approx %d.", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
+			return fmt.Errorf("dut Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d). Potential drop in DUT. Expected approx %d.", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
 		}
 	case expectedTotalTraffic > 0:
-		return fmt.Errorf("No traffic was reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
+		return fmt.Errorf("traffic was not reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
 	}
 
 	return nil
