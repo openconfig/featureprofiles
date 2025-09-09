@@ -525,6 +525,11 @@ func TestEgressP4RTWithNextHopDefaultVRF(t *testing.T) {
 	top.Push(t).StartProtocols(t)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+
+	// cleanup entries from previous test runs
+	programmTableEntry(leader, args.packetIO, true, true, deviceId2)
+	programmTableEntry(leader, args.packetIO, true, false, deviceId2)
+
 	if err := leader.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
