@@ -39,6 +39,11 @@ type recordRequestResult struct {
 	err    error
 }
 
+const (
+	queueSize     = 10
+	historyMemory = 10
+)
+
 func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// Perhaps other vendors will need a different payload/size/etc., for now we'll just send a
 	// giant set of network instances + static routes which should hopefully work for everyone.
@@ -65,10 +70,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	t.Logf("Vendor: %s", dut.Vendor())
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		// Wait for the config to be applied.
-		t.Logf("Sleeping for 10 seconds to allow config to be applied")
-		time.Sleep(10 * time.Second)
-		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size 10\n aaa accounting history-memory 10 \n!")
+		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!", queueSize, historyMemory)
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 	sendOversizedPayload(t, dut)
