@@ -1795,7 +1795,7 @@ def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_lo
         if not 'xr_redir8001' in vxr_ports['bootz']:
             raise Exception("No xr_redir8001 port found in vxr ports file...Ignoring")
 
-        dhcp_host = vxr_ports['bootz']['host']
+        dhcp_host = vxr_ports['bootz']['HostAgent']
         dhcp_api_port = vxr_ports['bootz']['xr_redir8001']
     else:
         dhcp_conf = reserved_testbed.get('dhcp')
