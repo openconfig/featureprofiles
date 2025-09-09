@@ -108,7 +108,7 @@ const (
 	tolerancePct             = 2
 	flowNegTest              = "flowNegTest"
 	ipv4InnerDst             = "138.0.11.8"
-	ipv6InnerDst             = "2001:db8::138:0:11:8"
+	ipv6InnerDst             = "2001:db8::138:0:11:3"
 	ipv4InnerDstNoEncap      = "20.0.0.1"
 	ipv6InnerDstNoEncap      = "2001:db8::20:0:0:1"
 	ipv4InnerDst2            = "138.0.11.15"
