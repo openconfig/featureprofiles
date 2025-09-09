@@ -1751,6 +1751,10 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 				testStats.IPv6DscpMismatchPackets++
 				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
 			}
+			if actualEcn := uint32(ipv6Packet.TrafficClass & 0x03); actualEcn != expectedInHdrEcn {
+				testStats.IPv6EcnMismatchPackets++
+				t.Errorf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
+			}
 		}
 	}
 	if testStats.packetCheckCount == 0 {
@@ -1967,30 +1971,30 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 						outHdrSrcIP: ipv4OuterSrc111,
 						outHdrDstIP: ipv4OuterDst111,
 						outHdrDscp:  []uint32{dscpEncapNoMatch},
-						outHdrEcn:   []uint32{ecnCapable1},
+						outHdrEcn:   []uint32{ecnCongestionExperienced},
 						isInnHdrV4:  true,
 						InnHdrSrcIP: atePort1.IPv4,
 						InnHdrDstIP: ipv4InnerDst,
-						inHdrDscp:   []uint32{dscpEncapNoMatch},          // Different than outer DSCP
-						inHdrEcn:    []uint32{ecnCongestionExperienced}}) // Different than outer ECN
+						inHdrDscp:   []uint32{dscpEncapNoMatch},
+						inHdrEcn:    []uint32{ecnCapable1}})
 
 					flow2 := createFlow(&flowArgs{flowName: flow6in4,
 						outHdrSrcIP:   ipv4OuterSrc111,
 						outHdrDstIP:   ipv4OuterDst111,
 						outHdrDscp:    []uint32{dscpEncapNoMatch},
-						outHdrEcn:     []uint32{ecnCapable1},
+						outHdrEcn:     []uint32{ecnCongestionExperienced},
 						isInnHdrV4:    false,
 						InnHdrSrcIPv6: atePort1.IPv6,
 						InnHdrDstIPv6: ipv6InnerDst,
-						inHdrDscp:     []uint32{dscpEncapNoMatch},          // Different than outer DSCP
-						inHdrEcn:      []uint32{ecnCongestionExperienced}}) // Different than outer ECN
+						inHdrDscp:     []uint32{dscpEncapNoMatch},
+						inHdrEcn:      []uint32{ecnCapable1}})
 
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss)
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 						outDstIP:      []string{ipv4OuterDst111},
 						inHdrIP:       ipv4InnerDst,
-						inHdrDscp:     dscpEncapNoMatch,         // Inner packets DSCP will be propagated to outer header
+						inHdrDscp:     dscpEncapNoMatch,
 						inHdrEcn:      ecnCongestionExperienced, // IF packet has marked ECN 11, it will be copied to outer HDR
 						validateTTL:   true,
 						validateDecap: true})
