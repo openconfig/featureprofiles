@@ -244,12 +244,8 @@ func testGrpcListenAddress(t *testing.T) {
 			want:      listenAdd,
 		},
 		{
-			addresses: []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString("0.0.0.0")},
-			want:      "0.0.0.0",
-		},
-		{
-			addresses: []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString("::")},
-			want:      "::",
+			addresses: []oc.System_GrpcServer_ListenAddresses_Union{oc.GrpcServer_ListenAddresses_ANY},
+			want:      "ANY",
 		},
 	}
 	for _, tc := range cases {
@@ -376,22 +372,39 @@ func testGrpcListenAddress(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 		address1 := []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}
 		defer observer.RecordYgot(t, "SUBSCRIBE", path)
-		gnmi.Update(t, dut, path.Config(), address1)
+
+		if err := gnmi.Update(t, dut, path.Config(), address1); err != nil {
+			t.Fatalf("Failed to update listen address: %v", err)
+		}
 		got1 := gnmi.Get(t, dut, path.State())[0]
 		if got1 != address1[0] {
-			t.Logf("Listen Address not returned as expected got : %v , want %v", got1, listenAdd)
+			t.Fatalf("Listen address mismatch: got %v , want %v", got1, listenAdd)
 		}
 		// append the second address to the leaf-list
-		gnmi.Replace(t, dut, path.Config(), append(address1, oc.UnionString("1.1.1.1")))
-		got2 := gnmi.Get(t, dut, path.State())
-		if len(got2) != 2 {
-			t.Errorf("The Second listen address did not get appended")
+		updatedLeafList := append(address1, oc.UnionString("1.1.1.1"))
+		if err := gnmi.Replace(t, dut, path.Config(), updatedLeafList); err != nil {
+			t.Fatalf("Replace listen address failed: %v", err)
 		}
-		// delete the second address from the leaf-list
-		gnmi.Delete(t, dut, path.Config())
+		got2 := gnmi.Get(t, dut, path.State())
+		if len(got2) != len(updatedLeafList) {
+			t.Fatalf("leaf-list length mismatch, got: %d, want: %d", len(got2), len(updatedLeafList))
+		} else {
+			for i := range updatedLeafList {
+				if got2[i] != updatedLeafList[i] {
+					t.Fatalf("leaf-list update mismatch, got: %v, want: %v", got2[i], updatedLeafList[i])
+				}
+			}
+		}
+
+		// delete all addresses and check for presence of the default address "ANY"
+		if err := gnmi.Delete(t, dut, path.Config()); err != nil {
+			t.Errorf("Failed to delete listen addresses: %v", err)
+		}
 		got3 := gnmi.Get(t, dut, path.State())
-		if got3[0] != oc.UnionString(listenAdd) {
-			t.Errorf("Delete of listen address was not successful, got: %v", got3[0])
+		if len(got3) != 1 {
+			t.Errorf("More than 1 listen-addresses present after deletion")
+		} else if got3[0] != oc.GrpcServer_ListenAddresses_ANY {
+			t.Errorf("Expected default listen-address ANY, got: %v", got3[0])
 		}
 
 	})
@@ -400,14 +413,14 @@ func testGrpcListenAddress(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 		gnmi.Update(t, dut, path.Config(), []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)})
 		got1 := gnmi.Get(t, dut, path.State())[0]
-		if got1 != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
+		if got1 != oc.UnionString(listenAdd) {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", got1, listenAdd)
 		}
 		// Process restart emsd
 		config.CMDViaGNMI(context.Background(), t, dut, "process restart emsd")
 		got3 := gnmi.Get(t, dut, path.State())
-		if got3[0] != oc.UnionString(listenAdd) {
-			t.Errorf("Delete of listen address was not successfull")
+		if got3[0] != oc.GrpcServer_ListenAddresses_ANY {
+			t.Errorf("Listen address mismatch after process restart: got %v, want %v", got3[0], "ANY")
 		}
 	})
 
@@ -415,7 +428,7 @@ func testGrpcListenAddress(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 		gnmi.Update(t, dut, path.Config(), []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)})
 		gotBefore := gnmi.Get(t, dut, path.State())[0]
-		if gotBefore != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
+		if gotBefore != oc.UnionString(listenAdd) {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotBefore, listenAdd)
 		}
 		//Reload router
@@ -434,7 +447,7 @@ func testGrpcListenAddress(t *testing.T) {
 			t.Log(resp)
 		}
 		gotAfter := gnmi.Get(t, dut, path.State())[0]
-		if gotAfter != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
+		if gotAfter != oc.GrpcServer_ListenAddresses_ANY {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotAfter, listenAdd)
 		}
 	})
