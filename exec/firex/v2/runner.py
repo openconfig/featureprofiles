@@ -18,6 +18,7 @@ from getpass import getuser
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import shutil
+import socket
 import random
 import string
 import tempfile
@@ -35,6 +36,7 @@ logger = get_task_logger(__name__)
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
+HIBA_BIN_PATH = '/auto/b4ws/hiba' # https://github.com/google/hiba/blob/main/README.md
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -61,6 +63,7 @@ whitelist_arguments([
     'test_revision',
     'test_pr',
     'sim_use_mtls',
+    'sim_config_bootz',
     'collect_dut_info',
     'cflow_over_ssh',
     'testbed_checks'
@@ -98,9 +101,9 @@ def _get_venv_pip_bin(ws):
     return os.path.join(_get_venv_path(ws), 'bin', 'pip')
 
 def _get_go_env(ws=None):
-    PATH = "{}:{}".format(
-        os.path.dirname(GO_BIN), os.environ["PATH"]
-    )
+    PATH = "{}:{}:{}".format(
+        HIBA_BIN_PATH, os.path.dirname(GO_BIN), os.environ["PATH"]
+    ) 
 
     nobackup_path = _get_user_nobackup_path(ws)
     gocache = os.path.join(nobackup_path, '.gocache')
@@ -650,6 +653,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         force_install=False,
                         force_reboot=False,
                         sim_use_mtls=False,
+                        sim_config_bootz=False,
                         testbed_checks=False,
                         smus=None,
                         testbeds_exclude=[]):
@@ -716,6 +720,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
             c |= GenerateCertificates.s()
             c |= SimEnableMTLS.s()
 
+        if sim_config_bootz:
+            c |= SimConfigBootz.s()
+            
         # Determine if the test requires traffic generators
         is_otg = 'otg' in test_path or test_requires_otg
         is_tgen = 'ate' in test_path or is_otg or test_requires_tgen
@@ -1341,13 +1348,14 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
 
-            mgmt_ip = mgmt_ips[dut]
-            logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
-
             extra_conf = []
-            mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
-            if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
-            else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+            if dut in mgmt_ips:
+                mgmt_ip = mgmt_ips[dut]
+                logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
+
+                mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
+                if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
+                else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
 
             # some FP tests (e.g., gNOI-3.1) expects that
             for d in data_ports.get(dut, []):
@@ -1762,6 +1770,39 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
             f'-out {reserved_testbed["binding_file"]}'
 
         check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
+# noinspection PyPep8Naming
+# For Bootz on sim, dut mgmt interface is connected to bootz linux VM.
+# The dhcp server on the VM will point dut to bootz port on VM.
+# Add rinetd forwarding entry to forward incoming bootz connection on vm to the test host.
+@app.task(bind=True)
+def SimConfigBootz(self, testbed_logs_dir):
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+    
+    if not 'bootz' in vxr_ports:
+        logger.warning("No bootz device found in vxr ports file...Ignoring")
+        return
+    
+    if not 'xr_redir22' in vxr_ports['bootz']:
+        logger.warning("No xr_redir22 port found in vxr ports file...Ignoring")
+        return
+
+    conn_args = {
+        'username': 'root',
+        'password': 'cisco123',
+        'port': vxr_ports['bootz']['xr_redir22']
+    }
+
+    hostname = socket.gethostname()
+    logger.print(f'Configuring bootz bridge to host {hostname}...')
+    cmd = f'/root/create_bootz_bridge.sh {hostname}'
+    remote_exec(cmd, vxr_ports['bootz']['HostAgent'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
