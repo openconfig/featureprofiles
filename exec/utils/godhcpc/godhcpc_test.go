@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -44,16 +45,11 @@ func TestAddDHCPEntry(t *testing.T) {
 	chassisSerial := gnmi.Get(t, dut, gnmi.OC().Component(comps[0]).SerialNo().State())
 	t.Logf("Chassis serial number: %s", chassisSerial)
 
-	// get management interface ip address using gnmi
-	// mgmtMacAddress := ""
 	mgmtIpAddress := ""
 	mgmtPrefixLength := uint8(0)
 	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 	for _, intf := range intfs {
 		if intf.GetManagement() {
-			// mgmtMacAddress = intf.GetEthernet().GetHwMacAddress()
-			// t.Logf("Management interface: %s, MAC: %s", intf.GetName(), mgmtMacAddress)
-
 			for _, subIntf := range intf.GetOrCreateSubinterfaceMap() {
 				for _, addr := range subIntf.GetOrCreateIpv4().GetOrCreateAddressMap() {
 					mgmtIpAddress = addr.GetIp()
@@ -136,32 +132,55 @@ func TestDeleteDHCPEntry(t *testing.T) {
 	deleteDHCPEntry(t, chassisSerial)
 }
 
+func doRequestWithRetry(t *testing.T, desc string, backoffs []time.Duration, build func() (*http.Request, error)) (*http.Response, []byte) {
+	var lastStatus string
+	var lastBody []byte
+	for attempt := 0; attempt < len(backoffs)+1; attempt++ {
+		req, err := build()
+		if err != nil {
+			lastStatus = fmt.Sprintf("build error: %v", err)
+		} else {
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				lastStatus = err.Error()
+			} else {
+				b, _ := io.ReadAll(resp.Body)
+				if resp.StatusCode < 300 {
+					return resp, b // caller will close
+				}
+				// non-success; capture and close
+				lastStatus = resp.Status
+				lastBody = b
+				resp.Body.Close()
+			}
+		}
+		if attempt < len(backoffs) {
+			wait := backoffs[attempt]
+			t.Logf("%s attempt %d failed (%s). Retrying in %s", desc, attempt+1, lastStatus, wait)
+			time.Sleep(wait)
+		}
+	}
+	t.Fatalf("%s failed after retries: %s\n%s", desc, lastStatus, string(lastBody))
+	return nil, nil
+}
+
 func deleteDHCPEntry(t *testing.T, id string) {
-	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/records/%s", *addr, id), nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("DELETE /records/%s failed: %v", id, err)
-	}
+	backoffs := []time.Duration{10 * time.Second, 30 * time.Second, 60 * time.Second}
+	resp, body := doRequestWithRetry(t, fmt.Sprintf("DELETE /records/%s", id), backoffs, func() (*http.Request, error) {
+		return http.NewRequest("DELETE", fmt.Sprintf("%s/records/%s", *addr, id), nil)
+	})
 	defer resp.Body.Close()
-	b, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		t.Fatalf("DELETE /records/%s failed: %s\n%s", id, resp.Status, string(b))
-	}
-	t.Logf("DELETE /records/%s response: %s", id, string(b))
+	t.Logf("DELETE /records/%s response: %s", id, string(body))
 }
 
 func addDHCPEntry(t *testing.T, id, ip, gw, bootzUrl string) {
 	req := map[string]any{"id": id, "ip": ip, "gw": gw, "bootz_urls": []string{bootzUrl}}
 	body, _ := json.Marshal(req)
 	t.Logf("POST /records body: %s", string(body))
-	resp, err := http.Post(fmt.Sprintf("%s/records", *addr), "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("POST /records failed: %v", err)
-	}
+	backoffs := []time.Duration{10 * time.Second, 30 * time.Second, 60 * time.Second}
+	resp, respBody := doRequestWithRetry(t, "POST /records", backoffs, func() (*http.Request, error) {
+		return http.NewRequest("POST", fmt.Sprintf("%s/records", *addr), bytes.NewReader(body))
+	})
 	defer resp.Body.Close()
-	out, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 300 {
-		t.Fatalf("POST /records failed: %s\n%s", resp.Status, string(out))
-	}
-	t.Logf("POST /records response: %s", string(out))
+	t.Logf("POST /records response: %s", string(respBody))
 }
