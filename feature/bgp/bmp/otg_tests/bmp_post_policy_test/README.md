@@ -86,7 +86,7 @@ vvlakshmanamurthy marked this conversation as resolved.
 3)  Verify that the BMP station doesnt receive route monitoring messages for routes excluded by the import policy and receives remaining routes at BMP station, i.e. BMP station should receiev all routes except for the routes in range 172.16.0.0/16 and 2001:DB8::/32 . 
 
 
-## OC paths in json format:
+## Canonical OC
 
 TODO: Update the JSON pending the outcome of the addition of the BMP model
 to OpenConfig.  ref: https://github.com/openconfig/public/pull/1343
