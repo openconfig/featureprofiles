@@ -72,6 +72,9 @@ func configureISISSegmentRouting(t *testing.T, ts *isissession.TestSession) {
 	mplsCfg.GetOrCreateReservedLabelBlock(srgbMplsLabelBlockName).LowerBound = oc.UnionUint32(srgbLowerBound)
 	mplsCfg.GetOrCreateReservedLabelBlock(srgbMplsLabelBlockName).UpperBound = oc.UnionUint32(srgbUpperBound)
 
+	mplsCfgIntf := mplsCfg.GetOrCreateInterface(ts.DUTPort1.Name())
+	mplsCfgIntf.InterfaceId = ygot.String(ts.DUTPort1.Name())
+
 	// Configure SR
 	srCfg := networkInstance.GetOrCreateSegmentRouting()
 	srgb := srCfg.GetOrCreateSrgb("99.99.99.99")
@@ -172,6 +175,27 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 	})
 }
 
+func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.ATEDevice) {
+	d := ts.DUTConf
+	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
+	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
+	// recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
+	v4InPkts := recvMetricV4.GetCounters().GetInPkts()
+	v4OutPkts := recvMetricV4.GetCounters().GetOutPkts()
+	// Get SR Counters
+	srSgProto := networkInstance.GetOrCreateMpls().GetOrCreateSignalingProtocols().GetSegmentRouting()
+	srIntf := srSgProto.GetOrCreateInterface(ts.DUTPort1.Name())
+	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
+	t.Logf("InPkts: %d, OutPkts: %d", v4InPkts, v4OutPkts)
+
+	if got := srIntf.InPkts; got != ygot.Uint64(0) {
+		t.Errorf("FAIL- SR InPkts is not zero, got %d, want %d", got, v4InPkts)
+	}
+	if got := srIntf.OutPkts; got != ygot.Uint64(0) {
+		t.Errorf("FAIL- SR OutPkts is not zero, got %d, want %d", got, v4OutPkts)
+	}
+}
+
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
 	recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
@@ -222,5 +246,17 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 		otgutils.LogFlowMetrics(t, otg, ts.ATETop)
 		otgutils.LogPortMetrics(t, otg, ts.ATETop)
 		verifyTraffic(t, ts.ATE)
+	})
+
+	// SR counters checks
+	t.Run("SR counters checks", func(t *testing.T) {
+		t.Logf("Starting traffic")
+		otg.StartTraffic(t)
+		time.Sleep(time.Second * 15)
+		t.Logf("Stop traffic")
+		otg.StopTraffic(t)
+
+		t.Logf("Starting SR counters checks")
+		verifySRCounters(t, ts, ts.ATE)
 	})
 }
