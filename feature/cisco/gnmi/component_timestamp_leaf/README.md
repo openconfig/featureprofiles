@@ -17,4 +17,6 @@ and be moved to:
 
 Accompanying tests ensure the leaf is functional based on different types of hardware reloads. Including both COLD and WARM reboot methods on RPs and LCs
 
+metadata.textproto must exist because of a depedency of the Dorpfo function
+
 CRD: EDCS-25527565 

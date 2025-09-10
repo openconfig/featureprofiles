@@ -44,6 +44,7 @@ func reloadRouterWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, rebootMe
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
+		// Router reload cannot use gnmi.Await since the connection will drop during the reload.
 		time.Sleep(10 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
@@ -58,7 +59,6 @@ func reloadRouterWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, rebootMe
 			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
-	// gnmi.Await(t, dut, gnmi.OC().Component(dut.Device.Name()).OperStatus().State(), time.Minute*30, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 	return nil
@@ -72,6 +72,7 @@ func reloadLineCardsWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, reboo
 
 	relaunched := make([]string, 0)
 
+	// Sends restart request to each line card
 	for _, lc := range lcs {
 		t.Logf("Restarting LC %v\n", lc)
 		if empty := gnmi.Get(t, dut, gnmi.OC().Component(lc).Empty().State()); empty {
@@ -106,7 +107,7 @@ func reloadLineCardsWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, reboo
 		t.Logf("Reboot response: \n%v\n", resp)
 	}
 
-	// wait for all line cards to be back up
+	// wait for all line cards to be back up in separate goroutines
 	for _, lc := range relaunched {
 		go func(lc string) {
 			defer wg.Done()
@@ -131,6 +132,8 @@ func reloadLineCardsWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, reboo
 	return nil
 }
 
+// If test is run on a freshly brought-up sim, then the LastRebootTime should still be populated
+// since we are taking the behaviour of the new uprevved "boot-time" leaf
 func TestInitialBootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -167,7 +170,7 @@ func TestRouterLastRebootTime(t *testing.T) {
 		t.Fatal("could not find controller card")
 	}
 
-	//reload with each reboot method listed above
+	// reload with each reboot method listed above
 	for _, rebootMethod := range rebootMethods {
 		t.Run(gnoisys.RebootMethod_name[int32(rebootMethod)], func(t *testing.T) {
 			lastRebootTimeBefore := gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).LastRebootTime().State())
@@ -240,6 +243,7 @@ func TestRPFOLastRebootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	rps := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	// skip test if there are less than 2 RPs
 	if len(rps) < 2 {
 		t.Log("RPFO not configured, skipping")
 		t.Skip()
@@ -249,6 +253,7 @@ func TestRPFOLastRebootTime(t *testing.T) {
 
 	lastRebootTimeBefore := gnmi.Get(t, dut, gnmi.OC().Component(rpActive).LastRebootTime().State())
 
+	// Dorpfo depends on metadata.textproto existing since it uses one of the fields
 	utils.Dorpfo(context.Background(), t, false)
 
 	time.Sleep(time.Minute * 3)
