@@ -66,34 +66,37 @@ The isis session drops or gets stuck in an intermediate state.
 ## Canonical OC 
 
 ```
-            {
-               "config": {
-                  "name": 
-               },
-               "name": ,
-               "statements": {
-                  "statement": [
-                     {
-                        "actions": {
-                           "bgp-actions": {
-                              "config": {
-                                 "set-local-pref": ,
-                                 "set-route-origin": 
-                              }
-                           },
-                           "config": {
-                              "policy-result": 
-                           }
-                        },
-                        "conditions": {
-                           "match-prefix-set": {
-                              "config": {
-                                 "match-set-options": ,
-                                 "prefix-set": 
-                              }
-                           }
-                        },
-            },
+ {
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "GENERATE_NON_DEFAULT_ROUTE",
+          "statements": {
+            "statement": [
+              {
+                "name": "TRACK_ISIS_GENERATE_AGGREGATE",
+                "config": {
+                  "name": "TERM-1"
+                },
+                "conditions": {
+                  "isis-conditions": {
+                    "state": {
+                      "route": "192.168.2.2/32"
+                    }
+                  }
+                },
+                "actions": {
+                  "generate-aggregate": "192.168.2.0/30"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}         
 ```
 
 ## OpenConfig Path and RPC Coverage
