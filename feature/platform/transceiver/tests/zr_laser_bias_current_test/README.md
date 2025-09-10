@@ -15,6 +15,10 @@ this yields a total measurement range of 0 to 131 mA.
 Accuracy must be better than +/-10% of the manufacturer's nominal value over
 specified operating temperature and voltage.
 
+## Canonical OC
+```json
+{}
+```  
 
 ## TRANSCEIVER-9.1
 
