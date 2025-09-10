@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -41,50 +42,52 @@ import (
 )
 
 const (
-	ipv4PrefixLen     = 30
-	ipv6PrefixLen     = 126
-	ate1Asn           = 65001
-	ate2Asn           = 65003
-	dutAsn            = 65001
-	ipv4Src           = "198.51.100.1"
-	ipv4Dst           = "198.51.200.1"
-	ipv6Src           = "2001:DB8:1::1"
-	ipv6Dst           = "2001:DB8:2::1"
-	peerv4Grp1Name    = "BGP-PEER-GROUP1-V4"
-	peerv6Grp1Name    = "BGP-PEER-GROUP1-V6"
-	peerv4Grp2Name    = "BGP-PEER-GROUP2-V4"
-	peerv6Grp2Name    = "BGP-PEER-GROUP2-V6"
-	v4NetName1        = "BGPv4RR1"
-	v6NetName1        = "BGPv6RR1"
-	v4NetName2        = "BGPv4RR2"
-	v6NetName2        = "BGPv6RR2"
-	packetPerSecond   = 100
-	guePort           = 6080
-	trafficSleepTime  = 10
-	captureWait       = 10
-	nonDefaultVrfName = "B2_VRF"
-	packetSize        = 512
-	IPv4Prefix1       = "198.51.100.1"
-	IPv4Prefix2       = "198.51.100.2"
-	IPv4Prefix3       = "198.51.100.3"
-	IPv4Prefix4       = "198.51.100.4"
-	IPv4Prefix5       = "198.51.100.5"
-	IPv4Prefix6       = "198.51.200.1"
-	IPv4Prefix7       = "198.51.200.2"
-	IPv4Prefix8       = "198.51.200.3"
-	IPv4Prefix9       = "198.51.200.4"
-	IPv4Prefix10      = "198.51.200.5"
-	IPv6Prefix1       = "2001:DB8:1::1"
-	IPv6Prefix2       = "2001:DB8:1::2"
-	IPv6Prefix3       = "2001:DB8:1::3"
-	IPv6Prefix4       = "2001:DB8:1::4"
-	IPv6Prefix5       = "2001:DB8:1::5"
-	IPv6Prefix6       = "2001:DB8:2::1"
-	IPv6Prefix7       = "2001:DB8:2::2"
-	IPv6Prefix8       = "2001:DB8:2::3"
-	IPv6Prefix9       = "2001:DB8:2::4"
-	IPv6Prefix10      = "2001:DB8:2::5"
-	policyName        = "decap-policy-gue"
+	advertiseIpv4PrefixLength = 32
+	advertiseIpv6PrefixLength = 128
+	ipv4PrefixLen             = 30
+	ipv6PrefixLen             = 126
+	ate1Asn                   = 65001
+	ate2Asn                   = 65003
+	dutAsn                    = 65001
+	ipv4Src                   = "198.51.100.1"
+	ipv4Dst                   = "198.51.200.1"
+	ipv6Src                   = "2001:DB8:1::1"
+	ipv6Dst                   = "2001:DB8:2::1"
+	peerv4Grp1Name            = "BGP-PEER-GROUP1-V4"
+	peerv6Grp1Name            = "BGP-PEER-GROUP1-V6"
+	peerv4Grp2Name            = "BGP-PEER-GROUP2-V4"
+	peerv6Grp2Name            = "BGP-PEER-GROUP2-V6"
+	v4NetName1                = "BGPv4RR1"
+	v6NetName1                = "BGPv6RR1"
+	v4NetName2                = "BGPv4RR2"
+	v6NetName2                = "BGPv6RR2"
+	packetPerSecond           = 100
+	guePort                   = 6080
+	trafficSleepTime          = 10
+	captureWait               = 10
+	nonDefaultVrfName         = "B2_VRF"
+	packetSize                = 512
+	IPv4Prefix1               = "198.51.100.1"
+	IPv4Prefix2               = "198.51.100.2"
+	IPv4Prefix3               = "198.51.100.3"
+	IPv4Prefix4               = "198.51.100.4"
+	IPv4Prefix5               = "198.51.100.5"
+	IPv4Prefix6               = "198.51.200.1"
+	IPv4Prefix7               = "198.51.200.2"
+	IPv4Prefix8               = "198.51.200.3"
+	IPv4Prefix9               = "198.51.200.4"
+	IPv4Prefix10              = "198.51.200.5"
+	IPv6Prefix1               = "2001:DB8:1::1"
+	IPv6Prefix2               = "2001:DB8:1::2"
+	IPv6Prefix3               = "2001:DB8:1::3"
+	IPv6Prefix4               = "2001:DB8:1::4"
+	IPv6Prefix5               = "2001:DB8:1::5"
+	IPv6Prefix6               = "2001:DB8:2::1"
+	IPv6Prefix7               = "2001:DB8:2::2"
+	IPv6Prefix8               = "2001:DB8:2::3"
+	IPv6Prefix9               = "2001:DB8:2::4"
+	IPv6Prefix10              = "2001:DB8:2::5"
+	policyName                = "decap-policy-gue"
 )
 
 var (
@@ -125,8 +128,8 @@ var (
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.1",
 		IPv6:    "2001:db8::203:0:113:1",
-		IPv4Len: 32,
-		IPv6Len: 128,
+		IPv4Len: advertiseIpv4PrefixLength,
+		IPv6Len: advertiseIpv6PrefixLength,
 	}
 )
 
@@ -541,14 +544,14 @@ func configureATE(t *testing.T) gosnappi.Config {
 	bgp4Peer1.SetAsNumber(ate1Asn)
 	bgp4Peer1.SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	net1v4 := bgp4Peer1.V4Routes().Add().SetName(v4NetName1)
-	net1v4.Addresses().Add().SetAddress(ipv4Src).SetPrefix(32).SetCount(5).SetStep(1)
+	net1v4.Addresses().Add().SetAddress(ipv4Src).SetPrefix(advertiseIpv4PrefixLength).SetCount(5).SetStep(1)
 
 	bgp6Peer1 := bgp1.Ipv6Interfaces().Add().SetIpv6Name(port1Ipv6.Name()).Peers().Add().SetName(port1Dev.Name() + ".BGP6.peer")
 	bgp6Peer1.SetPeerAddress(port1Ipv6.Gateway())
 	bgp6Peer1.SetAsNumber(ate1Asn)
 	bgp6Peer1.SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 	net1v6 := bgp6Peer1.V6Routes().Add().SetName(v6NetName1)
-	net1v6.Addresses().Add().SetAddress(ipv6Src).SetPrefix(128).SetCount(5).SetStep(1)
+	net1v6.Addresses().Add().SetAddress(ipv6Src).SetPrefix(advertiseIpv6PrefixLength).SetCount(5).SetStep(1)
 
 	port2Dev := topo.Devices().Add().SetName(atePort2.Name + ".dev")
 	port2Eth := port2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
@@ -564,14 +567,14 @@ func configureATE(t *testing.T) gosnappi.Config {
 	bgp4Peer2.SetAsNumber(ate2Asn)
 	bgp4Peer2.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	net2v4 := bgp4Peer2.V4Routes().Add().SetName(v4NetName2)
-	net2v4.Addresses().Add().SetAddress(ipv4Dst).SetPrefix(32).SetCount(5).SetStep(1)
+	net2v4.Addresses().Add().SetAddress(ipv4Dst).SetPrefix(advertiseIpv4PrefixLength).SetCount(5).SetStep(1)
 
 	bgp6Peer2 := bgp2.Ipv6Interfaces().Add().SetIpv6Name(port2Ipv6.Name()).Peers().Add().SetName(port2Dev.Name() + ".BGP6.peer")
 	bgp6Peer2.SetPeerAddress(port2Ipv6.Gateway())
 	bgp6Peer2.SetAsNumber(ate2Asn)
 	bgp6Peer2.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	net2v6 := bgp6Peer2.V6Routes().Add().SetName(v6NetName2)
-	net2v6.Addresses().Add().SetAddress(ipv6Dst).SetPrefix(128).SetCount(5).SetStep(1)
+	net2v6.Addresses().Add().SetAddress(ipv6Dst).SetPrefix(advertiseIpv6PrefixLength).SetCount(5).SetStep(1)
 
 	return topo
 }
@@ -715,8 +718,8 @@ func configureRouteLeakingFromOC(t *testing.T, dut *ondatra.DUTDevice) {
 	ni1 := root.GetOrCreateNetworkInstance(nonDefaultVrfName)
 	ni1Pol := ni1.GetOrCreateInterInstancePolicies()
 	iexp1 := ni1Pol.GetOrCreateImportExportPolicy()
-	iexp1.SetImportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ImportRouteTarget_Union{oc.UnionString("default")})
-	iexp1.SetExportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ExportRouteTarget_Union{oc.UnionString("default")})
+	iexp1.SetImportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ImportRouteTarget_Union{oc.UnionString(deviations.DefaultNetworkInstance(dut))})
+	iexp1.SetExportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ExportRouteTarget_Union{oc.UnionString(deviations.DefaultNetworkInstance(dut))})
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).InterInstancePolicies().Config(), ni1Pol)
 }
 
@@ -900,8 +903,9 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var routes []string
-	routes = []string{IPv4Prefix1 + "/32", IPv4Prefix2 + "/32", IPv4Prefix3 + "/32", IPv4Prefix4 + "/32", IPv4Prefix5 + "/32", IPv4Prefix6 + "/32", IPv4Prefix7 + "/32", IPv4Prefix8 + "/32", IPv4Prefix9 + "/32", IPv4Prefix10 + "/32"}
-	for _, advroute := range routes {
+	routes = []string{IPv4Prefix1, IPv4Prefix2, IPv4Prefix3, IPv4Prefix4, IPv4Prefix5, IPv4Prefix6, IPv4Prefix7, IPv4Prefix8, IPv4Prefix9, IPv4Prefix10}
+	for _, adroute := range routes {
+		advroute := adroute + "/" + strconv.Itoa(advertiseIpv4PrefixLength)
 		t.Logf("Verifying leaked route %s in %s", advroute, nonDefaultVrfName)
 		aftVrf2 := gnmi.OC().NetworkInstance(nonDefaultVrfName).Afts().Ipv4Entry(advroute)
 		_, ok := gnmi.Watch(t, dut, aftVrf2.State(), 15*time.Second, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
