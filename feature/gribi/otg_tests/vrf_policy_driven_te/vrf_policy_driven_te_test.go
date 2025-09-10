@@ -1755,9 +1755,7 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 		} else {
 			testStats.IPv6CapturedPackets++
 			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
-			// In IPv6 packets, ECN uses last two bits of the TOS byte. And TOS field be calculated as DSCP<<2 (left shift by 2)+ ECN.
-			v6ExpectedInHdrDscp := expectedInHdrDscp<<2 + expectedInHdrEcn
-			if actualDscp := uint32(ipv6Packet.TrafficClass); actualDscp != v6ExpectedInHdrDscp {
+			if actualDscp := uint32(ipv6Packet.TrafficClass >> 2); actualDscp != expectedInHdrDscp {
 				testStats.IPv6DscpMismatchPackets++
 				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
 			}
