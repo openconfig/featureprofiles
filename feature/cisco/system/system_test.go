@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	spb "github.com/openconfig/gnoi/system"
@@ -111,7 +112,8 @@ func testSysGrpcState(t *testing.T) {
 	})
 	t.Run("Subscribe /system/grpc-servers", func(t *testing.T) {
 		v := gnmi.LookupAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
-		if sysGrpcCont, pres := v[0].Val(); !pres {
+		firstServer := util.FirstOrFatal(t, v, "no grpc-server state paths returned")
+		if sysGrpcCont, pres := firstServer.Val(); !pres {
 			t.Fatalf("Got nil system grpc server data")
 		} else {
 			grpcPort := sysGrpcCont.GetPort()
@@ -209,6 +211,9 @@ func testGrpcListenAddress(t *testing.T) {
 	if err := prototext.Unmarshal(in, b); err != nil {
 		t.Fatalf("unable to parse binding file")
 	}
+	if len(b.Duts) == 0 {
+		t.Fatal("binding file does not have any DUTs")
+	}
 	dut := ondatra.DUT(t, "dut")
 	var listenAdd string
 	virIP := config.CMDViaGNMI(context.Background(), t, dut, "sh run ipv4 virtual address")
@@ -216,7 +221,9 @@ func testGrpcListenAddress(t *testing.T) {
 	// Check if the DUT uses IPv6 by inspecting the SSH target in the binding file.
 	if strings.Contains(b.Duts[0].Ssh.Target, "::") {
 		// Retrieve the IPv6 address of the "Bundle-Ether120" interface.
-		listenAdd = gnmi.GetAll(t, dut, gnmi.OC().Interface("Bundle-Ether120").Subinterface(0).Ipv6().AddressAny().State())[0].GetIp()
+		ip6s := gnmi.GetAll(t, dut, gnmi.OC().Interface("Bundle-Ether120").Subinterface(0).Ipv6().AddressAny().State())
+		firstIPv6 := util.FirstOrFatal(t, ip6s, "ipv6 address list empty")
+		listenAdd = firstIPv6.GetIp()
 	} else if val != "" {
 		// If a virtual IPv4 address is found, trim the subnet mask (e.g., "/16").
 		listenAdd = strings.TrimSuffix(val, "/16")
@@ -270,7 +277,11 @@ func testGrpcListenAddress(t *testing.T) {
 			if !pres {
 				t.Errorf("unable to fetch config")
 			}
-			got := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()[0]
+			list := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()
+			if len(list) == 0 {
+				t.Fatal("no listen addresses in this DEFAULT GrpcServer config")
+			}
+			got := list[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -304,7 +315,11 @@ func testGrpcListenAddress(t *testing.T) {
 			if !pres {
 				t.Errorf("unable to fetch config")
 			}
-			got := systemGet.GetListenAddresses()[0]
+			list := systemGet.GetListenAddresses()
+			if len(list) == 0 {
+				t.Fatal("no listen addresses in DEFAULT GrpcServer config")
+			}
+			got := list[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -316,7 +331,7 @@ func testGrpcListenAddress(t *testing.T) {
 
 			listenAddresses := systemGet.GetListenAddresses()
 			if len(listenAddresses) == 0 {
-				t.Fatalf("No listen addresses found for DEFAULT GrpcServer")
+				t.Fatal("No listen addresses found for DEFAULT GrpcServer")
 			}
 
 			got := listenAddresses[0]
@@ -340,6 +355,9 @@ func testGrpcListenAddress(t *testing.T) {
 				if !pres {
 					t.Fatalf("unable to fetch config")
 				}
+				if len(got) == 0 {
+					t.Fatal("listen-address config leaf-list empty")
+				}
 				if got[0] != serveranyobj.ListenAddresses[0] {
 					t.Logf("Listen Address not returned as expected. got : %v , want %v", got, tc.want)
 				}
@@ -347,6 +365,9 @@ func testGrpcListenAddress(t *testing.T) {
 				got, pres := gnmi.LookupConfig(t, dut, path.Config()).Val()
 				if !pres {
 					t.Fatalf("unable to fetch config")
+				}
+				if len(got) == 0 {
+					t.Fatal("listen-address config leaf-list empty")
 				}
 				if got[0] != serveranyobj.ListenAddresses[0] {
 					t.Logf("Listen Address not returned as expected. got : %v , want %v", got, tc.want)
@@ -376,7 +397,8 @@ func testGrpcListenAddress(t *testing.T) {
 		if err := gnmi.Update(t, dut, path.Config(), address1); err != nil {
 			t.Fatalf("Failed to update listen address: %v", err)
 		}
-		got1 := gnmi.Get(t, dut, path.State())[0]
+		state1 := gnmi.Get(t, dut, path.State())
+		got1 := util.FirstOrFatal(t, state1, "no listen-address state after first update")
 		if got1 != address1[0] {
 			t.Fatalf("Listen address mismatch: got %v , want %v", got1, listenAdd)
 		}
@@ -412,13 +434,17 @@ func testGrpcListenAddress(t *testing.T) {
 	t.Run("Process restart emsd and get updated listen-address", func(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 		gnmi.Update(t, dut, path.Config(), []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)})
-		got1 := gnmi.Get(t, dut, path.State())[0]
+		state1 := gnmi.Get(t, dut, path.State())
+		got1 := util.FirstOrFatal(t, state1, "no listen-address state after update RPC")
 		if got1 != oc.UnionString(listenAdd) {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", got1, listenAdd)
 		}
 		// Process restart emsd
 		config.CMDViaGNMI(context.Background(), t, dut, "process restart emsd")
 		got3 := gnmi.Get(t, dut, path.State())
+		if len(got3) == 0 {
+			t.Fatal("no listen-address found after process restart emsd")
+		}
 		if got3[0] != oc.GrpcServer_ListenAddresses_ANY {
 			t.Errorf("Listen address mismatch after process restart: got %v, want %v", got3[0], "ANY")
 		}
@@ -427,7 +453,8 @@ func testGrpcListenAddress(t *testing.T) {
 	t.Run("Reload router and check grpc before and after ", func(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 		gnmi.Update(t, dut, path.Config(), []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)})
-		gotBefore := gnmi.Get(t, dut, path.State())[0]
+		beforeSlice := gnmi.Get(t, dut, path.State())
+		gotBefore := util.FirstOrFatal(t, beforeSlice, "no listen-address before reboot")
 		if gotBefore != oc.UnionString(listenAdd) {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotBefore, listenAdd)
 		}
@@ -446,7 +473,8 @@ func testGrpcListenAddress(t *testing.T) {
 			resp := config.CMDViaGNMI(context.Background(), t, dut, "redundancy switchover force")
 			t.Log(resp)
 		}
-		gotAfter := gnmi.Get(t, dut, path.State())[0]
+		afterSlice := gnmi.Get(t, dut, path.State())
+		gotAfter := util.FirstOrFatal(t, afterSlice, "no liste-address after reboot")
 		if gotAfter != oc.GrpcServer_ListenAddresses_ANY {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotAfter, listenAdd)
 		}
