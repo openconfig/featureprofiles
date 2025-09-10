@@ -52,28 +52,42 @@ B --EBGP--> C[Port2:ATE];
 9) Should be RFC7854 compliant
 
 
-### Tests
+### Test Setup Verification
 
-### BMP-1.2.1: Verify BMP session establishment
+### Verify BMP session establishment
 
 1)  Configure BMP station on ATE port-2 with address 10.23.15.58 and port 7039
 2)  Verify that the DUT initiates a BMP session to the station (connection-mode: active)
-3)  Confirm the connection is established using the configured local-address (172.16.1.1)
+3)  Using OTG, verify the ATE has an active BMP session with the DUT.
 4)  Validate that the DUT connects to the correct station-address (10.23.15.58) and port (7039) with pre-policy route monitoring.
-5)  Check the session-state telemetry path to confirm the session is established
+5)  Using gNMI, verify the DUT returns syntactically valid paths and values for all the below paths are present
+ 
+ ```
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/uptime:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/policy-type:
+ ```
+7)  Check the session-state telemetry path to confirm the session is established
 
+ ```
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
+ ```
 
-### BMP-1.2.2: Verify route monitoring with pre-policy and exclude-noneligible
+### Tests
+
+### BMP-1.2.1: Verify route monitoring with pre-policy and exclude-noneligible
 
 1)  Configure an import policy on the DUT to reject prefixes matching 172.16.0.0/16 and 2001:DB8::/32 from ATE port-1
 2)  Have ATE port-1 advertise prefixes 15mil IPv4(the routes should include prefixes in range 172.16.0.0/16 ) and 5mil IPv6 (the routes should include prefixes in range 2001:DB8::/32) to the DUT
-3)  Verify that the BMP station receives route monitoring messages for IPV4 & IPV6 for 15mil IPV4 and 5mil IPV6
-4)  Verify that the BMP station receive route monitoring messages for routes excluded by the import policy i.e. all 15mil IPv4 and 5mil IPV6 should be received by BMP station.
+3)  Verify that the DUT and ATE (BMP station) receives route monitoring messages for IPV4 & IPV6 for 15mil IPV4 and 5mil IPV6
+4)  Verify that the DUT and ATE (BMP station)  receive route monitoring messages for routes excluded by the import policy i.e. all 15mil IPv4 and 5mil IPV6 should be received by BMP station.
 
 
-## OC paths in json format:
+## Canonical OC
 
-### TODO: Add values
 ```json
 {
   "network-instances": {
@@ -84,19 +98,19 @@ B --EBGP--> C[Port2:ATE];
             "global": {
               "bmp": {
                 "config": {
-                  "enabled": <value>,
-                  "connection-mode": <value>,
-                  "local-address": <value>,
-                  "statistics-timeout": <value>
+                  "enabled": true,
+                  "connection-mode": ACTIVE,
+                  "local-address": 172.16.1.1,
+                  "statistics-timeout": 30
                 },
                 "stations": {
                   "station": {
                     "config": {
-                      "name": <value>,
-                      "address": <value>,
-                      "port": <value>,
-                      "policy-type": <value>,
-                      "exclude-non-eligible": <value>
+                      "name": BMP-STATION,
+                      "address": 10.23.15.58,
+                      "port": 7039,
+                      "policy-type": PRE_POLICY,
+                      "exclude-non-eligible": TRUE
                     }
                   }
                 }
