@@ -724,7 +724,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			&ytypes.PreferShadowPath{},
 		}
 		if err := oc.Unmarshal(jsonietfVal, ocRoot, opts...); err != nil {
-			panic(fmt.Sprintf("Cannot unmarshal json config: %v", err))
+			t.Fatalf("failed to unmarshall json config. err: %v", err)
 		}
 		// Push via BatchUnionReplace + CLI helper.
 		gnmi.BatchUnionReplace(b, gnmi.OC().Config(), ocRoot)
@@ -838,7 +838,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		// Load OC VRF proto‑text (contains SetRequest with Replace entries)
 		ocCliConfig, err := os.ReadFile("testdata/vrf.txt")
 		if err != nil {
-			panic(fmt.Sprintf("Cannot load base config: %v", err))
+			t.Fatalf("Failed to read the testdata config file. err: %v", err)
 		}
 		t.Log("OC CLI Config File Content:\n", string(ocCliConfig))
 		// Unmarshal the OpenConfig CLI configuration file into a gNMI SetRequest.
@@ -862,7 +862,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			&ytypes.PreferShadowPath{}, // Option to prefer shadow paths during unmarshalling.
 		}
 		if err := oc.Unmarshal(jsonIetfVal, ocRoot, opts...); err != nil {
-			panic(fmt.Sprintf("Cannot unmarshal json config: %v", err))
+			t.Fatalf("failed to unmarshall json config. err: %v", err)
 		}
 		gnmiC := dut.RawAPIs().GNMI(t)
 		// Prepare a gNMI GetRequest to fetch the device's CLI configuration as ASCII.
@@ -1081,7 +1081,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			var asciiVal string
 			occliConfig, err := os.ReadFile(tc.configPath)
 			if err != nil {
-				panic(fmt.Sprintf("Cannot load base config: %v", err))
+				t.Fatalf("failed to read %v. err: %v", tc.configPath, err)
 			}
 			req := &gpb.SetRequest{}
 			prototext.Unmarshal(occliConfig, req)
@@ -1105,7 +1105,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 					&ytypes.PreferShadowPath{},
 				}
 				if err := oc.Unmarshal(jsonietfVal, ocRoot, opts...); err != nil {
-					panic(fmt.Sprintf("Cannot unmarshal json config: %v", err))
+					t.Fatalf("failed to unmarshall json config. err: %v", err)
 				}
 
 				t.Log(asciiVal)
