@@ -88,7 +88,15 @@ B --EBGP--> C[Port2:ATE];
 
 ## Canonical OC
 
+TODO: Update the JSON pending the outcome of the addition of the BMP model
+to OpenConfig.  ref: https://github.com/openconfig/public/pull/1343
+
 ```json
+{
+}
+```
+
+```
 {
   "network-instances": {
     "network-instance": {
@@ -122,42 +130,43 @@ B --EBGP--> C[Port2:ATE];
     }
   }
 }
-
 ```
-
 
 
 ## OpenConfig Path and RPC Coverage
 
+TODO: Update the OC paths pending the outcome of the addition of the BMP model
+to OpenConfig.  ref: https://github.com/openconfig/public/pull/1343
+
 ```yaml
   ## Config paths
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/name:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/statistics-timeout:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/name:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/address:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible:
   
   ## state paths
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/enabled:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/statistics-timeout:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/idle-time:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-count:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-interval:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/uptime:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/flap-count:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/policy-type:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/exclude-non-eligible:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/total:
-  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/enabled:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/statistics-timeout:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/idle-time:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-count:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/probe-interval:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/uptime:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/flap-count:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/policy-type:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/exclude-non-eligible:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/total:
+  #/network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics:
   
   rpcs:
    gnmi:
@@ -169,5 +178,4 @@ B --EBGP--> C[Port2:ATE];
 
 ## Required DUT platform
   * vRX - virtual router device
-
 
