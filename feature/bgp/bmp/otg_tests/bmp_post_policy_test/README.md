@@ -1,4 +1,4 @@
-# BMP-1.2: BMP Post Policy Test
+# BMP-1.3: BMP Post Policy Test
 
 ## Summary
 
@@ -79,7 +79,7 @@ vvlakshmanamurthy marked this conversation as resolved.
 ### Tests
 
 
-### BMP-1.2.2: Verify route monitoring with post-policy and exclude-noneligible
+### BMP-1.3.1: Verify route monitoring with post-policy and exclude-noneligible
 
 1)  Configure an import policy on the DUT to reject prefixes matching 172.16.0.0/16 and 2001:DB8::/32 from ATE port-1
 2)  Have ATE port-1 advertise prefixes 15mil IPv4(the routes should include prefixes in range 172.16.0.0/16 ) and 5mil IPv6 (the routes should include prefixes in range 2001:DB8::/32) to the DUT
