@@ -35,17 +35,11 @@ B --EBGP--> C[Port2:ATE];
 6) Configure BMP on the DUT with the following parameters:
 
     • statistics-timeout: 60 seconds
-   
     • connection-mode: active
-
     • local-address: 172.16.1.1
-
     • station-address: 10.23.15.58
-
     • station-port: 7039
-
     • route-monitoring: pre-policy
-
     • exclude-noneligible: true
 
 8) Advertise 15mil * IPV4 routes and 5mil * IPV6 routes
@@ -96,6 +90,8 @@ to OpenConfig.  ref: https://github.com/openconfig/public/pull/1343
 }
 ```
 
+In the current state of the proposed BMP model, the configuration would look
+like:
 ```
 {
   "network-instances": {
