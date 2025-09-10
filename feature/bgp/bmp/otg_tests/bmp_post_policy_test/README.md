@@ -51,16 +51,32 @@ B --EBGP--> C[Port2:ATE];
 8) Advertise 15mil * IPV4 routes and 5mil * IPV6 routes
 9) Should be RFC7854 compliant
 
+### Test Setup Verification
 
-### Tests
-
-### BMP-1.2.1: Verify BMP session establishment
+### Verify BMP session establishment
 
 1)  Configure BMP station on ATE port-2 with address 10.23.15.58 and port 7039
+vvlakshmanamurthy marked this conversation as resolved.
 2)  Verify that the DUT initiates a BMP session to the station (connection-mode: active)
-3)  Confirm the connection is established using the configured local-address (172.16.1.1)
-4)  Validate that the DUT connects to the correct station-address (10.23.15.58) and port (7039) with post-policy route monitoring.
-5)  Check the session-state telemetry path to confirm the session is established
+3)  Using OTG, verify the ATE has an active BMP session with the DUT.
+4)  Validate that the DUT connects to the correct station-address (10.23.15.58) and port (7039) with pre-policy route monitoring.
+5)  Using gNMI, verify the DUT returns syntactically valid paths and values for all the below paths are present
+
+ ```
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/address:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/port:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/uptime:
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/policy-type:
+ ```
+7)  Check the session-state telemetry path to confirm the session is established
+
+ ```
+  /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/connection-status:
+ ```
+
+### Tests
 
 
 ### BMP-1.2.2: Verify route monitoring with post-policy and exclude-noneligible
@@ -83,19 +99,19 @@ B --EBGP--> C[Port2:ATE];
             "global": {
               "bmp": {
                 "config": {
-                  "enabled": <value>,
-                  "connection-mode": <value>,
-                  "local-address": <value>,
-                  "statistics-timeout": <value>
+                  "enabled": true,
+                  "connection-mode": ACTIVE,
+                  "local-address": 172.16.1.1,
+                  "statistics-timeout": 30
                 },
                 "stations": {
                   "station": {
                     "config": {
-                      "name": <value>,
-                      "address": <value>,
-                      "port": <value>,
-                      "policy-type": <value>,
-                      "exclude-non-eligible": <value>
+                      "name": BMP-STATION,
+                      "address": 10.23.15.58,
+                      "port": 7039,
+                      "policy-type": POST_POLICY,
+                      "exclude-non-eligible": TRUE
                     }
                   }
                 }
