@@ -69,7 +69,7 @@ func TestRouterLastRebootTime(t *testing.T) {
 			lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).LastRebootTime().State())
 
 			if lastRebootTimeAfter < lastRebootTimeBefore {
-				t.Fatal("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, lastRebootTimeBefore)
+				t.Fatalf("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, lastRebootTimeBefore)
 			}
 		})
 	}
@@ -118,7 +118,7 @@ func TestLCReloadLastRebootTime(t *testing.T) {
 			for _, lc := range linecards {
 				lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(lc).LastRebootTime().State())
 				if lastRebootTimeAfter < rebootTimes[lc] {
-					t.Fatal("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, rebootTimes[lc])
+					t.Fatalf("LastRebootTime().Get(t): got %v, want > %v", lastRebootTimeAfter, rebootTimes[lc])
 				}
 			}
 		})
