@@ -887,7 +887,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		staticARPWithSecondaryIP(t, dut)
 	}
-	configSflow(t, dut)
+	// configSflow(t, dut)
+	configureLoopbackAndSFlow(t, dut)
 }
 
 // applyForwardingPolicy applies the forwarding policy on the interface.
@@ -1922,6 +1923,81 @@ flow datalinkframesection monitor OC-FMM-GLOBAL sampler OC-FSM-GLOBAL-INGRESS in
 	cliPath, _ := schemaless.NewConfig[string]("", "cli")
 	gnmi.BatchUpdate(batchSet, cliPath, cliCfg)
 	batchSet.Set(t, dut)
+}
+
+// Example: Approximate the IOS-XR sFlow / flow exporter/monitor/sampler config
+// with OpenConfig (gnmi + ondatra). Some XR-specific knobs (dfbit set,
+// extended-* records, monitor-map binding syntax) lack direct OpenConfig
+// equivalents and would need vendor CLI (schemaless) fallback.
+//
+// NOTE: Adjust paths if your generated oc library differs.
+// Unsupported features are marked TODO / fallback.
+
+func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
+	root := &oc.Root{}
+
+	// 1. Loopback0 interface (OC: interface + subinterface 0)
+	lo := root.GetOrCreateInterface("Loopback0")
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	lo.Enabled = ygot.Bool(true)
+	sub := lo.GetOrCreateSubinterface(0)
+
+	v4 := sub.GetOrCreateIpv4()
+	a4 := v4.GetOrCreateAddress("203.0.113.255")
+	a4.PrefixLength = ygot.Uint8(32)
+
+	v6 := sub.GetOrCreateIpv6()
+	a6 := v6.GetOrCreateAddress("2001:db8::203:0:113:255")
+	a6.PrefixLength = ygot.Uint8(128)
+
+	gnmi.Replace(t, dut, gnmi.OC().Interface("Loopback0").Config(), lo)
+
+	sf := root.GetOrCreateSampling().GetOrCreateSflow()
+	sf.SetEnabled(true)
+	sf.SetAgentIdIpv6("2001:db8::203:0:113:255")
+	sf.SetSampleSize(343)
+	sf.SetDscp(32)
+
+	// Add a collector (destination + port)
+	sf.GetOrCreateCollector("2001:0db8::192:0:2:1e", 6343).SetSourceAddress("2001:db8::203:0:113:255")
+
+	// sampling rate (maps to sampler random 1 out-of 262144)
+	sf.SetIngressSamplingRate(262144)
+
+	// If per-interface overrides are needed:
+	intSf := sf.GetOrCreateInterface("Bundle-Ether1")
+	intSf.SetEnabled(true)
+	gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Config(), sf)
+	UpdateUnsupportedCollectorConfig(t, dut)
+
+}
+
+// UpdateUnsupportedCollectorConfig updates the configuration for unsupported sFlow collectors.
+func UpdateUnsupportedCollectorConfig(t *testing.T, dut *ondatra.DUTDevice) {
+
+	sf := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().State())
+
+	batchSet := &gnmi.SetBatch{}
+	cliPath, _ := schemaless.NewConfig[string]("", "cli")
+
+	for collectorKey, collector := range sf.GetOrCreateCollectorMap() {
+		t.Logf("Collector Key: %v\n", collectorKey)
+		t.Logf("  Address: %s\n", *collector.Address)
+		t.Logf("  Port: %d\n", *collector.Port)
+		t.Logf("  Source Address: %s\n", *collector.SourceAddress)
+		unsupported := fmt.Sprintf(`flow exporter-map %v\n  dfbit set\n  packet-length 8968\n  !\n`, collectorKey)
+		gnmi.BatchUpdate(batchSet, cliPath, unsupported)
+	}
+
+	batchSet.Set(t, dut)
+}
+
+// (Optional) Helper to adjust per-flow sFlow sampling dynamically
+func updateSFlowSamplingRate(t *testing.T, dut *ondatra.DUTDevice, rate uint32) {
+	root := &oc.Root{}
+	sf := root.GetOrCreateSampling().GetOrCreateSflow()
+	sf.SetIngressSamplingRate(rate)
+	gnmi.Update(t, dut, gnmi.OC().Sampling().Sflow().IngressSamplingRate().Config(), rate)
 }
 
 // import (
