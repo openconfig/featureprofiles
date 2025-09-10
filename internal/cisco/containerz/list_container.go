@@ -19,10 +19,11 @@ package client
 import (
 	"context"
 	"fmt"
-	cpb "github.com/openconfig/gnoi/containerz"
 	"io"
-	"k8s.io/klog/v2"
 	"strings"
+
+	cpb "github.com/openconfig/gnoi/containerz"
+	"k8s.io/klog/v2"
 )
 
 // ListContainer implements the client logic for listing the existing containers on the target system.
@@ -58,11 +59,19 @@ func (c *Client) ListContainer(ctx context.Context, all bool, limit int32, filte
 				return
 			}
 
+			// Use hash string directly as sent by router
+			var hashStr string
+			if hashType := msg.GetHash(); hashType != nil {
+				hashStr = string(hashType.GetHash())
+			}
+
 			if nonBlockingChannelSend(ctx, ch, &ContainerInfo{
 				ID:        msg.GetId(),
 				Name:      msg.GetName(),
 				ImageName: msg.GetImageName(),
 				State:     msg.GetStatus().String(),
+				Labels:    msg.GetLabels(),
+				Hash:      hashStr,
 			}) {
 				klog.Warningf("operation cancelled; returning")
 				return

@@ -34,6 +34,7 @@ devices:
       - 23
       - 57777
     xr_username: cisco
+    cli_commands: reload location all noprompt
 connections: 
   hubs: 
     port1: 

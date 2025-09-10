@@ -467,7 +467,7 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceNames []string) {
 	}
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, ISISName)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, ISISName)
-	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+	gnmi.Replace(t, dut, dutNode.Config(), dutConf)
 }
 
 // addBGPOC, configures ISIS on DUT
@@ -497,7 +497,7 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbors []string) {
 	}
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
-	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+	gnmi.Replace(t, dut, dutNode.Config(), dutConf)
 }
 
 // Remove flowspec and add as pbr

@@ -81,6 +81,8 @@ replace: {
 " breakout 4x10\n"
 "!\n"
 "router static\n"
+" maximum path ipv4 140000\n"
+" maximum path ipv6 140000\n"
 " address-family ipv4 unicast\n"
 "  5.0.0.0/8 5.78.0.1\n"
 "  5.5.14.197/32 5.78.0.1\n"
