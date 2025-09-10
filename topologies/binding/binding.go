@@ -42,6 +42,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -615,10 +616,26 @@ type creds struct {
 	secure             bool
 }
 
-func (c *creds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	var username, password string
+	if ok {
+		if len(md.Get("username")) > 0 && md.Get("username")[0] != "" {
+			username = md.Get("username")[0]
+		}
+		if len(md.Get("password")) > 0 && md.Get("password")[0] != "" {
+			password = md.Get("password")[0]
+		}
+	}
+	if username == "" {
+		username = c.username
+	}
+	if password == "" {
+		password = c.password
+	}
 	return map[string]string{
-		"username": c.username,
-		"password": c.password,
+		"username": username,
+		"password": password,
 	}, nil
 }
 
