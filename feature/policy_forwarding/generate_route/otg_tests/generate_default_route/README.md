@@ -73,36 +73,38 @@ The BGP session drops or gets stuck in an intermediate state.
 
 ## Canonical OC 
 
-```
-            {
-               "config": {
-                  "name": 
-               },
-               "name": ,
-               "statements": {
-                  "statement": [
-                     {
-                        "actions": {
-                           "bgp-actions": {
-                              "config": {
-                                 "set-local-pref": ,
-                                 "set-route-origin": 
-                              }
-                           },
-                           "config": {
-                              "policy-result": 
-                           }
-                        },
-                        "conditions": {
-                           "match-prefix-set": {
-                              "config": {
-                                 "match-set-options": ,
-                                 "prefix-set": 
-                              }
-                           }
-                        },
-            },
-
+```json
+ {
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "GENERATE_DEFAULT_ROUTE",
+          "statements": {
+            "statement": [
+              {
+                "name": "MATCH_BGP_ROUTE",
+                "config": {
+                  "name": "TERM1"
+                },
+                "conditions": {
+                  "bgp-conditions": {
+                    "state": {
+                      "route": "10.0.0.0/8"
+                    }
+                  }
+                },
+                "actions": {
+                  "generate-aggregate": 0.0.0.0/0
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}          
 ```
 
 ## OpenConfig Path and RPC Coverage
