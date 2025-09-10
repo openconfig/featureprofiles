@@ -36,6 +36,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -117,6 +118,9 @@ const (
 	otgMutliPortCaptureSupported     = false
 	ipv4PrefixDoesNotExistInEncapVrf = "140.0.0.1"
 	ipv6PrefixDoesNotExistInEncapVrf = "2016::140:0:0:1"
+	samplingRate                     = 262144 // Example value, adjust as per your test setup
+	sampleTolerance                  = 0.8    // Example value, adjust as per your test setup
+
 )
 
 const (
@@ -410,63 +414,9 @@ type packetAttr struct {
 	protocol int
 	ttl      uint32
 	inner    *packetAttr
-	sfSample *sflowSample
-	sfConfig *sflowConfig
+	sfSample *s.SflowSample
+	sfConfig *s.SflowConfig
 }
-
-type sflowSample struct {
-	InputInterface  string
-	OutputInterface string
-	rawPktHdr       *sfRecordRawPacketHeader
-	extdRtrData     *sfRecordExtendedRouterData
-	extdGtwData     *sfRecordExtendedGatewayData
-}
-type sfRecordRawPacketHeader struct {
-	Protocol    uint32 // Protocol of the sampled packet
-	FrameLength uint32 // Original length of the packet
-	Stripped    uint32 // Number of bytes stripped from the packet
-	Header      []byte // Header bytes of the sampled packet
-}
-
-type sfRecordExtendedRouterData struct {
-	NextHop                string // IP address of the next hop router
-	BaseFlowRecord         layers.SFlowBaseFlowRecord
-	NextHopSourceMask      uint32
-	NextHopDestinationMask uint32
-}
-
-type sfRecordExtendedGatewayData struct {
-	BaseFlowRecord layers.SFlowBaseFlowRecord
-	NextHop        string
-	AS             uint32
-	SourceAS       uint32
-	PeerAS         uint32
-	ASPathCount    uint32
-	ASPath         []uint32 // AS path
-	Communities    []uint32 // BGP communities
-	LocalPref      uint32   // BGP local preference
-}
-
-// flowConfig and IPType are provided in the original prompt
-type sflowConfig struct {
-	name            string
-	packetsToSend   uint32
-	ppsRate         uint64
-	frameSize       uint32
-	sflowDscp       uint8
-	samplingRate    uint
-	sampleTolerance float32
-	ip              IPType
-	inputInterface  []uint32
-	outputInterface []uint32
-}
-
-type IPType string
-
-const (
-	IPv4 = "IPv4"
-	IPv6 = "IPv6"
-)
 
 type flowAttr struct {
 	src       string   // source IP address
@@ -1021,9 +971,7 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(uint32(*frameSize))
-	flow.Rate().SetPps(100) //(uint64(*fps))
-
-	fmt.Printf("+++++++++++(uint64(*fps)) = %d", uint64(*fps))
+	flow.Rate().SetPps(uint64(*fps))
 	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(fa.srcMac)
@@ -1150,74 +1098,6 @@ func validateTunnelEncapRatio(t *testing.T, tunCounter map[string][]int) {
 	}
 }
 
-// func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, pa *packetAttr) map[string][]int {
-// 	tunCounter := make(map[string][]int)
-// 	for _, otgPortName := range otgPortNames {
-// 		l := NewLogger(t)
-// 		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
-// 		f, err := os.CreateTemp("", "fibchains.pcap")
-// 		if err != nil {
-// 			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
-// 		}
-// 		t.Logf("Created pcap file %s", f.Name())
-// 		if _, err := f.Write(bytes); err != nil {
-// 			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
-// 		}
-// 		f.Close()
-// 		t.Logf("Verifying packet attributes captured on %s", otgPortName)
-// 		handle, err := pcap.OpenOffline(f.Name())
-// 		if err != nil {
-// 			log.Printf("%v", err)
-// 			break
-// 		}
-// 		defer handle.Close()
-
-// 		if pa.sfConfig != nil {
-// 			validateSflowPackets(t, f.Name(), IPv6, *pa.sfConfig)
-// 		}
-
-// 		tunnel1Pkts, tunnel2Pkts := 0, 0
-// 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-// 		for packet := range packetSource.Packets() {
-// 			switch {
-// 			case packet.Layer(layers.LayerTypeIPv4) != nil:
-// 				v4Packet, _ := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
-// 				validateIPv4Packet(l, v4Packet, pa)
-// 				if v4Packet.DstIP.String() == tunnelDstIP1 {
-// 					tunnel1Pkts++
-// 				}
-// 				if v4Packet.DstIP.String() == tunnelDstIP2 {
-// 					tunnel2Pkts++
-// 				}
-// 				// Check for inner IPv4 or IPv6
-// 				if v4Packet.Protocol == layers.IPProtocolIPv4 && pa.inner != nil {
-// 					validateInnerIPv4Packet(l, v4Packet.Payload, pa.inner)
-// 				}
-// 				if v4Packet.Protocol == layers.IPProtocolIPv6 && pa.inner != nil {
-// 					validateInnerIPv6Packet(l, v4Packet.Payload, pa.inner)
-// 				}
-// 			case packet.Layer(layers.LayerTypeIPv6) != nil:
-// 				v6Packet, _ := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
-// 				// Ignore ICMPv6 packets for neighbor discovery
-// 				if v6Packet.NextHeader == layers.IPProtocolICMPv6 {
-// 					t.Logf("Ignoring ICMPv6 packet received")
-// 					continue
-// 				}
-// 				validateIPv6Packet(l, v6Packet, pa)
-// 			case packet.Layer(layers.LayerTypeSFlow) != nil:
-// 				// sFlow validation is already handled above if pa.sfConfig != nil
-// 				t.Logf("Ignoring sFlow packet received")
-// 				continue
-// 			default:
-// 				// Unhandled packet type
-// 			}
-// 		}
-// 		t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
-// 		tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
-// 	}
-// 	return tunCounter
-// }
-
 func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, pa *packetAttr) map[string][]int {
 	tunCounter := make(map[string][]int)
 	for _, otgPortName := range otgPortNames {
@@ -1239,10 +1119,6 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 			break
 		}
 		defer handle.Close()
-
-		// if pa.sfConfig != nil {
-		// 	validateSflowPackets(t, f.Name(), IPv6, *pa.sfConfig)
-		// }
 
 		tunnel1Pkts, tunnel2Pkts := 0, 0
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
@@ -1389,39 +1265,39 @@ func validateSflowSampleFields(l *Logger, packet gopacket.Packet, pa *packetAttr
 
 	for _, flowSample := range datagram.FlowSamples {
 		// Sampling rate check if provided
-		if pa.sfConfig.samplingRate != 0 && flowSample.SamplingRate != uint32(pa.sfConfig.samplingRate) {
-			l.LogOnceErrorf("SFlow SamplingRate mismatch: got %d, want %d", flowSample.SamplingRate, pa.sfConfig.samplingRate)
-		} else if pa.sfConfig.samplingRate != 0 {
+		if pa.sfConfig.SamplingRate != 0 && flowSample.SamplingRate != uint32(pa.sfConfig.SamplingRate) {
+			l.LogOnceErrorf("SFlow SamplingRate mismatch: got %d, want %d", flowSample.SamplingRate, pa.sfConfig.SamplingRate)
+		} else if pa.sfConfig.SamplingRate != 0 {
 			l.LogOncef("SFlow SamplingRate matched: %d", flowSample.SamplingRate)
 		}
 
 		// Input interface check if provided
-		if len(pa.sfConfig.inputInterface) > 0 {
+		if len(pa.sfConfig.InputInterface) > 0 {
 			match := false
-			for _, idx := range pa.sfConfig.inputInterface {
+			for _, idx := range pa.sfConfig.InputInterface {
 				if flowSample.InputInterface == idx {
 					match = true
 					break
 				}
 			}
 			if !match {
-				l.LogOnceErrorf("SFlow InputInterface unexpected: got %d, allowed %v", flowSample.InputInterface, pa.sfConfig.inputInterface)
+				l.LogOnceErrorf("SFlow InputInterface unexpected: got %d, allowed %v", flowSample.InputInterface, pa.sfConfig.InputInterface)
 			} else {
 				l.LogOncef("SFlow InputInterface matched: %d", flowSample.InputInterface)
 			}
 		}
 
 		// Output interface check if provided
-		if len(pa.sfConfig.outputInterface) > 0 {
+		if len(pa.sfConfig.OutputInterface) > 0 {
 			match := false
-			for _, idx := range pa.sfConfig.outputInterface {
+			for _, idx := range pa.sfConfig.OutputInterface {
 				if flowSample.OutputInterface == idx {
 					match = true
 					break
 				}
 			}
 			if !match {
-				l.LogOnceErrorf("SFlow OutputInterface unexpected: got %d, allowed %v", flowSample.OutputInterface, pa.sfConfig.outputInterface)
+				l.LogOnceErrorf("SFlow OutputInterface unexpected: got %d, allowed %v", flowSample.OutputInterface, pa.sfConfig.OutputInterface)
 			} else {
 				l.LogOncef("SFlow OutputInterface matched: %d", flowSample.OutputInterface)
 			}
@@ -1432,11 +1308,11 @@ func validateSflowSampleFields(l *Logger, packet gopacket.Packet, pa *packetAttr
 			for _, rec := range flowSample.Records {
 				switch r := rec.(type) {
 				case layers.SFlowRawPacketFlowRecord:
-					validateSflowRawPacketRecord(l, r, pa.sfSample.rawPktHdr)
+					validateSflowRawPacketRecord(l, r, pa.sfSample.RawPktHdr)
 				case layers.SFlowExtendedRouterFlowRecord:
-					validateSflowExtendedRouterRecord(l, r, pa.sfSample.extdRtrData)
+					validateSflowExtendedRouterRecord(l, r, pa.sfSample.ExtdRtrData)
 				case layers.SFlowExtendedGatewayFlowRecord:
-					validateSflowExtendedGatewayRecord(l, r, pa.sfSample.extdGtwData)
+					validateSflowExtendedGatewayRecord(l, r, pa.sfSample.ExtdGtwData)
 				default:
 					// Keep existing logging for unhandled types if needed
 				}
@@ -1445,7 +1321,7 @@ func validateSflowSampleFields(l *Logger, packet gopacket.Packet, pa *packetAttr
 	}
 }
 
-func validateSflowRawPacketRecord(l *Logger, r layers.SFlowRawPacketFlowRecord, exp *sfRecordRawPacketHeader) {
+func validateSflowRawPacketRecord(l *Logger, r layers.SFlowRawPacketFlowRecord, exp *s.SfRecordRawPacketHeader) {
 	if exp == nil {
 		return
 	}
@@ -1466,7 +1342,7 @@ func validateSflowRawPacketRecord(l *Logger, r layers.SFlowRawPacketFlowRecord, 
 	// }
 }
 
-func validateSflowExtendedRouterRecord(l *Logger, r layers.SFlowExtendedRouterFlowRecord, exp *sfRecordExtendedRouterData) {
+func validateSflowExtendedRouterRecord(l *Logger, r layers.SFlowExtendedRouterFlowRecord, exp *s.SfRecordExtendedRouterData) {
 	if exp == nil {
 		return
 	}
@@ -1487,7 +1363,7 @@ func validateSflowExtendedRouterRecord(l *Logger, r layers.SFlowExtendedRouterFl
 	}
 }
 
-func validateSflowExtendedGatewayRecord(l *Logger, r layers.SFlowExtendedGatewayFlowRecord, exp *sfRecordExtendedGatewayData) {
+func validateSflowExtendedGatewayRecord(l *Logger, r layers.SFlowExtendedGatewayFlowRecord, exp *s.SfRecordExtendedGatewayData) {
 	if exp == nil {
 		return
 	}
@@ -1975,19 +1851,27 @@ func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 // UpdateUnsupportedCollectorConfig updates the configuration for unsupported sFlow collectors.
 func UpdateUnsupportedCollectorConfig(t *testing.T, dut *ondatra.DUTDevice) {
 
-	sf := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().State())
-
 	batchSet := &gnmi.SetBatch{}
 	cliPath, _ := schemaless.NewConfig[string]("", "cli")
 
-	for collectorKey, collector := range sf.GetOrCreateCollectorMap() {
-		t.Logf("Collector Key: %v\n", collectorKey)
-		t.Logf("  Address: %s\n", *collector.Address)
-		t.Logf("  Port: %d\n", *collector.Port)
-		t.Logf("  Source Address: %s\n", *collector.SourceAddress)
-		unsupported := fmt.Sprintf(`flow exporter-map %v\n  dfbit set\n  packet-length 8968\n  !\n`, collectorKey)
-		gnmi.BatchUpdate(batchSet, cliPath, unsupported)
-	}
+	unsupported := fmt.Sprintf(`
+	flow exporter-map %s
+	dfbit set
+	packet-length 8968
+	end
+	`, "OC-FEM-GLOBAL")
+	gnmi.BatchUpdate(batchSet, cliPath, unsupported)
+
+	// sf := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().State())
+
+	// for collectorKey, collector := range sf.GetOrCreateCollectorMap() {
+	// 	t.Logf("Collector Key: %v\n", collectorKey)
+	// 	t.Logf("  Address: %s\n", *collector.Address)
+	// 	t.Logf("  Port: %d\n", *collector.Port)
+	// 	t.Logf("  Source Address: %s\n", *collector.SourceAddress)
+	// 	unsupported := fmt.Sprintf(`flow exporter-map %v\n  dfbit set\n  packet-length 8968\n  !\n`, collectorKey)
+	// 	gnmi.BatchUpdate(batchSet, cliPath, unsupported)
+	// }
 
 	batchSet.Set(t, dut)
 }
@@ -1999,22 +1883,6 @@ func updateSFlowSamplingRate(t *testing.T, dut *ondatra.DUTDevice, rate uint32) 
 	sf.SetIngressSamplingRate(rate)
 	gnmi.Update(t, dut, gnmi.OC().Sampling().Sflow().IngressSamplingRate().Config(), rate)
 }
-
-// import (
-//     "fmt"
-//     "net"
-//     "testing" // Assuming this is part of a test file, so t *testing.T is valid
-
-//     "github.com/google/gopacket"
-//     "github.com/google/gopacket/layers"
-//     "github.com/google/gopacket/pcap"
-// )
-
-// Assuming these are defined elsewhere in the test file or are example values
-const (
-	samplingRate    = 262144 // Example value, adjust as per your test setup
-	sampleTolerance = 0.8    // Example value, adjust as per your test setup
-)
 
 // Dummy struct for dutlo0Attrs to make the code runnable without full testbed context
 var dutlo0Attrs = struct {
@@ -2028,31 +1896,31 @@ var dutlo0Attrs = struct {
 // User's provided SFlowFlowSample struct definition
 // Note: This struct is a conceptual representation. The actual parsing
 // will use gopacket's layers.SFlowFlowSample and layers.SFlowFlowRecord types.
-type SFlowEnterpriseID uint32
-type SFlowSampleType uint32
-type SFlowSourceFormat uint32
-type SFlowSourceValue uint32
-type SFlowRecord interface{} // Represents different types of flow records
+// type SFlowEnterpriseID uint32
+// type SFlowSampleType uint32
+// type SFlowSourceFormat uint32
+// type SFlowSourceValue uint32
+// type SFlowRecord interface{} // Represents different types of flow records
 
-type SFlowFlowSample struct {
-	EnterpriseID          SFlowEnterpriseID
-	Format                SFlowSampleType
-	SampleLength          uint32
-	SequenceNumber        uint32
-	SourceIDClass         SFlowSourceFormat
-	SourceIDIndex         SFlowSourceValue
-	SamplingRate          uint32
-	SamplePool            uint32
-	Dropped               uint32
-	InputInterfaceFormat  uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
-	InputInterface        uint32
-	OutputInterfaceFormat uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
-	OutputInterface       uint32
-	RecordCount           uint32
-	Records               []SFlowRecord
-}
+// type SFlowFlowSample struct {
+// 	EnterpriseID          SFlowEnterpriseID
+// 	Format                SFlowSampleType
+// 	SampleLength          uint32
+// 	SequenceNumber        uint32
+// 	SourceIDClass         SFlowSourceFormat
+// 	SourceIDIndex         SFlowSourceValue
+// 	SamplingRate          uint32
+// 	SamplePool            uint32
+// 	Dropped               uint32
+// 	InputInterfaceFormat  uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
+// 	InputInterface        uint32
+// 	OutputInterfaceFormat uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
+// 	OutputInterface       uint32
+// 	RecordCount           uint32
+// 	Records               []SFlowRecord
+// }
 
-func validateSflowPackets(t *testing.T, filename string, ip IPType, fc sflowConfig) {
+func validateSflowPackets(t *testing.T, filename string, ip s.IPType, fc s.SflowConfig) {
 	// First pass: Check for sFlow-exported packets based on IP header TOS/TrafficClass
 	// This part of the function remains largely the same as your original code.
 	handle, err := pcap.OpenOffline(filename)
@@ -2062,7 +1930,7 @@ func validateSflowPackets(t *testing.T, filename string, ip IPType, fc sflowConf
 	defer handle.Close() // Ensure handle is closed when function exits
 
 	loopbackIP := net.ParseIP(dutlo0Attrs.IPv4)
-	if ip == IPv6 {
+	if ip == s.IPv6 {
 		loopbackIP = net.ParseIP(dutlo0Attrs.IPv6)
 	}
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
@@ -2076,7 +1944,7 @@ func validateSflowPackets(t *testing.T, filename string, ip IPType, fc sflowConf
 			ipv4, _ := ipLayer.(*layers.IPv4)
 			if ipv4.SrcIP.Equal(loopbackIP) {
 				t.Logf("IP Packet: SrcIP=%s, DstIP=%s, TOS=%d, Length=%d", ipv4.SrcIP, ipv4.DstIP, ipv4.TOS, ipv4.Length)
-				if (ipv4.TOS >> 2) == fc.sflowDscp {
+				if (ipv4.TOS >> 2) == fc.SflowDscp {
 					found = true
 					sampleCount++
 				}
@@ -2085,7 +1953,7 @@ func validateSflowPackets(t *testing.T, filename string, ip IPType, fc sflowConf
 			ipv6, _ := ipLayer.(*layers.IPv6)
 			if ipv6.SrcIP.Equal(loopbackIP) {
 				t.Logf("IP Packet: SrcIP=%s, DstIP=%s, TrafficClass=%d, Length=%d", ipv6.SrcIP, ipv6.DstIP, ipv6.TrafficClass, ipv6.Length)
-				if ipv6.TrafficClass == (fc.sflowDscp << 2) {
+				if ipv6.TrafficClass == (fc.SflowDscp << 2) {
 					found = true
 					sampleCount++
 				}
@@ -2093,7 +1961,8 @@ func validateSflowPackets(t *testing.T, filename string, ip IPType, fc sflowConf
 		}
 	}
 
-	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
+	expectedSampleCount := float64(fc.
+		PacketsToSend / samplingRate)
 	// expectedSampleCount := float64((120 * 100000) / samplingRate)
 	minAllowedSamples := expectedSampleCount * sampleTolerance
 	t.Logf("SFlow packets captured (based on IP header TOS/TrafficClass): %v", sampleCount)
@@ -2265,179 +2134,6 @@ func validateSflowPackets(t *testing.T, filename string, ip IPType, fc sflowConf
 	}
 }
 
-// // validateSflowSampleCount counts sFlow-exported packets based on IP header TOS/TrafficClass.
-// func validateSflowSampleCount(t *testing.T, filename string, ip IPType, fc sflowConfig) (int, float64, float64) {
-// 	handle, err := pcap.OpenOffline(filename)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer handle.Close()
-
-// 	loopbackIP := net.ParseIP(dutlo0Attrs.IPv4)
-// 	if ip == IPv6 {
-// 		loopbackIP = net.ParseIP(dutlo0Attrs.IPv6)
-// 	}
-// 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-
-// 	found := false
-// 	sampleCount := 0
-
-// 	for packet := range packetSource.Packets() {
-// 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-// 			ipv4, _ := ipLayer.(*layers.IPv4)
-// 			if ipv4.SrcIP.Equal(loopbackIP) {
-// 				if (ipv4.TOS >> 2) == fc.sflowDscp {
-// 					found = true
-// 					sampleCount++
-// 				}
-// 			}
-// 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
-// 			ipv6, _ := ipLayer.(*layers.IPv6)
-// 			if ipv6.SrcIP.Equal(loopbackIP) {
-// 				if ipv6.TrafficClass == (fc.sflowDscp << 2) {
-// 					found = true
-// 					sampleCount++
-// 				}
-// 			}
-// 		}
-// 	}
-
-// 	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
-// 	minAllowedSamples := expectedSampleCount * sampleTolerance
-// 	t.Logf("SFlow packets captured (based on IP header TOS/TrafficClass): %v", sampleCount)
-// 	return sampleCount, expectedSampleCount, minAllowedSamples
-// }
-
-// // validateSflowSampleFields validates sFlow datagram and flow sample fields.
-// func validateSflowSampleFields(t *testing.T, filename string, fc sflowConfig) {
-// 	handle, err := pcap.OpenOffline(filename)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer handle.Close()
-
-// 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-
-// 	pickedFlowSamplesCount := 0
-// 	packetCount := 0
-// 	sflowSamplesTotal := uint32(0)
-
-// 	for packet := range packetSource.Packets() {
-// 		if pickedFlowSamplesCount >= 2 {
-// 			t.Log("\n--- Two SFlow Flow Samples picked and printed. Stopping further processing. ---")
-// 			break
-// 		}
-
-// 		if sflowLayer := packet.Layer(layers.LayerTypeSFlow); sflowLayer != nil {
-// 			sflowDatagram, ok := sflowLayer.(*layers.SFlowDatagram)
-// 			if !ok {
-// 				t.Logf("Warning: Could not cast SFlow layer to *layers.SFlowDatagram")
-// 				continue
-// 			}
-
-// 			packetCount++
-// 			sflowSamplesTotal += sflowDatagram.SampleCount
-
-// 			t.Logf("\nSFlow Datagram %d found. Contains %d samples (total reported: %d).",
-// 				packetCount, len(sflowDatagram.FlowSamples), sflowDatagram.SampleCount)
-
-// 			for _, flowSample := range sflowDatagram.FlowSamples {
-// 				if pickedFlowSamplesCount >= 2 {
-// 					break
-// 				}
-// 				t.Logf("\n--- SFlow Flow Sample %d Details (from Datagram %d) ---", pickedFlowSamplesCount+1, packetCount)
-// 				t.Logf("  EnterpriseID: %d", flowSample.EnterpriseID)
-// 				t.Logf("  Format: %d", flowSample.Format)
-// 				t.Logf("  SampleLength: %d", flowSample.SampleLength)
-// 				t.Logf("  SequenceNumber: %d", flowSample.SequenceNumber)
-// 				t.Logf("  SourceIDClass: %d", flowSample.SourceIDClass)
-// 				t.Logf("  SourceIDIndex: %d", flowSample.SourceIDIndex)
-// 				t.Logf("  SamplingRate: %d", flowSample.SamplingRate)
-// 				t.Logf("  SamplePool: %d", flowSample.SamplePool)
-// 				t.Logf("  Dropped: %d", flowSample.Dropped)
-// 				t.Logf("  InputInterface: %d", flowSample.InputInterface)
-// 				t.Logf("  OutputInterface: %d", flowSample.OutputInterface)
-// 				t.Logf("  RecordCount: %d", len(flowSample.Records))
-
-// 				for i, record := range flowSample.Records {
-// 					t.Logf("    --- Flow Record %d (Type: %T) ---", i+1, record)
-// 					switch r := record.(type) {
-// 					case layers.SFlowRawPacketFlowRecord:
-// 						t.Logf("      Type: Raw Packet Flow Record")
-// 						t.Logf("      Header Protocol: %d", r.HeaderProtocol)
-// 						t.Logf("      FrameLength: %d", r.FrameLength)
-// 						t.Logf("      Header Length: %d (first %d bytes of original packet)", r.HeaderLength, r.Header)
-// 					case layers.SFlowEthernetFrameFlowRecord:
-// 						t.Logf("      Type: Ethernet Frame Flow Record")
-// 						t.Logf("      FrameLength: %d", r.FrameLength)
-// 						t.Logf("      SrcMAC: %s", r.SrcMac)
-// 						t.Logf("      DstMAC: %s", r.DstMac)
-// 						t.Logf("      EtherType: %d", r.Type)
-// 					case layers.SFlowIpv4Record:
-// 						t.Logf("      Type: IPv4 Flow Record")
-// 						t.Logf("      SrcIP: %s", r.IPSrc)
-// 						t.Logf("      DstIP: %s", r.IPDst)
-// 						t.Logf("      Protocol: %d", r.Protocol)
-// 						t.Logf("      SrcPort: %d", r.PortSrc)
-// 						t.Logf("      DstPort: %d", r.PortDst)
-// 						t.Logf("      TCPFlags: %d", r.TCPFlags)
-// 						t.Logf("      TotalLength: %d", r.Length)
-// 					case layers.SFlowIpv6Record:
-// 						t.Logf("      Type: IPv6 Flow Record")
-// 						t.Logf("      SrcIP: %s", r.IPSrc)
-// 						t.Logf("      DstIP: %s", r.IPDst)
-// 						t.Logf("      Protocol: %d", r.Protocol)
-// 						t.Logf("      SrcPort: %d", r.PortSrc)
-// 						t.Logf("      DstPort: %d", r.PortDst)
-// 						t.Logf("      TCPFlags: %d", r.TCPFlags)
-// 						t.Logf("      TotalLength: %d", r.Length)
-// 					case layers.SFlowExtendedRouterFlowRecord:
-// 						t.Logf("      Type: Extended Router Flow Record")
-// 						t.Logf("      NextHop: %s", r.NextHop)
-// 						t.Logf("      SrcMask: %d", r.NextHopSourceMask)
-// 						t.Logf("      DstMask: %d", r.NextHopDestinationMask)
-// 					case layers.SFlowExtendedGatewayFlowRecord:
-// 						t.Logf("      Type: Extended Gateway Flow Record")
-// 						t.Logf("      NextHop: %s", r.NextHop)
-// 						t.Logf("      AS: %d", r.AS)
-// 						t.Logf("      SrcAS: %d", r.SourceAS)
-// 						t.Logf("      DstAS: %d", r.PeerAS)
-// 						t.Logf("      Communities: %v", r.Communities)
-// 						t.Logf("      LocalPref: %d", r.LocalPref)
-// 					default:
-// 						t.Logf("      Type: Unhandled Flow Record Type (%T)", record)
-// 					}
-// 				}
-// 				pickedFlowSamplesCount++
-// 			}
-// 		}
-// 	}
-//}
-
-// Example usage context (from your original prompt, not part of the function itself)
-/*
-flowConfigs = []flowConfig{
-        {
-            name:          "flowS",
-            packetsToSend: 10000000,
-            ppsRate:       300000,
-            frameSize:     64,
-        },
-        {
-            name:          "flowM",
-            packetsToSend: 10000000,
-            ppsRate:       300000,
-            frameSize:     512,
-        },
-        {
-            name:          "flowL",
-            packetsToSend: 10000000,
-            ppsRate:       300000,
-            frameSize:     1500,
-        },
-    }
-*/
-
 // GetToSTrafficClass computes the Type of Service (ToS) byte for IPv4 or
 // Traffic Class byte for IPv6 based on the given DSCP and ECN values.
 //
@@ -2492,13 +2188,6 @@ func sshRunCommand(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIC
 
 var ifIndexMap = make(map[string]uint32)
 
-// // To store:
-// ifIndexMap["Bundle-Ether1"] = 101
-// ifIndexMap["Bundle-Ether2"] = 102
-
-// // To retrieve:
-// idx := ifIndexMap["Bundle-Ether1"]
-
 func getBundleMembers(t *testing.T, dut *ondatra.DUTDevice, bundleName string) []string {
 	return gnmi.Get(t, dut, gnmi.OC().Interface(bundleName).Aggregation().Member().State())
 }
@@ -2526,15 +2215,15 @@ func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames 
 	return bundleMemberIfIndexes
 }
 
-// To check if an sFlow packet's ifIndex is a member of a bundle:
-func isMemberIfIndex(bundle string, ifIndex uint32) bool {
-	for _, idx := range bundleMemberIfIndexes[bundle] {
-		if idx == ifIndex {
-			return true
-		}
-	}
-	return false
-}
+// // To check if an sFlow packet's ifIndex is a member of a bundle:
+// func isMemberIfIndex(bundle string, ifIndex uint32) bool {
+// 	for _, idx := range bundleMemberIfIndexes[bundle] {
+// 		if idx == ifIndex {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, intfs []string) {
 	for _, intf := range intfs {
@@ -2544,15 +2233,15 @@ func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClie
 	}
 }
 
-func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *sflowConfig) {
+func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *s.SflowConfig) {
 	if sfc != nil {
 		oldPorts := args.capture_ports
 		oldTtl := args.pattr.ttl
 		oldDscp := args.pattr.dscp
 		args.pattr.sfConfig = sfc
-		SetFlowsRate(args.flows, sfc.ppsRate)
+		SetFlowsRate(args.flows, sfc.PpsRate)
 		args.trafficDuration = *sf_trafficDuration
-		args.pattr.dscp = int(sfc.sflowDscp)
+		args.pattr.dscp = int(sfc.SflowDscp)
 		args.pattr.ttl = 255
 
 		defer func() {
@@ -2573,113 +2262,4 @@ func SetFlowsRate(flows []gosnappi.Flow, pps uint64) {
 	for _, flow := range flows {
 		flow.Rate().SetPps(pps)
 	}
-}
-
-// NewSfRecordRawPacketHeader creates a new instance of sfRecordRawPacketHeader
-func NewSfRecordRawPacketHeader(protocol, frameLength, stripped uint32, header []byte) *sfRecordRawPacketHeader {
-	return &sfRecordRawPacketHeader{
-		Protocol:    protocol,
-		FrameLength: frameLength,
-		Stripped:    stripped,
-		Header:      header,
-	}
-}
-
-// Setters for sfRecordRawPacketHeader fields
-func (s *sfRecordRawPacketHeader) SetProtocol(protocol uint32) {
-	s.Protocol = protocol
-}
-func (s *sfRecordRawPacketHeader) SetFrameLength(frameLength uint32) {
-	s.FrameLength = frameLength
-}
-func (s *sfRecordRawPacketHeader) SetStripped(stripped uint32) {
-	s.Stripped = stripped
-}
-func (s *sfRecordRawPacketHeader) SetHeader(header []byte) {
-	s.Header = header
-}
-
-// Getters for sfRecordRawPacketHeader fields
-func (s *sfRecordRawPacketHeader) GetProtocol() uint32 {
-	return s.Protocol
-}
-func (s *sfRecordRawPacketHeader) GetFrameLength() uint32 {
-	return s.FrameLength
-}
-func (s *sfRecordRawPacketHeader) GetStripped() uint32 {
-	return s.Stripped
-}
-func (s *sfRecordRawPacketHeader) GetHeader() []byte {
-	return s.Header
-}
-
-// NewSfRecordExtendedRouterData creates a new instance of sfRecordExtendedRouterData
-func NewSfRecordExtendedRouterData(
-	nextHop string,
-	inputInterface, outputInterface uint32,
-) *sfRecordExtendedRouterData {
-	return &sfRecordExtendedRouterData{
-		NextHop: nextHop,
-	}
-}
-
-// Setters for sfRecordExtendedRouterData fields
-func (s *sfRecordExtendedRouterData) SetNextHop(nextHop string) {
-	s.NextHop = nextHop
-}
-
-// Getters for sfRecordExtendedRouterData fields
-func (s *sfRecordExtendedRouterData) GetNextHop() string {
-	return s.NextHop
-}
-
-// NewSfRecordExtendedGatewayData creates a new instance of sfRecordExtendedGatewayData
-func NewSfRecordExtendedGatewayData(
-	nextHop string,
-	as uint32,
-	sourceAS uint32,
-	peerAS uint32,
-	asPathCount uint32,
-	asPath []uint32,
-	communities []uint32,
-	localPref uint32,
-) *sfRecordExtendedGatewayData {
-	return &sfRecordExtendedGatewayData{
-		NextHop:     nextHop,
-		AS:          as,
-		SourceAS:    sourceAS,
-		PeerAS:      peerAS,
-		ASPathCount: asPathCount,
-		ASPath:      asPath,
-		Communities: communities,
-		LocalPref:   localPref,
-	}
-}
-
-// Setters for sfRecordExtendedGatewayData fields
-func (s *sfRecordExtendedGatewayData) SetNextHop(nextHop string) {
-	s.NextHop = nextHop
-}
-func (s *sfRecordExtendedGatewayData) SetASPath(asPath []uint32) {
-	s.ASPath = asPath
-}
-func (s *sfRecordExtendedGatewayData) SetCommunities(communities []uint32) {
-	s.Communities = communities
-}
-func (s *sfRecordExtendedGatewayData) SetLocalPref(localPref uint32) {
-	s.LocalPref = localPref
-}
-
-// Getters for sfRecordExtendedGatewayData fields
-func (s *sfRecordExtendedGatewayData) GetNextHop() string {
-	return s.NextHop
-}
-func (s *sfRecordExtendedGatewayData) GetASPath() []uint32 {
-	return s.ASPath
-}
-func (s *sfRecordExtendedGatewayData) GetCommunities() []uint32 {
-	return s.Communities
-}
-func (s *sfRecordExtendedGatewayData) GetLocalPref() uint32 {
-	return s.LocalPref
 }

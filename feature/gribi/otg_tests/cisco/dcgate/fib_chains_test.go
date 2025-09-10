@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
@@ -563,17 +564,17 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 	bmIndexes := GetBundleMemberIfIndexes(t, args.dut, []string{"Bundle-Ether1", "Bundle-Ether2", "Bundle-Ether3", "Bundle-Ether4", "Bundle-Ether5", "Bundle-Ether8"})
 	t.Logf("Bundle member ifindexes: %v", bmIndexes)
 
-	sfConfig := &sflowConfig{
-		name:            "sflow-capture",
-		packetsToSend:   uint32(*sf_trafficDuration * int(*sf_fps)),
-		ppsRate:         uint64(*sf_fps),
-		frameSize:       uint32(*frameSize),
-		sflowDscp:       32,
-		samplingRate:    262144,
-		sampleTolerance: 0.8,
-		ip:              "IPv6",
-		inputInterface:  bmIndexes["Bundle-Ether1"],
-		outputInterface: bmIndexes["Bundle-Ether5"],
+	sfConfig := &s.SflowConfig{
+		Name:            "sflow-capture",
+		PacketsToSend:   uint32(*sf_trafficDuration * int(*sf_fps)),
+		PpsRate:         uint64(*sf_fps),
+		FrameSize:       uint32(*frameSize),
+		SflowDscp:       32,
+		SamplingRate:    262144,
+		SampleTolerance: 0.8,
+		IP:              "IPv6",
+		InputInterface:  bmIndexes["Bundle-Ether1"],
+		OutputInterface: bmIndexes["Bundle-Ether5"],
 	}
 
 	t.Run("miss in decap fallback to transit", func(t *testing.T) {
