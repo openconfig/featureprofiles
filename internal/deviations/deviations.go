@@ -1583,6 +1583,41 @@ func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
 }
 
+// QosRemarkOCUnsupported returns true if Qos remark parameters are unsupported
+func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
+}
+
+// PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
+}
+
+// PolicyRuleCountersOCUnsupported returns true if policy forwarding Rule Counters is not supported on vendors
+func PolicyRuleCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyRuleCountersOcUnsupported()
+}
+
+// OTNToETHAssignment returns true if the device must have the OTN to ETH assignment.
+func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnToEthAssignment()
+}
+
+// NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
+func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+}
+
+// SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
+func SkipOrigin(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipOrigin()
+}
+
+// PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
+func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
+}
+
 // DecapGroupOCUnsupported returns true if decapsulation group is not supported
 func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
