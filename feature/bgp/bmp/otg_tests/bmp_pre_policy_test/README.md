@@ -99,18 +99,18 @@ B --EBGP--> C[Port2:ATE];
               "bmp": {
                 "config": {
                   "enabled": true,
-                  "connection-mode": ACTIVE,
-                  "local-address": 172.16.1.1,
+                  "connection-mode": "ACTIVE",
+                  "local-address": "172.16.1.1",
                   "statistics-timeout": 30
                 },
                 "stations": {
                   "station": {
                     "config": {
-                      "name": BMP-STATION,
-                      "address": 10.23.15.58,
+                      "name": "BMP-STATION",
+                      "address": "10.23.15.58",
                       "port": 7039,
-                      "policy-type": PRE_POLICY,
-                      "exclude-non-eligible": TRUE
+                      "policy-type": "PRE_POLICY",
+                      "exclude-non-eligible": true
                     }
                   }
                 }
