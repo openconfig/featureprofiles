@@ -3,7 +3,6 @@ package last_reboot_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -64,8 +63,6 @@ func TestRouterLastRebootTime(t *testing.T) {
 
 			util.ReloadRouterWithRebootMethod(t, dut, rebootMethod)
 
-			time.Sleep(time.Minute * 3)
-
 			lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).LastRebootTime().State())
 
 			if lastRebootTimeAfter < lastRebootTimeBefore {
@@ -123,7 +120,6 @@ func TestLCReloadLastRebootTime(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestRPFOLastRebootTime(t *testing.T) {
@@ -142,8 +138,6 @@ func TestRPFOLastRebootTime(t *testing.T) {
 
 	// Dorpfo depends on metadata.textproto existing since it uses one of the fields
 	utils.Dorpfo(context.Background(), t, false)
-
-	time.Sleep(time.Minute * 3)
 
 	lastRebootTimeAfter := gnmi.Get(t, dut, gnmi.OC().Component(rpActive).LastRebootTime().State())
 
