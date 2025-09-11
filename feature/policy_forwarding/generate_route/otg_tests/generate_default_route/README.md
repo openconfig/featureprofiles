@@ -17,9 +17,6 @@
 * Description of procedure to configure ATE and DUT with pre-requisites making
   it possible to cover the intended paths and RPCs.
 
-### TestID-x.y.1 - Name of subtest 1
-### TestID-x.y.2 - Name of subtest 2
-
 ### RT-10.1.1 - 192.0.0.0/8 and 0.0.0.0/0 route is present
 
 * On ATE-1, advertise a bgp route 192.0.0.0/8 towards DUT.	
