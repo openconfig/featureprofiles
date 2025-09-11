@@ -553,9 +553,11 @@ func TestEgressP4RTWithNextHopDefaultVRF(t *testing.T) {
 		memberCount: memberCount,
 	}
 
+	args.packetIO = getTracerouteParameter()
+
 	// cleanup entries from previous test runs
-	programmTableEntry(leader, args.packetIO, true, true, deviceId2)
-	programmTableEntry(leader, args.packetIO, true, false, deviceId2)
+	programmTableEntry(leader, args.packetIO, true, true, deviceId)
+	programmTableEntry(leader, args.packetIO, true, false, deviceId)
 
 	if err := setupP4RTClient(args, deviceId, stream); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
@@ -570,7 +572,6 @@ func TestEgressP4RTWithNextHopDefaultVRF(t *testing.T) {
 		deviceSet = false
 	}
 
-	args.packetIO = getTracerouteParameter()
 	srcport := "port1"
 	//regionalization
 	t.Run("TestWithRegionalization-port1-IpinIpTcpDCRegionalization", func(t *testing.T) {
