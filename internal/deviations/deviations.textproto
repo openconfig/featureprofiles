@@ -971,7 +971,7 @@ deviations: {
     }
     deviation_values: {
       vendor_specific_value: {
-        string_val: "[a-z0-9-]+\.0"
+        string_val: "+.0"
       }
     }
   }
@@ -983,7 +983,7 @@ deviations: {
     }
     deviation_values: {
       vendor_specific_value: {
-        string_val: "[a-z0-9-]+\.0"
+        string_val: "+.0"
       }
     }
   }
