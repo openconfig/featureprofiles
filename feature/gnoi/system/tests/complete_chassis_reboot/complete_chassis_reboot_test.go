@@ -37,9 +37,9 @@ const (
 	// maxCompWaitTime is the maximum wait time for all components to be in a responsive state after reboot.
 	maxCompWaitTime = 10 * time.Minute
 	// componentPollInterval is the interval at which component status is polled.
-	componentPollInterval = 5 * time.Second
+	componentPollInterval = 10 * time.Second
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
-	rebootPollInterval = 5 * time.Second
+	rebootPollInterval = 10 * time.Second
 	// contextTimeout is the overall timeout for the gNOI reboot operation.
 	contextTimeout = 20 * time.Minute
 )
@@ -143,12 +143,12 @@ func TestChassisReboot(t *testing.T) {
 			}
 
 			if tc.rebootRequest.GetDelay() > 1 {
-				t.Logf("Validating DUT remains reachable for at least %d seconds.", rebootDelay)
+				t.Logf("Validating DUT remains reachable for at least %.2f seconds.", rebootDelay.Seconds())
 				for {
 					time.Sleep(10 * time.Second)
 					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
 					if time.Since(start).Seconds() > rebootDelay.Seconds() {
-						t.Logf("Time elapsed (%.2f seconds) has exceeded the reboot delay of %d seconds.", time.Since(start).Seconds(), rebootDelay)
+						t.Logf("Time elapsed (%.2f seconds) has exceeded the reboot delay of %.2f seconds.", time.Since(start).Seconds(), rebootDelay.Seconds())
 						break
 					}
 					var latestTime time.Time
