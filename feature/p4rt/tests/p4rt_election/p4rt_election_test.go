@@ -345,7 +345,7 @@ func TestUnsetElectionid(t *testing.T) {
 			wantStatus: codes.NotFound,
 		},
 	}
-	
+
 	if deviations.P4rtUnsetElectionIDPrimaryAllowed(dut) {
 		// For P4 Runtime server implementations that allow unset election id update the
 		// expected status to OK for primary and INVALID_ARGUMENT for the secondary
@@ -354,7 +354,7 @@ func TestUnsetElectionid(t *testing.T) {
 		clients[0].wantStatus = codes.OK
 		clients[1].wantStatus = codes.InvalidArgument
 	}
-	
+
 	// Connect 2 clients to same deviceID with unset electionId.
 	for _, test := range clients {
 		t.Run(test.desc, func(t *testing.T) {
