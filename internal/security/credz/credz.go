@@ -32,7 +32,7 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	// "golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -336,23 +336,6 @@ func GetAcceptTelemetry(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
 	return sshCounters.GetAccessAccepts(), sshCounters.GetLastAccessAccept()
 }
 
-// GetDutTarget returns ssh target for the dut to be used in credentialz tests.
-func GetDutTarget(t *testing.T, dut *ondatra.DUTDevice) string {
-	var serviceDUT interface {
-		Service(string) (*tpb.Service, error)
-	}
-	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
-	if err != nil {
-		t.Log("DUT does not support `Service` function, will attempt to use dut name field")
-		return fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
-	}
-	dutSSHService, err := serviceDUT.Service("ssh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
-}
-
 // GetDutPublicKey retrieve single host public key from the dut.
 func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice) []byte {
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
@@ -610,12 +593,29 @@ func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, targe
 	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
 
-// func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
-//	return &ssh.ClientConfig{
-//		User: username,
-//		Auth: []ssh.AuthMethod{
-//			ssh.PublicKeys(signer),
-//		},
-//		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
-//	}
+func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
+	return &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
+	}
+}
+
+// // GetDutTarget returns ssh target for the dut to be used in credentialz tests.
+// func GetDutTarget(t *testing.T, dut *ondatra.DUTDevice) string {
+// 	var serviceDUT interface {
+// 		Service(string) (*tpb.Service, error)
+// 	}
+// 	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
+// 	if err != nil {
+// 		t.Log("DUT does not support `Service` function, will attempt to use dut name field")
+// 		return fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
+// 	}
+// 	dutSSHService, err := serviceDUT.Service("ssh")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	return fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
 // }

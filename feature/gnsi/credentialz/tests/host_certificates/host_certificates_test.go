@@ -15,6 +15,7 @@
 package hostcertificates_test
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -36,6 +37,9 @@ const (
 
 var (
 	hostCertificateCreatedOn = time.Now().Unix()
+	username                 = "testuser"
+	passwordVersion          = "v1.0"
+	passwordCreatedOn        = time.Now().Unix()
 )
 
 func TestMain(m *testing.M) {
@@ -44,23 +48,20 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
 
 	// Create temporary directory for storing ssh keys/certificates.
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("Creating temp dir, err: %s", err)
-	}
-	defer func(dir string) {
-		err = os.RemoveAll(dir)
-		if err != nil {
-			t.Logf("Error removing temp directory, error: %s", err)
-		}
-	}(dir)
+	dir := t.TempDir()
+
+	// Setup test user and password.
+	credz.SetupUser(t, dut, username)
+	password := credz.GeneratePassword()
+
+	t.Logf("Rotating user password on DUT")
+	credz.RotateUserPassword(t, dut, username, password, passwordVersion, uint64(passwordCreatedOn))
 
 	// Create ssh keys/certificates for CA & host.
 	credz.CreateSSHKeyPair(t, dir, "ca")
-	credz.CreateSSHKeyPair(t, dir, "dut")
+	credz.CreateSSHKeyPair(t, dir, dut.ID())
 
 	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, uint64(hostCertificateCreatedOn))
 	dutKey := credz.GetDutPublicKey(t, dut)
@@ -68,7 +69,7 @@ func TestCredentialz(t *testing.T) {
 	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion, uint64(hostCertificateCreatedOn))
 
 	t.Run("dut should return signed host certificate", func(t *testing.T) {
-		certificateContents, err := os.ReadFile(fmt.Sprintf("%s/dut-cert.pub", dir))
+		certificateContents, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", dir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
@@ -77,37 +78,34 @@ func TestCredentialz(t *testing.T) {
 			t.Fatalf("Failed parsing host certificate authorized (cert)key: %s", err)
 		}
 
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		client, err := credz.SSHWithPassword(ctx, dut, username, password)
+		if err != nil {
+			t.Fatalf("Failed dialing ssh with password: %s", err)
+		}
+
+		gotHostKey, _, _, _, err := ssh.ParseAuthorizedKey(client.HostKey())
+		if err != nil {
+			t.Fatalf("Failed parsing host certificate from device: %s", err)
+		}
 		// Verify correct host certificate is returned by the dut.
-		_, err = ssh.Dial(
-			"tcp",
-			target,
-			&ssh.ClientConfig{
-				User: "admin",
-				Auth: []ssh.AuthMethod{},
-				HostKeyCallback: func(hostname string, remote net.Addr, gotHostKey ssh.PublicKey) error {
-					if !cmp.Equal(gotHostKey, wantHostKey) {
-						t.Fatalf("Host presented key (cert) that does not match expected host certificate. got: %v, want: %v", gotHostKey, wantHostKey)
-					}
-					return nil
-				},
-			},
-		)
-		if err == nil {
-			t.Fatal("Dial ssh succeeded, but we expected failure.")
+		if !cmp.Equal(gotHostKey, wantHostKey) {
+			t.Errorf("Host presented key (cert) that does not match expected host certificate. got: %v, want: %v", gotHostKey, wantHostKey)
 		}
 
 		// Verify host certificate telemetry values.
 		sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
 		gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
 		if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
-			t.Fatalf(
+			t.Errorf(
 				"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
 				gotHostCertificateVersion, hostCertificateVersion,
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
 		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
-			t.Fatalf(
+			t.Errorf(
 				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
 				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
 			)
