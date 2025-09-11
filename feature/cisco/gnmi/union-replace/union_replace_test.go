@@ -56,6 +56,7 @@ func baseConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	return baseConfiguration
 
 }
+
 func validate[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T], expected T) {
 	getResponse := gnmi.Get(t, dut, q)
 	diff := cmp.Diff(getResponse, expected)
@@ -64,6 +65,7 @@ func validate[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuer
 	}
 
 }
+
 func bgpValidator(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Get(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().Config())
 	time.Sleep(10 * time.Second)
@@ -693,12 +695,10 @@ func TestGnmiUnionReplace(t *testing.T) {
 		emptyOriginPath := &gpb.Update{Path: &gpb.Path{Origin: ""}}
 		setReq := &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: []*gpb.Update{emptyOriginPath, emptyOriginPath}}
 		gnmiC := dut.RawAPIs().GNMI(t)
-		setResponse, err := gnmiC.Set(context.Background(), setReq)
+		_, err := gnmiC.Set(context.Background(), setReq)
 		if err == nil {
 			t.Errorf("Expected error with empty config. Got success: %v", err)
 		}
-		t.Log(setResponse.GetResponse())
-		t.Log(err.Error())
 	})
 	// 2. Mixed OC + invalid CLI fragment.
 	// Goal: verify malformed/unsupported CLI chunk triggers failure while parsing/applying.
@@ -831,7 +831,10 @@ func TestGnmiUnionReplace(t *testing.T) {
 		}}
 		gpbReplaceReq := &gpb.SetRequest{Replace: cliBaseconfig}
 		// Replace with base config on the box
-		_, _ = dut.RawAPIs().GNMI(t).Set(context.Background(), gpbReplaceReq)
+		_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), gpbReplaceReq)
+		if err != nil {
+			t.Fatalf("failed to replace with base config on DUT. err: %v", err)
+		}
 
 		var jsonIetfVal []byte
 		t.Logf("Input JSON (ietfVal): %s", string(jsonIetfVal)) // is this logging needed? bloated test output log
@@ -886,11 +889,18 @@ func TestGnmiUnionReplace(t *testing.T) {
 
 		// Parse the CLI JSON response to extract the JSON content.
 		startIndex := strings.Index(cliJson, "{")
+		if startIndex == -1 {
+			t.Fatal("invalid JSON string: missing opening brace")
+		}
 		jsonString := cliJson[startIndex:]
 		t.Log("Parsed JSON String:", jsonString)
 
 		// Trim the JSON string to remove any characters after the closing brace.
-		jsonString = jsonString[:strings.LastIndex(jsonString, "}")+1]
+		endIndex := strings.LastIndex(jsonString, "}")
+		if endIndex == -1 {
+			t.Fatal("invalid JSON string: missing closing brace")
+		}
+		jsonString = jsonString[:endIndex+1]
 		t.Log("JSON String after removing character after }", jsonString)
 
 		// Unmarshal the JSON string into a map for further processing.
@@ -905,7 +915,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		// Extract the "data" field from the JSON map.
 		dataContent, ok := data["data"]
 		if !ok {
-			t.Errorf("Key 'data' not found in the JSON")
+			t.Fatal("Key 'data' not found in the JSON")
 		}
 		t.Log("Data Content:", dataContent)
 
@@ -951,7 +961,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		}
 		t.Log("############end of UPDATE ###############")
 
-		// Create an OpenConfig configuration update using the JSON IETF value.
+		// Create a Cisco-Native configuration update using the JSON IETF value.
 		updates = append(updates, occonfig...)
 		// Unmarshal the JSON string
 		var jsonData map[string]interface{}
