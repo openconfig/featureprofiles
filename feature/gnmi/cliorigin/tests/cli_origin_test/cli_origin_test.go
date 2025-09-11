@@ -17,7 +17,6 @@ package cli_origin_test
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -137,11 +136,7 @@ func nokiaCLI(intf string, enabled bool) string {
 	if enabled {
 		op = "enable"
 	}
-	cmd := fmt.Sprintf(`
-   /interface %s admin-state %s
-	`, intf, op)
-	cmd = strings.TrimSpace(cmd)
-	return cmd
+	return fmt.Sprintf(`/interface %s admin-state %s`, intf, op)
 }
 
 func juniperCLI(intf string, enabled bool) string {
