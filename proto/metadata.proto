@@ -809,7 +809,7 @@ message Metadata {
     bool static_arp_unsupported = 288;
 
     // Arista b/390506907
-    bool interface_policy_forwarding_unsupported = 289;
+    bool interface_policy_forwarding_unsupported = 289;  
 
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
@@ -920,6 +920,10 @@ message Metadata {
     // Devices that support pre-defined max ecmp paths
     // Juniper b/422688435
      bool predefined_max_ecmp_paths = 320;
+
+    //Nokia; b/<yet to add>
+    //noECMPwithEncapDecapNhMix returns true if mixed encap and decap next hops are not supported.
+    bool no_ecmp_with_encap_decap_nh_mix = 321;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
