@@ -73,14 +73,11 @@ The BGP session drops or gets stuck in an intermediate state.
 
 ### Canonical OC 
 
+TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)): Add advertise-aggregate path to the OpenConfig public data models. 
+`/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/advertise-aggregate = `"LOCAL-AGG"`
+
+
 ```json
-
-TODO: Add advertise-aggregate path to the OpenConfig public data models. (https://github.com/openconfig/public/issues/1368)
-
-/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/advertise-aggregate = `"LOCAL-AGG"
-
-
-
 {
   "network-instances": {
     "network-instance": [
