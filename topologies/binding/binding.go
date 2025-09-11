@@ -617,7 +617,7 @@ type creds struct {
 }
 
 func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
+	md, ok := metadata.FromOutgoingContext(ctx)
 	var username, password string
 	if ok {
 		if len(md.Get("username")) > 0 && md.Get("username")[0] != "" {
