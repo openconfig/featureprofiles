@@ -1174,6 +1174,7 @@ deviations: {
   impacted_paths: {
     ocpaths: {
       name: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result"
+    }
   }
   platforms: {
     issue_url: ""
