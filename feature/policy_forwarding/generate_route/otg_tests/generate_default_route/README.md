@@ -1,75 +1,36 @@
 # RT-10.1: Default Route Generation based on 192.0.0.0/8 Presence
 
-## Testcase summary
-
-### Testbed type 
+## Testbed Topology
 
 * [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
-### Topology
-
-*  Connect ATE Port-1 to DUT Port-1
-
-*  Preconditions:
-    * A BGP speaker DUT is configured.
-
-    * BGP peering is established and stable between DUT and at least one neighbor ATE-1.
-
-    * A policy to generate default route 0.0.0.0/0 upon receiving a bgp route 192.0.0.0/8
-    
-    * Initial routing tables are verified to be free of any 192.0.0.0/8 or 0.0.0.0/0 routes.
-    
-      
- 
-
 ## Procedure
 
-### Scenario 1: 192.0.0.0/8 route is present		
+### Test environment setup
 
-1.1	On ATE-1, advertise a bgp route 192.0.0.0/8 towards DUT.	
+*  Connect ATE Port-1 to DUT Port-1
+*  Preconditions:
+    * A BGP speaker DUT is configured.
+    * BGP peering is established and stable between DUT and at least one neighbor ATE-1.
+    * A policy to generate default route 0.0.0.0/0 upon receiving a bgp route 192.0.0.0/8
+    * Initial routing tables are verified to be free of any 192.0.0.0/8 or 0.0.0.0/0 routes.
+* Description of procedure to configure ATE and DUT with pre-requisites making
+  it possible to cover the intended paths and RPCs.
 
-Expected result: The 192.0.0.0/8 route is visible in DUT's routing table.
+### TestID-x.y.1 - Name of subtest 1
+### TestID-x.y.2 - Name of subtest 2
 
-1.2	Wait for BGP to converge.	
+### RT-10.1.1 - 192.0.0.0/8 and 0.0.0.0/0 route is present
 
-Expected result: The BGP session remains in the Established state.
+* On ATE-1, advertise a bgp route 192.0.0.0/8 towards DUT.	
+* On DUT, inspect the routing table.	
+* Expected result: The 192.0.0.0/8 route is visible in DUT's routing table.
+* Expected result: A default route (0.0.0.0/0) is now present in DUT.
 
-1.3	On DUT, inspect the routing table.	
-
-Expected result: A default route (0.0.0.0/0) is now present in DUT.
-
-1.4	On ATE-1, stop advertising the route 192.0.0.0/8.	
-
-Expected result: The 192.0.0.0/8 route is removed from DUT's routing table.
-
-1.5	Wait for BGP to converge.	
-
-Expected result: The BGP session remains in the Established state.
-
-1.6	On DUT, inspect the routing table.	
-
-Expected result: The default route (0.0.0.0/0) is withdrawn and is no longer present in DUT.
-
-### Scenario 2: 192.0.0.0/8 route is NOT present		
-
-2.1	Ensure no 192.0.0.0/8 route is present in DUT's routing table.	
-
-Expected result: No 192.0.0.0/8 route is present in DUT's routing table.
-
-2.2	On DUT, inspect the routing table.	
-
-Expected result: The default route (0.0.0.0/0) is withdrawn and is no longer present in DUT.
-
-
-### Conclusion:
-
-Pass: The test case passes if all expected results are achieved.
-
-Fail: The test case fails if any of the following occur:
-
-A default route is generated and advertised when the 192.0.0.0/8 route is not present.
-A default route is not generated and advertised when the 192.0.0.0/8 route is present.
-The BGP session drops or gets stuck in an intermediate state.
+### RT-10.1.2 Stop advertising 192.0.0.0/8 and observe 0.0.0.0/0 is removed
+* On ATE-1, stop advertising the route 192.0.0.0/8.	
+* Expected result: The 192.0.0.0/8 route is removed from DUT's routing table.
+* Expected result: The default route (0.0.0.0/0) is withdrawn and is no longer present in DUT.
 
 ### Canonical OC 
 
