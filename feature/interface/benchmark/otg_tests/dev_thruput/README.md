@@ -13,40 +13,40 @@ Test throughput of the Device using Snake test for both IPv4 and IPv6 address fa
 
 ```mermaid
 graph LR;
-A[ATE PORT1]<-IPv4-IPv6-B[DUT:PORT1] <-> C[DUT:PORT2] VLAN1
-C[DUT:PORT2] <-- IPv4-IPv6 --> D[PORT2:DUT];
+A[ATE PORT1]<---IPv4-IPv6-B[DUT:PORT1] <--- Logically wired ---> C[DUT:PORT2] ---> VLAN1 C[DUT:PORT2]
+C[DUT:PORT2] <-- IPv4-IPv6 --> D[PORT2:DUT]
 ```
 VLAN1            |  VLAN2    | VLAN3     | VLAN4     | VLAN5      | VLAN6     |
 :----------------| :---------| :-------- | :---------| :----------| :---------|
 ATE1, DUT1, DUT2 | DUT3-DUT4 | DUT5-DUT6 | DUT7-DUT8 | DUT9-DUT10 | DUT11-DUT12
 
-VLAN13       |  VLAN14     | VLAN15      | VLAN16    | VLAN17       | VLAN18         |
+VLAN12       |  VLAN13     | VLAN14      | VLAN15    | VLAN16       | VLAN17         |
 :------------| :-----------| :---------- | :---------| :------------| :--------------|
-DUT25, DUT26 | DUT27-DUT28 | DUT29-DUT30 | DUT31-DUT32 | DUT33-DUT34 | DUT35-DUT36-ATE2
+DUT23, DUT24 | DUT25-DUT26 | DUT27-DUT28 | DUT29-DUT30 | DUT31-DUT32 | DUT33-DUT34-ATE2
 
-ATE-PORT1, DUT-PORT1 & DUT-PORT2 ---> VLAN1, 
-DUT-PORT3 & DUT-PORT4 ---> VLAN2,
-DUT-PORT5 & DUT-PORT6 ---> VLAN3,
-DUT-PORT7 & DUT-PORT8 ---> VLAN4,
-DUT-PORT9 & DUT-PORT10 ---> VLAN5,
-DUT-PORT11 & DUT-PORT12 ---> VLAN6,
-DUT-PORT13 & DUT-PORT14 ---> VLAN7,
-DUT-PORT15 & DUT-PORT16 ---> VLAN8,
-DUT-PORT17 & DUT-PORT18 ---> VLAN9,
-DUT-PORT19 & DUT-PORT20 ---> VLAN10,
-DUT-PORT21 & DUT-PORT22 ---> VLAN11,
-DUT-PORT23 & DUT-PORT24 ---> VLAN12,
-DUT-PORT25 & DUT-PORT26 ---> VLAN13,
-DUT-PORT27 & DUT-PORT28 ---> VLAN14
-DUT-PORT29 & DUT-PORT30 ---> VLAN15,
-DUT-PORT31 & DUT-PORT32 ---> VLAN16
-DUT-PORT33 & DUT-PORT34 ---> VLAN17
-DUT-PORT35 & DUT-PORT36 & ATE-PORT2 ---> VLAN18
+ATE-PORT1, DUT-PORT1 & DUT-PORT2 ---> VLAN1\
+DUT-PORT3 & DUT-PORT4 ---> VLAN2\
+DUT-PORT5 & DUT-PORT6 ---> VLAN3\
+DUT-PORT7 & DUT-PORT8 ---> VLAN4\
+DUT-PORT9 & DUT-PORT10 ---> VLAN5\
+DUT-PORT11 & DUT-PORT12 ---> VLAN6\
+DUT-PORT13 & DUT-PORT14 ---> VLAN7\
+DUT-PORT15 & DUT-PORT16 ---> VLAN8\
+DUT-PORT17 & DUT-PORT18 ---> VLAN9\
+DUT-PORT19 & DUT-PORT20 ---> VLAN10\
+DUT-PORT21 & DUT-PORT22 ---> VLAN11\
+DUT-PORT23 & DUT-PORT24 ---> VLAN12\
+DUT-PORT25 & DUT-PORT26 ---> VLAN13\
+DUT-PORT27 & DUT-PORT28 ---> VLAN14\
+DUT-PORT29 & DUT-PORT30 ---> VLAN15\
+DUT-PORT31 & DUT-PORT32 ---> VLAN16\
+DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
 
 ## Procedure
 
 ### Testbed setup - Generate configuration for ATE and DUT
 
+#### DUT Configuration
   * Create 18 VLAN's on the DUT from VLAN1 to VLAN18 and are all configured as Access VLAN
   * Assign IPv4, IPv6 addresses to ATE-PORT1, ATE-PORT2
       ATE-PORT1 - IPv4 address 192.168.1.1/24; IPv6 address 2000:1:1:1::1/64
@@ -59,6 +59,40 @@ DUT-PORT35 & DUT-PORT36 & ATE-PORT2 ---> VLAN18
   * Traffic entering from ATE-PORT2 follows similar forwarding mechanism as shown
     in the previous step
 
+#### Traffic profile
+  * Create 6 traffic profiles as below 
+  
+##### Traffic-ipv4-framesize-64bytes
+  * Create ipv4 traffic profile which has following properties
+    - Frame size 64 bytes
+    - Line rate traffic (100%) / 595millon packets per second (pps)
+
+##### Traffic-ipv4-framesize-mixed
+  * Create ipv4 traffic profile which has following properties
+    - Frame size mixed
+    - Line rate traffic (100%)
+
+##### Traffic-ipv4-framesize-jumbo-9000bytes
+  * Create ipv4 traffic profile which has following properties
+    - Frame size 9000 bytes
+    - Line rate traffic (100%) / 400million packets per second (pps)
+
+##### Traffic-ipv6-framesize-64bytes
+  * Create ipv6 traffic profile which has following properties
+    - Frame size 64 bytes
+    - Line rate traffic (100%) / 595millon packets per second (pps)
+
+##### Traffic-ipv6-framesize-mixed
+  * Create ipv6 traffic profile which has following properties
+    - Frame size mixed
+    - Line rate traffic (100%)
+
+##### Traffic-ipv6-framesize-jumbo-9000bytes
+  * Create ipv6 traffic profile which has following properties
+    - Frame size 64 bytes
+    - Line rate traffic (100%) / 400million packets per second (pps)
+
+    
 ## Canonical OC
 ```json
 {
@@ -96,53 +130,72 @@ DUT-PORT35 & DUT-PORT36 & ATE-PORT2 ---> VLAN18
 ```
 
 ## TestCase-1:
-### PERF-1.1 Test IPv4 traffic 400G throughput
-  *   Test traffic using Fixed frame size of 64 bytes
-  *   Verify that each port on the device shows 400G in and out traffic statistics
-  *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
-      as destination
-  *   Make sure there is 0 drop in packets
-  *   Verify the system health like CPU utilization, it should all be normal
+### PERF-1.1.1 Test IPv4 traffic 400G throughput
+#### Start test
+  *   Start traffic profile "Traffic-ipv4-framesize-64bytes" described above
 
-### PERF-1.2 Test IPv4 traffic 400G throughput
-  *   Test traffic using Mixed frame size of range 64-1500 bytes
+#### Verification
   *   Verify that each port on the device shows 400G in and out traffic statistics
   *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
       as destination
   *   Make sure there is 0 drop in packets
-  *   Verify the system health like CPU utilization, it should all be normal
+  *   Verify CPU utilization, Power utilization and it should be normal
 
-### PERF-1.3 Test IPv4 traffic 400G throughput
-  *   Test traffic using Mixed frame size of 9100 bytes
-  *   Verify that each port on the device shows 400G in and out traffic statistics
-  *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
-      as destination
-  *   Make sure there is 0 drop in packets
-  *   Verify the system health like CPU utilization, it should all be normal
+### PERF-1.1.2 Test IPv4 traffic 400G throughput
+#### Start test
+  *   Start traffic profile "Traffic-ipv4-framesize-mixed" described above
 
-### PERF-2.1 Test IPv4 traffic 400G throughput
-  *   Test traffic using Fixed frame size of 64 bytes
+#### Verification
   *   Verify that each port on the device shows 400G in and out traffic statistics
   *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
       as destination
   *   Make sure there is 0 drop in packets
-  *   Verify the system health like CPU utilization, it should all be normal
+  *   Verify CPU utilization, Power utilization and it should be normal
 
-### PERF-2.2 Test IPv4 traffic 400G throughput
-  *   Test traffic using Mixed frame size of range 64-1500 bytes
-  *   Verify that each port on the device shows 400G in and out traffic statistics
-  *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
-      as destination
-  *   Make sure there is 0 drop in packets
-  *   Verify the system health like CPU utilization, it should all be normal
 
-### PERF-2.3 Test IPv4 traffic 400G throughput
-  *   Test traffic using Mixed frame size of 9100 bytes
+### PERF-1.1.3 Test IPv4 traffic 400G throughput
+#### Start test
+  *   Start traffic profile "Traffic-ipv4-framesize-jumbo-9000bytes" described above
+
+#### Verification
   *   Verify that each port on the device shows 400G in and out traffic statistics
   *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
       as destination
   *   Make sure there is 0 drop in packets
-  *   Verify the system health like CPU utilization, it should all be normal
+  *   Verify CPU utilization, Power utilization and it should be normal
+
+### PERF-1.2.1 Test IPv6 traffic 400G throughput
+#### Start test
+  *   Start traffic profile "Traffic-ipv6-framesize-64bytes" described above
+
+#### Verification
+  *   Verify that each port on the device shows 400G in and out traffic statistics
+  *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
+      as destination
+  *   Make sure there is 0 drop in packets
+  *   Verify CPU utilization, Power utilization and it should be normal
+
+### PERF-1.2.2 Test IPv6 traffic 400G throughput
+#### Start test
+  *   Start traffic profile "Traffic-ipv6-framesize-mixed" described above
+
+#### Verification
+  *   Verify that each port on the device shows 400G in and out traffic statistics
+  *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
+      as destination
+  *   Make sure there is 0 drop in packets
+  *   Verify CPU utilization, Power utilization and it should be normal
+
+### PERF-1.2.3 Test IPv6 traffic 400G throughput
+#### Start test
+  *   Start traffic profile "Traffic-ipv6-framesize-jumbo-9000bytes" described above
+
+#### Verification
+  *   Verify that each port on the device shows 400G in and out traffic statistics
+  *   Verify that the traffic sent from ATE:PORT1 as source is recieved on ATE:PORT2
+      as destination
+  *   Make sure there is 0 drop in packets
+  *   Verify CPU utilization, Power utilization and it should be normal
 
 ## OpenConfig Path and RPC Coverage
 
@@ -176,5 +229,6 @@ rpcs:
 
 ## Minimum DUT platform requirement
 * FFF
-* ALL PORTS CONNECTED B2B in a Loopback mode
+* 32 PORTS CONNECTED B2B wired
+
 
