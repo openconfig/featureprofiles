@@ -2,11 +2,11 @@
 
 ## Testcase summary
 
-# Testbed type 
+### Testbed type 
 
 * [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
-## Topology
+### Topology
 
 *  Connect ATE Port-1 to DUT Port-1
 
@@ -22,9 +22,9 @@
       
  
 
-# Procedure
+## Procedure
 
-# Scenario 1: 10.0.0.0/8 route is present		
+### Scenario 1: 10.0.0.0/8 route is present		
 
 1.1	On ATE-1, advertise a bgp route 10.0.0.0/8 towards DUT.	
 
@@ -50,7 +50,7 @@ Expected result: The BGP session remains in the Established state.
 
 Expected result: The default route (0.0.0.0/0) is withdrawn and is no longer present in DUT.
 
-# Scenario 2: 10.0.0.0/8 route is NOT present		
+### Scenario 2: 10.0.0.0/8 route is NOT present		
 
 2.1	Ensure no 10.0.0.0/8 route is present in DUT's routing table.	
 
@@ -61,7 +61,7 @@ Expected result: No 10.0.0.0/8 route is present in DUT's routing table.
 Expected result: The default route (0.0.0.0/0) is withdrawn and is no longer present in DUT.
 
 
-# Conclusion:
+### Conclusion:
 
 Pass: The test case passes if all expected results are achieved.
 
@@ -71,7 +71,7 @@ A default route is generated and advertised when the 10.0.0.0/8 route is not pre
 A default route is not generated and advertised when the 10.0.0.0/8 route is present.
 The BGP session drops or gets stuck in an intermediate state.
 
-## Canonical OC 
+### Canonical OC 
 
 ```json
  {
@@ -95,7 +95,7 @@ The BGP session drops or gets stuck in an intermediate state.
                   }
                 },
                 "actions": {
-                  "generate-aggregate": 0.0.0.0/0
+                  "generate-aggregate": "0.0.0.0/0"
                 }
               }
             ]
@@ -107,7 +107,7 @@ The BGP session drops or gets stuck in an intermediate state.
 }          
 ```
 
-## OpenConfig Path and RPC Coverage
+### OpenConfig Path and RPC Coverage
 ```yaml
 rpcs:
   gnmi:
