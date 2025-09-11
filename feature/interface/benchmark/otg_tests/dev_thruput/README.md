@@ -11,11 +11,6 @@ Test throughput of the Device using Snake test for both IPv4 and IPv6 address fa
 
 ## Topology
 
-```mermaid
-graph LR;
-A[ATE PORT1]<---IPv4-IPv6-B[DUT:PORT1] <--- Logically wired ---> C[DUT:PORT2] ---> VLAN1 C[DUT:PORT2]
-C[DUT:PORT2] <-- IPv4-IPv6 --> D[PORT2:DUT]
-```
 VLAN1            |  VLAN2    | VLAN3     | VLAN4     | VLAN5      | VLAN6     |
 :----------------| :---------| :-------- | :---------| :----------| :---------|
 ATE1, DUT1, DUT2 | DUT3-DUT4 | DUT5-DUT6 | DUT7-DUT8 | DUT9-DUT10 | DUT11-DUT12
