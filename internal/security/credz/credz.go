@@ -27,6 +27,7 @@ import (
 	"time"
 
 	cpb "github.com/openconfig/gnsi/credentialz"
+	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
@@ -332,6 +333,23 @@ func GetRejectTelemetry(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
 func GetAcceptTelemetry(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
 	sshCounters := gnmi.Get(t, dut, gnmi.OC().System().SshServer().Counters().State())
 	return sshCounters.GetAccessAccepts(), sshCounters.GetLastAccessAccept()
+}
+
+// GetDutTarget returns ssh target for the dut to be used in credentialz tests.
+func GetDutTarget(t *testing.T, dut *ondatra.DUTDevice) string {
+	var serviceDUT interface {
+		Service(string) (*tpb.Service, error)
+	}
+	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
+	if err != nil {
+		t.Log("DUT does not support `Service` function, will attempt to use dut name field")
+		return fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
+	}
+	dutSSHService, err := serviceDUT.Service("ssh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
 }
 
 // GetDutPublicKey retrieve single host public key from the dut.
