@@ -27,12 +27,10 @@ import (
 	"time"
 
 	cpb "github.com/openconfig/gnsi/credentialz"
-	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"golang.org/x/crypto/ssh"
 )
 
 const (
