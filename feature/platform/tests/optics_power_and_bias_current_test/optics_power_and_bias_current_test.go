@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/functional-translators/registrar"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -128,53 +129,69 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
-			} else {
-				// TODO(ankursaikia): Validate the values for each leaf.
-				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-				for _, th := range ths {
-					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiver, th.GetSeverity().String())
+				return
+			}
+			// TODO(ankursaikia): Validate the values for each leaf.
+			var opts []ygnmi.Option
+			if deviations.TransceiverThresholdsFT(dut) != "" {
+				ft, ok := registrar.FunctionalTranslatorRegistry[deviations.TransceiverThresholdsFT(dut)]
+				if !ok {
+					t.Fatalf("Functional translator %s is not registered", deviations.TransceiverThresholdsFT(dut))
+				}
+				opts = append(opts, ygnmi.WithFT(ft))
+			}
+			var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
+			for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
+				val, ok := s.Val()
+				if !ok || val == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
+					t.Errorf("Transceiver %s: threshold severity is not set", transceiver)
+					continue
+				}
+				sevs = append(sevs, val)
+			}
 
-					if th.ModuleTemperatureLower == nil {
-						t.Errorf("Transceiver %s: threshold module-temperature-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold module-temperature-lower: %v", transceiver, th.GetModuleTemperatureLower())
-					}
+			for _, sev := range sevs {
+				t.Logf("Transceiver %s threshold severity: %v", transceiver, sev)
+				v := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).ModuleTemperatureLower().State())
+				if val, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: threshold module-temperature-lower is not set", transceiver)
+				} else {
+					t.Logf("Transceiver %s threshold module-temperature-lower: %v", transceiver, val)
+				}
 
-					if th.ModuleTemperatureUpper == nil {
-						t.Errorf("Transceiver %s: threshold module-temperature-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold module-temperature-upper: %v", transceiver, th.GetModuleTemperatureUpper())
-					}
+				v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).ModuleTemperatureUpper().State())
+				if val, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: threshold module-temperature-upper is not set", transceiver)
+				} else {
+					t.Logf("Transceiver %s threshold module-temperature-upper: %v", transceiver, val)
+				}
 
-					if th.Severity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
-						t.Errorf("Transceiver %s: threshold severity is unset", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold severity: %v", transceiver, th.GetSeverity())
-					}
+				v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).InputPowerLower().State())
+				if val, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: threshold input-power-lower is not set", transceiver)
+				} else {
+					t.Logf("Transceiver %s threshold input-power-lower: %v", transceiver, val)
+				}
 
-					if th.InputPowerLower == nil {
-						t.Errorf("Transceiver %s: threshold input-power-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold input-power-lower: %v", transceiver, th.GetInputPowerLower())
-					}
+				v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).InputPowerUpper().State())
+				if val, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: threshold input-power-upper is not set", transceiver)
+				} else {
+					t.Logf("Transceiver %s threshold input-power-upper: %v", transceiver, val)
+				}
 
-					if th.InputPowerUpper == nil {
-						t.Errorf("Transceiver %s: threshold input-power-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold input-power-upper: %v", transceiver, th.GetInputPowerUpper())
-					}
+				v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).OutputPowerLower().State())
+				if val, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: threshold output-power-lower is not set", transceiver)
+				} else {
+					t.Logf("Transceiver %s threshold output-power-lower: %v", transceiver, val)
+				}
 
-					if th.OutputPowerLower == nil {
-						t.Errorf("Transceiver %s: threshold output-power-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold output-power-lower: %v", transceiver, th.GetOutputPowerLower())
-					}
-
-					if th.OutputPowerUpper == nil {
-						t.Errorf("Transceiver %s: threshold output-power-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold output-power-upper: %v", transceiver, th.GetOutputPowerUpper())
-					}
+				v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).OutputPowerUpper().State())
+				if val, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: threshold output-power-upper is not set", transceiver)
+				} else {
+					t.Logf("Transceiver %s threshold output-power-upper: %v", transceiver, val)
 				}
 			}
 		})
@@ -264,12 +281,52 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
 			} else {
-				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-				for _, th := range ths {
-					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiverName, th.GetSeverity().String())
-					t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
-					t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
-					t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
+				var opts []ygnmi.Option
+				if deviations.TransceiverThresholdsFT(dut) != "" {
+					ft, ok := registrar.FunctionalTranslatorRegistry[deviations.TransceiverThresholdsFT(dut)]
+					if !ok {
+						t.Fatalf("Functional translator %s is not registered", deviations.TransceiverThresholdsFT(dut))
+					}
+					opts = append(opts, ygnmi.WithFT(ft))
+				}
+				var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
+				for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
+					val, ok := s.Val()
+					if !ok || val == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
+						t.Errorf("Transceiver %s: threshold severity is not set", transceiverName)
+						continue
+					}
+					sevs = append(sevs, val)
+				}
+
+				for _, sev := range sevs {
+					t.Logf("Transceiver %s threshold severity: %v", transceiverName, sev)
+					v := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).ModuleTemperatureLower().State())
+					if val, ok := v.Val(); ok {
+						t.Logf("Transceiver %s, Module Temperature Lower: %v", transceiverName, val)
+					}
+					v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).ModuleTemperatureUpper().State())
+					if val, ok := v.Val(); ok {
+						t.Logf("Transceiver %s, Module Temperature Upper: %v", transceiverName, val)
+					}
+
+					v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).OutputPowerLower().State())
+					if val, ok := v.Val(); ok {
+						t.Logf("Transceiver %s, Output Power Lower: %v", transceiverName, val)
+					}
+					v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).OutputPowerUpper().State())
+					if val, ok := v.Val(); ok {
+						t.Logf("Transceiver %s, Output Power Upper: %v", transceiverName, val)
+					}
+
+					v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).InputPowerLower().State())
+					if val, ok := v.Val(); ok {
+						t.Logf("Transceiver %s, Input Power Lower: %v", transceiverName, val)
+					}
+					v = gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().Threshold(sev).InputPowerUpper().State())
+					if val, ok := v.Val(); ok {
+						t.Logf("Transceiver %s, Input Power Upper: %v", transceiverName, val)
+					}
 				}
 			}
 		})
@@ -365,3 +422,4 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 		}
 	}
 }
+
