@@ -1204,6 +1204,16 @@ test: {
   readme: ""
 }
 test: {
+  id: "RT-10.1"
+  description: "Default Route Generation based on 192.0.0.0/8 Presence"
+  readme: ""
+}
+test: {
+  id: "RT-10.2"
+  description: "Non-default Route Generation based on 192.168.2.2/32 Presence in ISIS"
+  readme: ""
+}
+test: {
   id: "Replay-1.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
