@@ -66,29 +66,152 @@ The isis session drops or gets stuck in an intermediate state.
 ## Canonical OC 
 
 ```
- {
+TODO: Add advertise-aggregate path to the OpenConfig public data models. https://github.com/openconfig/public/issues/1368
+
+/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/advertise-aggregate = `"LOCAL-AGG"
+
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV4_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "default-import-policy": "REJECT_ROUTE"
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV4_UNICAST"
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "192.1.1.1"
+                      },
+                      "neighbor-address": "192.1.1.1"
+                    },
+                    {
+                      "afi-safis": {
+                        "afi-safi": [
+                          {
+                            "afi-safi-name": "IPV6_UNICAST",
+                            "apply-policy": {
+                              "config": {
+                                "default-import-policy": "REJECT_ROUTE"
+                              }
+                            },
+                            "config": {
+                              "afi-safi-name": "IPV6_UNICAST"
+                            }
+                          }
+                        ]
+                      },
+                      "config": {
+                        "neighbor-address": "2001:db9::1"
+                      },
+                      "neighbor-address": "2001:db9::1"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            },
+            {
+              "config": {
+                "identifier": "LOCAL_AGGREGATE",
+                "name": "DEFAULT-AGG"
+              },
+              "identifier": "LOCAL_AGGREGATE",
+              "local-aggregates": {
+                "aggregate": [
+                  {
+                    "config": {
+                      "prefix": "0.0.0.0/0"
+                    },
+                    "prefix": "0.0.0.0/0"
+                  }
+                ]
+              },
+              "name": "DEFAULT-AGG"
+            }
+          ]
+        }
+      }
+    ]
+  },
   "routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "config": {
+              "mode": "IPV4",
+              "name": "EBGP-IMPORT-IPV4"
+            },
+            "name": "EBGP-IMPORT-IPV4",
+            "prefixes": {
+              "prefix": [
+                {
+                  "config": {
+                    "ip-prefix": "192.0.2.0/32",
+                    "masklength-range": "exact"
+                  },
+                  "ip-prefix": "192.0.2.0/32",
+                  "masklength-range": "exact"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
     "policy-definitions": {
       "policy-definition": [
         {
-          "name": "GENERATE_NON_DEFAULT_ROUTE",
+          "config": {
+            "name": "EBGP-IMPORT-IPV4"
+          },
+          "name": "EBGP-IMPORT-IPV4",
           "statements": {
             "statement": [
               {
-                "name": "TRACK_ISIS_GENERATE_AGGREGATE",
-                "config": {
-                  "name": "TERM-1"
+                "actions": {
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  }
                 },
                 "conditions": {
-                  "isis-conditions": {
-                    "state": {
-                      "route": "192.168.2.2/32"
+                  "match-prefix-set": {
+                    "config": {
+                      "match-set-options": "INVERT",
+                      "prefix-set": "EBGP-IMPORT-IPV4"
                     }
                   }
                 },
-                "actions": {
-                  "generate-aggregate": "192.168.2.0/30"
-                }
+                "config": {
+                  "name": "10"
+                },
+                "name": "10"
               }
             ]
           }
@@ -96,7 +219,8 @@ The isis session drops or gets stuck in an intermediate state.
       ]
     }
   }
-}         
+}
+
 ```
 
 ## OpenConfig Path and RPC Coverage
