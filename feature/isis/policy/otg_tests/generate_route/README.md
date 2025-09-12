@@ -3,11 +3,11 @@
 
 ## Testcase summary
 
-## Testbed type 
+### Testbed type 
 
 * [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
-## Topology
+### Topology
 
 *  Connect ATE Port-1 to DUT Port-1
 
@@ -23,9 +23,9 @@
 
 
 
-## Procedure for generate non-default route
+### Procedure for generate non-default route
 
-## Scenario: 192.168.2.2/32 route is present		
+### Scenario: 192.168.2.2/32 route is present		
 
 1.1	On ATE-1, advertise a isis route 192.168.2.2/32 towards DUT.	
 
@@ -53,7 +53,7 @@ Expected result: The non-default route 192.168.2.0/30 is withdrawn and is no lon
 
 
 
-## Conclusion:
+### Conclusion:
 
 Pass: The test case passes if all expected results are achieved.
 
@@ -63,13 +63,19 @@ A non-default route is generated and when the 192.168.2.2/32 route is not presen
 A non-default route is not generated and advertised when the 192.168.2.2/32 route is present.
 The isis session drops or gets stuck in an intermediate state.
 
-## Canonical OC 
+### Canonical OC 
 
-```
-TODO: Add advertise-aggregate path to the OpenConfig public data models. https://github.com/openconfig/public/issues/1368
+TODO:
 
-/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/advertise-aggregate = `"LOCAL-AGG"
+1. Add advertise-aggregate path to the OpenConfig public data models. https://github.com/openconfig/public/issues/1368
+   ```
+   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/advertise-aggregate = `"LOCAL-AGG"
+   ```
+2. Add  a new OC path for attaching a routing-policy to ISIS to match the route.
 
+
+
+```json
 {
   "network-instances": {
     "network-instance": [
