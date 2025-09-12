@@ -36,10 +36,10 @@ const (
 )
 
 var (
-	hostCertificateCreatedOn = time.Now().Unix()
 	username                 = "testuser"
 	passwordVersion          = "v1.0"
-	passwordCreatedOn        = time.Now().Unix()
+	hostCertificateCreatedOn = uint64(time.Now().Unix())
+	passwordCreatedOn        = uint64(time.Now().Unix())
 )
 
 func TestMain(m *testing.M) {
@@ -62,11 +62,10 @@ func TestCredentialz(t *testing.T) {
 	// Create ssh keys/certificates for CA & host.
 	credz.CreateSSHKeyPair(t, dir, "ca")
 	credz.CreateSSHKeyPair(t, dir, dut.ID())
-
-	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, uint64(hostCertificateCreatedOn))
+	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, hostCertificateCreatedOn)
 	dutKey := credz.GetDutPublicKey(t, dut)
 	credz.CreateHostCertificate(t, dut, dir, dutKey)
-	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion, uint64(hostCertificateCreatedOn))
+	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion, hostCertificateCreatedOn)
 
 	t.Run("dut should return signed host certificate", func(t *testing.T) {
 		certificateContents, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", dir, dut.ID()))
@@ -89,9 +88,10 @@ func TestCredentialz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed parsing host certificate from device: %s", err)
 		}
+
 		// Verify correct host certificate is returned by the dut.
-		if !cmp.Equal(gotHostKey, wantHostKey) {
-			t.Errorf("Host presented key (cert) that does not match expected host certificate. got: %v, want: %v", gotHostKey, wantHostKey)
+		if diff := cmp.Diff(gotHostKey, wantHostKey); diff != "" {
+			t.Errorf("Host presented key (cert) that does not match expected host certificate. +got, -want: %s", diff)
 		}
 
 		// Verify host certificate telemetry values.
@@ -104,10 +104,10 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
 			t.Errorf(
 				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
-				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
+				got, want,
 			)
 		}
 	})
