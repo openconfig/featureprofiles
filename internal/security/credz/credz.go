@@ -390,7 +390,7 @@ func CreateUserCertificate(t *testing.T, dir, userPrincipal string) {
 		"-s", caKey,
 		"-I", userKey,
 		"-n", userPrincipal,
-		"-V", "+52w",
+		"-V", "-1d+52w",
 		fmt.Sprintf("%s.pub", userKey),
 	)
 	userCertCmd.Dir = dir
@@ -412,7 +412,7 @@ func CreateHostCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string, dut
 		"-I", dut.ID(), // key identity
 		"-h",                 // create host (not user) certificate
 		"-n", "dut.test.com", // principal(s)
-		"-V", "+52w", // validity
+		"-V", "-1d:+52w", // validity
 		fmt.Sprintf("%s.pub", dut.ID()),
 	)
 	cmd.Dir = dir
