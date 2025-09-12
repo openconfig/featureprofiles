@@ -210,7 +210,7 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
-func (d *staticDUT) DialGRPC(ctx context.Context, port int, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+func (d *staticDUT) DialGRPCWithPort(ctx context.Context, port int, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	params := &svcParams{
 		port: port,
 		optsFn: func(_ *bindpb.Device) *bindpb.Options {
