@@ -79,12 +79,12 @@ func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientC
 	}
 	bindingDUT := dut.RawAPIs().BindingDUT()
 	if err := binding.DUTAs(bindingDUT, &dialer); err != nil {
-		t.Skipf("BindingDUT %T does not implement DialGRPC, which is required for this test: %v", bindingDUT, err)
+		t.Skipf("BindingDUT %T does not implement DialGRPCWithPort, which is required for this test: %v", bindingDUT, err)
 	}
 
 	conn, err := dialer.DialGRPCWithPort(context.Background(), port)
 	if err != nil {
-		t.Fatalf("DialGRPC failed: %v", err)
+		t.Fatalf("DialGRPCWithPort failed: %v", err)
 	}
 	return conn
 }
