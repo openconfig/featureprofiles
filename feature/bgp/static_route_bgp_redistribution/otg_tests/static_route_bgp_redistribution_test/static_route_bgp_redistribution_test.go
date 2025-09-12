@@ -1226,9 +1226,6 @@ func validatePrefixASN(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, bgpPeerN
 
 	foundPrefix := false
 	dut := ondatra.DUT(t, "dut")
-	if deviations.BgpAsPathPrependOrderMismtach(dut) && isV4 {
-		wantASPath = []uint32{65499, 65499, 65499, 64512}
-	}
 
 	if isV4 {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny()
