@@ -1617,3 +1617,8 @@ func SkipOrigin(dut *ondatra.DUTDevice) bool {
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
+
+// DecapGroupOCUnsupported returns true if decapsulation group is not supported
+func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
+}
