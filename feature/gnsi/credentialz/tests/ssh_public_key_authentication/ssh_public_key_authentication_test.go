@@ -41,7 +41,6 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
 	authorizedKeysListCreatedOn = time.Now().Unix()
 
 	// Create temporary directory for storing ssh keys/certificates.
@@ -62,7 +61,7 @@ func TestCredentialz(t *testing.T) {
 	t.Run("auth should fail ssh public key not authorized for user", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
-		_, err = credz.SSHWithKey(ctx, t, dut, target, username, dir)
+		_, err = credz.SSHWithKey(ctx, t, dut, username, dir)
 		if err == nil {
 			t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
 		}
@@ -85,7 +84,7 @@ func TestCredentialz(t *testing.T) {
 		// Verify ssh with key succeeds.
 		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
-		sshClient, err := credz.SSHWithKey(ctx, t, dut, target, username, dir)
+		sshClient, err := credz.SSHWithKey(ctx, t, dut, username, dir)
 		if err != nil {
 			t.Fatalf("Dialing ssh failed, but we expected to succeed. error: %v", err)
 		}

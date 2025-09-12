@@ -601,7 +601,7 @@ func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 }
 
 // SSHWithKey dials ssh with key based authentication to be used in credentialz tests.
-func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, target, username, dir string) (binding.SSHClient, error) {
+func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
