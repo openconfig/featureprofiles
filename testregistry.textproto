@@ -1204,6 +1204,11 @@ test: {
   readme: ""
 }
 test: {
+  id: "RT-10.1"
+  description: "Default Route Generation based on 192.0.0.0/8 Presence"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/generate_route/otg_tests/generate_default_route/README.md"
+}
+test: {
   id: "Replay-1.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
