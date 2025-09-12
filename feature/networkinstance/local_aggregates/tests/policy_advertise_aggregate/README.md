@@ -31,9 +31,10 @@
 
 ### Canonical OC 
 
-TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)): Add advertise-aggregate path to the OpenConfig public data models. 
-`/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/advertise-aggregate = `"LOCAL-AGG"`
+TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)): Add `import-match-table` path to the OpenConfig public data models. 
 
+The following path should then be added to the canonical OC below
+`/network-instances/network-instance/table-connections/table-connection/config/import-match-table = `"BGP"`
 
 ```json
 {
@@ -112,6 +113,7 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
                 "aggregate": [
                   {
                     "config": {
+                      "discard": true,
                       "prefix": "0.0.0.0/0"
                     },
                     "prefix": "0.0.0.0/0"
@@ -119,6 +121,24 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
                 ]
               },
               "name": "DEFAULT-AGG"
+            }
+          ]
+        },
+        "table-connections": {
+          "table-connection": [
+            {
+              "address-family": "IPV4",
+              "config": {
+                "address-family": "IPV4",
+                "default-import-policy": "REJECT_ROUTE",
+                "dst-protocol": "BGP",
+                "import-policy": [
+                  "SEND-DEF-IF-NOT-FOUND-IPV4"
+                ],
+                "src-protocol": "LOCAL_AGGREGATE"
+              },
+              "dst-protocol": "BGP",
+              "src-protocol": "LOCAL_AGGREGATE"
             }
           ]
         }
@@ -132,9 +152,9 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
           {
             "config": {
               "mode": "IPV4",
-              "name": "EBGP-IMPORT-IPV4"
+              "name": "SEND-DEF-IF-NOT-FOUND-IPV4"
             },
-            "name": "EBGP-IMPORT-IPV4",
+            "name": "SEND-DEF-IF-NOT-FOUND-IPV4",
             "prefixes": {
               "prefix": [
                 {
@@ -155,9 +175,9 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
       "policy-definition": [
         {
           "config": {
-            "name": "EBGP-IMPORT-IPV4"
+            "name": "SEND-DEF-IF-NOT-FOUND-IPV4"
           },
-          "name": "EBGP-IMPORT-IPV4",
+          "name": "SEND-DEF-IF-NOT-FOUND-IPV4",
           "statements": {
             "statement": [
               {
@@ -169,8 +189,7 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
                 "conditions": {
                   "match-prefix-set": {
                     "config": {
-                      "match-set-options": "INVERT",
-                      "prefix-set": "EBGP-IMPORT-IPV4"
+                      "prefix-set": "SEND-DEF-IF-NOT-FOUND-IPV4"
                     }
                   }
                 },
@@ -186,7 +205,6 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
     }
   }
 }
-
 ```
 
 ### OpenConfig Path and RPC Coverage
