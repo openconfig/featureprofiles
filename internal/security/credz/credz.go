@@ -32,7 +32,6 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	// "golang.org/x/crypto/ssh"
 )
 
 const (
@@ -391,7 +390,7 @@ func CreateUserCertificate(t *testing.T, dir, userPrincipal string) {
 		"-s", caKey,
 		"-I", userKey,
 		"-n", userPrincipal,
-		"-V", "+52w",
+		"-V", "-1d+52w",
 		fmt.Sprintf("%s.pub", userKey),
 	)
 	userCertCmd.Dir = dir
@@ -413,7 +412,7 @@ func CreateHostCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string, dut
 		"-I", dut.ID(), // key identity
 		"-h",                 // create host (not user) certificate
 		"-n", "dut.test.com", // principal(s)
-		"-V", "+52w", // validity
+		"-V", "-1d:+52w", // validity
 		fmt.Sprintf("%s.pub", dut.ID()),
 	)
 	cmd.Dir = dir
@@ -602,20 +601,10 @@ func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 }
 
 // SSHWithKey dials ssh with key based authentication to be used in credentialz tests.
-func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, target, username, dir string) (binding.SSHClient, error) {
+func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
 	}
 	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
-
-// func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
-//	return &ssh.ClientConfig{
-//		User: username,
-//		Auth: []ssh.AuthMethod{
-//			ssh.PublicKeys(signer),
-//		},
-//		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
-//	}
-// }
