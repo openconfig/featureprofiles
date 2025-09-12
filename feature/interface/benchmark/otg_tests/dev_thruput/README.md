@@ -1,7 +1,7 @@
-# PERF-1.1: Device Throughput
+# INT-1.1: Interface Performance
 ## Summary
 
-Test throughput of the Device using Snake test for both IPv4 and IPv6 address family
+Test performance of interfaces using a "snake style topology" and IPv4 and IPv6 packet flows.
 
 ## Testbed type
 
@@ -64,13 +64,13 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
 
 ##### Traffic-ipv4-framesize-mixed
   * Create ipv4 traffic profile which has following properties
-    - Frame size mixed
-    - Line rate traffic (100%)
+    - Frame size mixed (64-1518) with an average packet size of 760bytes
+    - Line rate traffic (100%) / ~74million packets per second (pps)
 
 ##### Traffic-ipv4-framesize-jumbo-9000bytes
   * Create ipv4 traffic profile which has following properties
     - Frame size 9000 bytes
-    - Line rate traffic (100%) / 400million packets per second (pps)
+    - Line rate traffic (100%) / 5.5million packets per second (pps)
 
 ##### Traffic-ipv6-framesize-64bytes
   * Create ipv6 traffic profile which has following properties
@@ -79,13 +79,13 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
 
 ##### Traffic-ipv6-framesize-mixed
   * Create ipv6 traffic profile which has following properties
-    - Frame size mixed
-    - Line rate traffic (100%)
+    - Frame size mixed (64-1518) with an average frame size of 760
+    - Line rate traffic (100%) / ~74million packets per second (pps)
 
 ##### Traffic-ipv6-framesize-jumbo-9000bytes
   * Create ipv6 traffic profile which has following properties
-    - Frame size 64 bytes
-    - Line rate traffic (100%) / 400million packets per second (pps)
+    - Frame size 9000 bytes
+    - Line rate traffic (100%) / 5.5million packets per second (pps)
 
     
 ## Canonical OC
@@ -125,7 +125,7 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
 ```
 
 ## TestCase-1:
-### PERF-1.1.1 Test IPv4 traffic 400G throughput
+### INT-1.1.1 Test IPv4 traffic 400G throughput
 #### Start test
   *   Start traffic profile "Traffic-ipv4-framesize-64bytes" described above
 
@@ -136,7 +136,7 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
   *   Make sure there is 0 drop in packets
   *   Verify CPU utilization, Power utilization and it should be normal
 
-### PERF-1.1.2 Test IPv4 traffic 400G throughput
+### INT-1.1.2 Test IPv4 traffic 400G throughput
 #### Start test
   *   Start traffic profile "Traffic-ipv4-framesize-mixed" described above
 
@@ -148,7 +148,7 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
   *   Verify CPU utilization, Power utilization and it should be normal
 
 
-### PERF-1.1.3 Test IPv4 traffic 400G throughput
+### INT-1.1.3 Test IPv4 traffic 400G throughput
 #### Start test
   *   Start traffic profile "Traffic-ipv4-framesize-jumbo-9000bytes" described above
 
@@ -159,7 +159,7 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
   *   Make sure there is 0 drop in packets
   *   Verify CPU utilization, Power utilization and it should be normal
 
-### PERF-1.2.1 Test IPv6 traffic 400G throughput
+### INT-1.2.1 Test IPv6 traffic 400G throughput
 #### Start test
   *   Start traffic profile "Traffic-ipv6-framesize-64bytes" described above
 
@@ -170,7 +170,7 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
   *   Make sure there is 0 drop in packets
   *   Verify CPU utilization, Power utilization and it should be normal
 
-### PERF-1.2.2 Test IPv6 traffic 400G throughput
+### INT-1.2.2 Test IPv6 traffic 400G throughput
 #### Start test
   *   Start traffic profile "Traffic-ipv6-framesize-mixed" described above
 
@@ -181,7 +181,7 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
   *   Make sure there is 0 drop in packets
   *   Verify CPU utilization, Power utilization and it should be normal
 
-### PERF-1.2.3 Test IPv6 traffic 400G throughput
+### INT-1.2.3 Test IPv6 traffic 400G throughput
 #### Start test
   *   Start traffic profile "Traffic-ipv6-framesize-jumbo-9000bytes" described above
 
