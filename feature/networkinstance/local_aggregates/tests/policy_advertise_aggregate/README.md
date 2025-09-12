@@ -141,6 +141,26 @@ The following path should then be added to the canonical OC below
               "src-protocol": "LOCAL_AGGREGATE"
             }
           ]
+        },
+        "tables": {
+          "table": [
+            {
+              "address-family": "IPV4",
+              "config": {
+                "address-family": "IPV4",
+                "protocol": "BGP"
+              },
+              "protocol": "BGP"
+            },
+            {
+              "address-family": "IPV4",
+              "config": {
+                "address-family": "IPV4",
+                "protocol": "LOCAL_AGGREGATE"
+              },
+              "protocol": "LOCAL_AGGREGATE"
+            }
+          ]
         }
       }
     ]
