@@ -177,6 +177,7 @@ var (
 		},
 	}
 )
+
 type flowConfig struct {
 	name            string
 	packetsToSend   uint32
@@ -184,14 +185,17 @@ type flowConfig struct {
 	frameSize       uint32
 	minSamplingRate uint32
 }
+
 type IPType string
 const (
 	IPv4 = "IPv4"
 	IPv6 = "IPv6"
 )
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
 // configureDUTBaseline configures port1 and port2 on the DUT.
 func configureDUTBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
@@ -216,6 +220,7 @@ func configureDUTBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
+
 // TestSFlowTraffic configures a DUT for sFlow client and collector endpoint and uses ATE to send
 // traffic which the DUT should sample and send sFlow packets to a collector. ATE captures the
 // sflow packets which are decoded by the test to verify they are valid sflow packets.
@@ -271,6 +276,7 @@ func TestSFlowTraffic(t *testing.T) {
 		})
 	})
 }
+
 func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, ip IPType) {
 	t.Run("SFLOW-1.1_ReplaceDUTConfigSFlow", func(t *testing.T) {
 		sfBatch := &gnmi.SetBatch{}
@@ -303,6 +309,7 @@ func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, 
 		t.Logf("Got sampling config: %v", json)
 	})
 }
+
 func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, dut *ondatra.DUTDevice) {
 	var myFlowConfigs []flowConfig
 	if slices.Contains(kneDeviceModelList, dut.Model()) {
@@ -330,6 +337,7 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 		})
 	}
 }
+
 func startCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) gosnappi.ControlState {
 	t.Helper()
 	cs := gosnappi.NewControlState()
@@ -337,11 +345,13 @@ func startCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) 
 	ate.OTG().SetControlState(t, cs)
 	return cs
 }
+
 func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState) {
 	t.Helper()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	ate.OTG().SetControlState(t, cs)
 }
+
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig) {
 	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[1].Name()))
 	pcapFile, err := os.CreateTemp("", "pcap")
@@ -354,6 +364,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 	pcapFile.Close()
 	validatePackets(t, pcapFile.Name(), ip, fc)
 }
+
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	config := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
@@ -364,6 +375,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ate.OTG().StartProtocols(t)
 	return config
 }
+
 func enableCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType) {
 	t.Helper()
 	config.Captures().Clear()
@@ -384,6 +396,7 @@ func enableCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 	pb, _ := config.Marshal().ToProto()
 	t.Log(pb.GetCaptures())
 }
+
 func addInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfNames []string) {
 	root := &oc.Root{}
 	mgmtNI := root.GetOrCreateNetworkInstance(vrfname)
@@ -396,6 +409,7 @@ func addInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, in
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(mgmtVRF).Config(), mgmtNI)
 	t.Logf("Added interface %v to VRF %s", intfNames, vrfname)
 }
+
 func configureLoopbackOnDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackSubIntfNum)
 	loop := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
@@ -404,6 +418,7 @@ func configureLoopbackOnDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), loop)
 	t.Logf("Got DUT IPv4, IPv6 loopback address: %v, %v", dutlo0Attrs.IPv4, dutlo0Attrs.IPv6)
 }
+
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc flowConfig, ip IPType) {
 	config.Flows().Clear()
 	t.Log("Configuring traffic flow")
@@ -433,6 +448,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 }
+
 func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {

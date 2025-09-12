@@ -35,6 +35,7 @@ type SFlowGlobalParams struct {
 	IP              string
 	MinSamplingRate uint32
 }
+
 // NewSFlowGlobalCfg takes optional input of sflow global and sfcollector and returns OC
 // configuration including any deviations for the device.
 // If sfglobal is nil, default values are provided.
@@ -73,6 +74,7 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 	gnmi.BatchReplace(batch, gnmi.OC().Sampling().Sflow().Config(), c)
 	return c
 }
+
 // SFlowCollectorParams defines parameters for the SFlow collector configuration.
 type SFlowCollectorParams struct {
 	Ni        string
@@ -81,6 +83,7 @@ type SFlowCollectorParams struct {
 	SrcAddrV6 string
 	IP        string
 }
+
 // NewSFlowCollector creates a collector to be appended to SFlowConfig.
 // If sfc is nil, default values are provided.
 func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow_Collector, d *ondatra.DUTDevice, p *SFlowCollectorParams) []*oc.Sampling_Sflow_Collector {
