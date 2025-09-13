@@ -42,6 +42,41 @@ Once the ZR link is estabished proceed to configure the following entities:
         * /components/component/optical-channel/config/frequency
         * /components/component/optical-channel/config/target-output-power
         * /components/component/optical-channel/config/operational-mode
+        * /components/component/optical-channel/config/line-port
+#### Canonical OC
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "LINE-1-1"
+        },
+        "name": "LINE-1-1"
+      },
+      {
+        "config": {
+          "name": "transceiver-0/0/1"
+        },
+        "name": "transceiver-0/0/1",
+        "optical-channel": {
+          "config": {
+            "frequency": "193100000",
+            "line-port": "LINE-1-1",
+            "operational-mode": 1,
+            "target-output-power": "-10"
+          }
+        },
+        "transceiver": {
+          "config": {
+            "enabled": true
+          }
+        }
+      }
+    ]
+  }
+}
+```
 
 ### TRANSCEIVER 11.2 - Test Ethernet Logical Channels 
 * Ensure terminal-devic ethernet-logical-channels  are set through the
