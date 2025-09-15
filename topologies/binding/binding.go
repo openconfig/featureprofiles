@@ -42,6 +42,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -197,27 +198,82 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 
 func (d *staticDUT) DialCLI(context.Context) (binding.CLIClient, error) {
 	sshOpts := d.r.ssh(d.dev)
-	c := &ssh.ClientConfig{
+	config := &ssh.ClientConfig{
 		User: sshOpts.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(sshOpts.Password),
 			ssh.KeyboardInteractive(sshInteractive(sshOpts.Password)),
 		},
 	}
+	sc, err := createSSHClient(config, sshOpts)
+	if err != nil {
+		return nil, err
+	}
+	return newCLI(sc)
+}
+
+func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding.SSHClient, error) {
+	var config *ssh.ClientConfig
+	switch auth := sshAuth.(type) {
+	case binding.PasswordAuth:
+		config = &ssh.ClientConfig{
+			User: auth.User,
+			Auth: []ssh.AuthMethod{
+				ssh.Password(auth.Password),
+				ssh.KeyboardInteractive(sshInteractive(auth.Password)),
+			},
+		}
+	case binding.KeyAuth:
+		signer, err := ssh.ParsePrivateKey(auth.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		config = &ssh.ClientConfig{
+			User: auth.User,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(signer),
+			},
+		}
+	case binding.CertificateAuth:
+		signer, err := ssh.ParsePrivateKey(auth.PrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		cert, _, _, _, err := ssh.ParseAuthorizedKey(auth.Certificate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse certificate: %w", err)
+		}
+		signer, err = ssh.NewCertSigner(cert.(*ssh.Certificate), signer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create certificate signer: %w", err)
+		}
+		config = &ssh.ClientConfig{
+			User: auth.User,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(signer),
+			},
+		}
+	default:
+		return nil, fmt.Errorf("ssh auth type %T not supported yet", auth)
+	}
+	sc, err := createSSHClient(config, d.r.ssh(d.dev))
+	if err != nil {
+		return nil, err
+	}
+	return newSSH(sc)
+}
+
+func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options) (*ssh.Client, error) {
 	if sshOpts.SkipVerify {
-		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 	} else {
 		cb, err := knownHostsCallback()
 		if err != nil {
 			return nil, err
 		}
-		c.HostKeyCallback = cb
+		config.HostKeyCallback = cb
 	}
-	sc, err := ssh.Dial("tcp", sshOpts.Target, c)
-	if err != nil {
-		return nil, err
-	}
-	return newCLI(sc)
+	return ssh.Dial("tcp", sshOpts.Target, config)
 }
 
 // For every question asked in an interactive login ssh session, set the answer to user password.
@@ -560,10 +616,26 @@ type creds struct {
 	secure             bool
 }
 
-func (c *creds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
+	md, ok := metadata.FromOutgoingContext(ctx)
+	var username, password string
+	if ok {
+		if len(md.Get("username")) > 0 && md.Get("username")[0] != "" {
+			username = md.Get("username")[0]
+		}
+		if len(md.Get("password")) > 0 && md.Get("password")[0] != "" {
+			password = md.Get("password")[0]
+		}
+	}
+	if username == "" {
+		username = c.username
+	}
+	if password == "" {
+		password = c.password
+	}
 	return map[string]string{
-		"username": c.username,
-		"password": c.password,
+		"username": username,
+		"password": password,
 	}, nil
 }
 

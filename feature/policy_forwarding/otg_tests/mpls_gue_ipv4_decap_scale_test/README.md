@@ -1,4 +1,4 @@
-# PF-1.20 - MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload scale test 
+# PF-1.20: MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload scale test 
 
 ## Summary
 This test verifies scaling of MPLSoGUE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGUE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
@@ -46,7 +46,6 @@ Verify:
 * Inner payload DSCP and TTL values are not altered by the device
 * Device can achieve the maximum interface scale on the device
 * Entire static label range is usable and functional by sending traffic across the entire label range
-
 
 ## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.

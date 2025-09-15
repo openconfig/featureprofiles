@@ -15,6 +15,7 @@
 package bgp_prefix_limit_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -111,6 +112,7 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
+	kneDeviceModelList = []string{"ncptx"}
 )
 
 // configureDUT configures all the interfaces and BGP on the DUT.
@@ -194,12 +196,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4OverLimit, ipv4DstTraffic, prefixLimit+1)
 	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6OverLimit, ipv6DstTraffic, prefixLimit+1)
 
-	configureFlow(topo, "IPv4.UnderLimit", srcIpv4.Name(), r4UnderLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit-1)
-	configureFlow(topo, "IPv6.UnderLimit", srcIpv6.Name(), r6UnderLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit-1)
-	configureFlow(topo, "IPv4.AtLimit", srcIpv4.Name(), r4AtLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit)
-	configureFlow(topo, "IPv6.AtLimit", srcIpv6.Name(), r6AtLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit)
-	configureFlow(topo, "IPv4.OverLimit", srcIpv4.Name(), r4OverLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit+1)
-	configureFlow(topo, "IPv6.OverLimit", srcIpv6.Name(), r6OverLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit+1)
+	configureFlow(t, topo, "IPv4.UnderLimit", srcIpv4.Name(), r4UnderLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit-1)
+	configureFlow(t, topo, "IPv6.UnderLimit", srcIpv6.Name(), r6UnderLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit-1)
+	configureFlow(t, topo, "IPv4.AtLimit", srcIpv4.Name(), r4AtLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit)
+	configureFlow(t, topo, "IPv6.AtLimit", srcIpv6.Name(), r6AtLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit)
+	configureFlow(t, topo, "IPv4.OverLimit", srcIpv4.Name(), r4OverLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit+1)
+	configureFlow(t, topo, "IPv6.OverLimit", srcIpv6.Name(), r6OverLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit+1)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
@@ -229,7 +231,8 @@ func configureBGPv6Routes(peer gosnappi.BgpV6Peer, ipv6 string, name string, pre
 		SetCount(count)
 }
 
-func configureFlow(topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp, iptype string, routeCount uint32) {
+func configureFlow(t *testing.T, topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp, iptype string, routeCount uint32) {
+	dut := ondatra.DUT(t, "dut")
 	flow := topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().
@@ -237,6 +240,10 @@ func configureFlow(topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint,
 		SetRxNames([]string{flowDstEndPoint})
 	flow.Size().SetFixed(1500)
 	flow.Duration().FixedPackets().SetPackets(1000)
+	if slices.Contains(kneDeviceModelList, dut.Model()) {
+		flow.Size().SetFixed(1000)
+		flow.Rate().SetPps(750)
+	}
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(srcMac)
 	if iptype == "ipv4" {
