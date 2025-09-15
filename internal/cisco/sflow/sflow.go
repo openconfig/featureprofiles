@@ -1,7 +1,12 @@
 package sflow
 
 import (
+	"testing"
+
 	"github.com/google/gopacket/layers"
+	"github.com/openconfig/lemming/gnmi/oc"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 type IPType string
@@ -31,6 +36,20 @@ type SflowConfig struct {
 	IP              IPType
 	InputInterface  []uint32
 	OutputInterface []uint32
+}
+
+type SFlowConfig struct {
+	LoopbackIPv4        string
+	LoopbackIPv6        string
+	CollectorIPv6       string
+	CollectorPort       uint16
+	DSCP                uint8
+	SampleSize          uint16
+	IngressSamplingRate uint32
+	InterfaceName       string
+	ExporterMapName     string
+	PacketLength        uint32
+	DfBitSet            bool
 }
 
 type SfRecordRawPacketHeader struct {
@@ -166,4 +185,28 @@ func (s *SfRecordExtendedGatewayData) GetCommunities() []uint32 {
 }
 func (s *SfRecordExtendedGatewayData) GetLocalPref() uint32 {
 	return s.LocalPref
+}
+
+// ConfigureSFlow configures sFlow sampling with the provided configuration
+func ConfigureSFlow(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+	root := &oc.Root{}
+
+	sf := root.GetOrCreateSampling().GetOrCreateSflow()
+	sf.SetEnabled(true)
+	sf.SetAgentIdIpv6(config.LoopbackIPv6)
+	sf.SetSampleSize(config.SampleSize)
+	sf.SetDscp(config.DSCP)
+
+	// Add a collector (destination + port)
+	collector := sf.GetOrCreateCollector(config.CollectorIPv6, config.CollectorPort)
+	collector.SetSourceAddress(config.LoopbackIPv6)
+
+	// Set sampling rate
+	sf.SetIngressSamplingRate(config.IngressSamplingRate)
+
+	// Configure per-interface settings
+	intSf := sf.GetOrCreateInterface(config.InterfaceName)
+	intSf.SetEnabled(true)
+
+	gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Config(), sf)
 }
