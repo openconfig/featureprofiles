@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath" 
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
