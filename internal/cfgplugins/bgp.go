@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -553,4 +554,71 @@ func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
 		}
 	}
+}
+
+// DeviationAristaBGPNeighborMaxPrefixes updates the max-prefixes of a specific BGP neighbor.
+// This is an Arista specific augmented model which sets the following path:
+// /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/prefix-limit/config/max-prefixes
+// Set max-prefixes to 0 will mean no limit will be set.
+// Tracking the removal of this deviation in b/438620249
+func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, maxPrefixes uint32) {
+	gpbSetRequest := &gnmipb.SetRequest{
+		Update: []*gnmipb.Update{{
+			Path: &gnmipb.Path{
+				Elem: []*gnmipb.PathElem{
+					{Name: "network-instances"},
+					{Name: "network-instance", Key: map[string]string{"name": deviations.DefaultNetworkInstance(dut)}},
+					{Name: "protocols"},
+					{Name: "protocol", Key: map[string]string{"name": "BGP", "identifier": "BGP"}},
+					{Name: "bgp"},
+					{Name: "neighbors"},
+					{Name: "neighbor", Key: map[string]string{"neighbor-address": neighborIP}},
+					{Name: "prefix-limit"},
+					{Name: "config"},
+					{Name: "max-prefixes"},
+				},
+			},
+			Val: &gnmipb.TypedValue{
+				Value: &gnmipb.TypedValue_UintVal{
+					UintVal: uint64(maxPrefixes),
+				},
+			},
+		}},
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(t.Context(), gpbSetRequest); err != nil {
+		t.Errorf("Unexpected error max-prefix: %v", err)
+	}
+}
+
+func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, routerId, peerAddress string, routerAS, peerAS uint32, ipType string, sendReceivePaths bool) {
+	if ni == nil {
+		t.Fatalf("Network Instance is not configured")
+	}
+	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := proto.GetOrCreateBgp()
+	global := bgp.GetOrCreateGlobal()
+	global.As = ygot.Uint32(routerAS)
+	global.RouterId = ygot.String(routerId)
+
+	neighbor := bgp.GetOrCreateNeighbor(peerAddress)
+	neighbor.PeerAs = ygot.Uint32(peerAS)
+	neighbor.Enabled = ygot.Bool(true)
+	neighbor.SendCommunityType = []oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_NONE}
+
+	neighbor.GetOrCreateApplyPolicy().DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	neighbor.GetOrCreateApplyPolicy().DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+
+	var nAfiSafi *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi
+	switch ipType {
+	case IPv4:
+		nAfiSafi = neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		nAfiSafi.GetOrCreateIpv4Unicast().SendDefaultRoute = ygot.Bool(true)
+	case IPv6:
+		nAfiSafi = neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		nAfiSafi.GetOrCreateIpv6Unicast().SendDefaultRoute = ygot.Bool(true)
+	}
+	nAfiSafi.Enabled = ygot.Bool(true)
+	nAfiSafi.GetOrCreateAddPaths().Receive = ygot.Bool(sendReceivePaths)
+	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
 }

@@ -24,10 +24,11 @@ import (
 
 const (
 	maxPingRetries = 3 // Set the number of retry attempts
-	schemaValue    = 1
+	//schemaValue    = 1
 )
 
 var (
+	schemaValue                = 1
 	dutPortName                string
 	foundExpectedInterfaceFlag bool = false
 	breakOutCompName           string
@@ -190,6 +191,13 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	var Dutipv4Subnets []string
 	var Ateipv4Subnets []string
 
+	// Decide which group index to use based on the device type
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		schemaValue = 0
+	default:
+		schemaValue = 1
+	}
 	cases := []struct {
 		numbreakouts        uint8
 		breakoutspeed       oc.E_IfEthernet_ETHERNET_SPEED
@@ -271,11 +279,20 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 			for _, componentName := range componentNameList {
 				t.Logf("Starting Test for %s %v", componentName, tc)
-				configContainer := &oc.Component_Port_BreakoutMode_Group{
-					Index:               ygot.Uint8(1),
-					NumBreakouts:        ygot.Uint8(tc.numbreakouts),
-					BreakoutSpeed:       oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
-					NumPhysicalChannels: ygot.Uint8(tc.numPhysicalChannels),
+				var configContainer *oc.Component_Port_BreakoutMode_Group
+				if !deviations.NumPhysyicalChannelsUnsupported(dut) {
+					configContainer = &oc.Component_Port_BreakoutMode_Group{
+						Index:               ygot.Uint8(1),
+						NumBreakouts:        ygot.Uint8(tc.numbreakouts),
+						BreakoutSpeed:       oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+						NumPhysicalChannels: ygot.Uint8(tc.numPhysicalChannels),
+					}
+				} else {
+					configContainer = &oc.Component_Port_BreakoutMode_Group{
+						Index:         ygot.Uint8(0),
+						NumBreakouts:  ygot.Uint8(tc.numbreakouts),
+						BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+					}
 				}
 				groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
 				breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
@@ -301,19 +318,25 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				// Apply configuration
 				gnmi.Update(t, dut, gnmi.OC().Component(componentName).Name().Config(), componentName)
-				gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(schemaValue).Config())
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(schemaValue)
+				gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).Config())
+				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
 				gnmi.Replace(t, dut, path.Config(), configContainer)
 
 				t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]",
 					componentName, schemaValue), func(t *testing.T) {
-					state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(schemaValue)
+					state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
 					groupDetails := gnmi.Get(t, dut, state.Config())
 					index := *groupDetails.Index
 					numBreakouts := *groupDetails.NumBreakouts
 					breakoutSpeed := groupDetails.BreakoutSpeed
-					numPhysicalChannels := *groupDetails.NumPhysicalChannels
-					verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
+					var numPhysicalChannels uint8
+					if !deviations.NumPhysyicalChannelsUnsupported(dut) {
+						numPhysicalChannels = *groupDetails.NumPhysicalChannels
+					} else {
+						numPhysicalChannels = *ygot.Uint8(0)
+					}
+
+					verifyBreakout(dut, index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
 						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
 
@@ -431,9 +454,9 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[1]/config",
 					componentName), func(t *testing.T) {
-					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(schemaValue)
+					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
 					gnmi.Delete(t, dut, path.Config())
-					verifyDelete(t, dut, componentName, schemaValue)
+					verifyDelete(t, dut, componentName, uint8(schemaValue))
 				})
 			}
 		})

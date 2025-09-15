@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,8 @@ import (
 var (
 	containerTar        = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
+	pluginTar           = flag.String("plugin_tar", "/tmp/rootfs.tar.gz", "The plugin tarball (e.g., for vieux/docker-volume-sshfs rootfs.tar.gz).")
+	pluginConfig        = flag.String("plugin_config", "testdata/test_sshfs_config.json", "The plugin config.")
 )
 
 const (
@@ -35,7 +39,6 @@ func TestMain(m *testing.M) {
 }
 
 func containerzClient(ctx context.Context, t *testing.T) *client.Client {
-
 	dut := ondatra.DUT(t, "dut")
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -50,6 +53,8 @@ func containerzClient(ctx context.Context, t *testing.T) *client.Client {
 				!
 			`).Append(t)
 		}
+	case ondatra.NOKIA:
+		break
 	default:
 		t.Fatalf("dut %s does not support containerz", dut.Name())
 	}
@@ -129,7 +134,7 @@ func deployAndStartContainer(ctx context.Context, t *testing.T, cli *client.Clie
 	// 2. Optionally remove existing image before push.
 	if opts.RemoveExistingImage {
 		t.Logf("Attempting to remove existing image %s:%s before push.", opts.ImageName, opts.ImageTag)
-		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, false); err != nil {
+		if err := cli.RemoveImage(ctx, opts.ImageName, opts.ImageTag, true); err != nil {
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound && err.Error() != client.ErrNotFound.Error() {
 				t.Logf("Pre-push removal of image %s:%s failed (continuing with push): %v", opts.ImageName, opts.ImageTag, err)
@@ -365,7 +370,7 @@ func TestRetrieveLogs(t *testing.T) {
 			t.Logf("Got expected error when retrieving logs for non-existent instance %s: %v", nonExistentInstanceName, err)
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound && s.Code() != codes.Unknown {
-				t.Errorf("Expected codes.NotFound or codes.Unknown for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
+				t.Errorf("Expected gRPC status codes NotFound or Unknown for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
 			}
 			if logCh != nil {
 				t.Errorf("Expected nil logCh when cli.Logs returns an error for non-existent instance %s, but got %v", nonExistentInstanceName, logCh)
@@ -396,7 +401,7 @@ func TestRetrieveLogs(t *testing.T) {
 					t.Logf("Got expected error from log channel for non-existent instance %s: %v", nonExistentInstanceName, msg.Error)
 					s, _ := status.FromError(msg.Error)
 					if s.Code() != codes.NotFound && s.Code() != codes.Unknown {
-						t.Errorf("Expected codes.NotFound or codes.Unknown from channel for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
+						t.Errorf("Expected gRPC status codes NotFound or Unknown from channel for non-existent instance %s, but got %s.", nonExistentInstanceName, s.Code())
 					}
 				} else {
 					// An actual log message was received, which is an error for this test case.
@@ -456,7 +461,7 @@ func TestRetrieveLogs(t *testing.T) {
 				t.Errorf("Error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, err)
 			} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown {
 				// Allow Unknown as some systems might report it this way, similar to non-existent.
-				t.Errorf("Expected codes.NotFound, codes.FailedPrecondition, or codes.Unknown for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+				t.Errorf("Expected gRPC status codes NotFound, FailedPrecondition, or Unknown for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 			}
 			if logCh != nil {
 				t.Errorf("Expected nil logCh when cli.Logs returns an error for stopped instance %s, but got %v", stoppedInstanceName, logCh)
@@ -479,7 +484,7 @@ func TestRetrieveLogs(t *testing.T) {
 				if !ok {
 					t.Errorf("Stream error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, msg.Error)
 				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown {
-					t.Errorf("Expected codes.NotFound, codes.FailedPrecondition, or codes.Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 				}
 				foundErrorOnChannel = true
 				break
@@ -625,7 +630,7 @@ func TestStopContainer(t *testing.T) {
 			t.Logf("Got expected error when stopping non-existent instance %s: %v", nonExistentInstance, err)
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound {
-				t.Logf("Warning: StopContainer for non-existent instance %s returned code %s, not codes.NotFound. This might be acceptable depending on server behavior.", nonExistentInstance, s.Code())
+				t.Logf("Warning: StopContainer for non-existent instance %s returned gRPC status code %s, not NotFound. This might be acceptable depending on server behavior.", nonExistentInstance, s.Code())
 			}
 		}
 	})
@@ -642,8 +647,8 @@ func TestStopContainer(t *testing.T) {
 		// Attempt to stop it again.
 		if err := localStartedCli.StopContainer(ctx, instanceName, true); err != nil {
 			s, _ := status.FromError(err)
-			if s.Code() == codes.NotFound {
-				t.Logf("Second StopContainer() for %s returned NotFound, which is acceptable: %v", instanceName, err)
+			if s.Code() == codes.NotFound || s.Code() == codes.FailedPrecondition {
+				t.Logf("Second StopContainer() for %s returned gRPC status code NotFound or FailedPrecondition: %v", instanceName, err)
 			} else {
 				t.Errorf("Second StopContainer() for already stopped instance %s failed unexpectedly: %v", instanceName, err)
 			}
@@ -751,9 +756,9 @@ func TestVolumes(t *testing.T) {
 			// An error was returned. It should be codes.NotFound.
 			s, ok := status.FromError(err)
 			if !ok || s.Code() != codes.NotFound {
-				t.Errorf("RemoveVolume(%q) for a non-existent volume returned error %v, want a gRPC error with code NotFound", nonExistentVolumeName, err)
+				t.Errorf("RemoveVolume(%q) for a non-existent volume returned error %v, want gRPC status code NotFound", nonExistentVolumeName, err)
 			} else {
-				t.Logf("RemoveVolume(%q) for a non-existent volume correctly returned codes.NotFound.", nonExistentVolumeName)
+				t.Logf("RemoveVolume(%q) for a non-existent volume correctly returned gRPC status NotFound.", nonExistentVolumeName)
 			}
 		}
 	})
@@ -832,7 +837,7 @@ func TestUpgrade(t *testing.T) {
 			// Optionally, check for specific gRPC status code, e.g., codes.NotFound
 			s, ok := status.FromError(err)
 			if ok && s.Code() != codes.NotFound {
-				t.Errorf("Expected codes.NotFound for non-existent image, got %s", s.Code())
+				t.Errorf("Expected gRPC status code NotFound for non-existent image, got %s", s.Code())
 			}
 		}
 	})
@@ -850,7 +855,7 @@ func TestUpgrade(t *testing.T) {
 			t.Logf("Got expected error when upgrading to image %s with non-existent tag %s: %v", imageName, nonExistentTag, err)
 			s, ok := status.FromError(err)
 			if ok && s.Code() != codes.NotFound {
-				t.Errorf("Expected codes.NotFound (or similar) for non-existent tag, got %s", s.Code())
+				t.Errorf("Expected gRPC status code NotFound (or similar) for non-existent tag, got %s", s.Code())
 			}
 		}
 	})
@@ -869,7 +874,199 @@ func TestUpgrade(t *testing.T) {
 			t.Logf("Got expected error when upgrading non-existent instance %s: %v", nonExistentInstance, err)
 			s, ok := status.FromError(err)
 			if ok && s.Code() != codes.NotFound {
-				t.Errorf("Expected codes.NotFound for non-existent instance, got %s", s.Code())
+				t.Errorf("Expected gRPC status code NotFound for non-existent instance, got %s", s.Code())
+			}
+		}
+	})
+}
+
+// pushPluginImage handles deploying a plugin tarball as a gNOI Containerz image.
+func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, pluginTarPath, pluginName, pluginImageTag string) error {
+	t.Helper()
+	t.Logf("Attempting to deploy plugin tarball %q as %s:%s", pluginTarPath, pluginName, pluginImageTag)
+	// The 'true' argument indicates this is a plugin image.
+	progCh, err := cli.PushImage(ctx, pluginName, pluginImageTag, pluginTarPath, true)
+	if err != nil {
+		return fmt.Errorf("PushImage (for plugin %q) failed: %w", pluginName, err)
+	}
+
+	// Monitor push progress.
+	pushFinished := false
+	for prog := range progCh {
+		switch {
+		case prog.Error != nil:
+			return fmt.Errorf("PushImage (for plugin %q) reported error: %w", pluginName, prog.Error)
+		case prog.Finished:
+			t.Logf("Successfully pushed plugin %s:%s", pluginName, pluginImageTag)
+			pushFinished = true
+		default:
+			t.Logf("Plugin %s:%s push progress: %d bytes pushed", pluginName, pluginImageTag, prog.BytesReceived)
+		}
+	}
+	if !pushFinished {
+		return fmt.Errorf("PushImage (for plugin %q) did not report finishing", pluginName)
+	}
+	return nil
+}
+
+// TestUpgrade implements CNTR-1.7 validating lifecycle of the SSHFS volume plugin via containerz.
+// Prerequisites for running this test:
+// 1. Build the rootfs.tar.gz for vieux/docker-volume-sshfs as per the README.
+// 2. Set the --plugin_tar flag to the path of the generated rootfs.tar.gz.
+func TestPlugins(t *testing.T) {
+	ctx := context.Background()
+	cli := containerzClient(ctx, t)
+	// Common SSH parameters for plugin setup
+	const (
+		sshHost        = "localhost"
+		sshUser        = "testuser"
+		sshPassword    = "testpass"
+		pluginImageTag = "latest"
+	)
+
+	// Check if the plugin tarball exists (as it's needed for config extraction).
+	if _, err := os.Stat(*pluginTar); os.IsNotExist(err) {
+		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", *pluginTar)
+	}
+
+	t.Run("SuccessfulPluginCompleteLifecycle", func(t *testing.T) {
+		pluginName := "sshfs-plugin-positive"
+		pluginInstance := "sshfs-instance-positive"
+
+		defer func() {
+			fullInstanceName := pluginInstance + ":" + pluginImageTag
+			t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Stopping and removing plugin instance %s", fullInstanceName)
+			if err := cli.StopPlugin(ctx, fullInstanceName); err != nil {
+				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error stopping plugin %q err: %v", fullInstanceName, err)
+			}
+			if err := cli.RemovePlugin(ctx, fullInstanceName); err != nil {
+				t.Errorf("Cleanup SuccessfulPluginCompleteLifecycle: Error removing plugin %q err: %v", fullInstanceName, err)
+			}
+			t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Removing plugin image %s:%s", pluginName, pluginImageTag)
+			if err := cli.RemoveImage(ctx, pluginName, pluginImageTag, true); err != nil {
+				t.Logf("Cleanup SuccessfulPluginCompleteLifecycle: Error removing plugin image %q:%s (ignoring): %v", pluginName, pluginImageTag, err)
+			}
+		}()
+
+		// Push the plugin image for this specific test case.
+		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+			t.Fatalf("Failed to push plugin image %s:%s: %v", pluginName, pluginImageTag, err)
+		}
+
+		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, *pluginConfig)
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
+			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, *pluginConfig, err)
+		}
+		t.Logf("StartPlugin call succeeded for instance %q", pluginInstance)
+
+		const (
+			retryInterval = 2 * time.Second
+			maxRetries    = 5
+		)
+		found := false
+		expectedFullInstanceName := pluginInstance + ":" + pluginImageTag
+		// Adding some retries to allow time for Plugin to start.
+		for i := 0; i < maxRetries; i++ {
+			t.Logf("Attempting to list plugins to verify instance %q (attempt %d/%d)", expectedFullInstanceName, i+1, maxRetries)
+			plugins, listErr := cli.ListPlugin(ctx, "")
+			if listErr != nil {
+				t.Logf("ListPlugin(\"\") failed on attempt %d: %v. Retrying in %v...", i+1, listErr, retryInterval)
+				time.Sleep(retryInterval)
+				continue
+			}
+			for _, p := range plugins {
+				if p.GetInstanceName() == expectedFullInstanceName {
+					t.Logf("Found running plugin via ListPlugin: Instance=%s", p.GetInstanceName())
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+			t.Logf("Plugin instance %q not found in list on attempt %d. Retrying in %v...", expectedFullInstanceName, i+1, retryInterval)
+			time.Sleep(retryInterval)
+		}
+
+		if !found {
+			allPlugins, listAllErr := cli.ListPlugin(ctx, "")
+			if listAllErr != nil {
+				t.Errorf("Plugin instance %q not found after retries. Final attempt to list all plugins also failed: %v", expectedFullInstanceName, listAllErr)
+			} else {
+				t.Errorf("Plugin instance %q not found after retries. Current plugins: %v", expectedFullInstanceName, allPlugins)
+			}
+		} else {
+			t.Logf("Successfully verified plugin instance %q is listed and running.", expectedFullInstanceName)
+		}
+	})
+
+	t.Run("StartWithNonExistentPluginImage", func(t *testing.T) {
+		pluginName := "non-existent-plugin-image"
+		pluginInstance := "test-instance-non-existent-image"
+		dummyConfigFile := filepath.Join(t.TempDir(), "dummy_config.json")
+		if err := os.WriteFile(dummyConfigFile, []byte(`{"description":"dummy"}`), 0o644); err != nil {
+			t.Fatalf("Failed to write dummy config file: %v", err)
+		}
+
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, dummyConfigFile); err == nil {
+			t.Errorf("StartPlugin with non-existent image %q succeeded, expected error", pluginName)
+			// Attempt cleanup if it somehow started.
+			fullInstanceName := pluginInstance + ":" + pluginImageTag
+			if err = cli.StopPlugin(ctx, fullInstanceName); err != nil {
+				t.Logf("Cleanup StartWithNonExistentPluginImage: Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
+			}
+			if err = cli.RemovePlugin(ctx, fullInstanceName); err != nil {
+				t.Logf("Cleanup StartWithNonExistentPluginImage: Error removing plugin %q (ignoring): %v", fullInstanceName, err)
+			}
+		} else {
+			t.Logf("Got expected error when starting with non-existent image %q: %v", pluginName, err)
+			s, ok := status.FromError(err)
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.FailedPrecondition) {
+				t.Errorf("Expected gRPC status code Unknown or NotFound for non-existent image, got: %v (status code: %s)", err, s.Code())
+			}
+		}
+	})
+
+	t.Run("StartAlreadyStartedInstance", func(t *testing.T) {
+		pluginName := "sshfs-plugin-already-started"
+		pluginInstance := "sshfs-instance-already-started"
+
+		defer func() {
+			fullInstanceName := pluginInstance + ":" + pluginImageTag
+			t.Logf("Cleanup StartAlreadyStartedInstance: Stopping and removing plugin instance %s", fullInstanceName)
+			if err := cli.StopPlugin(ctx, fullInstanceName); err != nil {
+				t.Logf("Cleanup StartAlreadyStartedInstance: Error stopping plugin %q (ignoring): %v", fullInstanceName, err)
+			}
+			if err := cli.RemovePlugin(ctx, fullInstanceName); err != nil {
+				t.Logf("Cleanup StartAlreadyStartedInstance: Error removing plugin %q (ignoring): %v", fullInstanceName, err)
+			}
+			t.Logf("Cleanup StartAlreadyStartedInstance: Removing plugin image %s:%s", pluginName, pluginImageTag)
+			if err := cli.RemoveImage(ctx, pluginName, pluginImageTag, true); err != nil {
+				t.Logf("Cleanup StartAlreadyStartedInstance: Error removing plugin image %q:%s (ignoring): %v", pluginName, pluginImageTag, err)
+			}
+		}()
+
+		// Push the plugin image for this specific test case.
+		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+			t.Fatalf("Failed to push plugin image %s:%s for StartAlreadyStartedInstance: %v", pluginName, pluginImageTag, err)
+		}
+
+		// First start (should succeed).
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
+			t.Fatalf("Initial StartPlugin for %s, instance %s failed: %v", pluginName, pluginInstance, err)
+		}
+		t.Logf("Successfully started plugin %s instance %s for the first time.", pluginName, pluginInstance)
+		// Allow time for the plugin to stabilize if needed.
+		time.Sleep(2 * time.Second)
+
+		// Second start (should fail).
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err == nil {
+			t.Errorf("Second StartPlugin for already started instance %s succeeded, expected error", pluginInstance)
+		} else {
+			t.Logf("Got expected error when starting already started instance %s: %v", pluginInstance, err)
+			s, ok := status.FromError(err)
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.AlreadyExists) {
+				t.Errorf("Expected gRPC status code Unknown or AlreadyExists for already started instance, got: %v (status code: %s)", err, s.Code())
 			}
 		}
 	})

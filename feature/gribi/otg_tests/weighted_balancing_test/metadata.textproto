@@ -20,6 +20,9 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    auto_negotiate_unsupported: true
+    duplex_mode_unsupported: true
+    port_speed_unsupported: true
   }
 }
 platform_exceptions: {

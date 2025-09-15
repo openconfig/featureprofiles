@@ -37,16 +37,16 @@ import (
 const (
 	ipv4PrefixLen     = 30
 	ipv6PrefixLen     = 126
-	v41Route          = "203.0.113.0"
+	v41Route          = "203.0.113.1"
 	v41TrafficStart   = "203.0.113.1"
-	v42Route          = "198.51.100.0"
+	v42Route          = "198.51.100.1"
 	v42TrafficStart   = "198.51.100.1"
-	v4RoutePrefix     = uint32(24)
-	v61Route          = "2001:db8:128:128::"
+	v4RoutePrefix     = uint32(32)
+	v61Route          = "2001:db8:128:128::1"
 	v61TrafficStart   = "2001:db8:128:128::1"
-	v62Route          = "2001:db8:128:129::"
+	v62Route          = "2001:db8:128:129::1"
 	v62TrafficStart   = "2001:db8:128:129::1"
-	v6RoutePrefix     = uint32(64)
+	v6RoutePrefix     = uint32(128)
 	dutAS             = uint32(65656)
 	ateAS1            = uint32(65657)
 	ateAS2            = uint32(65658)
@@ -226,9 +226,13 @@ func TestBGPNestedPolicies(t *testing.T) {
 			tc.validate(t, dut, ate)
 			if tc.ipv4 {
 				createFlow(t, td, tc.flowConfig)
+				td.verifyDUTBGPEstablished(t)
+				td.verifyOTGBGPEstablished(t)
 				checkTraffic(t, td, v4Flow)
 			} else {
 				createFlowV6(t, td, tc.flowConfig)
+				td.verifyDUTBGPEstablished(t)
+				td.verifyOTGBGPEstablished(t)
 				checkTraffic(t, td, v6Flow)
 			}
 		})
@@ -387,7 +391,9 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	}
 	statPath := rp.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
 	statPath.SetCallPolicy(v4MedPolicy)
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -607,7 +613,9 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	}
 	statPath := rp.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
 	statPath.SetCallPolicy(v6MedPolicy)
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
