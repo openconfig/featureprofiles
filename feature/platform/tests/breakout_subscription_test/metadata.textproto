@@ -1,0 +1,39 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "7697f2a4-f5bf-4d65-b7ed-7aaf9c770288"
+plan_id:  "PLT-1.3"
+description:  "OnChange Subscription Test for Breakout Interfaces"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    ipv4_missing_enabled:  true
+    interface_counters_update_delayed:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_interface_in_default_vrf:  true
+    aggregate_atomic_update:  true
+    interface_enabled:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    explicit_port_speed:  true
+    aggregate_atomic_update:  true
+    gnoi_subcomponent_path:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+    gnoi_subcomponent_reboot_status_unsupported:  true
+  }
+}

@@ -37,6 +37,11 @@ DUT port-8 <------> port-8 ATE
 * magic_mac = 02:00:00:00:00:01`
 ```
 
+## Canonical OC
+```json
+{}
+```   
+
 vrf_selection_policy_c
 ```
 network-instances {
