@@ -261,7 +261,9 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 			} else {
 				metric, _ := strconv.Atoi(policyValue)
 				actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
-				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
+				if !deviations.BGPSetMedActionUnsupported(dut) {
+					actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
+				}
 				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 			}
 		} else {
