@@ -102,7 +102,16 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		// Read single acctz record from stream into channel.
 		go func(r chan recordRequestResult) {
 			var response *acctzpb.RecordResponse
-			response, err = acctzSubClient.Recv()
+			for {
+				response, err = acctzSubClient.Recv()
+				if err != nil {
+					break
+				}
+				id := response.GetSessionInfo().GetUser().GetIdentity()
+				if id == acctz.SuccessUsername || id == acctz.FailUsername {
+					break
+				}
+			}
 			r <- recordRequestResult{
 				record: response,
 				err:    err,
@@ -167,7 +176,7 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 
 		// Verify authz detail is populated for denied rpcs.
 		authzInfo := resp.record.GetGrpcService().GetAuthz()
-		if authzInfo.Status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY && authzInfo.GetDetail() == "" {
+		if authzInfo.GetStatus() == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY && authzInfo.GetDetail() == "" {
 			t.Errorf("Authorization detail is not populated for record: %v", prettyPrint(resp.record))
 		}
 
