@@ -1809,7 +1809,114 @@ flow datalinkframesection monitor OC-FMM-GLOBAL sampler OC-FSM-GLOBAL-INGRESS in
 // NOTE: Adjust paths if your generated oc library differs.
 // Unsupported features are marked TODO / fallback.
 
+// SFlowConfig holds all configuration parameters for sFlow setup
+type SFlowConfig struct {
+	LoopbackIPv4        string
+	LoopbackIPv6        string
+	CollectorIPv6       string
+	CollectorPort       uint16
+	DSCP                uint8
+	SampleSize          uint16
+	IngressSamplingRate uint32
+	InterfaceName       string
+	ExporterMapName     string
+	PacketLength        uint32
+	DfBitSet            bool
+}
+
+// NewDefaultSFlowConfig returns a SFlowConfig with default values
+func NewDefaultSFlowConfig() *SFlowConfig {
+	return &SFlowConfig{
+		LoopbackIPv4:        "203.0.113.255",
+		LoopbackIPv6:        "2001:db8::203:0:113:255",
+		CollectorIPv6:       "2001:0db8::192:0:2:1e",
+		CollectorPort:       6343,
+		DSCP:                32,
+		SampleSize:          343,
+		IngressSamplingRate: 262144,
+		InterfaceName:       "Bundle-Ether1",
+		ExporterMapName:     "OC-FEM-GLOBAL",
+		PacketLength:        8968,
+		DfBitSet:            true,
+	}
+}
+
+// configureLoopback0 configures the Loopback0 interface with IPv4 and IPv6 addresses
+func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+	root := &oc.Root{}
+
+	// Configure Loopback0 interface
+	lo := root.GetOrCreateInterface("Loopback0")
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	lo.Enabled = ygot.Bool(true)
+	sub := lo.GetOrCreateSubinterface(0)
+
+	// IPv4 configuration
+	v4 := sub.GetOrCreateIpv4()
+	a4 := v4.GetOrCreateAddress(config.LoopbackIPv4)
+	a4.PrefixLength = ygot.Uint8(32)
+
+	// IPv6 configuration
+	v6 := sub.GetOrCreateIpv6()
+	a6 := v6.GetOrCreateAddress(config.LoopbackIPv6)
+	a6.PrefixLength = ygot.Uint8(128)
+
+	gnmi.Replace(t, dut, gnmi.OC().Interface("Loopback0").Config(), lo)
+}
+
+// configureSFlow configures sFlow sampling with the provided configuration
+func configureSFlow(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+	root := &oc.Root{}
+
+	sf := root.GetOrCreateSampling().GetOrCreateSflow()
+	sf.SetEnabled(true)
+	sf.SetAgentIdIpv6(config.LoopbackIPv6)
+	sf.SetSampleSize(config.SampleSize)
+	sf.SetDscp(config.DSCP)
+
+	// Add a collector (destination + port)
+	collector := sf.GetOrCreateCollector(config.CollectorIPv6, config.CollectorPort)
+	collector.SetSourceAddress(config.LoopbackIPv6)
+
+	// Set sampling rate
+	sf.SetIngressSamplingRate(config.IngressSamplingRate)
+
+	// Configure per-interface settings
+	intSf := sf.GetOrCreateInterface(config.InterfaceName)
+	intSf.SetEnabled(true)
+
+	gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Config(), sf)
+}
+
+// configureUnsupportedSFlowFeatures configures vendor-specific sFlow features not supported by OpenConfig
+func configureUnsupportedSFlowFeatures(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+	batchSet := &gnmi.SetBatch{}
+	cliPath, _ := schemaless.NewConfig[string]("", "cli")
+
+	unsupportedConfig := fmt.Sprintf(`
+	flow exporter-map %s
+	dfbit set
+	packet-length %d
+	end
+	`, config.ExporterMapName, config.PacketLength)
+
+	gnmi.BatchUpdate(batchSet, cliPath, unsupportedConfig)
+	batchSet.Set(t, dut)
+}
+
 func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
+	config := NewDefaultSFlowConfig()
+
+	// Configure Loopback0 interface
+	configureLoopback0(t, dut, config)
+
+	// Configure sFlow
+	configureSFlow(t, dut, config)
+
+	// Configure vendor-specific features
+	configureUnsupportedSFlowFeatures(t, dut, config)
+}
+func configureLoopbackAndSFlow2(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 
 	// 1. Loopback0 interface (OC: interface + subinterface 0)
@@ -1892,33 +1999,6 @@ var dutlo0Attrs = struct {
 	IPv4: "203.0.113.255",           // Example IP
 	IPv6: "2001:db8::203:0:113:255", // Example IP
 }
-
-// User's provided SFlowFlowSample struct definition
-// Note: This struct is a conceptual representation. The actual parsing
-// will use gopacket's layers.SFlowFlowSample and layers.SFlowFlowRecord types.
-// type SFlowEnterpriseID uint32
-// type SFlowSampleType uint32
-// type SFlowSourceFormat uint32
-// type SFlowSourceValue uint32
-// type SFlowRecord interface{} // Represents different types of flow records
-
-// type SFlowFlowSample struct {
-// 	EnterpriseID          SFlowEnterpriseID
-// 	Format                SFlowSampleType
-// 	SampleLength          uint32
-// 	SequenceNumber        uint32
-// 	SourceIDClass         SFlowSourceFormat
-// 	SourceIDIndex         SFlowSourceValue
-// 	SamplingRate          uint32
-// 	SamplePool            uint32
-// 	Dropped               uint32
-// 	InputInterfaceFormat  uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
-// 	InputInterface        uint32
-// 	OutputInterfaceFormat uint32 // Note: gopacket's SFlowFlowSample doesn't explicitly have this field
-// 	OutputInterface       uint32
-// 	RecordCount           uint32
-// 	Records               []SFlowRecord
-// }
 
 func validateSflowPackets(t *testing.T, filename string, ip s.IPType, fc s.SflowConfig) {
 	// First pass: Check for sFlow-exported packets based on IP header TOS/TrafficClass

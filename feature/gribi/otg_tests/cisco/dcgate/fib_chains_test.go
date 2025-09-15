@@ -565,10 +565,10 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 	t.Logf("Bundle member ifindexes: %v", bmIndexes)
 
 	sfConfig := &s.SflowConfig{
-		Name:            "sflow-capture",
-		PacketsToSend:   uint32(*sf_trafficDuration * int(*sf_fps)),
-		PpsRate:         uint64(*sf_fps),
-		FrameSize:       uint32(*frameSize),
+		Name:          "sflow-capture",
+		PacketsToSend: uint32(*sf_trafficDuration * int(*sf_fps)),
+		PpsRate:       uint64(*sf_fps),
+		// FrameSize:       uint32(*frameSize),
 		SflowDscp:       32,
 		SamplingRate:    262144,
 		SampleTolerance: 0.8,
