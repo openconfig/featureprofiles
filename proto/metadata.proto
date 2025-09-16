@@ -921,9 +921,17 @@ message Metadata {
     // Juniper b/422688435
      bool predefined_max_ecmp_paths = 320;
 
+    // b/425503156
+    // Device does not support decapsulation group
+    bool decapsulate_gue_oc_unsupported = 321;
+
+    // Device does not support line-port configuration on optical channel
+    // components for Nokia and Arista.
+    bool line_port_unsupported = 322;
+
     // Devices that do not support load balance policies 
     // Arista b/445043741
-     bool load_balance_policy_oc_unsupported = 321;
+     bool load_balance_policy_oc_unsupported = 323;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
