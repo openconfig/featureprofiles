@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go topologies/proto/binding/binding.pb.go
+GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata.pb.go proto/ocpaths_go_proto/ocpaths.pb.go proto/ocrpcs_go_proto/ocrpcs.pb.go proto/nosimage_go_proto/nosimage.pb.go topologies/proto/binding/binding.pb.go proto/deviations_go_proto/deviations.pb.go
 
 .PHONY: all clean protos validate_paths protoimports
 all: openconfig_public protos validate_paths
@@ -58,6 +58,11 @@ proto/metadata_go_proto/metadata.pb.go: proto/metadata.proto protoimports
 	mkdir -p proto/metadata_go_proto
 	protoc -I='protobuf-import' --proto_path=proto --go_out=./ --go_opt=Mmetadata.proto=proto/metadata_go_proto metadata.proto
 	goimports -w proto/metadata_go_proto/metadata.pb.go
+
+proto/deviations_go_proto/deviations.pb.go: proto/deviations.proto protoimports
+	mkdir -p proto/deviations_go_proto
+	protoc -I='protobuf-import' --proto_path=proto --go_out=./ --go_opt=Mdeviations.proto=proto/deviations_go_proto deviations.proto
+	goimports -w proto/deviations_go_proto/deviations.pb.go
 
 proto/ocpaths_go_proto/ocpaths.pb.go: proto/ocpaths.proto
 	mkdir -p proto/ocpaths_go_proto
