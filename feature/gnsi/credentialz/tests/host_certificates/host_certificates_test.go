@@ -17,7 +17,6 @@ package hostcertificates_test
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"testing"
 	"time"
