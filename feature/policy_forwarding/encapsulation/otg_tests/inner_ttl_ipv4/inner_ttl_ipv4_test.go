@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ingress_inner_ttl_test
+package ingressinnerttltest
 
 import (
 	"bytes"
@@ -150,9 +150,9 @@ func TestIngressInnerPktTTL(t *testing.T) {
 	})
 }
 
-// GetDefaultStaticNextHopGroupParams provides default parameters for the generator.
+// defaultStaticNextHopGroupParams provides default parameters for the generator.
 // matching the values in the provided JSON example.
-func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
+func defaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 	return cfgplugins.StaticNextHopGroupParams{
 
 		StaticNHGName: "MPLS_in_GRE_Encap",
@@ -182,9 +182,9 @@ func GetDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 	}
 }
 
-// GetDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// defaultOcPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func GetDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
+func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         "Agg1.10",
@@ -215,8 +215,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	updateLagInterfaceDetails(t, dut, aggSubint, dutLag1, aggObj, aggID1)
 
 	configureDUTLoopback(t, dut)
-	ocNHGParams := GetDefaultStaticNextHopGroupParams()
-	ocPFParams := GetDefaultOcPolicyForwardingParams()
+	ocNHGParams := defaultStaticNextHopGroupParams()
+	ocPFParams := defaultOcPolicyForwardingParams()
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	cfgplugins.NextHopGroupConfig(t, dut, "v4", ni, ocNHGParams)
 	cfgplugins.PolicyForwardingConfig(t, dut, "v4", pf, ocPFParams)
@@ -230,14 +230,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // configureDUTLag configures a LAG (Port-Channel) interface on the DUT,
 // assigns its member interfaces, and applies IPv4/IPv6 addressing.
 // It supports both untagged (default) and VLAN-tagged subinterfaces.
-func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port,
-	aggID string, dutLag attrs.Attributes, vlanID int) (*oc.Interface, *oc.Interface_Subinterface) {
-
+func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes, vlanID int) (*oc.Interface, *oc.Interface_Subinterface) {
 	t.Helper()
 	for _, port := range aggPorts {
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().Config())
 	}
-	setupAggregateAtomically(t, dut, aggPorts, aggID)
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggPorts, aggID)
 	var subif *oc.Interface_Subinterface
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	if deviations.InterfaceEnabled(dut) {
@@ -316,25 +314,6 @@ func updateLagInterfaceDetails(t *testing.T, dut *ondatra.DUTDevice, subif *oc.I
 	addr6 := v6.GetOrCreateAddress(dutLag.IPv6)
 	addr6.PrefixLength = ygot.Uint8(uint8(dutLag.IPv6Len))
 	gnmi.Update(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
-}
-
-func setupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
-	t.Helper()
-	d := &oc.Root{}
-	agg := d.GetOrCreateInterface(aggID)
-	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
-
-	for _, port := range aggPorts {
-		i := d.GetOrCreateInterface(port.Name())
-		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
-		if deviations.InterfaceEnabled(dut) {
-			i.Enabled = ygot.Bool(true)
-		}
-	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
 
 // assignToNetworkInstance attaches a physical or logical subinterface of a DUT
@@ -455,9 +434,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 // configureLAGDevice sets up a Link Aggregation Group (LAG) on the ATE.
-func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string, lagID uint32,
-	lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, vlanID int) {
-
+func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string, lagID uint32, lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, vlanID int) {
 	t.Helper()
 	lag := ateConfig.Lags().Add().SetName(lagName)
 	lag.Protocol().Static().SetLagId(lagID)
@@ -501,7 +478,6 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string,
 }
 
 // ipv4Flows configures IPv4 traffic flows on the ATE.
-//
 // This function creates two traffic flows in the provided gosnappi Config:
 //  1. "MatchedIPv4" flow – uses a defined source network, destination network,
 //     and TTL expected to match the DUT policy.
@@ -577,6 +553,7 @@ func ipv6Flows(t *testing.T, c gosnappi.Config) []string {
 	return flowList
 }
 
+// incrementMAC takes a MAC address in string form (e.g., "02:42:ac:11:00:02") and increments it by the given integer offset `i`.
 func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
@@ -619,6 +596,9 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, 
 	}
 }
 
+// otgOperation orchestrates the entire OTG workflow for traffic validation.
+// It validates ATE packet counters, enables capture on specified ports, pushes configuration, starts protocols, ensures DUT ports are up, 
+// starts capture, runs traffic for a fixed duration, stops traffic, stops capture, verifies traffic flow, and validates captured packets.
 func otgOperation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config, flows []string) {
 	t.Helper()
 	validateATEPkts(t, otgConfig, flows)
@@ -746,6 +726,7 @@ outer:
 	}
 }
 
+// enableCapture configures packet capture on the provided OTG configuration for the specified port names. The captures are stored in PCAP format.
 func enableCapture(t *testing.T, config gosnappi.Config, portNames []string) {
 	t.Helper()
 	config.Captures().Clear()
@@ -758,6 +739,7 @@ func enableCapture(t *testing.T, config gosnappi.Config, portNames []string) {
 	}
 }
 
+// startCapture initiates packet capture on all OTG ports defined in the config and returns the ControlState used to manage the capture session.
 func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
 	t.Helper()
 	cs := gosnappi.NewControlState()
@@ -767,12 +749,14 @@ func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
 	return cs
 }
 
+// stopCapture stops packet capture on all OTG ports using the provided ControlState from startCapture.
 func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
 	t.Helper()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	otg.SetControlState(t, cs)
 }
 
+// processCapture fetches captured traffic bytes from the specified OTG port, writes them to a temporary PCAP file, and returns the file path for analysis.
 func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 	t.Helper()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
