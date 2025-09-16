@@ -21,9 +21,7 @@ func TestFirstOrFatalFailsOnEmptySlice(t *testing.T) {
 	t.Parallel()
 	if errMsg := testt.CaptureFatal(t, func(tb testing.TB) {
 		FirstOrFatal(t, []int{}, "empty slice")
-	}); errMsg != nil {
-		t.Fatalf("received error %v", errMsg)
-	} else {
+	}); errMsg == nil {
 		t.Fatal("Did not receive expected failure")
 	}
 }
