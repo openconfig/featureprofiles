@@ -15,7 +15,6 @@
 package cfgplugins
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -26,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
@@ -625,6 +625,7 @@ func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIn
 	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
 }
 
+// ConfigureDUTBGP configures BGP on the DUT using OpenConfig.
 func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, dutAS, ate1AS, ate2AS, ate3AS, ate4AS, ate5AS, ecmpMaxPath uint32,
 	dutP1, dutP2, dutP7, ateP1, ateP2, ateP7, dutLag1, dutLag2, ateLag1, ateLag2 attrs.Attributes) {
 	t.Helper()
@@ -660,13 +661,11 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, dutAS, ate1AS, ate2AS
 
 	// Apply config
 	gnmi.Replace(t, dut, dutBgpConfPath.Config(), dutBgpConf)
-	ConfigureLoadbalance(t, dut)
 
 	// Handle multipath deviation
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		t.Log("Executing CLI commands for multipath deviation")
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		jsonConfig := fmt.Sprintf(`		
+		bgpRouteConfig := fmt.Sprintf(`		
 		router bgp %d
 		address-family ipv4
 		maximum-paths %[2]d ecmp %[2]d
@@ -675,11 +674,7 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, dutAS, ate1AS, ate2AS
 		maximum-paths %[2]d ecmp %[2]d
 		bgp bestpath as-path multipath-relax
 		`, dutAS, ecmpMaxPath)
-		gpbSetRequest := buildCliConfigRequest(jsonConfig)
-
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
-		}
+		helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
 	} else {
 		// TODO: Once multipath is fully supported via OpenConfig across all platforms,
 		// remove CLI fallback and rely solely on OC configuration.
@@ -692,6 +687,7 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, dutAS, ate1AS, ate2AS
 	}
 }
 
+// appendBGPNeighbor appends IPv4 and IPv6 neighbors (and their peer groups) to the BGP configuration.
 func appendBGPNeighbor(t *testing.T, bgp *oc.NetworkInstance_Protocol_Bgp, ateAs uint32, portName, neighborIpV4, neighborIpV6 string, isLag bool) {
 	t.Helper()
 	// Peer Group for IPv4
@@ -736,24 +732,4 @@ func appendBGPNeighbor(t *testing.T, bgp *oc.NetworkInstance_Protocol_Bgp, ateAs
 	afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	afisafi6.Enabled = ygot.Bool(true)
 	nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
-}
-
-// Support method to execute GNMIC commands
-func buildCliConfigRequest(config string) *gnmipb.SetRequest {
-	gpbSetRequest := &gnmipb.SetRequest{
-		Update: []*gnmipb.Update{
-			{
-				Path: &gnmipb.Path{
-					Origin: "cli",
-					Elem:   []*gnmipb.PathElem{},
-				},
-				Val: &gnmipb.TypedValue{
-					Value: &gnmipb.TypedValue_AsciiVal{
-						AsciiVal: config,
-					},
-				},
-			},
-		},
-	}
-	return gpbSetRequest
 }

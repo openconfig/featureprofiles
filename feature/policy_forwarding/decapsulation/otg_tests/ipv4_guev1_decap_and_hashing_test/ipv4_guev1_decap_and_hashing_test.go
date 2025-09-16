@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipv4_guev1_decap_and_hashing_test
+package ipv4guev1decapandhashingtest
 
 import (
 	"bytes"
@@ -55,26 +55,26 @@ const (
 	dutAreaAddress       = "49.0001"
 	dutSysID             = "1920.0000.2001"
 	ateSysID             = "64000000000"
-	UdpSrcPort           = 5996
-	UdpDstPort           = 6080
-	UdpDstPortNeg        = 6085
+	UDPSrcPort           = 5996
+	UDPDstPort           = 6080
+	UDPDstPortNeg        = 6085
 	testSrcPort          = 14
 	testDstPort          = 15
 	flowCount            = 10 // Number of prefixes/routes per host group
-	dcapIp               = "192.168.0.1"
+	dcapIP               = "192.168.0.1"
 	tolerance            = 5 // As per readme, Tolerance for delta: 5%
 	fixedPackets         = 1000000
 	trafficFrameSize     = 1500
 	ratePercent          = 10
 	lspV4Name            = "lsp-egress-v4"
-	// rplName              = "ALLOW"
-	mplsLabel       = 1000
-	decapType       = "udp"
-	decapPort       = 6080
-	ecmpMaxPath     = 4
-	policyName      = "decap-policy"
-	policyId        = 1
-	trafficDuration = 20
+	mplsLabel            = 1000
+	decapType            = "udp"
+	decapPort            = 6080
+	ecmpMaxPath          = 4
+	policyName           = "decap-policy"
+	policyID             = 1
+	trafficDuration      = 20
+	dutLoopbackName      = "Loopback0"
 )
 
 // IP Addresses and Attributes
@@ -221,7 +221,7 @@ func TestMultipathGUE(t *testing.T) {
 			}
 			// Validate load balancing weights
 			weights := testLoadBalance(t, ate, rxLags, flow, excludeLag)
-			getPortRxPkts(t, ate, flow, rxPort)
+			countRxPkts(t, ate, flow, rxPort)
 			for idx, weight := range lagTrafficDistribution {
 				if got, want := weights[idx], weight; got < (want-tolerance) || got > (want+tolerance) {
 					t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
@@ -363,43 +363,50 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	cfgplugins.DeleteAggregate(t, dut, aggID2, dutAggPorts2)
 	configureDUTLag(t, dut, dutAggPorts2, aggID2, dutLag2)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
+	cfgplugins.ConfigureLoadbalance(t, dut)
 	// ISIS Configuration
 	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-	dutConf := configureDUTISIS(t, dut, p1, p2, aggID1)
+	cfg := cfgplugins.ISISConfig{
+		InstanceName: isisInstance,
+		AreaAddress:  dutAreaAddress,
+		SystemID:     dutSysID,
+		AggID:        aggID1,
+		Ports:        []*ondatra.Port{p1, p2},
+		LoopbackIntf: dutLoopbackName,
+	}
+	dutConf := cfgplugins.ConfigureISISOnDUT(t, dut, cfg)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	cfgplugins.ConfigureDUTBGP(t, dut, dutAS, ate1AS, ate2AS, ate3AS, ate4AS, ate5AS, ecmpMaxPath, dutP1, dutP2, dutP7,
-		ateP1, ateP2, ateP7, dutLag1, dutLag2, ateLag1, ateLag2)
+	cfgplugins.ConfigureDUTBGP(t, dut, dutAS, ate1AS, ate2AS, ate3AS, ate4AS, ate5AS, ecmpMaxPath, dutP1, dutP2, dutP7, ateP1, ateP2, ateP7, dutLag1, dutLag2, ateLag1, ateLag2)
 
 	return aggIDsList
 }
 
+// configureDutWithGueDecap configure DUT with decapsulation UDP port
 func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, ipType string) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", decapPort)
-	ocPFParams := getDefaultOcPolicyForwardingParams(t, dut, ipType)
+	ocPFParams := defaultOcPolicyForwardingParams(t, dut, ipType)
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 }
 
-// tetDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// defaultOcPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipType string) cfgplugins.OcPolicyForwardingParams {
+func defaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipType string) cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
-		TunnelIP:            dcapIp,
+		TunnelIP:            dcapIP,
 		GuePort:             uint32(decapPort),
 		IpType:              ipType,
 		Dynamic:             true,
 	}
 }
 
+// configureDUTLag is the public API for creating a static LAG on the DUT.
+// It wraps SetupStaticAggregateAtomically to ensure atomic creation and applies additional DUT-specific attributes and cleanup.
 func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes) {
 	t.Helper()
-	for _, port := range aggPorts {
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().Config())
-	}
 	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggPorts, aggID)
 	agg := dutLag.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -417,40 +424,7 @@ func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.P
 	}
 }
 
-func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, p1, p2 *ondatra.Port, aggID string) *oc.NetworkInstance_Protocol {
-	t.Helper()
-	d := &oc.Root{}
-	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-
-	// Set Protocol Config (no GetOrCreateConfig so use this)
-	protocol := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-	protocol.Enabled = ygot.Bool(true)
-
-	isis := protocol.GetOrCreateIsis()
-
-	globalISIS := isis.GetOrCreateGlobal()
-	if deviations.ISISInstanceEnabledRequired(dut) {
-		globalISIS.Instance = ygot.String(isisInstance) // must match the protocol 'name'
-	}
-	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-
-	t.Logf("Enable ISIS on these interfaces %s, %s, %s", p1.Name(), p2.Name(), aggID1)
-	for _, intf := range []string{p1.Name(), p2.Name(), aggID} {
-		isisIf := isis.GetOrCreateInterface(intf)
-		isisIf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-		isisIf.Enabled = ygot.Bool(true)
-	}
-	// Loopback passive
-	isisLo := isis.GetOrCreateInterface("Loopback0")
-	isisLo.Enabled = ygot.Bool(true)
-	isisLo.Passive = ygot.Bool(true)
-
-	return protocol
-}
-
+// configureATE builds and returns the OTG configuration for the ATE topology.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 	ateConfig := gosnappi.NewConfig()
@@ -465,41 +439,27 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ate2Port := ateConfig.Ports().Add().SetName(ate2p1.ID())
 	ate5Port := ateConfig.Ports().Add().SetName(ate5p7.ID())
 	// ATE Device 1 (EBGP)
-	configureATEDevice(t, ateConfig, ate1Port, ateP1, dutP1, ate1AS, true, host1IPv4Start, host1IPv6Start, true, ate1LoopbackIP, loopbackPfxLen, true, ateSysID+"1")
-
+	configureATEDevice(t, ateConfig, ate1Port, ateP1, dutP1, ate1AS, loopbackPfxLen, true, true, true, host1IPv4Start, host1IPv6Start, ate1LoopbackIP, ateSysID+"1")
 	// ATE Device 2 (IBGP)
-	configureATEDevice(t, ateConfig, ate2Port, ateP2, dutP2, ate2AS, false, host2IPv4Start, host2IPv6Start, false, ate1LoopbackIP, loopbackPfxLen, true, ateSysID+"2")
-
+	configureATEDevice(t, ateConfig, ate2Port, ateP2, dutP2, ate2AS, loopbackPfxLen, false, false, true, host2IPv4Start, host2IPv6Start, ate1LoopbackIP, ateSysID+"2")
 	// ATE LAG1 (IBGP)
 	ateAggPorts1 := []*ondatra.Port{
 		ate.Port(t, "port3"),
 		ate.Port(t, "port4"),
 	}
-	configureLAGDevice(t, ateConfig, "lag1", 1, ateLag1, dutLag1, ateAggPorts1, ate3AS, false, true, host2IPv4Start, host2IPv6Start, host3IPv4Start)
-
+	configureLAGDevice(t, ateConfig, ateLag1, dutLag1, ateAggPorts1, 1, ate3AS, false, true, "lag1", host2IPv4Start, host2IPv6Start, host3IPv4Start)
 	// ATE LAG2 (EBGP)
 	ateAggPorts2 := []*ondatra.Port{
 		ate.Port(t, "port5"),
 		ate.Port(t, "port6"),
 	}
-	configureLAGDevice(t, ateConfig, "lag2", 2, ateLag2, dutLag2, ateAggPorts2, ate4AS, true, false, host4IPv4Start, host4IPv6Start, "")
-	configureATEDevice(t, ateConfig, ate5Port, ateP7, dutP7, ate5AS, true, host4IPv4Start, host4IPv6Start, false, ate1LoopbackIP, loopbackPfxLen, false, ateSysID+"2")
+	configureLAGDevice(t, ateConfig, ateLag2, dutLag2, ateAggPorts2, 2, ate4AS, true, false, "lag2", host4IPv4Start, host4IPv6Start, "")
+	configureATEDevice(t, ateConfig, ate5Port, ateP7, dutP7, ate5AS, loopbackPfxLen, true, false, false, host4IPv4Start, host4IPv6Start, ate1LoopbackIP, ateSysID+"2")
 	return ateConfig
 }
 
-func configureATEDevice(t *testing.T,
-	cfg gosnappi.Config,
-	port gosnappi.Port,
-	atePort, dutPort attrs.Attributes,
-	asn uint32,
-	isEBGP bool,
-	hostPrefixV4, hostPrefixV6 string,
-	loopbacks bool,
-	loopbackPrefix string,
-	loopbackPrefixLen uint32,
-	isisConfig bool,
-	sysID string,
-) {
+// configureATEDevice configures the ports along with the associated protocols.
+func configureATEDevice(t *testing.T, cfg gosnappi.Config, port gosnappi.Port, atePort, dutPort attrs.Attributes, asn, loopbackPrefixLen uint32, isEBGP, loopbacks, isisConfig bool, hostPrefixV4, hostPrefixV6, loopbackPrefix, sysID string) {
 	t.Helper()
 	var peerTypeV4 gosnappi.BgpV4PeerAsTypeEnum
 	var peerTypeV6 gosnappi.BgpV6PeerAsTypeEnum
@@ -537,17 +497,12 @@ func configureATEDevice(t *testing.T,
 		addBGPRoutes(v4Peer.V4Routes().Add(), atePort.Name+".Loopbacks.v4", loopbackPrefix, loopbackPrefixLen, flowCount, ip4.Address())
 	}
 	if isisConfig {
-		configureISIS(dev,
-			ip4.Address(),
-			eth.Name(),
-			[]string{atePort.IPv4 + "/" + strconv.Itoa(plenIPv4)},
-			[]string{atePort.IPv6 + "/" + strconv.Itoa(plenIPv6)},
-			sysID,
-		)
+		configureISIS(dev, ip4.Address(), eth.Name(), []string{atePort.IPv4 + "/" + strconv.Itoa(plenIPv4)}, []string{atePort.IPv6 + "/" + strconv.Itoa(plenIPv6)}, sysID)
 	}
 }
 
-func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string, lagID uint32, lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, asn uint32, isEBGP, isISIS bool, hostPrefixV4, hostPrefixV6, host3PrefixV4 string) {
+// configureLAGDevice configures the Lags along with the associated protocols.
+func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, lagID, asn uint32, isEBGP, isISIS bool, lagName, hostPrefixV4, hostPrefixV6, host3PrefixV4 string) {
 	t.Helper()
 	lag := ateConfig.Lags().Add().SetName(lagName)
 	lag.Protocol().Static().SetLagId(lagID)
@@ -596,13 +551,7 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string,
 	if isISIS {
 		isis3LoopbackV4Net := []string{ate3Lo.IPv4 + "/" + strconv.Itoa(int(ate3Lo.IPv4Len))}
 		isis3LoopbackV6Net := []string{ate3Lo.IPv6 + "/" + strconv.Itoa(int(ate3Lo.IPv6Len))}
-		configureISIS(dev,
-			ipv4.Address(),
-			eth.Name(),
-			append(isis3LoopbackV4Net, ateLag1.IPv4+"/"+strconv.Itoa(int(plenIPv4))), // IPv4 networks
-			append(isis3LoopbackV6Net, ateLag1.IPv6+"/"+strconv.Itoa(int(plenIPv6))), // IPv6 networks
-			ateSysID+"3",
-		)
+		configureISIS(dev, ipv4.Address(), eth.Name(), append(isis3LoopbackV4Net, ateLag1.IPv4+"/"+strconv.Itoa(int(plenIPv4))), append(isis3LoopbackV6Net, ateLag1.IPv6+"/"+strconv.Itoa(int(plenIPv6))), ateSysID+"3")
 	}
 }
 
@@ -610,16 +559,10 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string,
 func addBGPRoutes[R any](routes R, name, startAddress string, prefixLen, count uint32, nextHop string) {
 	switch r := any(routes).(type) {
 	case gosnappi.BgpV4RouteRange:
-		r.SetName(name).
-			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL). // Use interface IP as next-hop
-			SetNextHopIpv4Address(nextHop)
+		r.SetName(name).SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).SetNextHopIpv4Address(nextHop)
 		r.Addresses().Add().SetAddress(startAddress).SetPrefix(prefixLen).SetCount(count)
 	case gosnappi.BgpV6RouteRange:
-		r.SetName(name).
-			SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-			SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL). // Use interface IP as next-hop
-			SetNextHopIpv6Address(nextHop)
+		r.SetName(name).SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).SetNextHopIpv6Address(nextHop)
 		r.Addresses().Add().SetAddress(startAddress).SetPrefix(prefixLen).SetCount(count)
 	}
 }
@@ -630,22 +573,14 @@ func configureISIS(dev gosnappi.Device, routerID, ifName string, ipv4Nets, ipv6N
 	isis.Basic().SetIpv4TeRouterId(routerID).SetHostname(dev.Name())
 
 	// ISIS Interface Config
-	isis.Interfaces().Add().
-		SetEthName(ifName).
-		SetName(dev.Name() + "IsisInt").
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
+	isis.Interfaces().Add().SetEthName(ifName).SetName(dev.Name() + "IsisInt").SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
 	// Advertise IPv4 routes
 	for i, net := range ipv4Nets {
 		parts := strings.Split(net, "/")
 		addr := parts[0]
 		prefix, _ := strconv.Atoi(parts[1])
-		isis.V4Routes().Add().
-			SetName(fmt.Sprintf("%s.isis.v4net%d", dev.Name(), i)).
-			Addresses().Add().
-			SetAddress(addr).
-			SetPrefix(uint32(prefix))
+		isis.V4Routes().Add().SetName(fmt.Sprintf("%s.isis.v4net%d", dev.Name(), i)).Addresses().Add().SetAddress(addr).SetPrefix(uint32(prefix))
 	}
 
 	// Advertise IPv6 routes
@@ -653,11 +588,7 @@ func configureISIS(dev gosnappi.Device, routerID, ifName string, ipv4Nets, ipv6N
 		parts := strings.Split(net, "/")
 		addr := parts[0]
 		prefix, _ := strconv.Atoi(parts[1])
-		isis.V6Routes().Add().
-			SetName(fmt.Sprintf("%s.isis.v6net%d", dev.Name(), i)).
-			Addresses().Add().
-			SetAddress(addr).
-			SetPrefix(uint32(prefix))
+		isis.V6Routes().Add().SetName(fmt.Sprintf("%s.isis.v6net%d", dev.Name(), i)).Addresses().Add().SetAddress(addr).SetPrefix(uint32(prefix))
 	}
 }
 
@@ -666,8 +597,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, neighbors []Neighbor) 
 	t.Helper()
 	t.Log("Verifying BGP neighbor sessions (IPv4 and IPv6)")
 
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	for idx, nbr := range neighbors {
 		t.Logf("Checking BGP IPv4 neighbor %s (Neighbor %d)", nbr.IPv4, idx+1)
@@ -702,6 +632,7 @@ func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice, neighbors []Neighbor) 
 	t.Log("All BGP IPv4 and IPv6 neighbors are ESTABLISHED.")
 }
 
+// incrementMAC takes a MAC address in string form (e.g., "02:42:ac:11:00:02") and increments it by the given integer offset `i`.
 func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
@@ -718,6 +649,7 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
+// configureFlows configure traffic streams as per the provided input.
 func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, dstPorts []string, incr int, immediateHeader bool) gosnappi.Flow {
 	t.Helper()
 	t.Logf("Adding Traffic Stream: %s", "Flow-"+strconv.Itoa(incr))
@@ -738,18 +670,18 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	} else if immediateHeader {
 		ipOuter.Dst().SetValue(ateP2.IPv4)
 	} else {
-		ipOuter.Dst().SetValue(dcapIp)
+		ipOuter.Dst().SetValue(dcapIP)
 	}
 	udpOuter := flow.Packet().Add().Udp()
 	if immediateHeader {
-		udpOuter.SrcPort().SetValue(UdpSrcPort)
+		udpOuter.SrcPort().SetValue(UDPSrcPort)
 	} else {
-		udpOuter.SrcPort().Increment().SetStart(UdpSrcPort).SetStep(1).SetCount(10)
+		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(10)
 	}
 	if incr == 13 || incr == 14 {
-		udpOuter.DstPort().SetValue(UdpDstPortNeg)
+		udpOuter.DstPort().SetValue(UDPDstPortNeg)
 	} else {
-		udpOuter.DstPort().SetValue(UdpDstPort)
+		udpOuter.DstPort().SetValue(UDPDstPort)
 	}
 
 	// Flow-specific configuration from image table
@@ -765,11 +697,11 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 
 		udpMiddle := flow.Packet().Add().Udp()
 		if immediateHeader {
-			udpMiddle.SrcPort().SetValue(UdpSrcPort - 1)
+			udpMiddle.SrcPort().SetValue(UDPSrcPort - 1)
 		} else {
-			udpMiddle.SrcPort().Increment().SetStart(UdpSrcPort - 1).SetStep(1).SetCount(10)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
 		}
-		udpMiddle.DstPort().SetValue(UdpDstPort)
+		udpMiddle.DstPort().SetValue(UDPDstPort)
 
 		if incr == 1 {
 			ipInner := flow.Packet().Add().Ipv4()
@@ -814,8 +746,8 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v6)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(UdpSrcPort - 1).SetStep(1).SetCount(10)
-		udp.DstPort().SetValue(UdpSrcPort - 2)
+		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
+		udp.DstPort().SetValue(UDPSrcPort - 2)
 	case 8, 10:
 		ipInner := flow.Packet().Add().Ipv6()
 		ipInner.Src().SetValue(constH1v6)
@@ -838,6 +770,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	return flow
 }
 
+// verifyFlowTraffic validate the traffic stream counts.
 func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowName string) bool {
 	t.Helper()
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
@@ -886,7 +819,7 @@ func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, fl
 		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
 		inFrames := metrics.GetCounters().GetInFrames()
 		if aggName == aggregateAggName {
-			inFrames = inFrames - flowInFrames
+			inFrames -= flowInFrames
 		}
 		rxs = append(rxs, inFrames)
 	}
@@ -900,7 +833,8 @@ func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, fl
 	return rxs
 }
 
-func getPortRxPkts(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, rxPort string) {
+// countRxPkts validates whether the received packet count on a given Rx port is within the expected load-balancing range.
+func countRxPkts(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, rxPort string) {
 	t.Helper()
 	if rxPort != "" {
 		// Constants for lower and upper bounds as percentage of total flow (e.g., 30% to 80%)
@@ -920,15 +854,14 @@ func getPortRxPkts(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, rxP
 		upperBound := (flowInFrames * upperPct) / 100
 
 		if portFrames >= lowerBound && portFrames <= upperBound {
-			t.Logf("Port %s received %d packets within expected range [%d - %d] for flow %s: Load Balance Success",
-				rxPort, portFrames, lowerBound, upperBound, flow.Name())
+			t.Logf("Port %s received %d packets within expected range [%d - %d] for flow %s: Load Balance Success", rxPort, portFrames, lowerBound, upperBound, flow.Name())
 		} else {
-			t.Errorf("Port %s received %d packets out of expected range [%d - %d] for flow %s: Load Balance Failed",
-				rxPort, portFrames, lowerBound, upperBound, flow.Name())
+			t.Errorf("Port %s received %d packets out of expected range [%d - %d] for flow %s: Load Balance Failed", rxPort, portFrames, lowerBound, upperBound, flow.Name())
 		}
 	}
 }
 
+// verifyTrafficFlowNegCase checks whether the observed packet loss for a flow is within acceptable tolerance.
 func verifyTrafficFlowNegCase(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flow gosnappi.Flow) bool {
 	t.Helper()
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
@@ -941,6 +874,7 @@ func verifyTrafficFlowNegCase(t *testing.T, ate *ondatra.ATEDevice, config gosna
 	return true
 }
 
+// verifySinglePathTraffic validates that traffic follows a single expected path without load balancing across multiple ports.
 func verifySinglePathTraffic(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
 	t.Helper()
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
@@ -950,10 +884,7 @@ func verifySinglePathTraffic(t *testing.T, ate *ondatra.ATEDevice, otgConfig gos
 		otgConfig.Ports().Items()[2].Name(), // alternative path
 		otgConfig.Ports().Items()[3].Name(),
 	}
-	aggNames := []string{
-		otgConfig.Lags().Items()[0].Name(),
-		otgConfig.Lags().Items()[1].Name(),
-	}
+	aggNames := []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()}
 	totalRx := uint64(0)
 	nonZeroPorts := 0
 	for _, port := range portList {

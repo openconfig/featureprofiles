@@ -1617,3 +1617,8 @@ func SkipOrigin(dut *ondatra.DUTDevice) bool {
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
+
+// LoadBalancePolicyOCUnsupported returns true if load-balancing policy configuration is not supported through OpenConfig.
+func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
+}

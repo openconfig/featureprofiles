@@ -695,6 +695,18 @@ func SetupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggID string
 	gnmi.Update(t, dut, p.Config(), d)
 }
 
+// DeleteAggregate deletes the aggregate interface.
+func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
+	// Clear the aggregate minlink.
+	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
+
+	// Clear the members of the aggregate.
+	for _, port := range dutAggPorts {
+		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+	}
+}
+
+// SetupStaticAggregateAtomically sets up the static aggregate interface atomically.
 func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
 	t.Helper()
 	d := &oc.Root{}
@@ -712,15 +724,4 @@ func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPor
 		}
 	}
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
-}
-
-// DeleteAggregate deletes the aggregate interface.
-func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
-	// Clear the aggregate minlink.
-	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
-
-	// Clear the members of the aggregate.
-	for _, port := range dutAggPorts {
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-	}
 }
