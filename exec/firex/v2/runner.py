@@ -1811,6 +1811,7 @@ def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_lo
             f'./exec/utils/godhcpc ' \
             f'-timeout 15m ' \
             f'-args ' \
+            f'-push-config=false ' \
             f'-collect_dut_info=false ' \
             f'-test.run {test_to_run} ' \
             f'-addr http://{dhcp_host}:{dhcp_api_port} ' \
