@@ -25,7 +25,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -36,6 +35,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -46,6 +46,7 @@ const (
 	mgmtVRF         = "mvrf1"
 	sampleTolerance = 0.8
 )
+
 var (
 	staticRouteV4 = &cfgplugins.StaticRouteCfg{
 		NetworkInstance: mgmtVRF,
@@ -122,7 +123,7 @@ var (
 		MAC:     "02:00:02:01:01:01",
 	}
 	loopbackSubIntfNum = 1
-	dutlo0Attrs = attrs.Attributes{
+	dutlo0Attrs        = attrs.Attributes{
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.1",
 		IPv6:    "2001:db8::203:0:113:1",
@@ -130,7 +131,7 @@ var (
 		IPv6Len: 128,
 	}
 	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
-	flowConfigs = []flowConfig{
+	flowConfigs        = []flowConfig{
 		{
 			name:            "flowS",
 			packetsToSend:   10000000,
@@ -187,6 +188,7 @@ type flowConfig struct {
 }
 
 type IPType string
+
 const (
 	IPv4 = "IPv4"
 	IPv6 = "IPv6"
