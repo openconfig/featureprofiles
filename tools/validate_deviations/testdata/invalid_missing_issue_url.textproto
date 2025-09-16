@@ -1,0 +1,16 @@
+
+deviations: {
+  name: "auto_negotiate_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/interfaces/interface/ethernet/config/auto-negotiate"
+    }
+  }
+  platforms: {
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+  }
+}
