@@ -596,9 +596,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, 
 	}
 }
 
-// otgOperation orchestrates the entire OTG workflow for traffic validation.
-// It validates ATE packet counters, enables capture on specified ports, pushes configuration, starts protocols, ensures DUT ports are up, 
-// starts capture, runs traffic for a fixed duration, stops traffic, stops capture, verifies traffic flow, and validates captured packets.
+// otgOperation orchestrates the entire OTG workflow for traffic validation. It validates ATE packet counters, enables capture on specified ports, pushes configuration, starts protocols, ensures DUT ports are up, starts capture, runs traffic for a fixed duration, stops traffic, stops capture, verifies traffic flow, and validates captured packets.
 func otgOperation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config, flows []string) {
 	t.Helper()
 	validateATEPkts(t, otgConfig, flows)
