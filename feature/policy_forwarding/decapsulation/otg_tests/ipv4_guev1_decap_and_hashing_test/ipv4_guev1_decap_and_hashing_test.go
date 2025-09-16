@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipv4guev1decapandhashingtest
+package ipv4_guev1_decap_and_hashing_test
 
 import (
 	"bytes"
