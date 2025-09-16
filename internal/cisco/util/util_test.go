@@ -2,7 +2,11 @@
 // The helpers intentionally live in a test file so they do not become part of the exported runtime API.
 package util
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/openconfig/testt"
+)
 
 func TestFirstOrFatalReturnsFirstElement(t *testing.T) {
 	t.Parallel()
@@ -15,12 +19,13 @@ func TestFirstOrFatalReturnsFirstElement(t *testing.T) {
 
 func TestFirstOrFatalFailsOnEmptySlice(t *testing.T) {
 	t.Parallel()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("FirstOrFatal() did not fail on empty slice")
-		}
-	}()
-	_ = FirstOrFatal(t, []int{}, "empty slice")
+	if errMsg := testt.CaptureFatal(t, func(tb testing.TB) {
+		FirstOrFatal(t, []int{}, "empty slice")
+	}); errMsg != nil {
+		t.Fatalf("received error %v", errMsg)
+	} else {
+		t.Fatal("Did not receive expected failure")
+	}
 }
 
 // TODO: add similar unit-tests for relevant functions in util.go
