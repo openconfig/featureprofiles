@@ -1,3 +1,5 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/deviations.proto
+# proto-message: DeviationRegistry
 deviations: {
   name: "mismatched_hardware_resource_name_in_component"
   type: DEVIATION_TYPE_VALUE

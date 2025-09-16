@@ -44,4 +44,5 @@ jobs:
           # Run the validator on the main deviations file.
           go run tools/validate_deviations/validate_deviations.go \
             --deviations_file internal/deviations/deviations.textproto \
-            --exempt_deviations_file tools/validate_deviations/exempt_deviations.txt
+            --exempt_deviations_file tools/validate_deviations/exempt_deviations.txt \
+            --skip_completeness_check

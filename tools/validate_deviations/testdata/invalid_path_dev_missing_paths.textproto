@@ -1,4 +1,5 @@
-
+# proto-file: github.com/openconfig/featureprofiles/proto/deviations.proto
+# proto-message: DeviationRegistry
 deviations: {
   name: "auto_negotiate_unsupported"
   type: DEVIATION_TYPE_PATH

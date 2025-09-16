@@ -1,19 +1,18 @@
 package main
 
 import (
-    "bufio"
-    "flag"
-    "fmt"
-    "io/ioutil"
-    "net/url"
-    "os"
-    "strings"
+	"bufio"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"strings"
 
-    "google.golang.org/protobuf/encoding/prototext"
-    dpb "github.com/openconfig/featureprofiles/proto/deviations_go_proto"
-    mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	dpb "github.com/openconfig/featureprofiles/proto/deviations_go_proto"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google.golang.org/protobuf/encoding/prototext"
 )
-
 
 var (
 	deviationsPath        = flag.String("deviations_file", "", "Path to the deviations.textproto file.")
