@@ -20,9 +20,9 @@ func TestFirstOrFatalReturnsFirstElement(t *testing.T) {
 func TestFirstOrFatalFailsOnEmptySlice(t *testing.T) {
 	t.Parallel()
 	if errMsg := testt.CaptureFatal(t, func(tb testing.TB) {
-		FirstOrFatal(t, []int{}, "empty slice")
+		FirstOrFatal(tb, []int{}, "empty slice")
 	}); errMsg == nil {
-		t.Fatal("Did not receive expected failure")
+		t.Fatal("expected fatal on empty slice")
 	}
 }
 
