@@ -760,7 +760,7 @@ func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(op.Name())
-	i.Description = ygot.String("LAG - Member - " +op.Name())
+	i.Description = ygot.String("LAG - Member - " + op.Name())
 	e := i.GetOrCreateEthernet()
 	e.AggregateId = ygot.String(aggID)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
