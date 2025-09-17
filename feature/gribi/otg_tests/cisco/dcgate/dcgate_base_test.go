@@ -814,14 +814,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	p8 := dut.Port(t, "port8")
 
 	// configure interfaces
-
-	// be1 := dutPort1.NewOCInterface("Bundle-Ether1", dut)
-	// be1.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	// gnmi.Replace(t, dut, d.Interface("Bundle-Ether1").Config(), be1)
-
-	// BE1 := generateBundleMemberInterfaceConfig(t, p1.Name(), "Bundle-Ether1")
-	// gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), BE1)
-
 	configureBundleInterfaces(t, dut, p1, "Bundle-Ether1", &dutPort1)
 	configureBundleInterfaces(t, dut, p2, "Bundle-Ether2", &dutPort2)
 	configureBundleInterfaces(t, dut, p3, "Bundle-Ether3", &dutPort3)
@@ -1198,15 +1190,15 @@ func validateInnerIPv4Packet(l *Logger, payload []byte, pa *packetAttr) {
 		} else {
 			l.LogOncef("Inner Packet protocol type matched: %d", pa.protocol)
 		}
-		if got := int(innerIPv4Packet.TOS >> 2); got != pa.inner.dscp {
+		if got := int(innerIPv4Packet.TOS >> 2); got != pa.dscp {
 			l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
 		} else {
-			l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
+			l.LogOncef("Inner Packet Dscp value matched: %d", pa.dscp)
 		}
-		if got := uint32(innerIPv4Packet.TTL); got != pa.inner.ttl {
+		if got := uint32(innerIPv4Packet.TTL); got != pa.ttl {
 			l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.ttl)
 		} else {
-			l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
+			l.LogOncef("Inner Packet TTL matched: %d", pa.ttl)
 		}
 	}
 }
@@ -1222,15 +1214,15 @@ func validateInnerIPv6Packet(l *Logger, payload []byte, pa *packetAttr) {
 		} else {
 			l.LogOncef("Inner Packet protocol type matched: %d", pa.protocol)
 		}
-		if got := int(innerIPv6Packet.TrafficClass >> 2); got != pa.inner.dscp {
-			l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.inner.dscp)
+		if got := int(innerIPv6Packet.TrafficClass >> 2); got != pa.dscp {
+			l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
 		} else {
-			l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
+			l.LogOncef("Inner Packet Dscp value matched: %d", pa.dscp)
 		}
-		if got := uint32(innerIPv6Packet.HopLimit); got != pa.inner.ttl {
-			l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.inner.ttl)
+		if got := uint32(innerIPv6Packet.HopLimit); got != pa.ttl {
+			l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.ttl)
 		} else {
-			l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
+			l.LogOncef("Inner Packet TTL matched: %d", pa.ttl)
 		}
 	}
 }
