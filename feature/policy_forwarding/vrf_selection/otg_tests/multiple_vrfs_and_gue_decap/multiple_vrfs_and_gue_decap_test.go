@@ -236,6 +236,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	}
 }
 
+// configureDutWithGueDecap configure DUT with GUE decapsulation
 func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	ocPFParams := getDefaultOcPolicyForwardingParams(t, dut, guePort, ipType)
@@ -258,6 +259,7 @@ func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, gu
 	}
 }
 
+// ConfigureDUTIntf configure DUT interface IP address
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
@@ -276,6 +278,7 @@ type bgpNeighbor struct {
 	PeerGroupName string
 }
 
+// ConfigureBgp configure dut with BGP configuration
 func ConfigureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
@@ -328,7 +331,7 @@ func ConfigureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
-// Configures the given DUT interface.
+// configInterfaceDUT Configures the given DUT interface.
 func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i := a.NewOCInterface(p.Name(), dut)
 	if deviations.InterfaceEnabled(dut) {
@@ -345,6 +348,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
+// ConfigureQoS configure dut with QoS configuration
 func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
@@ -579,6 +583,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 	return topo
 }
 
+// trafficStartStop - start and stop traffic from OTG
 func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
@@ -590,6 +595,7 @@ func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 }
 
+// validateTrafficLoss - validate traffic loss on each flows
 func validateTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, flowName []string) {
 	for _, flow := range flowName {
 		outPkts := float32(gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow).Counters().OutPkts().State()))
@@ -620,14 +626,14 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	otg.SetControlState(t, cs)
 }
 
+// enableCapture - enable capture on ATE port
 func enableCapture(t *testing.T, config gosnappi.Config, port string) {
-
 	config.Captures().Clear()
 	t.Log("Enabling capture on ", port)
 	config.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
-
 }
 
+// processCapture - process captured packets and return the pcap file
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
@@ -643,6 +649,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	return pcapFile.Name()
 }
 
+// verifyCapturePackets - verify packets having expected field and values
 func verifyCapturePackets(t *testing.T, ate *ondatra.ATEDevice, port string, ipType string, srcIP string) {
 	var packetCount uint32 = 0
 	pcapfilename := processCapture(t, ate, port)
@@ -690,6 +697,7 @@ func verifyCapturePackets(t *testing.T, ate *ondatra.ATEDevice, port string, ipT
 	}
 }
 
+// configureRouteLeaking - route leaking from default to non default VRF
 func configureRouteLeaking(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.NetworkInstanceImportExportPolicyOCUnsupported(dut) {
 		t.Logf("Configuring route leaking through CLI")
@@ -700,6 +708,7 @@ func configureRouteLeaking(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// configureRouteLeakingFromCLI - route leaking from CLI
 func configureRouteLeakingFromCLI(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	cli := fmt.Sprintf(`
@@ -711,6 +720,7 @@ func configureRouteLeakingFromCLI(t *testing.T, dut *ondatra.DUTDevice) {
 	helpers.GnmiCLIConfig(t, dut, cli)
 }
 
+// configureRouteLeakingFromOC - configures route leaking functionality from OC command
 func configureRouteLeakingFromOC(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	root := &oc.Root{}
@@ -723,6 +733,7 @@ func configureRouteLeakingFromOC(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVrfName).InterInstancePolicies().Config(), ni1Pol)
 }
 
+// waitForBGPSession - verify BGP session is Established
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
@@ -754,11 +765,13 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	}
 }
 
+// verifyBGPTelemetry - verify BGP neighborship
 func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Waiting for BGPv4 neighbor to establish...")
 	waitForBGPSession(t, dut, true)
 }
 
+// createVRF - creates non default VRF in dut
 func createVRF(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	droot := &oc.Root{}
@@ -778,6 +791,7 @@ func createVRF(t *testing.T, dut *ondatra.DUTDevice) {
 	sb.Set(t, dut)
 }
 
+// configureLoopbackInterface - create and configure loopback interface
 func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
@@ -804,6 +818,7 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// configureIPv4Traffic - create traffic flows in ATE
 func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config) {
 
 	topo.Flows().Clear()
@@ -900,6 +915,7 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 	ate.OTG().PushConfig(t, topo)
 }
 
+// verifyLeakedRoutes - verify ip routes in no default VRF
 func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var routes []string
