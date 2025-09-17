@@ -17,7 +17,6 @@ package acctz
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,13 +36,10 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
-	"github.com/openconfig/ondatra/binding/introspect"
 	ondatragnmi "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -68,7 +64,7 @@ const (
 	ipProto              = 6
 )
 
-var gRPCClientAddr net.Addr
+// var gRPCClientAddr net.Addr
 
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
 	request := &cpb.RotateAccountCredentialsRequest{
@@ -191,15 +187,15 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 	setupUserPassword(t, dut, FailUsername, failPassword)
 }
 
-func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
-	dialTarget := introspect.DUTDialer(t, dut, service).DialTarget
-	resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
-	if err != nil {
-		t.Fatalf("Failed resolving %s target %s", service, dialTarget)
-	}
-	t.Logf("Target for %s service: %s", service, resolvedTarget)
-	return resolvedTarget.String()
-}
+// func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
+// 	dialTarget := introspect.DUTDialer(t, dut, service).DialTarget
+// 	resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
+// 	if err != nil {
+// 		t.Fatalf("Failed resolving %s target %s", service, dialTarget)
+// 	}
+// 	t.Logf("Target for %s service: %s", service, resolvedTarget)
+// 	return resolvedTarget.String()
+// }
 
 func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 	var serviceDUT interface {
@@ -230,34 +226,34 @@ func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 	return target
 }
 
-func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
-	conn, err := grpc.NewClient(
-		target,
-		grpc.WithTransportCredentials(
-			credentials.NewTLS(
-				&tls.Config{
-					InsecureSkipVerify: true,
-				},
-			),
-		),
-		grpc.WithContextDialer(func(ctx context.Context, a string) (net.Conn, error) {
-			dst, err := net.ResolveTCPAddr("tcp", a)
-			if err != nil {
-				return nil, err
-			}
-			c, err := net.DialTCP("tcp", nil, dst)
-			if err != nil {
-				return nil, err
-			}
-			gRPCClientAddr = c.LocalAddr()
-			return c, err
-		}))
-	if err != nil {
-		t.Fatalf("Got unexpected error dialing gRPC target %q, error: %v", target, err)
-	}
+// func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
+// 	conn, err := grpc.NewClient(
+// 		target,
+// 		grpc.WithTransportCredentials(
+// 			credentials.NewTLS(
+// 				&tls.Config{
+// 					InsecureSkipVerify: true,
+// 				},
+// 			),
+// 		),
+// 		grpc.WithContextDialer(func(ctx context.Context, a string) (net.Conn, error) {
+// 			dst, err := net.ResolveTCPAddr("tcp", a)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			c, err := net.DialTCP("tcp", nil, dst)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			gRPCClientAddr = c.LocalAddr()
+// 			return c, err
+// 		}))
+// 	if err != nil {
+// 		t.Fatalf("Got unexpected error dialing gRPC target %q, error: %v", target, err)
+// 	}
 
-	return conn
-}
+// 	return conn
+// }
 
 func dialSSH(t *testing.T, username, password, target string) (*ssh.Client, io.WriteCloser) {
 	conn, err := ssh.Dial(
