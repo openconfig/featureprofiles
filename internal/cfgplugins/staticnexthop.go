@@ -144,7 +144,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 						ttl %d
 						tunnel-source %s
 						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
-						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.Ttl,
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
 							dynamicValues.TunnelSrc, dynamicValues.EntryValue, dynamicValues.MplsLabel,
 							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
 						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
@@ -163,7 +163,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 						ttl %d
 						tunnel-source %s
 						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
-						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.Ttl,
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
 							dynamicValues.TunnelSrc, dynamicValues.EntryValue, dynamicValues.MplsLabel,
 							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
 						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
@@ -204,7 +204,7 @@ type StaticNextHopGroupParams struct {
 type DynamicStructParams struct {
 	NexthopGrpName string
 	NexthopType    string
-	Ttl            int
+	TTL            int
 	TunnelSrc      string
 	TunnelDst      string
 	MplsLabel      int
