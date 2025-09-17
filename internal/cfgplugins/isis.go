@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/ygot/ygot"
+	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra"
