@@ -492,9 +492,6 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		action := term.GetOrCreateActions()
 		action.SetTargetGroup(tc.targetGroup)
 
-		// remark := action.GetOrCreateRemark()
-		// remark.SetDscp = ygot.Uint8(0)
-
 		condition := term.GetOrCreateConditions()
 		if tc.name == "dscp_based_classifier_ipv4" {
 			condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
