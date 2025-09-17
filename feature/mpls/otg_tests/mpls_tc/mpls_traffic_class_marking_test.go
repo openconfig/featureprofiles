@@ -1,3 +1,5 @@
+// Package mpls_traffic_class_marking_test implements tests that
+// verify proper MPLS Traffic Class marking configuration
 package mpls_traffic_class_marking_test
 
 import (
@@ -28,32 +30,33 @@ const (
 	mplsTermName       = "mpls-class-term"
 	mplsStartLabel     = 16
 	mplsEndLabel       = 1048575
-	mplsTCValue        = 5
+	mplsTCMarkingValue = 5
 	mplsWaitTime       = 2 * time.Minute
 	loopbackIntf       = "Loopback50"
-	ldpLabelSpace      = 0 // Use the platform-wide label space.
+	ldpLabelSpace      = 0
+	isisMetricValue    = 200
 )
 
 var (
-	dutA_p1 = attrs.Attributes{
+	dutAP1 = attrs.Attributes{
 		Desc:    "DUT-A to DUT-B",
 		IPv4:    "192.168.1.1",
 		IPv4Len: plenIPv4,
 	}
 
-	dutB_p2 = attrs.Attributes{
+	dutBP2 = attrs.Attributes{
 		Desc:    "DUT-B to DUT-A",
 		IPv4:    "192.168.1.2",
 		IPv4Len: plenIPv4,
 	}
 
-	dutA_lo50 = attrs.Attributes{
+	dutALo50 = attrs.Attributes{
 		Desc:    loopbackIntf,
 		IPv4:    "100.100.100.1",
 		IPv4Len: plenIPv4Loopback,
 	}
 
-	dutB_lo50 = attrs.Attributes{
+	dutBLo50 = attrs.Attributes{
 		Desc:    loopbackIntf,
 		IPv4:    "200.200.200.2",
 		IPv4Len: plenIPv4Loopback,
@@ -64,8 +67,19 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// TestMplsTcMarking configures and verifies MPLS Traffic Class marking
-// based on a QoS classifier.
+// Test-ID: MPLS-1.2
+// Component: MPLS QoS
+// Description: Validates MPLS TC marking based on QoS classifiers
+//
+// Topology:
+//
+//	DUT-A <---> DUT-B
+//
+// Test steps:
+//  1. Configure interfaces, ISIS, MPLS, and LDP on both DUTs
+//  2. Verify LDP session establishment
+//  3. Configure QoS classifier on DUT-A for MPLS TC marking
+//  4. Verify QoS configuration state
 func TestMplsTcMarking(t *testing.T) {
 	dutA := ondatra.DUT(t, "dut1")
 	dutB := ondatra.DUT(t, "dut2")
@@ -74,9 +88,9 @@ func TestMplsTcMarking(t *testing.T) {
 	configureInitialDUTs(t, dutA, dutB)
 
 	// Verify LDP session is established.
-	verifyLDP(t, dutA, dutB_lo50.IPv4)
+	verifyLDP(t, dutA, dutBLo50.IPv4)
 
-	t.Run("ConfigureAndVerifyClassifier", func(t *testing.T) {
+	t.Run("MPLS-1.2: Configure and verify MPLS TC marking classifier", func(t *testing.T) {
 		// Configure QoS on DUT-A.
 		configureQoS(t, dutA)
 
@@ -121,7 +135,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi.Metric = ygot.Uint32(200)
+		isisIntfLevelAfi.Metric = ygot.Uint32(isisMetricValue)
 		isisIntfLevelAfi.Enabled = ygot.Bool(true)
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
 			isisIntfLevel.Af = nil
@@ -166,13 +180,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d
 	mpls := ni.GetOrCreateMpls()
 	ldp := mpls.GetOrCreateSignalingProtocols().GetOrCreateLdp()
 	ldpg := ldp.GetOrCreateGlobal()
-	ldpg.LsrId = ygot.String(dutA_lo50.IPv4)
+	ldpg.LsrId = ygot.String(dutALo50.IPv4)
 
 	ldpif := ldp.GetOrCreateInterfaceAttributes().GetOrCreateInterface(dutPort.Name())
-	//ldpif.GetOrCreateAddressFamily(oc.MplsLdp_MplsLdpAfi_IPV4).Enabled = ygot.Bool(true)
 	ldpif.GetOrCreateAddressFamily(oc.MplsLdp_MplsLdpAfi_IPV4).SetEnabled(true)
-
-	//gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mpls)
 
 	gnmi.Update(t, dut, d.NetworkInstance(niName).Config(), ni)
 }
@@ -183,23 +194,28 @@ func configureInitialDUTs(t *testing.T, dutA, dutB *ondatra.DUTDevice) {
 	p1A := dutA.Port(t, "port1")
 	p2B := dutB.Port(t, "port2")
 
-	configureDUT(t, dutA, p1A, &dutA_p1, &dutA_lo50, dut1AreaAddress, dut1SysID)
-	configureDUT(t, dutB, p2B, &dutB_p2, &dutB_lo50, dut2AreaAddress, dut2SysID)
+	configureDUT(t, dutA, p1A, &dutAP1, &dutALo50, dut1AreaAddress, dut1SysID)
+	configureDUT(t, dutB, p2B, &dutBP2, &dutBLo50, dut2AreaAddress, dut2SysID)
 }
 
 // verifyLDP waits for the LDP session between dutA and its peer to be established.
 func verifyLDP(t *testing.T, dut *ondatra.DUTDevice, peerIP string) {
 	t.Helper()
 	niName := deviations.DefaultNetworkInstance(dut)
-	// FIX 1: The LDP neighbor path requires two keys: lsr-id and label-space-id.
-	// The label-space-id is 0 for the default platform-wide label space.
 	ldpPath := gnmi.OC().NetworkInstance(niName).Mpls().SignalingProtocols().Ldp()
 
+	verifyLdpSessionState := func(val *ygnmi.Value[oc.E_MplsLdp_Neighbor_SessionState]) bool {
+		state, ok := val.Val()
+		if !ok {
+			t.Logf("LDP session state not found for neighbor %s", val.Path.String())
+			return false
+		}
+		t.Logf("LDP session state for neighbor %s: %s", val.Path.String(), state.String())
+		return state == oc.MplsLdp_Neighbor_SessionState_OPERATIONAL
+	}
+
 	// Wait for neighbor session to become OPERATIONAL.
-	_, ok := gnmi.Watch(t, dut, ldpPath.Neighbor(peerIP, ldpLabelSpace).SessionState().State(), mplsWaitTime, func(val *ygnmi.Value[oc.E_MplsLdp_Neighbor_SessionState]) bool {
-		state, present := val.Val()
-		return present && state == oc.MplsLdp_Neighbor_SessionState_OPERATIONAL
-	}).Await(t)
+	_, ok := gnmi.Watch(t, dut, ldpPath.Neighbor(peerIP, ldpLabelSpace).SessionState().State(), mplsWaitTime, verifyLdpSessionState).Await(t)
 
 	if !ok {
 		t.Fatalf("LDP session to peer %s on DUT %s did not become OPERATIONAL", peerIP, dut.Name())
@@ -231,12 +247,11 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	// Define remark action to set MPLS TC.
 	actions := term.GetOrCreateActions()
 	remark := actions.GetOrCreateRemark()
-	remark.SetSetMplsTc(mplsTCValue)
+	remark.SetSetMplsTc(mplsTCMarkingValue)
 
 	// Apply the classifier to the input of the interface.
 	iface := qos.GetOrCreateInterface(dutPort1)
 	ifaceIn := iface.GetOrCreateInput()
-	// FIX: Use the correct enum type for the input classifier.
 	ifaceIn.GetOrCreateClassifier(oc.Input_Classifier_Type_MPLS).SetName(mplsClassifierName)
 
 	// Push QoS configuration to the DUT.
@@ -290,8 +305,8 @@ func verifyQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Verify MPLS TC marking action state.
-	if got := gnmi.Get(t, dut, mplsActionPath.SetMplsTc().State()); got != mplsTCValue {
-		t.Errorf("Set MPLS TC value mismatch: got %d, want %d", got, mplsTCValue)
+	if got := gnmi.Get(t, dut, mplsActionPath.SetMplsTc().State()); got != mplsTCMarkingValue {
+		t.Errorf("Set MPLS TC value mismatch: got %d, want %d", got, mplsTCMarkingValue)
 	}
 
 	// Verify that the classifier is correctly applied to the interface.
