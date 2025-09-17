@@ -260,7 +260,7 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 	} else {
 		globalISIS.SetMaxEcmpPaths(maxEcmpPaths)
 	}
-	
+
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 
