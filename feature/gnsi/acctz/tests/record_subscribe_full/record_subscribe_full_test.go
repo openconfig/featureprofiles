@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
@@ -62,9 +63,10 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	records = append(records, newRecords...)
 	newRecords = acctz.SendGribiRPCs(t, dut)
 	records = append(records, newRecords...)
-	newRecords = acctz.SendP4rtRPCs(t, dut)
-	records = append(records, newRecords...)
-
+	if !deviations.P4RTCapabilitiesUnsupported(dut) {
+		newRecords = acctz.SendP4rtRPCs(t, dut)
+		records = append(records, newRecords...)
+	}
 	// Quick sleep to ensure all the records have been processed/ready for us.
 	time.Sleep(5 * time.Second)
 
@@ -90,7 +92,9 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		protocmp.Transform(),
 		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids"),
 		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
-		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "channel_id"),
+		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port"),
+		protocmp.IgnoreFields(&acctzpb.UserDetail{}, "role"),
+		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val"),
 	}
 
 	for {

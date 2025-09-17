@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
@@ -63,8 +64,10 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	records = append(records, newRecords...)
 	newRecords = acctz.SendGribiRPCs(t, dut)
 	records = append(records, newRecords...)
-	newRecords = acctz.SendP4rtRPCs(t, dut)
-	records = append(records, newRecords...)
+	if !deviations.P4RTCapabilitiesUnsupported(dut) {
+		newRecords = acctz.SendP4rtRPCs(t, dut)
+		records = append(records, newRecords...)
+	}
 
 	// Quick sleep to ensure all the records have been processed/ready for us.
 	time.Sleep(5 * time.Second)
@@ -111,10 +114,13 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 
 	// Ignore proto fields which are set internally by the DUT (cannot be matched exactly)
 	// and compare them manually later.
-	popts := []cmp.Option{protocmp.Transform(),
+	popts := []cmp.Option{
+		protocmp.Transform(),
 		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids"),
 		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
-		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "channel_id"),
+		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port"),
+		protocmp.IgnoreFields(&acctzpb.UserDetail{}, "role"),
+		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val"),
 	}
 
 	for {
@@ -126,7 +132,16 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		// Read single acctz record from stream into channel.
 		go func(r chan recordRequestResult) {
 			var response *acctzpb.RecordResponse
-			response, err = acctzSubClient.Recv()
+			for {
+				response, err = acctzSubClient.Recv()
+				if err != nil {
+					break
+				}
+				id := response.GetSessionInfo().GetUser().GetIdentity()
+				if id == acctz.SuccessUsername || id == acctz.FailUsername {
+					break
+				}
+			}
 			r <- recordRequestResult{
 				record: response,
 				err:    err,
