@@ -27,9 +27,7 @@ func TestMain(m *testing.M) {
 
 const (
 	trafficDuration          = 30 * time.Second
-	grTimer                  = 2 * time.Minute
 	triggerGrTimer           = 280
-	stopDuration             = 45 * time.Second
 	grRestartTime            = 220
 	grStaleRouteTime         = 250
 	advertisedRoutesv4Prefix = 32
@@ -38,15 +36,10 @@ const (
 	ateAS                    = 200
 	plenIPv4                 = 30
 	plenIPv6                 = 126
-	bgpPort                  = 179
 	epeerv4GrpName           = "EBGP-PEER-GROUP-V4"
 	epeerv6GrpName           = "EBGP-PEER-GROUP-V6"
 	ipeerv4GrpName           = "IBGP-PEER-GROUP-V4"
 	ipeerv6GrpName           = "IBGP-PEER-GROUP-V6"
-	aclNullPrefix            = "0.0.0.0/0"
-	aclv6NullPrefix          = "::/0"
-	aclName                  = "BGP-ACL"
-	aclv6Name                = "ipv6-policy-acl"
 	ipv4Prefix1              = "99.1.1.1"
 	ipv4Prefix2              = "100.1.1.1"
 	ipv4Prefix3              = "101.1.1.1"
@@ -347,7 +340,7 @@ var prefixv6attrs = []prefixAttributes{
 	},
 }
 
-func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 
@@ -440,7 +433,6 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	setMEDstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	setMEDstmtCommunitySet := setMEDstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 	setMEDstmtCommunitySet.SetCommunitySet("TEST-EBGP")
-	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(50))
 	if !deviations.BGPSetMedActionUnsupported(dut) {
 		setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
@@ -457,6 +449,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	dc := gnmi.OC()
 	i1 := dutEBGP.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
@@ -470,16 +463,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
-	}
-}
-
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
-	t.Helper()
-	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
-		}
 	}
 }
 
@@ -863,7 +846,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return config
 }
 
-func configureFlow(t *testing.T, ate *ondatra.ATEDevice, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
+func configureFlow(t *testing.T, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
 
 	// ATE Traffic Configuration
 	t.Logf("start ate Traffic config")
@@ -882,7 +865,7 @@ func configureFlow(t *testing.T, ate *ondatra.ATEDevice, src, dst attrs.Attribut
 	v4.Dst().Increment().SetStart(dstip)
 }
 
-func configureFlowV6(t *testing.T, ate *ondatra.ATEDevice, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
+func configureFlowV6(t *testing.T, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
 
 	// ATE Traffic Configuration
 	t.Logf("start ate Traffic config")
@@ -969,24 +952,6 @@ func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay 
 			SetPeerNames(peerNames).SetRestartDelay(restartDelay)
 	}
 	return grAction
-}
-
-func verifyBGPActive(t *testing.T, dst attrs.Attributes) {
-	t.Logf("Waiting for %s BGP neighbor to go to ACTIVE state", dst.IPv4)
-	dut := ondatra.DUT(t, "dut")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(dst.IPv4)
-
-	bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
-	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-		currState, ok := val.Val()
-		t.Logf("current state of neighbour is %s", currState.String())
-		return ok && currState == bgpState
-	}).Await(t)
-	if !ok {
-		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-		t.Errorf("BGP session did not go ACTIVE as expected")
-	}
 }
 
 func validatePrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixattrs []prefixAttributes) {
@@ -1081,7 +1046,7 @@ func validateV6PrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, pref
 
 }
 
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, capture bool, match bool) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, match bool) {
 	t.Logf("=== TRAFFIC FLOW VALIDATION START (expecting match=%v) ===", match)
 
 	otg := ate.OTG()
@@ -1176,7 +1141,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	// Configure interface on the DUT
 	t.Log("Start DUT interface Config")
 	configureDUT(t, dut)
-	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	configureRoutePolicy(t, dut)
 
 	// Configure BGP+Neighbors on the DUT
 	t.Log("Configure BGP with Graceful Restart option under Global Bgp")
@@ -1213,10 +1178,10 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 		// Creating flows
 		for i := 0; i <= 2; i++ {
-			configureFlow(t, ate, src, dst, srcips[i], dstips[i], config)
+			configureFlow(t, src, dst, srcips[i], dstips[i], config)
 		}
 		for i := 0; i <= 2; i++ {
-			configureFlowV6(t, ate, src, dst, srcipv6s[i], dstipv6s[i], config)
+			configureFlowV6(t, src, dst, srcipv6s[i], dstipv6s[i], config)
 		}
 	}
 	ate.OTG().PushConfig(t, config)
@@ -1255,7 +1220,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 		validatePrefixesWithAttributes(t, ate, prefixattrs)
 		validateV6PrefixesWithAttributes(t, ate, prefixv6attrs)
-		validateTrafficFlows(t, ate, config, true, true)
+		validateTrafficFlows(t, ate, config, true)
 	})
 
 	// Add deviation
