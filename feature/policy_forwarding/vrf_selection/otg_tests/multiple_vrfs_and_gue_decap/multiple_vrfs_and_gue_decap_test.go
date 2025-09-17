@@ -915,8 +915,7 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 // verifyLeakedRoutes - verify ip routes in no default VRF
 func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	var routes []string
-	routes = []string{IPv4Prefix1, IPv4Prefix2, IPv4Prefix3, IPv4Prefix4, IPv4Prefix5, IPv4Prefix6, IPv4Prefix7, IPv4Prefix8, IPv4Prefix9, IPv4Prefix10}
+	routes := []string{IPv4Prefix1, IPv4Prefix2, IPv4Prefix3, IPv4Prefix4, IPv4Prefix5, IPv4Prefix6, IPv4Prefix7, IPv4Prefix8, IPv4Prefix9, IPv4Prefix10}
 	for _, adroute := range routes {
 		advroute := adroute + "/" + strconv.Itoa(advertiseIpv4PrefixLength)
 		t.Logf("Verifying leaked route %s in %s", advroute, nonDefaultVrfName)
