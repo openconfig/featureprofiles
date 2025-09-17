@@ -1603,6 +1603,32 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnToEthAssignment()
 }
 
+// SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
+func SkipOrigin(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipOrigin()
+}
+
+// PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
+func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
+}
+
+// DecapGroupOCUnsupported returns true if decapsulation group is not supported
+func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
+}
+
+// LinePortUnsupported returns whether the DUT does not support line-port configuration on optical channel components.
+func LinePortUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinePortUnsupported()
+}
+
+// UseBgpSetCommunityOptionTypeReplace returns true if BGP community set REPLACE
+// option is required
+func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
+}
+
 // ConfigACLWithPrefixListNotSupported returns true if configuring prefixlist in ACL not supported
 func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()

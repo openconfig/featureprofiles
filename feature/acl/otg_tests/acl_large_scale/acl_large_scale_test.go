@@ -1206,7 +1206,7 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		time.Sleep(time.Second * 300)
 
 		t.Logf("Verify OTG BGP sessions up")
-		cfgplugins.VerifyOTGBGPEstablished(t, ate)
+		cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
 
 		t.Logf("Verify DUT BGP sessions up")
 		cfgplugins.VerifyDUTBGPEstablished(t, dut)
@@ -1352,7 +1352,7 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgutils.WaitForARP(t, otgConfig, configV4, "IPv6")
 
 	t.Logf("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+	cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
 
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)

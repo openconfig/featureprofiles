@@ -1126,12 +1126,29 @@ type Metadata_Deviations struct {
 	// Devices that must have OTN to ETH assignment.
 	// Arista : https://partnerissuetracker.corp.google.com/issues/434922681
 	OtnToEthAssignment bool `protobuf:"varint,317,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
+	// Devices that do not support import export policies configured in network instance
+	NetworkInstanceImportExportPolicyOcUnsuppored bool `protobuf:"varint,318,opt,name=network_instance_import_export_policy_oc_unsuppored,json=networkInstanceImportExportPolicyOcUnsuppored,proto3" json:"network_instance_import_export_policy_oc_unsuppored,omitempty"`
+	// Device does not support 'origin' field in gNMI/gNOI RPC paths.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/439656904
+	SkipOrigin bool `protobuf:"varint,319,opt,name=skip_origin,json=skipOrigin,proto3" json:"skip_origin,omitempty"`
+	// Devices that support pre-defined max ecmp paths
+	// Juniper b/422688435
+	PredefinedMaxEcmpPaths bool `protobuf:"varint,320,opt,name=predefined_max_ecmp_paths,json=predefinedMaxEcmpPaths,proto3" json:"predefined_max_ecmp_paths,omitempty"`
+	// b/425503156
+	// Device does not support decapsulation group
+	DecapsulateGueOcUnsupported bool `protobuf:"varint,321,opt,name=decapsulate_gue_oc_unsupported,json=decapsulateGueOcUnsupported,proto3" json:"decapsulate_gue_oc_unsupported,omitempty"`
+	// Device does not support line-port configuration on optical channel
+	// components for Nokia and Arista.
+	LinePortUnsupported bool `protobuf:"varint,322,opt,name=line_port_unsupported,json=linePortUnsupported,proto3" json:"line_port_unsupported,omitempty"`
+	// routing-policy bgp community needs to use REPLACE option
+	// Arista b/443044881
+	UseBgpSetCommunityOptionTypeReplace bool `protobuf:"varint,323,opt,name=use_bgp_set_community_option_type_replace,json=useBgpSetCommunityOptionTypeReplace,proto3" json:"use_bgp_set_community_option_type_replace,omitempty"`
 	// Arista b/434586172
 	// Device doesnot support configuring prefix list inside ACL
-	ConfigAclWithPrefixlistUnsupported bool `protobuf:"varint,318,opt,name=config_acl_with_prefixlist_unsupported,json=configAclWithPrefixlistUnsupported,proto3" json:"config_acl_with_prefixlist_unsupported,omitempty"`
+	ConfigAclWithPrefixlistUnsupported bool `protobuf:"varint,324,opt,name=config_acl_with_prefixlist_unsupported,json=configAclWithPrefixlistUnsupported,proto3" json:"config_acl_with_prefixlist_unsupported,omitempty"`
 	// Arista b/434815087
 	// Device doesnot support configuring source/destination address as ANY inside ACL
-	ConfigAclValueAnyOcUnsupported bool `protobuf:"varint,319,opt,name=config_acl_value_any_oc_unsupported,json=configAclValueAnyOcUnsupported,proto3" json:"config_acl_value_any_oc_unsupported,omitempty"`
+	ConfigAclValueAnyOcUnsupported bool `protobuf:"varint,325,opt,name=config_acl_value_any_oc_unsupported,json=configAclValueAnyOcUnsupported,proto3" json:"config_acl_value_any_oc_unsupported,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
@@ -3168,6 +3185,48 @@ func (x *Metadata_Deviations) GetOtnToEthAssignment() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetNetworkInstanceImportExportPolicyOcUnsuppored() bool {
+	if x != nil {
+		return x.NetworkInstanceImportExportPolicyOcUnsuppored
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipOrigin() bool {
+	if x != nil {
+		return x.SkipOrigin
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetPredefinedMaxEcmpPaths() bool {
+	if x != nil {
+		return x.PredefinedMaxEcmpPaths
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDecapsulateGueOcUnsupported() bool {
+	if x != nil {
+		return x.DecapsulateGueOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLinePortUnsupported() bool {
+	if x != nil {
+		return x.LinePortUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetUseBgpSetCommunityOptionTypeReplace() bool {
+	if x != nil {
+		return x.UseBgpSetCommunityOptionTypeReplace
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetConfigAclWithPrefixlistUnsupported() bool {
 	if x != nil {
 		return x.ConfigAclWithPrefixlistUnsupported
@@ -3238,7 +3297,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xac\xaf\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"˲\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3250,7 +3309,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aͥ\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xec\xa8\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3540,9 +3599,16 @@ const file_metadata_proto_rawDesc = "" +
 	"\x19qos_remark_oc_unsupported\x18\xba\x02 \x01(\bR\x16qosRemarkOcUnsupported\x12j\n" +
 	"2policy_forwarding_gre_encapsulation_oc_unsupported\x18\xbb\x02 \x01(\bR-policyForwardingGreEncapsulationOcUnsupported\x12M\n" +
 	"#policy_rule_counters_oc_unsupported\x18\xbc\x02 \x01(\bR\x1fpolicyRuleCountersOcUnsupported\x122\n" +
-	"\x15otn_to_eth_assignment\x18\xbd\x02 \x01(\bR\x12otnToEthAssignment\x12S\n" +
-	"&config_acl_with_prefixlist_unsupported\x18\xbe\x02 \x01(\bR\"configAclWithPrefixlistUnsupported\x12L\n" +
-	"#config_acl_value_any_oc_unsupported\x18\xbf\x02 \x01(\bR\x1econfigAclValueAnyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x15otn_to_eth_assignment\x18\xbd\x02 \x01(\bR\x12otnToEthAssignment\x12k\n" +
+	"3network_instance_import_export_policy_oc_unsuppored\x18\xbe\x02 \x01(\bR-networkInstanceImportExportPolicyOcUnsuppored\x12 \n" +
+	"\vskip_origin\x18\xbf\x02 \x01(\bR\n" +
+	"skipOrigin\x12:\n" +
+	"\x19predefined_max_ecmp_paths\x18\xc0\x02 \x01(\bR\x16predefinedMaxEcmpPaths\x12D\n" +
+	"\x1edecapsulate_gue_oc_unsupported\x18\xc1\x02 \x01(\bR\x1bdecapsulateGueOcUnsupported\x123\n" +
+	"\x15line_port_unsupported\x18\xc2\x02 \x01(\bR\x13linePortUnsupported\x12W\n" +
+	")use_bgp_set_community_option_type_replace\x18\xc3\x02 \x01(\bR#useBgpSetCommunityOptionTypeReplace\x12S\n" +
+	"&config_acl_with_prefixlist_unsupported\x18\xc4\x02 \x01(\bR\"configAclWithPrefixlistUnsupported\x12L\n" +
+	"#config_acl_value_any_oc_unsupported\x18\xc5\x02 \x01(\bR\x1econfigAclValueAnyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
