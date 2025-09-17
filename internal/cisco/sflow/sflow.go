@@ -247,39 +247,39 @@ func (s *SfRecordExtendedGatewayData) GetLocalPref() uint32 {
 	return s.LocalPref
 }
 
-// ConfigureSFlow configures sFlow sampling with the provided configuration
-func ConfigureSFlow(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
-	sf := &oc.Sampling_Sflow{}
-	sf.SetEnabled(true)
-	sf.SetDscp(config.DSCP)
-	sf.SetSampleSize(config.SampleSize)
-	sf.SetIngressSamplingRate(config.IngressSamplingRate)
+// // ConfigureSFlow configures sFlow sampling with the provided configuration
+// func ConfigureSFlow(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+// 	sf := &oc.Sampling_Sflow{}
+// 	sf.SetEnabled(true)
+// 	sf.SetDscp(config.DSCP)
+// 	sf.SetSampleSize(config.SampleSize)
+// 	sf.SetIngressSamplingRate(config.IngressSamplingRate)
 
-	// Configure IP version specific settings
-	var collectorAddr, sourceAddr string
-	if config.IP == IPv4 {
-		sf.SetAgentIdIpv4(config.SourceIPv4)
-		collectorAddr = config.CollectorIPv4
-		sourceAddr = config.SourceIPv4
-	} else {
-		sf.SetAgentIdIpv6(config.SourceIPv6)
-		collectorAddr = config.CollectorIPv6
-		sourceAddr = config.SourceIPv6
-	}
+// 	// Configure IP version specific settings
+// 	var collectorAddr, sourceAddr string
+// 	if config.IP == IPv4 {
+// 		sf.SetAgentIdIpv4(config.SourceIPv4)
+// 		collectorAddr = config.CollectorIPv4
+// 		sourceAddr = config.SourceIPv4
+// 	} else {
+// 		sf.SetAgentIdIpv6(config.SourceIPv6)
+// 		collectorAddr = config.CollectorIPv6
+// 		sourceAddr = config.SourceIPv6
+// 	}
 
-	// Add collector
-	collector := sf.GetOrCreateCollector(collectorAddr, config.CollectorPort)
-	collector.SetSourceAddress(sourceAddr)
+// 	// Add collector
+// 	collector := sf.GetOrCreateCollector(collectorAddr, config.CollectorPort)
+// 	collector.SetSourceAddress(sourceAddr)
 
-	// Configure interface
-	intSf := sf.GetOrCreateInterface(config.InterfaceName)
-	intSf.SetEnabled(true)
+// 	// Configure interface
+// 	intSf := sf.GetOrCreateInterface(config.InterfaceName)
+// 	intSf.SetEnabled(true)
 
-	gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Config(), sf)
-}
+// 	gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Config(), sf)
+// }
 
 // ConfigureSFlowOptimized provides an optimized version of sFlow configuration
-func ConfigureSFlowOptimized(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+func ConfigureSFlow(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
 	sf := &oc.Sampling_Sflow{}
 	sf.SetEnabled(true)
 	sf.SetDscp(config.DSCP)

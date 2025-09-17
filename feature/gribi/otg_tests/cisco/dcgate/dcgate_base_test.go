@@ -35,6 +35,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -45,7 +46,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -171,6 +171,7 @@ var (
 	frameSize          = flag.Int("frame_size", 512, "frame size in bytes, default 512")
 	fps                = flag.Uint64("fps", 100, "frames per second")
 	trafficDuration    = flag.Int("traffic_duration", 10, "traffic duration in seconds")
+	bundleMode         = *flag.Bool("bundle_mode", true, "disable bundle mode by passing flag false")
 )
 
 var (
@@ -780,7 +781,7 @@ func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice, clusterFacing boo
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 }
 
-func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+func generateBundleMemberInterfaceConfig(name, bundleID string) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(name)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
@@ -797,47 +798,101 @@ func configureBundleInterfaces(t *testing.T, dut *ondatra.DUTDevice, port *ondat
 	be.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	gnmi.Replace(t, dut, d.Interface(bundleID).Config(), be)
 
-	bm := generateBundleMemberInterfaceConfig(t, port.Name(), bundleID)
+	bm := generateBundleMemberInterfaceConfig(port.Name(), bundleID)
 	gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), bm)
 
 }
 
+// portConfig holds configuration for a single port
+type portConfig struct {
+	portName   string
+	bundleName string
+	dutAttr    *attrs.Attributes
+}
+
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
-	// d := gnmi.OC()
-	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
-	// p6 := dut.Port(t, "port6")
-	// p7 := dut.Port(t, "port7")
-	p8 := dut.Port(t, "port8")
+	d := gnmi.OC()
 
-	// configure interfaces
-	configureBundleInterfaces(t, dut, p1, "Bundle-Ether1", &dutPort1)
-	configureBundleInterfaces(t, dut, p2, "Bundle-Ether2", &dutPort2)
-	configureBundleInterfaces(t, dut, p3, "Bundle-Ether3", &dutPort3)
-	configureBundleInterfaces(t, dut, p4, "Bundle-Ether4", &dutPort4)
-	configureBundleInterfaces(t, dut, p5, "Bundle-Ether5", &dutPort5)
-	configureBundleInterfaces(t, dut, p8, "Bundle-Ether8", &dutPort8)
+	// Define port configurations
+	portConfigs := []portConfig{
+		{"port1", "Bundle-Ether1", &dutPort1},
+		{"port2", "Bundle-Ether2", &dutPort2},
+		{"port3", "Bundle-Ether3", &dutPort3},
+		{"port4", "Bundle-Ether4", &dutPort4},
+		{"port5", "Bundle-Ether5", &dutPort5},
+		{"port8", "Bundle-Ether8", &dutPort8},
+	}
 
-	// gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	// gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	// gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-	// gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
-	// gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+	// Configure interfaces
+	for _, cfg := range portConfigs {
+		port := dut.Port(t, cfg.portName)
+		if bundleMode {
+			configureBundleInterfaces(t, dut, port, cfg.bundleName, cfg.dutAttr)
+		} else {
+			gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), cfg.dutAttr.NewOCInterface(port.Name(), dut))
+		}
+	}
 
-	// configure base PBF policies and network-instances
+	// Configure base PBF policies and network-instances
 	configureBaseconfig(t, dut, clusterFacing)
 
-	// apply PBF to src interface.
-	// applyForwardingPolicy(t, dut, p1.Name(), clusterFacing)
-	applyForwardingPolicy(t, dut, "Bundle-Ether1", clusterFacing)
+	// Apply PBF to src interface
+	applyForwardingPolicy(t, dut, getPolicyInterface(t, dut, bundleMode), clusterFacing)
+
+	// Configure static ARP if needed
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		staticARPWithSecondaryIP(t, dut)
+		staticARPWithSecondaryIP(t, dut, bundleMode)
 	}
-	// configSflow(t, dut)
+
+	// Configure loopback and sFlow
 	configureLoopbackAndSFlow(t, dut)
+}
+
+// func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
+// 	d := gnmi.OC()
+// 	p1 := dut.Port(t, "port1")
+// 	p2 := dut.Port(t, "port2")
+// 	p3 := dut.Port(t, "port3")
+// 	p4 := dut.Port(t, "port4")
+// 	p5 := dut.Port(t, "port5")
+// 	p8 := dut.Port(t, "port8")
+
+// 	// configure interfaces
+// 	if bundleMode {
+// 		configureBundleInterfaces(t, dut, p1, "Bundle-Ether1", &dutPort1)
+// 		configureBundleInterfaces(t, dut, p2, "Bundle-Ether2", &dutPort2)
+// 		configureBundleInterfaces(t, dut, p3, "Bundle-Ether3", &dutPort3)
+// 		configureBundleInterfaces(t, dut, p4, "Bundle-Ether4", &dutPort4)
+// 		configureBundleInterfaces(t, dut, p5, "Bundle-Ether5", &dutPort5)
+// 		configureBundleInterfaces(t, dut, p8, "Bundle-Ether8", &dutPort8)
+// 	} else {
+// 		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+// 		gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+// 		gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
+// 		gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
+// 		gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+// 		gnmi.Replace(t, dut, d.Interface(p8.Name()).Config(), dutPort8.NewOCInterface(p8.Name(), dut))
+// 	}
+
+// 	// configure base PBF policies and network-instances
+// 	configureBaseconfig(t, dut, clusterFacing)
+
+// 	// apply PBF to src interface.
+// 	applyForwardingPolicy(t, dut, getPolicyInterface(t, dut, bundleMode), clusterFacing)
+// 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+// 		staticARPWithSecondaryIP(t, dut, bundleMode)
+// 	}
+// 	// configSflow(t, dut)
+// 	configureLoopbackAndSFlow(t, dut)
+// }
+
+func getPolicyInterface(t *testing.T, dut *ondatra.DUTDevice, bundleMode bool) string {
+	p1 := dut.Port(t, "port1")
+	policyIntf := p1.Name()
+	if bundleMode {
+		policyIntf = "Bundle-Ether1"
+	}
+	return policyIntf
 }
 
 // applyForwardingPolicy applies the forwarding policy on the interface.
@@ -883,9 +938,9 @@ func configureDUTforPopGate(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 
 	// apply PBF to src interface.
-	applyForwardingPopGatePolicy(t, p1.Name())
+	applyForwardingPopGatePolicy(t, getPolicyInterface(t, dut, bundleMode))
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		staticARPWithSecondaryIP(t, dut)
+		staticARPWithSecondaryIP(t, dut, bundleMode)
 	}
 }
 
@@ -1313,7 +1368,7 @@ func validateSflowSampleFields(l *Logger, packet gopacket.Packet, pa *packetAttr
 				case layers.SFlowExtendedGatewayFlowRecord:
 					validateSflowExtendedGatewayRecord(l, r, pa.sfAttr.SfSample.ExtdGtwData)
 				default:
-					// Keep existing logging for unhandled types if needed
+					l.LogOncef("SFlow unhandled record type %T", r)
 				}
 			}
 		}
@@ -1334,11 +1389,6 @@ func validateSflowRawPacketRecord(l *Logger, r layers.SFlowRawPacketFlowRecord, 
 	} else if exp.Protocol != 0 {
 		l.LogOncef("SFlow RawPacket HeaderProtocol ok: %d", r.HeaderProtocol)
 	}
-	// if exp.Stripped != 0 && uint32(r.Stripped) != exp.Stripped {
-	// 	l.LogOnceErrorf("SFlow RawPacket Stripped mismatch: got %d, want %d", uint32(r.Stripped), exp.Stripped)
-	// } else if exp.Stripped != 0 {
-	// 	l.LogOncef("SFlow RawPacket Stripped ok: %d", r.Stripped)
-	// }
 }
 
 func validateSflowExtendedRouterRecord(l *Logger, r layers.SFlowExtendedRouterFlowRecord, exp *s.SfRecordExtendedRouterData) {
@@ -1466,10 +1516,78 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 }
 
-// configStaticArp configures static arp entries
-func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
+// // configStaticArp configures static arp entries
+// func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
+// 	i := &oc.Interface{Name: ygot.String(p)}
+// 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+// 	s := i.GetOrCreateSubinterface(0)
+// 	s4 := s.GetOrCreateIpv4()
+// 	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+// 	n4.LinkLayerAddress = ygot.String(macAddr)
+// 	return i
+// }
+
+// staticARPWithSecondaryIP configures secondary IPs and static ARP.
+func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice, bundleMode bool) {
+	t.Helper()
+
+	// Define port mappings for non-bundle and bundle configurations
+	type portConfig struct {
+		portName   string
+		bundleName string
+		dutAttr    *attrs.Attributes
+		otgAttr    *attrs.Attributes
+	}
+
+	configs := []portConfig{
+		{"port2", "Bundle-Ether2", &dutPort2DummyIP, &otgPort2DummyIP},
+		{"port3", "Bundle-Ether3", &dutPort3DummyIP, &otgPort3DummyIP},
+		{"port4", "Bundle-Ether4", &dutPort4DummyIP, &otgPort4DummyIP},
+		{"port5", "Bundle-Ether5", &dutPort5DummyIP, &otgPort5DummyIP},
+		{"port8", "Bundle-Ether8", &dutPort8DummyIP, &otgPort8DummyIP},
+	}
+
+	for _, cfg := range configs {
+		var interfaceName string
+		if bundleMode {
+			interfaceName = cfg.bundleName
+		} else {
+			interfaceName = dut.Port(t, cfg.portName).Name()
+		}
+
+		// Configure secondary IP
+		gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(),
+			assignIPAsSecondary(cfg.dutAttr, interfaceName, dut, bundleMode))
+
+		// Configure static ARP
+		gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(),
+			configStaticArp(interfaceName, cfg.otgAttr.IPv4, magicMac, bundleMode))
+	}
+}
+
+// Helper function to update assignIPAsSecondary to handle bundle mode
+func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice, bundleMode bool) *oc.Interface {
+	intf := a.NewOCInterface(port, dut)
+	if bundleMode {
+		intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
+	s := intf.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	a4 := s4.GetOrCreateAddress(a.IPv4)
+	a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
+	return intf
+}
+
+// Helper function to update configStaticArp to handle bundle mode
+func configStaticArp(p string, ipv4addr string, macAddr string, bundleMode bool) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(p)}
-	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	if bundleMode {
+		i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 	n4 := s4.GetOrCreateNeighbor(ipv4addr)
@@ -1478,45 +1596,81 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 }
 
 // staticARPWithSecondaryIP configures secondary IPs and static ARP.
-func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
+func staticARPWithSecondaryIP3(t *testing.T, dut *ondatra.DUTDevice, bundleMode bool) {
 	t.Helper()
-	// p2 := dut.Port(t, "port2")
-	// p3 := dut.Port(t, "port3")
-	// p4 := dut.Port(t, "port4")
-	// p5 := dut.Port(t, "port5")
 
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether2").Config(), assignIPAsSecondary(&dutPort2DummyIP, "Bundle-Ether2", dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), assignIPAsSecondary(&dutPort3DummyIP, "Bundle-Ether3", dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), assignIPAsSecondary(&dutPort4DummyIP, "Bundle-Ether4", dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), assignIPAsSecondary(&dutPort5DummyIP, "Bundle-Ether5", dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), assignIPAsSecondary(&dutPort8DummyIP, "Bundle-Ether8", dut))
+	// Define port mappings for non-bundle and bundle configurations
+	type portConfig struct {
+		portName   string
+		bundleName string
+		dutAttr    *attrs.Attributes
+		otgAttr    *attrs.Attributes
+	}
 
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether2").Config(), configStaticArp("Bundle-Ether2", otgPort2DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), configStaticArp("Bundle-Ether3", otgPort3DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), configStaticArp("Bundle-Ether4", otgPort4DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), configStaticArp("Bundle-Ether5", otgPort5DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), configStaticArp("Bundle-Ether8", otgPort8DummyIP.IPv4, magicMac))
+	configs := []portConfig{
+		{"port2", "Bundle-Ether2", &dutPort2DummyIP, &otgPort2DummyIP},
+		{"port3", "Bundle-Ether3", &dutPort3DummyIP, &otgPort3DummyIP},
+		{"port4", "Bundle-Ether4", &dutPort4DummyIP, &otgPort4DummyIP},
+		{"port5", "Bundle-Ether5", &dutPort5DummyIP, &otgPort5DummyIP},
+		{"port8", "Bundle-Ether8", &dutPort8DummyIP, &otgPort8DummyIP},
+	}
 
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), assignIPAsSecondary(&dutPort2DummyIP, p2.Name(), dut))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), assignIPAsSecondary(&dutPort3DummyIP, p3.Name(), dut))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), assignIPAsSecondary(&dutPort4DummyIP, p4.Name(), dut))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), assignIPAsSecondary(&dutPort5DummyIP, p5.Name(), dut))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+	// Configure for bundle interfaces (always use bundle in this context)
+	for _, cfg := range configs {
+		// Configure secondary IP
+		gnmi.Update(t, dut, gnmi.OC().Interface(cfg.bundleName).Config(),
+			assignIPAsSecondary(cfg.dutAttr, cfg.bundleName, dut, bundleMode))
+
+		// Configure static ARP
+		gnmi.Update(t, dut, gnmi.OC().Interface(cfg.bundleName).Config(),
+			configStaticArp(cfg.bundleName, cfg.otgAttr.IPv4, magicMac, bundleMode))
+	}
 }
 
-// override ip address type as secondary
-func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice) *oc.Interface {
-	intf := a.NewOCInterface(port, dut)
-	intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	s := intf.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	a4 := s4.GetOrCreateAddress(a.IPv4)
-	a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
-	return intf
-}
+// // staticARPWithSecondaryIP configures secondary IPs and static ARP.
+// func staticARPWithSecondaryIP2(t *testing.T, dut *ondatra.DUTDevice, bundle bool) {
+// t.Helper()
+// if !bundle {
+// 	p2 := dut.Port(t, "port2")
+// 	p3 := dut.Port(t, "port3")
+// 	p4 := dut.Port(t, "port4")
+// 	p5 := dut.Port(t, "port5")
+
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), assignIPAsSecondary(&dutPort2DummyIP, p2.Name(), dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), assignIPAsSecondary(&dutPort3DummyIP, p3.Name(), dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), assignIPAsSecondary(&dutPort4DummyIP, p4.Name(), dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), assignIPAsSecondary(&dutPort5DummyIP, p5.Name(), dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+// } else if bundle {
+
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether2").Config(), assignIPAsSecondary(&dutPort2DummyIP, "Bundle-Ether2", dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), assignIPAsSecondary(&dutPort3DummyIP, "Bundle-Ether3", dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), assignIPAsSecondary(&dutPort4DummyIP, "Bundle-Ether4", dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), assignIPAsSecondary(&dutPort5DummyIP, "Bundle-Ether5", dut))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), assignIPAsSecondary(&dutPort8DummyIP, "Bundle-Ether8", dut))
+
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether2").Config(), configStaticArp("Bundle-Ether2", otgPort2DummyIP.IPv4, magicMac))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), configStaticArp("Bundle-Ether3", otgPort3DummyIP.IPv4, magicMac))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), configStaticArp("Bundle-Ether4", otgPort4DummyIP.IPv4, magicMac))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), configStaticArp("Bundle-Ether5", otgPort5DummyIP.IPv4, magicMac))
+// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), configStaticArp("Bundle-Ether8", otgPort8DummyIP.IPv4, magicMac))
+// }
+
+// }
+
+// // override ip address type as secondary
+// func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice) *oc.Interface {
+// 	intf := a.NewOCInterface(port, dut)
+// 	intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+// 	s := intf.GetOrCreateSubinterface(0)
+// 	s4 := s.GetOrCreateIpv4()
+// 	a4 := s4.GetOrCreateAddress(a.IPv4)
+// 	a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
+// 	return intf
+// }
 
 func configureVIP1(t *testing.T, args *testArgs) {
 	args.client.AddNH(t, baseNH(2), "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort2DummyIP.IPv4, Mac: magicMac})
@@ -1661,13 +1815,6 @@ func testTransitTrafficWithTtlDscp(t *testing.T, args *testArgs, weights []float
 	}
 }
 
-func validateCapture(t *testing.T, args *testArgs) {
-	enableCapture(t, args.ate.OTG(), args.topo, args.capture_ports)
-	sendTraffic(t, args, args.flows, true)
-	defer clearCapture(t, args.ate.OTG(), args.topo)
-	validatePacketCapture(t, args, args.capture_ports, args.pattr)
-}
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -1732,72 +1879,6 @@ func unshutPorts(t *testing.T, args *testArgs, ports []string) {
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, port).Name()).Subinterface(0).Enabled().Config(), true)
 	}
 	time.Sleep(5 * time.Second)
-}
-
-func configSflow(t *testing.T, dut *ondatra.DUTDevice) {
-	cliCfg := `interface loopback0
-ipv4 address 203.0.113.255/32
-ipv6 address 2001:db8::203:0:113:255/128
-no shut
-flow exporter-map exporter
-dfbit set
-packet-length 8968
-version sflow v5
-!
-dscp 32
-transport udp 6343
-source Loopback0
-destination 2001:0db8::192:0:2:1e
-!
-flow exporter-map OC-FEM-GLOBAL
-dscp 32
-!
-flow exporter-map OC-FEM-2001_4860_f802__be-6343
-version sflow v5
-!
-transport udp 6343
-source-address 2001:db8::203:0:113:255
-destination 2001:0db8::192:0:2:1e
-!
-flow monitor-map fmm
-record sflow
-sflow options
-input ifindex physical
-output ifindex physical
-extended-router
-extended-gateway
-extended-ipv4-tunnel-egress
-!
-exporter exporter
-!
-flow monitor-map OC-FMM-GLOBAL
-record sflow
-sflow options
-input ifindex physical
-output ifindex physical
-sample-header size 343
-extended-router
-extended-gateway
-extended-ipv4-tunnel-egress
-extended-ipv6-tunnel-egress
-!
-exporter OC-FEM-2001_4860_f802__be-6343
-!
-sampler-map fsm
-random 1 out-of 262144
-!
-sampler-map OC-FSM-GLOBAL-EGRESS
-!
-sampler-map OC-FSM-GLOBAL-INGRESS
-random 1 out-of 262144
-
-interface bundle-ether1
-flow datalinkframesection monitor OC-FMM-GLOBAL sampler OC-FSM-GLOBAL-INGRESS ingress
-`
-	batchSet := &gnmi.SetBatch{}
-	cliPath, _ := schemaless.NewConfig[string]("", "cli")
-	gnmi.BatchUpdate(batchSet, cliPath, cliCfg)
-	batchSet.Set(t, dut)
 }
 
 // NewDefaultSflowAttr returns a SflowAttr with default values
@@ -1878,19 +1959,6 @@ func sshRunCommand(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIC
 
 }
 
-// var ifIndexMap = make(map[string]uint32)
-
-// func getBundleMembers(t *testing.T, dut *ondatra.DUTDevice, bundleName string) []string {
-// 	return gnmi.Get(t, dut, gnmi.OC().Interface(bundleName).Aggregation().Member().State())
-// }
-
-// // Map bundle interface name to slice of member ifIndexes
-// var bundleMemberIfIndexes = map[string][]uint32{
-// 	"Bundle-Ether1": {101, 102, 103, 104}, // Example ifIndexes for members
-// 	"Bundle-Ether2": {105, 106},
-// 	// ...
-// }
-
 func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames []string) map[string][]uint32 {
 	var bundleMemberIfIndexes = make(map[string][]uint32)
 	// Initialize the map with bundle names and their member ifIndexes
@@ -1907,47 +1975,65 @@ func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames 
 	return bundleMemberIfIndexes
 }
 
-// // To check if an sFlow packet's ifIndex is a member of a bundle:
-// func isMemberIfIndex(bundle string, ifIndex uint32) bool {
-// 	for _, idx := range bundleMemberIfIndexes[bundle] {
-// 		if idx == ifIndex {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
 func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, intfs []string) {
 	for _, intf := range intfs {
-		// t.Logf("ifIndex for %s is : %d", intf, gnmi.Get(t, dut, gnmi.OC().Interface(intf).Ifindex().State()))
 		cmd := fmt.Sprintf("show snmp interface %s ifindex", intf)
-		sshRunCommand(t, dut, sshClient, cmd)
+		// sshRunCommand(t, dut, sshClient, cmd)
+		util.SshRunCommand(t, dut, cmd)
 	}
 }
 
 func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *s.SflowAttr) {
-	if sfc != nil {
-		oldPorts := args.capture_ports
-		oldTtl := args.pattr.ttl
-		oldDscp := args.pattr.dscp
-		args.pattr.sfAttr = sfc
-		SetFlowsRate(args.flows, sfc.PpsRate)
-		args.trafficDuration = *sf_trafficDuration
-		args.pattr.dscp = int(sfc.SflowDscp)
-		args.pattr.ttl = 255
-
-		defer func() {
-			args.capture_ports = oldPorts
-			args.pattr.sfAttr = nil
-			SetFlowsRate(args.flows, *fps)
-			args.trafficDuration = *trafficDuration
-			args.pattr.ttl = oldTtl
-			args.pattr.dscp = oldDscp
-		}()
-		args.capture_ports = ports
-		validateCapture(t, args)
-
+	if sfc == nil {
+		return
 	}
+
+	// Store original values
+	origState := struct {
+		ports    []string
+		ttl      uint32
+		dscp     int
+		duration int
+		fps      uint64
+	}{
+		ports:    args.capture_ports,
+		ttl:      args.pattr.ttl,
+		dscp:     args.pattr.dscp,
+		duration: args.trafficDuration,
+		fps:      getFlowsRate(args.flows),
+	}
+
+	// Apply sFlow configuration
+	args.capture_ports = ports
+	args.pattr.sfAttr = sfc
+	args.pattr.dscp = int(sfc.SflowDscp)
+	args.pattr.ttl = 255
+	args.trafficDuration = *sf_trafficDuration
+	SetFlowsRate(args.flows, sfc.PpsRate)
+
+	// Ensure cleanup always happens
+	defer func() {
+		args.capture_ports = origState.ports
+		args.pattr.sfAttr = nil
+		args.pattr.ttl = origState.ttl
+		args.pattr.dscp = origState.dscp
+		args.trafficDuration = origState.duration
+		SetFlowsRate(args.flows, origState.fps)
+	}()
+
+	// Enable capture, send traffic, and validate
+	enableCapture(t, args.ate.OTG(), args.topo, args.capture_ports)
+	defer clearCapture(t, args.ate.OTG(), args.topo)
+	sendTraffic(t, args, args.flows, true)
+	validatePacketCapture(t, args, args.capture_ports, args.pattr)
+}
+
+// Helper function to get current flow rate
+func getFlowsRate(flows []gosnappi.Flow) uint64 {
+	if len(flows) == 0 {
+		return *fps
+	}
+	return flows[0].Rate().Pps()
 }
 
 func SetFlowsRate(flows []gosnappi.Flow, pps uint64) {
