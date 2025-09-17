@@ -45,6 +45,7 @@ replace: {
       "hw-module shutdown location 0/FC2\n"
       "hw-module shutdown location 0/FC3\n"
       "hw-module shutdown location 0/6/CPU0\n"
+      "hw-module profile cef iptunnel scale\n" 
       "ipv4 virtual address vrf mgmtVrf 10.85.72.49/24\n"
       "interface MgmtEth0/RP0/CPU0/0\n"
       " vrf mgmtVrf\n"
