@@ -17,9 +17,11 @@ package cfgplugins
 import (
 	"fmt"
 	"math"
+	"net"
 	"sync"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -35,6 +37,32 @@ const (
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
 )
+
+// DUTSubInterfaceData is the data structure for a subinterface in the DUT.
+type DUTSubInterfaceData struct {
+	VlanID        int
+	IPv4Address   net.IP
+	IPv6Address   net.IP
+	IPv4PrefixLen int
+	IPv6PrefixLen int
+}
+
+// DUTLagData is the data structure for a LAG in the DUT.
+type DUTLagData struct {
+	attrs.Attributes
+	SubInterfaces   []*DUTSubInterfaceData
+	OndatraPortsIdx []int
+	OndatraPorts    []*ondatra.Port
+	LagName         string
+}
+
+// PopulateOndatraPorts populates the OndatraPorts field of the DutLagData from the OndatraPortsIdx
+// field.
+func (d *DUTLagData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, v := range d.OndatraPortsIdx {
+		d.OndatraPorts = append(d.OndatraPorts, dut.Ports()[v])
+	}
+}
 
 var (
 	opmode uint16
@@ -251,4 +279,51 @@ func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggP
 	for _, port := range dutAggPorts {
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 	}
+}
+
+// AddPortToAggregate adds an Ondatra port as a member to the aggregate interface.
+func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port, b *gnmi.SetBatch, op *ondatra.Port) {
+	gnmi.BatchDelete(b, gnmi.OC().Interface(op.Name()).Ethernet().AggregateId().Config())
+
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(op.Name())
+	i.Description = ygot.String("LAG - Member - " +op.Name())
+	e := i.GetOrCreateEthernet()
+	e.AggregateId = ygot.String(aggID)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+	if op.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
+		e.AutoNegotiate = ygot.Bool(false)
+		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(op.Name()).Config(), i)
+}
+
+// AddSubInterface adds a subinterface to the aggregate interface.
+func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *oc.Interface, s *DUTSubInterfaceData) {
+	sub := i.GetOrCreateSubinterface(uint32(s.VlanID))
+	sub.Enabled = ygot.Bool(true)
+	if s.VlanID != 0 {
+		sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(s.VlanID))
+	}
+	if s.IPv4Address == nil && s.IPv6Address == nil {
+		t.Fatalf("No IPv4 or IPv6 address found for  %s or a subinterface under this lag", i.GetName())
+	}
+	if s.IPv4Address != nil {
+		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
+		if deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv4().SetEnabled(true)
+		}
+	}
+	if s.IPv6Address != nil {
+		sub.GetOrCreateIpv6().GetOrCreateAddress(s.IPv6Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv6PrefixLen))
+		if deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv6().SetEnabled(true)
+		}
+	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(i.GetName()).Subinterface(uint32(s.VlanID)).Config(), sub)
 }
