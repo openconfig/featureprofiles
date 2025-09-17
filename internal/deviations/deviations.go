@@ -1628,6 +1628,12 @@ func LinePortUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinePortUnsupported()
 }
 
+// UseBgpSetCommunityOptionTypeReplace returns true if BGP community set REPLACE
+// option is required
+func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
+}
+
 // LoadBalancePolicyOCUnsupported returns true if load-balancing policy configuration is not supported through OpenConfig.
 func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
