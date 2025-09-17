@@ -2,14 +2,13 @@
 // 1. Configure any number of LAGs that contains any number of ports.
 // 2. Supports native and vlan based subinterfaces.
 // 3. Configure any number of ISIS routers in the ATE.
-package otgisistopology
+package otgconfighelpers
 
 import (
 	"strconv"
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers/otgconfighelpers"
 	"github.com/openconfig/ondatra"
 )
 
@@ -139,7 +138,7 @@ func createAppendIPV4Flow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 func createISISBlock(t *testing.T, top gosnappi.Config, block *ISISOTGBlock, emulatedRouterIdx int) gosnappi.Config {
 	t.Helper()
 
-	gridSt := otgconfighelpers.NewGridIsisData(top)
+	gridSt := NewGridIsisData(top)
 	gridSt.SetRow(block.Row).SetCol(block.Col).
 		SetSystemIDFirstOctet(block.ISISIDFirstOct).
 		SetLinkIP4FirstOctet(block.LinkIP4FirstOct).
