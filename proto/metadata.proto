@@ -937,6 +937,10 @@ message Metadata {
     // Arista b/445097297
     bool global_max_ecmp_paths_unsupported = 324;
 
+    // Device requires p4rt table entries to be configured for each new primary controller
+    // Nokia: b/445494680
+    bool p4rt_explicit_table_entry_per_controller = 325;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
