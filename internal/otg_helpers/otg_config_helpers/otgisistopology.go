@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers/otgconfighelpers"
 	"github.com/openconfig/ondatra"
 )
