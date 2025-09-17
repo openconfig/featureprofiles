@@ -35,7 +35,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -48,7 +47,7 @@ const (
 	srgbName         = "srgb block"
 	srgbStartLabel   = 400000
 	srgbEndLabel     = 465000
-	srgbId           = "99.99.99.99"
+	srgbID           = "99.99.99.99"
 	flowV4Name       = "ipv4_explicit_null_flow"
 	flowV6Name       = "ipv6_explicit_null_flow"
 	mplsLabelV4      = 0
@@ -62,10 +61,11 @@ const (
 	trafficFrameSize = 512
 	trafficRatePps   = 100
 	trafficTimeout   = 30 * time.Second
-	ate1SysId        = "640000000001"
-	ate2SysId        = "640000000002"
+	ate1SysID        = "640000000001"
+	ate2SysID        = "640000000002"
 	dutAreaAddress   = "49.0001"
-	dutSysId         = "1920.0000.2001"
+	dutSysID         = "1920.0000.2001"
+	isisMetric       = 10
 )
 
 var (
@@ -122,10 +122,29 @@ var (
 	ateTrafficDstIPv6 = "2001:db8:2::1" // IPV6-DST1
 
 	// Static IPs towards ATE Port2
-	ateTrafficDstIPv4Net = "198.51.100.0/24" //Static IP for IPV4-DST1 for static route
-	ateTrafficDstIPv6Net = "2001:db8:2::/64" //Static IP for IPV6-DST1 for static route
+	ateTrafficDstIPv4Net = "198.51.100.0/24" // Static IP for IPV4-DST1 for static route
+	ateTrafficDstIPv6Net = "2001:db8:2::/64" // Static IP for IPV6-DST1 for static route
 
 )
+
+type protocolType int
+
+const (
+	protocolUnknown protocolType = iota
+	protocolIPv4
+	protocolIPv6
+)
+
+func (pt *protocolType) String() string {
+	switch *pt {
+	case protocolIPv4:
+		return "ipv4"
+	case protocolIPv6:
+		return "ipv6"
+	default:
+		return "unsupported protocol type"
+	}
+}
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
@@ -153,7 +172,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	i := a.NewOCInterface(p.Name(), dut)
 	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
+		s4.SetEnabled(true)
 	}
 	i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 
@@ -164,51 +183,51 @@ func addISISOC(areaAddress, sysID, ifaceName1, ifaceName2 string, dut *ondatra.D
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := inst.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
-	prot.Enabled = ygot.Bool(true)
+	prot.SetEnabled(true)
 	isis := prot.GetOrCreateIsis()
 	glob := isis.GetOrCreateGlobal()
 	if deviations.ISISInstanceEnabledRequired(dut) {
-		glob.Instance = ygot.String("DEFAULT")
+		glob.SetInstance("DEFAULT")
 	}
 	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
 	level := isis.GetOrCreateLevel(2)
 	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 	// Configure ISIS enabled flag at level
 	if deviations.ISISLevelEnabled(dut) {
-		level.Enabled = ygot.Bool(true)
+		level.SetEnabled(true)
 	}
 	intf := isis.GetOrCreateInterface(ifaceName1)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf.Enabled = ygot.Bool(true)
+	intf.SetEnabled(true)
 	// Configure ISIS level at global mode if true else at interface mode
 	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-		intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+		intf.GetOrCreateLevel(1).SetEnabled(false)
 	} else {
-		intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+		intf.GetOrCreateLevel(2).SetEnabled(true)
 	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	// Configure ISIS enable flag at interface level
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
 	if deviations.ISISInterfaceAfiUnsupported(dut) {
 		intf.Af = nil
 	}
 
 	intf2 := isis.GetOrCreateInterface(ifaceName2)
 	intf2.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf2.Enabled = ygot.Bool(true)
+	intf2.SetEnabled(true)
 	// Configure ISIS level at global mode if true else at interface mode
 	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-		intf2.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+		intf2.GetOrCreateLevel(1).SetEnabled(false)
 	} else {
-		intf2.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+		intf2.GetOrCreateLevel(2).SetEnabled(true)
 	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_1_2
 	// Configure ISIS enable flag at interface level
-	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
 	if deviations.ISISInterfaceAfiUnsupported(dut) {
 		intf2.Af = nil
 	}
@@ -226,7 +245,7 @@ func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 	ni := root.GetOrCreateNetworkInstance(niName)
 
 	dutConfPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
-	dutConf := addISISOC(dutAreaAddress, dutSysId, dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name(), dut)
+	dutConf := addISISOC(dutAreaAddress, dutSysID, dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 
 	if deviations.IsisSrgbSrlbUnsupported(dut) {
@@ -243,7 +262,7 @@ func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 		sr := ni.GetOrCreateSegmentRouting()
 		srgbConfig := sr.GetOrCreateSrgb(srgbName)
 		srgbConfig.SetMplsLabelBlocks([]string{srgbName})
-		srgbConfig.LocalId = ygot.String(srgbId)
+		srgbConfig.SetLocalId(srgbID)
 
 		t.Logf("Pushing DUT MPLS & SRGB configurations...")
 		gnmi.Update(t, dut, dc.NetworkInstance(niName).Mpls().Config(), mpls)
@@ -259,10 +278,7 @@ func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureGlobalMPLS(t *testing.T, dut *ondatra.DUTDevice) {
-	cliConfig := fmt.Sprintf(`
-    mpls ip
-	mpls label range isis-sr %v %v
-		`, srgbStartLabel, srgbEndLabel)
+	cliConfig := fmt.Sprintf("mpls ip\nmpls label range isis-sr %v %v", srgbStartLabel, srgbEndLabel)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
@@ -301,58 +317,41 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	// Configure ISIS
 
 	// Add IS-IS in ATE port1
-	devices := otgConfig.Devices().Items()
-	port1isis := devices[0].Isis().SetSystemId(ate1SysId).SetName("dev1Isis")
+	isisConfig := []struct {
+		deviceName     string
+		routerIP       string
+		sysID          string
+		isisDeviceName string
+	}{
+		{deviceName: atePort1.Name, routerIP: atePort1.IPv4, sysID: ate1SysID, isisDeviceName: "dev1Isis"},
+		{deviceName: atePort2.Name, routerIP: atePort2.IPv4, sysID: ate2SysID, isisDeviceName: "dev2Isis"},
+	}
 
-	// port 1 device 1 isis basic
-	port1isis.Basic().SetIpv4TeRouterId(atePort1.IPv4)
-	port1isis.Basic().SetHostname(port1isis.Name())
-	port1isis.Basic().SetEnableWideMetric(true)
-	port1isis.Basic().SetLearnedLspFilter(true)
+	for _, device := range otgConfig.Devices().Items() {
+		for i, isisDevice := range isisConfig {
+			if device.Name() == isisDevice.deviceName {
+				portisis := device.Isis().SetSystemId(isisDevice.sysID).SetName(isisDevice.isisDeviceName)
+				portisis.Basic().SetIpv4TeRouterId(isisDevice.routerIP)
+				portisis.Basic().SetHostname(portisis.Name())
+				portisis.Basic().SetEnableWideMetric(true)
+				portisis.Basic().SetLearnedLspFilter(true)
 
-	// configure Segment Routing in ATEport1
+				// configure Segment Routing
+				sr := portisis.SegmentRouting()
+				d1rtrCap1 := sr.RouterCapability()
+				d1rtrCap1.SetCustomRouterCapId(isisDevice.routerIP)
+				d1rtrCap1.SetAlgorithms([]uint32{0})
+				d1rtrCap1.SetSBit(gosnappi.IsisRouterCapabilitySBit.FLOOD)
+				d1rtrCap1.SetDBit(gosnappi.IsisRouterCapabilityDBit.DOWN)
+				srCap := d1rtrCap1.SrCapability()
+				srCap.Flags().SetIpv4Mpls(true).SetIpv6Mpls(true)
+				srCap.SrgbRanges().Add().SetStartingSid(uint32(srgbStartLabel)).SetRange(uint32(srgbEndLabel))
 
-	sr := port1isis.SegmentRouting()
-	d1rtrCap1 := sr.RouterCapability()
-	d1rtrCap1.SetCustomRouterCapId(atePort1.IPv4)
-	d1rtrCap1.SetAlgorithms([]uint32{0})
-	d1rtrCap1.SetSBit(gosnappi.IsisRouterCapabilitySBit.FLOOD)
-	d1rtrCap1.SetDBit(gosnappi.IsisRouterCapabilityDBit.DOWN)
-	srCap := d1rtrCap1.SrCapability()
-	srCap.Flags().SetIpv4Mpls(true).SetIpv6Mpls(true)
-	srCap.SrgbRanges().Add().SetStartingSid(uint32(srgbStartLabel)).SetRange(uint32(srgbEndLabel))
-
-	devIsisport1 := port1isis.Interfaces().Add().SetEthName(devices[0].Ethernets().Items()[0].Name()).
-		SetName("devIsisPort1").SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_1_2).SetMetric(10)
-
-	devIsisport1.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
-
-	// Add IS-IS in ATE port2
-	port2isis := otgConfig.Devices().Items()[1].Isis().SetSystemId(ate2SysId).SetName("dev2Isis")
-
-	port2isis.Basic().SetIpv4TeRouterId(atePort2.IPv4)
-	port2isis.Basic().SetHostname(port2isis.Name())
-	port2isis.Basic().SetEnableWideMetric(true)
-	port2isis.Basic().SetLearnedLspFilter(true)
-
-	// configure Segment Routing in ATEport2
-
-	sr1 := port2isis.SegmentRouting()
-	d2rtrCap1 := sr1.RouterCapability()
-	d2rtrCap1.SetCustomRouterCapId(atePort2.IPv4)
-	d2rtrCap1.SetAlgorithms([]uint32{0})
-	d2rtrCap1.SetSBit(gosnappi.IsisRouterCapabilitySBit.FLOOD)
-	d2rtrCap1.SetDBit(gosnappi.IsisRouterCapabilityDBit.DOWN)
-	srCap1 := d2rtrCap1.SrCapability()
-	srCap1.Flags().SetIpv4Mpls(true).SetIpv6Mpls(true)
-	srCap1.SrgbRanges().Add().SetStartingSid(uint32(srgbStartLabel)).SetRange(uint32(srgbEndLabel))
-
-	devIsisport2 := port2isis.Interfaces().Add().SetEthName(devices[1].Ethernets().Items()[0].Name()).
-		SetName("devIsisPort2").SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_1_2).SetMetric(10)
-
-	devIsisport2.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+				devIsisport := portisis.Interfaces().Add().SetEthName(device.Ethernets().Items()[0].Name()).SetName(fmt.Sprintf("devIsisPort%d", i+1)).SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_1_2).SetMetric(isisMetric)
+				devIsisport.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+			}
+		}
+	}
 
 	// Traffic Flow 1: Ethernet+MPLS+IPv4+Payload
 	t.Logf("Configuring ATE Flow: %s", flowV4Name)
@@ -365,7 +364,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	ethHdrV4 := flowV4.Packet().Add().Ethernet()
 	ethHdrV4.Src().SetValue(atePort1.MAC)
-	ethHdrV4.Dst().Auto() // MAC of DUT's ingress port
+	ethHdrV4.Dst().Auto()
 
 	mplsHdrV4 := flowV4.Packet().Add().Mpls()
 	mplsHdrV4.Label().SetValue(mplsLabelV4)
@@ -457,9 +456,9 @@ func mustProcessCapture(t *testing.T, otg *otg.OTG, port string) string {
 	return capture.Name()
 }
 
-func validatePackets(t *testing.T, filename string, protocolType string) error {
+func validatePackets(t *testing.T, filename string, protocolType protocolType) error {
 
-	mplsPacketCount := int32(0)
+	mplsPacketCount := uint32(0)
 
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
@@ -470,35 +469,33 @@ func validatePackets(t *testing.T, filename string, protocolType string) error {
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	for packet := range packetSource.Packets() {
-		if protocolType == "ipv4" {
+		if protocolType.String() == "ipv4" {
 			if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 				ip, _ := ipLayer.(*layers.IPv4)
 				if ip.DstIP.Equal(net.ParseIP(ateTrafficDstIPv4)) {
 					if mplsLayer := packet.Layer(layers.LayerTypeMPLS); mplsLayer != nil {
-						mplsPacketCount += 1
+						mplsPacketCount++
 					}
 				}
 				if ip.TTL == mplsOuterTTL-1 {
 					t.Logf("TTL decremented by 1")
 					break
-				} else {
-					return fmt.Errorf("unexpected TTL - got: %v, want: %v", ip.TTL, mplsOuterTTL-1)
 				}
+				return fmt.Errorf("unexpected TTL - got: %v, want: %v", ip.TTL, mplsOuterTTL-1)
 			}
 		} else {
 			if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 				ip, _ := ipLayer.(*layers.IPv6)
 				if ip.DstIP.Equal(net.ParseIP(ateTrafficDstIPv6)) {
 					if mplsLayer := packet.Layer(layers.LayerTypeMPLS); mplsLayer != nil {
-						mplsPacketCount += 1
+						mplsPacketCount++
 					}
 				}
 				if ip.HopLimit == mplsOuterTTL-1 {
 					t.Logf("TTL decremented by 1")
 					break
-				} else {
-					return fmt.Errorf("unexpected TTL - got: %v, want: %v", ip.HopLimit, mplsOuterTTL-1)
 				}
+				return fmt.Errorf("unexpected TTL - got: %v, want: %v", ip.HopLimit, mplsOuterTTL-1)
 			}
 		}
 	}
@@ -511,7 +508,7 @@ func validatePackets(t *testing.T, filename string, protocolType string) error {
 }
 
 // verifyTrafficValidations runs traffic and validates ATE flow metrics and DUT counters.
-func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) (totalTxFromATE, totalRxAtATE uint64, err error) {
+func verifyTrafficValidations(t *testing.T, ate *ondatra.ATEDevice, flowName string) (totalTxFromATE, totalRxAtATE uint64, err error) {
 	t.Helper()
 	otg := ate.OTG()
 
@@ -526,15 +523,15 @@ func verifyTrafficValidations(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	}
 	switch {
 	case rxPkts < txPkts:
-		lossPct := float32(0)
+		var lossPct float32
 		if txPkts > 0 {
 			lossPct = (float32(txPkts-rxPkts) * 100) / float32(txPkts)
 		}
-		return 0, 0, fmt.Errorf("flow %s: Packet loss detected. TxPkts: %d, RxPkts: %d, Loss %%: %.2f", flowName, txPkts, rxPkts, lossPct)
+		return 0, 0, fmt.Errorf("flow %s: packet loss detected - TxPkts: %d, RxPkts: %d, Loss %%: %.2f", flowName, txPkts, rxPkts, lossPct)
 	case txPkts > 0:
 		t.Logf("Flow %s: Successfully transmitted %d packets and received %d packets with no loss.", flowName, txPkts, rxPkts)
 	case packetsPerFlow > 0: // Expected to send but didn't
-		return 0, 0, fmt.Errorf("flow %s: No packets were transmitted for this flow, but %d were expected.", flowName, packetsPerFlow)
+		return 0, 0, fmt.Errorf("flow %s: no packets were transmitted for this flow, but %d were expected", flowName, packetsPerFlow)
 	}
 
 	return totalTxFromATE, totalRxAtATE, nil
@@ -572,29 +569,27 @@ func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dut
 	inPktsDelta := dutP1InCountersAfter - dutP1InCountersBefore
 	outPktsDelta := dutP2OutCountersAfter - dutP2OutCountersBefore
 
-	t.Logf("DUT Port1 InUnicastPkts: Before=%d, After=%d, Delta=%d",
-		dutP1InCountersBefore, dutP1InCountersAfter, inPktsDelta)
+	t.Logf("DUT Port1 InUnicastPkts: Before=%d, After=%d, Delta=%d", dutP1InCountersBefore, dutP1InCountersAfter, inPktsDelta)
 
-	t.Logf("DUT Port2 OutUnicastPkts: Before=%d, After=%d, Delta=%d",
-		dutP2OutCountersBefore, dutP2OutCountersAfter, outPktsDelta)
+	t.Logf("DUT Port2 OutUnicastPkts: Before=%d, After=%d, Delta=%d", dutP2OutCountersBefore, dutP2OutCountersAfter, outPktsDelta)
 
 	t.Logf("Total packets sent by ATE (sum of flows reported by ATE): %d", totalTxFromATE)
 	t.Logf("Total packets received by ATE (sum of flows reported by ATE): %d", totalRxAtATE)
 
-	expectedTotalTraffic := uint64(packetsPerFlow * flowCount)
+	expectedTotalTraffic := uint64(packetsPerFlow) * uint64(flowCount)
 	switch {
 	case totalTxFromATE > 0:
 		// Check if DUT ingress counters reflect ATE Tx.
 		// Allow a small difference (e.g., 2%) due to other control plane packets or timing of counter polling.
 		if float64(inPktsDelta) < float64(totalTxFromATE)*0.98 {
-			return fmt.Errorf("dut port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d). Expected approx %d.", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
+			return fmt.Errorf("dut port1 InUnicastPkts delta (%d) is significantly less than ATE Tx (%d) - expected approx %d", inPktsDelta, totalTxFromATE, expectedTotalTraffic)
 		}
 		// Check if DUT egress counters reflect ATE Rx.
 		if float64(outPktsDelta) < float64(totalRxAtATE)*0.98 {
-			return fmt.Errorf("dut Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d). Potential drop in DUT. Expected approx %d.", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
+			return fmt.Errorf("dut Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d) - potential drop in DUT. expected approx %d", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
 		}
 	case expectedTotalTraffic > 0:
-		return fmt.Errorf("traffic was not reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
+		return fmt.Errorf("traffic was not reported as transmitted by ATE flows, but %d total packets were expected", expectedTotalTraffic)
 	}
 
 	return nil
@@ -610,10 +605,10 @@ func TestMPLSExplicitNull(t *testing.T) {
 	// Congigure DUT
 	configureDUT(t, dut)
 
-	// 1. Configure DUT MPLS, SRGB, and Static Routing
+	// Configure DUT MPLS, SRGB, and Static Routing
 	configureDUTMPLSAndRouting(t, dut)
 
-	// 2. Configure ATE (Interfaces and Traffic Flows)
+	// Configure ATE (Interfaces and Traffic Flows)
 	otgConfig := configureATE(t, ate)
 	enableCapture(t, otgConfig, "port2")
 
@@ -639,20 +634,20 @@ func TestMPLSExplicitNull(t *testing.T) {
 
 	flowNames := []struct {
 		name     string
-		flowType string
+		flowType protocolType
 	}{
 		{
 			name:     flowV4Name,
-			flowType: "ipv4",
+			flowType: protocolIPv4,
 		},
 		{
 			name:     flowV6Name,
-			flowType: "ipv6",
+			flowType: protocolIPv6,
 		},
 	}
 	for _, flowName := range flowNames {
-		t.Run(fmt.Sprintf("ValidateFlow_%s", flowName), func(t *testing.T) {
-			ateTxCounters, ateRxCounters, err = verifyTrafficValidations(t, dut, ate, flowName.name)
+		t.Run(fmt.Sprintf("ValidateFlow_%s", flowName.name), func(t *testing.T) {
+			ateTxCounters, ateRxCounters, err = verifyTrafficValidations(t, ate, flowName.name)
 			if err != nil {
 				t.Error(err)
 			}
@@ -668,5 +663,5 @@ func TestMPLSExplicitNull(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Log("MPLS Explicit Null Test Completed.")
+	t.Log("MPLS Explicit Null Test Completed")
 }
