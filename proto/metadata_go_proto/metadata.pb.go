@@ -1135,8 +1135,17 @@ type Metadata_Deviations struct {
 	// b/425503156
 	// Device does not support decapsulation group
 	DecapsulateGueOcUnsupported bool `protobuf:"varint,321,opt,name=decapsulate_gue_oc_unsupported,json=decapsulateGueOcUnsupported,proto3" json:"decapsulate_gue_oc_unsupported,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Device does not support line-port configuration on optical channel
+	// components for Nokia and Arista.
+	LinePortUnsupported bool `protobuf:"varint,322,opt,name=line_port_unsupported,json=linePortUnsupported,proto3" json:"line_port_unsupported,omitempty"`
+	// routing-policy bgp community needs to use REPLACE option
+	// Arista b/443044881
+	UseBgpSetCommunityOptionTypeReplace bool `protobuf:"varint,323,opt,name=use_bgp_set_community_option_type_replace,json=useBgpSetCommunityOptionTypeReplace,proto3" json:"use_bgp_set_community_option_type_replace,omitempty"`
+	// Devices that do not support global max ecmp paths
+	// Arista b/445097297
+	GlobalMaxEcmpPathsUnsupported bool `protobuf:"varint,324,opt,name=global_max_ecmp_paths_unsupported,json=globalMaxEcmpPathsUnsupported,proto3" json:"global_max_ecmp_paths_unsupported,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3192,6 +3201,27 @@ func (x *Metadata_Deviations) GetDecapsulateGueOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetLinePortUnsupported() bool {
+	if x != nil {
+		return x.LinePortUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetUseBgpSetCommunityOptionTypeReplace() bool {
+	if x != nil {
+		return x.UseBgpSetCommunityOptionTypeReplace
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetGlobalMaxEcmpPathsUnsupported() bool {
+	if x != nil {
+		return x.GlobalMaxEcmpPathsUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3248,7 +3278,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe0\xaf\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb9\xb1\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3260,7 +3290,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x81\xa6\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aڧ\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3554,7 +3584,10 @@ const file_metadata_proto_rawDesc = "" +
 	"\vskip_origin\x18\xbf\x02 \x01(\bR\n" +
 	"skipOrigin\x12:\n" +
 	"\x19predefined_max_ecmp_paths\x18\xc0\x02 \x01(\bR\x16predefinedMaxEcmpPaths\x12D\n" +
-	"\x1edecapsulate_gue_oc_unsupported\x18\xc1\x02 \x01(\bR\x1bdecapsulateGueOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1edecapsulate_gue_oc_unsupported\x18\xc1\x02 \x01(\bR\x1bdecapsulateGueOcUnsupported\x123\n" +
+	"\x15line_port_unsupported\x18\xc2\x02 \x01(\bR\x13linePortUnsupported\x12W\n" +
+	")use_bgp_set_community_option_type_replace\x18\xc3\x02 \x01(\bR#useBgpSetCommunityOptionTypeReplace\x12I\n" +
+	"!global_max_ecmp_paths_unsupported\x18\xc4\x02 \x01(\bR\x1dglobalMaxEcmpPathsUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\x92\x01\x10\x93\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
