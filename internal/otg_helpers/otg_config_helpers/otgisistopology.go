@@ -1,4 +1,4 @@
-// Package otgisistopology is a helper package for ISIS tests. It supports the below features:
+// otgisistopology.go is a helper for ISIS tests. It supports the below features:
 // 1. Configure any number of LAGs that contains any number of ports.
 // 2. Supports native and vlan based subinterfaces.
 // 3. Configure any number of ISIS routers in the ATE.
