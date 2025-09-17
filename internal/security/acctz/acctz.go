@@ -850,12 +850,12 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
 			// LocalAddress:  localIP,
 			// LocalPort:     localPort,
 			// RemoteAddress: remoteIP,
 			// RemotePort:    remotePort,
-			IpProto:       ipProto,
+			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
@@ -1058,4 +1058,3 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRes
 
 	return records
 }
-
