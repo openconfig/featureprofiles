@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // ISISGlobalParams is the data structure for the DUT data.
