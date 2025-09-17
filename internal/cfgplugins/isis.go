@@ -7,6 +7,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -21,24 +22,27 @@ type ISISConfig struct {
 	LoopbackIntf string
 }
 
-// ConfigureISISOnDUT configures ISIS on the DUT using OpenConfig.
-// It enables ISIS globally, sets AFs, and applies interface-level config.
-func ConfigureISISOnDUT(t *testing.T, dut *ondatra.DUTDevice, cfg ISISConfig) *oc.NetworkInstance_Protocol {
+// NewISIS configures ISIS on the DUT using OpenConfig. It enables ISIS globally, sets AFs, and applies interface-level config.
+func NewISIS(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg ISISConfig) *oc.NetworkInstance_Protocol {
 	t.Helper()
+
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
-	// Set Protocol Config (no GetOrCreateConfig so use this)
+	// Set Protocol Config
 	protocol := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, cfg.InstanceName)
 	protocol.Enabled = ygot.Bool(true)
 
 	isis := protocol.GetOrCreateIsis()
-
 	globalISIS := isis.GetOrCreateGlobal()
+
 	if deviations.ISISInstanceEnabledRequired(dut) {
-		globalISIS.Instance = ygot.String(cfg.InstanceName) // must match the protocol 'name'
+		// must match the protocol 'name'
+		globalISIS.Instance = ygot.String(cfg.InstanceName)
 	}
-	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", cfg.AreaAddress, cfg.SystemID)}
+	globalISIS.Net = []string{
+		fmt.Sprintf("%v.%v.00", cfg.AreaAddress, cfg.SystemID),
+	}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
@@ -55,10 +59,14 @@ func ConfigureISISOnDUT(t *testing.T, dut *ondatra.DUTDevice, cfg ISISConfig) *o
 		isisIf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 		isisIf.Enabled = ygot.Bool(true)
 	}
+
 	// Loopback passive
 	isisLo := isis.GetOrCreateInterface(cfg.LoopbackIntf)
 	isisLo.Enabled = ygot.Bool(true)
 	isisLo.Passive = ygot.Bool(true)
+
+	// === Add protocol subtree into the batch ===
+	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, cfg.InstanceName).Config(), protocol)
 
 	return protocol
 }

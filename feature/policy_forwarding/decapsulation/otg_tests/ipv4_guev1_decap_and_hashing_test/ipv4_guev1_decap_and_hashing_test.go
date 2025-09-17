@@ -35,7 +35,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 // Constants for BGP ASNs
@@ -352,7 +351,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 	aggIDsList = append(aggIDsList, aggID1)
 	cfgplugins.DeleteAggregate(t, dut, aggID1, dutAggPorts1)
-	configureDUTLag(t, dut, dutAggPorts1, aggID1, dutLag1)
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, dutAggPorts1, aggID1, dutLag1)
 
 	// Ports 5 and 6 will be part of LAG
 	dutAggPorts2 := []*ondatra.Port{
@@ -361,7 +360,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 	aggIDsList = append(aggIDsList, aggID2)
 	cfgplugins.DeleteAggregate(t, dut, aggID2, dutAggPorts2)
-	configureDUTLag(t, dut, dutAggPorts2, aggID2, dutLag2)
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, dutAggPorts2, aggID2, dutLag2)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	cfgplugins.ConfigureLoadbalance(t, dut)
 	// ISIS Configuration
@@ -374,7 +373,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		Ports:        []*ondatra.Port{p1, p2},
 		LoopbackIntf: dutLoopbackName,
 	}
-	dutConf := cfgplugins.ConfigureISISOnDUT(t, dut, cfg)
+	batch := &gnmi.SetBatch{}
+	dutConf := cfgplugins.NewISIS(t, batch, dut, cfg)
+	batch.Set(t, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	cfgplugins.ConfigureDUTBGP(t, dut, dutAS, ate1AS, ate2AS, ate3AS, ate4AS, ate5AS, ecmpMaxPath, dutP1, dutP2, dutP7, ateP1, ateP2, ateP7, dutLag1, dutLag2, ateLag1, ateLag2)
 
@@ -400,27 +401,6 @@ func defaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipTyp
 		GuePort:             uint32(decapPort),
 		IpType:              ipType,
 		Dynamic:             true,
-	}
-}
-
-// configureDUTLag is the public API for creating a static LAG on the DUT.
-// It wraps SetupStaticAggregateAtomically to ensure atomic creation and applies additional DUT-specific attributes and cleanup.
-func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes) {
-	t.Helper()
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggPorts, aggID)
-	agg := dutLag.NewOCInterface(aggID, dut)
-	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
-	gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
-	for _, port := range aggPorts {
-		d := &oc.Root{}
-		i := d.GetOrCreateInterface(port.Name())
-		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if deviations.InterfaceEnabled(dut) {
-			i.Enabled = ygot.Bool(true)
-		}
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), i)
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -727,21 +728,26 @@ func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggP
 }
 
 // SetupStaticAggregateAtomically sets up the static aggregate interface atomically.
-func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
+func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes) {
 	t.Helper()
-	d := &oc.Root{}
-	agg := d.GetOrCreateInterface(aggID)
+	batch := &gnmi.SetBatch{}
+	// Create LAG
+	agg := dutLag.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(aggID).Config(), agg)
 
+	// Create all member ports
 	for _, port := range aggPorts {
+		d := &oc.Root{}
 		i := d.GetOrCreateInterface(port.Name())
 		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
 		if deviations.InterfaceEnabled(dut) {
 			i.Enabled = ygot.Bool(true)
 		}
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), i)
 	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+
+	batch.Set(t, dut)
 }
