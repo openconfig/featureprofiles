@@ -422,7 +422,7 @@ type packetAttr struct {
 	ttl      uint32
 	inner    *packetAttr
 	sfSample *s.SflowSample
-	sfConfig *s.SflowConfig
+	sfAttr   *s.SflowAttr
 }
 
 type flowAttr struct {
@@ -1256,7 +1256,7 @@ func validateIPv6Packet(l *Logger, v6Packet *layers.IPv6, pa *packetAttr) {
 // Validate sFlow samples and their records from a single packet.
 func validateSflowSampleFields(l *Logger, packet gopacket.Packet, pa *packetAttr) {
 	l.LogOnce("Inside ValidateSflowSampleFields")
-	if pa == nil || pa.sfConfig == nil {
+	if pa == nil || pa.sfAttr == nil {
 		return
 	}
 	sflowLayer := packet.Layer(layers.LayerTypeSFlow)
@@ -1272,54 +1272,54 @@ func validateSflowSampleFields(l *Logger, packet gopacket.Packet, pa *packetAttr
 
 	for _, flowSample := range datagram.FlowSamples {
 		// Sampling rate check if provided
-		if pa.sfConfig.SamplingRate != 0 && flowSample.SamplingRate != uint32(pa.sfConfig.SamplingRate) {
-			l.LogOnceErrorf("SFlow SamplingRate mismatch: got %d, want %d", flowSample.SamplingRate, pa.sfConfig.SamplingRate)
-		} else if pa.sfConfig.SamplingRate != 0 {
+		if pa.sfAttr.SamplingRate != 0 && flowSample.SamplingRate != uint32(pa.sfAttr.SamplingRate) {
+			l.LogOnceErrorf("SFlow SamplingRate mismatch: got %d, want %d", flowSample.SamplingRate, pa.sfAttr.SamplingRate)
+		} else if pa.sfAttr.SamplingRate != 0 {
 			l.LogOncef("SFlow SamplingRate matched: %d", flowSample.SamplingRate)
 		}
 
 		// Input interface check if provided
-		if len(pa.sfConfig.InputInterface) > 0 {
+		if len(pa.sfAttr.InputInterface) > 0 {
 			match := false
-			for _, idx := range pa.sfConfig.InputInterface {
+			for _, idx := range pa.sfAttr.InputInterface {
 				if flowSample.InputInterface == idx {
 					match = true
 					break
 				}
 			}
 			if !match {
-				l.LogOnceErrorf("SFlow InputInterface unexpected: got %d, allowed %v", flowSample.InputInterface, pa.sfConfig.InputInterface)
+				l.LogOnceErrorf("SFlow InputInterface unexpected: got %d, allowed %v", flowSample.InputInterface, pa.sfAttr.InputInterface)
 			} else {
 				l.LogOncef("SFlow InputInterface matched: %d", flowSample.InputInterface)
 			}
 		}
 
 		// Output interface check if provided
-		if len(pa.sfConfig.OutputInterface) > 0 {
+		if len(pa.sfAttr.OutputInterface) > 0 {
 			match := false
-			for _, idx := range pa.sfConfig.OutputInterface {
+			for _, idx := range pa.sfAttr.OutputInterface {
 				if flowSample.OutputInterface == idx {
 					match = true
 					break
 				}
 			}
 			if !match {
-				l.LogOnceErrorf("SFlow OutputInterface unexpected: got %d, allowed %v", flowSample.OutputInterface, pa.sfConfig.OutputInterface)
+				l.LogOnceErrorf("SFlow OutputInterface unexpected: got %d, allowed %v", flowSample.OutputInterface, pa.sfAttr.OutputInterface)
 			} else {
 				l.LogOncef("SFlow OutputInterface matched: %d", flowSample.OutputInterface)
 			}
 		}
 
-		// Optional deeper validation driven by pa.sfSample expectations.
-		if pa.sfSample != nil {
+		// Optional deeper validation driven by pa.sfAttr.SfSample expectations.
+		if pa.sfAttr.SfSample != nil {
 			for _, rec := range flowSample.Records {
 				switch r := rec.(type) {
 				case layers.SFlowRawPacketFlowRecord:
-					validateSflowRawPacketRecord(l, r, pa.sfSample.RawPktHdr)
+					validateSflowRawPacketRecord(l, r, pa.sfAttr.SfSample.RawPktHdr)
 				case layers.SFlowExtendedRouterFlowRecord:
-					validateSflowExtendedRouterRecord(l, r, pa.sfSample.ExtdRtrData)
+					validateSflowExtendedRouterRecord(l, r, pa.sfAttr.SfSample.ExtdRtrData)
 				case layers.SFlowExtendedGatewayFlowRecord:
-					validateSflowExtendedGatewayRecord(l, r, pa.sfSample.ExtdGtwData)
+					validateSflowExtendedGatewayRecord(l, r, pa.sfAttr.SfSample.ExtdGtwData)
 				default:
 					// Keep existing logging for unhandled types if needed
 				}
@@ -1808,35 +1808,13 @@ flow datalinkframesection monitor OC-FMM-GLOBAL sampler OC-FSM-GLOBAL-INGRESS in
 	batchSet.Set(t, dut)
 }
 
-// Example: Approximate the IOS-XR sFlow / flow exporter/monitor/sampler config
-// with OpenConfig (gnmi + ondatra). Some XR-specific knobs (dfbit set,
-// extended-* records, monitor-map binding syntax) lack direct OpenConfig
-// equivalents and would need vendor CLI (schemaless) fallback.
-//
-// NOTE: Adjust paths if your generated oc library differs.
-// Unsupported features are marked TODO / fallback.
-
-// SFlowConfig holds all configuration parameters for sFlow setup
-type SFlowConfig struct {
-	LoopbackIPv4        string
-	LoopbackIPv6        string
-	CollectorIPv6       string
-	CollectorPort       uint16
-	DSCP                uint8
-	SampleSize          uint16
-	IngressSamplingRate uint32
-	InterfaceName       string
-	ExporterMapName     string
-	PacketLength        uint32
-	DfBitSet            bool
-}
-
-// NewDefaultSFlowConfig returns a SFlowConfig with default values
-func NewDefaultSFlowConfig() *SFlowConfig {
-	return &SFlowConfig{
-		LoopbackIPv4:        "203.0.113.255",
-		LoopbackIPv6:        "2001:db8::203:0:113:255",
+// NewDefaultSflowAttr returns a SflowAttr with default values
+func NewDefaultSflowAttr() *s.SFlowConfig {
+	return &s.SFlowConfig{
+		SourceIPv4:          "203.0.113.255",
+		SourceIPv6:          "2001:db8::203:0:113:255",
 		CollectorIPv6:       "2001:0db8::192:0:2:1e",
+		IP:                  s.IPv6,
 		CollectorPort:       6343,
 		DSCP:                32,
 		SampleSize:          343,
@@ -1849,7 +1827,7 @@ func NewDefaultSFlowConfig() *SFlowConfig {
 }
 
 // configureLoopback0 configures the Loopback0 interface with IPv4 and IPv6 addresses
-// func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+// func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, config *SflowAttr) {
 func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attributes) {
 	root := &oc.Root{}
 
@@ -1872,24 +1850,8 @@ func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Att
 	gnmi.Replace(t, dut, gnmi.OC().Interface("Loopback0").Config(), lo)
 }
 
-// configureUnsupportedSFlowFeatures configures vendor-specific sFlow features not supported by OpenConfig
-func configureUnsupportedSFlowFeatures(t *testing.T, dut *ondatra.DUTDevice) {
-	batchSet := &gnmi.SetBatch{}
-	cliPath, _ := schemaless.NewConfig[string]("", "cli")
-
-	unsupportedConfig := fmt.Sprintf(`
-	flow exporter-map %s
-	dfbit set
-	packet-length %d
-	end
-	`, config.ExporterMapName, config.PacketLength)
-
-	gnmi.BatchUpdate(batchSet, cliPath, unsupportedConfig)
-	batchSet.Set(t, dut)
-}
-
 func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
-	config := NewDefaultSFlowConfig()
+	config := NewDefaultSflowAttr()
 
 	// Configure Loopback0 interface
 	configureLoopback0(t, dut, dutLoopback0)
@@ -1898,45 +1860,8 @@ func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 	s.ConfigureSFlow(t, dut, config)
 
 	// Configure unsupported features
-	configureUnsupportedSFlowFeatures(t, dut)
+	s.ConfigureUnsupportedSFlowFeatures(t, dut, config)
 }
-
-// (Optional) Helper to adjust per-flow sFlow sampling dynamically
-func updateSFlowSamplingRate(t *testing.T, dut *ondatra.DUTDevice, rate uint32) {
-	root := &oc.Root{}
-	sf := root.GetOrCreateSampling().GetOrCreateSflow()
-	sf.SetIngressSamplingRate(rate)
-	gnmi.Update(t, dut, gnmi.OC().Sampling().Sflow().IngressSamplingRate().Config(), rate)
-}
-
-// GetToSTrafficClass computes the Type of Service (ToS) byte for IPv4 or
-// Traffic Class byte for IPv6 based on the given DSCP and ECN values.
-//
-// DSCP (Differentiated Services Code Point) is a 6-bit value (0-63).
-// ECN (Explicit Congestion Notification) is a 2-bit value (0-3).
-//
-// The ToS/Traffic Class byte structure is:
-// | DSCP (6 bits) | ECN (2 bits) |
-//
-// Returns the computed 8-bit ToS/Traffic Class value and an error if inputs are invalid.
-// func GetToSTrafficClass(dscp uint8, ecn uint8) (uint8, error) {
-// 	// Validate DSCP value: DSCP is 6 bits, so max value is 2^6 - 1 = 63.
-// 	if dscp > 63 {
-// 		return 0, errors.New("DSCP value out of range (0-63)")
-// 	}
-
-// 	// Validate ECN value: ECN is 2 bits, so max value is 2^2 - 1 = 3.
-// 	if ecn > 3 {
-// 		return 0, errors.New("ECN value out of range (0-3)")
-// 	}
-
-// 	// To form the 8-bit ToS/Traffic Class byte:
-// 	// Shift the 6-bit DSCP value 2 bits to the left to make space for ECN.
-// 	// Then, bitwise OR it with the 2-bit ECN value.
-// 	result := (dscp << 2) | ecn
-
-// 	return result, nil
-// }
 
 func sshRunCommand(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, cmd string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
@@ -2002,18 +1927,18 @@ func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames 
 
 func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, intfs []string) {
 	for _, intf := range intfs {
+		// t.Logf("ifIndex for %s is : %d", intf, gnmi.Get(t, dut, gnmi.OC().Interface(intf).Ifindex().State()))
 		cmd := fmt.Sprintf("show snmp interface %s ifindex", intf)
 		sshRunCommand(t, dut, sshClient, cmd)
-
 	}
 }
 
-func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *s.SflowConfig) {
+func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *s.SflowAttr) {
 	if sfc != nil {
 		oldPorts := args.capture_ports
 		oldTtl := args.pattr.ttl
 		oldDscp := args.pattr.dscp
-		args.pattr.sfConfig = sfc
+		args.pattr.sfAttr = sfc
 		SetFlowsRate(args.flows, sfc.PpsRate)
 		args.trafficDuration = *sf_trafficDuration
 		args.pattr.dscp = int(sfc.SflowDscp)
@@ -2021,7 +1946,7 @@ func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *s.S
 
 		defer func() {
 			args.capture_ports = oldPorts
-			args.pattr.sfConfig = nil
+			args.pattr.sfAttr = nil
 			SetFlowsRate(args.flows, *fps)
 			args.trafficDuration = *trafficDuration
 			args.pattr.ttl = oldTtl

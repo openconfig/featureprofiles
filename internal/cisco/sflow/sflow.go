@@ -1,12 +1,14 @@
 package sflow
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/gopacket/layers"
-	"github.com/openconfig/lemming/gnmi/oc"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/schemaless"
 )
 
 type IPType string
@@ -24,23 +26,55 @@ type SflowSample struct {
 	ExtdGtwData     *SfRecordExtendedGatewayData
 }
 
+// AddRawPacketHeader adds a new empty SfRecordRawPacketHeader to the SflowSample and returns it
+func (s *SflowSample) AddRawPacketHeader() *SfRecordRawPacketHeader {
+	s.RawPktHdr = &SfRecordRawPacketHeader{}
+	return s.RawPktHdr
+}
+
+// AddExtendedRouterData adds a new empty SfRecordExtendedRouterData to the SflowSample and returns it
+func (s *SflowSample) AddExtendedRouterData() *SfRecordExtendedRouterData {
+	s.ExtdRtrData = &SfRecordExtendedRouterData{}
+	return s.ExtdRtrData
+}
+
+// AddExtendedGatewayData adds a new empty SfRecordExtendedGatewayData to the SflowSample and returns it
+func (s *SflowSample) AddExtendedGatewayData() *SfRecordExtendedGatewayData {
+	s.ExtdGtwData = &SfRecordExtendedGatewayData{}
+	return s.ExtdGtwData
+}
+
 // flowConfig and IPType are provided in the original prompt
-type SflowConfig struct {
-	Name            string
+type SflowAttr struct {
 	PacketsToSend   uint32
 	PpsRate         uint64
-	FrameSize       uint32
 	SflowDscp       uint8
 	SamplingRate    uint
 	SampleTolerance float32
 	IP              IPType
 	InputInterface  []uint32
 	OutputInterface []uint32
+	SfSample        *SflowSample
+}
+
+// NewSflowAttr creates a new instance of SflowAttr with default values
+func NewSflowAttr() *SflowAttr {
+	return &SflowAttr{
+		SfSample: &SflowSample{},
+	}
+}
+
+// AddSflowSample adds a new SflowSample to the SflowAttr and returns it
+func (s *SflowAttr) AddSflowSample() *SflowSample {
+	s.SfSample = &SflowSample{}
+	return s.SfSample
 }
 
 type SFlowConfig struct {
-	LoopbackIPv4        string
-	LoopbackIPv6        string
+	SourceIPv4          string
+	SourceIPv6          string
+	IP                  IPType
+	CollectorIPv4       string
 	CollectorIPv6       string
 	CollectorPort       uint16
 	DSCP                uint8
@@ -119,11 +153,37 @@ func (s *SfRecordRawPacketHeader) GetHeader() []byte {
 // NewSfRecordExtendedRouterData creates a new instance of SfRecordExtendedRouterData
 func NewSfRecordExtendedRouterData(
 	nextHop string,
-	inputInterface, outputInterface uint32,
+	nextHopSourceMask, nextHopDestinationMask uint32,
 ) *SfRecordExtendedRouterData {
 	return &SfRecordExtendedRouterData{
-		NextHop: nextHop,
+		NextHop:                nextHop,
+		NextHopSourceMask:      nextHopSourceMask,
+		NextHopDestinationMask: nextHopDestinationMask,
 	}
+}
+
+// Setters for SfRecordExtendedRouterData fields
+func (s *SfRecordExtendedRouterData) SetBaseFlowRecord(baseFlowRecord layers.SFlowBaseFlowRecord) {
+	s.BaseFlowRecord = baseFlowRecord
+}
+
+func (s *SfRecordExtendedRouterData) SetNextHopSourceMask(nextHopSourceMask uint32) {
+	s.NextHopSourceMask = nextHopSourceMask
+}
+
+func (s *SfRecordExtendedRouterData) SetNextHopDestinationMask(nextHopDestinationMask uint32) {
+	s.NextHopDestinationMask = nextHopDestinationMask
+}
+
+// Getters for SfRecordExtendedRouterData fields
+func (s *SfRecordExtendedRouterData) GetBaseFlowRecord() layers.SFlowBaseFlowRecord {
+	return s.BaseFlowRecord
+}
+func (s *SfRecordExtendedRouterData) GetNextHopSourceMask() uint32 {
+	return s.NextHopSourceMask
+}
+func (s *SfRecordExtendedRouterData) GetNextHopDestinationMask() uint32 {
+	return s.NextHopDestinationMask
 }
 
 // Setters for SfRecordExtendedRouterData fields
@@ -189,24 +249,83 @@ func (s *SfRecordExtendedGatewayData) GetLocalPref() uint32 {
 
 // ConfigureSFlow configures sFlow sampling with the provided configuration
 func ConfigureSFlow(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
-	root := &oc.Root{}
-
-	sf := root.GetOrCreateSampling().GetOrCreateSflow()
+	sf := &oc.Sampling_Sflow{}
 	sf.SetEnabled(true)
-	sf.SetAgentIdIpv6(config.LoopbackIPv6)
-	sf.SetSampleSize(config.SampleSize)
 	sf.SetDscp(config.DSCP)
-
-	// Add a collector (destination + port)
-	collector := sf.GetOrCreateCollector(config.CollectorIPv6, config.CollectorPort)
-	collector.SetSourceAddress(config.LoopbackIPv6)
-
-	// Set sampling rate
+	sf.SetSampleSize(config.SampleSize)
 	sf.SetIngressSamplingRate(config.IngressSamplingRate)
 
-	// Configure per-interface settings
+	// Configure IP version specific settings
+	var collectorAddr, sourceAddr string
+	if config.IP == IPv4 {
+		sf.SetAgentIdIpv4(config.SourceIPv4)
+		collectorAddr = config.CollectorIPv4
+		sourceAddr = config.SourceIPv4
+	} else {
+		sf.SetAgentIdIpv6(config.SourceIPv6)
+		collectorAddr = config.CollectorIPv6
+		sourceAddr = config.SourceIPv6
+	}
+
+	// Add collector
+	collector := sf.GetOrCreateCollector(collectorAddr, config.CollectorPort)
+	collector.SetSourceAddress(sourceAddr)
+
+	// Configure interface
 	intSf := sf.GetOrCreateInterface(config.InterfaceName)
 	intSf.SetEnabled(true)
 
 	gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Config(), sf)
+}
+
+// ConfigureSFlowOptimized provides an optimized version of sFlow configuration
+func ConfigureSFlowOptimized(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+	sf := &oc.Sampling_Sflow{}
+	sf.SetEnabled(true)
+	sf.SetDscp(config.DSCP)
+	sf.SetSampleSize(config.SampleSize)
+	sf.SetIngressSamplingRate(config.IngressSamplingRate)
+
+	// Configure IP version specific settings in a single block
+	var collectorAddr, sourceAddr string
+	if config.IP == IPv4 {
+		sf.SetAgentIdIpv4(config.SourceIPv4)
+		collectorAddr = config.CollectorIPv4
+		sourceAddr = config.SourceIPv4
+	} else {
+		sf.SetAgentIdIpv6(config.SourceIPv6)
+		collectorAddr = config.CollectorIPv6
+		sourceAddr = config.SourceIPv6
+	}
+
+	// Configure collector and interface in one go
+	collector := sf.GetOrCreateCollector(collectorAddr, config.CollectorPort)
+	collector.SetSourceAddress(sourceAddr)
+
+	sf.GetOrCreateInterface(config.InterfaceName).SetEnabled(true)
+
+	gnmi.Replace(t, dut, gnmi.OC().Sampling().Sflow().Config(), sf)
+}
+
+// ConfigureUnsupportedSFlowFeatures configures vendor-specific sFlow features not supported by OpenConfig
+func ConfigureUnsupportedSFlowFeatures(t *testing.T, dut *ondatra.DUTDevice, config *SFlowConfig) {
+	batchSet := &gnmi.SetBatch{}
+	cliPath, _ := schemaless.NewConfig[string]("", "cli")
+
+	unsupportedConfig := fmt.Sprintf(`
+	flow exporter-map %s
+	dfbit set
+	packet-length %d
+	end
+	`, config.ExporterMapName, config.PacketLength)
+
+	gnmi.BatchUpdate(batchSet, cliPath, unsupportedConfig)
+	batchSet.Set(t, dut)
+}
+
+func UpdateSFlowSamplingRate(t *testing.T, dut *ondatra.DUTDevice, rate uint32) {
+	root := &oc.Root{}
+	sf := root.GetOrCreateSampling().GetOrCreateSflow()
+	sf.SetIngressSamplingRate(rate)
+	gnmi.Update(t, dut, gnmi.OC().Sampling().Sflow().IngressSamplingRate().Config(), rate)
 }
