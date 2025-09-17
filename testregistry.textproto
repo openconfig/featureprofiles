@@ -364,6 +364,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "INT-1.1"
+  description: "Integrated Circuit Utilization and Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_threshold/README.md"
+  exec: " "
+}
+test: {
   id: "MGT-1"
   description: "Management HA test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/README.md"
@@ -1204,6 +1210,11 @@ test: {
   readme: ""
 }
 test: {
+  id: "RT-10.1"
+  description: "Default Route Generation based on 192.0.0.0/8 Presence"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/generate_route/otg_tests/generate_default_route/README.md"
+}
+test: {
   id: "Replay-1.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
@@ -1497,6 +1508,14 @@ test: {
   description: "400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_fec_uncorrectable_frames_test/README.md"
   exec: " "
+}
+test: {
+  id: "TRANSCEIVER-101"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-102"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_800_terminal_device_paths_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-11"
