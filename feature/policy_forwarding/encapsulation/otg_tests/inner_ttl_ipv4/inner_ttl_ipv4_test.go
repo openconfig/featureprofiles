@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inner_ttl_ipv4_test
+package ingressinnerttltest
 
 import (
 	"bytes"
@@ -48,13 +48,13 @@ const (
 	vlanID  = 10
 
 	// Tunnel and MPLS configuration
-	ipv4TunnelSrc    = "10.100.100.1"
-	ipv4TunnelDstA   = "10.100.101.1"
-	ipv4TunnelDstB   = "10.100.102.1"
-	ipv4RoutePfx1    = "10.100.101.0/24"
-	ipv4RoutePfx2    = "10.100.102.0/24"
+	IPv4TunnelSrc    = "10.100.100.1"
+	IPv4TunnelDstA   = "10.100.101.1"
+	IPv4TunnelDstB   = "10.100.102.1"
+	IPv4RoutePfx1    = "10.100.101.0/24"
+	IPv4RoutePfx2    = "10.100.102.0/24"
 	mplsLabel        = 100
-	ipCount          = 10
+	IPCount          = 10
 	nexthopGroupName = "NHG-1"
 
 	// Policy and TTL configuration
@@ -107,10 +107,10 @@ var (
 		indx   string
 		nextIP string
 	}{
-		{ipv4RoutePfx1, "0", ateLag2.IPv4},
-		{ipv4RoutePfx2, "1", ateLag2.IPv4},
-		{ipv4RoutePfx1, "2", ateLag2.IPv6},
-		{ipv4RoutePfx2, "3", ateLag2.IPv6},
+		{IPv4RoutePfx1, "0", ateLag2.IPv4},
+		{IPv4RoutePfx2, "1", ateLag2.IPv4},
+		{IPv4RoutePfx1, "2", ateLag2.IPv6},
+		{IPv4RoutePfx2, "3", ateLag2.IPv6},
 	}
 )
 
@@ -150,8 +150,7 @@ func TestIngressInnerPktTTL(t *testing.T) {
 	})
 }
 
-// defaultStaticNextHopGroupParams provides default parameters for the generator.
-// matching the values in the provided JSON example.
+// defaultStaticNextHopGroupParams provides default parameters for the generator. matching the values in the provided JSON example.
 func defaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 	return cfgplugins.StaticNextHopGroupParams{
 
@@ -162,18 +161,18 @@ func defaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 			{
 				NexthopGrpName: "NHG-1",
 				NexthopType:    "mpls-over-gre",
-				Ttl:            tunnelIPTTL,
-				TunnelSrc:      ipv4TunnelSrc,
-				TunnelDst:      ipv4TunnelDstA,
+				TTL:            tunnelIPTTL,
+				TunnelSrc:      IPv4TunnelSrc,
+				TunnelDst:      IPv4TunnelDstA,
 				MplsLabel:      mplsLabel,
 				EntryValue:     1,
 			},
 			{
 				NexthopGrpName: "NHG-1",
 				NexthopType:    "mpls-over-gre",
-				Ttl:            tunnelIPTTL,
-				TunnelSrc:      ipv4TunnelSrc,
-				TunnelDst:      ipv4TunnelDstB,
+				TTL:            tunnelIPTTL,
+				TunnelSrc:      IPv4TunnelSrc,
+				TunnelDst:      IPv4TunnelDstB,
 				MplsLabel:      mplsLabel,
 				EntryValue:     2,
 			},
@@ -182,8 +181,7 @@ func defaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 	}
 }
 
-// defaultOcPolicyForwardingParams provides default parameters for the generator,
-// matching the values in the provided JSON example.
+// defaultOcPolicyForwardingParams provides default parameters for the generator, matching the values in the provided JSON example.
 func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
@@ -227,41 +225,41 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureDUTLag configures a LAG (Port-Channel) interface on the DUT,
-// assigns its member interfaces, and applies IPv4/IPv6 addressing.
-// It supports both untagged (default) and VLAN-tagged subinterfaces.
+// configureDUTLag configures a LAG (Port-Channel) interface on the DUT, assigns its member interfaces, and applies IPv4/IPv6 addressing. It supports both untagged (default) and VLAN-tagged subinterfaces.
 func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes, vlanID int) (*oc.Interface, *oc.Interface_Subinterface) {
 	t.Helper()
-	for _, port := range aggPorts {
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().Config())
-	}
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggPorts, aggID)
+	batch := &gnmi.SetBatch{}
 	var subif *oc.Interface_Subinterface
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	if deviations.InterfaceEnabled(dut) {
 		agg.Enabled = ygot.Bool(true)
 	}
-	subif = agg.GetOrCreateSubinterface(uint32(0))
-	subif.Index = ygot.Uint32(uint32(0))
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	agg.Description = ygot.String(fmt.Sprintf("DUT %s to ATE", aggID))
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+
+	// Always create subif 0
+	subif = agg.GetOrCreateSubinterface(0)
+	subif.Index = ygot.Uint32(0)
 	iv4 := subif.GetOrCreateIpv4()
 	iv6 := subif.GetOrCreateIpv6()
 	if deviations.InterfaceEnabled(dut) {
 		iv4.Enabled = ygot.Bool(true)
 		iv6.Enabled = ygot.Bool(true)
 	}
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+
+	// If VLAN > 0, create that subif (with tagging + IPs)
 	if vlanID > 0 {
 		subif = agg.GetOrCreateSubinterface(uint32(vlanID))
 		subif.Index = ygot.Uint32(uint32(vlanID))
-		// Dot1Q tagging
 		vlanEncap := subif.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged()
 		vlanEncap.VlanId = ygot.Uint16(uint16(vlanID))
 	} else {
-		subif = agg.GetOrCreateSubinterface(uint32(0))
-		subif.Index = ygot.Uint32(uint32(0))
+		subif = agg.GetOrCreateSubinterface(0)
+		subif.Index = ygot.Uint32(0)
 	}
+
+	// IP configuration on chosen subif
 	v4 := subif.GetOrCreateIpv4()
 	v4.Enabled = ygot.Bool(true)
 	addr4 := v4.GetOrCreateAddress(dutLag.IPv4)
@@ -272,7 +270,10 @@ func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.P
 	addr6 := v6.GetOrCreateAddress(dutLag.IPv6)
 	addr6.PrefixLength = ygot.Uint8(uint8(dutLag.IPv6Len))
 
-	gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
+	// Add LAG to batch
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(aggID).Config(), agg)
+
+	// Add member ports to batch
 	for _, port := range aggPorts {
 		d := &oc.Root{}
 		i := d.GetOrCreateInterface(port.Name())
@@ -281,15 +282,14 @@ func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.P
 		if deviations.InterfaceEnabled(dut) {
 			i.Enabled = ygot.Bool(true)
 		}
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), i)
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), i)
 	}
+	batch.Set(t, dut)
+
 	return agg, subif
 }
 
-// configureHardwareInit sets up the initial hardware configuration on the DUT.
-// It pushes hardware initialization configs for:
-//  1. VRF Selection Extended feature
-//  2. Policy Forwarding feature
+// configureHardwareInit sets up the initial hardware configuration on the DUT. It pushes hardware initialization configs for VRF Selection Extended feature and Policy Forwarding feature.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	hardwareVrfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
@@ -301,8 +301,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
 }
 
-// updateLagInterfaceDetails updates the IPv4/IPv6 addressing details on a LAG subinterface
-// after a VRF has been configured.
+// updateLagInterfaceDetails updates the IPv4/IPv6 addressing details on a LAG subinterface after a VRF has been configured.
 func updateLagInterfaceDetails(t *testing.T, dut *ondatra.DUTDevice, subif *oc.Interface_Subinterface, dutLag attrs.Attributes, agg *oc.Interface, aggID string) {
 	t.Helper()
 	v4 := subif.GetOrCreateIpv4()
@@ -316,8 +315,7 @@ func updateLagInterfaceDetails(t *testing.T, dut *ondatra.DUTDevice, subif *oc.I
 	gnmi.Update(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
 }
 
-// assignToNetworkInstance attaches a physical or logical subinterface of a DUT
-// to a given network instance (VRF).
+// assignToNetworkInstance attaches a physical or logical subinterface of a DUT to a given network instance (VRF).
 func assignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32, subInt bool) {
 	t.Helper()
 	if ni == "" {
@@ -352,14 +350,14 @@ func clearLAGInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 }
 
 // configureStaticRoute installs a static IPv4 route on the DUT.
-func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ipRoutePfx, indx, nxtIp string) {
+func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ipRoutePfx, indx, nxtIP string) {
 	t.Helper()
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          ipRoutePfx,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			indx: oc.UnionString(nxtIp),
+			indx: oc.UnionString(nxtIP),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -445,17 +443,11 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string,
 		if err != nil {
 			t.Fatal(err)
 		}
-		lag.Ports().Add().
-			SetPortName(port.Name()).
-			Ethernet().
-			SetMac(mac).
-			SetName("LAGMember" + strconv.Itoa(i+1))
+		lag.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(mac).SetName("LAGMember" + strconv.Itoa(i+1))
 	}
 
 	dev := ateConfig.Devices().Add().SetName(lagAttrs.Name + ".Dev")
-	eth := dev.Ethernets().Add().
-		SetName(lagAttrs.Name + ".Eth").
-		SetMac(lagAttrs.MAC)
+	eth := dev.Ethernets().Add().SetName(lagAttrs.Name + ".Eth").SetMac(lagAttrs.MAC)
 	eth.Connection().SetLagName(lagName)
 	// If VLAN ID specified, add VLAN tagging
 	if vlanID > 0 {
@@ -466,23 +458,17 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string,
 
 	// IPv4
 	ipv4 := eth.Ipv4Addresses().Add().SetName(lagAttrs.Name + ".IPv4")
-	ipv4.SetAddress(lagAttrs.IPv4).
-		SetGateway(dutAttrs.IPv4).
-		SetPrefix(uint32(lagAttrs.IPv4Len))
+	ipv4.SetAddress(lagAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(uint32(lagAttrs.IPv4Len))
 
 	// IPv6
 	ipv6 := eth.Ipv6Addresses().Add().SetName(lagAttrs.Name + ".IPv6")
-	ipv6.SetAddress(lagAttrs.IPv6).
-		SetGateway(dutAttrs.IPv6).
-		SetPrefix(uint32(lagAttrs.IPv6Len))
+	ipv6.SetAddress(lagAttrs.IPv6).SetGateway(dutAttrs.IPv6).SetPrefix(uint32(lagAttrs.IPv6Len))
 }
 
 // ipv4Flows configures IPv4 traffic flows on the ATE.
 // This function creates two traffic flows in the provided gosnappi Config:
-//  1. "MatchedIPv4" flow – uses a defined source network, destination network,
-//     and TTL expected to match the DUT policy.
-//  2. "UnmatchedIPv4" flow – uses a different source network and TTL expected
-//     not to match the DUT policy.
+//  1. "MatchedIPv4" flow – uses a defined source network, destination network, and TTL expected to match the DUT policy.
+//  2. "UnmatchedIPv4" flow – uses a different source network and TTL expected not to match the DUT policy.
 func ipv4Flows(t *testing.T, config gosnappi.Config) []string {
 	t.Helper()
 	config.Flows().Clear()
@@ -490,9 +476,7 @@ func ipv4Flows(t *testing.T, config gosnappi.Config) []string {
 	createIPv4Flow := func(name, srcNet string, ttl uint32) string {
 		flow := config.Flows().Add().SetName(name)
 		flow.Metrics().SetEnable(true)
-		flow.TxRx().Device().
-			SetTxNames([]string{ateLag1.Name + ".IPv4"}).
-			SetRxNames([]string{ateLag2.Name + ".IPv4"})
+		flow.TxRx().Device().SetTxNames([]string{ateLag1.Name + ".IPv4"}).SetRxNames([]string{ateLag2.Name + ".IPv4"})
 		flow.Rate().SetPps(pps)
 		flow.Size().SetFixed(frameSize)
 
@@ -500,28 +484,23 @@ func ipv4Flows(t *testing.T, config gosnappi.Config) []string {
 		flow.Packet().Add().Vlan().Id().SetValue(vlanID)
 
 		ip := flow.Packet().Add().Ipv4()
-		ip.Src().Increment().SetStart(srcNet).SetCount(ipCount)
-		ip.Dst().Increment().SetStart(ipv4DstNet).SetCount(ipCount)
+		ip.Src().Increment().SetStart(srcNet).SetCount(IPCount)
+		ip.Dst().Increment().SetStart(ipv4DstNet).SetCount(IPCount)
 		ip.TimeToLive().SetValue(ttl)
 
 		return flow.Name()
 	}
 
 	var flowList []string
-	flowList = append(flowList,
-		createIPv4Flow("MatchedIPv4", matchedIPv4SrcNet, matchedIPTTL),
-		createIPv4Flow("UnmatchedIPv4", unmatchedIPv4SrcNet, unmatchedIPTTL),
-	)
+	flowList = append(flowList, createIPv4Flow("MatchedIPv4", matchedIPv4SrcNet, matchedIPTTL), createIPv4Flow("UnmatchedIPv4", unmatchedIPv4SrcNet, unmatchedIPTTL))
 
 	return flowList
 }
 
 // ipv6Flows configures IPv6 traffic flows on the ATE.
 // This function creates two IPv6 traffic flows in the gosnappi Config:
-//  1. "MatchedIPv6" flow – configured with a specific source network and Hop Limit
-//     expected to match DUT policy.
-//  2. "UnmatchedIPv6" flow – configured with a different Hop Limit or parameters
-//     expected not to match DUT policy.
+//  1. "MatchedIPv6" flow – configured with a specific source network and Hop Limit expected to match DUT policy.
+//  2. "UnmatchedIPv6" flow – configured with a different Hop Limit or parameters expected not to match DUT policy.
 func ipv6Flows(t *testing.T, c gosnappi.Config) []string {
 	t.Helper()
 	c.Flows().Clear()
@@ -529,26 +508,21 @@ func ipv6Flows(t *testing.T, c gosnappi.Config) []string {
 	createIPv6Flow := func(name, srcNet, dstNet string, ttl uint32) string {
 		flow := c.Flows().Add().SetName(name)
 		flow.Metrics().SetEnable(true)
-		flow.TxRx().Device().
-			SetTxNames([]string{ateLag1.Name + ".IPv6"}).
-			SetRxNames([]string{ateLag2.Name + ".IPv6"})
+		flow.TxRx().Device().SetTxNames([]string{ateLag1.Name + ".IPv6"}).SetRxNames([]string{ateLag2.Name + ".IPv6"})
 		flow.Rate().SetPps(pps)
 		flow.Size().SetFixed(frameSize)
 		flow.Packet().Add().Ethernet()
 		flow.Packet().Add().Vlan().Id().SetValue(vlanID)
 		ip := flow.Packet().Add().Ipv6()
-		ip.Src().Increment().SetStart(srcNet).SetCount(ipCount)
-		ip.Dst().Increment().SetStart(dstNet).SetCount(ipCount)
+		ip.Src().Increment().SetStart(srcNet).SetCount(IPCount)
+		ip.Dst().Increment().SetStart(dstNet).SetCount(IPCount)
 		ip.HopLimit().SetValue(ttl)
 
 		return flow.Name()
 	}
 
 	var flowList []string
-	flowList = append(flowList,
-		createIPv6Flow("MatchedIPv6", matchedIPv6SrcNet, ipv6DstNet, matchedIPTTL),
-		createIPv6Flow("UnmatchedIPv6", unmatchedIPv6SrcNet, ipv6DstNet, unmatchedIPTTL),
-	)
+	flowList = append(flowList, createIPv6Flow("MatchedIPv6", matchedIPv6SrcNet, ipv6DstNet, matchedIPTTL), createIPv6Flow("UnmatchedIPv6", unmatchedIPv6SrcNet, ipv6DstNet, unmatchedIPTTL))
 
 	return flowList
 }
@@ -596,7 +570,8 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, 
 	}
 }
 
-// otgOperation orchestrates the entire OTG workflow for traffic validation. It validates ATE packet counters, enables capture on specified ports, pushes configuration, starts protocols, ensures DUT ports are up, starts capture, runs traffic for a fixed duration, stops traffic, stops capture, verifies traffic flow, and validates captured packets.
+// otgOperation orchestrates the entire OTG workflow for traffic validation.
+// It validates ATE packet counters, enables capture on specified ports, pushes configuration, starts protocols, ensures DUT ports are up, starts capture, runs traffic for a fixed duration, stops traffic, stops capture, verifies traffic flow, and validates captured packets.
 func otgOperation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config, flows []string) {
 	t.Helper()
 	validateATEPkts(t, otgConfig, flows)
@@ -612,7 +587,7 @@ func otgOperation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, 
 
 	stopCapture(t, otgConfig, cs)
 	verifyTrafficFlow(t, ate, config, flows)
-	captureAndValidatePackets(t, ate, []string{ipv4TunnelDstA, ipv4TunnelDstB}, "ipv4")
+	captureAndValidatePackets(t, ate, []string{IPv4TunnelDstA, IPv4TunnelDstB}, "ipv4")
 }
 
 // validateATEPkts validates packet counts for the given traffic flows on the ATE.
@@ -635,8 +610,7 @@ func validateATEPkts(t *testing.T, otgConfig *otg.OTG, flows []string) {
 	}
 }
 
-// captureAndValidatePackets captures packets on all configured capture ports
-// and validates them against expected values (destination IPs, TTL/HopLimit, MPLS label).
+// captureAndValidatePackets captures packets on all configured capture ports and validates them against expected values (destination IPs, TTL/HopLimit, MPLS label).
 func captureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, dstIPs []string, protocolType string) {
 	t.Helper()
 	for _, p := range capturePorts {
@@ -672,8 +646,7 @@ outer:
 				t.Logf("Matched IPv4 packet: DstIP = %s, TTL = %d", gotDstIP, gotTTL)
 				match = true
 			} else {
-				t.Errorf("Failed to match IPv4 IP/TTL, GotIP = %s, ExpectedIPs = %v, GotTTL = %d, ExpectedTTL = %d",
-					gotDstIP, expectedIPs, gotTTL, expectedTTL)
+				t.Errorf("Failed to match IPv4 IP/TTL, GotIP = %s, ExpectedIPs = %v, GotTTL = %d, ExpectedTTL = %d", gotDstIP, expectedIPs, gotTTL, expectedTTL)
 			}
 
 		case "ipv6":
@@ -689,8 +662,7 @@ outer:
 				t.Logf("Matched IPv6 packet: DstIP = %s, HopLimit = %d", gotDstIP, gotHopLimit)
 				match = true
 			} else {
-				t.Errorf("Failed to match IPv6 IP/HopLimit, GotIP = %s, ExpectedIPs = %v, GotHopLimit = %d, ExpectedHopLimit = %d",
-					gotDstIP, expectedIPs, gotHopLimit, expectedTTL)
+				t.Errorf("Failed to match IPv6 IP/HopLimit, GotIP = %s, ExpectedIPs = %v, GotHopLimit = %d, ExpectedHopLimit = %d", gotDstIP, expectedIPs, gotHopLimit, expectedTTL)
 			}
 
 		default:
@@ -730,10 +702,10 @@ func enableCapture(t *testing.T, config gosnappi.Config, portNames []string) {
 	config.Captures().Clear()
 	for _, portName := range portNames {
 		t.Logf("Configuring packet capture for OTG port: %s", portName)
-		cap := config.Captures().Add()
-		cap.SetName(portName)
-		cap.SetPortNames([]string{portName})
-		cap.SetFormat(gosnappi.CaptureFormat.PCAP)
+		fcap := config.Captures().Add()
+		fcap.SetName(portName)
+		fcap.SetPortNames([]string{portName})
+		fcap.SetFormat(gosnappi.CaptureFormat.PCAP)
 	}
 }
 
