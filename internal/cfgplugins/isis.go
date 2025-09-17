@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/ygot/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/golang/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra"
 )
 
 // ISISGlobalParams is the data structure for the DUT data.
